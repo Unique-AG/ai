@@ -1,10 +1,15 @@
-from typing import Literal, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, cast
 
 from typing_extensions import Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class Embeddings(APIResource["Embeddings"]):
@@ -19,7 +24,11 @@ class Embeddings(APIResource["Embeddings"]):
 
     @classmethod
     def create(
-        cls, user_id: str, company_id: str, **params: Unpack["Embeddings.CreateParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Embeddings.CreateParams"],
     ) -> "Embeddings":
         return cast(
             "Embeddings",
@@ -29,6 +38,7 @@ class Embeddings(APIResource["Embeddings"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -37,6 +47,7 @@ class Embeddings(APIResource["Embeddings"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Embeddings.CreateParams"],
     ) -> "Embeddings":
         return cast(
@@ -47,5 +58,6 @@ class Embeddings(APIResource["Embeddings"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )

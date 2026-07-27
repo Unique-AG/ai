@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -10,6 +13,9 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class ChatCompletionRequestMessage(TypedDict, total=False):
@@ -57,6 +63,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
         cls,
         company_id: str,
         user_id: str | None = None,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
         return cast(
@@ -67,6 +74,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 company_id=company_id,
                 user_id=user_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -75,6 +83,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
         cls,
         company_id: str,
         user_id: str | None = None,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
         return cast(
@@ -85,5 +94,6 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 company_id=company_id,
                 user_id=user_id,
                 params=params,
+                client=client,
             ),
         )

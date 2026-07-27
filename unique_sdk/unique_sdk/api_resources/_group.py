@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -10,6 +13,9 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class Group(APIResource["Group"]):
@@ -132,6 +138,7 @@ class Group(APIResource["Group"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.CreateParams"],
     ) -> "Group.Group":
         """
@@ -145,6 +152,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -153,6 +161,7 @@ class Group(APIResource["Group"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.CreateParams"],
     ) -> "Group.Group":
         """
@@ -166,6 +175,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -174,6 +184,7 @@ class Group(APIResource["Group"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.GetParams"],
     ) -> "Group.Groups":
         """
@@ -187,6 +198,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -195,6 +207,7 @@ class Group(APIResource["Group"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.GetParams"],
     ) -> "Group.Groups":
         """
@@ -208,6 +221,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -217,6 +231,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Group.DeleteResponse":
         """
         Delete a group in a company.
@@ -228,6 +243,7 @@ class Group(APIResource["Group"]):
                 f"/groups/{group_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -237,6 +253,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Group.DeleteResponse":
         """
         Async delete a group in a company.
@@ -248,6 +265,7 @@ class Group(APIResource["Group"]):
                 f"/groups/{group_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -257,6 +275,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.UpdateParams"],
     ) -> "Group.Group":
         """
@@ -270,6 +289,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -279,6 +299,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.UpdateParams"],
     ) -> "Group.Group":
         """
@@ -292,6 +313,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -301,6 +323,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.AddUsersParams"],
     ) -> "Group.AddUsersToGroupResponse":
         """
@@ -314,6 +337,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -323,6 +347,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.AddUsersParams"],
     ) -> "Group.AddUsersToGroupResponse":
         """
@@ -336,6 +361,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -345,6 +371,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.RemoveUsersParams"],
     ) -> "Group.RemoveUsersFromGroupResponse":
         """
@@ -358,6 +385,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -367,6 +395,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.RemoveUsersParams"],
     ) -> "Group.RemoveUsersFromGroupResponse":
         """
@@ -380,6 +409,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -389,6 +419,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.UpdateGroupConfigurationParams"],
     ) -> "Group.GroupWithConfiguration":
         """
@@ -402,6 +433,7 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -411,6 +443,7 @@ class Group(APIResource["Group"]):
         user_id: str,
         company_id: str,
         group_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Group.UpdateGroupConfigurationParams"],
     ) -> "Group.GroupWithConfiguration":
         """
@@ -424,5 +457,6 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -10,6 +13,9 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class MessageLog(APIResource["MessageLog"]):
@@ -70,6 +76,7 @@ class MessageLog(APIResource["MessageLog"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageLog.CreateMessageLogParams"],
     ) -> "MessageLog":
         """
@@ -89,6 +96,7 @@ class MessageLog(APIResource["MessageLog"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -97,6 +105,7 @@ class MessageLog(APIResource["MessageLog"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageLog.CreateMessageLogParams"],
     ) -> "MessageLog":
         """
@@ -116,6 +125,7 @@ class MessageLog(APIResource["MessageLog"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -125,6 +135,7 @@ class MessageLog(APIResource["MessageLog"]):
         user_id: str,
         company_id: str,
         message_log_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageLog.UpdateMessageLogParams"],
     ) -> "MessageLog":
         """
@@ -144,6 +155,7 @@ class MessageLog(APIResource["MessageLog"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -153,6 +165,7 @@ class MessageLog(APIResource["MessageLog"]):
         user_id: str,
         company_id: str,
         message_log_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageLog.UpdateMessageLogParams"],
     ) -> "MessageLog":
         """
@@ -172,5 +185,6 @@ class MessageLog(APIResource["MessageLog"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

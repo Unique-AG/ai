@@ -8,8 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, Literal, NotRequired, TypedDict, Unpack, cast
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, Unpack, cast
 from urllib.parse import quote_plus
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -170,6 +173,7 @@ class Briefing(APIResource["Briefing"]):
         user_id: str,
         company_id: str,
         assistant_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Briefing.UpsertForAssistantParams"],
     ) -> "Briefing":
         """Upsert the briefing for ``assistant_id`` (external id = assistant id).
@@ -181,7 +185,9 @@ class Briefing(APIResource["Briefing"]):
         payload = cls._wire_json_from_upsert_params(params)
         return cast(
             "Briefing",
-            cls._static_request("put", url, user_id, company_id, payload),
+            cls._static_request(
+                "put", url, user_id, company_id, payload, client=client
+            ),
         )
 
     @classmethod
@@ -191,6 +197,7 @@ class Briefing(APIResource["Briefing"]):
         user_id: str,
         company_id: str,
         assistant_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Briefing.UpsertForAssistantParams"],
     ) -> "Briefing":
         """Async variant of :meth:`upsert_for_assistant`."""
@@ -198,5 +205,7 @@ class Briefing(APIResource["Briefing"]):
         payload = cls._wire_json_from_upsert_params(params)
         return cast(
             "Briefing",
-            await cls._static_request_async("put", url, user_id, company_id, payload),
+            await cls._static_request_async(
+                "put", url, user_id, company_id, payload, client=client
+            ),
         )

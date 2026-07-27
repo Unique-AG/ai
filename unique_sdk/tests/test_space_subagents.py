@@ -41,6 +41,7 @@ def test_create_space_forwards_sub_agent_fields() -> None:
             "subAgentSettings": sub_agent_settings,
             "subAgentIds": ["assistant_sub_1", "assistant_sub_2"],
         },
+        client=None,
     )
 
 
@@ -96,6 +97,7 @@ def test_update_space_forwards_sub_agent_fields() -> None:
             "subAgentSettings": sub_agent_settings,
             "subAgentIds": ["assistant_sub_1", "assistant_sub_2"],
         },
+        client=None,
     )
 
 

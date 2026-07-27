@@ -1,8 +1,13 @@
-from typing import Any, Literal, NotRequired, Unpack, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class MessageExecution(APIResource["MessageExecution"]):
@@ -64,6 +69,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageExecution.CreateMessageExecutionParams"],
     ) -> "MessageExecution":
         """
@@ -77,6 +83,7 @@ class MessageExecution(APIResource["MessageExecution"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -85,6 +92,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageExecution.CreateMessageExecutionParams"],
     ) -> "MessageExecution":
         """
@@ -98,6 +106,7 @@ class MessageExecution(APIResource["MessageExecution"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -106,6 +115,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageExecution.GetMessageExecutionParams"],
     ) -> "MessageExecution":
         """
@@ -114,7 +124,12 @@ class MessageExecution(APIResource["MessageExecution"]):
         return cast(
             "MessageExecution",
             cls._static_request(
-                "get", cls.RESOURCE_URL, user_id, company_id, params=params
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params=params,
+                client=client,
             ),
         )
 
@@ -123,6 +138,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageExecution.GetMessageExecutionParams"],
     ) -> "MessageExecution":
         """
@@ -131,7 +147,12 @@ class MessageExecution(APIResource["MessageExecution"]):
         return cast(
             "MessageExecution",
             await cls._static_request_async(
-                "get", cls.RESOURCE_URL, user_id, company_id, params=params
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params=params,
+                client=client,
             ),
         )
 
@@ -140,6 +161,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageExecution.UpdateMessageExecutionParams"],
     ) -> "MessageExecution":
         """
@@ -153,6 +175,7 @@ class MessageExecution(APIResource["MessageExecution"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -161,6 +184,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageExecution.UpdateMessageExecutionParams"],
     ) -> "MessageExecution":
         """
@@ -174,5 +198,6 @@ class MessageExecution(APIResource["MessageExecution"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

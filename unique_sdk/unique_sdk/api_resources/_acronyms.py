@@ -1,7 +1,12 @@
-from typing import Literal, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class Acronyms(APIResource["Acronyms"]):
@@ -12,7 +17,9 @@ class Acronyms(APIResource["Acronyms"]):
     Acronyms: list[list[float]]
 
     @classmethod
-    def get(cls, user_id: str, company_id: str) -> "Acronyms":  # pyright: ignore[reportIncompatibleMethodOverride]
+    def get(
+        cls, user_id: str, company_id: str, client: "_BaseClient | None" = None
+    ) -> "Acronyms":  # pyright: ignore[reportIncompatibleMethodOverride]
         return cast(
             "Acronyms",
             cls._static_request(
@@ -20,11 +27,14 @@ class Acronyms(APIResource["Acronyms"]):
                 "/company/acronyms",
                 user_id,
                 company_id=company_id,
+                client=client,
             ),
         )
 
     @classmethod
-    async def get_async(cls, user_id: str, company_id: str) -> "Acronyms":
+    async def get_async(
+        cls, user_id: str, company_id: str, client: "_BaseClient | None" = None
+    ) -> "Acronyms":
         return cast(
             "Acronyms",
             await cls._static_request_async(
@@ -32,5 +42,6 @@ class Acronyms(APIResource["Acronyms"]):
                 "/company/acronyms",
                 user_id,
                 company_id=company_id,
+                client=client,
             ),
         )

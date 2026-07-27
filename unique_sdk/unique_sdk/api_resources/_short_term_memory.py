@@ -1,10 +1,15 @@
-from typing import Literal, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, cast
 
 from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class ShortTermMemory(APIResource["ShortTermMemory"]):
@@ -34,6 +39,7 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ShortTermMemory.CreateParams"],
     ) -> "ShortTermMemory":
         """
@@ -47,6 +53,7 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -55,6 +62,7 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ShortTermMemory.CreateParams"],
     ) -> "ShortTermMemory":
         """
@@ -68,6 +76,7 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -76,6 +85,7 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ShortTermMemory.FindParams"],
     ) -> "ShortTermMemory":
         """
@@ -89,6 +99,7 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -97,6 +108,7 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ShortTermMemory.FindParams"],
     ) -> "ShortTermMemory":
         """
@@ -110,5 +122,6 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -10,6 +13,9 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class Folder(APIResource["Folder"]):
@@ -208,6 +214,7 @@ class Folder(APIResource["Folder"]):
         user_id: str,
         company_id: str,
         scope_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Folder.FolderPathResponse":
         """
         Get the complete folder path for a given folder ID.
@@ -219,6 +226,7 @@ class Folder(APIResource["Folder"]):
                 f"/folder/{scope_id}/path",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -228,6 +236,7 @@ class Folder(APIResource["Folder"]):
         user_id: str,
         company_id: str,
         scope_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Folder.FolderPathResponse":
         """
         Async get the complete folder path for a given folder ID.
@@ -239,12 +248,17 @@ class Folder(APIResource["Folder"]):
                 f"/folder/{scope_id}/path",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
     @classmethod
     def get_info(
-        cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Folder.GetParams"],
     ) -> "Folder.FolderInfo":
         """
         Get a folder by its ID or path.
@@ -257,12 +271,17 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
     @classmethod
     async def get_info_async(
-        cls, user_id: str, company_id: str, **params: Unpack["Folder.GetParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Folder.GetParams"],
     ) -> "Folder.FolderInfo":
         """
         Async get a folder by its ID or path.
@@ -275,12 +294,17 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
     @classmethod
     def get_infos(
-        cls, user_id: str, company_id: str, **params: Unpack["Folder.GetInfosParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Folder.GetInfosParams"],
     ) -> "Folder.FolderInfos":
         """
         Get paginated folders based on parentId. If the parentId is not defined, the root folders will be returned.
@@ -303,12 +327,17 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
     @classmethod
     async def get_infos_async(
-        cls, user_id: str, company_id: str, **params: Unpack["Folder.GetInfosParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Folder.GetInfosParams"],
     ) -> "Folder.FolderInfos":
         """
         Async get paginated folders based on parentId. If the parentId is not defined, the root folders will be returned.
@@ -331,12 +360,17 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
     @classmethod
     def create_paths(
-        cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Folder.CreateParams"],
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
             "Folder.CreateFolderStructureResponse",
@@ -346,12 +380,17 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
     @classmethod
     async def create_paths_async(
-        cls, user_id: str, company_id: str, **params: Unpack["Folder.CreateParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Folder.CreateParams"],
     ) -> "Folder.CreateFolderStructureResponse":
         return cast(
             "Folder.CreateFolderStructureResponse",
@@ -361,6 +400,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -369,6 +409,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.UpdateIngestionConfigParams"],
     ) -> "Folder":
         """
@@ -382,6 +423,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -390,6 +432,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.UpdateIngestionConfigParams"],
     ) -> "Folder":
         """
@@ -403,6 +446,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -411,6 +455,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.AddAccessParams"],
     ) -> "Folder":
         """
@@ -424,6 +469,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -432,6 +478,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.AddAccessParams"],
     ) -> "Folder":
         """
@@ -445,6 +492,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -453,6 +501,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.RemoveAccessParams"],
     ) -> dict[str, Any]:
         """
@@ -466,6 +515,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -474,6 +524,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.RemoveAccessParams"],
     ) -> "Folder":
         """
@@ -487,6 +538,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -495,6 +547,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.UpdateParams"],
     ) -> "Folder.FolderInfo":
         """
@@ -526,6 +579,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -534,6 +588,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.UpdateParams"],
     ) -> "Folder.FolderInfo":
         """
@@ -565,6 +620,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -573,6 +629,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.MoveParams"],
     ) -> "Folder.MoveResult":
         folder_id = params.pop("folderId")
@@ -584,6 +641,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -592,6 +650,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.MoveParams"],
     ) -> "Folder.MoveResult":
         folder_id = params.pop("folderId")
@@ -603,6 +662,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -611,6 +671,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.DeleteFolderParams"],
     ) -> "Folder.DeleteResponse":
         """
@@ -631,6 +692,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -639,6 +701,7 @@ class Folder(APIResource["Folder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Folder.DeleteFolderParams"],
     ) -> "Folder.DeleteResponse":
         """
@@ -658,6 +721,7 @@ class Folder(APIResource["Folder"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -668,6 +732,7 @@ class Folder(APIResource["Folder"]):
         company_id: str,
         scope_id: str | None = None,
         folder_path: str | None = None,
+        client: "_BaseClient | None" = None,
     ) -> str | None:
         """
         Returns the scopeId to use: if scope_id is provided, returns it;
@@ -683,6 +748,7 @@ class Folder(APIResource["Folder"]):
             folder_info = cls.get_info(
                 user_id=user_id,
                 company_id=company_id,
+                client=client,
                 folderPath=folder_path,
             )
             resolved_id = folder_info.get("id")
@@ -701,6 +767,7 @@ class Folder(APIResource["Folder"]):
         scope_id: str | None = None,
         folder_path: str | None = None,
         create_if_not_exists: bool = True,
+        client: "_BaseClient | None" = None,
     ) -> str | None:
         if scope_id:
             return scope_id
@@ -709,6 +776,7 @@ class Folder(APIResource["Folder"]):
                 folder_info = cls.get_info(
                     user_id=user_id,
                     company_id=company_id,
+                    client=client,
                     folderPath=folder_path,
                 )
                 resolved_id = folder_info.get("id")
@@ -721,6 +789,7 @@ class Folder(APIResource["Folder"]):
                 result = cls.create_paths(
                     user_id=user_id,
                     company_id=company_id,
+                    client=client,
                     paths=[folder_path],
                 )
                 created_folders = result.get("createdFolders", [])
@@ -740,6 +809,7 @@ class Folder(APIResource["Folder"]):
         company_id: str,
         scope_id: str | None = None,
         folder_path: str | None = None,
+        client: "_BaseClient | None" = None,
     ) -> str | None:
         """
         Async version of resolve_scope_id_from_folder_path.
@@ -756,6 +826,7 @@ class Folder(APIResource["Folder"]):
             folder_info = await cls.get_info_async(
                 user_id=user_id,
                 company_id=company_id,
+                client=client,
                 folderPath=folder_path,
             )
             resolved_id = folder_info.get("id")
@@ -774,6 +845,7 @@ class Folder(APIResource["Folder"]):
         scope_id: str | None = None,
         folder_path: str | None = None,
         create_if_not_exists: bool = True,
+        client: "_BaseClient | None" = None,
     ) -> str | None:
         if scope_id:
             return scope_id
@@ -782,6 +854,7 @@ class Folder(APIResource["Folder"]):
                 folder_info = await cls.get_info_async(
                     user_id=user_id,
                     company_id=company_id,
+                    client=client,
                     folderPath=folder_path,
                 )
                 resolved_id = folder_info.get("id")
@@ -794,6 +867,7 @@ class Folder(APIResource["Folder"]):
                 result = await cls.create_paths_async(
                     user_id=user_id,
                     company_id=company_id,
+                    client=client,
                     paths=[folder_path],
                 )
                 created_folders = result.get("createdFolders", [])

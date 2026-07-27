@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -10,6 +13,9 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 ACTION_TYPES = Literal["ACCEPT", "DECLINE", "CANCEL"]
 SOURCE_TYPES = Literal["INTERNAL_TOOL", "MCP_SERVER"]
@@ -93,6 +99,7 @@ class Elicitation(APIResource["Elicitation"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Elicitation.CreateParams"],
     ) -> "Elicitation.Elicitation":
         """
@@ -106,6 +113,7 @@ class Elicitation(APIResource["Elicitation"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -114,6 +122,7 @@ class Elicitation(APIResource["Elicitation"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Elicitation.CreateParams"],
     ) -> "Elicitation.Elicitation":
         """
@@ -127,6 +136,7 @@ class Elicitation(APIResource["Elicitation"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -135,6 +145,7 @@ class Elicitation(APIResource["Elicitation"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Elicitation.Elicitations":
         """
         Get all pending elicitation requests for a user in a company.
@@ -146,6 +157,7 @@ class Elicitation(APIResource["Elicitation"]):
                 "/elicitation/pending",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -154,6 +166,7 @@ class Elicitation(APIResource["Elicitation"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Elicitation.Elicitations":
         """
         Async get all pending elicitation requests for a user in a company.
@@ -165,6 +178,7 @@ class Elicitation(APIResource["Elicitation"]):
                 "/elicitation/pending",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -174,6 +188,7 @@ class Elicitation(APIResource["Elicitation"]):
         user_id: str,
         company_id: str,
         elicitation_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Elicitation.Elicitation":
         """
         Get an elicitation request by ID in a company.
@@ -185,6 +200,7 @@ class Elicitation(APIResource["Elicitation"]):
                 f"/elicitation/{elicitation_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -194,6 +210,7 @@ class Elicitation(APIResource["Elicitation"]):
         user_id: str,
         company_id: str,
         elicitation_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Elicitation.Elicitation":
         """
         Async get an elicitation request by ID in a company.
@@ -205,6 +222,7 @@ class Elicitation(APIResource["Elicitation"]):
                 f"/elicitation/{elicitation_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -213,6 +231,7 @@ class Elicitation(APIResource["Elicitation"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Elicitation.RespondParams"],
     ) -> "Elicitation.ElicitationResponseResult":
         """
@@ -226,6 +245,7 @@ class Elicitation(APIResource["Elicitation"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -234,6 +254,7 @@ class Elicitation(APIResource["Elicitation"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Elicitation.RespondParams"],
     ) -> "Elicitation.ElicitationResponseResult":
         """
@@ -247,5 +268,6 @@ class Elicitation(APIResource["Elicitation"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

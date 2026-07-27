@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import builtins
-from typing import Literal, NotRequired, TypedDict, Unpack, cast
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict, Unpack, cast
 from urllib.parse import quote_plus
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -68,6 +71,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ScheduledTask.CreateParams"],
     ) -> "ScheduledTask":
         return cast(
@@ -78,6 +82,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -86,12 +91,14 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
     ) -> builtins.list[ScheduledTask]:
         result = cls._static_request(
             "get",
             cls.RESOURCE_URL,
             user_id,
             company_id,
+            client=client,
         )
         if isinstance(result, builtins.list):
             data = result
@@ -105,6 +112,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
     ) -> "ScheduledTask":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
@@ -114,6 +122,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
                 url,
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -123,6 +132,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ScheduledTask.ModifyParams"],
     ) -> "ScheduledTask":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
@@ -134,6 +144,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -143,6 +154,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
     ) -> "ScheduledTask.DeletedObject":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
@@ -152,6 +164,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
                 url,
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -162,6 +175,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ScheduledTask.CreateParams"],
     ) -> "ScheduledTask":
         return cast(
@@ -172,6 +186,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -180,12 +195,14 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
     ) -> builtins.list[ScheduledTask]:
         result = await cls._static_request_async(
             "get",
             cls.RESOURCE_URL,
             user_id,
             company_id,
+            client=client,
         )
         if isinstance(result, builtins.list):
             data = result
@@ -199,6 +216,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
     ) -> "ScheduledTask":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
@@ -208,6 +226,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
                 url,
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -217,6 +236,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["ScheduledTask.ModifyParams"],
     ) -> "ScheduledTask":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
@@ -228,6 +248,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -237,6 +258,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
     ) -> "ScheduledTask.DeletedObject":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
@@ -246,5 +268,6 @@ class ScheduledTask(APIResource["ScheduledTask"]):
                 url,
                 user_id,
                 company_id,
+                client=client,
             ),
         )

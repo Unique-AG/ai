@@ -13,13 +13,18 @@ classes keeps the typed shape obvious at the call site and lets each one
 register its own ``OBJECT_NAME`` for response routing.
 """
 
-from typing import Any, Literal, TypedDict, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class WebSearchResultItem(TypedDict):
@@ -73,6 +78,7 @@ class WebSearch(APIResource["WebSearch"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["WebSearch.SearchParams"],
     ) -> "WebSearch":
         return cast(
@@ -83,6 +89,7 @@ class WebSearch(APIResource["WebSearch"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -91,6 +98,7 @@ class WebSearch(APIResource["WebSearch"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["WebSearch.SearchParams"],
     ) -> "WebSearch":
         return cast(
@@ -101,6 +109,7 @@ class WebSearch(APIResource["WebSearch"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -148,6 +157,7 @@ class WebCrawl(APIResource["WebCrawl"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["WebCrawl.CrawlParams"],
     ) -> "WebCrawl":
         return cast(
@@ -158,6 +168,7 @@ class WebCrawl(APIResource["WebCrawl"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -166,6 +177,7 @@ class WebCrawl(APIResource["WebCrawl"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["WebCrawl.CrawlParams"],
     ) -> "WebCrawl":
         return cast(
@@ -176,5 +188,6 @@ class WebCrawl(APIResource["WebCrawl"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

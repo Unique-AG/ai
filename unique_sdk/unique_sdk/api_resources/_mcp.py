@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     TypedDict,
@@ -11,6 +14,9 @@ from typing_extensions import NotRequired
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class CallToolTextResourceDto(TypedDict):
@@ -76,6 +82,7 @@ class MCP(APIResource["MCP"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MCP.CallToolParams"],
     ) -> "MCP":
         """
@@ -97,6 +104,7 @@ class MCP(APIResource["MCP"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -105,6 +113,7 @@ class MCP(APIResource["MCP"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MCP.CallToolParams"],
     ) -> "MCP":
         """
@@ -126,5 +135,6 @@ class MCP(APIResource["MCP"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
