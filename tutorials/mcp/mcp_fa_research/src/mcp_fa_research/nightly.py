@@ -98,6 +98,9 @@ def _rebase_env_state(env: str) -> int:
             ev["date"] = shift(ev["date"])
         for em in st["emails"]:
             em["ts"] = shift(em["ts"])
+        for jb in st["jobs"]["jobs"]:
+            if jb.get("run_at"):
+                jb["run_at"] = shift(jb["run_at"])
         st["today"] = date.today().isoformat()
     return delta
 

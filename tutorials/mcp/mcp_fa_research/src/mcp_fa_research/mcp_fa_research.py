@@ -268,15 +268,22 @@ def get_agenda() -> str:
 
 
 @mcp.tool(name="get_jobs", title="Jobs & notifications",
-          description="Background/scheduled runs (first-take, 07:00 desk brief, tone-drift "
-                      "monitor) with status, plus the latest side-panel notification. "
-                      "SYNTHETIC demo data.")
+          description="Background jobs with their schedule: run_at (when the job runs, "
+                      "story time) and recurrence ('once' — the default, a single run — "
+                      "or 'daily'), plus status (done/running/scheduled) and display-ready "
+                      "when_label. Both run_at and recurrence are editable in the demo "
+                      "console. Also returns notifications. SYNTHETIC demo data.")
 def get_jobs() -> str:
     jobs = json.loads(json.dumps(env_state.state()["jobs"]["jobs"]))
+    for jb in jobs:
+        rec = jb.get("recurrence") or "once"
+        jb["recurrence"] = rec
+        verb = {"done": "ran", "running": "started"}.get(jb.get("status"), "runs")
+        run_at = jb.get("run_at") or ""
+        jb["when_label"] = f"{verb} {run_at} · {rec}" if run_at else rec
     notif = env_state.state()["jobs"].get("notification") or ""
     return json.dumps({"count": len(jobs), "jobs": jobs,
-                       "notification": notif,
-                       "notifications": ([{"text": notif}] if notif else [])})
+                       "notifications": [{"text": notif}] if notif else []})
 
 
 @mcp.tool(name="get_consensus", title="Sell-side consensus snapshot (mock)",

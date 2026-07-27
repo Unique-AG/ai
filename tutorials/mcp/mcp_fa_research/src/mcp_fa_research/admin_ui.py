@@ -42,6 +42,9 @@ _BRIEF_FIELDS = {"headline", "detail", "valuation_impact", "severity", "acknowle
                  "new_target_price", "suggested_action"}
 _EMAIL_FIELDS = {"ts", "from_name", "from_role", "subject", "body", "ticker", "read"}
 _EVENT_FIELDS = {"date", "time", "kind", "title", "ticker", "notes"}
+_JOB_FIELDS = {"run_at", "recurrence", "status"}
+_JOB_RECURRENCE = {"once", "daily"}   # once = default: no standing token burn
+_JOB_STATUS = {"scheduled", "running", "done"}
 _SCENARIO_FIELDS = {"scenario", "assumption", "eps_impact", "tp_impact", "hypothesis",
                     "probability"}
 _NUM = {"target_price", "price", "premarket_pct", "new_target_price"}
@@ -145,6 +148,44 @@ def register(mcp, get_state, reset_state) -> None:
             },
         })
 
+    @mcp.custom_route("/admin/api/job/{idx}", methods=["PATCH"])
+    async def admin_job(request: Request):
+        """Edit a job's schedule: run_at ("YYYY-MM-DD HH:MM"), recurrence (once|daily —
+        once is the default so nothing recurs, and consumes tokens, unless opted in),
+        and status. The job list itself is fixed by the storyline."""
+        st = get_state()
+        jobs = st["jobs"]["jobs"]
+        try:
+            idx = int(request.path_params["idx"])
+            job = jobs[idx]
+        except (ValueError, IndexError):
+            return JSONResponse({"error": "unknown job index"}, status_code=404)
+        body = await request.json()
+        if "run_at" in body:
+            v = str(body["run_at"]).strip()
+            try:
+                date.fromisoformat(v[:10])
+                if len(v) > 10 and (len(v) != 16 or v[10] != " " or
+                                    not (0 <= int(v[11:13]) < 24 and 0 <= int(v[14:16]) < 60)):
+                    raise ValueError
+            except ValueError:
+                return JSONResponse({"error": f"bad run_at {v!r} — use YYYY-MM-DD HH:MM"},
+                                    status_code=400)
+            job["run_at"] = v
+        if "recurrence" in body:
+            v = str(body["recurrence"]).strip() or "once"
+            if v not in _JOB_RECURRENCE:
+                return JSONResponse({"error": f"recurrence must be one of {sorted(_JOB_RECURRENCE)}"},
+                                    status_code=400)
+            job["recurrence"] = v
+        if "status" in body:
+            v = str(body["status"]).strip()
+            if v not in _JOB_STATUS:
+                return JSONResponse({"error": f"status must be one of {sorted(_JOB_STATUS)}"},
+                                    status_code=400)
+            job["status"] = v
+        return JSONResponse(job)
+
     @mcp.custom_route("/admin/api/reset", methods=["POST"])
     async def admin_reset(request: Request):
         st = reset_state()
@@ -172,10 +213,13 @@ def register(mcp, get_state, reset_state) -> None:
                 ev["date"] = _shift_date(ev["date"], delta)
             for em in st["emails"]:
                 em["ts"] = _shift_date(em["ts"], delta)
+            for jb in st["jobs"]["jobs"]:
+                if jb.get("run_at"):
+                    jb["run_at"] = _shift_date(jb["run_at"], delta)
             st["today"] = target.isoformat()
         return JSONResponse({"rebased": True, "today": st["today"],
                              "shifted_days": delta,
-                             "note": "calendar dates and email timestamps shifted; "
+                             "note": "calendar dates, email timestamps and job run_at shifted; "
                                      "deltas to the warning day preserved"})
 
     @mcp.custom_route("/admin/api/coverage/{ticker}", methods=["PATCH"])
@@ -481,11 +525,19 @@ function rCal(c,add){head('Calendar',S.calendar.length+' events — click to edi
   S.calendar.map(ev=>`<tr onclick='openCal(${JSON.stringify(ev.id)})'><td>${esc(ev.date)}</td>
   <td>${esc(ev.time)}</td><td><span class="pill k-${esc(ev.kind)}">${esc(ev.kind)}</span></td>
   <td><b>${esc(ev.title)}</b></td><td>${esc(ev.ticker)}</td><td class="mut">${esc(ev.notes)}</td></tr>`).join('')+'</tbody></table>';}
-function rAgenda(c){head('Agenda & jobs','read-only — roadshows from the seed, jobs from state');
+function rAgenda(c){head('Agenda & jobs','agenda read-only — click a JOB row to edit when it runs');
   c.innerHTML='<table><thead><tr><th>Agenda</th><th>Role</th><th>When</th></tr></thead><tbody>'+
   S.agenda.map(a=>`<tr><td><b>${esc(a.title)}</b></td><td>${esc(a.role)}</td><td>${esc(a.when)}</td></tr>`).join('')+
-  '</tbody></table><br><table><thead><tr><th>Job</th><th>Status</th></tr></thead><tbody>'+
-  S.jobs.jobs.map(j=>`<tr><td>${esc(j.label)}</td><td>${esc(j.status)}</td></tr>`).join('')+'</tbody></table>';}
+  '</tbody></table><br><table><thead><tr><th>Job</th><th>Runs at</th><th>Recurrence</th><th>Status</th></tr></thead><tbody>'+
+  S.jobs.jobs.map((j,i)=>`<tr onclick='openJob(${i})'><td><b>${esc(j.label)}</b></td>
+  <td class="mut">${esc(j.run_at||'—')}</td><td>${esc(j.recurrence||'once')}</td>
+  <td>${esc(j.status)}</td></tr>`).join('')+'</tbody></table>';}
+function openJob(i){const j=S.jobs.jobs[i];
+  openDrawer('Edit job — '+j.label,
+    field('run_at','Runs at (YYYY-MM-DD HH:MM)',j.run_at||'')+
+    field('recurrence','Recurrence — once (default: single run, no standing token cost) or daily',j.recurrence||'once',{sel:['once','daily']})+
+    field('status','Status',j.status,{sel:['scheduled','running','done']}),
+    v=>patch('admin/api/job/'+i,v));}
 function argsLabel(a){const p=[];if(a.fx_eur_move_pct)p.push('FX '+(a.fx_eur_move_pct>0?'+':'')+a.fx_eur_move_pct+'%');
   if(a.china_recovery)p.push('China '+a.china_recovery);if(a.destocking_end)p.push('destock '+a.destocking_end);
   return p.join(' + ')||'base (no shock)';}

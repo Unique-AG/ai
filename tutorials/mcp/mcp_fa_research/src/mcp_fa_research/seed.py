@@ -237,11 +237,19 @@ AGENDA: list[dict] = [
      "when": "Next week", "kind": "corporate", "action": "agenda + targeting"},
 ]
 
+# Each job carries WHEN it runs (run_at "YYYY-MM-DD HH:MM", story time) and its
+# recurrence: "once" (the default — a job runs a single time unless someone opts in;
+# recurring runs consume tokens) or "daily". Both are editable in the demo console;
+# rebase-to-today shifts run_at like every other dated field.
 JOBS_SEED: list[dict] = [
-    {"label": "overnight desk brief (6 names) — generated 07:00", "status": "done"},
-    {"label": "first-take run — LVMH", "status": "running"},
-    {"label": "scheduled — tone drift monitor", "status": "scheduled"},
-    {"label": "tone × guidance — Swatch", "status": "done"},
+    {"label": "overnight desk brief (6 names)", "status": "done",
+     "run_at": "2026-07-23 07:00", "recurrence": "daily"},
+    {"label": "first-take run — LVMH", "status": "running",
+     "run_at": "2026-07-23 08:12", "recurrence": "once"},
+    {"label": "tone drift monitor", "status": "scheduled",
+     "run_at": "2026-07-23 18:00", "recurrence": "daily"},
+    {"label": "tone × guidance — Swatch", "status": "done",
+     "run_at": "2026-07-22 16:40", "recurrence": "once"},
 ]
 NOTIFICATION = "LVMH reaction pack ready — model, note, buy-side email drafted."
 
