@@ -215,6 +215,8 @@ def get_morning_brief() -> str:
         d = json.loads(json.dumps(it))
         d["severity_label"] = {"alert": "ALERT", "positive": "UPSIDE",
                                "watch": "WATCH", "info": "NOTE"}[d["severity"]]
+        d["name_label"] = ("European Luxury · all covered names" if d["ticker"] == "SECTOR"
+                           else f"{d['name']} · {d['ticker']}")
         d["cascade_text"] = "\n".join(f"{s['step']}.  {s['label']}" for s in d.get("cascade", []))
         d["call_list_text"] = " \u00b7 ".join(
             f"{c['account']}{(' \u2014 ' + c['priority']) if c['priority'] else ''}"
