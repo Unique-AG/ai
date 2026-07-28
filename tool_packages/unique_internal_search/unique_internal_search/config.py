@@ -33,8 +33,7 @@ from unique_internal_search.prompts import (
 )
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
-DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
-DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED = 1000
+DEFAULT_SEARCH_LIMIT = 200
 
 
 class ToolResponseSystemReminderConfig(BaseModel):
@@ -69,14 +68,6 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     tool_response_system_reminder: ToolResponseSystemReminderConfig = Field(
         default_factory=ToolResponseSystemReminderConfig,
         description="Tool response system reminder.",
-    )
-
-
-def _search_limit_factory(data: dict[str, Any]) -> int:
-    return (
-        DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED
-        if data["chunk_relevancy_sort_config"].enabled
-        else DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED
     )
 
 
@@ -145,8 +136,8 @@ class InternalSearchConfig(BaseToolConfig):
         description="The chunk relevancy sort config to use for the search.",
     )
     limit: int = Field(
-        default_factory=_search_limit_factory,
-        description="The maximum limit of chunks returned by the search.",
+        default=DEFAULT_SEARCH_LIMIT,
+        description="Maximum number of chunks returned in total across all search strings, capped by the token budget. Also used as the per-search-string fetch ceiling.",
     )
     chat_only: bool = Field(
         default=False,

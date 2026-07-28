@@ -21,6 +21,19 @@ from unique_internal_search.service import (
 )
 
 
+def _build_content_chunks(prefix: str, count: int) -> list[ContentChunk]:
+    """Build `count` distinct chunks, each from its own content, for `prefix`."""
+    return [
+        ContentChunk(
+            id=f"cont_{prefix}_{i}",
+            chunk_id=f"chunk_{prefix}_{i}",
+            text=f"{prefix} chunk {i}",
+            order=i,
+        )
+        for i in range(count)
+    ]
+
+
 class TestInternalSearchService:
     """Tests for InternalSearchService class."""
 
@@ -923,7 +936,7 @@ class TestInternalSearchService:
         limit is lower than the configured limit.
         Why this matters: Observability — operators need to see when and how the limit was capped.
         Setup summary: Set language_model_max_input_tokens=50000, percentage=0.5 → max_tokens=25000,
-        token_based_limit = int(25000 // 500 * 1.3) = 65, config.limit=1000 → capped to 65.
+        token_based_limit = int(25000 // 500 * 1.3) = 65, config.limit=200 → capped to 65.
         """
         # Arrange
         base_internal_search_config.language_model_max_input_tokens = 50000
@@ -943,7 +956,9 @@ class TestInternalSearchService:
         # Assert
         assert result == 65
         mock_logger.info.assert_called_once_with(
-            f"Search limit capped from {original_limit} to 65 (token budget)"
+            "Search limit capped from %s to %s (token budget)",
+            original_limit,
+            65,
         )
 
     @pytest.mark.ai
@@ -979,7 +994,7 @@ class TestInternalSearchService:
         # Assert — min(50, 104) = 50
         assert result == 50
         mock_logger.info.assert_called_once_with(
-            "Search limit: 50 (within token budget)"
+            "Search limit: %s (within token budget)", 50
         )
 
     @pytest.mark.ai
@@ -2498,6 +2513,96 @@ class TestInternalSearchTool:
         assert mock_content_service.search_content_chunks_async.call_count == 3
         # Verify results are returned (deduplication may reduce final count)
         assert len(result) >= 0
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__truncates_chunks_to_limit__when_total_exceeds_limit(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify `limit` caps the number of chunks across all search strings together.
+        Why this matters: Without a total cap, N search strings return up to N * limit chunks.
+        Setup summary: limit=5, three search strings each returning 4 unique chunks (12 total),
+        expect 5 chunks back and a truncation log line.
+        """
+        # Arrange
+        base_internal_search_config.enable_multiple_search_strings_execution = True
+        base_internal_search_config.limit = 5
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        async def mock_search(*args, **kwargs) -> list[ContentChunk]:
+            query = kwargs["search_string"]
+            return _build_content_chunks(prefix=query, count=4)
+
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            side_effect=mock_search
+        )
+
+        # Act
+        result = await service.search(["query1", "query2", "query3"])
+
+        # Assert
+        assert len(result) == 5
+        mock_logger.info.assert_any_call(
+            "Truncating %s chunks to the configured total limit of %s", 12, 5
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__returns_all_chunks__when_total_below_limit(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify no truncation happens when the total chunk count stays under `limit`.
+        Why this matters: The total cap must be an upper bound only, never drop valid results.
+        Setup summary: limit=50, two search strings each returning 3 unique chunks (6 total),
+        expect all 6 chunks back and no truncation log line.
+        """
+        # Arrange
+        base_internal_search_config.enable_multiple_search_strings_execution = True
+        base_internal_search_config.limit = 50
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        async def mock_search(*args, **kwargs) -> list[ContentChunk]:
+            query = kwargs["search_string"]
+            return _build_content_chunks(prefix=query, count=3)
+
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            side_effect=mock_search
+        )
+
+        # Act
+        result = await service.search(["query1", "query2"])
+
+        # Assert
+        assert len(result) == 6
+        logged_messages = [call[0][0] for call in mock_logger.info.call_args_list]
+        assert (
+            "Truncating %s chunks to the configured total limit of %s"
+            not in logged_messages
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio

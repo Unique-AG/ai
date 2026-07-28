@@ -228,6 +228,13 @@ class InternalSearchService:
             for result in found_chunks_per_search_string
             for chunk in result.chunks
         ]
+        if len(found_chunks) > self.config.limit:
+            self.logger.info(
+                "Truncating %s chunks to the configured total limit of %s",
+                len(found_chunks),
+                self.config.limit,
+            )
+            found_chunks = found_chunks[: self.config.limit]
         selected_chunks = pick_content_chunks_for_token_window(
             found_chunks,
             self._get_max_tokens(),
@@ -259,13 +266,12 @@ class InternalSearchService:
         content_ids: list[str] | None = None,
     ) -> SearchStringResult:
         try:
-            capped_limit = self._cap_limit_to_token_budget()
             found_chunks: list[
                 ContentChunk
             ] = await self.content_service.search_content_chunks_async(
                 search_string=search_string,  # type: ignore
                 search_type=self.config.search_type,
-                limit=capped_limit,
+                limit=self._cap_limit_to_token_budget(),
                 reranker_config=self.config.reranker_config,
                 search_language=self.config.search_language,
                 scope_ids=self.config.scope_ids,
@@ -359,10 +365,12 @@ class InternalSearchService:
         capped_limit = min(self.config.limit, token_based_limit)
         if capped_limit < self.config.limit:
             self.logger.info(
-                f"Search limit capped from {self.config.limit} to {capped_limit} (token budget)"
+                "Search limit capped from %s to %s (token budget)",
+                self.config.limit,
+                capped_limit,
             )
         else:
-            self.logger.info(f"Search limit: {capped_limit} (within token budget)")
+            self.logger.info("Search limit: %s (within token budget)", capped_limit)
         return capped_limit
 
 
