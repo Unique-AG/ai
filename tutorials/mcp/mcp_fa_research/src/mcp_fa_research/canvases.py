@@ -90,6 +90,8 @@ CSS = """
   .qc{color:var(--ok);font-weight:600;} .qc[data-chg^="-"],.qc[data-chg^="−"]{color:var(--red);}
   .qsrc{color:var(--mut);font-size:10.5px;margin-left:auto;text-align:right;}
   .spark{height:24px;width:120px;vertical-align:middle;flex-shrink:0;}
+  .bigchart{width:100%;height:auto;display:block;}
+  .crow{display:none;}
   .qtape{display:flex;flex-direction:column;gap:0;align-items:stretch;}
   .qrow{display:flex;align-items:center;gap:12px;padding:5px 6px;border-bottom:1px dashed var(--line);
         border-radius:8px;font-variant-numeric:tabular-nums;}
@@ -486,6 +488,31 @@ def build_review(tk: str, names: list[tuple]) -> str:
         '</div></div>'
     )
 
+    # detailed 2-year weekly chart for THIS name — same proven unfiltered call;
+    # every row carries the chart image, baked CSS displays only this page's
+    # ticker (the per-ticker arg trips stale connector registries).
+    chart = (
+        '<div class="card"><h2>Price vs target — 2 years <span class="mut">· weekly '
+        'closes · Yahoo Finance via FA Research MCP · red = 12m target · dot = last '
+        'close · 5-min refresh</span></h2>'
+        '<div class="chwrap" data-unique-list="ch" '
+        'data-unique-source-server="Demo - CIB - Sell-Side Equity Analyst" '
+        'data-unique-source-tool="get_live_quotes" '
+        'data-unique-source-args="{}" '
+        'data-unique-source-path="rows" data-unique-source-poll="300000">'
+        '<template data-unique-item>'
+        '<div class="crow" data-unique-key="ticker" data-unique-attr-data-tk="ticker">'
+        '<img class="bigchart" alt="2y weekly price chart" '
+        'data-unique-attr-src="chart_uri" data-unique-attr-title="chart_title">'
+        '</div>'
+        '</template>'
+        '<span class="state" data-unique-state="loading"><span class="spin"></span> '
+        'loading the price chart…</span>'
+        '<span class="state" data-unique-state="error">price chart unavailable — check '
+        'the Demo - CIB - Sell-Side Equity Analyst connector</span>'
+        '</div></div>'
+    )
+
     # estimates table
     est_html = ""
     if est:
@@ -599,7 +626,9 @@ def build_review(tk: str, names: list[tuple]) -> str:
     <span class="rate {e(c['rating'])}">{e(c['rating'])}</span>
   </div>
   {quote}
-  <style>.rv .qrow[data-tk="{tk}"]{{background:var(--mint-wash);outline:1px solid var(--mint-dot);}}</style>
+  {chart}
+  <style>.rv .qrow[data-tk="{tk}"]{{background:var(--mint-wash);outline:1px solid var(--mint-dot);}}
+  .rv .crow[data-tk="{tk}"]{{display:block;}}</style>
   <div class="tiles">{tiles}</div>
   {ov_html}
   {thesis_card}

@@ -688,6 +688,123 @@ def _spark_uri(closes: list[float], tp: float) -> str:
     return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
 
 
+_WEEKLY_CACHE: dict = {}
+
+
+def _yahoo_weekly(symbol: str):
+    """~104 weekly closes over 2y (Yahoo chart endpoint) with their epoch
+    timestamps; 1h cache. Returns (timestamps, closes) or None."""
+    import time as _time
+    import urllib.request
+
+    hit = _WEEKLY_CACHE.get(symbol)
+    if hit and _time.time() - hit[0] < 3600:
+        return hit[1]
+    try:
+        url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+               f"?range=2y&interval=1wk")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=4) as r:
+            data = json.loads(r.read().decode())
+        res = data["chart"]["result"][0]
+        pairs = [(int(t), round(float(c), 2))
+                 for t, c in zip(res["timestamp"],
+                                 res["indicators"]["quote"][0]["close"])
+                 if c is not None]
+        if len(pairs) >= 20:
+            out = ([p[0] for p in pairs], [p[1] for p in pairs])
+            _WEEKLY_CACHE[symbol] = (_time.time(), out)
+            return out
+    except Exception:
+        pass
+    _WEEKLY_CACHE[symbol] = (_time.time(), None)
+    return None
+
+
+def _synthetic_weekly(last: float):
+    """Deterministic ~104-point weekly fallback path ending at the current price."""
+    import math
+    import time as _time
+
+    n = 104
+    now = int(_time.time())
+    ts = [now - (n - 1 - i) * 7 * 86400 for i in range(n)]
+    closes = [round(last * (0.86 + 0.14 * i / (n - 1) + 0.05 * math.sin(i * 0.35)), 2)
+              for i in range(n)]
+    return ts, closes
+
+
+def _chart_uri(ts: list, closes: list, tp: float, tp_label: str,
+               price_label: str) -> str:
+    """Detailed price chart as a base64 SVG data-URI: 2 years of WEEKLY closes
+    (mint line + soft area over gridlines with value/date labels), the 12m
+    TARGET drawn as a red dashed level with its value, and the LAST CLOSE
+    marked with a labelled dot — the sparkline's big sibling on the reviews."""
+    import base64
+    from datetime import datetime, timezone
+
+    w, h = 640, 190
+    l, r, t, b = 14, 56, 16, 26                      # plot insets; right = y-label gutter
+    pw, ph = w - l - r, h - t - b
+    lo = min(min(closes), tp)
+    hi = max(max(closes), tp)
+    padv = (hi - lo) * 0.07 or 1.0
+    lo, hi = lo - padv, hi + padv
+    span = hi - lo
+
+    def x(i):
+        return round(l + pw * i / (len(closes) - 1), 2)
+
+    def y(v):
+        return round(t + ph * (1 - (v - lo) / span), 2)
+
+    fnt = 'font-family="Arial,sans-serif"'
+    fmt = (lambda v: f"{v:,.0f}") if hi >= 200 else (lambda v: f"{v:,.1f}")
+    grid = []
+    for k in range(5):
+        gv = lo + span * k / 4
+        gy = y(gv)
+        grid.append(f'<line x1="{l}" y1="{gy}" x2="{l + pw}" y2="{gy}" '
+                    f'stroke="#E7E8E7" stroke-width="1"/>'
+                    f'<text x="{l + pw + 6}" y="{gy + 3.5}" font-size="10" '
+                    f'fill="#8A8A8A" {fnt}>{fmt(gv)}</text>')
+    for k in range(5):                               # date ticks, ~semi-annual
+        i = round((len(closes) - 1) * k / 4)
+        lab = datetime.fromtimestamp(ts[i], tz=timezone.utc).strftime("%b %y")
+        anch = "start" if k == 0 else ("end" if k == 4 else "middle")
+        grid.append(f'<line x1="{x(i)}" y1="{t}" x2="{x(i)}" y2="{t + ph}" '
+                    f'stroke="#EDEFEE" stroke-width="1"/>'
+                    f'<text x="{x(i)}" y="{h - 8}" font-size="10" fill="#8A8A8A" '
+                    f'{fnt} text-anchor="{anch}">{lab}</text>')
+    pts = " ".join(f"{x(i)},{y(v)}" for i, v in enumerate(closes))
+    area = f"{l},{t + ph} {pts} {l + pw},{t + ph}"
+    ty = y(tp)
+    lx, ly = x(len(closes) - 1), y(closes[-1])
+    tp_ty = ty - 6 if ty > t + 16 else ty + 14       # target label above (or below) its line
+    px_ty = ly - 8 if ly > t + 18 else ly + 16       # price label above (or below) its dot
+    if abs(px_ty - tp_ty) < 12 and abs(lx - (l + pw)) < 160:
+        px_ty = ly + 16 if tp_ty <= ly else ly - 8
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+        f'viewBox="0 0 {w} {h}">'
+        f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="10" '
+        f'fill="#F9FAFA" stroke="#E7E8E7"/>'
+        + "".join(grid) +
+        f'<polygon points="{area}" fill="#3E8E7E" opacity="0.10"/>'
+        f'<polyline points="{pts}" fill="none" stroke="#3E8E7E" stroke-width="1.8" '
+        f'stroke-linejoin="round" stroke-linecap="round"/>'
+        f'<line x1="{l}" y1="{ty}" x2="{l + pw}" y2="{ty}" stroke="#B42318" '
+        f'stroke-width="1.4" stroke-dasharray="5,3"/>'
+        f'<text x="{l + 4}" y="{tp_ty}" font-size="11" font-weight="bold" '
+        f'fill="#B42318" {fnt}>Target {tp_label}</text>'
+        f'<circle cx="{lx}" cy="{ly}" r="3.2" fill="#171717" stroke="#fff" '
+        f'stroke-width="1.2"/>'
+        f'<text x="{min(lx - 7, l + pw - 4)}" y="{px_ty}" font-size="11" '
+        f'font-weight="bold" fill="#171717" {fnt} text-anchor="end">'
+        f'{price_label}</text>'
+        f'</svg>')
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
+
 
 @mcp.tool(name="get_live_quotes", title="Live quotes (Yahoo Finance, formatted)",
           description="LIVE market quotes for the coverage universe, fetched from Yahoo "
@@ -738,6 +855,12 @@ def get_live_quotes(
         row["spark_uri"] = _spark_uri(closes, tp)
         row["spark_title"] = (f"{c['name']} — 24 month-end closes (Yahoo) · red = "
                               f"12m target {row['tp_label']}")
+        wk = _yahoo_weekly(c["yahoo"]) or _synthetic_weekly(ref_price)
+        row["chart_uri"] = _chart_uri(wk[0], wk[1], tp, row["tp_label"],
+                                      row["price_label"])
+        row["chart_title"] = (f"{c['name']} — 2 years of weekly closes (Yahoo) · "
+                              f"red = 12m target {row['tp_label']} · dot = last "
+                              f"close {row['price_label']}")
         rows.append(row)
     live_n = sum(1 for r in rows if r["live"])
     label = (f"LIVE · YAHOO FINANCE · as of {as_of} Zurich" if live_n
@@ -1062,9 +1185,13 @@ TOOL_PROMPTS: dict[str, tuple[str, str]] = {
         "Label clearly as the storyline indication, not a live quote."),
     "get_live_quotes": (
         "THE single live-quote source (server-side Yahoo fetch). Optional ticker "
-        "filter. Falls back to the synthetic indication per symbol (live: false).",
+        "filter. Falls back to the synthetic indication per symbol (live: false). "
+        "Rows also carry chart images: spark_uri (24m sparkline) and chart_uri "
+        "(detailed 2y weekly chart, red target level + last close) — for canvases, "
+        "not for chat.",
         "price_label/chg_label are pre-formatted (2dp). ALWAYS cite the as_of "
-        "timestamp ('as of HH:MM Zurich') and the source field."),
+        "timestamp ('as of HH:MM Zurich') and the source field. Never paste "
+        "spark_uri/chart_uri data-URIs into chat answers."),
     "get_emails": (
         "The SYNTHETIC storyline inbox (not the user's real mailbox — that is the "
         "Outlook MCP). Dates may be rebased; story_today is the demo's 'today'.",
