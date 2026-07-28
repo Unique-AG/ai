@@ -668,6 +668,61 @@ def get_live_quotes(
                        "meta": [{"label": label}], "rows": rows})
 
 
+@mcp.tool(name="add_analyst_note", title="Add a desk note (any equities)",
+          description="Store an analyst DESK NOTE impacting any combination of covered "
+                      "equities (or SECTOR). Call with the AI summary (1-2 sentences), "
+                      "the original note text, and the impacted tickers (comma-separated "
+                      "Bloomberg codes, e.g. 'MC FP, UHR SW' — or 'SECTOR'). The note "
+                      "appears on the cockpit desk-notes list immediately. Mutates demo "
+                      "state; Reset_Demo_Data clears it. SYNTHETIC demo.")
+def add_analyst_note(
+    summary: Annotated[str, Field(description="1-2 sentence AI summary of the note.")],
+    note: Annotated[str, Field(description="The analyst's original note text.")],
+    tickers: Annotated[str, Field(description="Impacted equities, comma-separated "
+                                  "Bloomberg codes (or 'SECTOR').")],
+) -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    resolved = []
+    for raw in tickers.split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        key = "SECTOR" if raw.upper() == "SECTOR" else seed.resolve(raw)
+        if not key:
+            return _unknown(raw)
+        if key not in resolved:
+            resolved.append(key)
+    if not resolved:
+        return json.dumps({"error": "no tickers given",
+                           "covered": [c["ticker"] for c in seed.COVERAGE] + ["SECTOR"]})
+    notes = env_state.state().setdefault("analyst_notes", [])
+    item = {"id": f"N-{len(notes) + 1:03d}",
+            "ts": datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%d %H:%M"),
+            "summary": summary.strip(), "note": note.strip(), "tickers": resolved}
+    notes.insert(0, item)
+    return json.dumps({"added": True, "item": item, "count": len(notes)})
+
+
+@mcp.tool(name="get_analyst_notes", title="Desk notes",
+          description="The analyst's stored desk notes (newest first): id, ts, AI "
+                      "summary, original text, impacted tickers + display-ready "
+                      "tickers_label. Optional ticker filter (notes touching that "
+                      "name or SECTOR). SYNTHETIC demo state; Reset clears.")
+def get_analyst_notes(
+    ticker: Annotated[str, Field(default="", description="Optional — only notes "
+                                 "impacting this name (or 'SECTOR').")] = "",
+) -> str:
+    notes = json.loads(json.dumps(env_state.state().get("analyst_notes", [])))
+    if ticker:
+        key = "SECTOR" if ticker.strip().upper() == "SECTOR" else seed.resolve(ticker)
+        notes = [n for n in notes if key in n.get("tickers", [])]
+    for n in notes:
+        n["tickers_label"] = " · ".join(n["tickers"])
+    return json.dumps({"count": len(notes), "notes": notes})
+
+
 @mcp.tool(name="Reset_Demo_Data", title="Reset demo data",
           description="Restore the FA research demo to its labeled baseline snapshot: "
                       "morning brief (un-acknowledged), action inbox, jobs, coverage "

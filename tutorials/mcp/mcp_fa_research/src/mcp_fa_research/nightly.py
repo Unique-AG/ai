@@ -92,6 +92,7 @@ def regen_env(env: str, progress=None, rebase: bool | None = None) -> dict:
     """Regenerate + upload one env's reviews/cards; progress(done, total, relpath, cid)
     fires after each SDK upload. Used by the 00:00 nightly AND the cockpit's real job."""
     import canvases
+    import models
 
     started = datetime.now(ZURICH).isoformat(timespec="seconds")
     result = {"started": started, "ok": False, "files": 0, "id_drift": [],
@@ -102,24 +103,42 @@ def regen_env(env: str, progress=None, rebase: bool | None = None) -> dict:
         review_ids = dict(seed.REVIEW_IDS_BY_ENV.get(env) or {})
         note_ids = NOTE_IDS_BY_ENV.get(env) or {}
         files = canvases.build_all(env, review_ids, note_ids, started)
+        model_files = models.build_all_models()
+        total = len(files) + len(model_files)
         with _SDK_LOCK:
             kb = _kb(env)
             for relpath, text in files.items():
-                folder = "/Fundamental Analyst/" + relpath.rsplit("/", 1)[0]
-                name = relpath.rsplit("/", 1)[1]
+                if "/" in relpath:
+                    folder = "/Fundamental Analyst/" + relpath.rsplit("/", 1)[0]
+                    name = relpath.rsplit("/", 1)[1]
+                else:
+                    folder, name = "/Fundamental Analyst", relpath
                 scope = _scope_for(env, folder)
                 mime = "text/html" if name.endswith(".html") else "text/markdown"
                 up = kb.upload_content_from_bytes(
                     content=text.encode("utf-8"), content_name=name,
                     mime_type=mime, scope_id=scope)
                 cid = getattr(up, "id", None) or (up.get("id") if isinstance(up, dict) else "")
-                tk = relpath.split("/")[1]
+                parts = relpath.split("/")
+                tk = parts[1] if len(parts) > 2 else ""
                 expected = review_ids.get(tk)
                 if name == "review.html" and expected and cid and cid != expected:
                     result["id_drift"].append(f"{tk}: {expected} -> {cid}")
                 result["files"] += 1
                 if progress:
-                    progress(result["files"], len(files), relpath, cid)
+                    progress(result["files"], total, relpath, cid)
+            for relpath, data in model_files.items():
+                folder = "/Fundamental Analyst/" + relpath.rsplit("/", 1)[0]
+                name = relpath.rsplit("/", 1)[1]
+                up = kb.upload_content_from_bytes(
+                    content=data, content_name=name,
+                    mime_type="application/vnd.openxmlformats-officedocument."
+                              "spreadsheetml.sheet",
+                    scope_id=_scope_for(env, folder))
+                cid = getattr(up, "id", None) or (up.get("id") if isinstance(up, dict) else "")
+                result["files"] += 1
+                if progress:
+                    progress(result["files"], total, relpath, cid)
         result["ok"] = not result["id_drift"]
     except Exception as ex:
         result["error"] = f"{type(ex).__name__}: {ex}"

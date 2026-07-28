@@ -852,6 +852,7 @@ def baseline(env: str = "") -> dict:
         "scenarios": copy.deepcopy(SCENARIOS),
         "lab_presets": copy.deepcopy(LAB_PRESETS),
         "control_queue": copy.deepcopy(CONTROL_QUEUE_SEED),
+        "analyst_notes": [],
     }
 
 

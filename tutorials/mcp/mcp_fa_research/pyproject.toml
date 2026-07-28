@@ -6,6 +6,7 @@ readme = "README.md"
 authors = [{ name = "Florian Barras", email = "florian.barras@unique.ai" }]
 requires-python = ">=3.12"
 dependencies = [
+    "openpyxl",
     "unique-sdk",
     "unique-toolkit",
     "tzdata",
@@ -20,6 +21,7 @@ dependencies = [
 # MCP SDK needs) can resolve — mirrors mcp_trade_reconciliation.
 exclude-newer = "1 day"
 constraint-dependencies = [
+    "openpyxl",
     "unique-sdk",
     "unique-toolkit",
     "tzdata",
