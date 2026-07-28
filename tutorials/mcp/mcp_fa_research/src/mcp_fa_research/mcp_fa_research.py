@@ -930,6 +930,157 @@ async def favicon(request: Request):
     return FileResponse(Path(__file__).parent / "favicon.ico")
 
 
+
+# ---------------------------------------------------------------------------
+# Per-tool system prompts, surfaced in the admin UI ("Tool Usage Instructions" /
+# "Tool Response Format Instructions") and injected into the agent's tool skill
+# docs. Auto-populated at connector (re)sync via the unique.app/* meta keys —
+# the platform treats server meta as the source of truth on refresh.
+# ---------------------------------------------------------------------------
+TOOL_PROMPTS: dict[str, tuple[str, str]] = {
+    "get_coverage": (
+        "Call FIRST for any question about the covered names, ratings or target prices. "
+        "Data is presenter-editable in the demo console — always re-read, never answer "
+        "from memory. Rows carry open_review_payload to open a name's dashboard.",
+        "Rows are display-ready: cite ticker, rating, tp_label and upside_label verbatim "
+        "(single target price + upside %, Exane house style — never a range)."),
+    "get_dossier": (
+        "The per-name house view: thesis, estimates stance, interaction log, note "
+        "history. Use for 'what is our view / status on X'.",
+        "Thesis is semicolon-separated bullets — render as a bullet list. note_history "
+        "entries are timestamped 'YYYY-MM-DD HH:MM · label' — keep the timestamps."),
+    "get_morning_brief": (
+        "The 07:00 overnight run. Items are severity-ranked (alert > positive > watch > "
+        "info); each carries the impacted equity and a suggested action/skill.",
+        "Lead with severity_label and name_label; cascade_text and call_list_text are "
+        "pre-formatted — quote them as-is."),
+    "acknowledge_alert": (
+        "Mark a brief item as reviewed ONLY after the user says they handled it.",
+        "Returns the updated item — confirm in one short sentence."),
+    "get_action_inbox": (
+        "Prepared reply drafts (buy-side, desk, IR). Nothing is ever auto-sent.",
+        "Quote draft subjects verbatim; remind that sending goes through the user."),
+    "get_agenda": (
+        "This week's roadshows and meetings (who leads, when).",
+        "Cite title · role · when; offer the prep action where present."),
+    "get_jobs": (
+        "Background jobs with schedules (run_at Zurich, recurrence once|daily). The "
+        "desk-brief job REALLY regenerates the dashboards via the Unique SDK; its "
+        "last_run lists every generated document.",
+        "Use when_label verbatim; when asked what a job produced, list last_run.files "
+        "paths (omit content ids unless asked)."),
+    "get_consensus": (
+        "Street numbers (mock IBES-style) per name — the comparison base for our house "
+        "estimates.",
+        "Always cite as_of and analyst count; ratings split is buy/hold/sell."),
+    "get_estimates": (
+        "OUR estimates vs consensus; post-release names also carry the company-printed "
+        "figures. The phase field tells you which table shape applies.",
+        "Reproduce delta labels verbatim (e.g. '−5.1%'); post-release = Ours / "
+        "Consensus / Company three-way."),
+    "get_price": (
+        "Synthetic last-close indication only — prefer get_live_quotes for anything "
+        "the user will read as 'the price now'.",
+        "Label clearly as the storyline indication, not a live quote."),
+    "get_live_quotes": (
+        "THE single live-quote source (server-side Yahoo fetch). Optional ticker "
+        "filter. Falls back to the synthetic indication per symbol (live: false).",
+        "price_label/chg_label are pre-formatted (2dp). ALWAYS cite the as_of "
+        "timestamp ('as of HH:MM Zurich') and the source field."),
+    "get_emails": (
+        "The SYNTHETIC storyline inbox (not the user's real mailbox — that is the "
+        "Outlook MCP). Dates may be rebased; story_today is the demo's 'today'.",
+        "Quote subjects verbatim; flag unread items first."),
+    "get_calendar": (
+        "Storyline events (results, roadshows, control meetings), dates rebased so the "
+        "warning day is always day 0.",
+        "Cite date · time · title; relative wording should key off story_today."),
+    "get_scenarios": (
+        "OUR probabilistic hypothesis cases per name (all six covered). Presenter-"
+        "editable — re-read every time. Each row carries the exact compute_scenario "
+        "args that reproduce it.",
+        "Render as a table: scenario/assumption · EPS · TP · probability · hypothesis; "
+        "probabilities sum to 100%."),
+    "compute_scenario": (
+        "THE what-if engine — use it for EVERY buy-side 'what if' (FX move, China "
+        "timing, destocking). Axes combine. NEVER estimate scenario numbers yourself.",
+        "Walk the assumption_trail step by step; quote the summary line; the TP bridge "
+        "shows old → new with the rating read."),
+    "get_scenario_board": (
+        "One call = the Lab: computed presets + FX/China grids + the FX×China TP "
+        "matrix for a name.",
+        "Preset labels are display-ready; grids are row dicts — quote cells, do not "
+        "recompute."),
+    "get_note_pack": (
+        "The Exane note backbone (snapshot, key financials, segments, consensus "
+        "comparison, forecast changes, DCF, SOTP, peers, highlights). Full pack for "
+        "MC FP; cover-only partials otherwise.",
+        "COPY TABLES VERBATIM into notes/answers — these are the published house "
+        "figures; never recompute or re-round them."),
+    "get_financials": (
+        "FY2023-28e key financials + chart series for all six names (single source "
+        "for models and dashboards).",
+        "Use the key_financials {header, rows} table for prose/notes; chart geometry "
+        "fields (pct, zero_pct) are for canvases — ignore them in text."),
+    "Reset_Demo_Data": (
+        "Only on an explicit user request ('reset the demo') — wipes every edit in "
+        "the ACTIVE environment (coverage, brief, notes, scenarios, control queue).",
+        "Confirm with the restored snapshot label; mention edits are gone."),
+    "get_control_queue": (
+        "The maker/checker queue (pre-publication control). Read it to brief the "
+        "checker; never decide verdicts yourself.",
+        "Per item cite status_label, priority and open_label; checklist_text is "
+        "pre-formatted ✓/◯ lines — quote as-is."),
+    "record_control_verdict": (
+        "Record RELEASE / DO_NOT_RELEASE ONLY when the user explicitly states their "
+        "decision — never infer it from a passed checklist.",
+        "Confirm the item id, the verdict and any notes recorded."),
+    "submit_for_control": (
+        "Maker side: submit a note/pack/deck/email for control after drafting. Ask "
+        "the user for the priority first (one question).",
+        "Return the queue item id and the standard checklist that was attached."),
+    "add_analyst_note": (
+        "Store a desk note: FIRST summarize the user's text in 1-2 sentences, then "
+        "identify the impacted equities from the text (any combination, or SECTOR), "
+        "then call with summary + original note + tickers.",
+        "Confirm the stored id, the summary and the resolved ticker set."),
+    "get_analyst_notes": (
+        "The desk-notes list (newest first), optionally filtered to one name or "
+        "SECTOR.",
+        "Cite summary, tickers_label and ts; the full original text is in note."),
+    "update_analyst_note": (
+        "Edit or delete a stored desk note by id (summary, text, ticker set).",
+        "Confirm what changed (or the deletion) with the note id."),
+    "update_thesis": (
+        "Rewrite a name's investment thesis — short bullet points separated by '; '. "
+        "Used by the review's Edit-with-AI control.",
+        "Confirm the new bullets and remind: the dashboard bakes them at the next "
+        "regeneration (nightly or ↻)."),
+    "add_note_history": (
+        "Append a timestamped entry to a name's note history (e.g. after publishing "
+        "or submitting a product).",
+        "Confirm the entry as stored ('YYYY-MM-DD HH:MM · label')."),
+    "update_scenario_case": (
+        "Edit one scenario hypothesis row (matched by title substring). If the shock "
+        "changes, RECOMPUTE eps/tp with compute_scenario FIRST — never invent "
+        "numbers. Keep probabilities summing to 100%.",
+        "Confirm the updated row and report probability_sum; flag if it is not 100%."),
+    "update_brief_item": (
+        "Edit a morning-brief item (headline, detail, impact, severity, suggested "
+        "action, revised TP). If numbers change, recompute via compute_scenario "
+        "first. Used by the cockpit's Edit-with-AI.",
+        "Confirm the updated item; the cockpit refreshes within ~2 minutes."),
+}
+
+import asyncio as _asyncio  # noqa: E402
+
+for _tool in _asyncio.run(mcp.list_tools()):
+    _pair = TOOL_PROMPTS.get(_tool.name)
+    if _pair:
+        _tool.meta = {**(_tool.meta or {}),
+                      "unique.app/system-prompt": _pair[0],
+                      "unique.app/tool-format-information": _pair[1]}
+
 import admin_ui  # noqa: E402
 import jobs_engine  # noqa: E402
 import nightly  # noqa: E402

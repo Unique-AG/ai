@@ -438,7 +438,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
         '<div class="card qwrap"><h2>Live quote <span class="mut">· Yahoo Finance '
         'via FA Research MCP · 5-min refresh</span></h2>'
         '<div class="quote" data-unique-list="q" '
-        'data-unique-source-server="Demo - Fundamental Analyst" '
+        'data-unique-source-server="Demo - CIB - Sell-Side Equity Analyst" '
         'data-unique-source-tool="get_live_quotes" '
         "data-unique-source-args='" + qargs + "' "
         'data-unique-source-path="rows" data-unique-source-poll="300000">'
@@ -451,7 +451,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
         '</template>'
         '<span class="state" data-unique-state="loading"><span class="spin"></span> live quote…</span>'
         '<span class="state" data-unique-state="error">live quote unavailable — check the '
-        'Demo - Fundamental Analyst connector</span>'
+        'Demo - CIB - Sell-Side Equity Analyst connector</span>'
         '</div></div>'
     )
 

@@ -256,6 +256,40 @@ AGENDA: list[dict] = [
 # rebase-to-today shifts run_at like every other dated field. jobs_engine.py runs due
 # jobs: executor "sdk_regen" = REAL (rebuild + upload the reviews/cards via the Unique
 # SDK, per-document progress recorded in last_run); no executor = simulated transitions.
+# Desk notes — free-form analyst notes, AI-summarized, tagging ANY combination of
+# equities (add_analyst_note / update_analyst_note; the cockpit panel lists them).
+# ts is story time; rebase shifts it with the rest of the timeline.
+ANALYST_NOTES_SEED: list[dict] = [
+    {"id": "N-004", "ts": "2026-07-23 10:05",
+     "summary": "Buy-side pushback on our LVMH trough thesis post-warning — three PMs "
+                "question whether cognac inventories clear by H1-26; watch the destocking "
+                "bear case.",
+     "note": "Calls after the print: Fund A + two long-onlys challenge the H1-26 "
+             "destocking end. If sell-in stays frozen into Q4, our FY27 bridge is at "
+             "risk. Keep the fy27 destocking scenario warm.",
+     "tickers": ["MC FP"]},
+    {"id": "N-003", "ts": "2026-07-22 18:40",
+     "summary": "CFO dinner: Kering and Swatch both cautious on China entry price points "
+                "— supports our below-consensus stance on both names.",
+     "note": "Dinner w/ two CFOs. Kering: entry-price handbags still discounting, no "
+             "sell-out inflection. Swatch: China wholesale sell-in frozen until CNY. "
+             "Both consistent with the tone flag.",
+     "tickers": ["KER FP", "UHR SW"]},
+    {"id": "N-002", "ts": "2026-07-21 11:20",
+     "summary": "US jewellery channel checks strong — Cartier/VCA momentum ahead of our "
+                "numbers; upside risk to Richemont FY26 jewellery estimates.",
+     "note": "Two US department-store buyers report double-digit sell-out in branded "
+             "jewellery QTD; peer pre-announcement confirms. Feeds the CHF 180 review.",
+     "tickers": ["CFR SW", "RMS FP"]},
+    {"id": "N-001", "ts": "2026-07-18 09:30",
+     "summary": "Sector: entry-level pricing power fading across European luxury — mix "
+                "will matter more than price in FY26; watch aspirational-heavy names.",
+     "note": "Cross-name read from Q2 calls: price contribution converging to ~1-2% vs "
+             "4-5% in FY24. Aspirational-exposed names (Kering, Swatch) most at risk; "
+             "Hermès insulated.",
+     "tickers": ["SECTOR", "KER FP", "UHR SW"]},
+]
+
 JOBS_SEED: list[dict] = [
     {"label": "overnight desk brief (6 names)", "status": "done",
      "run_at": "2026-07-23 07:00", "recurrence": "daily", "executor": "sdk_regen"},
@@ -832,6 +866,8 @@ def rebase_state(st: dict, target=None) -> int:
                 it["submitted_at"] = _shift(it["submitted_at"])
         for d in st.get("dossiers", {}).values():
             d["note_history"] = [_shift(x) for x in d.get("note_history", [])]
+        for n in st.get("analyst_notes", []):
+            n["ts"] = _shift(n["ts"])
         st["today"] = target.isoformat()
     return delta
 
@@ -855,7 +891,7 @@ def baseline(env: str = "") -> dict:
         "scenarios": copy.deepcopy(SCENARIOS),
         "lab_presets": copy.deepcopy(LAB_PRESETS),
         "control_queue": copy.deepcopy(CONTROL_QUEUE_SEED),
-        "analyst_notes": [],
+        "analyst_notes": copy.deepcopy(ANALYST_NOTES_SEED),
         "dossiers": copy.deepcopy(DOSSIERS),
     }
 
