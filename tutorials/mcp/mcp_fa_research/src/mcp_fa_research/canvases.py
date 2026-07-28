@@ -341,17 +341,12 @@ def _products(tk: str, name: str) -> str:
     if not rows:
         return ""
     controls = (
-        '<div class="prow" style="margin-top:10px"><input type="text" class="ai-input" '
-        'placeholder="Edit with AI — e.g. refresh with the post-warning numbers, exec '
-        'summary in French"></div>'
-        '<div class="prow">'
-        '<button class="btn primary" id="ai-sel" data-unique-action="sendPrompt" '
-        'data-unique-payload="{}">✨ Edit with AI</button></div>'
-        '<div class="prow" style="flex-wrap:wrap;gap:8px">'
+        '<div class="prow" style="margin-top:10px;flex-wrap:wrap;gap:8px">'
         '<button class="btn" id="regen-sel" data-unique-action="sendPrompt" '
         'data-unique-payload="{}">↻ Regenerate selected</button>'
         '<button class="btn" id="submit-sel" data-unique-action="sendPrompt" '
         'data-unique-payload="{}">⇪ Submit selected for control</button>'
+        '</div>_AI_ROWS_'
         '<button class="btn" data-unique-action="sendPrompt" '
         "data-unique-payload='" + _json.dumps({"prompt": (
             f"Update the {name} ({tk}) sell-side Excel model with the LATEST data — "
@@ -361,7 +356,15 @@ def _products(tk: str, name: str) -> str:
             "live), save it back to CIB - Sell-Side Equity Analyst/names/" + tk + "/notes/ under "
             "the SAME filename, and report the delta: EPS by year and target price "
             "vs the prior version.")}) + "'>"
-        '📈 Update model with latest data</button></div>')
+        '📈 Update model with latest data</button>')
+    controls = controls.replace('</div>_AI_ROWS_', '')
+    controls += ('</div>'
+        '<div class="prow" style="margin-top:6px"><input type="text" class="ai-input" '
+        'placeholder="Edit with AI — e.g. refresh with the post-warning numbers, exec '
+        'summary in French"></div>'
+        '<div class="prow">'
+        '<button class="btn primary" id="ai-sel" data-unique-action="sendPrompt" '
+        'data-unique-payload="{}">✨ Edit with AI</button></div>')
     return (f'<div class="card" id="prodcard" data-tk="{e(tk)}" data-name="{e(name)}">'
             '<h2>Research products <span class="mut">· pre-generated overnight · tick the '
             'documents, then regenerate, submit for control or edit with AI</span></h2>'
@@ -527,6 +530,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
                    f'<tbody>{sc_rows}</tbody></table>'
                    f'<p class="mut" style="margin:10px 0 0;font-size:12.5px">{e(sc["note"])} '
                    f'Any other shock: the scenario engine computes it live.</p>'
+                   + f'{engine_btns}'
                    + _edit_rows('Edit with AI — e.g. raise the China-recovery probability to 25%',
                                 'Apply this instruction to the SCENARIO HYPOTHESES of '
                                 + c["name"] + ' (' + tk + '): "__INSTR__". Use '
@@ -534,7 +538,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
                                 'shock itself changes, RECOMPUTE eps/tp with '
                                 'compute_scenario first — never invent numbers; keep '
                                 'probabilities summing to 100%. Confirm the updated row.')
-                   + f'{engine_btns}</div>')
+                   + '</div>')
 
     log = "".join(f"<li>{e(x)}</li>" for x in d["interaction_log"])
     notes = "".join(
