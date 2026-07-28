@@ -6,9 +6,9 @@ target-price bridge → rating read — from per-name exposure parameters, inste
 serving canned rows. Calibrated so the seeded hypotheses (seed.SCENARIOS, the note and
 the dashboards) are reproduced exactly:
 
-  MC FP  fx +5%              → EPS 26e −3.5% · TP €615 → €595
-  MC FP  china q2_26         → EPS 26e +4.0% · TP €615 → €650
-  MC FP  destocking fy27     → EPS 26e −5.0% · TP €615 → €580
+  MC FP  fx +5%              → EPS 26e −3.5% · TP €480 → €465
+  MC FP  china q2_26         → EPS 26e +4.0% · TP €480 → €510
+  MC FP  destocking fy27     → EPS 26e −5.0% · TP €480 → €450
 
 ALL VALUES ARE SYNTHETIC — DEMO USE ONLY. The model is deliberately transparent (the
 ``assumption_trail`` lists every parameter used) — that is the demo point: hypotheses
@@ -292,11 +292,11 @@ def board(ticker: str) -> dict:
 
 if __name__ == "__main__":  # calibration self-check against the seeded hypotheses
     r = compute("MC FP", fx_eur_move_pct=5.0)
-    assert r["table"]["rows"][2][1] == "-3.5%" and r["tp"]["new_label"] == "€595", r["summary"]
+    assert r["table"]["rows"][2][1] == "-3.5%" and r["tp"]["new_label"] == "€465", r["summary"]
     r = compute("MC FP", china_recovery="q2_26")
-    assert r["table"]["rows"][2][1] == "+4.0%" and r["tp"]["new_label"] == "€650", r["summary"]
+    assert r["table"]["rows"][2][1] == "+4.0%" and r["tp"]["new_label"] == "€510", r["summary"]
     r = compute("MC FP", destocking_end="fy27")
-    assert r["table"]["rows"][2][1] == "-5.0%" and r["tp"]["new_label"] == "€580", r["summary"]
+    assert r["table"]["rows"][2][1] == "-5.0%" and r["tp"]["new_label"] == "€450", r["summary"]
     print("calibration OK — engine reproduces the three seeded hypothesis cases")
     print(compute("UHR SW", china_recovery="q2_26")["summary"])
 

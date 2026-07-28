@@ -15,8 +15,8 @@ Only MC FP (LVMH) carries the FULL pack; other names return a partial pack
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# LVMH (MC FP) — full note pack. Coherent with seed.py: last close EUR585,
-# post-warning TP EUR615 (Outperform, upside +5%), FY25 printed low
+# LVMH (MC FP) — full note pack. Coherent with seed.py: last close EUR455,
+# post-warning TP EUR480 (Outperform, upside +5.5%), FY25 printed low
 # (rev 78.9bn / rec. EBIT margin 21.2% / EPS 20.4 / DPS 12.75).
 # ---------------------------------------------------------------------------
 _MC_FP: dict = {
@@ -29,8 +29,8 @@ _MC_FP: dict = {
     },
     "header": {
         "rating": "OUTPERFORM",
-        "price_label": "EUR585.0", "price_asof": "22 July 2026",
-        "tp_label": "EUR615", "upside_label": "UPSIDE 5%",
+        "price_label": "EUR455.0", "price_asof": "22 July 2026",
+        "tp_label": "EUR480", "upside_label": "UPSIDE 5.5%",
         "horizon": "12m",
     },
     "esg": {"overall": "Average",
@@ -41,11 +41,11 @@ _MC_FP: dict = {
     # -- cover snapshot tables ------------------------------------------------
     "snapshot_company": {
         "title": "LVMH (+)", "ticker_label": "MC FP",
-        "rows": [["*Closing Price (22 July 2026)", "EUR585.0"],
+        "rows": [["*Closing Price (22 July 2026)", "EUR455.0"],
                  ["Volume (EURm)", "412.6"],
-                 ["Market cap (EURbn)", "290.7"],
-                 ["Free float (EURbn)", "150.2"],
-                 ["EV (EURbn)", "302.1"],
+                 ["Market cap (EURbn)", "226.1"],
+                 ["Free float (EURbn)", "116.8"],
+                 ["EV (EURbn)", "237.5"],
                  ["Country / Sub Sector", "France / Luxury Goods"]],
     },
     "snapshot_financials": {
@@ -165,26 +165,26 @@ _MC_FP: dict = {
                      ["Capex", "(4,880)", "(5,150)", "(5,430)", "(5,730)", "(6,010)", "(6,270)", "(6,530)", ""],
                      ["Change in WCR", "(690)", "(740)", "(790)", "(830)", "(860)", "(880)", "(900)", ""],
                      ["Free Cash Flow", "10,050", "11,180", "12,290", "13,270", "14,190", "15,000", "15,720", "293,610"],
-                     ["Present Value FCF", "9,660", "9,950", "10,120", "10,110", "10,010", "9,790", "9,500", "204,730"]],
+                     ["Present Value FCF", "9,660", "9,950", "10,120", "10,110", "10,010", "9,790", "9,500", "162,610"]],
         },
-        "summary_rows": [["Phase I (2026-32e)", "129,140", "39%"],
-                         ["Terminal value", "204,730", "61%"],
-                         ["Enterprise value", "333,870", ""],
+        "summary_rows": [["Phase I (2026-32e)", "103,960", "39%"],
+                         ["Terminal value", "162,610", "61%"],
+                         ["Enterprise value", "266,570", ""],
                          ["-/- Net financial debt (YE25)", "(11,410)", ""],
                          ["-/- Net pension & lease liability", "(15,890)", ""],
                          ["-/- Minority interests", "(1,540)", ""],
                          ["+ Associates + other", "830", ""],
-                         ["Equity value", "305,860", ""],
+                         ["Equity value", "238,560", ""],
                          ["NOSH (m)", "497.0", ""],
-                         ["Value per share (EUR)", "615", ""]],
+                         ["Value per share (EUR)", "480", ""]],
         "wacc_matrix": {
             "title": "Sensitivity — WACC × terminal growth (EUR per share)",
             "header": ["WACC \\ TV growth", "1.5%", "2.0%", "2.5%", "3.0%", "3.5%"],
-            "rows": [["7.0%", "648", "689", "738", "798", "873"],
-                     ["7.5%", "601", "634", "673", "720", "777"],
-                     ["8.0%", "560", "587", "615", "657", "702"],
-                     ["8.5%", "524", "547", "574", "605", "642"],
-                     ["9.0%", "492", "511", "533", "559", "589"]],
+            "rows": [["7.0%", "506", "538", "576", "623", "681"],
+                     ["7.5%", "469", "495", "525", "562", "606"],
+                     ["8.0%", "437", "458", "480", "513", "548"],
+                     ["8.5%", "409", "427", "448", "472", "501"],
+                     ["9.0%", "384", "399", "416", "436", "460"]],
         },
         "source": "Source: Company data, BNP Paribas Exane (synthetic estimates)",
     },
@@ -192,22 +192,22 @@ _MC_FP: dict = {
         "title": "LVMH – SOTP valuation (2027e, equity value discounted)",
         "subtitle": "Fashion & Leather Goods contributes c. 70% of the group's enterprise value",
         "header": ["Segment", "EBIT 27e", "Multiple (EV/EBIT)", "Bear", "Base", "Bull"],
-        "rows": [["Fashion & Leather Goods", "15,490", "20.0x", "263,300", "309,800", "356,300"],
-                 ["Wines & Spirits", "1,230", "14.0x", "13,500", "17,200", "22,100"],
-                 ["Perfumes & Cosmetics", "910", "16.0x", "12,700", "14,600", "16,400"],
-                 ["Watches & Jewelry", "1,780", "18.0x", "26,700", "32,000", "37,400"],
-                 ["Selective Retailing", "2,410", "14.0x", "28,900", "33,700", "38,600"],
-                 ["Other & central costs", "(2,440)", "14.0x", "(34,200)", "(34,200)", "(34,200)"],
-                 ["Enterprise Value", "", "", "310,900", "373,100", "436,600"],
+        "rows": [["Fashion & Leather Goods", "15,490", "15.6x", "205,374", "241,644", "277,914"],
+                 ["Wines & Spirits", "1,230", "10.9x", "10,530", "13,416", "17,238"],
+                 ["Perfumes & Cosmetics", "910", "12.5x", "9,906", "11,388", "12,792"],
+                 ["Watches & Jewelry", "1,780", "14.0x", "20,826", "24,960", "29,172"],
+                 ["Selective Retailing", "2,410", "10.9x", "22,542", "26,286", "30,108"],
+                 ["Other & central costs", "(2,440)", "10.9x", "(26,676)", "(26,676)", "(26,676)"],
+                 ["Enterprise Value", "", "", "242,600", "291,100", "340,700"],
                  ["-/- Net debt, pensions, leases, minorities", "", "", "(28,000)", "(28,000)", "(28,000)"],
-                 ["Equity value", "", "", "282,900", "345,100", "408,600"],
-                 ["Value per share (EUR)", "", "", "569", "694", "822"],
-                 ["discounted (YE26)", "", "", "527", "620", "761"]],
+                 ["Equity value", "", "", "214,600", "263,100", "312,700"],
+                 ["Value per share (EUR)", "", "", "432", "529", "629"],
+                 ["discounted (YE26)", "", "", "400", "490", "583"]],
         "source": "Source: Company data, BNP Paribas Exane (synthetic estimates)",
     },
     "peers": {
         "title": "LVMH – Peer group overview",
-        "subtitle": "Our EUR615 target price implies 18.0x/16.5x EV/EBIT 2027/28e for a 15% adj. EPS CAGR",
+        "subtitle": "Our EUR480 target price implies 14.0x/12.9x EV/EBIT 2027/28e for a 15% adj. EPS CAGR",
         "header": ["LC", "EV (EURm)", "Mcap (EURm)", "EV/SALES 27e", "28e",
                    "EV/EBIT 27e", "28e", "P/E 27e", "28e"],
         "rows": [["Hermès*", "222,410", "225,880", "12.1x", "11.0x", "27.9x", "25.2x", "42.1x", "38.3x"],
@@ -217,7 +217,7 @@ _MC_FP: dict = {
                  ["Swatch Group*", "9,540", "10,120", "1.1x", "1.0x", "9.8x", "8.4x", "13.4x", "11.5x"],
                  ["Burberry*", "4,610", "4,180", "1.5x", "1.4x", "14.2x", "11.8x", "19.9x", "15.6x"],
                  ["Median — Luxury Goods", "", "", "2.9x", "2.8x", "14.1x", "12.4x", "19.8x", "16.7x"],
-                 ["LVMH", "302,100", "290,700", "3.4x", "3.2x", "15.4x", "14.1x", "24.5x", "22.4x"],
+                 ["LVMH", "237,500", "226,100", "2.7x", "2.5x", "12.0x", "11.0x", "19.1x", "17.4x"],
                  ["LVMH at TP", "", "", "3.7x", "3.5x", "18.0x", "16.5x", "25.7x", "23.6x"]],
         "source": "Source: Refinitiv (synthetic), BNP Paribas Exane estimates; closing prices as of 22 July 2026; "
                   "* consensus-based",
@@ -315,7 +315,7 @@ _MC_FP: dict = {
 # Company Highlights — the dense full-history data page (à la the machine-generated
 # p2/p34 of a real note): ~40 rows × 12 year-columns, GENERATED from base series so
 # every ratio reconciles. 2019-24 magnitudes are real-world-plausible history; 2025+
-# is the synthetic demo scenario (profit-warning trough, TP EUR615).
+# is the synthetic demo scenario (profit-warning trough, TP EUR480).
 # ---------------------------------------------------------------------------
 def _gen_highlights_mc() -> dict:
     yrs = ["Dec. 19", "Dec. 20", "Dec. 21", "Dec. 22", "Dec. 23", "Dec. 24",
@@ -323,8 +323,8 @@ def _gen_highlights_mc() -> dict:
     n = len(yrs)
     cur = 6  # index of Dec. 25 — the shaded "current" column
     nosh = 497.0  # m shares, kept flat
-    price = [368.0, 400.0, 626.0, 640.0, 800.0, 662.0, 610.0,
-             585.0, 585.0, 585.0, 585.0, 585.0]          # yearly avg; estimates = spot
+    price = [286.0, 311.0, 487.0, 498.0, 622.0, 515.0, 474.0,
+             455.0, 455.0, 455.0, 455.0, 455.0]          # yearly avg; estimates = spot
     sales = [53670, 44651, 64215, 79184, 86153, 84683, 78900,
              81290, 85760, 90590, 95480, 100160]
     ebita = [11504, 8305, 17151, 21055, 22800, 19570, 16730,
@@ -446,7 +446,7 @@ def _gen_highlights_mc() -> dict:
             base = p0 + (p1 - p0) * t
             monthly.append(round(base * (1 + 0.06 * math.sin((i * 12 + m) * 0.9)), 1))
             rel.append(round(base * 0.92 * (1 + 0.04 * math.cos((i * 12 + m) * 0.7)), 1))
-    monthly.append(585.0)
+    monthly.append(455.0)
     rel.append(538.0)
     return {
         "columns": yrs, "current_col": cur, "estimates_from": 7,
@@ -454,7 +454,7 @@ def _gen_highlights_mc() -> dict:
         "price_row": ["Price (yearly avg from Dec. 19 to Dec. 25)", *[f"{p:,.1f}" for p in price]],
         "header_block": {
             "price_line": "Price at 22 Jul. 26 / 12m Target Price",
-            "price_values": "EUR585.0 / EUR615  +5%",
+            "price_values": "EUR455.0 / EUR480  +5.5%",
             "listing": "Refinitiv / Bloomberg: LVMH.PA / MC FP",
             "company_line": "LVMH (Outperform)",
             "sector_line": "Luxury Goods | France",
@@ -466,10 +466,10 @@ def _gen_highlights_mc() -> dict:
                             "rows": [["Absolute", "(4)", "2", "(12)"],
                                      ["Rel. Luxury Goods", "(2)", "(1)", "(8)"],
                                      ["Rel. MSCI Europe", "(3)", "0", "(10)"]]},
-            "hilo": "12m Hi/Lo (EUR): 705.0 -17% / 549.0 +7%",
+            "hilo": "12m Hi/Lo (EUR): 549.0 -17% / 427.0 +7%",
             "cagr": "CAGR 2002/2025: EPS restated +9% · CFPS +8%",
         },
-        "chart": {"monthly": monthly, "rel": rel, "target": 615.0, "spot": 585.0,
+        "chart": {"monthly": monthly, "rel": rel, "target": 480.0, "spot": 455.0,
                   "years": [y.replace("Dec. ", "") for y in yrs[:7]]},
         "footnote": "(a) Restated for capital gains/losses, exceptional restructuring, "
                     "capitalized R&D; EBITA adjusted for impairments and amortisation of "
