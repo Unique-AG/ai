@@ -89,7 +89,13 @@ CSS = """
   .qwrap .quote{border:none;padding:8px 0 0;margin-bottom:0;background:none;}
   .qc{color:var(--ok);font-weight:600;} .qc[data-chg^="-"],.qc[data-chg^="−"]{color:var(--red);}
   .qsrc{color:var(--mut);font-size:10.5px;margin-left:auto;text-align:right;}
-  .spark{height:24px;width:120px;vertical-align:middle;}
+  .spark{height:24px;width:120px;vertical-align:middle;flex-shrink:0;}
+  .qtape{display:flex;flex-direction:column;gap:0;align-items:stretch;}
+  .qrow{display:flex;align-items:center;gap:12px;padding:5px 6px;border-bottom:1px dashed var(--line);
+        border-radius:8px;font-variant-numeric:tabular-nums;}
+  .qrow:last-of-type{border-bottom:none;}
+  .qrow .qt{min-width:105px;font-weight:700;}
+
   .prow{display:flex;align-items:center;gap:10px;margin:6px 0;}
   .prow .pcb{width:15px;height:15px;accent-color:#0E7C7B;flex-shrink:0;}
   .ai-input{flex:1;min-width:220px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
@@ -450,28 +456,32 @@ def build_review(tk: str, names: list[tuple]) -> str:
                    f'<div class="h">{e(ov["headline"])}</div>'
                    f'<div class="imp">{e(ov["valuation_impact"])}</div>{act}</div>')
 
-    # live quote — SINGLE source everywhere: the FA MCP's get_live_quotes
-    # (server-side Yahoo fetch, display-ready, timestamped "as of HH:MM Zurich")
-    qargs = _json.dumps({"ticker": tk})
+    # live coverage tape — the PROVEN unfiltered get_live_quotes call (the
+    # per-ticker arg trips stale connector registries); this page's name is
+    # highlighted via baked CSS on data-tk.
     quote = (
-        '<div class="card qwrap"><h2>Live quote <span class="mut">· Yahoo Finance '
-        'via FA Research MCP · 5-min refresh</span></h2>'
-        '<div class="quote" data-unique-list="q" '
+        '<div class="card qwrap"><h2>Live quotes <span class="mut">· Yahoo Finance '
+        'via FA Research MCP · 24-month sparkline · red = 12m target · 5-min '
+        'refresh</span></h2>'
+        '<div class="quote qtape" data-unique-list="q" '
         'data-unique-source-server="Demo - CIB - Sell-Side Equity Analyst" '
         'data-unique-source-tool="get_live_quotes" '
-        "data-unique-source-args='" + qargs + "' "
+        'data-unique-source-args="{}" '
         'data-unique-source-path="rows" data-unique-source-poll="300000">'
         '<template data-unique-item>'
+        '<span class="qrow" data-unique-key="ticker" data-unique-attr-data-tk="ticker">'
         '<span class="qt" data-unique-field="name"></span>'
         '<img class="spark" alt="24m" data-unique-attr-src="spark_uri" '
         'data-unique-attr-title="spark_title">'
         '<span class="qp" data-unique-field="price_label"></span>'
         '<span class="qc" data-unique-attr-data-chg="chg_label" data-unique-field="chg_label"></span>'
         '<span class="qc" data-unique-attr-data-chg="chg_label">%</span>'
-        '<span class="qsrc" data-unique-field="source"></span>'
+        '<span class="qsrc"><span data-unique-field="tp_label"></span> target · '
+        '<span data-unique-field="tp_vs_price_label"></span></span>'
+        '</span>'
         '</template>'
-        '<span class="state" data-unique-state="loading"><span class="spin"></span> live quote…</span>'
-        '<span class="state" data-unique-state="error">live quote unavailable — check the '
+        '<span class="state" data-unique-state="loading"><span class="spin"></span> live quotes…</span>'
+        '<span class="state" data-unique-state="error">live quotes unavailable — check the '
         'Demo - CIB - Sell-Side Equity Analyst connector</span>'
         '</div></div>'
     )
@@ -589,6 +599,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
     <span class="rate {e(c['rating'])}">{e(c['rating'])}</span>
   </div>
   {quote}
+  <style>.rv .qrow[data-tk="{tk}"]{{background:var(--mint-wash);outline:1px solid var(--mint-dot);}}</style>
   <div class="tiles">{tiles}</div>
   {ov_html}
   {thesis_card}
