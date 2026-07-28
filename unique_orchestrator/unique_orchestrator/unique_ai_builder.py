@@ -69,7 +69,7 @@ from unique_toolkit.experimental.integrations.openai.streaming.event_routing imp
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
-from unique_user_memory.user_memory import load_user_memory
+from unique_user_memory.user_memory import load_user_memory, profile_body
 from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
@@ -426,7 +426,9 @@ async def _build_common(
             await memory_message_step_logger.log_loading_complete(
                 with_settings_entry=True
             )
-            user_memory_text = user_memory_state.text
+            # The postprocessor keeps the full file (it needs the frontmatter to
+            # carry turn_count forward); the prompt only gets the Markdown body.
+            user_memory_text = profile_body(user_memory_state.text)
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
                     config=user_memory_config,

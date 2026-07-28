@@ -63,7 +63,14 @@ _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
 _TURN_COUNT_RE = re.compile(r"^turn_count:\s*(\d+)\s*$", re.MULTILINE)
 
 
-def _profile_body(content: str) -> str:
+def profile_body(content: str) -> str:
+    """Return the profile without its YAML frontmatter.
+
+    The frontmatter is bookkeeping for the consolidation pass (turn count,
+    schema version, timestamps); consumers that show the profile to a model --
+    consolidation prompts and the orchestrator system prompt -- only want the
+    Markdown body.
+    """
     return _FRONTMATTER_RE.sub("", content, count=1).strip()
 
 
@@ -195,7 +202,7 @@ async def condense_user_memory(
     condensed profile, or ``None`` when the call fails or the output does
     not look like a profile (the caller then falls back to a hard cut).
     """
-    body = _profile_body(content)
+    body = profile_body(content)
     current_tokens = count_tokens(content=body, language_model=language_model)
     target_tokens = max(1, int(max_tokens * _CONDENSE_TARGET_RATIO))
 
@@ -265,7 +272,7 @@ async def condense_user_memory(
         )
         return None
 
-    candidate = _profile_body(_strip_code_fences(raw))
+    candidate = profile_body(_strip_code_fences(raw))
     if not _is_well_formed_profile(candidate):
         logger.warning(
             "[user-memory] condense output did not look like a profile (%d chars)",
@@ -826,7 +833,7 @@ async def _rewrite_user_memory(
             ),
             LanguageModelUserMessage(
                 content=consolidation_user_prompt(
-                    existing_memory=_profile_body(safe_current),
+                    existing_memory=profile_body(safe_current),
                     user_message=_sanitize_for_xml_context(user_message or ""),
                     assistant_message=_sanitize_for_xml_context(
                         assistant_message or ""
@@ -883,7 +890,7 @@ async def _rewrite_user_memory(
         logger.info("[user-memory] consolidation NOOP - keeping existing memory")
         return safe_current
 
-    candidate_body = _profile_body(_strip_code_fences(raw))
+    candidate_body = profile_body(_strip_code_fences(raw))
     if not _is_well_formed_profile(candidate_body):
         logger.warning(
             "[user-memory] LLM output did not look like a profile (%d chars)",
@@ -891,7 +898,7 @@ async def _rewrite_user_memory(
         )
         return safe_current
 
-    if safe_current and candidate_body == _profile_body(safe_current):
+    if safe_current and candidate_body == profile_body(safe_current):
         logger.debug("[user-memory] memory body unchanged - skipping update")
         return safe_current
 

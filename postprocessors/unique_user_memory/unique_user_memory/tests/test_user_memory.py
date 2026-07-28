@@ -21,6 +21,7 @@ from unique_user_memory.user_memory import (
     enforce_token_cap,
     ensure_user_memory_folder,
     fit_user_memory,
+    profile_body,
     should_consolidate_memory,
     upload_user_memory,
 )
@@ -44,6 +45,37 @@ def test_memory_profile_keeps_follow_up_tasks_but_excludes_open_questions() -> N
     assert "## Follow-ups" in profile
     assert "concrete tasks the user intends to complete" in consolidation_prompt
     assert "Concrete future tasks the user intends to complete" in gate_prompt
+
+
+def test_profile_body_strips_frontmatter() -> None:
+    # The orchestrator renders this into the system prompt, where the
+    # bookkeeping fields are noise for the model.
+    content = (
+        "---\n"
+        "user_id: 233737684428787846\n"
+        "strategy: codex\n"
+        "schema_version: 1\n"
+        "last_updated: 2026-07-27T10:20:00+00:00\n"
+        "turn_count: 83\n"
+        "---\n\n"
+        "# User Memory\n\n## Identity\n- Andreas\n"
+    )
+
+    body = profile_body(content)
+
+    assert body == "# User Memory\n\n## Identity\n- Andreas"
+    for field in ("user_id:", "strategy:", "schema_version:", "turn_count:"):
+        assert field not in body
+
+
+def test_profile_body_leaves_frontmatterless_profile_untouched() -> None:
+    content = "# User Memory\n\n## Identity\n- Andreas"
+
+    assert profile_body(content) == content
+
+
+def test_profile_body_returns_empty_for_frontmatter_only_profile() -> None:
+    assert profile_body("---\nuser_id: 42\nturn_count: 0\n---\n") == ""
 
 
 def test_enforce_token_cap_truncates_long_content() -> None:
