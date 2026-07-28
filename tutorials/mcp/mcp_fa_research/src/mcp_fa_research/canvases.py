@@ -89,6 +89,7 @@ CSS = """
   .qwrap .quote{border:none;padding:8px 0 0;margin-bottom:0;background:none;}
   .qc{color:var(--ok);font-weight:600;} .qc[data-chg^="-"],.qc[data-chg^="−"]{color:var(--red);}
   .qsrc{color:var(--mut);font-size:10.5px;margin-left:auto;text-align:right;}
+  .spark{height:24px;width:120px;vertical-align:middle;}
   .prow{display:flex;align-items:center;gap:10px;margin:6px 0;}
   .prow .pcb{width:15px;height:15px;accent-color:#0E7C7B;flex-shrink:0;}
   .ai-input{flex:1;min-width:220px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
@@ -292,6 +293,7 @@ _PRODUCTS_SCRIPT = """
 _EDIT_AI_SCRIPT = """
 <script>
 (function(){
+  function wire(){
   document.querySelectorAll('[data-ai-card]').forEach(function(card){
     var inp = card.querySelector('.ai-input'), btn = card.querySelector('.ai-go');
     if (!inp || !btn) return;
@@ -303,19 +305,28 @@ _EDIT_AI_SCRIPT = """
                        + 'ask me what to change. Context: ' + base.replace('__INSTR__', '(pending)');
       btn.setAttribute('data-unique-payload', JSON.stringify({prompt: prompt}));
     }
+    if (card.getAttribute('data-ai-wired')) return;
+    card.setAttribute('data-ai-wired', '1');
     card.addEventListener('input', sync);
     sync();
   });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire);
+  } else { wire(); }
 })();
 </script>"""
 
 
 def _edit_rows(placeholder: str, base_prompt: str) -> str:
     """Input on one line, the Edit-with-AI button on the next (house layout)."""
+    fallback = _json.dumps({"prompt": base_prompt.replace(
+        "__INSTR__", "(no instruction typed yet — ask me what to change first)")})
     return ('<div class="prow"><input type="text" class="ai-input" placeholder="'
             + e(placeholder) + '"></div>'
             '<div class="prow"><button class="btn primary ai-go" '
-            'data-unique-action="sendPrompt" data-unique-payload="{}" '
+            'data-unique-action="sendPrompt" '
+            "data-unique-payload='" + fallback.replace("'", "&#39;") + "' "
             "data-ai-base='" + e(base_prompt).replace("'", "&#39;") + "'>"
             '✨ Edit with AI</button></div>')
 
@@ -340,31 +351,39 @@ def _products(tk: str, name: str) -> str:
             f'{icon} {e(label)}</button></div>')
     if not rows:
         return ""
+    fb_regen = _json.dumps({"prompt": f"Regenerate the research products for {name} "
+                            f"({tk}): note products with the exane-desknote skill, decks "
+                            f"with exane-roadshow-deck, the Excel model with "
+                            f"exane-financial-model."}).replace("'", "&#39;")
+    fb_submit = _json.dumps({"prompt": f"Submit the {name} ({tk}) research products for "
+                             f"pre-publication control (one submit_for_control per "
+                             f"product); ask me for the priority first."}).replace("'", "&#39;")
+    fb_ai = _json.dumps({"prompt": f"I want to edit the {name} ({tk}) research products "
+                         f"with AI — ask me what to change, then use the matching "
+                         f"skills."}).replace("'", "&#39;")
+    fb_model = _json.dumps({"prompt": (
+        f"Update the {name} ({tk}) sell-side Excel model with the LATEST data — "
+        "use the exane-financial-model skill in UPDATE mode: pull fresh figures "
+        "(get_financials, get_coverage, get_note_pack for LVMH), overwrite the "
+        "changed inputs/actuals in the existing workbook (keep every formula "
+        "live), save it back to CIB - Sell-Side Equity Analyst/names/" + tk +
+        "/notes/ under the SAME filename, and report the delta: EPS by year and "
+        "target price vs the prior version.")}).replace("'", "&#39;")
     controls = (
         '<div class="prow" style="margin-top:10px;flex-wrap:wrap;gap:8px">'
-        '<button class="btn" id="regen-sel" data-unique-action="sendPrompt" '
-        'data-unique-payload="{}">↻ Regenerate selected</button>'
-        '<button class="btn" id="submit-sel" data-unique-action="sendPrompt" '
-        'data-unique-payload="{}">⇪ Submit selected for control</button>'
-        '</div>_AI_ROWS_'
-        '<button class="btn" data-unique-action="sendPrompt" '
-        "data-unique-payload='" + _json.dumps({"prompt": (
-            f"Update the {name} ({tk}) sell-side Excel model with the LATEST data — "
-            "use the exane-financial-model skill in UPDATE mode: pull fresh figures "
-            "(get_financials, get_coverage, get_note_pack for LVMH), overwrite the "
-            "changed inputs/actuals in the existing workbook (keep every formula "
-            "live), save it back to CIB - Sell-Side Equity Analyst/names/" + tk + "/notes/ under "
-            "the SAME filename, and report the delta: EPS by year and target price "
-            "vs the prior version.")}) + "'>"
-        '📈 Update model with latest data</button>')
-    controls = controls.replace('</div>_AI_ROWS_', '')
-    controls += ('</div>'
-        '<div class="prow" style="margin-top:6px"><input type="text" class="ai-input" '
-        'placeholder="Edit with AI — e.g. refresh with the post-warning numbers, exec '
-        'summary in French"></div>'
-        '<div class="prow">'
-        '<button class="btn primary" id="ai-sel" data-unique-action="sendPrompt" '
-        'data-unique-payload="{}">✨ Edit with AI</button></div>')
+        + '<button class="btn" id="regen-sel" data-unique-action="sendPrompt" '
+        + "data-unique-payload='" + fb_regen + "'>\u21bb Regenerate selected</button>"
+        + '<button class="btn" id="submit-sel" data-unique-action="sendPrompt" '
+        + "data-unique-payload='" + fb_submit + "'>\u21ea Submit selected for control</button>"
+        + '<button class="btn" data-unique-action="sendPrompt" '
+        + "data-unique-payload='" + fb_model + "'>\U0001f4c8 Update model with latest data</button>"
+        + '</div>'
+        + '<div class="prow" style="margin-top:6px"><input type="text" class="ai-input" '
+        + 'placeholder="Edit with AI \u2014 e.g. refresh with the post-warning numbers, exec '
+        + 'summary in French"></div>'
+        + '<div class="prow">'
+        + '<button class="btn primary" id="ai-sel" data-unique-action="sendPrompt" '
+        + "data-unique-payload='" + fb_ai + "'>\u2728 Edit with AI</button></div>")
     return (f'<div class="card" id="prodcard" data-tk="{e(tk)}" data-name="{e(name)}">'
             '<h2>Research products <span class="mut">· pre-generated overnight · tick the '
             'documents, then regenerate, submit for control or edit with AI</span></h2>'
@@ -444,6 +463,8 @@ def build_review(tk: str, names: list[tuple]) -> str:
         'data-unique-source-path="rows" data-unique-source-poll="300000">'
         '<template data-unique-item>'
         '<span class="qt" data-unique-field="name"></span>'
+        '<img class="spark" alt="24m" data-unique-attr-src="spark_uri" '
+        'data-unique-attr-title="spark_title">'
         '<span class="qp" data-unique-field="price_label"></span>'
         '<span class="qc" data-unique-attr-data-chg="chg_label" data-unique-field="chg_label"></span>'
         '<span class="qc" data-unique-attr-data-chg="chg_label">%</span>'

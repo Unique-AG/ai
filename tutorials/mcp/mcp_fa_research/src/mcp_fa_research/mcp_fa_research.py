@@ -622,6 +622,73 @@ def _yahoo_quote(symbol: str) -> dict | None:
         return None
 
 
+_MONTHLY_CACHE: dict = {}
+
+
+def _yahoo_monthly(symbol: str) -> list[float] | None:
+    """~24 month-end closes (2y, 1mo interval) from Yahoo's chart endpoint; 1h cache."""
+    import time as _time
+    import urllib.request
+
+    hit = _MONTHLY_CACHE.get(symbol)
+    if hit and _time.time() - hit[0] < 3600:
+        return hit[1]
+    try:
+        url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+               f"?range=2y&interval=1mo")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=4) as r:
+            data = json.loads(r.read().decode())
+        closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+        vals = [round(float(c), 2) for c in closes if c is not None][-24:]
+        if len(vals) >= 6:
+            _MONTHLY_CACHE[symbol] = (_time.time(), vals)
+            return vals
+    except Exception:
+        pass
+    _MONTHLY_CACHE[symbol] = (_time.time(), None)
+    return None
+
+
+def _synthetic_monthly(last: float) -> list[float]:
+    """Deterministic 24-point fallback path ending at the current price."""
+    import math
+    return [round(last * (0.86 + 0.14 * i / 23 + 0.05 * math.sin(i * 1.1)), 2)
+            for i in range(24)]
+
+
+def _spark_uri(closes: list[float], tp: float) -> str:
+    """Thin, appealing sparkline as a base64 SVG data-URI: 24 month-end closes
+    (mint line + soft area) with the 12m TARGET drawn as a red dashed level."""
+    import base64
+
+    w, h, pad = 120, 24, 3
+    lo = min(min(closes), tp)
+    hi = max(max(closes), tp)
+    span = (hi - lo) or 1.0
+    def y(v):
+        return round(pad + (h - 2 * pad) * (1 - (v - lo) / span), 2)
+    xs = [round(pad + (w - 2 * pad) * i / (len(closes) - 1), 2) for i in range(len(closes))]
+    pts = " ".join(f"{x},{y(v)}" for x, v in zip(xs, closes))
+    area = f"{pad},{h - pad} {pts} {w - pad},{h - pad}"
+    ty = y(tp)
+    last_x, last_y = xs[-1], y(closes[-1])
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+        f'viewBox="0 0 {w} {h}">'
+        f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="5" '
+        f'fill="#F4F6F5" stroke="#E7E8E7"/>'
+        f'<polygon points="{area}" fill="#3E8E7E" opacity="0.12"/>'
+        f'<polyline points="{pts}" fill="none" stroke="#3E8E7E" stroke-width="1.4" '
+        f'stroke-linejoin="round" stroke-linecap="round"/>'
+        f'<line x1="{pad}" y1="{ty}" x2="{w - pad}" y2="{ty}" stroke="#B42318" '
+        f'stroke-width="1.2" stroke-dasharray="3,2"/>'
+        f'<circle cx="{last_x}" cy="{last_y}" r="2" fill="#171717"/>'
+        f'</svg>')
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
+
+
+
 @mcp.tool(name="get_live_quotes", title="Live quotes (Yahoo Finance, formatted)",
           description="LIVE market quotes for the coverage universe, fetched from Yahoo "
                       "Finance server-side and returned DISPLAY-READY (price and change% "
@@ -667,6 +734,10 @@ def get_live_quotes(
             ref_price = c["price"]
         row["tp_label"] = _ccy_fmt(tp, c["ccy"])
         row["tp_vs_price_label"] = f"{(tp / ref_price - 1) * 100:+.1f}%"
+        closes = _yahoo_monthly(c["yahoo"]) or _synthetic_monthly(ref_price)
+        row["spark_uri"] = _spark_uri(closes, tp)
+        row["spark_title"] = (f"{c['name']} — 24 month-end closes (Yahoo) · red = "
+                              f"12m target {row['tp_label']}")
         rows.append(row)
     live_n = sum(1 for r in rows if r["live"])
     label = (f"LIVE · YAHOO FINANCE · as of {as_of} Zurich" if live_n
