@@ -647,20 +647,27 @@ def get_live_quotes(
     rows = []
     for c in names:
         q = _yahoo_quote(c["yahoo"])
+        ov = seed.OVERNIGHT.get(c["ticker"]) or {}
+        tp = ov.get("new_target_price") or c["target_price"]
         if q:
             chg = (q["price"] / q["prev_close"] - 1.0) * 100.0
-            rows.append({"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
-                         "price_label": f"{q['price']:,.2f}", "chg_label": f"{chg:+.2f}",
-                         "chg_dir": "dn" if chg < -0.005 else ("up" if chg > 0.005 else "flat"),
-                         "as_of": as_of, "source": f"Yahoo Finance · {as_of}",
-                         "live": True})
+            row = {"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
+                   "price_label": f"{q['price']:,.2f}", "chg_label": f"{chg:+.2f}",
+                   "chg_dir": "dn" if chg < -0.005 else ("up" if chg > 0.005 else "flat"),
+                   "as_of": as_of, "source": f"Yahoo Finance · {as_of}",
+                   "live": True}
+            ref_price = q["price"]
         else:
-            rows.append({"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
-                         "price_label": f"{c['price']:,.2f}",
-                         "chg_label": f"{c['premarket_pct']:+.2f}",
-                         "chg_dir": "dn" if c["premarket_pct"] < 0 else "up",
-                         "as_of": as_of, "source": f"synthetic indication · {as_of}",
-                         "live": False})
+            row = {"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
+                   "price_label": f"{c['price']:,.2f}",
+                   "chg_label": f"{c['premarket_pct']:+.2f}",
+                   "chg_dir": "dn" if c["premarket_pct"] < 0 else "up",
+                   "as_of": as_of, "source": f"synthetic indication · {as_of}",
+                   "live": False}
+            ref_price = c["price"]
+        row["tp_label"] = _ccy_fmt(tp, c["ccy"])
+        row["tp_vs_price_label"] = f"{(tp / ref_price - 1) * 100:+.1f}%"
+        rows.append(row)
     live_n = sum(1 for r in rows if r["live"])
     label = (f"LIVE · YAHOO FINANCE · as of {as_of} Zurich" if live_n
              else f"SYNTHETIC INDICATION · as of {as_of} Zurich")
