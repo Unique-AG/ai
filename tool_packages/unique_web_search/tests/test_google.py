@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.search_engines.google.schema import (
     ExposableStrOrNone,
@@ -20,7 +21,12 @@ class TestGoogleSearch:
             gl=ExposableParam(expose=False, value="us"),
             site_search=ExposableParam(expose=False, value="example.com"),
         )
-        search = GoogleSearch(config)
+        request_context = RequestContext(
+            company_id="company-1",
+            user_id="user-1",
+            chat_id="chat-1",
+        )
+        search = GoogleSearch(config, request_context=request_context)
 
         mock_response = Mock()
         mock_response.curated = [
@@ -48,6 +54,10 @@ class TestGoogleSearch:
 
             results = await search.search("test query")
 
+        mock_open_client.assert_called_once_with(
+            timeout=30.0,
+            context=request_context,
+        )
         mock_search.assert_awaited_once()
         call_kwargs = mock_search.await_args.kwargs
         assert call_kwargs["query"] == "test query"

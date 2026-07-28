@@ -7,11 +7,13 @@ from httpx import HTTPError
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.vertexai.schema import VertexAIAgentConfig
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model import LanguageModelService
 
+from unique_web_search.invocation_stats import record_vertex_response
 from unique_web_search.services.proxy.bridge import (
     search_proxy_client_enabled,
 )
@@ -66,8 +68,10 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         self,
         config: VertexAIConfig,
         language_model_service: LanguageModelService,
+        *,
+        request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
     ):
-        super().__init__(config=config)
+        super().__init__(config=config, request_context=request_context)
         self._client = get_vertex_client()
         self.is_configured = search_proxy_client_enabled or self._client is not None
 
@@ -110,6 +114,11 @@ class VertexAI(SearchEngine[VertexAIConfig]):
                 entreprise_search=self.config.enable_enterprise_search,
             ),
             contents=query,
+        )
+        record_vertex_response(
+            model_name=self.config.vertexai_model_name,
+            response=response,
+            source="web_search.grounding.vertexai",
         )
 
         answer_with_citations = add_citations(response)

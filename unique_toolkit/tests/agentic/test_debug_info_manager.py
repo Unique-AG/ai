@@ -12,10 +12,12 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     _extract_tool_calls_from_stream_response,
 )
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelStreamResponse,
     LanguageModelStreamResponseMessage,
+    LanguageModelTokenUsage,
     ResponsesLanguageModelStreamResponse,
 )
 
@@ -469,6 +471,171 @@ class TestAddAnalytics:
     }
 
     @pytest.mark.ai
+    def test_add_analytics__aggregates_consumption_by_llm(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+            invocations=[
+                LanguageModelInvocationStats.from_usage(
+                    "model-b",
+                    LanguageModelTokenUsage(
+                        prompt_tokens=10,
+                        completion_tokens=2,
+                        total_tokens=12,
+                        cached_tokens=None,
+                    ),
+                    source="main_loop[1]",
+                ),
+                LanguageModelInvocationStats.from_usage(
+                    "model-a",
+                    LanguageModelTokenUsage(
+                        prompt_tokens=4,
+                        completion_tokens=1,
+                        total_tokens=5,
+                        cached_tokens=3,
+                        reasoning_tokens=1,
+                    ),
+                    source="planning",
+                ),
+                LanguageModelInvocationStats.from_usage(
+                    "model-b",
+                    LanguageModelTokenUsage(
+                        prompt_tokens=20,
+                        completion_tokens=3,
+                        total_tokens=23,
+                        cached_tokens=5,
+                    ),
+                    source="follow_up_questions",
+                ),
+            ],
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["consumption_by_llm"] == [
+            {
+                "model_name": "model-a",
+                "completion_tokens": 1,
+                "prompt_tokens": 4,
+                "total_tokens": 5,
+                "reasoning_tokens": 1,
+                "cached_tokens": 3,
+                "cache_write_tokens": None,
+                "cost_usd": None,
+            },
+            {
+                "model_name": "model-b",
+                "completion_tokens": 5,
+                "prompt_tokens": 30,
+                "total_tokens": 35,
+                "reasoning_tokens": None,
+                "cached_tokens": 5,
+                "cache_write_tokens": None,
+                "cost_usd": None,
+            },
+        ]
+        assert analytics["consumption"] == {
+            "completion_tokens": 6,
+            "prompt_tokens": 34,
+            "total_tokens": 40,
+            "reasoning_tokens": 1,
+            "cached_tokens": 8,
+            "cache_write_tokens": None,
+            "cost_usd": None,
+        }
+
+    @pytest.mark.ai
+    def test_add_analytics__aggregates_complete_model_costs(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """Purpose: Verify analytics sums priced invocations by model.
+        Why this matters: Reporting needs a model-level total as well as call details.
+        Setup summary: Supply two priced invocations and assert their aggregate cost.
+        """
+        invocations = [
+            LanguageModelInvocationStats(
+                model_name="model-a",
+                token_usage=LanguageModelTokenUsage(
+                    prompt_tokens=10, completion_tokens=2
+                ),
+                source="main_loop[1]",
+                cost_usd=0.01,
+            ),
+            LanguageModelInvocationStats(
+                model_name="model-a",
+                token_usage=LanguageModelTokenUsage(
+                    prompt_tokens=20, completion_tokens=3
+                ),
+                source="planning",
+                cost_usd=0.02,
+            ),
+        ]
+
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+            invocations=invocations,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["consumption_by_llm"][0]["cost_usd"] == pytest.approx(0.03)
+        assert analytics["consumption"]["cost_usd"] == pytest.approx(0.03)
+
+    @pytest.mark.ai
+    def test_add_analytics__keeps_partial_model_cost_unknown(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """Purpose: Verify partially priced model groups do not emit partial totals.
+        Why this matters: A partial sum would understate actual model spend.
+        Setup summary: Mix priced and unpriced invocations and assert a null total.
+        """
+        invocations = [
+            LanguageModelInvocationStats(
+                model_name="model-a",
+                token_usage=LanguageModelTokenUsage(
+                    prompt_tokens=10, completion_tokens=2
+                ),
+                source="main_loop[1]",
+                cost_usd=0.01,
+            ),
+            LanguageModelInvocationStats(
+                model_name="model-a",
+                token_usage=LanguageModelTokenUsage(
+                    prompt_tokens=20, completion_tokens=3
+                ),
+                source="planning",
+            ),
+        ]
+
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+            invocations=invocations,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["consumption_by_llm"][0]["cost_usd"] is None
+        assert analytics["consumption"]["cost_usd"] is None
+
+    @pytest.mark.ai
+    def test_add_analytics__consumption_empty_without_invocations(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["consumption_by_llm"] == []
+        assert analytics["consumption"] is None
+
+    @pytest.mark.ai
     def test_add_analytics__copies_tools_and_skills__into_new_key(
         self, debug_info_manager: DebugInfoManager
     ) -> None:
@@ -513,6 +680,7 @@ class TestAddAnalytics:
         # Reserved placeholders — always present, populated in a later step.
         assert analytics["artifacts_created_count"] is None
         assert analytics["artifacts_created_filetype"] is None
+        assert analytics["output_size"] is None
 
     @pytest.mark.ai
     def test_add_analytics__total_time_to_answer_ms__always_present_as_null(
@@ -544,18 +712,23 @@ class TestAddAnalytics:
         Purpose: Verify the artifact fields are read from the artifacts argument.
         Why this matters: This is the wiring that makes the reserved keys carry real
         values once Code Interpreter has produced files.
-        Setup summary: Pass artifact metadata; assert both fields mirror it.
+        Setup summary: Pass artifact metadata; assert all fields mirror it.
         """
         debug_info_manager.add_analytics(
             [],
             language_model=self.language_model,
             tool_display_names=self.tool_display_names,
-            artifacts={"count": 2, "filetypes": ["csv", "png"]},
+            artifacts={
+                "count": 2,
+                "filetypes": ["csv", "png"],
+                "output_size": 1.5,
+            },
         )
 
         analytics = debug_info_manager.get()["analytics"]
         assert analytics["artifacts_created_count"] == 2
         assert analytics["artifacts_created_filetype"] == ["csv", "png"]
+        assert analytics["output_size"] == 1.5
 
     @pytest.mark.ai
     def test_add_analytics__artifacts__zero_when_code_interpreter_ran_but_empty(
@@ -563,32 +736,34 @@ class TestAddAnalytics:
     ) -> None:
         """
         Purpose: Verify a ran-but-produced-nothing Code Interpreter turn reports
-        count 0 / empty filetypes, distinct from the never-ran (None) case.
+        count 0 / empty filetypes / 0.0 size, distinct from the never-ran (None)
+        case.
         Why this matters: Consumers must be able to tell "0 files created" from
         "no Code Interpreter this turn" — the caller passes {count:0,
-        filetypes:[]} in the former case and None in the latter.
-        Setup summary: Pass empty artifact metadata; assert 0 / [] (not None).
+        filetypes:[], output_size:0.0} in the former case and None in the latter.
+        Setup summary: Pass empty artifact metadata; assert 0 / [] / 0.0 (not None).
         """
         debug_info_manager.add_analytics(
             [],
             language_model=self.language_model,
             tool_display_names=self.tool_display_names,
-            artifacts={"count": 0, "filetypes": []},
+            artifacts={"count": 0, "filetypes": [], "output_size": 0.0},
         )
 
         analytics = debug_info_manager.get()["analytics"]
         assert analytics["artifacts_created_count"] == 0
         assert analytics["artifacts_created_filetype"] == []
+        assert analytics["output_size"] == 0.0
 
     @pytest.mark.ai
     def test_add_analytics__artifacts__none_when_no_entry(
         self, debug_info_manager: DebugInfoManager
     ) -> None:
         """
-        Purpose: Verify both artifact fields are None when no Code Interpreter ran
+        Purpose: Verify artifact fields are None when no Code Interpreter ran
         (no debug_info["artifacts"] entry) — the always-present, null-when-unknown
         contract from doc 03.
-        Setup summary: No artifacts entry seeded; assert both keys present and None.
+        Setup summary: No artifacts entry seeded; assert all keys present and None.
         """
         debug_info_manager.add_analytics(
             [],
@@ -599,6 +774,49 @@ class TestAddAnalytics:
         analytics = debug_info_manager.get()["analytics"]
         assert analytics["artifacts_created_count"] is None
         assert analytics["artifacts_created_filetype"] is None
+        assert analytics["output_size"] is None
+
+    @pytest.mark.ai
+    def test_add_analytics__context_memory_updated__populated_from_argument(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify the context_memory_updated field mirrors the argument.
+        Why this matters: This is the wiring that surfaces whether the user-memory
+        postprocessor updated the stored profile this turn.
+        Setup summary: Pass True/False; assert the field mirrors it.
+        """
+        for value in (True, False):
+            debug_info_manager.add_analytics(
+                [],
+                language_model=self.language_model,
+                tool_display_names=self.tool_display_names,
+                context_memory_updated=value,
+            )
+
+            analytics = debug_info_manager.get()["analytics"]
+            assert analytics["context_memory_updated"] is value
+
+    @pytest.mark.ai
+    def test_add_analytics__context_memory_updated__none_when_not_activated(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify context_memory_updated is None when the user-memory
+        postprocessor is not activated (argument omitted) — the always-present,
+        null-when-unknown contract.
+        Setup summary: Call add_analytics without the argument; assert key present
+        and None.
+        """
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert "context_memory_updated" in analytics
+        assert analytics["context_memory_updated"] is None
 
     @pytest.mark.ai
     def test_add_analytics__does_not_remove_top_level_tools_or_skills_keys(

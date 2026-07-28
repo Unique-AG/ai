@@ -21,5 +21,10 @@ Your task is to generate follow-up {{number_of_questions}} questions that are li
 You should avoid repeating questions that you have seen in the conversation history.
 You should take the examples as inspiration, but not copy them exactly or paraphrase them.
 
+Every follow-up question must be about the user's own topic or the subject matter of the conversation, never about the assistant or the platform itself. Never generate:
+- questions that ask the assistant to remember, save, update, or delete anything in the user's memory or profile
+- questions that merely accept or confirm something the assistant offered to do (for example "Yes, please update my profile")
+- questions about the assistant's configuration, settings, tools, or capabilities
+
 You should strictly follow the output schema provided below:
 {{output_schema}}

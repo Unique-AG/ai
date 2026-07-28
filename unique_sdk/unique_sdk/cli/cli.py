@@ -9,6 +9,15 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.agentic_table import (
+    cmd_cell_history,
+    cmd_get_cell,
+    cmd_get_sheet,
+    cmd_list_exports,
+)
+from unique_sdk.cli.commands.agentic_table import (
+    is_error_output as _is_agentic_table_error_output,
+)
 from unique_sdk.cli.commands.browser import (
     cmd_browser_action,
     cmd_browser_control,
@@ -21,11 +30,6 @@ from unique_sdk.cli.commands.browser import (
 from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.cite_file import (
     is_error_output as _is_cite_error_output,
-)
-from unique_sdk.cli.commands.dynamic_frontend import (
-    cmd_dynamic_frontend_delete,
-    cmd_dynamic_frontend_deploy,
-    cmd_dynamic_frontend_list,
 )
 from unique_sdk.cli.commands.elicitation import (
     DEFAULT_WAIT_TIMEOUT_SECONDS,
@@ -87,8 +91,6 @@ from unique_sdk.cli.config import load_config
 from unique_sdk.cli.identity import TurnIdentityError, resolve_message_id
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
-
-_DYNAMIC_FRONTEND_ERROR_PREFIX = "dynamic-frontend "
 
 
 def _resolve_cli_message_id(
@@ -165,8 +167,8 @@ Examples:
   unique-cli subagent Legal "Review" Invoke a connected space/subagent
   unique-cli web-search search "x"  Search the web via the public API
   unique-cli web-search crawl URL   Crawl a URL via the public API
-  unique-cli dynamic-frontend list  List manageable Dynamic Frontend spaces
   unique-cli browser get-dom        Read the user's live Chrome tab (a11y tree)
+  unique-cli agentic-table get-sheet mt_abc123  Show a magic-table sheet summary
 """
 
 
@@ -570,101 +572,6 @@ def read_cmd(
         max_chars=max_chars,
     )
     emit(output, is_error=_is_read_error_output)
-
-
-@main.group(name="dynamic-frontend")
-def dynamic_frontend() -> None:
-    """Deploy, list, and delete Dynamic Frontend spaces."""
-
-
-@dynamic_frontend.command(name="deploy")
-@click.option(
-    "--file",
-    "file_path",
-    default=None,
-    type=click.Path(exists=True),
-    help="Path to an upload-ready Dynamic Frontend ZIP bundle.",
-)
-@click.option(
-    "--content-id",
-    default=None,
-    help="Existing Knowledge Base content id for the ZIP bundle.",
-)
-@click.option(
-    "--name",
-    default=None,
-    help="Space display name. Required when creating; optional rename when updating.",
-)
-@click.option(
-    "--space-id", default=None, help="Existing Dynamic Frontend space id to update."
-)
-@click.option(
-    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
-)
-@click.pass_context
-def dynamic_frontend_deploy(
-    ctx: click.Context,
-    file_path: str | None,
-    content_id: str | None,
-    name: str | None,
-    space_id: str | None,
-    output_json: bool,
-) -> None:
-    """Create or update a Dynamic Frontend space.
-
-    \b
-    Examples:
-      unique-cli dynamic-frontend deploy --file ./app.zip --name "Revenue Dashboard"
-      unique-cli dynamic-frontend deploy --content-id content_123 --name "Revenue Dashboard"
-      unique-cli dynamic-frontend deploy --space-id assistant_123 --file ./app.zip
-    """
-    output = cmd_dynamic_frontend_deploy(
-        LazyState.get(ctx),
-        file=file_path,
-        content_id=content_id,
-        name=name,
-        space_id=space_id,
-        output_json=output_json,
-    )
-    click.echo(output)
-    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
-        ctx.exit(1)
-
-
-@dynamic_frontend.command(name="list")
-@click.option(
-    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
-)
-@click.pass_context
-def dynamic_frontend_list(ctx: click.Context, output_json: bool) -> None:
-    """List Dynamic Frontend spaces the current user can manage."""
-    output = cmd_dynamic_frontend_list(LazyState.get(ctx), output_json=output_json)
-    click.echo(output)
-    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
-        ctx.exit(1)
-
-
-@dynamic_frontend.command(name="delete")
-@click.argument("space_id")
-@click.option(
-    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
-)
-@click.pass_context
-def dynamic_frontend_delete(
-    ctx: click.Context, space_id: str, output_json: bool
-) -> None:
-    """Delete a deployed Dynamic Frontend space by its space id.
-
-    \b
-    Example:
-      unique-cli dynamic-frontend delete assistant_123
-    """
-    output = cmd_dynamic_frontend_delete(
-        LazyState.get(ctx), space_id, output_json=output_json
-    )
-    click.echo(output)
-    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
-        ctx.exit(1)
 
 
 @main.command()
@@ -1363,7 +1270,8 @@ def elicit_ask(
 @click.option(
     "--mode",
     type=click.Choice(["FORM", "URL"], case_sensitive=False),
-    required=True,
+    default="FORM",
+    show_default=True,
     help="Elicitation display mode.",
 )
 @click.option(
@@ -2135,6 +2043,18 @@ Examples:
     is_flag=True,
     help="Output results as JSON (suitable for piping into web-search crawl --stdin).",
 )
+@click.option(
+    "--chat-id",
+    "chat_id",
+    default=None,
+    envvar="UNIQUE_CHAT_ID",
+    help=(
+        "Chat id this call is made on behalf of. Defaults to $UNIQUE_CHAT_ID "
+        "(auto-set in Conduct sandboxes). When set, the space's Web Search "
+        "toggle is enforced server-side and the call is rejected if Web "
+        "Search is disabled for that space."
+    ),
+)
 @click.pass_context
 def web_search_search_cmd(
     ctx: click.Context,
@@ -2145,6 +2065,7 @@ def web_search_search_cmd(
     crawler_config_raw: str | None,
     config_path: str | None,
     output_json: bool,
+    chat_id: str | None,
 ) -> None:
     """Search the web via the Unique public API."""
     resolved_config = _resolve_web_search_config_path(ctx, config_path)
@@ -2157,6 +2078,7 @@ def web_search_search_cmd(
         crawler_config_raw=crawler_config_raw,
         output_json=output_json,
         config_path=resolved_config,
+        chat_id=chat_id,
     )
     _emit_web_search(ctx, output)
 
@@ -2212,6 +2134,18 @@ Examples:
     is_flag=True,
     help="Output results as JSON.",
 )
+@click.option(
+    "--chat-id",
+    "chat_id",
+    default=None,
+    envvar="UNIQUE_CHAT_ID",
+    help=(
+        "Chat id this call is made on behalf of. Defaults to $UNIQUE_CHAT_ID "
+        "(auto-set in Conduct sandboxes). When set, the space's Web Search "
+        "toggle is enforced server-side and the call is rejected if Web "
+        "Search is disabled for that space."
+    ),
+)
 @click.pass_context
 def web_search_crawl_cmd(
     ctx: click.Context,
@@ -2221,6 +2155,7 @@ def web_search_crawl_cmd(
     crawler_config_raw: str | None,
     config_path: str | None,
     output_json: bool,
+    chat_id: str | None,
 ) -> None:
     """Crawl URLs via the Unique public API."""
     url_list: list[str] = list(urls)
@@ -2238,5 +2173,203 @@ def web_search_crawl_cmd(
         crawler_config_raw=crawler_config_raw,
         output_json=output_json,
         config_path=resolved_config,
+        chat_id=chat_id,
     )
     _emit_web_search(ctx, output)
+
+
+# -- Agentic Table ---------------------------------------------------------
+
+
+_AGENTIC_TABLE_HELP = """\
+Read Agentic Table (magic table) sheets, cells, and cell history.
+
+\b
+These are Tier 0 reads over the public magic-table API: no confirmation,
+no writes. Every call is scoped to the current user/company; sheet-role
+access (Owner / Can manage / Can edit) is enforced server-side and a denial
+is reported as `agentic-table: permission denied`.
+
+\b
+Subcommands:
+  get-sheet      Show a sheet summary (state, row count, metadata, cells)
+  get-cell       Show a single cell by row/column order
+  cell-history   Show a single cell's log/edit history
+  list-exports   List a sheet's export artifacts (reports, question exports)
+
+\b
+Examples:
+  unique-cli agentic-table get-sheet mt_abc123
+  unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
+  unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
+  unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2 --json
+  unique-cli agentic-table list-exports mt_abc123
+"""
+
+
+@main.group("agentic-table", help=_AGENTIC_TABLE_HELP)
+def agentic_table() -> None:
+    pass
+
+
+@agentic_table.command(name="get-sheet")
+@click.argument("table_id")
+@click.option(
+    "--cells",
+    "include_cells",
+    is_flag=True,
+    default=False,
+    help="Include cell values in the output.",
+)
+@click.option(
+    "--metadata",
+    "include_metadata",
+    is_flag=True,
+    default=False,
+    help="Include sheet-level metadata entries.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_get_sheet(
+    ctx: click.Context,
+    table_id: str,
+    include_cells: bool,
+    include_metadata: bool,
+    output_json: bool,
+) -> None:
+    """Show a magic-table sheet summary.
+
+    \b
+    TABLE_ID is the magic-table sheet id. By default only the summary
+    (name, state, row count) is shown; add --metadata for sheet metadata
+    and --cells to include cell values.
+
+    \b
+    Examples:
+      unique-cli agentic-table get-sheet mt_abc123
+      unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
+    """
+    emit(
+        cmd_get_sheet(
+            LazyState.get(ctx),
+            table_id,
+            include_cells=include_cells,
+            include_metadata=include_metadata,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="get-cell")
+@click.argument("table_id")
+@click.option(
+    "--row", "row_order", type=int, required=True, help="Row order (0-based)."
+)
+@click.option(
+    "--col", "column_order", type=int, required=True, help="Column order (0-based)."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_get_cell(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    column_order: int,
+    output_json: bool,
+) -> None:
+    """Show a single cell by row/column order.
+
+    \b
+    Examples:
+      unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
+      unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2 --json
+    """
+    emit(
+        cmd_get_cell(
+            LazyState.get(ctx),
+            table_id,
+            row_order=row_order,
+            column_order=column_order,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="cell-history")
+@click.argument("table_id")
+@click.option(
+    "--row", "row_order", type=int, required=True, help="Row order (0-based)."
+)
+@click.option(
+    "--col", "column_order", type=int, required=True, help="Column order (0-based)."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_cell_history(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    column_order: int,
+    output_json: bool,
+) -> None:
+    """Show a single cell's log/edit history.
+
+    \b
+    Lists the cell's log entries (actor, timestamp, source message id, and
+    the logged text) as recorded by prior edits.
+
+    \b
+    Examples:
+      unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2
+      unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2 --json
+    """
+    emit(
+        cmd_cell_history(
+            LazyState.get(ctx),
+            table_id,
+            row_order=row_order,
+            column_order=column_order,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="list-exports")
+@click.argument("table_id")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_list_exports(
+    ctx: click.Context,
+    table_id: str,
+    output_json: bool,
+) -> None:
+    """List a sheet's export artifacts.
+
+    \b
+    Shows generated exports (full report, question export, agentic report)
+    with their state and, once ready, the content id to download.
+
+    \b
+    Examples:
+      unique-cli agentic-table list-exports mt_abc123
+      unique-cli agentic-table list-exports mt_abc123 --json
+    """
+    emit(
+        cmd_list_exports(
+            LazyState.get(ctx),
+            table_id,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )

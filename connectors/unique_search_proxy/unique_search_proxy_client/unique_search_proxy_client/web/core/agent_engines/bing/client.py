@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 
 import certifi
+import httpx
 from azure.ai.projects.aio import AIProjectClient
 from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.pipeline.transport import AsyncioRequestsTransport
 from azure.identity.aio import DefaultAzureCredential, WorkloadIdentityCredential
+from openai import AsyncOpenAI
 
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
     bing_agent_credentials,
@@ -14,6 +16,7 @@ from unique_search_proxy_client.web.settings.providers.bing_agent import (
 from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, read_secret
 
 _LOGGER = logging.getLogger(__name__)
+_private_endpoint_http_client: httpx.AsyncClient | None = None
 
 
 def get_credentials() -> AsyncTokenCredential:
@@ -51,6 +54,39 @@ def get_project_client(
         credential=credential,
         endpoint=resolved_endpoint,
     )
+
+
+def _get_private_endpoint_http_client() -> httpx.AsyncClient:
+    """Return a process-wide certifi-backed httpx client (created once)."""
+    global _private_endpoint_http_client
+    if _private_endpoint_http_client is None or _private_endpoint_http_client.is_closed:
+        _private_endpoint_http_client = httpx.AsyncClient(verify=certifi.where())
+    return _private_endpoint_http_client
+
+
+async def aclose_private_endpoint_http_client() -> None:
+    """Close the shared private-endpoint httpx client if it was created."""
+    global _private_endpoint_http_client
+    if (
+        _private_endpoint_http_client is not None
+        and not _private_endpoint_http_client.is_closed
+    ):
+        await _private_endpoint_http_client.aclose()
+    _private_endpoint_http_client = None
+
+
+def get_openai_client(project_client: AIProjectClient) -> AsyncOpenAI:
+    """Return an authenticated AsyncOpenAI client from the Foundry project client.
+
+    When private-endpoint transport is enabled, reuse a shared certifi-backed
+    ``httpx.AsyncClient`` so TLS verification matches the AIProjectClient path
+    without leaking a new client per request.
+    """
+    if bing_agent_credentials.use_private_endpoint_transport:
+        return project_client.get_openai_client(
+            http_client=_get_private_endpoint_http_client(),
+        )
+    return project_client.get_openai_client()
 
 
 async def credentials_are_valid(credential: AsyncTokenCredential) -> bool:

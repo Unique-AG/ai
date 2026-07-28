@@ -62,6 +62,7 @@ from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
     SupportCompleteWithReferences,
 )
+from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 from unique_orchestrator._builders.inject_tool_reminders import (
     inject_tool_reminders_into_user_message,
@@ -70,6 +71,29 @@ from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.settings import env_settings
 from unique_orchestrator.utils import resolve_other_options
+
+
+def _load_invocation_stats_from_debug_info(
+    debug_info: dict[str, Any],
+    logger: Logger,
+) -> list[LanguageModelInvocationStats]:
+    """Deserialize previously persisted invocation stats, ignoring malformed entries."""
+    raw_invocations = debug_info.get("llm_invocations")
+    if not isinstance(raw_invocations, list):
+        return []
+
+    invocations: list[LanguageModelInvocationStats] = []
+    for raw_invocation in raw_invocations:
+        try:
+            invocations.append(
+                LanguageModelInvocationStats.model_validate(raw_invocation)
+            )
+        except Exception:
+            logger.warning(
+                "Ignoring malformed persisted LLM invocation stats",
+                exc_info=True,
+            )
+    return invocations
 
 
 class UniqueAI:
@@ -208,7 +232,11 @@ class UniqueAI:
         self._current_loop_timing: dict[str, Any] = {}
         self._loop_debug_params: list[dict[str, Any]] = []
         self._generated_files_info: ArtifactsDebugInfo | None = None
+        # None when the user-memory postprocessor is not activated for this turn;
+        # True/False when it ran and did/didn't update the stored memory profile.
+        self._context_memory_updated: bool | None = None
         self._invocation_stats: list[LanguageModelInvocationStats] = []
+        self._invocation_stats_finalized = False
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -238,7 +266,18 @@ class UniqueAI:
         # reaching _handle_no_tool_calls (tool takes control / empty response /
         # cancellation) must not report the previous run's artifacts.
         self._generated_files_info = None
-        self._invocation_stats = []
+        self._context_memory_updated = None
+        # Pending pre-run usage (e.g. the user-memory load-time condense call)
+        # must be captured unconditionally, before it's known whether this
+        # turn will even reach postprocessors -- otherwise a turn that exits
+        # early (cancellation, empty response, control-taking tool) drops it.
+        self._invocation_stats = (
+            self._postprocessor_manager.take_pending_invocation_stats()
+        )
+        self._invocation_stats_finalized = False
+        self._debug_info_manager.add("llm_invocations_complete", False)
+        invocations_persisted = False
+        persisted_invocations_merged = False
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
@@ -356,6 +395,20 @@ class UniqueAI:
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
             skills_debug_info = self._get_activated_skills_debug_info()
             self._debug_info_manager.add("skills", skills_debug_info)
+            tool_names = {
+                tool["name"] for tool in self._debug_info_manager.get()["tools"]
+            }
+            existing_debug_info: dict[str, Any] = {}
+            if "DeepResearch" in tool_names:
+                existing_debug_info = await self._chat_service.get_debug_info_async()
+                self._invocation_stats = [
+                    *_load_invocation_stats_from_debug_info(
+                        existing_debug_info,
+                        self._logger,
+                    ),
+                    *self._invocation_stats,
+                ]
+                persisted_invocations_merged = True
             self._debug_info_manager.add(
                 "llm_invocations",
                 [
@@ -375,9 +428,6 @@ class UniqueAI:
                 str(tool.name): tool.display_name() or str(tool.name)
                 for tool in self._tool_manager.available_tools
             }
-            tool_names = [
-                tool["name"] for tool in self._debug_info_manager.get()["tools"]
-            ]
 
             total_time_to_answer_ms: int | None = None
             if not self._chat_service.cancellation.is_cancelled:
@@ -409,16 +459,93 @@ class UniqueAI:
                 loop_iteration_count=len(self._execution_times),
                 total_time_to_answer_ms=total_time_to_answer_ms,
                 artifacts=self._generated_files_info,
+                context_memory_updated=self._context_memory_updated,
+                invocations=self._invocation_stats,
             )
 
-            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
-            if "DeepResearch" not in tool_names:
+            # DeepResearch always takes control (see `takes_control()`), so a run
+            # that invokes it exits before `_handle_no_tool_calls` and never sets
+            # `_invocation_stats_finalized` -- gating on that flag would make this
+            # branch unreachable. Its completion signal is instead the message
+            # execution callback that runs the actual research (`message_execution_id`
+            # set), which is when its merged invocation stats are truly final.
+            llm_invocations_complete = (
+                self._event.payload.message_execution_id is not None
+                if "DeepResearch" in tool_names
+                else self._invocation_stats_finalized
+            )
+            self._debug_info_manager.add(
+                "llm_invocations_complete",
+                llm_invocations_complete,
+            )
+            run_debug_info = self._debug_info_manager.get()
+            if "DeepResearch" in tool_names:
                 debug_info = {
-                    **await self._chat_service.get_debug_info_async(),
-                    **self._debug_info_manager.get(),
+                    **existing_debug_info,
+                    "llm_invocations": run_debug_info["llm_invocations"],
+                    "llm_invocations_complete": llm_invocations_complete,
+                    "analytics": run_debug_info["analytics"],
                 }
-                await self._chat_service.update_debug_info_async(debug_info=debug_info)
+            else:
+                existing_debug_info = await self._chat_service.get_debug_info_async()
+                debug_info = {**existing_debug_info, **run_debug_info}
+            await self._chat_service.update_debug_info_async(debug_info=debug_info)
+            invocations_persisted = True
         finally:
+            if not invocations_persisted:
+                if isinstance(self._loop_iteration_runner, SupportsInvocationStats):
+                    self._invocation_stats.extend(
+                        self._loop_iteration_runner.get_invocation_stats()
+                    )
+                self._debug_info_manager.add(
+                    "llm_invocations",
+                    [
+                        invocation.model_dump(by_alias=True)
+                        for invocation in self._invocation_stats
+                    ],
+                )
+                self._debug_info_manager.add("llm_invocations_complete", False)
+                try:
+                    existing_debug_info = (
+                        await self._chat_service.get_debug_info_async()
+                    )
+                    partial_debug_info = self._debug_info_manager.get()
+                    is_deep_research = any(
+                        tool.get("name") == "DeepResearch"
+                        for tool in partial_debug_info.get("tools", [])
+                    )
+                    if is_deep_research:
+                        if persisted_invocations_merged:
+                            merged_invocations = partial_debug_info["llm_invocations"]
+                        else:
+                            previous_invocations = (
+                                _load_invocation_stats_from_debug_info(
+                                    existing_debug_info,
+                                    self._logger,
+                                )
+                            )
+                            merged_invocations = [
+                                *[
+                                    invocation.model_dump(by_alias=True)
+                                    for invocation in previous_invocations
+                                ],
+                                *partial_debug_info["llm_invocations"],
+                            ]
+                        debug_info = {
+                            **existing_debug_info,
+                            "llm_invocations": merged_invocations,
+                            "llm_invocations_complete": False,
+                        }
+                    else:
+                        debug_info = {**existing_debug_info, **partial_debug_info}
+                    await self._chat_service.update_debug_info_async(
+                        debug_info=debug_info
+                    )
+                except Exception:
+                    self._logger.warning(
+                        "Failed to persist partial LLM invocation usage",
+                        exc_info=True,
+                    )
             sub.cancel()
 
     @staticmethod
@@ -443,18 +570,38 @@ class UniqueAI:
         return round((assistant_completed_at - user_created_at).total_seconds() * 1000)
 
     def _record_loop_debug_params(self, other_options: dict) -> None:
-        reasoning = other_options.get("reasoning")
-        thinking_level: str = (
-            other_options.get("reasoning_effort")
-            if not isinstance(reasoning, dict)
-            else reasoning.get("effort")
-        ) or "None"
+        reasoning_effort = self._resolve_effective_reasoning_effort(other_options)
+        thinking_level: str = reasoning_effort or "None"
         self._loop_debug_params.append(
             {
                 "loop_number": self.current_iteration_index,
                 "thinking_level": thinking_level,
             }
         )
+        model_info = self._config.space.language_model
+        resolved_temperature, _ = model_info.resolve_temp_and_reasoning(
+            self._config.agent.experimental.temperature,
+            reasoning_effort=reasoning_effort,
+        )
+        self._debug_info_manager.add("temperature", resolved_temperature)
+
+    def _resolve_effective_reasoning_effort(self, other_options: dict) -> str | None:
+        """Read the reasoning effort from the same source the active LLM API uses.
+
+        Mirrors ``resolve_other_options``: the completions API reads the flat
+        ``reasoning_effort`` key, while the responses API prefers the nested
+        ``reasoning.effort`` and falls back to the flat key. Keeping this in sync
+        ensures the debug temperature matches what is actually sent to the model.
+        """
+        use_responses_api = (
+            self._config.agent.experimental.responses_api_config.use_responses_api
+            or self._config.agent.experimental.use_responses_api
+        )
+        if use_responses_api:
+            reasoning = other_options.get("reasoning")
+            if isinstance(reasoning, dict) and reasoning.get("effort") is not None:
+                return reasoning.get("effort")
+        return other_options.get("reasoning_effort")
 
     def _get_activated_skills_debug_info(self) -> list[dict[str, str | bool]]:
         skill_tool = self._tool_manager.get_tool_by_name(SkillTool.name)
@@ -755,6 +902,12 @@ class UniqueAI:
                 DisplayCodeInterpreterFilesPostProcessor.__name__
             ),
         )
+        # Absent key => postprocessor not activated this turn (stays None);
+        # present => bool telling whether the memory profile was updated.
+        self._context_memory_updated = cast(
+            "bool | None",
+            postprocessor_outputs.get(UserMemoryPostprocessor.__name__),
+        )
         self._current_loop_timing["post_processing"].update(
             self._postprocessor_manager.get_execution_times()
         )
@@ -769,6 +922,7 @@ class UniqueAI:
                 name_str, 0
             )
         self._invocation_stats.extend(self._evaluation_manager.get_invocation_stats())
+        self._invocation_stats_finalized = True
 
         if evaluation_results.success and not all(
             result.is_positive for result in evaluation_results.unpack()

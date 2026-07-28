@@ -61,7 +61,12 @@ def create_zitadel_oidc_proxy(
     if "scope" not in extra_authorize_params:
         extra_authorize_params["scope"] = " ".join(ZITADEL_DEFAULT_MCP_SCOPES)
 
-    return OIDCProxy(
+    # Advertise / accept these scopes for DCR and /authorize. Do NOT pass them as
+    # ``required_scopes`` to OIDCProxy: that wires them into the JWT verifier, and
+    # Zitadel access tokens often omit scopes from the JWT → invalid_token loop.
+    valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
+
+    proxy = OIDCProxy(
         config_url=settings.config_url,
         client_id=settings.client_id,
         client_secret=settings.client_secret,
@@ -71,3 +76,8 @@ def create_zitadel_oidc_proxy(
         extra_authorize_params=extra_authorize_params,
         **kwargs,
     )
+    # OIDCProxy does not forward ``valid_scopes`` to OAuthProxy; set them after init
+    # so metadata ``scopes_supported`` and DCR accept openid/profile/mcp:* scopes.
+    if valid_scopes:
+        proxy.update_default_scopes(list(valid_scopes))
+    return proxy

@@ -29,6 +29,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from ..config import UniqueEngine
+from ..invocation_stats import record_language_model_response
 from .citation import GlobalCitationManager
 from .state import AgentState, ResearcherState, SupervisorState
 
@@ -533,6 +534,8 @@ async def ainvoke_with_token_handling(
     model: Runnable[List[BaseMessage], Any],
     messages: List[BaseMessage],
     model_info: LanguageModelInfo,
+    *,
+    source: str,
 ) -> Any:
     """
     Invoke model with proactive token filtering and retry logic with exponential backoff.
@@ -543,6 +546,7 @@ async def ainvoke_with_token_handling(
         model: The model to invoke
         messages: List of messages to send
         model_info: Model info for token limits
+        source: Stable identifier for the LLM call site
 
     Returns:
         Model response
@@ -556,7 +560,7 @@ async def ainvoke_with_token_handling(
 
     for attempt in range(max_retries + 1):
         try:
-            return await model.ainvoke(prepared_messages)
+            response = await model.ainvoke(prepared_messages)
         except Exception as e:
             _LOGGER.exception(f"Error invoking model: {e}")
             # Handle token errors by truncating history and retrying
@@ -581,3 +585,10 @@ async def ainvoke_with_token_handling(
                     f"Model invocation failed after {max_retries + 1} attempts: {str(e)}"
                 )
                 raise e
+        else:
+            record_language_model_response(
+                model_name=model_info.name,
+                response=response,
+                source=source,
+            )
+            return response

@@ -4,6 +4,7 @@ from typing import override
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
@@ -62,8 +63,10 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         self,
         config: BingSearchConfig,
         language_model_service: LanguageModelService,
+        *,
+        request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
     ):
-        super().__init__(config)
+        super().__init__(config, request_context=request_context)
         self.credentials = get_credentials()
 
         self.response_parsers = [
@@ -97,13 +100,14 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         del params
         agent_client = get_project_client(self.credentials, self.config.endpoint)
 
-        search_results = await create_and_process_run(
-            agent_client,
-            agent_id=self.config.agent_id,
-            query=query,
-            fetch_size=self.config.fetch_size,
-            response_parsers_strategies=self.response_parsers,
-            generation_instructions=self.config.generation_instructions,
-        )
+        async with agent_client:
+            search_results = await create_and_process_run(
+                agent_client,
+                agent_id=self.config.agent_id,
+                query=query,
+                fetch_size=self.config.fetch_size,
+                response_parsers_strategies=self.response_parsers,
+                generation_instructions=self.config.generation_instructions,
+            )
 
         return search_results

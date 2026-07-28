@@ -367,7 +367,8 @@ test_mcp_endpoint() {
     log_info "Testing MCP endpoint..."
     
     cd "$SCRIPT_DIR"
-    DOMAIN_NAME=$(terraform output -raw application_url 2>/dev/null | sed 's|https\?://||' || echo "")
+    # -E for portability: BSD sed (macOS) doesn't support \? in basic regex
+    DOMAIN_NAME=$(terraform output -raw application_url 2>/dev/null | sed -E 's|https?://||' || echo "")
     ACI_FQDN=$(terraform output -raw aci_fqdn 2>/dev/null || echo "")
     ACI_IP=$(terraform output -raw aci_ip_address 2>/dev/null || echo "")
     
@@ -385,7 +386,8 @@ test_mcp_endpoint() {
         else
             log_warn "Domain $DOMAIN_NAME does not resolve, using FQDN instead"
             if [ -n "$ACI_FQDN" ]; then
-                ENDPOINT="http://${ACI_FQDN}"
+                # https: Caddy serves a valid cert on the FQDN and 308-redirects http
+                ENDPOINT="https://${ACI_FQDN}"
                 log_info "Testing via FQDN: $ENDPOINT"
             else
                 ENDPOINT="http://${ACI_IP}"
@@ -393,7 +395,7 @@ test_mcp_endpoint() {
             fi
         fi
     elif [ -n "$ACI_FQDN" ]; then
-        ENDPOINT="http://${ACI_FQDN}"
+        ENDPOINT="https://${ACI_FQDN}"
         log_info "Testing via FQDN: $ENDPOINT"
     else
         ENDPOINT="http://${ACI_IP}"

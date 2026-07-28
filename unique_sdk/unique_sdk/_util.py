@@ -9,6 +9,7 @@ import random
 import re
 import sys
 import time
+from collections.abc import Mapping
 from functools import wraps
 from typing import (
     Any,
@@ -33,6 +34,8 @@ UNIQUE_LOG = os.environ.get("UNIQUE_LOG")
 
 logger: logging.Logger = logging.getLogger("unique")
 
+_REDACTED = "<redacted>"
+
 
 def _console_log_level():
     if unique_sdk.log in ["debug", "info"]:
@@ -40,6 +43,42 @@ def _console_log_level():
     if UNIQUE_LOG in ["debug", "info"]:
         return UNIQUE_LOG
     return None
+
+
+def _insecure_log_payloads_enabled() -> bool:
+    return os.environ.get("INSECURE_UNIQUE_SDK_LOG_PAYLOADS") == "true"
+
+
+def _payload_byte_size(value: Any) -> int:
+    if value is None:
+        return 0
+    if isinstance(value, (bytes, bytearray)):
+        return len(value)
+    if isinstance(value, str):
+        return len(value.encode("utf-8"))
+    return len(str(value).encode("utf-8"))
+
+
+def _headers_for_log(headers: Mapping[str, str] | None) -> dict[str, str] | str | None:
+    """Return headers for debug logs; Authorization is always redacted."""
+    if not _insecure_log_payloads_enabled():
+        return _REDACTED
+    if headers is None:
+        return None
+    try:
+        sanitized = dict(headers)
+    except (TypeError, ValueError):
+        return _REDACTED
+    for key in list(sanitized):
+        if str(key).lower() == "authorization":
+            sanitized[key] = _REDACTED
+    return sanitized
+
+
+def _body_for_log(body: Any) -> Any:
+    if _insecure_log_payloads_enabled():
+        return body
+    return _REDACTED
 
 
 def log_debug(message, **params):
@@ -54,6 +93,65 @@ def log_info(message, **params):
     if _console_log_level() in ["debug", "info"]:
         print(msg, file=sys.stderr)
     logger.info(msg)
+
+
+def log_request_details(
+    *,
+    data: Any,
+    headers: Mapping[str, str] | None,
+    api_version: str | None,
+    message: str = "Request details",
+) -> None:
+    if _insecure_log_payloads_enabled():
+        log_debug(
+            message,
+            data=data,
+            headers=_headers_for_log(headers),
+            api_version=api_version,
+        )
+        return
+    log_debug(
+        message,
+        data=_REDACTED,
+        headers=_REDACTED,
+        api_version=api_version,
+        payload_bytes=_payload_byte_size(data),
+    )
+
+
+def log_response_body(*, body: Any) -> None:
+    if _insecure_log_payloads_enabled():
+        log_debug("Unique response body", body=body)
+        return
+    log_debug(
+        "Unique response body",
+        body=_body_for_log(body),
+        payload_bytes=_payload_byte_size(body),
+    )
+
+
+def redacted_body_for_error_message(body: Any) -> Any:
+    """Body representation safe to embed in exception *messages*.
+
+    Exception messages surface at ERROR (retry logs, tracebacks) regardless
+    of LOG_LEVEL, so the raw body must not be embedded unless the insecure
+    opt-in is set. The full body stays available programmatically on the
+    exception's ``http_body`` attribute.
+    """
+    if _insecure_log_payloads_enabled():
+        return body
+    return f"<redacted {_payload_byte_size(body)} bytes>"
+
+
+def redacted_error_params(params: Any) -> Any:
+    """Error ``params`` for the INFO-level 'Unique error received' log.
+
+    API validation errors commonly echo submitted values in ``params``, so
+    they are redacted unless the insecure opt-in is set.
+    """
+    if params is None or _insecure_log_payloads_enabled():
+        return params
+    return _REDACTED
 
 
 def logfmt(props):

@@ -8,6 +8,7 @@ from typing import cast
 
 from pydantic import BaseModel, ConfigDict, create_model
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model import LanguageModelService
@@ -71,12 +72,21 @@ def register_search_engine(
 def get_search_engine_service(
     search_engine_config: object,
     language_model_service: LanguageModelService,
+    *,
+    request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
 ):
     engine = getattr(search_engine_config, "engine")
     spec = SEARCH_ENGINE_REGISTRY[engine]
     if spec.needs_language_model:
-        return spec.impl_cls(search_engine_config, language_model_service)
-    return spec.impl_cls(search_engine_config)
+        return spec.impl_cls(
+            search_engine_config,
+            language_model_service,
+            request_context=request_context,
+        )
+    return spec.impl_cls(
+        search_engine_config,
+        request_context=request_context,
+    )
 
 
 def get_search_engine_mode(

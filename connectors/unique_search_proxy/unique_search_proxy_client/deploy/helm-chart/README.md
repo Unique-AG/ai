@@ -1,6 +1,6 @@
 # search-proxy
 
-![Version: 2026.28.0](https://img.shields.io/badge/Version-2026.28.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.28.0](https://img.shields.io/badge/AppVersion-2026.28.0-informational?style=flat-square)
+![Version: 2026.30.0](https://img.shields.io/badge/Version-2026.30.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.30.0](https://img.shields.io/badge/AppVersion-2026.30.0-informational?style=flat-square)
 
 Dedicated Helm chart for the Unique search proxy connector
 
@@ -17,6 +17,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | autoscaling.enabled | bool | `false` |  |
 | bingAgent.connection.azureIdentityCredentialType | string | `"default"` |  |
 | bingAgent.connection.azureIdentityValidateTokenUrl | string | `"https://management.azure.com/.default"` |  |
+| bingAgent.connection.cleanupOnStart | bool | `false` |  |
 | bingAgent.connection.usePrivateEndpointTransport | bool | `false` |  |
 | bingAgent.enabled | bool | `false` |  |
 | braveSearch.connection.apiEndpoint | string | `"https://api.search.brave.com/res/v1/web/search"` |  |
@@ -32,6 +33,8 @@ Dedicated Helm chart for the Unique search proxy connector
 | fullnameOverride | string | `"search-proxy"` |  |
 | googleSearch.connection.apiEndpoint | string | `"https://www.googleapis.com/customsearch/v1"` |  |
 | googleSearch.enabled | bool | `false` |  |
+| grafana.dashboards.enabled | bool | `true` |  |
+| grafana.dashboards.replacements.%%PROMETHEUS_UID%% | string | `"prometheus"` |  |
 | httpClient.connection.proxyAuthMode | string | `"none"` |  |
 | httpClient.connection.proxyProtocol | string | `"http"` |  |
 | httpClient.tuning.maxConnections | int | `100` |  |
@@ -40,7 +43,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"unique-ag/ai/search-proxy"` |  |
-| image.tag | string | `"2026.28.0"` |  |
+| image.tag | string | `"2026.30.0"` |  |
 | image.useDigest | bool | `false` |  |
 | jina.connection.apiDomain | string | `"jina.ai"` |  |
 | jina.connection.deployment | string | `"global"` |  |

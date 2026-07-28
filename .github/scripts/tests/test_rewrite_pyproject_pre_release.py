@@ -145,9 +145,7 @@ class RewriteTests(unittest.TestCase):
                         "--own-version",
                         "2026.18.0.dev7",
                         "--dep-pins",
-                        json.dumps(
-                            {"unique-sdk": ">=2026.18.0.dev3,<2026.19.0rc0"}
-                        ),
+                        json.dumps({"unique-sdk": ">=2026.18.0.dev3,<2026.19.0rc0"}),
                     ]
                 )
 

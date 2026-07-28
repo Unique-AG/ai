@@ -12,8 +12,8 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..models.brave_search_request_country_type_0 import BraveSearchRequestCountryType0
-from ..models.brave_search_request_result_filter_result_filter_item import (
-    BraveSearchRequestResultFilterResultFilterItem,
+from ..models.brave_search_request_result_filter_type_0_item import (
+    BraveSearchRequestResultFilterType0Item,
 )
 from ..models.brave_search_request_safe_search import BraveSearchRequestSafeSearch
 from ..models.brave_search_request_search_lang_type_0 import (
@@ -62,8 +62,8 @@ class BraveSearchRequest:
             `cs`, `da`, `nl`, `en`, `en-gb`, `et`, `fi`, `fr`, `gl`, `de`, `el`, `gu`, `he`, `hi`, `hu`, `is`, `it`, `jp`,
             `kn`, `ko`, `lv`, `lt`, `ms`, `ml`, `mr`, `nb`, `pl`, `pt-br`, `pt-pt`, `pa`, `ro`, `ru`, `sr`, `sk`, `sl`,
             `es`, `sv`, `ta`, `te`, `th`, `tr`, `uk`, `vi`.
-        result_filter (list[BraveSearchRequestResultFilterResultFilterItem] | None | Unset): Result types to include in
-            the search response (Brave `result_filter`). Omit for all result types allowed by the subscription. Supported
+        result_filter (list[BraveSearchRequestResultFilterType0Item] | None | Unset): Result types to include in the
+            search response (Brave `result_filter`). Omit for all result types allowed by the subscription. Supported
             values: `discussions`, `faq`, `infobox`, `news`, `query`, `summarizer`, `videos`, `web`, `locations`.
     """
 
@@ -86,9 +86,7 @@ class BraveSearchRequest:
     country: BraveSearchRequestCountryType0 | None | Unset = UNSET
     freshness: None | str | Unset = UNSET
     search_lang: BraveSearchRequestSearchLangType0 | None | Unset = UNSET
-    result_filter: (
-        list[BraveSearchRequestResultFilterResultFilterItem] | None | Unset
-    ) = UNSET
+    result_filter: list[BraveSearchRequestResultFilterType0Item] | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -164,11 +162,9 @@ class BraveSearchRequest:
             result_filter = UNSET
         elif isinstance(self.result_filter, list):
             result_filter = []
-            for result_filter_result_filter_item_data in self.result_filter:
-                result_filter_result_filter_item = (
-                    result_filter_result_filter_item_data.value
-                )
-                result_filter.append(result_filter_result_filter_item)
+            for result_filter_type_0_item_data in self.result_filter:
+                result_filter_type_0_item = result_filter_type_0_item_data.value
+                result_filter.append(result_filter_type_0_item)
 
         else:
             result_filter = self.result_filter
@@ -339,7 +335,7 @@ class BraveSearchRequest:
 
         def _parse_result_filter(
             data: object,
-        ) -> list[BraveSearchRequestResultFilterResultFilterItem] | None | Unset:
+        ) -> list[BraveSearchRequestResultFilterType0Item] | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -347,25 +343,20 @@ class BraveSearchRequest:
             try:
                 if not isinstance(data, list):
                     raise TypeError()
-                result_filter_result_filter = []
-                _result_filter_result_filter = data
-                for (
-                    result_filter_result_filter_item_data
-                ) in _result_filter_result_filter:
-                    result_filter_result_filter_item = (
-                        BraveSearchRequestResultFilterResultFilterItem(
-                            result_filter_result_filter_item_data
-                        )
+                result_filter_type_0 = []
+                _result_filter_type_0 = data
+                for result_filter_type_0_item_data in _result_filter_type_0:
+                    result_filter_type_0_item = BraveSearchRequestResultFilterType0Item(
+                        result_filter_type_0_item_data
                     )
 
-                    result_filter_result_filter.append(result_filter_result_filter_item)
+                    result_filter_type_0.append(result_filter_type_0_item)
 
-                return result_filter_result_filter
+                return result_filter_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(
-                list[BraveSearchRequestResultFilterResultFilterItem] | None | Unset,
-                data,
+                list[BraveSearchRequestResultFilterType0Item] | None | Unset, data
             )
 
         result_filter = _parse_result_filter(d.pop("resultFilter", UNSET))

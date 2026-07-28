@@ -302,6 +302,124 @@ class TestCitationManifest:
             }
         ]
 
+    def test_fetch_error_content_is_kept_out_of_manifest(self, tmp_path: Path) -> None:
+        """UN-23356: in-band crawl failures (``"URL: <url>\\n\\nError: ..."``)
+        must not be manifested as ``content`` — the platform grounds the
+        hallucination judge on it. The message moves to ``error`` and the
+        snippet stays the citable ground truth."""
+        url = "https://example.com/TSLA-Q2-2025-Update.pdf"
+        payload = _make_search_payload(
+            results=[
+                {
+                    "url": url,
+                    "title": "Q2 2025 Update",
+                    "snippet": "Total revenue decreased 12% YoY to $22.5B",
+                    "content": f"URL: {url}\n\nError: HTTP 403 while fetching URL",
+                }
+            ]
+        )
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+
+        annotated = _annotate_web_results_for_citations(payload, refs_log_path=manifest)
+
+        # The on-screen result keeps the error text so the agent can react.
+        assert "HTTP 403" in annotated["results"][0]["content"]
+        entry = json.loads(manifest.read_text(encoding="utf-8").splitlines()[0])
+        assert entry["content"] is None
+        assert entry["error"] == "HTTP 403 while fetching URL"
+        assert entry["snippet"] == "Total revenue decreased 12% YoY to $22.5B"
+
+    def test_error_content_with_redirected_url_is_kept_out_of_manifest(
+        self, tmp_path: Path
+    ) -> None:
+        """The URL inside the error payload can differ from the result URL
+        (redirects, trailing-slash/query normalization) — detection must not
+        depend on an exact URL match."""
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+        payload = _make_search_payload(
+            results=[
+                {
+                    "url": "https://example.com/report.pdf",
+                    "title": "R",
+                    "snippet": "s",
+                    "content": (
+                        "URL: https://example.com/report.pdf?utm=x\n\n"
+                        "Error: HTTP 403 while fetching URL"
+                    ),
+                }
+            ]
+        )
+
+        _annotate_web_results_for_citations(payload, refs_log_path=manifest)
+
+        entry = json.loads(manifest.read_text(encoding="utf-8").splitlines()[0])
+        assert entry["content"] is None
+        assert entry["error"] == "HTTP 403 while fetching URL"
+
+    def test_bare_error_content_is_kept_out_of_manifest(self, tmp_path: Path) -> None:
+        """Tavily/Jina-style failures are a bare ``"Error: <message>"``."""
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+        payload = _make_crawl_payload(
+            results=[
+                {
+                    "url": "https://example.com/a",
+                    "content": "Error: URL not found in response",
+                    "error": None,
+                }
+            ]
+        )
+
+        _annotate_web_results_for_citations(payload, refs_log_path=manifest)
+
+        entry = json.loads(manifest.read_text(encoding="utf-8").splitlines()[0])
+        assert entry["content"] is None
+        assert entry["error"] == "URL not found in response"
+
+    def test_explicit_error_field_wins_over_extracted_message(
+        self, tmp_path: Path
+    ) -> None:
+        """When the backend already reports a structured ``error``, keep it."""
+        url = "https://example.com/a"
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+        payload = _make_crawl_payload(
+            results=[
+                {
+                    "url": url,
+                    "content": f"URL: {url}\n\nError: HTTP 403 while fetching URL",
+                    "error": "structured upstream error",
+                }
+            ]
+        )
+
+        _annotate_web_results_for_citations(payload, refs_log_path=manifest)
+
+        entry = json.loads(manifest.read_text(encoding="utf-8").splitlines()[0])
+        assert entry["content"] is None
+        assert entry["error"] == "structured upstream error"
+
+    def test_content_mentioning_error_mid_text_is_manifested(
+        self, tmp_path: Path
+    ) -> None:
+        """Real page text that merely mentions an error is normal content."""
+        body = "The service returned an Error: HTTP 403 for some users."
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+        payload = _make_search_payload(
+            results=[
+                {
+                    "url": "https://example.com/a",
+                    "title": "A",
+                    "snippet": "s",
+                    "content": body,
+                }
+            ]
+        )
+
+        _annotate_web_results_for_citations(payload, refs_log_path=manifest)
+
+        entry = json.loads(manifest.read_text(encoding="utf-8").splitlines()[0])
+        assert entry["content"] == body
+        assert entry["error"] is None
+
     def test_reuses_source_number_for_crawled_url(self, tmp_path: Path) -> None:
         manifest = tmp_path / ".unique" / "web-refs.jsonl"
         _annotate_web_results_for_citations(
@@ -510,6 +628,22 @@ class TestCmdWebSearch:
         assert "web-search:" in out
         assert "upstream boom" in out
 
+    @patch("unique_sdk.WebSearch.search")
+    def test_cmd_web_search_with_chat_id_sends_chat_id(
+        self, mock_search: MagicMock
+    ) -> None:
+        mock_search.return_value = _FakeResource(_make_search_payload(results=[]))
+        cmd_web_search(_state(), "x", chat_id="chat_123")
+        assert mock_search.call_args[1]["chatId"] == "chat_123"
+
+    @patch("unique_sdk.WebSearch.search")
+    def test_cmd_web_search_without_chat_id_omits_chat_id(
+        self, mock_search: MagicMock
+    ) -> None:
+        mock_search.return_value = _FakeResource(_make_search_payload(results=[]))
+        cmd_web_search(_state(), "x")
+        assert "chatId" not in mock_search.call_args[1]
+
 
 class TestCmdWebCrawl:
     @patch("unique_sdk.WebCrawl.crawl")
@@ -573,6 +707,22 @@ class TestCmdWebCrawl:
         out = cmd_web_crawl(_state(), ["u"])
         assert "web-crawl:" in out
         assert "nope" in out
+
+    @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_with_chat_id_sends_chat_id(
+        self, mock_crawl: MagicMock
+    ) -> None:
+        mock_crawl.return_value = _FakeResource(_make_crawl_payload(results=[]))
+        cmd_web_crawl(_state(), ["https://a"], chat_id="chat_123")
+        assert mock_crawl.call_args[1]["chatId"] == "chat_123"
+
+    @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_without_chat_id_omits_chat_id(
+        self, mock_crawl: MagicMock
+    ) -> None:
+        mock_crawl.return_value = _FakeResource(_make_crawl_payload(results=[]))
+        cmd_web_crawl(_state(), ["https://a"])
+        assert "chatId" not in mock_crawl.call_args[1]
 
 
 class TestApiResourceContract:
@@ -1124,3 +1274,76 @@ class TestClickIntegration:
         )
         assert result.exit_code == 0
         assert mock_cmd.call_args[1]["config_path"] == str(cfg)
+
+
+class TestClickIntegrationChatId:
+    """--chat-id / $UNIQUE_CHAT_ID resolution for web-search search/crawl."""
+
+    def _bootstrap_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("UNIQUE_USER_ID", "u1")
+        monkeypatch.setenv("UNIQUE_COMPANY_ID", "c1")
+        monkeypatch.setenv("UNIQUE_API_KEY", "ukey_test")
+        monkeypatch.setenv("UNIQUE_APP_ID", "app_test")
+        monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
+
+    @patch("unique_sdk.cli.cli.cmd_web_search")
+    def test_search_reads_chat_id_from_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_from_env")
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "search", "x"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] == "chat_from_env"
+
+    @patch("unique_sdk.cli.cli.cmd_web_search")
+    def test_search_chat_id_defaults_to_none_without_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.delenv("UNIQUE_CHAT_ID", raising=False)
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "search", "x"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] is None
+
+    @patch("unique_sdk.cli.cli.cmd_web_search")
+    def test_search_explicit_flag_overrides_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_from_env")
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(
+            cli_main, ["web-search", "search", "x", "--chat-id", "chat_explicit"]
+        )
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] == "chat_explicit"
+
+    @patch("unique_sdk.cli.cli.cmd_web_crawl")
+    def test_crawl_reads_chat_id_from_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_from_env")
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "crawl", "https://a"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] == "chat_from_env"
+
+    @patch("unique_sdk.cli.cli.cmd_web_crawl")
+    def test_crawl_chat_id_defaults_to_none_without_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.delenv("UNIQUE_CHAT_ID", raising=False)
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "crawl", "https://a"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] is None

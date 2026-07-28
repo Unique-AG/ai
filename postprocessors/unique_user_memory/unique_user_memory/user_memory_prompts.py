@@ -8,7 +8,7 @@ SECTION_HEADINGS: tuple[str, ...] = (
     "Work Context",
     "Skills & Expertise",
     "Recent Topics",
-    "Open Questions / Follow-ups",
+    "Follow-ups",
 )
 
 _EMPTY_PROFILE_TEMPLATE = """\
@@ -52,16 +52,16 @@ small mistakes in extraction compound across every future conversation.
 
 You receive two XML blocks:
 
-1. `<existing_memory>` - the current profile file (Markdown, with YAML
-   frontmatter). May be empty on the user's first turn.
+1. `<existing_memory>` - the current Markdown profile body. May be empty
+   on the user's first turn.
 2. `<new_turn>` - the most recent user message and the assistant's
    reply, prefixed with `user:` and `assistant:`.
 
 # Output
 
-Return the complete, rewritten profile file as Markdown - frontmatter
-followed by the body. Do NOT emit a diff. Do NOT wrap the output in
-``` fences. Do NOT add commentary before or after the file.
+Return the complete, rewritten Markdown profile body, starting with
+`# User Memory`. Do NOT emit a diff. Do NOT wrap the output in
+``` fences. Do NOT add commentary before or after the body.
 
 The body MUST contain exactly these section headings, in this order, even
 when a section is empty (use the literal string `_(empty)_` as a placeholder):
@@ -119,8 +119,8 @@ ADD/UPDATE for facts that are:
   tone, language, expertise level, examples preferred over theory.
 - Contextual but durable - current focus areas, active projects,
   multi-week goals, deadlines mentioned by the user.
-- Hand-offs - explicit "let's revisit X later", "remind me about
-  Y", "I'll come back to Z" go into "Open Questions / Follow-ups".
+- Follow-ups - concrete tasks the user intends to complete in the future,
+  or tasks they explicitly ask to be reminded about.
 
 NEVER extract:
 
@@ -135,11 +135,11 @@ NEVER extract:
 
 # Word budget - STRICT
 
-The complete file MUST be <= {{ max_words }} words (corresponding to {{ max_tokens }} tokens).
+The complete body MUST be <= {{ max_words }} words (corresponding to {{ max_tokens }} tokens).
 When approaching the budget, drop content in this priority order:
 
 1. Oldest entries in Recent Topics.
-2. Resolved or stale entries in Open Questions / Follow-ups.
+2. Completed, cancelled, or stale entries in Follow-ups.
 3. Fold low-signal Work Context bullets into a one-line summary.
 4. Fold low-signal Skills & Expertise bullets into broader categories.
 5. Identity and Communication Preferences - never drop, only tighten.
@@ -147,14 +147,6 @@ When approaching the budget, drop content in this priority order:
 # Current date and time
 
 The current UTC date and time is **{{ now_datetime }}**. You do NOT know the date from any other source - always use this supplied value. Never guess or infer the date.
-
-# Frontmatter rules
-
-- Preserve `user_id` and `schema_version` from `<existing_memory>` exactly.
-- Set `last_updated` to the supplied current UTC timestamp ({{ now_datetime }}).
-- Increment `turn_count` by 1.
-- If `<existing_memory>` is empty, initialize with `schema_version: 1`,
-  `turn_count: 1`, and the user_id supplied in the user message.
 
 # Style
 
@@ -180,8 +172,8 @@ def consolidation_system_prompt(max_tokens: int) -> str:
 _CONDENSATION_SYSTEM_PROMPT_TEMPLATE = """\
 You are a memory-compaction engine for the Unique AI platform.
 
-You are given an existing user-memory profile (Markdown with YAML
-frontmatter) that is OVER its size budget. Your job is to rewrite it so
+You are given an existing user-memory Markdown body that is OVER its
+size budget. Your job is to rewrite it so
 it becomes materially SHORTER while preserving every durable, high-signal
 fact about the user. This is lossy compression, not deletion of meaning.
 
@@ -198,8 +190,8 @@ fact about the user. This is lossy compression, not deletion of meaning.
    overlapping information into a single clear bullet. Redundancy is the
    main reason this profile is oversized - collapse it aggressively.
 2. Delete outdated, stale, resolved, or superseded entries: old
-   "Recent Topics", answered "Open Questions / Follow-ups", and facts a
-   later bullet already contradicts or refines.
+   "Recent Topics", completed or cancelled "Follow-ups", and facts a later
+   bullet already contradicts or refines.
 3. Tighten verbose, flowery, or repetitive prose into short factual
    bullets. Remove hedging and filler.
 4. Fold low-signal "Work Context" and "Skills & Expertise" bullets into
@@ -211,8 +203,6 @@ fact about the user. This is lossy compression, not deletion of meaning.
 # Hard rules
 
 - NEVER invent, embellish, or add facts that are not already present.
-- Preserve the YAML frontmatter. Keep `user_id` and `schema_version`
-  exactly; keep `last_updated` and `turn_count` as they are.
 - Keep exactly these section headings, in this order, even if a section
   becomes empty (use the literal string `_(empty)_`):
 
@@ -224,9 +214,9 @@ fact about the user. This is lossy compression, not deletion of meaning.
 
 # Output
 
-Return ONLY the complete rewritten profile file - frontmatter followed by
-the body. Do NOT emit a diff, do NOT wrap the output in ``` fences, and
-do NOT add any commentary before or after the file.
+Return the complete rewritten profile body, starting with
+`# User Memory`. Do NOT emit a diff, or commentary,
+and do NOT wrap the output in ``` fences.
 """
 
 
@@ -254,7 +244,7 @@ _CONDENSATION_USER_PROMPT_TEMPLATE = """\
 {{ profile }}
 </profile_to_condense>
 
-Return the complete, condensed profile file now.
+Return the complete, condensed profile body now.
 """
 
 
@@ -263,6 +253,85 @@ def condensation_user_prompt(profile: str) -> str:
 
 
 _CONSOLIDATION_USER_PROMPT_TEMPLATE = """\
+<existing_memory>
+{{ existing_memory }}
+</existing_memory>
+
+<new_turn>
+user: {{ user_message }}
+assistant: {{ assistant_message }}
+</new_turn>
+
+Return the complete rewritten profile body now.
+"""
+
+
+def consolidation_user_prompt(
+    existing_memory: str,
+    user_message: str,
+    assistant_message: str,
+) -> str:
+    existing = existing_memory.strip() or "(empty - this is the user's first turn)"
+    return Template(_CONSOLIDATION_USER_PROMPT_TEMPLATE).render(
+        existing_memory=existing,
+        user_message=(user_message or "").strip(),
+        assistant_message=(assistant_message or "").strip(),
+    )
+
+
+_GATE_SYSTEM_PROMPT_TEMPLATE = """\
+You are the decision gate for a user-memory system on the Unique AI
+platform. A structured Markdown profile of the user is maintained across
+conversations. Rewriting that profile is expensive, so it must happen
+only when the latest turn actually adds new, durable knowledge about the
+user.
+
+# Inputs
+
+1. `<existing_memory>` - the current profile (may be empty on the first turn).
+2. `<new_turn>` - the most recent user message and the assistant's reply.
+
+# Your task
+
+Reply with EXACTLY ONE uppercase word and nothing else:
+
+- `UPDATE` - the new turn contains at least one durable fact about the
+  user that is NOT already captured in `<existing_memory>`, or that
+  changes/contradicts something already stored.
+- `NOOP` - otherwise. Choose `NOOP` for small talk, greetings, factual
+  questions, code or writing requests, abstract discussion, and for any
+  fact that is already present in `<existing_memory>`.
+
+Do NOT output the profile, an explanation, punctuation, or code fences -
+only the single word `UPDATE` or `NOOP`.
+
+# What counts as a durable fact (lean UPDATE)
+
+- Stable attributes: name, role, employer, team, timezone, language,
+  technical stack, recurring projects.
+- Preferences: communication style, formatting, depth, tone, language,
+  expertise level.
+- Durable context: current focus areas, active projects, multi-week
+  goals, deadlines stated by the user.
+- Concrete future tasks the user intends to complete or explicitly asks
+  to be reminded about.
+
+# What NEVER justifies UPDATE (lean NOOP)
+
+- Credentials, API keys, passwords, payment or health details, IDs.
+- Facts about other people beyond the immediate professional context.
+- Transient turn state: one-off answers, code snippets, error messages,
+  file contents, search results.
+- Anything stated as third-party or retrieved context.
+- Facts already captured in `<existing_memory>`.
+"""
+
+
+def memory_gate_system_prompt() -> str:
+    return Template(_GATE_SYSTEM_PROMPT_TEMPLATE).render()
+
+
+_GATE_USER_PROMPT_TEMPLATE = """\
 User ID: {{ user_id }}
 
 <existing_memory>
@@ -274,18 +343,18 @@ user: {{ user_message }}
 assistant: {{ assistant_message }}
 </new_turn>
 
-Return the complete rewritten profile file now.
+Reply with the single word UPDATE or NOOP now.
 """
 
 
-def consolidation_user_prompt(
+def memory_gate_user_prompt(
     user_id: str,
     existing_memory: str,
     user_message: str,
     assistant_message: str,
 ) -> str:
     existing = existing_memory.strip() or "(empty - this is the user's first turn)"
-    return Template(_CONSOLIDATION_USER_PROMPT_TEMPLATE).render(
+    return Template(_GATE_USER_PROMPT_TEMPLATE).render(
         user_id=user_id,
         existing_memory=existing,
         user_message=(user_message or "").strip(),

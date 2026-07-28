@@ -2,6 +2,7 @@ import re
 
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 from unique_stock_ticker.config import StockTickerConfig
@@ -26,8 +27,14 @@ class StockTickerPostprocessor(Postprocessor):
         self._user_id = event.user_id
         self._chat_id = event.payload.chat_id
         self._user_message = event.payload.user_message.text
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
+
+    @property
+    def invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        return list(self._invocation_stats)
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
+        self._invocation_stats = []
         self._text = await retrieve_tickers_and_plot_history(
             company_id=self._company_id,
             user_id=self._user_id,
@@ -35,6 +42,7 @@ class StockTickerPostprocessor(Postprocessor):
             stock_ticker_config=self._config,
             assistant_message=loop_response.message.text,
             user_message=self._user_message,
+            invocation_stats=self._invocation_stats,
         )
 
     def apply_postprocessing_to_response(

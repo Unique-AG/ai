@@ -142,6 +142,14 @@ class PerUrlError(BaseModel):
 
     code: str
     message: str
+    status_code: int | None = Field(
+        default=None,
+        description=(
+            "Upstream HTTP status code for this URL when the failure was an HTTP "
+            "error (e.g. 403, 404, 500 from the Basic crawler); null when no HTTP "
+            "response was received (timeouts, transport, processing, blocked targets)"
+        ),
+    )
 
 
 class CrawlUrlResult(BaseModel):

@@ -11,7 +11,11 @@ from unique_search_proxy_core.errors import (
     UpstreamTimeoutError,
     attach_request_context,
 )
-from unique_search_proxy_core.schema import CrawlResponse, ProxyErrorCode
+from unique_search_proxy_core.schema import (
+    CrawlResponse,
+    CrawlUrlResult,
+    ProxyErrorCode,
+)
 
 from unique_search_proxy_client.web.api.v1.openapi_examples import (
     CRAWL_OPENAPI_EXAMPLES,
@@ -28,6 +32,7 @@ from unique_search_proxy_client.web.core.url_safety.gate import (
 from unique_search_proxy_client.web.monitoring.metrics import (
     record_crawl_error,
     record_crawl_success,
+    record_crawl_url_outcomes,
 )
 
 router = APIRouter(tags=["crawl"])
@@ -42,6 +47,22 @@ def _crawl_request_context(exc: ProxyError, *, crawler_id: str) -> ProxyError:
     )
 
 
+def _url_outcomes(results: list[CrawlUrlResult]) -> list[tuple[str, str, str]]:
+    """Derive ``(outcome, error_code, http_status)`` triples from merged results."""
+    outcomes: list[tuple[str, str, str]] = []
+    for result in results:
+        if result.error is None:
+            outcomes.append(("success", "", ""))
+            continue
+        http_status = (
+            str(result.error.status_code)
+            if result.error.status_code is not None
+            else ""
+        )
+        outcomes.append(("error", result.error.code, http_status))
+    return outcomes
+
+
 @router.post(
     "/crawl",
     response_model=CrawlResponse,
@@ -54,23 +75,42 @@ async def crawl(
     crawler_id = body.crawler
     timeout = body.timeout
     started = time.perf_counter()
+    _LOGGER.info(
+        "crawl start crawler=%s urls=%d timeout=%ss",
+        crawler_id,
+        len(body.urls),
+        timeout,
+    )
 
     try:
         async with asyncio.timeout(timeout):
             gate = await apply_url_safety_gate(body.urls)
             if not gate.allowed_targets:
+                duration = time.perf_counter() - started
                 record_crawl_success(
                     crawler_id,
                     len(body.urls),
-                    time.perf_counter() - started,
+                    duration,
+                )
+                merged_results = merge_crawl_results(
+                    body.urls,
+                    blocked_by_index=gate.blocked_by_index,
+                    crawler_results=[],
+                )
+                record_crawl_url_outcomes(
+                    crawler_id,
+                    _url_outcomes(merged_results),
+                )
+                _LOGGER.info(
+                    "crawl success crawler=%s urls=%d blocked=%d results=0 duration=%.0fms",
+                    crawler_id,
+                    len(body.urls),
+                    len(gate.blocked_by_index),
+                    duration * 1000,
                 )
                 return CrawlResponse(
                     crawler=crawler_id,
-                    results=merge_crawl_results(
-                        body.urls,
-                        blocked_by_index=gate.blocked_by_index,
-                        crawler_results=[],
-                    ),
+                    results=merged_results,
                 )
 
             crawl_body = body.model_copy(
@@ -94,6 +134,12 @@ async def crawl(
             ProxyErrorCode.UPSTREAM_TIMEOUT.value,
             time.perf_counter() - started,
         )
+        _LOGGER.warning(
+            "crawl timeout crawler=%s timeout=%ss duration=%.0fms",
+            crawler_id,
+            timeout,
+            (time.perf_counter() - started) * 1000,
+        )
         raise _crawl_request_context(
             UpstreamTimeoutError(
                 f"Crawler '{crawler_id}' timed out after {timeout}s",
@@ -101,6 +147,17 @@ async def crawl(
             crawler_id=crawler_id,
         ) from exc
     except ProxyError as exc:
+        record_crawl_error(
+            crawler_id,
+            exc.code.value if hasattr(exc.code, "value") else str(exc.code),
+            time.perf_counter() - started,
+        )
+        _LOGGER.warning(
+            "crawl failed crawler=%s code=%s duration=%.0fms",
+            crawler_id,
+            exc.code.value if hasattr(exc.code, "value") else exc.code,
+            (time.perf_counter() - started) * 1000,
+        )
         raise _crawl_request_context(exc, crawler_id=crawler_id) from exc
     except Exception:
         record_crawl_error(
@@ -108,14 +165,30 @@ async def crawl(
             "INTERNAL_ERROR",
             time.perf_counter() - started,
         )
+        _LOGGER.exception(
+            "crawl error crawler=%s duration=%.0fms",
+            crawler_id,
+            (time.perf_counter() - started) * 1000,
+        )
         raise
 
-    record_crawl_success(crawler_id, len(body.urls), time.perf_counter() - started)
+    duration = time.perf_counter() - started
+    record_crawl_success(crawler_id, len(body.urls), duration)
+    merged_results = merge_crawl_results(
+        body.urls,
+        blocked_by_index=gate.blocked_by_index,
+        crawler_results=crawler_results,
+    )
+    record_crawl_url_outcomes(crawler_id, _url_outcomes(merged_results))
+    _LOGGER.info(
+        "crawl success crawler=%s urls=%d blocked=%d results=%d duration=%.0fms",
+        crawler_id,
+        len(body.urls),
+        len(gate.blocked_by_index),
+        len(merged_results),
+        duration * 1000,
+    )
     return CrawlResponse(
         crawler=crawler_id,
-        results=merge_crawl_results(
-            body.urls,
-            blocked_by_index=gate.blocked_by_index,
-            crawler_results=crawler_results,
-        ),
+        results=merged_results,
     )

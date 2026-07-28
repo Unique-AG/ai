@@ -12,6 +12,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_deep_research.config import UniqueEngine
+from unique_deep_research.invocation_stats import invocation_stats_scope
 from unique_deep_research.unique_custom.utils import (
     ainvoke_with_token_handling,
     cleanup_request_counter,
@@ -612,14 +613,65 @@ async def test_ainvoke_with_token_handling__returns_result__on_success(
     mock_model.ainvoke.return_value = "Success"
     mock_prepare_messages.return_value = [HumanMessage(content="test")]
     model_info = Mock(spec=LanguageModelInfo)
+    model_info.name = "gpt-test"
     messages = cast(List[Any], [HumanMessage(content="test")])
 
     # Act
-    result = await ainvoke_with_token_handling(mock_model, messages, model_info)
+    result = await ainvoke_with_token_handling(
+        mock_model,
+        messages,
+        model_info,
+        source="deep_research.test",
+    )
 
     # Assert
     assert result == "Success"
     mock_model.ainvoke.assert_called_once()
+
+
+@pytest.mark.ai
+@patch("unique_deep_research.unique_custom.utils.prepare_messages_for_model")
+async def test_ainvoke_with_token_handling__records_langchain_usage__on_success(
+    mock_prepare_messages,
+) -> None:
+    """
+    Purpose: Verify successful LangChain calls report their per-invocation token usage.
+    Why this matters: Deep Research graph calls must be returned to the orchestrator for logging.
+    Setup summary: Invoke a mocked model in a run scope and assert normalized usage and source.
+    """
+    # Arrange
+    response = AIMessage(
+        content="Success",
+        usage_metadata={
+            "input_tokens": 11,
+            "output_tokens": 7,
+            "total_tokens": 18,
+        },
+    )
+    mock_model = AsyncMock()
+    mock_model.ainvoke.return_value = response
+    mock_prepare_messages.return_value = [HumanMessage(content="test")]
+    model_info = Mock(spec=LanguageModelInfo)
+    model_info.name = "gpt-test"
+    messages = cast(List[Any], [HumanMessage(content="test")])
+
+    # Act
+    with invocation_stats_scope() as invocation_stats:
+        result = await ainvoke_with_token_handling(
+            mock_model,
+            messages,
+            model_info,
+            source="deep_research.researcher",
+        )
+
+    # Assert
+    assert result is response
+    assert len(invocation_stats) == 1
+    assert invocation_stats[0].model_name == "gpt-test"
+    assert invocation_stats[0].source == "deep_research.researcher"
+    assert invocation_stats[0].token_usage.prompt_tokens == 11
+    assert invocation_stats[0].token_usage.completion_tokens == 7
+    assert invocation_stats[0].token_usage.total_tokens == 18
 
 
 @pytest.mark.ai
@@ -641,10 +693,16 @@ async def test_ainvoke_with_token_handling__retries_with_truncation__on_token_er
     mock_prepare_messages.return_value = [HumanMessage(content="test")]
     mock_remove_up_to_last_ai_message.return_value = [HumanMessage(content="truncated")]
     model_info = Mock(spec=LanguageModelInfo)
+    model_info.name = "gpt-test"
     messages = cast(List[Any], [HumanMessage(content="test")])
 
     # Act
-    result = await ainvoke_with_token_handling(mock_model, messages, model_info)
+    result = await ainvoke_with_token_handling(
+        mock_model,
+        messages,
+        model_info,
+        source="deep_research.test",
+    )
 
     # Assert
     assert result == "Success"
@@ -670,10 +728,16 @@ async def test_ainvoke_with_token_handling__retries_with_backoff__on_other_error
     mock_is_token_error.return_value = False
     mock_prepare_messages.return_value = [HumanMessage(content="test")]
     model_info = Mock(spec=LanguageModelInfo)
+    model_info.name = "gpt-test"
     messages = cast(List[Any], [HumanMessage(content="test")])
 
     # Act
-    result = await ainvoke_with_token_handling(mock_model, messages, model_info)
+    result = await ainvoke_with_token_handling(
+        mock_model,
+        messages,
+        model_info,
+        source="deep_research.test",
+    )
 
     # Assert
     assert result == "Success"
@@ -703,7 +767,12 @@ async def test_ainvoke_with_token_handling__raises_error__after_max_retries(
 
     # Act & Assert
     with pytest.raises(Exception, match="persistent error"):
-        await ainvoke_with_token_handling(mock_model, messages, model_info)
+        await ainvoke_with_token_handling(
+            mock_model,
+            messages,
+            model_info,
+            source="deep_research.test",
+        )
 
     assert mock_model.ainvoke.call_count == 5  # Initial + 4 retries
     assert mock_sleep.call_count == 4  # 4 retry delays

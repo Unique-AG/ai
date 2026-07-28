@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
@@ -162,6 +163,99 @@ def test_model_choice_uses_selected_model_when_selection_is_enabled() -> None:
     )
 
     assert config.space.language_model == selected_model
+
+
+@pytest.mark.ai
+def test_model_choice_applies_switchable_temperature_when_defined() -> None:
+    """
+    Purpose: Verify per-model temperature from switchable_language_models is applied.
+    Why this matters: Admins can configure different temperatures per selectable model.
+    Setup summary: Configure an allowlisted model with temperature 0.3; assert experimental temp updates.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                    "temperature": 0.3,
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={"experimental": {"temperature": 0.5}},
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model == selected_model
+    assert config.agent.experimental.temperature == 0.3
+
+
+@pytest.mark.ai
+def test_switchable_temperature_out_of_bounds_is_rejected() -> None:
+    """
+    Purpose: Verify an out-of-range per-model temperature fails at config load.
+    Why this matters: The value is copied into agent.experimental.temperature (0.0–10.0);
+    matching bounds surface the error early instead of on user model selection.
+    Setup summary: Build a space config with temperature 15.0; assert ValidationError.
+    """
+    selected_model = _make_model("selected-model")
+    with pytest.raises(ValidationError):
+        UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                    "temperature": 15.0,
+                }
+            ],
+            language_model=_make_model("default-model"),
+            tools=[],
+        )
+
+
+@pytest.mark.ai
+def test_model_choice_keeps_experimental_temperature_when_switchable_has_none() -> None:
+    """
+    Purpose: Verify space default temperature remains when the chosen model has no override.
+    Why this matters: Fallback behavior must preserve existing spaces without per-model temps.
+    Setup summary: Allowlisted model without temperature; assert experimental temp unchanged.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={"experimental": {"temperature": 0.5}},
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model == selected_model
+    assert config.agent.experimental.temperature == 0.5
 
 
 @pytest.mark.ai

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.28.0...unique-mcp-v2026.30.0) (2026-07-17)
+
+
+### Bug Fixes
+
+* **chat:** resolve namespace-package KeyError for unique_toolkit.chat.deprecated ([#1862](https://github.com/Unique-AG/ai/issues/1862)) ([262723f](https://github.com/Unique-AG/ai/commit/262723fa54e3ef9148f4d7067b6ff1000b8a59ce))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.26.0...unique-mcp-v2026.28.0) (2026-07-03)
 
 

@@ -39,6 +39,7 @@ async def send_message_and_wait_for_completion(
     correlation: Space.Correlation | None = None,
     auto_approve_elicitation: bool | None = None,
     on_message_update: Callable[[Space.Message], Awaitable[None]] | None = None,
+    wait_for_invocations: bool = False,
 ) -> Space.Message:
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -68,6 +69,8 @@ async def send_message_and_wait_for_completion(
             the assistant run. Use for non-interactive automation where no user is present.
         on_message_update: Optional async callback called whenever the latest assistant
             message changes while waiting for completion.
+        wait_for_invocations: When True, briefly wait for the orchestrator's final
+            ``debugInfo.llm_invocations`` write after the visible response completes.
 
     Returns:
         The completed Space.Message.
@@ -94,7 +97,15 @@ async def send_message_and_wait_for_completion(
     message_id = response.get("id")
 
     max_attempts = int(max_wait // poll_interval)
+    # The final up-to-3 polls spent waiting for `llm_invocations_complete`
+    # happen after the stop condition is already met, so they must not eat
+    # into the same budget as the wait for the stop condition itself --
+    # otherwise a response that completes near the max_wait deadline would
+    # spuriously time out while only debugInfo bookkeeping is still pending.
+    if wait_for_invocations:
+        max_attempts += 3
     last_update_signature: tuple[str | None, str | None] | None = None
+    invocation_wait_attempts = 0
     for _ in range(max_attempts):
         answer = await Space.get_latest_message_async(user_id, company_id, chat_id)
         if (
@@ -121,6 +132,15 @@ async def send_message_and_wait_for_completion(
                 )
                 debug_info = user_message.get("debugInfo")
                 answer["debugInfo"] = debug_info
+                answer["triggeringUserMessageId"] = message_id
+                if (
+                    wait_for_invocations
+                    and not (debug_info or {}).get("llm_invocations_complete", False)
+                    and invocation_wait_attempts < 3
+                ):
+                    invocation_wait_attempts += 1
+                    await asyncio.sleep(poll_interval)
+                    continue
             except Exception as e:
                 print(f"Failed to load debug info from user message: {e}")
 

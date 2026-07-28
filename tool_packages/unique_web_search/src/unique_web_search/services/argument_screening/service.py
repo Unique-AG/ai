@@ -116,6 +116,7 @@ class ArgumentScreeningService:
                 system_message=self._config.system_prompt,
                 user_message=user_prompt,
                 response_model=ArgumentScreeningResult,
+                invocation_source="web_search.argument_screening",
             )
         except StructuredLlmUnparseableResponseError as e:
             raise ArgumentScreeningUnparseableResponseException(

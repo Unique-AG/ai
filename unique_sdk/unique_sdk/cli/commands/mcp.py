@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -44,6 +46,14 @@ _MCP_OUTPUT_TEXT_CHAR_LIMIT = 200_000
 # the result carries no recognizable title.
 _MCP_REFS_LOG_RELATIVE_PATH = Path(".unique") / "mcp-refs.jsonl"
 _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
+# Persistent per-chat seed for ``[mcpsourceN]`` numbering. The SI runner wipes
+# ``mcp-refs.jsonl`` between turns, so manifest-derived numbering restarts at 1
+# every turn; this sibling file records the highest source number ever assigned
+# in the chat so numbering stays monotonic across turns (UN-23199). Body is
+# ``{"maxSourceNumber": <int>}``; the monorepo runner preserves this file across
+# its per-turn reset. Absent/unreadable → seed 0 → identical to pre-seed
+# behavior (forward/backward compatible).
+_MCP_REFS_SEED_FILENAME = "mcp-refs-seed.json"
 _MCP_SNIPPET_CHAR_LIMIT = 300
 # Writer-side cap on the per-item ``text`` recorded in the refs manifest — the
 # cited item's underlying text, consumed by the runner's hallucination check to
@@ -533,12 +543,75 @@ def _next_mcp_source_number(entries: list[dict[str, Any]]) -> int:
     return max(numbers, default=0) + 1
 
 
+def _read_mcp_refs_seed(seed_path: Path) -> int:
+    """Read the persisted chat-wide ``maxSourceNumber`` from the seed file.
+
+    Best-effort: returns ``0`` when the file is absent, unreadable, or malformed
+    (never raises), so a missing seed reproduces the pre-seed numbering exactly.
+    """
+    try:
+        raw = seed_path.read_text(encoding="utf-8")
+        value = json.loads(raw).get("maxSourceNumber")
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 0
+    return 0
+
+
+def _write_mcp_refs_seed(seed_path: Path, value: int) -> None:
+    """Persist the chat-wide ``maxSourceNumber`` seed (best-effort, never raises).
+
+    Only writes when ``value`` exceeds the currently persisted seed, so numbers
+    never regress across turns.
+
+    The temp file is opened with ``O_NOFOLLOW`` so a symlink pre-planted at the
+    predictable temp path cannot redirect the write outside the refs directory
+    (defense in depth on top of the per-user workspace sandbox). ``os.replace``
+    operates on the directory entry and does not follow a symlink at the target.
+    ``O_NOFOLLOW`` is POSIX-only; on platforms lacking it (e.g. Windows) it
+    degrades to ``0`` via ``getattr`` rather than raising ``AttributeError`` —
+    which, being outside the ``OSError`` handler, would otherwise bubble out of
+    ``_annotate_mcp_results_for_citations`` after entries were written and blank
+    the Sources block.
+    """
+    try:
+        if value <= _read_mcp_refs_seed(seed_path):
+            return
+        seed_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = seed_path.with_suffix(seed_path.suffix + ".tmp")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(tmp_path, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps({"maxSourceNumber": value}))
+        os.replace(tmp_path, seed_path)
+    except OSError as exc:
+        _LOGGER.warning("mcp: failed to write refs seed: %s", exc)
+
+
 def _item_dedup_key(tool_name: str, item: dict[str, Any]) -> str:
-    """Dedup by title when present (same item = one chip), else by tool."""
+    """Dedup by title when present (same item = one chip), else by tool + a short
+    content hash of the item's text.
+
+    Two distinct title-less fetches through one tool return different bodies, so
+    hashing the text keeps them as separate sources instead of collapsing onto
+    one number (identical bodies still merge). NOTE: this intentionally weakens
+    the search-then-fetch text-upgrade merge for title-less items only — titled
+    items still merge by title as before.
+
+    The text is capped at ``_MCP_REF_TEXT_CHAR_LIMIT`` BEFORE hashing — the same
+    cap the manifest stores under ``text``. Without it, the first call (live,
+    full-length item text) and a later call rebuilding this key from the
+    truncated manifest entry would hash to different values, so an oversized
+    title-less result would be re-assigned a duplicate ``[mcpsourceN]`` instead
+    of deduping.
+    """
     title = item.get("title")
     if isinstance(title, str) and title.strip():
         return f"title:{tool_name}:{title.strip()}"
-    return f"tool:{tool_name}"
+    capped_text = (item.get("text") or "")[:_MCP_REF_TEXT_CHAR_LIMIT]
+    text_hash = hashlib.sha256(capped_text.encode("utf-8")).hexdigest()[:12]
+    return f"tool:{tool_name}:{text_hash}"
 
 
 def _ref_text(item: dict[str, Any]) -> str | None:
@@ -563,8 +636,11 @@ def _annotate_mcp_results_for_citations(
     """Assign per-turn ``[mcpsourceN]`` numbers to each retrieved item and append
     the refs manifest. Returns ``[(sourceNumber, item)]`` for the Sources block.
 
-    Items dedup by title across the turn (same item keeps one number), or by
-    tool for the title-less fallback. Best-effort — returns ``[]`` on any failure
+    Items dedup by title across the turn (same item keeps one number); a
+    title-less item dedups by tool plus a content hash of its (capped) text, so
+    two distinct title-less results through one tool get distinct numbers while
+    identical bodies still merge (this weakens the search-then-fetch text-upgrade
+    merge for title-less items only). Best-effort — returns ``[]`` on any failure
     (the tool result is unaffected; only the citation Sources block is skipped).
     """
     refs_log_path = refs_log_path or (Path.cwd() / _MCP_REFS_LOG_RELATIVE_PATH)
@@ -581,6 +657,14 @@ def _annotate_mcp_results_for_citations(
             refs_log_path, lock_filename=_MCP_REFS_LOCK_FILENAME
         ):
             entries = _read_turn_refs_manifest(refs_log_path)
+            # Chat-wide monotonic seed: the runner wipes ``mcp-refs.jsonl``
+            # between turns, so manifest-derived numbering restarts at 1 each
+            # turn. The seed file (preserved across the runner's per-turn reset)
+            # records the highest number ever assigned in the chat so a fresh
+            # number exceeds both the current manifest max AND the chat-wide max.
+            seed_path = refs_log_path.parent / _MCP_REFS_SEED_FILENAME
+            seed = _read_mcp_refs_seed(seed_path)
+            highest_assigned = seed
             numbers_by_key: dict[str, int] = {}
             for entry in entries:
                 if isinstance(entry.get("sourceNumber"), int):
@@ -598,7 +682,7 @@ def _annotate_mcp_results_for_citations(
                 key = _item_dedup_key(tool_name, item)
                 source_number = numbers_by_key.get(key)
                 if source_number is None:
-                    source_number = _next_mcp_source_number(entries)
+                    source_number = max(_next_mcp_source_number(entries), seed + 1)
                     manifest_entry = {
                         "sourceNumber": source_number,
                         "toolName": tool_name,
@@ -618,6 +702,7 @@ def _annotate_mcp_results_for_citations(
                     numbers_by_key[key] = source_number
                     entries.append(manifest_entry)
                     entries_by_number[source_number] = manifest_entry
+                    highest_assigned = max(highest_assigned, source_number)
                 else:
                     # Deduped: a prior call already claimed this source number.
                     # Backfill ``details`` the first call may have lacked (the
@@ -649,6 +734,10 @@ def _annotate_mcp_results_for_citations(
                     _LOGGER.warning(
                         "mcp: failed to backfill refs manifest enrichment: %s", exc
                     )
+            # Persist the chat-wide max so next turn's numbering continues above
+            # it even after the runner wipes ``mcp-refs.jsonl``.
+            if highest_assigned > seed:
+                _write_mcp_refs_seed(seed_path, highest_assigned)
     except (UnsafeRefsLogPathError, OSError) as exc:
         _LOGGER.warning("mcp: failed to append refs manifest: %s", exc)
         return []
@@ -658,13 +747,19 @@ def _annotate_mcp_results_for_citations(
     return annotated
 
 
-def _citation_sources_block(annotated: list[tuple[int, dict[str, Any]]]) -> str:
+def _citation_sources_block(
+    annotated: list[tuple[int, dict[str, Any]]], *, tool_name: str
+) -> str:
     """Tell the agent which marker to cite each retrieved item with.
 
     Rendered *before* the tool output (leading block, not a trailing footer):
     the agent harness spills oversized tool results to a file wholesale, and a
     partial or programmatic read of that file only reliably sees the head — a
     trailing marker list would be exactly what such reads miss (UN-22309).
+
+    Each line names the ``tool_name`` alongside the marker so the model has a
+    stronger anchor than a bare integer: ``{title} — {tool_name}`` when the item
+    carries a title, or ``{tool_name}`` for the title-less fallback.
     """
     if not annotated:
         return ""
@@ -674,7 +769,11 @@ def _citation_sources_block(annotated: list[tuple[int, dict[str, Any]]]) -> str:
         "will not be referenced in the answer:",
     ]
     for source_number, item in annotated:
-        label = item.get("title") or "this MCP tool result"
+        title = item.get("title")
+        if isinstance(title, str) and title.strip():
+            label = f"{title.strip()} — {tool_name}"
+        else:
+            label = tool_name
         lines.append(f"  [mcpsource{source_number}] {label}")
     return "\n".join(lines)
 
@@ -758,7 +857,7 @@ def record_mcp_citations(
         reference_mapping=reference_mapping,
         fallback_text=formatted_text,
     )
-    return _citation_sources_block(annotated)
+    return _citation_sources_block(annotated, tool_name=tool_name)
 
 
 def _read_payload(

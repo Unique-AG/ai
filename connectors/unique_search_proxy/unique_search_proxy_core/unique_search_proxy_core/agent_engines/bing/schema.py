@@ -32,7 +32,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     agent_id: str | None = Field(
         default=None,
         description=(
-            "Azure AI agent id. Resolved from deployment env when not set. "
+            "Foundry agent name/id. Resolved from deployment env when not set. "
             "When empty, the service auto-provisions or looks up a grounding agent."
         ),
     )

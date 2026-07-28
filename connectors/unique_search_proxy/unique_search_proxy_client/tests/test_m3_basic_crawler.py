@@ -190,8 +190,33 @@ def test_crawl_endpoint_returns_per_url_results(client: TestClient) -> None:
     failure = next(r for r in body["results"] if "blocked.example" in r["url"])
     assert failure["error"] is not None
     assert failure["error"]["code"] == ProxyErrorCode.UPSTREAM_ERROR.value
+    assert failure["error"]["statusCode"] == 403
     assert failure["contentType"] == "text/plain"
     assert failure["raw"] == "forbidden"
+
+
+@pytest.mark.ai
+def test_crawl_records_per_url_outcome_metrics(client: TestClient) -> None:
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/a", "https://blocked.example/x"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"html": True},
+        },
+    )
+    assert resp.status_code == 200
+
+    metrics = client.get("/metrics").text
+    assert (
+        'unique_search_proxy_crawl_url_outcomes_total{crawler="Basic",'
+        'error_code="",http_status="",outcome="success"}' in metrics
+    )
+    assert (
+        'unique_search_proxy_crawl_url_outcomes_total{crawler="Basic",'
+        f'error_code="{ProxyErrorCode.UPSTREAM_ERROR.value}",'
+        'http_status="403",outcome="error"}' in metrics
+    )
 
 
 @pytest.mark.ai

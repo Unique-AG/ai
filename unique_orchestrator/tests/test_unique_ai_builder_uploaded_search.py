@@ -25,6 +25,8 @@ from unique_orchestrator.unique_ai_builder import (
     _configure_uploaded_search_tool,
 )
 
+_DEFAULT_MEMORY_STATE = object()
+
 
 def _make_common_components(uploaded_documents):
     tool_manager_config = ToolManagerConfig(tools=[])
@@ -62,7 +64,9 @@ def _make_event(tool_choices):
 
 def _patch_build_common_user_memory(
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[MagicMock, AsyncMock]:
+    *,
+    memory_state: UserMemoryState | None | object = _DEFAULT_MEMORY_STATE,
+) -> tuple[MagicMock, AsyncMock, MagicMock]:
     event = _make_event(tool_choices=[])
     event.payload.additional_parameters = None
     event.payload.mcp_servers = []
@@ -109,21 +113,35 @@ def _patch_build_common_user_memory(
         "unique_orchestrator.unique_ai_builder.MessageStepLogger",
         MagicMock(return_value=MagicMock()),
     )
-    memory_state = UserMemoryState(scope_id="scope_1", text="remembered")
+    memory_message_step_logger = MagicMock()
+    memory_message_step_logger.log_loading_start = AsyncMock()
+    memory_message_step_logger.log_loading_complete = AsyncMock()
+    memory_message_step_logger.log_loading_failed = AsyncMock()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UserMemoryMessageLogger",
+        MagicMock(return_value=memory_message_step_logger),
+    )
+    if memory_state is _DEFAULT_MEMORY_STATE:
+        memory_state = UserMemoryState(
+            scope_id="scope_1",
+            text="remembered",
+        )
     load_user_memory = AsyncMock(return_value=memory_state)
     monkeypatch.setattr(
         "unique_orchestrator.unique_ai_builder.load_user_memory",
         load_user_memory,
     )
 
-    return event, load_user_memory
+    return event, load_user_memory, memory_message_step_logger
 
 
 @pytest.mark.asyncio
 async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
+    )
 
     config = UniqueAIConfig()
 
@@ -134,6 +152,7 @@ async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
     )
 
     load_user_memory.assert_not_awaited()
+    memory_message_step_logger.log_loading_start.assert_not_awaited()
     assert common_components.user_memory_text == ""
     postprocessor_names = [
         postprocessor.name
@@ -148,7 +167,9 @@ async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
 async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
+    )
 
     config = UniqueAIConfig(space={"allowUserMemory": True})
     common_components = await _build_common(
@@ -158,6 +179,10 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     )
 
     load_user_memory.assert_awaited_once()
+    memory_message_step_logger.log_loading_start.assert_awaited_once()
+    memory_message_step_logger.log_loading_complete.assert_awaited_once_with(
+        with_settings_entry=True
+    )
     assert common_components.user_memory_text == "remembered"
     postprocessor_names = [
         postprocessor.name
@@ -166,6 +191,84 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
         )
     ]
     assert "UserMemoryPostprocessor" in postprocessor_names
+
+
+@pytest.mark.asyncio
+async def test_build_common_load_steps_skip_settings_entry_when_memory_load_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: When load_user_memory returns None, complete the loading Step
+    without the context-memory settings entry.
+    Why this matters: A soft-failed / missing memory load should not surface a
+    Settings entry as if memory were available.
+    Setup summary: Patch load to return None; assert complete(with_settings_entry=False)
+    and that failed is not used.
+    """
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(
+            monkeypatch,
+            memory_state=None,
+        )
+    )
+
+    config = UniqueAIConfig(space={"allowUserMemory": True})
+    await _build_common(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+    )
+
+    load_user_memory.assert_awaited_once()
+    memory_message_step_logger.log_loading_start.assert_awaited_once()
+    memory_message_step_logger.log_loading_complete.assert_awaited_once_with(
+        with_settings_entry=False
+    )
+    memory_message_step_logger.log_loading_failed.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_build_common_closes_loading_step_when_memory_load_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: When load_user_memory raises after log_loading_start, the loading
+    Step is marked FAILED and the turn continues without memory.
+    Why this matters: Otherwise the chat Steps UI leaves "Loading context
+    memory" stuck in RUNNING for that turn.
+    Setup summary: Patch load to raise; assert failed is awaited, complete is
+    not, and UserMemoryPostprocessor is not registered.
+    """
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
+    )
+    load_user_memory.side_effect = RuntimeError("memory store unavailable")
+    logger = MagicMock()
+
+    config = UniqueAIConfig(space={"allowUserMemory": True})
+    common_components = await _build_common(
+        event=event,
+        logger=logger,
+        config=config,
+    )
+
+    load_user_memory.assert_awaited_once()
+    memory_message_step_logger.log_loading_start.assert_awaited_once()
+    memory_message_step_logger.log_loading_failed.assert_awaited_once()
+    memory_message_step_logger.log_loading_complete.assert_not_awaited()
+    assert common_components.user_memory_text == ""
+    postprocessor_names = [
+        postprocessor.name
+        for postprocessor in common_components.postprocessor_manager.get_postprocessors(
+            "ignored"
+        )
+    ]
+    assert "UserMemoryPostprocessor" not in postprocessor_names
+    logger.warning.assert_any_call(
+        "[user-memory] load raised - running without memory: [%s] %s",
+        "RuntimeError",
+        load_user_memory.side_effect,
+    )
 
 
 class TestSerializeUploadedFileForHistory:

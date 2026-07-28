@@ -94,6 +94,8 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
         "isPinned",
         "uiType",
         "settings",
+        "isSubAgent",
+        "subAgentSettings",
     )
     for key in optional_keys:
         if src.get(key) is not None:
@@ -146,6 +148,8 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
         "settings",
         "allowEndUserSpace",
         "uiType",
+        "isSubAgent",
+        "subAgentSettings",
     )
     for key in simple:
         if src.get(key) is not None:

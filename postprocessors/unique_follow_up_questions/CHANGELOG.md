@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.28.0...unique-follow-up-questions-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **unique_follow_up_questions:** report per-invocation LLM usage [UN-20907] ([#2077](https://github.com/Unique-AG/ai/issues/2077)) ([7bd0275](https://github.com/Unique-AG/ai/commit/7bd02753e71bd7aee7b9f7e1b7ae0536c944d5a8))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.26.0...unique-follow-up-questions-v2026.28.0) (2026-07-03)
 
 

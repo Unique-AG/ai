@@ -7,6 +7,8 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.invocation_stats import record_language_model_response
+
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -21,6 +23,7 @@ async def complete_structured_llm(
     system_message: str,
     user_message: str,
     response_model: type[T],
+    invocation_source: str,
     structured_output_enforce_schema: bool = True,
 ) -> T:
     """Run a structured completion and return a validated model instance."""
@@ -36,6 +39,11 @@ async def complete_structured_llm(
         model_name=language_model.name,
         structured_output_model=response_model,
         structured_output_enforce_schema=structured_output_enforce_schema,
+    )
+    record_language_model_response(
+        model_name=language_model.name,
+        response=response,
+        source=invocation_source,
     )
 
     parsed = response.choices[0].message.parsed

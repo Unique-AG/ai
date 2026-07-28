@@ -160,6 +160,8 @@ Thin egress — proxy returns opaque agent text; callers own parsing and citatio
 
 Streaming (`/v1/agent-search/stream`) emits SSE `{ "type": "delta", "text": "..." }` chunks and a terminal `{ "type": "done", "response": { … } }`.
 
+**Bing auto-provisioned agents:** when `agent_id` / `BING_AGENT_AGENT_ID` is unset, the proxy creates Foundry agents named `unique-grounding-with-bing-<hash>` (hash of model, fetch size, and instructions) on first miss. Set `BING_AGENT_CLEANUP_ON_START=true` to delete those prefix-matched agents on process start (best-effort; failures and multi-worker/replica races are logged and never block boot; create-on-miss recovers transient misses). Preconfigured agent names that do not use this prefix are not deleted.
+
 ### 5.4 Crawl (`POST /v1/crawl`)
 
 Per-URL outcomes — one URL failing does not fail the batch:
@@ -204,7 +206,7 @@ Settings use pydantic-settings with per-provider env vars. Copy `.env.example` t
 | Tavily | `TAVILY_` | `TAVILY_API_KEY` |
 | Jina | `JINA_` | `JINA_API_KEY`, `JINA_DEPLOYMENT` |
 | Firecrawl | `FIRECRAWL_` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_VERSION` |
-| Bing agent | `BING_AGENT_` | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING` |
+| Bing agent | `BING_AGENT_` | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING`, optional `BING_AGENT_CLEANUP_ON_START` |
 | VertexAI agent | `VERTEXAI_AGENT_` | `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (optional) |
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
@@ -249,9 +251,9 @@ uv run python scripts/generate_sdk.py
 
 ## 8. Dev testing
 
-1. Start the server and configure `.env`.
-2. **Swagger** — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset.
-3. **CLI** — same presets from the terminal:
+1. Start the server and configure `.env` (`.env.example` sets `REQUIRE_CONTEXT_HEADERS=false` for local use; production keeps enforcement enabled).
+2. **Swagger** — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset. Context headers default to `local` in the UI.
+3. **CLI** — same presets from the terminal (`scripts/try_presets.py` sends the same local context headers):
 
 ```bash
 uv run python scripts/try_presets.py list

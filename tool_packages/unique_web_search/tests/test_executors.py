@@ -327,6 +327,76 @@ class TestWebSearchV1ExecutorRun:
             await executor.run()
 
 
+class TestWebSearchExecutorSelectRelevantSources:
+    """Tests for BaseWebSearchExecutor._select_relevant_sources()."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_select_relevant_sources__records_relevancy_invocation_stats(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """
+        Purpose: Verify per-chunk relevancy-sort LLM usage is merged into the
+            active WebSearch stats scope.
+        Why this matters: The relevancy sorter makes one LLM call per chunk;
+            those tokens were previously discarded, undercounting analytics.
+        Setup summary: Return a sorter result carrying invocation_stats on its
+            relevancies and assert they land in the scope.
+        """
+        from unique_toolkit.agentic.evaluation.schemas import (
+            EvaluationMetricName,
+            EvaluationMetricResult,
+        )
+        from unique_toolkit.language_model.invocation_stats import (
+            LanguageModelInvocationStats,
+        )
+        from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
+
+        from unique_web_search.invocation_stats import invocation_stats_scope
+
+        stat = LanguageModelInvocationStats.from_usage(
+            model_name="gpt-4",
+            token_usage=LanguageModelTokenUsage(total_tokens=5),
+            source="chunk_relevancy_sorter",
+        )
+        relevancy = Mock()
+        relevancy.relevancy = EvaluationMetricResult(
+            name=EvaluationMetricName.CONTEXT_RELEVANCY,
+            value="high",
+            reason="relevant",
+            is_positive=True,
+            invocation_stats=[stat],
+        )
+        sorter_result = Mock()
+        sorter_result.relevancies = [relevancy]
+        sorter_result.content_chunks = []
+        sorter_result.user_message = "sorted"
+
+        mock_executor_dependencies["chunk_relevancy_sorter"].run = AsyncMock(
+            return_value=sorter_result
+        )
+        mock_executor_dependencies["content_reducer"].return_value = []
+
+        executor = WebSearchV1Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=WebSearchToolParameters(query="test"),
+            refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
+        )
+
+        with invocation_stats_scope() as invocation_stats:
+            await executor._select_relevant_sources(objective="obj", web_page_chunks=[])
+
+        assert len(invocation_stats) == 1
+        assert invocation_stats[0].source == "chunk_relevancy_sorter"
+        assert invocation_stats[0].token_usage.total_tokens == 5
+
+
 class TestWebSearchV1ExecutorRefineQuery:
     """Tests for WebSearchV1Executor._refine_query() method."""
 

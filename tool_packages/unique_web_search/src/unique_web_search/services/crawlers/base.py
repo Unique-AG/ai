@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig
 from unique_search_proxy_core.url_safety import (
     CrawlTargetValidationError,
@@ -30,8 +31,14 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
     the direct ``_legacy_crawl`` implementation used when the proxy is disabled.
     """
 
-    def __init__(self, config: CrawlerConfig):
+    def __init__(
+        self,
+        config: CrawlerConfig,
+        *,
+        request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
+    ):
         self.config = config
+        self._request_context = request_context
 
     async def crawl(self, urls: list[str]) -> list[str]:
         if search_proxy_client_enabled:
@@ -49,7 +56,8 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         """Dump deployment config fields into the generic proxy crawl call."""
         params = self.config.model_dump(exclude={"crawler"}, exclude_none=True)
         async with open_search_proxy_client(
-            timeout=float(self.config.timeout)
+            timeout=float(self.config.timeout),
+            context=self._request_context,
         ) as client:
             response = await client.crawl.crawl(
                 urls=urls,

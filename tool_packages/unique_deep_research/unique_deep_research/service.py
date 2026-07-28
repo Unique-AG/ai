@@ -50,6 +50,9 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
+from unique_web_search.invocation_stats import (
+    invocation_stats_scope as web_search_invocation_stats_scope,
+)
 
 from unique_deep_research.unique_custom.tools import crawl_url, get_today_str
 
@@ -59,6 +62,12 @@ from .config import (
     DeepResearchEngine,
     DeepResearchToolConfig,
     UniqueEngine,
+)
+from .invocation_stats import (
+    invocation_stats_scope,
+    record_invocation_stats,
+    record_language_model_response,
+    record_token_usage,
 )
 from .markdown_utils import (
     export_report_to_docx,
@@ -261,39 +270,65 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        sub = self.chat_service.cancellation.on_cancellation.subscribe(
-            self._on_cancellation
-        )
-        try:
-            return await self._run(tool_call)
-        except Exception as e:
-            self.write_message_log_text_message(
-                "**Research failed for an unknown reason**"
+        with invocation_stats_scope() as invocation_stats:
+            sub = self.chat_service.cancellation.on_cancellation.subscribe(
+                self._on_cancellation
             )
-            if self.is_message_execution():
-                await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+            try:
+                response = await self._run(tool_call)
+                response.invocation_stats.extend(invocation_stats)
+                return response
+            except Exception as e:
+                _LOGGER.exception("Deep Research tool run failed")
 
-            _LOGGER.exception(f"Deep Research tool run failed: {e}")
+                # The failure-handling below issues several awaits (status
+                # update, debugInfo read/write, message edit); if any of them
+                # raises it must not escape and take the tokens already spent
+                # this run down with it -- the finally block still returns a
+                # stats-bearing error response so analytics stay accurate.
+                try:
+                    self.write_message_log_text_message(
+                        "**Research failed for an unknown reason**"
+                    )
+                    if self.is_message_execution():
+                        await self._update_execution_status(
+                            MessageExecutionUpdateStatus.FAILED
+                        )
 
-            debug_info = {
-                **self._get_tool_debug_info(),
-                "error": str(e),
-                "traceback": traceback.format_exc(),
-            }
-            await self.chat_service.update_debug_info_async(debug_info)
-            await self.chat_service.modify_assistant_message_async(
-                content="Deep Research failed to complete for an unknown reason",
-                set_completed_at=True,
+                    # update_debug_info_async replaces the message's debugInfo
+                    # wholesale (see ChatService.update_debug_info_async /
+                    # replace_debug_info), so the existing debugInfo must be read
+                    # and merged in first -- otherwise this write wipes out
+                    # `llm_invocations` persisted from an earlier turn of this same
+                    # research (e.g. the clarification round), and UniqueAI's later
+                    # merge (unique_ai.py) reads back an empty prior list.
+                    existing_debug_info = await self.chat_service.get_debug_info_async()
+                    debug_info = {
+                        **existing_debug_info,
+                        **self._get_tool_debug_info(),
+                        "error": str(e),
+                        "traceback": traceback.format_exc(),
+                    }
+                    await self.chat_service.update_debug_info_async(debug_info)
+                    await self.chat_service.modify_assistant_message_async(
+                        content="Deep Research failed to complete for an unknown reason",
+                        set_completed_at=True,
+                    )
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to persist Deep Research failure state; "
+                        "returning collected invocation stats anyway"
+                    )
+            finally:
+                sub.cancel()
+
+            return ToolCallResponse(
+                id=tool_call.id or "",
+                name=self.name,
+                content="Failed to complete research",
+                error_message="Research process failed or returned empty results",
+                invocation_stats=invocation_stats,
             )
-        finally:
-            sub.cancel()
-
-        return ToolCallResponse(
-            id=tool_call.id or "",
-            name=self.name,
-            content="Failed to complete research",
-            error_message="Research process failed or returned empty results",
-        )
 
     async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         _LOGGER.info("Starting Deep Research tool run")
@@ -337,11 +372,25 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             if processed_result == "":
                 raise ValueError("Research returned empty result")
 
-            await self.chat_service.modify_assistant_message_async(
-                set_completed_at=True,
-            )
-
-            await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
+            # The real report is already persisted by run_research() above; these
+            # two calls are trailing bookkeeping (completed-flag, execution status).
+            # If either raises, run()'s except handler would otherwise treat the
+            # whole turn as failed and overwrite the already-correct report with a
+            # generic failure message -- swallow here instead so a bookkeeping
+            # hiccup can't destroy a successful research result.
+            try:
+                await self.chat_service.modify_assistant_message_async(
+                    set_completed_at=True,
+                )
+                await self._update_execution_status(
+                    MessageExecutionUpdateStatus.COMPLETED
+                )
+            except Exception:
+                _LOGGER.warning(
+                    "Failed to finalize Deep Research completion bookkeeping "
+                    "after a successful research result",
+                    exc_info=True,
+                )
 
             return ToolCallResponse(
                 id=tool_call.id or "",
@@ -506,10 +555,18 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             },
         }
 
-        result = await self.chat_service.cancellation.run_with_cancellation(
-            custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
-            cancel_result={"final_report": ""},
-        )
+        with web_search_invocation_stats_scope() as web_search_invocation_stats:
+            try:
+                result = await self.chat_service.cancellation.run_with_cancellation(
+                    custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
+                    cancel_result={"final_report": ""},
+                )
+            finally:
+                # web_search_invocation_stats is populated live as nested web-search
+                # calls happen during ainvoke(); merge it into the outer Deep Research
+                # scope even if the graph raises, so tokens already spent before the
+                # failure aren't dropped from the failure ToolCallResponse.
+                record_invocation_stats(web_search_invocation_stats)
 
         research_result = result.get("final_report", "")
 
@@ -633,6 +690,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         if event.response.usage:
                             _LOGGER.info(
                                 f"OpenAI research token usage: {event.response.usage}"
+                            )
+                            record_token_usage(
+                                model_name=self.config.engine.research_model.name,
+                                usage=event.response.usage,
+                                source="deep_research.openai_research",
                             )
                         # Extract the final output with annotations
                         if event.response.output and len(event.response.output) > 0:
@@ -810,6 +872,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             temperature=0.1,
             max_tokens=5000,
         )
+        record_language_model_response(
+            model_name=self.config.engine.large_model.name,
+            response=response,
+            source="deep_research.report_cleanup",
+        )
 
         formatted_result = response.choices[0].message.content
         if formatted_result:
@@ -870,6 +937,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             model_name=self.config.engine.small_model.name,
             content_chunks=None,
         )
+        record_language_model_response(
+            model_name=self.config.engine.small_model.name,
+            response=response,
+            source="deep_research.clarification",
+        )
         assert isinstance(response.choices[0].message.content, str), (
             "No clarifying questions generated"
         )
@@ -896,6 +968,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         research_response = await self.client.chat.completions.create(
             model=self.config.engine.large_model.name,
             messages=chat_messages,
+        )
+        record_language_model_response(
+            model_name=self.config.engine.large_model.name,
+            response=research_response,
+            source="deep_research.research_brief",
         )
 
         research_instructions = research_response.choices[0].message.content

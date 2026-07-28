@@ -2916,12 +2916,19 @@ def test_compute_artifacts_debug_info__excludes_failed_uploads() -> None:
     """
     Purpose: Verify only successful uploads (content_id is not None) are counted.
     Why this matters: artifacts_created_count means files the user actually got;
-    failed downloads must not inflate it (decision 2).
+    failed downloads must not inflate it (decision 2). Same gate applies to
+    output_size — failed files' bytes are ignored even if present in the size map.
     Setup summary: content_map with two successes and one failure; assert count 2
-    and the failed file's extension is absent.
+    and the failed file's extension/size are absent from the totals.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"a.png": "c1", "b.csv": "c2", "c.pdf": None}
+    # Failed upload still had downloaded bytes; must not count toward output_size.
+    proc._file_size_map = {
+        "a.png": 512 * 1024,  # 0.5 MiB
+        "b.csv": 512 * 1024,  # 0.5 MiB
+        "c.pdf": 10 * 1024 * 1024,  # would be 10 MiB if incorrectly counted
+    }
     response = _make_response(
         calls=[_make_ci_call("print('x')")],
         annotations=[
@@ -2936,6 +2943,7 @@ def test_compute_artifacts_debug_info__excludes_failed_uploads() -> None:
     assert artifacts is not None
     assert artifacts["count"] == 2
     assert artifacts["filetypes"] == ["csv", "png"]
+    assert artifacts["output_size"] == 1.0
 
 
 @pytest.mark.ai
@@ -2947,6 +2955,11 @@ def test_compute_artifacts_debug_info__filetypes_deduped_and_sorted() -> None:
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"chart.png": "c1", "chart2.png": "c2", "data.csv": "c3"}
+    proc._file_size_map = {
+        "chart.png": 256 * 1024,
+        "chart2.png": 256 * 1024,
+        "data.csv": 512 * 1024,
+    }
     response = _make_response(
         calls=[_make_ci_call("print('x')")],
         annotations=[
@@ -2961,6 +2974,7 @@ def test_compute_artifacts_debug_info__filetypes_deduped_and_sorted() -> None:
     assert artifacts is not None
     assert artifacts["count"] == 3
     assert artifacts["filetypes"] == ["csv", "png"]
+    assert artifacts["output_size"] == 1.0
 
 
 @pytest.mark.ai
@@ -2969,7 +2983,7 @@ def test_compute_artifacts_debug_info__counts_only_this_turn_not_prior_files() -
     Purpose: Verify prior-message files in _content_map (loaded from short-term
     memory) are NOT counted — only this turn's container_files (decision 4).
     Why this matters: Guards the §2a accuracy trap; counting the whole content_map
-    would inflate the per-turn total across a long chat.
+    would inflate the per-turn total across a long chat. Same for output_size.
     Setup summary: content_map holds a prior file plus this turn's file; only this
     turn's annotation is on the response; assert just it is counted.
     """
@@ -2977,6 +2991,10 @@ def test_compute_artifacts_debug_info__counts_only_this_turn_not_prior_files() -
     # 'old.pdf' was created in an earlier message (present in content_map via
     # _load_previous_files) but is NOT in this response's container_files.
     proc._content_map = {"old.pdf": "c-old", "new.png": "c-new"}
+    proc._file_size_map = {
+        "old.pdf": 5 * 1024 * 1024,
+        "new.png": 512 * 1024,
+    }
     response = _make_response(
         calls=[_make_ci_call("print('x')")],
         annotations=[_make_annotation("new.png")],
@@ -2987,6 +3005,7 @@ def test_compute_artifacts_debug_info__counts_only_this_turn_not_prior_files() -
     assert artifacts is not None
     assert artifacts["count"] == 1
     assert artifacts["filetypes"] == ["png"]
+    assert artifacts["output_size"] == 0.5
 
 
 @pytest.mark.ai
@@ -2995,10 +3014,10 @@ def test_compute_artifacts_debug_info__ran_but_produced_no_files__returns_zero()
 ):
     """
     Purpose: Verify a turn where the interpreter ran but produced no files returns
-    count 0 / empty filetypes.
+    count 0 / empty filetypes / 0.0 size.
     Why this matters: This is the genuine "ran, created nothing" state — distinct
     from "did not run" (None). It requires code_interpreter_calls to be present.
-    Setup summary: One CI call, no container files; assert {count: 0, filetypes: []}.
+    Setup summary: One CI call, no container files; assert zeros.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {}
@@ -3009,13 +3028,15 @@ def test_compute_artifacts_debug_info__ran_but_produced_no_files__returns_zero()
     assert artifacts is not None
     assert artifacts["count"] == 0
     assert artifacts["filetypes"] == []
+    assert artifacts["output_size"] == 0.0
 
 
 @pytest.mark.ai
 def test_compute_artifacts_debug_info__interpreter_not_invoked__returns_none() -> None:
     """
     Purpose: Verify None is returned when the Code Interpreter did not run this
-    turn, so analytics.artifacts_* stays null ("did not run") rather than 0/[].
+    turn, so analytics.artifacts_* / output_size stays null ("did not run") rather
+    than 0/[]/0.0.
     Why this matters: The postprocessor is registered whenever the tool is *enabled*,
     so run() fires even on turns the model never invoked it — returning 0/[] there
     would misreport "ran, created nothing" on every ordinary answer (Cursor bot,
@@ -3027,3 +3048,29 @@ def test_compute_artifacts_debug_info__interpreter_not_invoked__returns_none() -
     response = _make_response(calls=[], annotations=[])
 
     assert proc._compute_artifacts_debug_info(response) is None
+
+
+@pytest.mark.ai
+def test_compute_artifacts_debug_info__output_size_sums_successful_uploads() -> None:
+    """
+    Purpose: Verify output_size is the sum of this turn's successful upload sizes
+    in MiB (bytes / 1024**2).
+    Why this matters: Consumers report total agent-produced file volume per turn;
+    the unit must be MiB and only successful uploads count.
+    Setup summary: Two successful files totaling 1.5 MiB; assert output_size == 1.5.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"a.png": "c1", "b.csv": "c2"}
+    proc._file_size_map = {
+        "a.png": 1024 * 1024,  # 1 MiB
+        "b.csv": 512 * 1024,  # 0.5 MiB
+    }
+    response = _make_response(
+        calls=[_make_ci_call("print('x')")],
+        annotations=[_make_annotation("a.png"), _make_annotation("b.csv")],
+    )
+
+    artifacts = proc._compute_artifacts_debug_info(response)
+
+    assert artifacts is not None
+    assert artifacts["output_size"] == 1.5

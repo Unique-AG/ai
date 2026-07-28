@@ -143,7 +143,7 @@ async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics(
     monkeypatch,
 ):
     ua = _make_ua(monkeypatch)
-    artifacts = {"count": 1, "filetypes": ["csv"]}
+    artifacts = {"count": 1, "filetypes": ["csv"], "output_size": 0.25}
     ua._postprocessor_manager.run_postprocessors.return_value = {
         DisplayCodeInterpreterFilesPostProcessor.__name__: artifacts
     }

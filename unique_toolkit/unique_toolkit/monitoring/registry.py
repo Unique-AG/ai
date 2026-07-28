@@ -5,6 +5,7 @@ import functools
 import os
 import time
 import warnings
+from collections.abc import Sequence
 from contextlib import contextmanager
 from typing import Any, Callable, Literal
 
@@ -66,9 +67,31 @@ class MetricNamespace:
     def __init__(self, prefix: str) -> None:
         self._prefix = prefix
 
-    def histogram(self, name: str, description: str, labels: list[str]) -> Histogram:
+    def histogram(
+        self,
+        name: str,
+        description: str,
+        labels: list[str],
+        buckets: Sequence[float] | None = None,
+    ) -> Histogram:
+        """Create a Histogram, optionally with custom bucket boundaries.
+
+        When ``buckets`` is omitted, prometheus_client's default buckets are used
+        (top finite bucket 10s). Provide explicit buckets for workloads whose
+        latency regularly exceeds 10s so ``histogram_quantile`` can resolve the
+        tail; observations above the largest bucket fall into the implicit +Inf
+        bucket. prometheus_client appends +Inf automatically.
+        """
+        if buckets is None:
+            return Histogram(
+                f"{self._prefix}_{name}", description, labels, registry=REGISTRY
+            )
         return Histogram(
-            f"{self._prefix}_{name}", description, labels, registry=REGISTRY
+            f"{self._prefix}_{name}",
+            description,
+            labels,
+            registry=REGISTRY,
+            buckets=tuple(buckets),
         )
 
     def counter(self, name: str, description: str, labels: list[str]) -> Counter:

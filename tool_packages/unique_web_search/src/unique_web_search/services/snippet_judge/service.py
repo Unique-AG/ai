@@ -9,6 +9,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.invocation_stats import record_language_model_response
 from unique_web_search.services.helpers import extract_registered_domain
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -98,6 +99,11 @@ async def score_and_explain(
         model_name=language_model.name,
         structured_output_model=SnippetJudgeResponse,
         structured_output_enforce_schema=True,
+    )
+    record_language_model_response(
+        model_name=language_model.name,
+        response=response,
+        source="web_search.snippet_judge",
     )
 
     parsed = response.choices[0].message.parsed

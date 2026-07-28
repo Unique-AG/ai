@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.28.0...unique-orchestrator-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **orchestrator:** apply per-model temperature on model choice ([#2091](https://github.com/Unique-AG/ai/issues/2091)) ([3a13a89](https://github.com/Unique-AG/ai/commit/3a13a89fe8be2467950f7483337aaf720752e7ec))
+* **unique_orchestrator:** Expose Python streaming as experimental flag ([#1990](https://github.com/Unique-AG/ai/issues/1990)) ([a2f796e](https://github.com/Unique-AG/ai/commit/a2f796e001c1f587553e672fea925cf202fe67eb))
+* **unique_orchestrator:** expose token usage on Space orchestration messages [UN-20907] ([#2078](https://github.com/Unique-AG/ai/issues/2078)) ([7e286db](https://github.com/Unique-AG/ai/commit/7e286db6f962710e732829f0e073687ee5aab60e))
+* **unique_toolkit:** add analytics debug-info snapshot [UN-22110] ([#2055](https://github.com/Unique-AG/ai/issues/2055)) ([fbcbe72](https://github.com/Unique-AG/ai/commit/fbcbe72eef4bf0e697b4eb7acaed73bb7f055deb))
+* **unique_toolkit:** add artifact output size analytics ([#2102](https://github.com/Unique-AG/ai/issues/2102)) ([a778134](https://github.com/Unique-AG/ai/commit/a7781340641854c7c36479d6390244be12a4f3d0)), closes [#2076](https://github.com/Unique-AG/ai/issues/2076)
+* **unique_toolkit:** populate artifact analytics fields [UN-22110] ([#2076](https://github.com/Unique-AG/ai/issues/2076)) ([fa31ec8](https://github.com/Unique-AG/ai/commit/fa31ec84d5ce8604fd4e48f4685ce7f129ff8c51))
+* **unique_toolkit:** Reenable file content serialization ([#2048](https://github.com/Unique-AG/ai/issues/2048)) ([256fbda](https://github.com/Unique-AG/ai/commit/256fbdacd2c9545e6a4950eb0451d67c23a3c22b))
+* **unique_toolkit:** Support lazy code interpreter loading ([#1997](https://github.com/Unique-AG/ai/issues/1997)) ([fb72d4c](https://github.com/Unique-AG/ai/commit/fb72d4c7afe88be9c0b7740b22818bab80c20acd))
+* **unique-orchestrator:** adding analytics parameters to debug info ([#2063](https://github.com/Unique-AG/ai/issues/2063)) ([e42d6ce](https://github.com/Unique-AG/ai/commit/e42d6ce15e164cf4729794997c564462743d4cb5))
+* **unique-toolkit:** force responses api for gpt 56 ([#2065](https://github.com/Unique-AG/ai/issues/2065)) ([f022cfe](https://github.com/Unique-AG/ai/commit/f022cfe4b6fa30ea61df604ef4aaba5e561521ce))
+* update logging and config of context memory ([#2098](https://github.com/Unique-AG/ai/issues/2098)) ([a38625e](https://github.com/Unique-AG/ai/commit/a38625efe25891a82e04ea6477113f43d94eaa62))
+* update user memory logic ([#2087](https://github.com/Unique-AG/ai/issues/2087)) ([0e8b7df](https://github.com/Unique-AG/ai/commit/0e8b7df00a4169104d273374b147c1664f9fbff7))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.26.0...unique-orchestrator-v2026.28.0) (2026-07-03)
 
 

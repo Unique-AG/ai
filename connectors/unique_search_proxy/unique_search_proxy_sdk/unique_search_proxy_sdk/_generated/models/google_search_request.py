@@ -12,8 +12,8 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..models.google_search_request_safe_search import GoogleSearchRequestSafeSearch
-from ..models.google_search_request_site_search_filter import (
-    GoogleSearchRequestSiteSearchFilter,
+from ..models.google_search_request_site_search_filter_type_0 import (
+    GoogleSearchRequestSiteSearchFilterType0,
 )
 from ..types import UNSET, Unset
 
@@ -40,8 +40,8 @@ class GoogleSearchRequest:
         exclude_terms (None | str | Unset): Phrase that must not appear in results (Google `excludeTerms`).
         file_type (None | str | Unset): File extension filter (Google `fileType`), e.g. `pdf`.
         site_search (None | str | Unset): Site or domain to restrict results to (Google `siteSearch`).
-        site_search_filter (GoogleSearchRequestSiteSearchFilter | None | Unset): With `siteSearch`: `i` = include only
-            that site, `e` = exclude it (Google `siteSearchFilter`).
+        site_search_filter (GoogleSearchRequestSiteSearchFilterType0 | None | Unset): With `siteSearch`: `i` = include
+            only that site, `e` = exclude it (Google `siteSearchFilter`).
         sort (None | str | Unset): Sort expression (Google `sort`), e.g. `date`.
     """
 
@@ -59,7 +59,7 @@ class GoogleSearchRequest:
     exclude_terms: None | str | Unset = UNSET
     file_type: None | str | Unset = UNSET
     site_search: None | str | Unset = UNSET
-    site_search_filter: GoogleSearchRequestSiteSearchFilter | None | Unset = UNSET
+    site_search_filter: GoogleSearchRequestSiteSearchFilterType0 | None | Unset = UNSET
     sort: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -133,7 +133,9 @@ class GoogleSearchRequest:
         site_search_filter: None | str | Unset
         if isinstance(self.site_search_filter, Unset):
             site_search_filter = UNSET
-        elif isinstance(self.site_search_filter, GoogleSearchRequestSiteSearchFilter):
+        elif isinstance(
+            self.site_search_filter, GoogleSearchRequestSiteSearchFilterType0
+        ):
             site_search_filter = self.site_search_filter.value
         else:
             site_search_filter = self.site_search_filter
@@ -287,7 +289,7 @@ class GoogleSearchRequest:
 
         def _parse_site_search_filter(
             data: object,
-        ) -> GoogleSearchRequestSiteSearchFilter | None | Unset:
+        ) -> GoogleSearchRequestSiteSearchFilterType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -295,14 +297,14 @@ class GoogleSearchRequest:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                site_search_filter_site_search_filter = (
-                    GoogleSearchRequestSiteSearchFilter(data)
+                site_search_filter_type_0 = GoogleSearchRequestSiteSearchFilterType0(
+                    data
                 )
 
-                return site_search_filter_site_search_filter
+                return site_search_filter_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(GoogleSearchRequestSiteSearchFilter | None | Unset, data)
+            return cast(GoogleSearchRequestSiteSearchFilterType0 | None | Unset, data)
 
         site_search_filter = _parse_site_search_filter(d.pop("siteSearchFilter", UNSET))
 

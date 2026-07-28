@@ -96,7 +96,12 @@ runs:
         sys.exit(0 if dev is not None else 1)
         EOF
         then
-          uv export --frozen --only-group dev --no-hashes | uv pip install -r -
+          # Export from repo root so workspace editable paths (e.g.
+          # ./connectors/unique_search_proxy/unique_search_proxy_core)
+          # resolve correctly; uv export emits repo-root-relative paths.
+          PACKAGE_NAME=$(python3 -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['name'])")
+          uv export --directory "$REPO_ROOT" --package "$PACKAGE_NAME" --frozen --only-group dev --no-hashes \
+            | (cd "$REPO_ROOT" && uv pip install -r -)
         fi
 
     - name: Show installed packages

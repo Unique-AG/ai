@@ -32,6 +32,13 @@ class _BingAgentCredentials(ProviderCredentials):
         default="https://management.azure.com/.default",
     )
     use_private_endpoint_transport: bool = Field(default=False)
+    cleanup_on_start: bool = Field(
+        default=False,
+        description=(
+            "If true, on process start delete Foundry agents whose names start with "
+            "unique-grounding-with-bing- (auto-provisioned hash agents)."
+        ),
+    )
 
 
 def _get_bing_agent_credentials() -> _BingAgentCredentials:

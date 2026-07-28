@@ -340,3 +340,76 @@ class TestSubclientTypes:
         assert callable(sdk_client.search.google)
         assert callable(sdk_client.crawl.basic)
         assert callable(sdk_client.agent_search.bing_stream)
+
+
+class TestRequestContextHeaders:
+    @pytest.mark.ai
+    def test_client_sends_context_headers(self) -> None:
+        from unique_search_proxy_core.context import (
+            CHAT_ID_HEADER,
+            COMPANY_ID_HEADER,
+            USER_ID_HEADER,
+            RequestContext,
+        )
+
+        from unique_search_proxy_sdk._transport import OpenapiTransport
+
+        context = RequestContext(
+            company_id="company-1",
+            user_id="user-1",
+            chat_id="chat-1",
+        )
+        transport = OpenapiTransport("http://test", context=context)
+        headers = transport.openapi.get_async_httpx_client().headers
+        assert headers[COMPANY_ID_HEADER] == "company-1"
+        assert headers[USER_ID_HEADER] == "user-1"
+        assert headers[CHAT_ID_HEADER] == "chat-1"
+
+    @pytest.mark.ai
+    async def test_v1_post_forwards_non_local_context(self) -> None:
+        """The generated helpers default context headers to ``"local"`` and attach
+        them per request; in httpx request headers win over client defaults, so the
+        facade must forward the transport's context on every ``/v1`` POST.
+        """
+        from unique_search_proxy_core.context import (
+            CHAT_ID_HEADER,
+            COMPANY_ID_HEADER,
+            USER_ID_HEADER,
+            RequestContext,
+        )
+
+        from unique_search_proxy_sdk._transport import OpenapiTransport
+        from unique_search_proxy_sdk.search_client import SearchClient
+
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.update(request.headers)
+            return httpx.Response(
+                200,
+                json={"engine": "google", "query": "q", "raw": {}, "curated": []},
+            )
+
+        context = RequestContext(
+            company_id="company-1",
+            user_id="user-1",
+            chat_id="chat-1",
+        )
+        http = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            base_url="http://test",
+        )
+        try:
+            transport = OpenapiTransport(
+                "http://test",
+                http_client=http,
+                context=context,
+            )
+            client = SearchClient(transport)
+            await client.google(query="unique ag")
+        finally:
+            await http.aclose()
+
+        assert captured[COMPANY_ID_HEADER] == "company-1"
+        assert captured[USER_ID_HEADER] == "user-1"
+        assert captured[CHAT_ID_HEADER] == "chat-1"

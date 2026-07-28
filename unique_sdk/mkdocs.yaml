@@ -101,6 +101,7 @@ nav:
     - Command Reference: cli/commands.md
     - Scheduled Tasks: cli/scheduled_tasks.md
     - Elicitation: cli/elicitation.md
+    - Agentic Table: cli/agentic_table.md
     - Search Guide: cli/search.md
     - Configuration: cli/configuration.md
 

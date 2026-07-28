@@ -10,14 +10,25 @@ from ...models.google_search_request import GoogleSearchRequest
 from ...models.http_validation_error import HTTPValidationError
 from ...models.perplexity_search_request import PerplexitySearchRequest
 from ...models.search_response import SearchResponse
-from ...types import Response
+from ...types import Response, Unset
 
 
 def _get_kwargs(
     *,
     body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
+    if not isinstance(x_unique_company_id, Unset):
+        headers["x-unique-company-id"] = x_unique_company_id
+
+    if not isinstance(x_unique_user_id, Unset):
+        headers["x-unique-user-id"] = x_unique_user_id
+
+    if not isinstance(x_unique_chat_id, Unset):
+        headers["x-unique-chat-id"] = x_unique_chat_id
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -71,10 +82,16 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
 ) -> Response[HTTPValidationError | SearchResponse]:
     """Run a search engine with a typed call payload
 
     Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
         body (BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest):
 
     Raises:
@@ -87,6 +104,9 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         body=body,
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
     )
 
     response = client.get_httpx_client().request(
@@ -100,10 +120,16 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
 ) -> HTTPValidationError | SearchResponse | None:
     """Run a search engine with a typed call payload
 
     Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
         body (BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest):
 
     Raises:
@@ -117,6 +143,9 @@ def sync(
     return sync_detailed(
         client=client,
         body=body,
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
     ).parsed
 
 
@@ -124,10 +153,16 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
 ) -> Response[HTTPValidationError | SearchResponse]:
     """Run a search engine with a typed call payload
 
     Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
         body (BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest):
 
     Raises:
@@ -140,6 +175,9 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         body=body,
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -151,10 +189,16 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
 ) -> HTTPValidationError | SearchResponse | None:
     """Run a search engine with a typed call payload
 
     Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
         body (BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest):
 
     Raises:
@@ -169,5 +213,8 @@ async def asyncio(
         await asyncio_detailed(
             client=client,
             body=body,
+            x_unique_company_id=x_unique_company_id,
+            x_unique_user_id=x_unique_user_id,
+            x_unique_chat_id=x_unique_chat_id,
         )
     ).parsed

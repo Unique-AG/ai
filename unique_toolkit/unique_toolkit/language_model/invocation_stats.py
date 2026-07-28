@@ -11,6 +11,7 @@ from humps import camelize
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.model_costs import calculate_invocation_cost_usd
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 # `protected_namespaces=()` allows the `model_name` field name.
@@ -59,6 +60,7 @@ class LanguageModelInvocationStats(BaseModel):
     model_name: ModelName
     token_usage: LanguageModelTokenUsage
     source: Source  # e.g. "main_loop", tool/evaluation/postprocessor name
+    cost_usd: float | None = None
 
     @classmethod
     def from_usage(
@@ -67,4 +69,9 @@ class LanguageModelInvocationStats(BaseModel):
         token_usage: LanguageModelTokenUsage,
         source: str,
     ) -> Self:
-        return cls(model_name=model_name, token_usage=token_usage, source=source)
+        return cls(
+            model_name=model_name,
+            token_usage=token_usage,
+            source=source,
+            cost_usd=calculate_invocation_cost_usd(str(model_name), token_usage),
+        )

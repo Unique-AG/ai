@@ -18,9 +18,6 @@ from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
     config_display_name="Tavily",
 )
 class TavilyCrawler(BaseCrawler[TavilyConfig]):
-    def __init__(self, config: TavilyConfig):
-        super().__init__(config)
-
     @override
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         urls = [target.normalized_url for target in targets]

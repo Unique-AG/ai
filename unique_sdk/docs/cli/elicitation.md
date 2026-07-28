@@ -103,15 +103,12 @@ unique-cli elicit ask "Pick a region" --tool-name choose_region --schema '{
   "required": ["region"]
 }'
 
-# Confirmation before a destructive action
-unique-cli elicit ask "Confirm permanently deleting /Archive/2024 and all its contents" \
+# Confirmation before a destructive action: empty-properties schema —
+# the Confirm/Cancel buttons are the consent; gate on Status: ACCEPTED
+unique-cli elicit ask "Permanently delete /Archive/2024 and all its contents? Confirming deletes it immediately — this cannot be undone." \
   --tool-name confirm_delete \
   --timeout 120 \
-  --schema '{
-    "type": "object",
-    "properties": {"confirm": {"type": "boolean"}},
-    "required": ["confirm"]
-  }'
+  --schema '{"type": "object", "properties": {}}'
 ```
 
 **Sample output:**
@@ -156,7 +153,7 @@ Create an elicitation without waiting for the response. Useful when you want to 
 **Synopsis:**
 
 ```
-elicit create <message> --mode FORM|URL --tool-name <name> [options]
+elicit create <message> [--mode FORM|URL] --tool-name <name> [options]
 ```
 
 **Arguments:**
@@ -169,7 +166,7 @@ elicit create <message> --mode FORM|URL --tool-name <name> [options]
 
 | Option | Short | Required | Description |
 |--------|-------|----------|-------------|
-| `--mode` | | Yes | `FORM` (render a JSON Schema form) or `URL` (redirect to an external page) |
+| `--mode` | | No (default `FORM`) | `FORM` (render a JSON Schema form) or `URL` (redirect to an external page) |
 | `--tool-name` | `-t` | Yes | Short tool/intent label |
 | `--schema` | | FORM | JSON Schema for the form body (required when `--mode FORM`) |
 | `--url` | | URL | External URL (required when `--mode URL`) |
@@ -266,7 +263,7 @@ elicit wait <elicitation_id> [--timeout <seconds>] [--poll-interval <seconds>]
 unique-cli elicit wait elicit_9a7b --timeout 120
 ```
 
-On timeout, the CLI prints `elicit: timed out after Ns waiting for <id> (last status: PENDING)` followed by the last observed snapshot. The elicitation remains live on the platform -- call `elicit wait` again to resume.
+On timeout, the CLI prints `elicit: still PENDING after Ns waiting for <id> (last status: PENDING) — this is NOT a stopping condition`, followed by an explicit `elicit wait` invocation to run again and the last observed snapshot. The elicitation remains live on the platform -- call `elicit wait` again to resume; a non-terminal timeout is never itself a reason to stop.
 
 ---
 
@@ -322,7 +319,7 @@ For the common case of "ask and immediately use the answer", `elicit ask` collap
 
 - Always set `"required"` on fields that must be present -- this prevents empty submissions.
 - Use `"enum"` for finite choices so the UI renders a selector instead of a free-text box.
-- Use `"type": "boolean"` for yes/no confirmations -- treat `true` as "go ahead" and anything else (including `DECLINED` / `CANCELLED` / `EXPIRED` statuses) as "stop".
+- For pure yes/no confirmations use an empty-properties schema (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED` -- do **not** add a boolean `confirm` field. The UI's Confirm button and a checkbox are two separate signals: a user can press Confirm with the box unchecked, showing **Accepted** in the UI while the response carries `confirm: false`. Treat `DECLINED` / `CANCELLED` / `EXPIRED` as "stop". Reserve `"type": "boolean"` for genuine data fields where `false` is a valid submittable answer.
 - Add short `"description"` strings -- they appear as helper text next to each field.
 - Keep schemas small. Several sequential `elicit ask` calls are usually clearer than one giant form.
 
@@ -336,7 +333,7 @@ After `elicit ask` / `elicit wait` returns, always branch on the `Status:` value
 | `DECLINED` | Stop. Acknowledge to the user that you stopped and ask what to do next. |
 | `CANCELLED` | Stop. The user (or system) aborted the flow. |
 | `EXPIRED` | The request timed out platform-side. Decide whether to re-ask. |
-| `elicit: timed out ...` (CLI only) | Local wait exceeded `--timeout`. The request is still live on the platform -- poll again with `elicit wait <id>` later. |
+| `elicit: still PENDING after Ns ...` (CLI only) | Local wait exceeded `--timeout`. This is **not** a stopping condition -- the request is still live on the platform; call `elicit wait <id>` again immediately. |
 
 ## Related
 

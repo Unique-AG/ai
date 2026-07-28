@@ -1,5 +1,9 @@
 # MCP Search - Azure Terraform Deployment
 
+> **WIP / experimental.** This stack is not the supported deploy path right now.
+> Prefer [App Service](../appservice/README.md) unless you are intentionally
+> working on this Terraform/ACI setup.
+
 This Terraform configuration deploys the MCP Search application to Azure with the following resources:
 
 ## Architecture

@@ -11,6 +11,7 @@ live in ``unique_search_proxy_core`` — not in this SDK.
 from __future__ import annotations
 
 import httpx
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 
 from unique_search_proxy_sdk._generated.client import Client as OpenAPIClient
 from unique_search_proxy_sdk._transport import OpenapiTransport
@@ -34,11 +35,13 @@ class UniqueSearchProxyClient:
         *,
         http_client: httpx.AsyncClient | None = None,
         timeout: float = _DEFAULT_TIMEOUT_SECONDS,
+        context: RequestContext = LOCAL_REQUEST_CONTEXT,
     ) -> None:
         self._transport = OpenapiTransport(
             base_url,
             http_client=http_client,
             timeout=timeout,
+            context=context,
         )
         self.search = SearchClient(self._transport)
         self.agent_search = AgentSearchClient(self._transport)

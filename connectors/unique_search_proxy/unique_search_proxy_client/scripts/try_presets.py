@@ -10,6 +10,7 @@ import time
 from typing import Any
 
 import httpx
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT
 
 from unique_search_proxy_client.web.presets import (
     PresetDefinition,
@@ -61,7 +62,11 @@ def _run_preset(
     payload = preset.build_payload()
     path = _endpoint_for_kind(preset.kind)
     started = time.perf_counter()
-    response = client.post(f"{base_url.rstrip('/')}{path}", json=payload)
+    response = client.post(
+        f"{base_url.rstrip('/')}{path}",
+        json=payload,
+        headers=LOCAL_REQUEST_CONTEXT.to_headers(),
+    )
     elapsed_ms = (time.perf_counter() - started) * 1000
     try:
         body = response.json()

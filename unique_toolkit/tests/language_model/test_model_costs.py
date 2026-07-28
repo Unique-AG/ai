@@ -1,0 +1,310 @@
+from pathlib import Path
+
+import pytest
+
+from unique_toolkit.language_model import model_costs as model_costs_module
+from unique_toolkit.language_model.model_costs import (
+    MODEL_COSTS_FILE_ENV,
+    calculate_invocation_cost_usd,
+    load_model_cost_catalog,
+)
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
+
+
+def _write_catalog(path: Path, body: str) -> Path:
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+@pytest.fixture(autouse=True)
+def _clear_catalog_cache() -> None:
+    model_costs_module._catalog_cache.clear()
+    yield
+    model_costs_module._catalog_cache.clear()
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__parses_supported_schema(tmp_path: Path) -> None:
+    """Purpose: Verify schema-v1 catalogs are parsed into typed model prices.
+    Why this matters: Helm-rendered pricing must be usable by runtime calculations.
+    Setup summary: Write a minimal catalog, load it, and inspect its model entry.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+
+    catalog = load_model_cost_catalog(path)
+
+    assert catalog is not None
+    assert catalog.models["test-model"].input == 2
+    assert catalog.models["test-model"].currency == "USD"
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__returns_none_for_unsupported_version(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify unsupported cost schemas are treated as unavailable.
+    Why this matters: Cost capture must not abort LLM flows over a schema bump.
+    Setup summary: Write a version-two catalog and assert loading returns None.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 2
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+
+    assert load_model_cost_catalog(path) is None
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__returns_none_for_malformed_model(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify incomplete price rows are treated as unavailable.
+    Why this matters: A missing completion rate must not abort cost capture.
+    Setup summary: Omit completion pricing and assert loading returns None.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+""",
+    )
+
+    assert load_model_cost_catalog(path) is None
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__returns_none_for_missing_file(tmp_path: Path) -> None:
+    """Purpose: Verify a missing price sheet is treated as unavailable.
+    Why this matters: Remount gaps must not abort UniqueAI after a successful LLM call.
+    Setup summary: Point at a non-existent path and assert loading returns None.
+    """
+    assert load_model_cost_catalog(tmp_path / "missing-costs.yaml") is None
+
+
+@pytest.mark.ai
+def test_calculate_invocation_cost_usd__returns_none_when_catalog_load_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Purpose: Verify cost calculation soft-fails when the catalog cannot load.
+    Why this matters: from_usage runs after successful LLM calls and must never raise.
+    Setup summary: Point MODEL_COSTS_FILE at invalid YAML and assert cost is None.
+    """
+    path = _write_catalog(tmp_path / "costs.yaml", "not: valid: yaml: [")
+    monkeypatch.setenv(MODEL_COSTS_FILE_ENV, str(path))
+
+    cost = calculate_invocation_cost_usd(
+        "test-model",
+        LanguageModelTokenUsage(prompt_tokens=100, completion_tokens=20),
+    )
+
+    assert cost is None
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__uses_environment_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Purpose: Verify deployment configuration selects the mounted price sheet.
+    Why this matters: assistants-core supplies the catalog path through an env var.
+    Setup summary: Set MODEL_COSTS_FILE and load without an explicit path.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+    monkeypatch.setenv(MODEL_COSTS_FILE_ENV, str(path))
+
+    catalog = load_model_cost_catalog()
+
+    assert catalog is not None
+    assert "test-model" in catalog.models
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__reuses_cache_within_safety_ttl(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Purpose: Verify catalog loads are cached until the safety TTL expires.
+    Why this matters: Hot paths must not re-read YAML on every invocation.
+    Setup summary: Load twice under a frozen clock and assert one parse.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+    monkeypatch.setattr(model_costs_module.time, "monotonic", lambda: 100.0)
+    parse_calls = {"count": 0}
+    original_parse = model_costs_module._parse_model_cost_catalog
+
+    def counting_parse(catalog_path: Path):
+        parse_calls["count"] += 1
+        return original_parse(catalog_path)
+
+    monkeypatch.setattr(model_costs_module, "_parse_model_cost_catalog", counting_parse)
+
+    first = load_model_cost_catalog(path)
+    second = load_model_cost_catalog(path)
+
+    assert first is second
+    assert parse_calls["count"] == 1
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__reloads_after_safety_ttl(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Purpose: Verify the safety TTL forces a catalog re-read.
+    Why this matters: Long-lived workers must eventually pick up remounted prices.
+    Setup summary: Advance monotonic time past the max age and assert a reload.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+    clock = {"now": 0.0}
+    monkeypatch.setattr(model_costs_module.time, "monotonic", lambda: clock["now"])
+    parse_calls = {"count": 0}
+    original_parse = model_costs_module._parse_model_cost_catalog
+
+    def counting_parse(catalog_path: Path):
+        parse_calls["count"] += 1
+        return original_parse(catalog_path)
+
+    monkeypatch.setattr(model_costs_module, "_parse_model_cost_catalog", counting_parse)
+
+    load_model_cost_catalog(path)
+    clock["now"] = model_costs_module._CACHE_MAX_AGE_SECONDS
+    load_model_cost_catalog(path)
+
+    assert parse_calls["count"] == 2
+
+
+@pytest.mark.ai
+def test_calculate_invocation_cost_usd__prices_prompt_and_completion(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify invocation cost follows the platform per-million formula.
+    Why this matters: Python debug spend must agree with node-chat accounting.
+    Setup summary: Price known token counts and compare the resulting USD amount.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+    catalog = load_model_cost_catalog(path)
+
+    cost = calculate_invocation_cost_usd(
+        "test-model",
+        LanguageModelTokenUsage(prompt_tokens=1_000, completion_tokens=250),
+        catalog,
+    )
+
+    assert cost == pytest.approx(0.004)
+
+
+@pytest.mark.ai
+def test_calculate_invocation_cost_usd__normalizes_litellm_prefix(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify toolkit model IDs resolve against node-chat price IDs.
+    Why this matters: LanguageModelName prefixes LiteLLM routes with `litellm:`.
+    Setup summary: Price an unprefixed catalog model using its prefixed runtime ID.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  anthropic-test:
+    input: 3
+    completion: 15
+""",
+    )
+    catalog = load_model_cost_catalog(path)
+
+    cost = calculate_invocation_cost_usd(
+        "litellm:anthropic-test",
+        LanguageModelTokenUsage(prompt_tokens=100, completion_tokens=20),
+        catalog,
+    )
+
+    assert cost == pytest.approx(0.0006)
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("model_name", "usage"),
+    [
+        (
+            "unknown-model",
+            LanguageModelTokenUsage(prompt_tokens=100, completion_tokens=20),
+        ),
+        ("test-model", LanguageModelTokenUsage(total_tokens=120)),
+    ],
+)
+def test_calculate_invocation_cost_usd__returns_none_when_price_is_unknown(
+    tmp_path: Path,
+    model_name: str,
+    usage: LanguageModelTokenUsage,
+) -> None:
+    """Purpose: Verify incomplete pricing inputs remain explicitly unknown.
+    Why this matters: Reporting zero would falsely classify unknown usage as free.
+    Setup summary: Use a missing model or token split and assert the result is None.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+    catalog = load_model_cost_catalog(path)
+
+    cost = calculate_invocation_cost_usd(model_name, usage, catalog)
+
+    assert cost is None

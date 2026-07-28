@@ -37,17 +37,17 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(ProxyError)
     async def proxy_error_handler(_request: Request, exc: ProxyError) -> JSONResponse:
         from unique_search_proxy_client.web.monitoring.metrics import (
-            record_crawl_error,
             record_proxy_error,
-            record_search_error,
         )
 
         record_proxy_error(exc.code.value)
-        if exc.request == "search" and exc.provider is not None:
-            record_search_error(exc.provider, exc.code.value, 0.0)
-        if exc.request == "crawl" and exc.provider is not None:
-            record_crawl_error(exc.provider, exc.code.value, 0.0)
-        _LOGGER.warning("Proxy error [%s]: %s", exc.code.value, exc.message)
+        _LOGGER.warning(
+            "Proxy error [%s] request=%s provider=%s: %s",
+            exc.code.value,
+            exc.request or "-",
+            exc.provider or "-",
+            exc.message,
+        )
         return proxy_error_response(exc)
 
     @app.exception_handler(RequestValidationError)

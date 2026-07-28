@@ -3,6 +3,7 @@ from datetime import datetime
 from time import time
 
 from typing_extensions import override
+from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import BaseSearchEngineConfig
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
@@ -24,6 +25,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.config import WebSearchConfig
+from unique_web_search.invocation_stats import invocation_stats_scope
 from unique_web_search.metrics import tool_duration, tool_empty_results, tool_errors
 from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.argument_screening import (
@@ -72,13 +74,22 @@ class WebSearchTool(Tool[WebSearchConfig]):
             language_model_orchestrator or configuration.token_counting_language_model
         )
 
+        self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)
+        self.company_id = self.event.company_id
+        self.request_context = RequestContext(
+            company_id=self.event.company_id,
+            user_id=self.event.user_id,
+            chat_id=self.event.payload.chat_id,
+        )
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
             self.language_model_service,
+            request_context=self.request_context,
         )
-        self.crawler_service = get_crawler_service(self.config.crawler_config)
-        self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)
-        self.company_id = self.event.company_id
+        self.crawler_service = get_crawler_service(
+            self.config.crawler_config,
+            request_context=self.request_context,
+        )
         self.chat_history_token_length = 0
         self.chat_history_chat_messages = self._chat_service.get_full_history()
 
@@ -94,7 +105,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self._mode_strategy = get_mode_strategy(self.config.web_search_mode_config)
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
-
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
@@ -143,6 +153,31 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        with invocation_stats_scope() as invocation_stats:
+            try:
+                response = await self._run(tool_call)
+            except Exception as e:
+                # _run() already catches its own errors and returns a
+                # ToolCallResponse gracefully in the common case; this is a
+                # safety net for the rarer case where something raises while
+                # handling that failure (or otherwise escapes _run()
+                # uncaught). Without it, tokens already spent on screening/
+                # processing/relevancy before the failure would never reach
+                # analytics, since SafeTaskExecutor builds its own fresh,
+                # stats-less error response one level up.
+                # logger.exception() already attaches the active exception's
+                # type and traceback; don't stringify it into the message.
+                _LOGGER.exception("WebSearch tool run failed")
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    error_message=str(e),
+                    invocation_stats=invocation_stats,
+                )
+        response.invocation_stats.extend(invocation_stats)
+        return response
+
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         _LOGGER.info("Running the WebSearch tool")
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(

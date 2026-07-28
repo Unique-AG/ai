@@ -7,10 +7,6 @@ from google.genai import types
 from google.genai.client import AsyncClient
 from pydantic import BaseModel
 
-from unique_search_proxy_client.web.core.agent_engines.serialization import (
-    json_safe_sdk_object,
-)
-
 
 def _get_grounding_tool(*, use_enterprise_search: bool = False) -> types.Tool:
     if use_enterprise_search:
@@ -63,4 +59,4 @@ async def stream_vertexai_response(
 
 
 def serialize_vertex_response(response: types.GenerateContentResponse) -> Any:
-    return json_safe_sdk_object(response)
+    return response.model_dump(mode="json")

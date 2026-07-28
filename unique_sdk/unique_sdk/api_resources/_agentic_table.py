@@ -102,6 +102,14 @@ class MagicTableArtifactType(StrEnum):
     AGENTIC_REPORT = "AGENTIC_REPORT"
 
 
+class MagicTableArtifactState(StrEnum):
+    """Artifact generation state (matches `MagicTableArtifactState`)."""
+
+    IN_PROGRESS = "IN_PROGRESS"
+    DONE = "DONE"
+    ERROR = "ERROR"
+
+
 class MagicTableMetadataEntry(TypedDict, total=False):
     """Row or sheet metadata entry as returned by the public magic-table API."""
 
@@ -144,6 +152,54 @@ class MagicTableActivityResponse(TypedDict):
     """Response body from `POST /magic-table/{tableId}/activity` (publish activity)."""
 
     status: bool
+
+
+class MagicTableActionResult(TypedDict, total=False):
+    """Generic `{status, message?}` response from lifecycle mutations (import, generate-artifact, sheet metadata writes)."""
+
+    status: bool
+    message: str | None
+
+
+class _CreatedAgenticTableSheetRequired(TypedDict):
+    sheetId: str
+    dueDiligenceId: str
+    name: str
+    state: AgenticTableSheetState
+    createdBy: str
+    companyId: str
+    createdAt: str
+
+
+class CreatedAgenticTableSheet(_CreatedAgenticTableSheetRequired, total=False):
+    """Response body from `POST /magic-table` (create sheet)."""
+
+    chatId: str | None
+    dueAt: str | None
+
+
+class MagicTableArtifact(TypedDict, total=False):
+    """Artifact entry from `GET /magic-table/{tableId}/artifacts`.
+
+    ``contentId`` is only present once ``artifactState`` is ``DONE``; download the
+    file via the Content API.
+    """
+
+    id: str
+    name: str | None
+    contentId: str | None
+    mimeType: str | None
+    artifactType: MagicTableArtifactType
+    artifactState: MagicTableArtifactState
+    createdAt: str
+    updatedAt: str
+
+
+class MagicTableArtifactList(TypedDict):
+    """List envelope returned by `GET /magic-table/{tableId}/artifacts` (`{object: "list", data: [...]}`)."""
+
+    object: Literal["list"]
+    data: list[MagicTableArtifact]
 
 
 class _AgenticTableSheetRequired(TypedDict):
@@ -237,6 +293,39 @@ class AgenticTable(APIResource["AgenticTable"]):
         rowOrders: list[int]
         status: RowVerificationStatus
         locked: NotRequired[bool]
+
+    class CreateSheet(RequestOptions):
+        """Body for `POST /magic-table` (create a new sheet in a space)."""
+
+        assistantId: str
+        name: NotRequired[str]
+        dueAt: NotRequired[str]
+
+    class AddMetaData(RequestOptions):
+        """Body for `POST /magic-table/{tableId}/metadata` (import questions/sources).
+
+        Delta semantics: ids/texts already on the sheet are silently skipped. The
+        agent run is only triggered when new questions (file ids or texts) are
+        provided; adding only sources does not trigger a run.
+        """
+
+        tableId: str
+        questionFileIds: NotRequired[list[str]]
+        questionTexts: NotRequired[list[str]]
+        sourceFileIds: NotRequired[list[str]]
+        context: NotRequired[str]
+
+    class GenerateArtifact(RequestOptions):
+        """Body for `POST /magic-table/{tableId}/generate-artifact` (trigger export)."""
+
+        tableId: str
+        artifactTypes: list[MagicTableArtifactType]
+
+    class CreateSheetMetadata(RequestOptions):
+        """Body for `POST /magic-table/{tableId}/sheet/metadata` (create sheet metadata entries)."""
+
+        tableId: str
+        entries: list[MagicTableMetadataEntry]
 
     @classmethod
     async def set_cell(
@@ -433,5 +522,145 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+            ),
+        )
+
+    @classmethod
+    async def create_sheet(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.CreateSheet"],
+    ) -> CreatedAgenticTableSheet:
+        """Create a new Agentic Table sheet in a space (`POST /magic-table`).
+
+        The caller must have access to the space (``assistantId``). The response
+        includes ``sheetId`` (use it as ``tableId`` for all subsequent calls) and
+        ``dueDiligenceId``.
+        """
+        return cast(
+            CreatedAgenticTableSheet,
+            await cls._static_request_async(
+                "post",
+                "/magic-table",
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def add_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.AddMetaData"],
+    ) -> MagicTableActionResult:
+        """Import question files/texts and source files (`POST /magic-table/{tableId}/metadata`).
+
+        Triggers the agent when new questions are included. Rejected with 422 while
+        the sheet is ``PROCESSING``.
+        """
+        url = f"/magic-table/{params['tableId']}/metadata"
+        params.pop("tableId")
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def generate_artifact(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.GenerateArtifact"],
+    ) -> MagicTableActionResult:
+        """Trigger export generation (`POST /magic-table/{tableId}/generate-artifact`).
+
+        Generation is asynchronous: poll `list_artifacts` until the artifact of the
+        requested type reaches state ``DONE``, then download its ``contentId`` via
+        the Content API.
+        """
+        url = f"/magic-table/{params['tableId']}/generate-artifact"
+        params.pop("tableId")
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def list_artifacts(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+    ) -> list[MagicTableArtifact]:
+        """List export artifacts of a sheet (`GET /magic-table/{tableId}/artifacts`).
+
+        The route responds with a ``{object: "list", data: [...]}`` envelope; this
+        method unwraps it and returns the artifact entries.
+        """
+        url = f"/magic-table/{tableId}/artifacts"
+        response = cast(
+            MagicTableArtifactList,
+            await cls._static_request_async(
+                "get",
+                url,
+                user_id,
+                company_id,
+            ),
+        )
+        return response["data"]
+
+    @classmethod
+    async def create_sheet_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.CreateSheetMetadata"],
+    ) -> MagicTableActionResult:
+        """Create sheet metadata entries (`POST /magic-table/{tableId}/sheet/metadata`)."""
+        url = f"/magic-table/{params['tableId']}/sheet/metadata"
+        params.pop("tableId")
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def delete_sheet_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        metadataId: str,
+    ) -> MagicTableActionResult:
+        """Delete a sheet metadata entry (`DELETE /magic-table/{tableId}/sheet/metadata/{metadataId}`)."""
+        url = f"/magic-table/{tableId}/sheet/metadata/{metadataId}"
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "delete",
+                url,
+                user_id,
+                company_id,
             ),
         )

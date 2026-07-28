@@ -17,6 +17,7 @@ from unique_toolkit.agentic.tools.a2a.tool.config import (
 from unique_toolkit.agentic.tools.a2a.tool.service import (
     _format_response,
     _get_sub_agent_system_reminders,
+    _parse_sub_agent_invocation_stats,
     _prepare_sub_agent_response_refs,
     _remove_extra_refs,
     _response_has_refs,
@@ -57,6 +58,78 @@ def refs_list() -> list[dict[str, Any]]:
         {"sequenceNumber": 1, "name": "Doc 1", "url": "http://example.com/1"},
         {"sequenceNumber": 2, "name": "Doc 2", "url": "http://example.com/2"},
     ]
+
+
+# Tests for _parse_sub_agent_invocation_stats
+
+
+@pytest.mark.ai
+def test_parse_sub_agent_invocation_stats__skips_malformed_entry__keeps_valid_ones() -> (
+    None
+):
+    """
+    Purpose: Verify one malformed invocation entry doesn't discard the rest.
+    Why this matters: A single bad entry must not fail the whole sub-agent tool
+        call and drop an otherwise-successful reply.
+    Setup summary: Mix a valid entry with a malformed one (missing required
+        fields), verify only the valid entry survives.
+    """
+    # Arrange
+    raw_invocations = [
+        {
+            "modelName": "gpt-4",
+            "tokenUsage": {"totalTokens": 10},
+            "source": "main_loop",
+        },
+        {"modelName": "gpt-4"},  # missing required tokenUsage/source
+    ]
+
+    # Act
+    result = _parse_sub_agent_invocation_stats(raw_invocations)
+
+    # Assert
+    assert len(result) == 1
+    assert result[0].source == "main_loop"
+
+
+@pytest.mark.ai
+def test_parse_sub_agent_invocation_stats__returns_empty__when_all_malformed() -> None:
+    """
+    Purpose: Verify an all-malformed list returns empty instead of raising.
+    Why this matters: The sub-agent tool call must still succeed and return the
+        answer even if every persisted stats entry is unparseable.
+    Setup summary: Only malformed entries, assert empty list with no exception.
+    """
+    # Arrange
+    raw_invocations = [{"modelName": "gpt-4"}, {"source": "main_loop"}]
+
+    # Act
+    result = _parse_sub_agent_invocation_stats(raw_invocations)
+
+    # Assert
+    assert result == []
+
+
+@pytest.mark.ai
+def test_parse_sub_agent_invocation_stats__parses_all__when_all_valid() -> None:
+    """
+    Purpose: Verify parsing is unaffected by the malformed-entry tolerance
+        when every entry is well-formed.
+    Why this matters: The fix must not silently drop good data too.
+    Setup summary: Two valid entries, assert both are returned.
+    """
+    # Arrange
+    raw_invocations = [
+        {"modelName": "gpt-4", "tokenUsage": {"totalTokens": 3}, "source": "a"},
+        {"modelName": "gpt-4", "tokenUsage": {"totalTokens": 5}, "source": "b"},
+    ]
+
+    # Act
+    result = _parse_sub_agent_invocation_stats(raw_invocations)
+
+    # Assert
+    assert len(result) == 2
+    assert [inv.source for inv in result] == ["a", "b"]
 
 
 # Tests for _format_response

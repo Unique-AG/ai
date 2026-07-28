@@ -1,4 +1,5 @@
 import warnings
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -7,6 +8,7 @@ from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.invocation_stats import (
     LanguageModelInvocationStats,
 )
+from unique_toolkit.language_model.model_costs import MODEL_COSTS_FILE_ENV
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 
@@ -26,6 +28,37 @@ class TestLanguageModelInvocationStatsFromUsage:
         assert stats.model_name == "gpt-4-test"
         assert stats.token_usage == usage
         assert stats.source == "main_loop"
+        assert stats.cost_usd is None
+
+    @pytest.mark.ai
+    def test_from_usage__calculates_cost_from_configured_catalog(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Purpose: Verify invocation construction attaches its calculated USD cost.
+        Why this matters: Every debug-info capture site uses this shared constructor.
+        Setup summary: Configure a price sheet, build stats, and assert the cost.
+        """
+        cost_file = tmp_path / "costs.yaml"
+        cost_file.write_text(
+            """
+costSchemaVersion: 1
+models:
+  gpt-4-test:
+    input: 2
+    completion: 8
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv(MODEL_COSTS_FILE_ENV, str(cost_file))
+        usage = LanguageModelTokenUsage(prompt_tokens=1_000, completion_tokens=250)
+
+        stats = LanguageModelInvocationStats.from_usage(
+            "gpt-4-test", usage, source="main_loop"
+        )
+
+        assert stats.cost_usd == pytest.approx(0.004)
 
     @pytest.mark.ai
     def test_from_usage__source_required(self) -> None:
@@ -61,6 +94,7 @@ class TestLanguageModelInvocationStatsSerialization:
                 "cacheWriteTokens": None,
             },
             "source": "main_loop",
+            "costUsd": None,
         }
 
 

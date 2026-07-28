@@ -69,7 +69,8 @@ from unique_toolkit.experimental.integrations.openai.streaming.event_routing imp
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
-from unique_user_memory.user_memory import load_user_memory
+from unique_user_memory.user_memory import load_user_memory, profile_body
+from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 from unique_orchestrator._builders import (
@@ -234,6 +235,18 @@ def _apply_model_choice_override(
 
     config_data = config.model_dump()
     config_data["space"]["language_model"] = selected_model
+
+    switchable_entry = _find_switchable_language_model_entry(
+        selected_model=selected_model,
+        switchable_language_models=config.space.switchable_language_models,
+    )
+    if switchable_entry is not None and switchable_entry.temperature is not None:
+        config_data.setdefault("agent", {})
+        config_data["agent"].setdefault("experimental", {})
+        config_data["agent"]["experimental"]["temperature"] = (
+            switchable_entry.temperature
+        )
+
     validated_config = UniqueAIConfig.model_validate(config_data)
 
     logger.info(
@@ -258,6 +271,17 @@ def _record_language_model_debug_info(
     )
 
 
+def _find_switchable_language_model_entry(
+    *,
+    selected_model: LanguageModelInfo,
+    switchable_language_models: list[SwitchableLanguageModelConfig],
+) -> SwitchableLanguageModelConfig | None:
+    for switchable_model in switchable_language_models:
+        if selected_model == switchable_model.language_model:
+            return switchable_model
+    return None
+
+
 def _is_switchable_language_model_choice(
     *,
     selected_model: LanguageModelInfo,
@@ -275,6 +299,7 @@ async def _build_common(
     config: UniqueAIConfig,
 ) -> _CommonComponents:
     chat_service = ChatService(event)
+    message_step_logger = MessageStepLogger(chat_service)
 
     llm_service = LanguageModelService.from_event(event)
 
@@ -370,14 +395,40 @@ async def _build_common(
             if user_memory_config.use_orchestrator_language_model
             else user_memory_config.language_model
         )
-        user_memory_state = await load_user_memory(
-            event=event,
-            config=user_memory_config,
-            language_model=memory_language_model,
+        memory_message_step_logger = UserMemoryMessageLogger(
+            message_step_logger,
             logger=logger,
         )
-        if user_memory_state is not None:
-            user_memory_text = user_memory_state.text
+        await memory_message_step_logger.log_loading_start()
+        user_memory_state = None
+        load_succeeded = False
+        try:
+            user_memory_state = await load_user_memory(
+                event=event,
+                config=user_memory_config,
+                language_model=memory_language_model,
+                logger=logger,
+            )
+            load_succeeded = True
+        except Exception as exc:
+            # Soft-fail like a None return: keep the turn running without
+            # memory, but always close the RUNNING loading Step first.
+            logger.warning(
+                "[user-memory] load raised - running without memory: [%s] %s",
+                type(exc).__name__,
+                exc,
+            )
+        finally:
+            if not load_succeeded:
+                await memory_message_step_logger.log_loading_failed()
+
+        if load_succeeded and user_memory_state is not None:
+            await memory_message_step_logger.log_loading_complete(
+                with_settings_entry=True
+            )
+            # The postprocessor keeps the full file (it needs the frontmatter to
+            # carry turn_count forward); the prompt only gets the Markdown body.
+            user_memory_text = profile_body(user_memory_state.text)
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
                     config=user_memory_config,
@@ -385,7 +436,12 @@ async def _build_common(
                     event=event,
                     state=user_memory_state,
                     logger=logger,
+                    message_step_logger=memory_message_step_logger,
                 )
+            )
+        elif load_succeeded:
+            await memory_message_step_logger.log_loading_complete(
+                with_settings_entry=False
             )
 
     return _CommonComponents(
@@ -405,7 +461,7 @@ async def _build_common(
         user_memory_text=user_memory_text,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
-        message_step_logger=MessageStepLogger(chat_service),
+        message_step_logger=message_step_logger,
     )
 
 

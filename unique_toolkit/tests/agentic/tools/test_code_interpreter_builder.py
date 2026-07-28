@@ -22,7 +22,9 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._conta
     create_container,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._files import (
+    FailedFileUpload,
     check_file_already_uploaded,
+    describe_upload_error,
     resolve_kb_contents,
     upload_file_to_container,
     upload_files_to_container,
@@ -123,7 +125,7 @@ async def test_upload_files_to_container__downloads_and_creates__when_file_not_i
     client = MagicMock()
     client.containers.files.create = files_create
 
-    result, updated = await upload_files_to_container(
+    result, updated, _ = await upload_files_to_container(
         client=client,
         uploaded_files=[uploaded],
         memory=memory,
@@ -164,7 +166,7 @@ async def test_upload_files_to_container__retries_download__after_transient_erro
     client = MagicMock()
     client.containers.files.create = files_create
 
-    result, updated = await upload_files_to_container(
+    result, updated, _ = await upload_files_to_container(
         client=client,
         uploaded_files=[uploaded],
         memory=memory,
@@ -205,7 +207,7 @@ async def test_upload_files_to_container__deduplicates_by_content_id__when_dupli
     client = MagicMock()
     client.containers.files.create = files_create
 
-    result, updated = await upload_files_to_container(
+    result, updated, _ = await upload_files_to_container(
         client=client,
         uploaded_files=[duplicate, duplicate],
         memory=memory,
@@ -256,7 +258,7 @@ async def test_upload_files_to_container__skips_upload__when_filepath_already_in
     client = MagicMock()
     client.containers.files.create = AsyncMock()
 
-    result, updated = await upload_files_to_container(
+    result, updated, _ = await upload_files_to_container(
         client=client,
         uploaded_files=[cached],
         memory=memory,
@@ -420,7 +422,7 @@ async def test_build_tool__uploads_kb_documents__when_additional_uploaded_docume
         ),
         patch(
             f"{builder_mod}.upload_files_to_container",
-            AsyncMock(return_value=(memory_after_create, True)),
+            AsyncMock(return_value=(memory_after_create, True, [])),
         ) as mock_upload,
     ):
         tool = await _build_via_builder(
@@ -486,7 +488,7 @@ async def test_build_tool__skips_upload__when_no_sources_enabled() -> None:
         ),
         patch(
             f"{builder_mod}.upload_files_to_container",
-            AsyncMock(return_value=(memory_after_create, True)),
+            AsyncMock(return_value=(memory_after_create, True, [])),
         ) as mock_upload,
     ):
         tool = await _build_via_builder(
@@ -648,7 +650,7 @@ async def test_upload_files_to_container__isolates_failures__one_file_fails_othe
     client = MagicMock()
     client.containers.files.create = AsyncMock(return_value=openai_file)
 
-    result, updated = await upload_files_to_container(
+    result, updated, failed_uploads = await upload_files_to_container(
         client=client,
         uploaded_files=[bad, good],
         memory=memory,
@@ -658,6 +660,89 @@ async def test_upload_files_to_container__isolates_failures__one_file_fails_othe
     assert updated is True
     assert result.file_paths == {"cont_good": "/mnt/data/good.csv"}
     assert "cont_bad" not in result.file_paths
+    assert [f.content.id for f in failed_uploads] == ["cont_bad"]
+    assert "download boom" in failed_uploads[0].reason
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_files_to_container__reports_413_as_file_too_large__in_failed_uploads() -> (
+    None
+):
+    """
+    Purpose: Verify that when the container-file-upload call raises an HTTP 413
+    (UN-23109: node-chat's public-proxy request-body-size cap), the failure is
+    surfaced as a clear, actionable "file too large" reason instead of being
+    silently dropped.
+    Why this matters: Before this fix, oversized files were swallowed by
+    ``SafeTaskExecutor`` with no trace, and the model would tell the user the
+    file was simply "missing" with no explanation.
+    """
+    from httpx import Request, Response
+    from openai import APIStatusError
+
+    memory = CodeExecutionShortTermMemorySchema(container_id="ctr_413", file_paths={})
+    too_large = Content(id="cont_too_large", key="Mappe3.xlsx")
+
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(
+        return_value=b"x" * 100,
+    )
+    too_large_error = APIStatusError(
+        message="Request body too large. Maximum allowed size is 8 MB for this endpoint.",
+        response=Response(413, request=Request("POST", "https://x")),
+        body=None,
+    )
+    client = MagicMock()
+    client.containers.files.create = AsyncMock(side_effect=too_large_error)
+
+    result, updated, failed_uploads = await upload_files_to_container(
+        client=client,
+        uploaded_files=[too_large],
+        memory=memory,
+        content_service=content_service,
+    )
+
+    assert updated is False
+    assert result.file_paths == {}
+    assert len(failed_uploads) == 1
+    failed = failed_uploads[0]
+    assert failed.content.id == "cont_too_large"
+    assert "too large" in failed.reason
+    assert "50 MB" in failed.reason
+
+
+@pytest.mark.ai
+def test_describe_upload_error__returns_size_limit_message__for_413_status() -> None:
+    """
+    Purpose: Unit-test describe_upload_error in isolation for the 413 branch,
+    independent of the retry/gather machinery in upload_files_to_container.
+    """
+    from httpx import Request, Response
+    from openai import APIStatusError
+
+    error = APIStatusError(
+        message="Request body too large.",
+        response=Response(413, request=Request("POST", "https://x")),
+        body=None,
+    )
+
+    reason = describe_upload_error(error)
+
+    assert "too large" in reason
+    assert "50 MB" in reason
+
+
+@pytest.mark.ai
+def test_describe_upload_error__returns_generic_message__for_other_errors() -> None:
+    """
+    Purpose: Verify describe_upload_error falls back to a generic, but non-empty,
+    reason for exceptions that are not the 413 size-limit case, so no failure
+    type is ever swallowed without at least some explanation.
+    """
+    reason = describe_upload_error(ConnectionError("network blip"))
+
+    assert "network blip" in reason
 
 
 @pytest.mark.ai
@@ -683,7 +768,7 @@ async def test_upload_files_to_container__returns_updated_false__when_all_files_
     client = MagicMock()
     client.containers.files.create = AsyncMock()
 
-    result, updated = await upload_files_to_container(
+    result, updated, _ = await upload_files_to_container(
         client=client,
         uploaded_files=[a, b],
         memory=memory,
@@ -747,7 +832,7 @@ async def test_build_tool__skips_save_async__when_container_and_files_unchanged(
         ) as mock_create,
         patch(
             f"{builder_mod}.upload_files_to_container",
-            AsyncMock(return_value=(memory_loaded, False)),
+            AsyncMock(return_value=(memory_loaded, False, [])),
         ),
     ):
         tool = await _build_via_builder(
@@ -807,7 +892,7 @@ async def test_build_tool__saves_when_files_updated__even_if_container_unchanged
         ),
         patch(
             f"{builder_mod}.upload_files_to_container",
-            AsyncMock(return_value=(memory_after_upload, True)),
+            AsyncMock(return_value=(memory_after_upload, True, [])),
         ),
     ):
         await _build_via_builder(
@@ -821,6 +906,92 @@ async def test_build_tool__saves_when_files_updated__even_if_container_unchanged
         )
 
     memory_manager.save_async.assert_awaited_once_with(memory_after_upload)
+
+
+# ============================================================================
+# Tests for failed_uploads propagation into the built tool (UN-23109)
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_tool__surfaces_failed_uploads_in_system_prompt__when_upload_fails() -> (
+    None
+):
+    """
+    Purpose: End-to-end check that a file the upload helper reports as failed
+    is (a) excluded from user_uploaded_files/paths and (b) surfaced in the
+    tool's rendered system prompt with its failure reason, instead of just
+    silently vanishing (UN-23109).
+    Why this matters: This is the actual user-facing fix — the model must be
+    told a file could not be uploaded (and why) rather than reporting it as
+    simply "missing".
+    """
+    config = OpenAICodeInterpreterConfig(
+        use_auto_container=False,
+        upload_files_in_chat_to_container=True,
+    )
+    chat_file = Content(id="cont_toolarge", key="Mappe3.xlsx")
+
+    memory_after_upload = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_failed", file_paths={}
+    )
+    memory_manager = MagicMock()
+    memory_manager.load_async = AsyncMock(return_value=None)
+    memory_manager.save_async = AsyncMock()
+
+    builder_mod = (
+        "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    )
+    with (
+        patch(
+            f"{builder_mod}.get_container_code_execution_short_term_memory_manager",
+            return_value=memory_manager,
+        ),
+        patch(
+            f"{builder_mod}.check_container_exists",
+            AsyncMock(return_value=False),
+        ),
+        patch(
+            f"{builder_mod}.create_container",
+            AsyncMock(return_value="ctr_failed"),
+        ),
+        patch(
+            f"{builder_mod}.upload_files_to_container",
+            AsyncMock(
+                return_value=(
+                    memory_after_upload,
+                    False,
+                    [
+                        FailedFileUpload(
+                            content=chat_file,
+                            reason="the file is too large to upload for code execution (maximum allowed size is 50 MB)",
+                        )
+                    ],
+                )
+            ),
+        ),
+    ):
+        tool = await _build_via_builder(
+            config=config,
+            uploaded_files=[chat_file],
+            client=MagicMock(),
+            content_service=MagicMock(),
+            company_id="co",
+            user_id="u",
+            chat_id="c",
+        )
+
+    assert tool._user_uploaded_files == []
+    assert tool._failed_uploads == [
+        "Mappe3.xlsx: the file is too large to upload for code execution "
+        "(maximum allowed size is 50 MB)"
+    ]
+
+    rendered_prompt = tool.get_tool_prompts().tool_system_prompt
+    assert "Mappe3.xlsx" in rendered_prompt
+    assert "too large" in rendered_prompt
+    assert "50 MB" in rendered_prompt
 
 
 # ============================================================================

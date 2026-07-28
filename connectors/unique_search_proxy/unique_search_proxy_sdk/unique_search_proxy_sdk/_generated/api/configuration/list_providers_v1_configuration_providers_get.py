@@ -5,27 +5,48 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.http_validation_error import HTTPValidationError
 from ...models.providers_list_response import ProvidersListResponse
-from ...types import Response
+from ...types import Response, Unset
 
 
-def _get_kwargs() -> dict[str, Any]:
+def _get_kwargs(
+    *,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+    if not isinstance(x_unique_company_id, Unset):
+        headers["x-unique-company-id"] = x_unique_company_id
+
+    if not isinstance(x_unique_user_id, Unset):
+        headers["x-unique-user-id"] = x_unique_user_id
+
+    if not isinstance(x_unique_chat_id, Unset):
+        headers["x-unique-chat-id"] = x_unique_chat_id
 
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/v1/configuration/providers",
     }
 
+    _kwargs["headers"] = headers
     return _kwargs
 
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> ProvidersListResponse | None:
+) -> HTTPValidationError | ProvidersListResponse | None:
     if response.status_code == 200:
         response_200 = ProvidersListResponse.from_dict(response.json())
 
         return response_200
+
+    if response.status_code == 422:
+        response_422 = HTTPValidationError.from_dict(response.json())
+
+        return response_422
 
     if client.raise_on_unexpected_status:
         raise errors.UnexpectedStatus(response.status_code, response.content)
@@ -35,7 +56,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[ProvidersListResponse]:
+) -> Response[HTTPValidationError | ProvidersListResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -47,18 +68,30 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-) -> Response[ProvidersListResponse]:
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+) -> Response[HTTPValidationError | ProvidersListResponse]:
     """List registered search engines and crawlers
+
+    Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ProvidersListResponse]
+        Response[HTTPValidationError | ProvidersListResponse]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
+    )
 
     response = client.get_httpx_client().request(
         **kwargs,
@@ -70,37 +103,60 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-) -> ProvidersListResponse | None:
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+) -> HTTPValidationError | ProvidersListResponse | None:
     """List registered search engines and crawlers
+
+    Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ProvidersListResponse
+        HTTPValidationError | ProvidersListResponse
     """
 
     return sync_detailed(
         client=client,
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-) -> Response[ProvidersListResponse]:
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+) -> Response[HTTPValidationError | ProvidersListResponse]:
     """List registered search engines and crawlers
+
+    Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[ProvidersListResponse]
+        Response[HTTPValidationError | ProvidersListResponse]
     """
 
-    kwargs = _get_kwargs()
+    kwargs = _get_kwargs(
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
+    )
 
     response = await client.get_async_httpx_client().request(**kwargs)
 
@@ -110,19 +166,30 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-) -> ProvidersListResponse | None:
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+) -> HTTPValidationError | ProvidersListResponse | None:
     """List registered search engines and crawlers
+
+    Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        ProvidersListResponse
+        HTTPValidationError | ProvidersListResponse
     """
 
     return (
         await asyncio_detailed(
             client=client,
+            x_unique_company_id=x_unique_company_id,
+            x_unique_user_id=x_unique_user_id,
+            x_unique_chat_id=x_unique_chat_id,
         )
     ).parsed

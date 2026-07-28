@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from pydantic import BaseModel
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.config_types import ENGINE_NAME_TO_CONFIG
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
@@ -72,8 +73,14 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     # Set by agent engines (Bing/VertexAI) and consumed by the agent proxy path.
     response_parsers: list[ResponseParser]
 
-    def __init__(self, config: SearchEngineConfig):
+    def __init__(
+        self,
+        config: SearchEngineConfig,
+        *,
+        request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
+    ):
         self.config = config
+        self._request_context = request_context
 
     @property
     def requires_scraping(self) -> bool:
@@ -129,7 +136,10 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         invocation = request.model_dump(by_alias=False, exclude_none=True)
         invocation.pop("engine", None)
         invocation.pop("query", None)
-        async with open_search_proxy_client(timeout=_STANDARD_PROXY_TIMEOUT) as client:
+        async with open_search_proxy_client(
+            timeout=_STANDARD_PROXY_TIMEOUT,
+            context=self._request_context,
+        ) as client:
             response = await client.search.search(
                 query=query,
                 engine=engine.value,
@@ -148,7 +158,8 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         del params  # Agent engines do not expose LLM knobs today.
         invocation = self._agent_proxy_invocation(engine)
         async with open_search_proxy_client(
-            timeout=float(self.config.timeout)
+            timeout=float(self.config.timeout),
+            context=self._request_context,
         ) as client:
             response = await client.agent_search.search(
                 query=query,
