@@ -92,22 +92,17 @@ class InternalSearchConfig(BaseToolConfig):
         default=ContentSearchType.COMBINED,
         description="The type of search to perform. Two possible values: `COMBINED` or `VECTOR`.",
     )
+    max_tokens_for_sources: SkipJsonSchema[int] = (
+        Field(  # TODO: Remove SkipJsonSchema once UI (Spaces 2.0) can be configured to not include certain fields
+            default=30_000,
+            description="The maximum number of tokens to use for the sources.",
+        )
+    )
     percentage_of_input_tokens_for_sources: float = Field(
         default=0.4,
         description="The percentage of the maximum input tokens of the language model to use for the tool response.",
         ge=0.0,
         le=1.0,
-    )
-    max_tokens_per_search_call: (
-        Annotated[int, Field(ge=0, title="Defined Max Tokens")]
-        | Annotated[None, Field(title="No Limit")]
-    ) = Field(
-        default=None,
-        description="Hard upper bound on the token budget for a single search call's sources.",
-    )
-    always_fetch_max_tokens: bool = Field(
-        default=False,
-        description="When True, ignore 'Percentage Of Input Tokens for Sources' and use 'Max Tokens Per Search Call' directly as the token budget.",
     )
     language_model_max_input_tokens: SkipJsonSchema[int | None] = Field(
         default=None,
@@ -142,7 +137,7 @@ class InternalSearchConfig(BaseToolConfig):
     )
     limit: int = Field(
         default=DEFAULT_SEARCH_LIMIT,
-        description="The maximum number of chunks returned per search string. Passed to the search as-is; not capped by the token budget.",
+        description="Maximum number of chunks returned in total across all search strings, capped by the token budget. Also used as the per-search-string fetch ceiling.",
     )
     chat_only: bool = Field(
         default=False,

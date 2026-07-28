@@ -40,12 +40,8 @@ def mock_chunk_relevancy_sorter() -> ChunkRelevancySorter:
 
 @pytest.fixture
 def base_internal_search_config() -> InternalSearchConfig:
-    """Create a base InternalSearchConfig for testing.
-
-    A ``max_tokens_per_search_call`` is set so the token budget is resolvable
-    without a language model context (which is injected at runtime in prod).
-    """
-    return InternalSearchConfig(max_tokens_per_search_call=75_000)
+    """Create a base InternalSearchConfig for testing."""
+    return InternalSearchConfig()
 
 
 @pytest.fixture
