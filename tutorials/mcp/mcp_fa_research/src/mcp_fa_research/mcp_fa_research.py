@@ -848,6 +848,49 @@ def update_analyst_note(
     return json.dumps({"updated": True, "item": item})
 
 
+@mcp.tool(name="update_brief_item", title="Edit a morning-brief item",
+          description="Edit an overnight MORNING-BRIEF item (by ticker, or 'SECTOR'). "
+                      "Editable: headline, detail, valuation_impact, severity "
+                      "(alert|positive|watch|info), suggested_action, new_target_price "
+                      "(number or empty to clear). Used by the cockpit's 'Edit with AI'. "
+                      "If numbers change, recompute via compute_scenario first. Mutates "
+                      "per-env state; Reset restores. Returns the updated item.")
+def update_brief_item(
+    ticker: _TICKER,
+    headline: Annotated[str, Field(default="")] = "",
+    detail: Annotated[str, Field(default="")] = "",
+    valuation_impact: Annotated[str, Field(default="")] = "",
+    severity: Annotated[str, Field(default="", description="alert|positive|watch|info")] = "",
+    suggested_action: Annotated[str, Field(default="")] = "",
+    new_target_price: Annotated[str, Field(default="", description="Number, or 'clear'.")] = "",
+) -> str:
+    key = "SECTOR" if (ticker or "").strip().upper() == "SECTOR" else seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    item = next((b for b in env_state.state()["brief"] if b["ticker"] == key), None)
+    if item is None:
+        return json.dumps({"error": f"no brief item for {key}"})
+    if severity.strip():
+        if severity.strip() not in ("alert", "positive", "watch", "info"):
+            return json.dumps({"error": "severity must be alert|positive|watch|info"})
+        item["severity"] = severity.strip()
+    for f, v in (("headline", headline), ("detail", detail),
+                 ("valuation_impact", valuation_impact),
+                 ("suggested_action", suggested_action)):
+        if v.strip():
+            item[f] = v.strip()
+    if new_target_price.strip():
+        if new_target_price.strip().lower() == "clear":
+            item["new_target_price"] = None
+        else:
+            try:
+                item["new_target_price"] = float(new_target_price)
+            except ValueError:
+                return json.dumps({"error": f"bad new_target_price {new_target_price!r}"})
+    return json.dumps({"updated": True, "item": {k: item[k] for k in
+                       ("ticker", "severity", "headline", "valuation_impact")}})
+
+
 @mcp.tool(name="Reset_Demo_Data", title="Reset demo data",
           description="Restore the FA research demo to its labeled baseline snapshot: "
                       "morning brief (un-acknowledged), action inbox, jobs, coverage "

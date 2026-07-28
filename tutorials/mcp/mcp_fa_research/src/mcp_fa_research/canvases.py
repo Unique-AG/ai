@@ -344,9 +344,10 @@ def _products(tk: str, name: str) -> str:
         '<div class="prow" style="margin-top:10px"><input type="text" class="ai-input" '
         'placeholder="Edit with AI — e.g. refresh with the post-warning numbers, exec '
         'summary in French"></div>'
-        '<div class="prow" style="flex-wrap:wrap;gap:8px">'
+        '<div class="prow">'
         '<button class="btn primary" id="ai-sel" data-unique-action="sendPrompt" '
-        'data-unique-payload="{}">✨ Edit with AI</button>'
+        'data-unique-payload="{}">✨ Edit with AI</button></div>'
+        '<div class="prow" style="flex-wrap:wrap;gap:8px">'
         '<button class="btn" id="regen-sel" data-unique-action="sendPrompt" '
         'data-unique-payload="{}">↻ Regenerate selected</button>'
         '<button class="btn" id="submit-sel" data-unique-action="sendPrompt" '
@@ -526,7 +527,6 @@ def build_review(tk: str, names: list[tuple]) -> str:
                    f'<tbody>{sc_rows}</tbody></table>'
                    f'<p class="mut" style="margin:10px 0 0;font-size:12.5px">{e(sc["note"])} '
                    f'Any other shock: the scenario engine computes it live.</p>'
-                   f'{engine_btns}'
                    + _edit_rows('Edit with AI — e.g. raise the China-recovery probability to 25%',
                                 'Apply this instruction to the SCENARIO HYPOTHESES of '
                                 + c["name"] + ' (' + tk + '): "__INSTR__". Use '
@@ -534,7 +534,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
                                 'shock itself changes, RECOMPUTE eps/tp with '
                                 'compute_scenario first — never invent numbers; keep '
                                 'probabilities summing to 100%. Confirm the updated row.')
-                   + '</div>')
+                   + f'{engine_btns}</div>')
 
     log = "".join(f"<li>{e(x)}</li>" for x in d["interaction_log"])
     notes = "".join(
