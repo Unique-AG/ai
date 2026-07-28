@@ -109,10 +109,10 @@ def regen_env(env: str, progress=None, rebase: bool | None = None) -> dict:
             kb = _kb(env)
             for relpath, text in files.items():
                 if "/" in relpath:
-                    folder = "/Fundamental Analyst/" + relpath.rsplit("/", 1)[0]
+                    folder = "/CIB - Sell-Side Equity Analyst/" + relpath.rsplit("/", 1)[0]
                     name = relpath.rsplit("/", 1)[1]
                 else:
-                    folder, name = "/Fundamental Analyst", relpath
+                    folder, name = "/CIB - Sell-Side Equity Analyst", relpath
                 scope = _scope_for(env, folder)
                 mime = "text/html" if name.endswith(".html") else "text/markdown"
                 up = kb.upload_content_from_bytes(
@@ -128,7 +128,7 @@ def regen_env(env: str, progress=None, rebase: bool | None = None) -> dict:
                 if progress:
                     progress(result["files"], total, relpath, cid)
             for relpath, data in model_files.items():
-                folder = "/Fundamental Analyst/" + relpath.rsplit("/", 1)[0]
+                folder = "/CIB - Sell-Side Equity Analyst/" + relpath.rsplit("/", 1)[0]
                 name = relpath.rsplit("/", 1)[1]
                 up = kb.upload_content_from_bytes(
                     content=data, content_name=name,

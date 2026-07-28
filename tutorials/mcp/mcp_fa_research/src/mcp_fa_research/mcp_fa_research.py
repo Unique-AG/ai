@@ -193,7 +193,7 @@ def get_dossier(ticker: _TICKER) -> str:
     if not t:
         return _unknown(ticker)
     row = next(c for c in seed.current_coverage() if c["ticker"] == t)
-    d = seed.DOSSIERS[t]
+    d = seed.current_dossiers()[t]
     ov = seed.OVERNIGHT.get(t)
     return json.dumps({**row, **d,
                        "overnight": ov,
@@ -721,6 +721,131 @@ def get_analyst_notes(
     for n in notes:
         n["tickers_label"] = " · ".join(n["tickers"])
     return json.dumps({"count": len(notes), "notes": notes})
+
+
+@mcp.tool(name="update_thesis", title="Update the investment thesis",
+          description="Rewrite a name's INVESTMENT THESIS (semicolon-separated bullet "
+                      "points — each ';' renders as a bullet on the review). Used by the "
+                      "review's 'Edit with AI' control. Mutates per-env demo state; the "
+                      "next dashboard regeneration bakes it in; Reset restores. Returns "
+                      "the updated dossier summary.")
+def update_thesis(
+    ticker: _TICKER,
+    thesis: Annotated[str, Field(description="The revised thesis — short bullet points "
+                                 "separated by '; '.")],
+) -> str:
+    key = seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    d = env_state.state()["dossiers"][key]
+    d["thesis"] = thesis.strip()
+    return json.dumps({"updated": True, "ticker": key, "thesis": d["thesis"],
+                       "note": "Baked into the review at the next regeneration "
+                               "(nightly, desk-brief job, or ↻ on the dashboard)."})
+
+
+@mcp.tool(name="add_note_history", title="Add a note-history entry",
+          description="Append a timestamped entry to a name's NOTE HISTORY (the review's "
+                      "'Note history' card), e.g. after publishing/submitting a product. "
+                      "ts defaults to now (Europe/Zurich). Mutates per-env state; Reset "
+                      "restores.")
+def add_note_history(
+    ticker: _TICKER,
+    label: Annotated[str, Field(description="Entry text, e.g. 'First take — published'.")],
+    ts: Annotated[str, Field(default="", description="Optional 'YYYY-MM-DD HH:MM'; "
+                             "default now (Zurich).")] = "",
+) -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    key = seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    stamp = ts.strip() or datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%d %H:%M")
+    d = env_state.state()["dossiers"][key]
+    d["note_history"].append(f"{stamp} · {label.strip()}")
+    return json.dumps({"added": True, "ticker": key, "note_history": d["note_history"]})
+
+
+@mcp.tool(name="update_scenario_case", title="Update a scenario hypothesis",
+          description="Edit ONE scenario hypothesis row for a name (matched by scenario "
+                      "title substring). Editable fields: scenario, assumption, "
+                      "eps_impact, tp_impact, hypothesis, probability. IMPORTANT: when "
+                      "changing shocks, recompute eps/tp via compute_scenario first — "
+                      "never invent numbers. Used by the scenario card's 'Edit with AI'. "
+                      "Mutates per-env state; Reset restores; probabilities should sum "
+                      "to 100%.")
+def update_scenario_case(
+    ticker: _TICKER,
+    scenario_match: Annotated[str, Field(description="Substring of the scenario title "
+                                         "to edit (e.g. 'Currency shock').")],
+    scenario: Annotated[str, Field(default="", description="New title (optional).")] = "",
+    assumption: Annotated[str, Field(default="")] = "",
+    eps_impact: Annotated[str, Field(default="")] = "",
+    tp_impact: Annotated[str, Field(default="")] = "",
+    hypothesis: Annotated[str, Field(default="")] = "",
+    probability: Annotated[str, Field(default="")] = "",
+) -> str:
+    key = seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    sc = env_state.state().get("scenarios", {}).get(key)
+    if not sc:
+        return json.dumps({"error": f"no scenario set for {key}"})
+    row = next((r for r in sc["rows"]
+                if scenario_match.lower() in r["scenario"].lower()), None)
+    if row is None:
+        return json.dumps({"error": f"no scenario matching {scenario_match!r}",
+                           "available": [r["scenario"] for r in sc["rows"]]})
+    for f, v in (("scenario", scenario), ("assumption", assumption),
+                 ("eps_impact", eps_impact), ("tp_impact", tp_impact),
+                 ("hypothesis", hypothesis), ("probability", probability)):
+        if v.strip():
+            row[f] = v.strip()
+    total = sum(float(r["probability"].strip("%")) for r in sc["rows"]
+                if r.get("probability", "").strip().rstrip("%").replace(".", "").isdigit())
+    return json.dumps({"updated": True, "ticker": key, "row": row,
+                       "probability_sum": f"{total:.0f}%",
+                       "note": "Baked into the review/Lab at the next regeneration."})
+
+
+@mcp.tool(name="update_analyst_note", title="Edit or delete a desk note",
+          description="Update a stored desk note by id (summary, note text, tickers) or "
+                      "delete it (delete=true). Used by 'Edit with AI' on the desk-notes "
+                      "list. Mutates per-env state; Reset clears all notes.")
+def update_analyst_note(
+    note_id: Annotated[str, Field(description="The note id, e.g. 'N-001'.")],
+    summary: Annotated[str, Field(default="")] = "",
+    note: Annotated[str, Field(default="")] = "",
+    tickers: Annotated[str, Field(default="", description="Comma-separated Bloomberg "
+                                  "codes or 'SECTOR' (replaces the set).")] = "",
+    delete: Annotated[bool, Field(default=False)] = False,
+) -> str:
+    notes = env_state.state().setdefault("analyst_notes", [])
+    item = next((n for n in notes if n["id"] == note_id), None)
+    if item is None:
+        return json.dumps({"error": f"no note {note_id!r}",
+                           "ids": [n["id"] for n in notes]})
+    if delete:
+        notes.remove(item)
+        return json.dumps({"deleted": True, "id": note_id, "count": len(notes)})
+    if summary.strip():
+        item["summary"] = summary.strip()
+    if note.strip():
+        item["note"] = note.strip()
+    if tickers.strip():
+        resolved = []
+        for raw in tickers.split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            k = "SECTOR" if raw.upper() == "SECTOR" else seed.resolve(raw)
+            if not k:
+                return _unknown(raw)
+            if k not in resolved:
+                resolved.append(k)
+        item["tickers"] = resolved
+    return json.dumps({"updated": True, "item": item})
 
 
 @mcp.tool(name="Reset_Demo_Data", title="Reset demo data",

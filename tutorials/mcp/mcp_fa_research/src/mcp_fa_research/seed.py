@@ -192,34 +192,35 @@ DOSSIERS: dict[str, dict] = {
                            "+ FY guidance cut — post-view in control (URGENT).",
               "interaction_log": ["H1-25 call", "FY24 call", "IR follow-up (cognac timeline)",
                                   "NY corporate roadshow (planned)"],
-              "note_history": ["Re-initiation of coverage (published)",
-                               "FY25 Preview — Ours vs Consensus (published T-5d)",
-                               "Profit warning — reaction pack (this morning)",
-                               "Post-view — Ours / Consensus / Company (in pre-publication control — URGENT)"]},
+              "note_history": ["2026-07-07 09:00 · Re-initiation of coverage (published)",
+                               "2026-07-18 07:30 · FY25 Preview — Ours vs Consensus (published T-5d)",
+                               "2026-07-23 07:25 · Profit warning — reaction pack (this morning)",
+                               "2026-07-23 09:40 · Post-view — Ours / Consensus / Company (in pre-publication control — URGENT)"]},
     "KER FP": {"thesis": "Gucci turnaround execution risk; aspirational over-exposure; we "
                "stay cautious until volumes stabilise.",
                "estimates": "FY26E organic −1%; consensus cut −3% overnight — estimate review suggested.",
                "interaction_log": ["FY25 call", "CFO meeting (brand reset)", "Sector conference"],
-               "note_history": ["Estimate-change note (2w ago)", "Review due"]},
+               "note_history": ["2026-07-09 10:00 · Estimate-change note (2w ago)",
+                                "2026-07-23 07:10 · Review due — overnight consensus cuts"]},
     "RMS FP": {"thesis": "Highest-quality compounder; the quality is in the price — we "
                "prefer the risk/reward elsewhere at current multiples.",
                "estimates": "FY26E organic +9%; P/E ~48x — premium justified but full.",
                "interaction_log": ["FY25 call", "Store visit note"],
-               "note_history": ["Up to date — last note 3w ago"]},
+               "note_history": ["2026-07-02 09:00 · Up to date — last note 3w ago"]},
     "CFR SW": {"thesis": "Jewellery structural winner (Cartier, VCA); balance-sheet optionality.",
                "estimates": "FY26E organic +6%; jewellery mix supports margin — upside risk overnight.",
                "interaction_log": ["FY25 call", "IR follow-up (China)"],
-               "note_history": ["Q1 FY27 trading-update note (published, 21 Jul)",
-                                "Note in draft — valuation section pending"]},
+               "note_history": ["2026-07-21 08:30 · Q1 FY27 trading-update note (published)",
+                                "2026-07-22 15:00 · Note in draft — valuation section pending"]},
     "MONC IM": {"thesis": "Single-brand story; brand heat solid, watch wholesale normalisation.",
                 "estimates": "FY26E organic +6%; margin resilient.",
                 "interaction_log": ["FY25 call", "Genius event note"],
-                "note_history": ["Up to date"]},
+                "note_history": ["2026-07-16 09:00 · Up to date"]},
     "UHR SW": {"thesis": "Most geared to a Chinese entry-consumer recovery; a high-beta call "
                "on the timing of the China turn, not a quality holding.",
                "estimates": "FY26E organic +2%; earnings sensitive to China entry demand.",
                "interaction_log": ["FY25 call (Jan)", "H1-26 call transcript (new, indexed)"],
-               "note_history": ["Note in pre-publication control"]},
+               "note_history": ["2026-07-22 17:55 · Note in pre-publication control (tone × guidance desknote)"]},
 }
 
 # ---------------------------------------------------------------------------
@@ -487,7 +488,7 @@ def review_open_payload(env: str, ticker: str) -> str:
     cid = (REVIEW_IDS_BY_ENV.get(env) or {}).get(ticker, "")
     if cid:
         return _json.dumps({"contentId": cid})
-    return _json.dumps({"filePath": f"/Fundamental Analyst/names/{ticker}/review.html"})
+    return _json.dumps({"filePath": f"/CIB - Sell-Side Equity Analyst/names/{ticker}/review.html"})
 
 
 COCKPIT_ID: str = _os.getenv("FA_COCKPIT_ID", "")  # set after the cockpit is uploaded
@@ -829,6 +830,8 @@ def rebase_state(st: dict, target=None) -> int:
         for it in st.get("control_queue", []):
             if it.get("submitted_at"):
                 it["submitted_at"] = _shift(it["submitted_at"])
+        for d in st.get("dossiers", {}).values():
+            d["note_history"] = [_shift(x) for x in d.get("note_history", [])]
         st["today"] = target.isoformat()
     return delta
 
@@ -853,6 +856,7 @@ def baseline(env: str = "") -> dict:
         "lab_presets": copy.deepcopy(LAB_PRESETS),
         "control_queue": copy.deepcopy(CONTROL_QUEUE_SEED),
         "analyst_notes": [],
+        "dossiers": copy.deepcopy(DOSSIERS),
     }
 
 
@@ -869,6 +873,16 @@ def register_state_resolver(resolver) -> None:
 
 def current_state() -> dict | None:
     return _STATE_RESOLVER() if _STATE_RESOLVER else None
+
+
+def current_dossiers() -> dict:
+    st = current_state()
+    return (st or {}).get("dossiers") or DOSSIERS
+
+
+def current_scenarios() -> dict:
+    st = current_state()
+    return (st or {}).get("scenarios") or SCENARIOS
 
 
 def current_coverage() -> list[dict]:

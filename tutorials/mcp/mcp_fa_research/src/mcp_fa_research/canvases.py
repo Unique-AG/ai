@@ -83,6 +83,8 @@ CSS = """
   .quote .state{color:var(--mut);font-size:12.5px;}
   .blkt{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);
         font-weight:700;margin:2px 2px 6px;}
+  .thl{margin:0 0 4px;padding-left:20px;color:var(--ink2);}
+  .thl li{margin:3px 0;}
   .qwrap{padding:12px 16px 10px;margin-bottom:14px;}
   .qwrap .quote{border:none;padding:8px 0 0;margin-bottom:0;background:none;}
   .qc{color:var(--ok);font-weight:600;} .qc[data-chg^="-"],.qc[data-chg^="−"]{color:var(--red);}
@@ -155,7 +157,7 @@ def _switch(cur: str, names: list[tuple]) -> str:
             out.append(f'<button class="sw" data-unique-action="openDocument" '
                        f"data-unique-payload='{{\"contentId\":\"{e(cid)}\"}}'>{e(nm)}</button>")
         else:
-            prompt = f"Open the coverage review for {nm} ({tk}) — the review.html in Fundamental Analyst/names/{tk}/."
+            prompt = f"Open the coverage review for {nm} ({tk}) — the review.html in CIB - Sell-Side Equity Analyst/names/{tk}/."
             out.append(f'<button class="sw" data-unique-action="sendPrompt" '
                        f"data-unique-payload='{{\"prompt\":\"{e(prompt)}\"}}'>{e(nm)}</button>")
     out.append(f'<button class="sw" title="Edit the demo data — opens the console in a new tab" '
@@ -283,6 +285,41 @@ _PRODUCTS_SCRIPT = """
 </script>"""
 
 
+
+
+# Generic Edit-with-AI wiring: rewrites the button's payload from the sibling
+# input on every keystroke (bridge reads the attribute at click time).
+_EDIT_AI_SCRIPT = """
+<script>
+(function(){
+  document.querySelectorAll('[data-ai-card]').forEach(function(card){
+    var inp = card.querySelector('.ai-input'), btn = card.querySelector('.ai-go');
+    if (!inp || !btn) return;
+    var base = btn.getAttribute('data-ai-base') || '';
+    function sync(){
+      var v = inp.value.trim();
+      var prompt = v ? base.replace('__INSTR__', v)
+                     : 'I want to edit this with AI but have not typed an instruction — '
+                       + 'ask me what to change. Context: ' + base.replace('__INSTR__', '(pending)');
+      btn.setAttribute('data-unique-payload', JSON.stringify({prompt: prompt}));
+    }
+    card.addEventListener('input', sync);
+    sync();
+  });
+})();
+</script>"""
+
+
+def _edit_rows(placeholder: str, base_prompt: str) -> str:
+    """Input on one line, the Edit-with-AI button on the next (house layout)."""
+    return ('<div class="prow"><input type="text" class="ai-input" placeholder="'
+            + e(placeholder) + '"></div>'
+            '<div class="prow"><button class="btn primary ai-go" '
+            'data-unique-action="sendPrompt" data-unique-payload="{}" '
+            "data-ai-base='" + e(base_prompt).replace("'", "&#39;") + "'>"
+            '✨ Edit with AI</button></div>')
+
+
 def _products(tk: str, name: str) -> str:
     """'Ready to review' card — pre-generated products with per-document CHECKBOX
     selection: regenerate / submit-for-control act on the ticked set, and a free-text
@@ -304,9 +341,10 @@ def _products(tk: str, name: str) -> str:
     if not rows:
         return ""
     controls = (
-        '<div class="prow" style="margin-top:10px;flex-wrap:wrap;gap:8px">'
-        '<input type="text" class="ai-input" placeholder="Edit with AI — e.g. refresh with '
-        'the post-warning numbers, exec summary in French">'
+        '<div class="prow" style="margin-top:10px"><input type="text" class="ai-input" '
+        'placeholder="Edit with AI — e.g. refresh with the post-warning numbers, exec '
+        'summary in French"></div>'
+        '<div class="prow" style="flex-wrap:wrap;gap:8px">'
         '<button class="btn primary" id="ai-sel" data-unique-action="sendPrompt" '
         'data-unique-payload="{}">✨ Edit with AI</button>'
         '<button class="btn" id="regen-sel" data-unique-action="sendPrompt" '
@@ -319,7 +357,7 @@ def _products(tk: str, name: str) -> str:
             "use the exane-financial-model skill in UPDATE mode: pull fresh figures "
             "(get_financials, get_coverage, get_note_pack for LVMH), overwrite the "
             "changed inputs/actuals in the existing workbook (keep every formula "
-            "live), save it back to Fundamental Analyst/names/" + tk + "/notes/ under "
+            "live), save it back to CIB - Sell-Side Equity Analyst/names/" + tk + "/notes/ under "
             "the SAME filename, and report the delta: EPS by year and target price "
             "vs the prior version.")}) + "'>"
         '📈 Update model with latest data</button></div>')
@@ -329,12 +367,12 @@ def _products(tk: str, name: str) -> str:
             + "".join(rows) + controls +
             '<p class="mut" style="margin:10px 0 0;font-size:11px">Exane house format · '
             'SYNTHETIC data · drafts for the analyst — route through pre-publication '
-            'control before any distribution.</p></div>' + _PRODUCTS_SCRIPT)
+            'control before any distribution.</p></div>' + _PRODUCTS_SCRIPT + _EDIT_AI_SCRIPT)
 
 
 def build_review(tk: str, names: list[tuple]) -> str:
     c = next(x for x in seed.COVERAGE if x["ticker"] == tk)
-    d = seed.DOSSIERS[tk]
+    d = seed.current_dossiers()[tk]
     ov = seed.OVERNIGHT.get(tk)
     est = seed.OUR_ESTIMATES.get(tk)
     cons = seed.CONSENSUS.get(tk)
@@ -360,6 +398,20 @@ def build_review(tk: str, names: list[tuple]) -> str:
                   "data-unique-action=\"sendPrompt\" data-unique-payload='" +
                   _json.dumps({"prompt": status_prompt}).replace("'", "&#39;") +
                   "'>" + e(c["status"]) + '</button>')
+
+    # investment thesis — bullets, editable with AI (update_thesis)
+    th_bullets = "".join(f"<li>{e(b.strip())}</li>"
+                         for b in d["thesis"].split(";") if b.strip())
+    th_prompt = ('Apply this instruction to the INVESTMENT THESIS of ' + c["name"] +
+                 ' (' + tk + '): "__INSTR__". Current thesis: "' + d["thesis"] + '". '
+                 'Produce the revised thesis as short semicolon-separated bullets and '
+                 'store it with update_thesis(ticker, thesis); confirm what changed and '
+                 'remind me the dashboard bakes it at the next regeneration.')
+    thesis_card = ('<div class="card" data-ai-card><h2>Investment thesis '
+                   '<span class="mut">· editable — the agent stores it via update_thesis'
+                   '</span></h2><ul class="thl">' + th_bullets + '</ul>'
+                   + _edit_rows('Edit with AI — e.g. add a bullet on China entry-price risk',
+                                th_prompt) + '</div>')
 
     # overnight banner
     ov_html = ""
@@ -436,7 +488,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
                 f"data-unique-payload='{{\"prompt\":\"{e(prompt)}\"}}'>{e(label)}</button>")
 
     # scenario analysis — the buy-side / roadshow what-if material with our hypotheses
-    sc = getattr(seed, "SCENARIOS", {}).get(tk)
+    sc = seed.current_scenarios().get(tk)
     sc_html = ""
     if sc:
         sc_rows = "".join(
@@ -466,7 +518,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
                   f"China timing and (if LVMH) destocking end, then run compute_scenario "
                   f"and explain every number.")
             + "</div>")
-        sc_html = (f'<div class="card"><h2>Scenario analysis — our hypotheses '
+        sc_html = (f'<div class="card" data-ai-card><h2>Scenario analysis — our hypotheses '
                    f'<span class="mut">· {e(sc["period"])} · base {e(sc["base_tp"])}</span></h2>'
                    '<table class="est"><thead><tr><th>Scenario / assumption</th>'
                    '<th class="num">EPS</th><th class="num">Target price</th>'
@@ -474,10 +526,21 @@ def build_review(tk: str, names: list[tuple]) -> str:
                    f'<tbody>{sc_rows}</tbody></table>'
                    f'<p class="mut" style="margin:10px 0 0;font-size:12.5px">{e(sc["note"])} '
                    f'Any other shock: the scenario engine computes it live.</p>'
-                   f'{engine_btns}</div>')
+                   f'{engine_btns}'
+                   + _edit_rows('Edit with AI — e.g. raise the China-recovery probability to 25%',
+                                'Apply this instruction to the SCENARIO HYPOTHESES of '
+                                + c["name"] + ' (' + tk + '): "__INSTR__". Use '
+                                'update_scenario_case (match by scenario title); if the '
+                                'shock itself changes, RECOMPUTE eps/tp with '
+                                'compute_scenario first — never invent numbers; keep '
+                                'probabilities summing to 100%. Confirm the updated row.')
+                   + '</div>')
 
     log = "".join(f"<li>{e(x)}</li>" for x in d["interaction_log"])
-    notes = "".join(f"<li>{e(x)}</li>" for x in d["note_history"])
+    notes = "".join(
+        (lambda p: f'<li><span class="mut" style="font-size:11px">{e(p[0])}</span> · {e(p[2])}</li>'
+         if len(p) == 3 else f"<li>{e(x)}</li>")(x.partition(" · "))
+        for x in d["note_history"])
 
     actions = "".join([
         act("Run first-take", f"Run the results first-take for {c['name']} ({tk})."),
@@ -503,7 +566,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
   {quote}
   <div class="tiles">{tiles}</div>
   {ov_html}
-  <div class="card"><h2>Investment thesis</h2><p style="margin:0;color:var(--ink2)">{e(d['thesis'])}</p></div>
+  {thesis_card}
   {_products(tk, c['name'])}
   {_fundamentals(tk)}
   {est_html}
@@ -520,7 +583,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
 
 def build_card(tk: str) -> str:
     c = next(x for x in seed.COVERAGE if x["ticker"] == tk)
-    d = seed.DOSSIERS[tk]
+    d = seed.current_dossiers()[tk]
     ov = seed.OVERNIGHT.get(tk)
     est = seed.OUR_ESTIMATES.get(tk)
     lines = [
