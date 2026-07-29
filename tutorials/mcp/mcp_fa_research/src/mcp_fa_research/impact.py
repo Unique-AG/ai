@@ -27,9 +27,13 @@ def _fmt(v, ccy):
 
 def events() -> list[dict]:
     out = []
-    for key in seed.OVERNIGHT_ORDER:
-        ov = seed.OVERNIGHT[key]
-        cov = next((c for c in seed.COVERAGE if c["ticker"] == key), None)
+    ov_map = seed.current_overnight()
+    coverage = seed.current_coverage()
+    keys = [k for k in seed.OVERNIGHT_ORDER if k in ov_map]
+    keys += [k for k in ov_map if k not in keys]
+    for key in keys:
+        ov = ov_map[key]
+        cov = next((c for c in coverage if c["ticker"] == key), None)
         rows: list[dict] = []
         if cov and ov.get("new_target_price"):
             old, new = cov["target_price"], ov["new_target_price"]

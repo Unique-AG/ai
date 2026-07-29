@@ -92,8 +92,12 @@ def regen_env(env: str, progress=None, rebase: bool | None = None) -> dict:
     """Regenerate + upload one env's reviews/cards; progress(done, total, relpath, cid)
     fires after each SDK upload. Used by the 00:00 nightly AND the cockpit's real job."""
     import canvases
+    import env_state
     import models
 
+    # Regen runs on worker threads (no request): pin the env context so the
+    # builders' seed.current_* accessors read THIS env's live edits.
+    env_state.set_url_env(env)
     started = datetime.now(ZURICH).isoformat(timespec="seconds")
     result = {"started": started, "ok": False, "files": 0, "id_drift": [],
               "rebased_days": 0}

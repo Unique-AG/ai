@@ -76,7 +76,7 @@ BASE_EPS: dict[str, list[float]] = {   # per-name base EPS path (= chart_pack)
 
 
 def _base_tp(tk: str) -> float:
-    ov = seed.OVERNIGHT.get(tk) or {}
+    ov = seed.current_overnight().get(tk) or {}
     row = next(c for c in seed.current_coverage() if c["ticker"] == tk)
     return float(ov.get("new_target_price") or row["target_price"])
 

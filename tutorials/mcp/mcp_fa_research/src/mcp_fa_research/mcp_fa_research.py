@@ -29,8 +29,10 @@ from fastapi.responses import JSONResponse
 from fastmcp import FastMCP
 from pydantic import Field
 from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
+from starlette.responses import Response
 
 import chart_pack
 import env_state
@@ -85,6 +87,44 @@ def build_auth():
     )
 
 
+class AdvertisePostAuthOnly(BaseHTTPMiddleware):
+    """Advertise only client_secret_post in the OAuth discovery metadata.
+
+    FastMCP's token endpoint (as of 3.4.4) only parses client credentials from
+    the request body, yet its metadata also advertises client_secret_basic.
+    The MCP TypeScript SDK prefers client_secret_basic when advertised, so
+    token exchanges from Unique's platform fail with 401 "Missing client_id".
+    Dropping basic from the advertised methods steers the SDK to
+    client_secret_post, which works. Inert while the server runs OPEN (no
+    OAuth → no /.well-known routes). Same fix as mcp_trade_reconciliation.
+    """
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if not request.url.path.startswith("/.well-known/"):
+            return response
+        body = b"".join([chunk async for chunk in response.body_iterator])
+        try:
+            data = json.loads(body)
+            for key in (
+                "token_endpoint_auth_methods_supported",
+                "revocation_endpoint_auth_methods_supported",
+            ):
+                if isinstance(data.get(key), list) and "client_secret_post" in data[key]:
+                    data[key] = ["client_secret_post"]
+            body = json.dumps(data).encode()
+        except (ValueError, TypeError):
+            pass
+        headers = dict(response.headers)
+        headers.pop("content-length", None)
+        return Response(
+            content=body,
+            status_code=response.status_code,
+            headers=headers,
+            media_type=response.media_type,
+        )
+
+
 class EnvPathMiddleware:
     """Environment rides on the URL PATH (à la the RM Agent MCPs): ``/<env>/mcp`` and
     ``/<env>/admin`` select that env's demo state; bare ``/mcp`` & ``/admin`` = the
@@ -114,7 +154,8 @@ custom_middleware = [
         allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
-    )
+    ),
+    Middleware(AdvertisePostAuthOnly),
 ]
 
 mcp = FastMCP("FA Research", auth=build_auth())
@@ -149,7 +190,7 @@ def _cockpit_row(c: dict) -> dict:
     labels, direction flags, and an openDocument payload for the name's PRECOMPUTED
     review (nightly build)."""
     row = json.loads(json.dumps(c))
-    ov = seed.OVERNIGHT.get(c["ticker"])
+    ov = seed.current_overnight().get(c["ticker"])
     tp = (ov or {}).get("new_target_price") or c["target_price"]
     up = (ov or {}).get("new_upside_pct") if (ov and ov.get("new_upside_pct") is not None) else c["upside_pct"]
     row["tp_label"] = _ccy_fmt(tp, c["ccy"])
@@ -194,7 +235,7 @@ def get_dossier(ticker: _TICKER) -> str:
         return _unknown(ticker)
     row = next(c for c in seed.current_coverage() if c["ticker"] == t)
     d = seed.current_dossiers()[t]
-    ov = seed.OVERNIGHT.get(t)
+    ov = seed.current_overnight().get(t)
     return json.dumps({**row, **d,
                        "overnight": ov,
                        "interaction_log_text": " · ".join(d["interaction_log"]),
@@ -527,6 +568,9 @@ def submit_for_control(
     priority: Annotated[str, Field(description="e.g. 'URGENT — publish ASAP' or 'Standard'")] = "Standard",
     notes: Annotated[str, Field(description="Optional maker notes for the checker")] = "",
 ) -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
     k = kind.strip().lower()
     if k not in _CONTROL_CHECKLISTS:
         return json.dumps({"error": f"kind must be one of {sorted(_CONTROL_CHECKLISTS)}"})
@@ -534,9 +578,11 @@ def submit_for_control(
     tk = seed.resolve(ticker) or "" if ticker else ""
     n = 1 + max((int(i["id"].split("-")[1]) for i in st["control_queue"]
                  if i.get("id", "").startswith("C-")), default=0)
+    # submitted_at MUST stay "YYYY-MM-DD HH:MM" — the control-sweep SLA watchdog
+    # (jobs_engine._control_sweep) parses it to age items into OVERDUE.
     item = {"id": f"C-{n:03d}", "title": title, "ticker": tk, "kind": k,
-            "submitted_by": "Analyst (maker)",
-            "submitted_at": st.get("today", seed.STORY_TODAY) + " (via agent)",
+            "submitted_by": "Analyst (maker)", "submitted_via": "agent",
+            "submitted_at": datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%d %H:%M"),
             "priority": priority, "status": "pending", "verdict": "",
             "verdict_notes": notes,
             "checklist": [{"check": c, "state": "open"} for c in _CONTROL_CHECKLISTS[k]]}
@@ -827,11 +873,14 @@ def get_live_quotes(
     as_of = datetime.now(ZoneInfo("Europe/Zurich")).strftime("%H:%M")
     names = seed.current_coverage()
     if ticker:
-        names = [c for c in names if c["ticker"].lower() == ticker.strip().lower()] or names
+        t = seed.resolve(ticker)
+        if not t:
+            return _unknown(ticker)
+        names = [c for c in names if c["ticker"] == t]
     rows = []
     for c in names:
         q = _yahoo_quote(c["yahoo"])
-        ov = seed.OVERNIGHT.get(c["ticker"]) or {}
+        ov = seed.current_overnight().get(c["ticker"]) or {}
         tp = ov.get("new_target_price") or c["target_price"]
         if q:
             chg = (q["price"] / q["prev_close"] - 1.0) * 100.0

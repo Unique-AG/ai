@@ -342,8 +342,9 @@ def register(mcp, get_state, reset_state) -> None:
         body = await request.json()
         n = 1 + max((int(ev["id"].split("-")[1]) for ev in st["calendar"]
                      if ev.get("id", "").startswith("E-")), default=0)
-        event = {"id": f"E-{n:03d}", "date": "2026-07-23", "time": "09:00",
-                 "kind": "meeting", "title": "", "ticker": "", "notes": ""}
+        event = {"id": f"E-{n:03d}", "date": st.get("today", seed.STORY_TODAY),
+                 "time": "09:00", "kind": "meeting", "title": "", "ticker": "",
+                 "notes": ""}
         _apply(event, body, _EVENT_FIELDS)
         st["calendar"].append(event)
         return JSONResponse(event)
@@ -641,7 +642,7 @@ function openBrief(tk){const b=S.brief.find(x=>x.ticker===tk);
     field('acknowledged','Acknowledged',b.acknowledged,{sel:['false','true']}),
     v=>patch('admin/api/brief/'+encodeURIComponent(tk),v));}
 function openMail(id){const e=id?S.emails.find(x=>x.id===id):
-    {ts:'2026-07-23 08:00',from_name:'',from_role:'',subject:'',body:'',ticker:'',read:false};
+    {ts:S.today+' 08:00',from_name:'',from_role:'',subject:'',body:'',ticker:'',read:false};
   openDrawer(id?('Edit email '+id):'New email',
     field('ts','Timestamp',e.ts)+field('from_name','From',e.from_name)+
     field('from_role','Role',e.from_role)+field('subject','Subject',e.subject)+
@@ -650,7 +651,7 @@ function openMail(id){const e=id?S.emails.find(x=>x.id===id):
     v=>id?patch('admin/api/email/'+id,v):patch('admin/api/email',v,'POST'),
     id?()=>patch('admin/api/email/'+id,{},'DELETE'):null);}
 function openCal(id){const ev=id?S.calendar.find(x=>x.id===id):
-    {date:'2026-07-23',time:'09:00',kind:'meeting',title:'',ticker:'',notes:''};
+    {date:S.today,time:'09:00',kind:'meeting',title:'',ticker:'',notes:''};
   openDrawer(id?('Edit event '+id):'New event',
     field('date','Date (YYYY-MM-DD)',ev.date)+field('time','Time',ev.time)+
     field('kind','Kind',ev.kind,{sel:['results','roadshow','call','meeting','control']})+

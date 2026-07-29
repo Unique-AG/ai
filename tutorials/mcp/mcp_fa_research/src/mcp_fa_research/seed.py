@@ -813,11 +813,15 @@ def resolve(ticker_or_name: str) -> str | None:
 
 
 def coverage_with_overnight() -> list[dict]:
-    """Coverage roster with each name's overnight move merged in (headline + valuation)."""
+    """Coverage roster with each name's overnight move merged in (headline + valuation).
+
+    Reads the per-env mutable state (live console/agent edits) with static-seed
+    fallback, like every other read path."""
     out = []
-    for c in COVERAGE:
+    ov_map = current_overnight()
+    for c in current_coverage():
         row = copy.deepcopy(c)
-        ov = OVERNIGHT.get(c["ticker"])
+        ov = ov_map.get(c["ticker"])
         if ov:
             row["overnight"] = {"severity": ov["severity"], "headline": ov["headline"],
                                 "valuation_impact": ov["valuation_impact"],
@@ -924,3 +928,14 @@ def current_scenarios() -> dict:
 def current_coverage() -> list[dict]:
     st = current_state()
     return (st or {}).get("coverage") or COVERAGE
+
+
+def current_overnight() -> dict:
+    """Per-env mutable overnight map keyed by ticker — the morning brief carries the
+    console/agent edits (update_brief_item, /admin). Falls back to the static seed
+    baseline when no state resolver is registered (standalone build scripts). An
+    empty brief (all items dismissed) is respected, not treated as a fallback."""
+    st = current_state()
+    if st is None:
+        return OVERNIGHT
+    return {b["ticker"]: b for b in st.get("brief", [])}

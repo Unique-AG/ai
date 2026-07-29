@@ -55,6 +55,11 @@ CCY_FMT = {"EUR": "\\€#,##0.00", "CHF": '"CHF "#,##0.00'}
 CCY_FMT0 = {"EUR": "\\€#,##0", "CHF": '"CHF "#,##0'}
 
 
+def _current_overnight() -> dict:
+    """Per-env mutable overnight map (live brief edits, seed fallback) — see seed.current_overnight."""
+    return seed.current_overnight()
+
+
 def _num(s):
     """'38,510' → 38510.0 · '(4,880)' → -4880 · '20.0x' → 20.0 · '—' → None."""
     if isinstance(s, (int, float)):
@@ -106,8 +111,8 @@ def _put(ws, row, col_i, value, font=BASE, fmt=FMT_M):
 
 
 def _build_wb(tk: str):
-    cov = next(x for x in seed.COVERAGE if x["ticker"] == tk)
-    ov = seed.OVERNIGHT.get(tk) or {}
+    cov = next(x for x in seed.current_coverage() if x["ticker"] == tk)
+    ov = _current_overnight().get(tk) or {}
     raw = chart_pack._RAW[tk]
     ccy = raw["ccy"]
     fmt_ps = CCY_FMT.get(ccy, "#,##0.00")
@@ -407,8 +412,8 @@ def _build_wb(tk: str):
         c = pe.cell(row=4, column=1 + j, value=h)
         c.font = HDR
         c.fill = NAVY_FILL
-    for i, c0 in enumerate(seed.COVERAGE):
-        ovx = seed.OVERNIGHT.get(c0["ticker"]) or {}
+    for i, c0 in enumerate(seed.current_coverage()):
+        ovx = _current_overnight().get(c0["ticker"]) or {}
         tpx = ovx.get("new_target_price") or c0["target_price"]
         rr = chart_pack._RAW[c0["ticker"]]
         row = 5 + i
@@ -550,7 +555,7 @@ def build_model_bytes(tk: str) -> bytes:
 def build_all_models() -> dict[str, bytes]:
     """{'names/<TK>/notes/<Name> - Sell-side model (SYNTHETIC).xlsx': bytes} for all 6."""
     out = {}
-    for c in seed.COVERAGE:
+    for c in seed.current_coverage():
         fname = f"{c['name']} - Sell-side model (SYNTHETIC).xlsx"
         out[f"names/{c['ticker']}/notes/{fname}"] = build_model_bytes(c["ticker"])
     return out

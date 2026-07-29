@@ -32,6 +32,11 @@ def e(s) -> str:
     return html.escape(str(s), quote=True)
 
 
+def _current_overnight() -> dict:
+    """Per-env mutable overnight map (live brief edits, seed fallback) — see seed.current_overnight."""
+    return seed.current_overnight()
+
+
 CSS = """
   .rv{--ink:#171717;--ink2:#404040;--mut:#6E7572;--line:#E7E8E7;--paper:#fff;--wash:#F4F6F5;
       --mint:#3E8E7E;--mint-dot:#5FAE9E;--mint-wash:#EFF6F4;--ok:#2E8B57;--ok-wash:#E6F4EA;--ok-line:#BFE3CC;
@@ -402,9 +407,9 @@ def _products(tk: str, name: str) -> str:
 
 
 def build_review(tk: str, names: list[tuple]) -> str:
-    c = next(x for x in seed.COVERAGE if x["ticker"] == tk)
+    c = next(x for x in seed.current_coverage() if x["ticker"] == tk)
     d = seed.current_dossiers()[tk]
-    ov = seed.OVERNIGHT.get(tk)
+    ov = _current_overnight().get(tk)
     est = seed.OUR_ESTIMATES.get(tk)
     cons = seed.CONSENSUS.get(tk)
 
@@ -647,9 +652,9 @@ def build_review(tk: str, names: list[tuple]) -> str:
 
 
 def build_card(tk: str) -> str:
-    c = next(x for x in seed.COVERAGE if x["ticker"] == tk)
+    c = next(x for x in seed.current_coverage() if x["ticker"] == tk)
     d = seed.current_dossiers()[tk]
-    ov = seed.OVERNIGHT.get(tk)
+    ov = _current_overnight().get(tk)
     est = seed.OUR_ESTIMATES.get(tk)
     lines = [
         f"# {c['name']} ({tk}) — coverage card",
@@ -762,7 +767,7 @@ def build_all(env: str, review_ids: dict, note_ids: dict, stamp: str) -> dict[st
     """All six reviews + cards for one environment. Returns {kb_relpath: text}."""
     global REVIEW_IDS, NOTE_IDS, _FA_ENV, _STAMP
     REVIEW_IDS, NOTE_IDS, _FA_ENV, _STAMP = review_ids, note_ids, env, stamp
-    names = [(c["ticker"], c["name"]) for c in seed.COVERAGE]
+    names = [(c["ticker"], c["name"]) for c in seed.current_coverage()]
     out: dict[str, str] = {}
     for tk, _ in names:
         html_text = build_review(tk, names)

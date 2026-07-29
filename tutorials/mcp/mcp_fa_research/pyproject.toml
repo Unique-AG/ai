@@ -6,10 +6,10 @@ readme = "README.md"
 authors = [{ name = "Florian Barras", email = "florian.barras@unique.ai" }]
 requires-python = ">=3.12"
 dependencies = [
-    "openpyxl",
-    "unique-sdk",
-    "unique-toolkit",
-    "tzdata",
+    "openpyxl>=3.1.5",
+    "unique-sdk>=2026.30.1",
+    "unique-toolkit>=2026.30.1",
+    "tzdata>=2026.3",
     "fastapi>=0.120.2",
     "fastmcp>=3.4.4",
     "pydantic>=2.12.3",
