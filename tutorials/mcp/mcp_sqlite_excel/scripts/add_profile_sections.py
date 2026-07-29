@@ -6,7 +6,7 @@ Why this exists
 The dashboard's client detail page is growing four new *always-visible*
 sections (Portfolio and Mandate, Portfolio Performance and Benchmark,
 Holdings and Categorization, Suitability Profile) — see
-``../data/acount_review/dashboard-v005-astro/src/pages/index.astro``. Unlike the
+``../mcp_dashboards/datasets/account_review/astro/src/pages/index.astro``. Unlike the
 existing case-specific ``Fig1..3``/``Perf1..3`` columns (populated only for
 the one row whose ``rule_code`` needs that exact figure), these four
 sections must show real, plausible data for *every* client regardless of

@@ -1,6 +1,6 @@
 # RM Account-Remediation Dashboard — Use Cases
 
-Engineering-facing companion to the Product doc [_RM Account-Remediation Dashboard — Use Cases (for RM Pod review)_](https://unique-ch.atlassian.net/wiki/spaces/Product/pages/2508980226/RM+Account-Remediation+Dashboard+Use+Cases+for+RM+Pod+review), cross-referenced against the actual demo build in [`data/acount_review/dashboard-v005-astro`](../../data/acount_review/dashboard-v005-astro/).
+Engineering-facing companion to the Product doc [_RM Account-Remediation Dashboard — Use Cases (for RM Pod review)_](https://unique-ch.atlassian.net/wiki/spaces/Product/pages/2508980226/RM+Account-Remediation+Dashboard+Use+Cases+for+RM+Pod+review), cross-referenced against the demo build in [`../../mcp_dashboards/datasets/account_review/`](../../mcp_dashboards/datasets/account_review/).
 
 **Purpose.** One folder, one file per use case, so each can be reviewed, estimated and built independently. Every file gives: the pages involved, the actions and entities involved, what already works in the current build vs. what still needs to be developed, and a Mermaid sequence diagram of the flow.
 

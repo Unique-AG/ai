@@ -2,6 +2,8 @@
 
 Schema-driven MCP server that loads an Excel workbook into SQLite and exposes full CRUD tools. Column names and types are inferred from the spreadsheet — swap the `.xlsx` and restart (or call `reset_from_excel`) without changing tool code.
 
+For the account-review dataset, dashboard, and end-to-end architecture, see [`../mcp_dashboards/`](../mcp_dashboards/) and [`../mcp_dashboards/docs/architecture.md`](../mcp_dashboards/docs/architecture.md).
+
 ## What it does
 
 1. Reads `data/sample_portfolio.xlsx` (or `EXCEL_PATH`)
@@ -93,7 +95,7 @@ alongside `criticality` RED/AMBER/—), and `smart_actions.button_target` deep l
 `action_button` / `action_button_target` — the matching `smart_actions` row for
 that client's `rule_code`, denormalized onto `clients` by
 `data/merge_smart_actions.py` so dashboards can bind one live list (no join)
-per the 6 RM use cases (see `data/acount_review/dashboard-v005-astro/src/data/cases.json`).
+per the 6 RM use cases (see [`../mcp_dashboards/datasets/account_review/astro/src/data/cases.json`](../mcp_dashboards/datasets/account_review/astro/src/data/cases.json)).
 Re-run that script (then rebuild `data/portfolio.db` from the workbook) after
 editing `Smart Actions` in the Excel source.
 
