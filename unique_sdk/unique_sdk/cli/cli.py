@@ -18,6 +18,14 @@ from unique_sdk.cli.commands.agentic_table import (
 from unique_sdk.cli.commands.agentic_table import (
     is_error_output as _is_agentic_table_error_output,
 )
+from unique_sdk.cli.commands.agentic_table_write import (
+    cmd_create_sheet,
+    cmd_export,
+    cmd_import,
+)
+from unique_sdk.cli.commands.agentic_table_write import (
+    is_error_output as _is_agentic_table_write_error_output,
+)
 from unique_sdk.cli.commands.browser import (
     cmd_browser_action,
     cmd_browser_control,
@@ -2285,28 +2293,35 @@ def web_search_crawl_cmd(
 
 
 _AGENTIC_TABLE_HELP = """\
-Read Agentic Table (magic table) sheets, cells, and cell history.
+Work with Agentic Table (magic table) sheets over the public magic-table API.
 
 \b
-These are Tier 0 reads over the public magic-table API: no confirmation,
-no writes. Every call is scoped to the current user/company; sheet-role
-access (Owner / Can manage / Can edit) is enforced server-side and a denial
-is reported as `agentic-table: permission denied`.
+Reads (get-sheet / get-cell / cell-history / list-exports) are Tier 0: no
+confirmation, no side effects. Writes (create-sheet / import / export) build
+and run a sheet — the full loop of create, populate, run, and export. Every
+call is scoped to the current user/company; sheet-role access (Owner / Can
+manage / Can edit) is enforced server-side and a denial is reported as
+`agentic-table: permission denied`.
 
 \b
-Subcommands:
+Read subcommands:
   get-sheet      Show a sheet summary (state, row count, metadata, cells)
   get-cell       Show a single cell by row/column order
   cell-history   Show a single cell's log/edit history
   list-exports   List a sheet's export artifacts (reports, question exports)
 
 \b
+Write subcommands:
+  create-sheet   Create a new sheet in a space
+  import         Import questions/sources (adding questions triggers the run)
+  export         Generate export artifacts (report / question export)
+
+\b
 Examples:
-  unique-cli agentic-table get-sheet mt_abc123
   unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
-  unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
-  unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2 --json
-  unique-cli agentic-table list-exports mt_abc123
+  unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ"
+  unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src --wait
+  unique-cli agentic-table export mt_abc123 --type FULL_REPORT --wait
 """
 
 
@@ -2475,4 +2490,188 @@ def agentic_table_list_exports(
             output_json=output_json,
         ),
         is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="create-sheet")
+@click.argument("assistant_id")
+@click.option("--name", "name", default=None, help="Sheet name.")
+@click.option(
+    "--due-at",
+    "due_at",
+    default=None,
+    help="Due date (ISO-8601, e.g. 2026-12-31T00:00:00Z).",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_create_sheet(
+    ctx: click.Context,
+    assistant_id: str,
+    name: str | None,
+    due_at: str | None,
+    output_json: bool,
+) -> None:
+    """Create a new sheet in a space.
+
+    \b
+    ASSISTANT_ID is the space the sheet is created in; you must have write
+    access to it. The printed ID is the table id for import/export/reads.
+
+    \b
+    Examples:
+      unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ"
+    """
+    emit(
+        cmd_create_sheet(
+            LazyState.get(ctx),
+            assistant_id,
+            name=name,
+            due_at=due_at,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_write_error_output,
+    )
+
+
+@agentic_table.command(name="import")
+@click.argument("table_id")
+@click.option(
+    "--question-file-id",
+    "question_file_ids",
+    multiple=True,
+    help="Content id of a questionnaire file (repeatable).",
+)
+@click.option(
+    "--question-text",
+    "question_texts",
+    multiple=True,
+    help="A question to add directly (repeatable).",
+)
+@click.option(
+    "--source-file-id",
+    "source_file_ids",
+    multiple=True,
+    help="Content id of a source/knowledge file (repeatable).",
+)
+@click.option(
+    "--context", "context", default=None, help="Free-text context for the run."
+)
+@click.option(
+    "--wait",
+    "wait",
+    is_flag=True,
+    default=False,
+    help="Wait for the triggered run to finish before returning.",
+)
+@click.option(
+    "--timeout",
+    "timeout",
+    type=float,
+    default=600.0,
+    show_default=True,
+    help="Max seconds to wait when --wait is set.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_import(
+    ctx: click.Context,
+    table_id: str,
+    question_file_ids: tuple[str, ...],
+    question_texts: tuple[str, ...],
+    source_file_ids: tuple[str, ...],
+    context: str | None,
+    wait: bool,
+    timeout: float,
+    output_json: bool,
+) -> None:
+    """Import questions and sources into a sheet.
+
+    \b
+    Adding new questions triggers the agent run; adding only sources does not.
+    Ids/texts already on the sheet are skipped. With --wait, blocks until the
+    run finishes so you can chain an export.
+
+    \b
+    Examples:
+      unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src
+      unique-cli agentic-table import mt_abc123 --question-text "What is the fee?" --wait
+    """
+    emit(
+        cmd_import(
+            LazyState.get(ctx),
+            table_id,
+            question_file_ids=list(question_file_ids),
+            question_texts=list(question_texts),
+            source_file_ids=list(source_file_ids),
+            context=context,
+            wait=wait,
+            timeout=timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_write_error_output,
+    )
+
+
+@agentic_table.command(name="export")
+@click.argument("table_id")
+@click.option(
+    "--type",
+    "artifact_types",
+    multiple=True,
+    required=True,
+    type=click.Choice(["FULL_REPORT", "QUESTIONS", "AGENTIC_REPORT"]),
+    help="Artifact type to generate (repeatable).",
+)
+@click.option(
+    "--wait",
+    "wait",
+    is_flag=True,
+    default=False,
+    help="Wait for the requested artifacts to be ready, then list them.",
+)
+@click.option(
+    "--timeout",
+    "timeout",
+    type=float,
+    default=600.0,
+    show_default=True,
+    help="Max seconds to wait when --wait is set.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_export(
+    ctx: click.Context,
+    table_id: str,
+    artifact_types: tuple[str, ...],
+    wait: bool,
+    timeout: float,
+    output_json: bool,
+) -> None:
+    """Generate export artifacts for a sheet.
+
+    \b
+    Generation is asynchronous. With --wait, blocks until each requested type
+    is DONE and prints the artifact table with the content id to download.
+
+    \b
+    Examples:
+      unique-cli agentic-table export mt_abc123 --type FULL_REPORT
+      unique-cli agentic-table export mt_abc123 --type FULL_REPORT --type QUESTIONS --wait
+    """
+    emit(
+        cmd_export(
+            LazyState.get(ctx),
+            table_id,
+            artifact_types=list(artifact_types),
+            wait=wait,
+            timeout=timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_write_error_output,
     )

@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from unique_sdk.api_resources._agentic_table import (
         AgenticTableCell,
         AgenticTableSheet,
+        CreatedAgenticTableSheet,
+        MagicTableActionResult,
         MagicTableArtifact,
     )
     from unique_sdk.api_resources._mcp import MCP
@@ -468,3 +470,48 @@ def format_agentic_table_artifacts(artifacts: list[MagicTableArtifact]) -> str:
     lines = [f"{len(artifacts)} export artifact(s):\n"]
     lines.extend(_pad_columns(rows))
     return "\n".join(lines)
+
+
+def format_agentic_table_created_sheet(sheet: CreatedAgenticTableSheet) -> str:
+    """Format the result of creating a sheet (``POST /magic-table``).
+
+    ``ID`` is the ``sheetId`` to pass as ``table_id`` to every subsequent
+    command; ``chatId`` / ``dueAt`` are only shown when the backend returned
+    them.
+    """
+    rows = [
+        ["Sheet:", sheet.get("name", "?")],
+        ["ID:", sheet.get("sheetId", "?")],
+        ["Due diligence ID:", sheet.get("dueDiligenceId", "?")],
+        ["State:", str(sheet.get("state", "?"))],
+        ["Created by:", sheet.get("createdBy", "?")],
+        ["Created:", _format_date(sheet.get("createdAt"))],
+    ]
+    chat_id = sheet.get("chatId")
+    if chat_id:
+        rows.append(["Chat:", chat_id])
+    due_at = sheet.get("dueAt")
+    if due_at:
+        rows.append(["Due at:", _format_date(due_at)])
+    return "\n".join(_pad_columns(rows))
+
+
+def format_agentic_table_action_result(
+    result: MagicTableActionResult,
+    *,
+    action: str,
+) -> str:
+    """Format a lifecycle mutation's ``{status, message?}`` response.
+
+    Shared by ``import`` and ``export`` (before the optional ``--wait``): shows
+    the action, whether the backend accepted it, and any message it returned.
+    """
+    status = "OK" if result.get("status") else "FAILED"
+    rows = [
+        ["Action:", action],
+        ["Result:", status],
+    ]
+    message = result.get("message")
+    if message:
+        rows.append(["Detail:", str(message)])
+    return "\n".join(_pad_columns(rows))

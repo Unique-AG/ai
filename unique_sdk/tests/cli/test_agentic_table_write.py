@@ -1,0 +1,399 @@
+"""Tests for the unique-cli agentic-table write commands (full loop)."""
+
+from __future__ import annotations
+
+import json
+from unittest.mock import AsyncMock, patch
+
+from click.testing import CliRunner
+
+from unique_sdk._error import UniqueError
+from unique_sdk.api_resources._agentic_table import (
+    AgenticTableSheetState,
+    MagicTableArtifactState,
+    MagicTableArtifactType,
+)
+from unique_sdk.cli.cli import main as cli_main
+from unique_sdk.cli.commands.agentic_table_write import (
+    cmd_create_sheet,
+    cmd_export,
+    cmd_import,
+    is_error_output,
+)
+from unique_sdk.cli.config import Config
+from unique_sdk.cli.state import ShellState
+
+_CREATED = {
+    "sheetId": "mt_new",
+    "dueDiligenceId": "dd_1",
+    "name": "Vendor DDQ",
+    "state": "IDLE",
+    "createdBy": "u1",
+    "companyId": "c1",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+}
+
+_OK = {"status": True, "message": "accepted"}
+
+
+def _config() -> Config:
+    return Config(
+        user_id="u1",
+        company_id="c1",
+        api_key="key",
+        app_id="app",
+        api_base="https://example.com",
+    )
+
+
+def _state() -> ShellState:
+    return ShellState(_config())
+
+
+def _patch(method: str, **kwargs: object) -> object:
+    return patch(
+        f"unique_sdk.cli.commands.agentic_table_write.AgenticTable.{method}",
+        new_callable=AsyncMock,
+        **kwargs,
+    )
+
+
+def _no_sleep() -> object:
+    return patch(
+        "unique_sdk.cli.commands.agentic_table_write.asyncio.sleep",
+        new_callable=AsyncMock,
+    )
+
+
+def _artifact(
+    artifact_type: str,
+    artifact_state: str,
+    *,
+    content_id: str | None = None,
+) -> dict[str, object]:
+    return {
+        "id": f"art_{artifact_type}",
+        "artifactType": artifact_type,
+        "artifactState": artifact_state,
+        "contentId": content_id,
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:01:00.000Z",
+    }
+
+
+# -- create-sheet ----------------------------------------------------------
+
+
+def test_cmd_create_sheet_human_readable() -> None:
+    with _patch("create_sheet", return_value=_CREATED) as mock_create:
+        out = cmd_create_sheet(
+            _state(), "asst_1", name="Vendor DDQ", due_at="2026-12-31"
+        )
+
+    assert "Sheet:" in out and "Vendor DDQ" in out
+    assert "ID:" in out and "mt_new" in out
+    assert "Due diligence ID:" in out and "dd_1" in out
+    kwargs = mock_create.await_args.kwargs
+    assert kwargs["user_id"] == "u1"
+    assert kwargs["company_id"] == "c1"
+    assert kwargs["assistantId"] == "asst_1"
+    assert kwargs["name"] == "Vendor DDQ"
+    assert kwargs["dueAt"] == "2026-12-31"
+
+
+def test_cmd_create_sheet_omits_unset_optionals() -> None:
+    with _patch("create_sheet", return_value=_CREATED) as mock_create:
+        cmd_create_sheet(_state(), "asst_1")
+
+    kwargs = mock_create.await_args.kwargs
+    assert "name" not in kwargs
+    assert "dueAt" not in kwargs
+
+
+def test_cmd_create_sheet_json() -> None:
+    with _patch("create_sheet", return_value=_CREATED):
+        out = cmd_create_sheet(_state(), "asst_1", output_json=True)
+
+    assert json.loads(out)["sheetId"] == "mt_new"
+
+
+def test_cmd_create_sheet_maps_403() -> None:
+    with _patch("create_sheet", side_effect=UniqueError("Forbidden", http_status=403)):
+        out = cmd_create_sheet(_state(), "asst_1")
+
+    assert out == "agentic-table: permission denied"
+    assert is_error_output(out)
+
+
+# -- import (no wait) ------------------------------------------------------
+
+
+def test_cmd_import_human_readable() -> None:
+    with _patch("add_metadata", return_value=_OK) as mock_add:
+        out = cmd_import(
+            _state(),
+            "mt_1",
+            question_file_ids=["c_q"],
+            source_file_ids=["c_src"],
+        )
+
+    assert "Action:" in out and "import" in out
+    assert "Result:" in out and "OK" in out
+    kwargs = mock_add.await_args.kwargs
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["questionFileIds"] == ["c_q"]
+    assert kwargs["sourceFileIds"] == ["c_src"]
+    assert "questionTexts" not in kwargs
+    assert "context" not in kwargs
+
+
+def test_cmd_import_json() -> None:
+    with _patch("add_metadata", return_value=_OK):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"], output_json=True)
+
+    assert json.loads(out)["result"]["status"] is True
+
+
+def test_cmd_import_maps_422_verbatim() -> None:
+    with _patch(
+        "add_metadata",
+        side_effect=UniqueError("Sheet is processing", http_status=422),
+    ):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"])
+
+    assert out.startswith("agentic-table: ")
+    assert "processing" in out.lower()
+    assert is_error_output(out)
+
+
+# -- import (--wait) -------------------------------------------------------
+
+
+def test_cmd_import_wait_run_finishes() -> None:
+    states = [
+        AgenticTableSheetState.IDLE,  # not started yet
+        AgenticTableSheetState.PROCESSING,  # run started
+        AgenticTableSheetState.IDLE,  # run finished
+    ]
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=60.0
+        )
+
+    assert "Result:" in out and "OK" in out
+    assert "Run finished" in out and "IDLE" in out
+
+
+def test_cmd_import_wait_no_run_started() -> None:
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", source_file_ids=["c_src"], wait=True, timeout=0.0
+        )
+
+    assert "No agent run started" in out
+    assert not is_error_output(out)
+
+
+def test_cmd_import_wait_timeout_is_error() -> None:
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.PROCESSING),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=0.0
+        )
+
+    assert is_error_output(out)
+    assert "timed out" in out
+
+
+# -- export (no wait) ------------------------------------------------------
+
+
+def test_cmd_export_human_readable() -> None:
+    with _patch("generate_artifact", return_value=_OK) as mock_gen:
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"])
+
+    assert "Action:" in out and "export" in out
+    assert "Result:" in out and "OK" in out
+    kwargs = mock_gen.await_args.kwargs
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["artifactTypes"] == [MagicTableArtifactType.FULL_REPORT]
+
+
+def test_cmd_export_json() -> None:
+    with _patch("generate_artifact", return_value=_OK):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], output_json=True
+        )
+
+    assert json.loads(out)["result"]["status"] is True
+
+
+def test_cmd_export_maps_403() -> None:
+    with _patch(
+        "generate_artifact", side_effect=UniqueError("Forbidden", http_status=403)
+    ):
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"])
+
+    assert out == "agentic-table: permission denied"
+
+
+# -- export (--wait) -------------------------------------------------------
+
+
+def test_cmd_export_wait_done_lists_artifacts() -> None:
+    lists = [
+        [_artifact("FULL_REPORT", MagicTableArtifactState.IN_PROGRESS)],
+        [_artifact("FULL_REPORT", MagicTableArtifactState.DONE, content_id="cont_x")],
+    ]
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=lists),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True, timeout=60.0
+        )
+
+    assert "FULL_REPORT" in out and "DONE" in out
+    assert "cont_x" in out
+    assert not is_error_output(out)
+
+
+def test_cmd_export_wait_error_is_error() -> None:
+    lists = [
+        [_artifact("FULL_REPORT", MagicTableArtifactState.IN_PROGRESS)],
+        [_artifact("FULL_REPORT", MagicTableArtifactState.ERROR)],
+    ]
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=lists),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True, timeout=60.0
+        )
+
+    assert is_error_output(out)
+    assert "failed" in out and "FULL_REPORT" in out
+
+
+def test_cmd_export_wait_timeout_is_error() -> None:
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", return_value=[]),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True, timeout=0.0
+        )
+
+    assert is_error_output(out)
+    assert "timed out" in out and "FULL_REPORT" in out
+
+
+# -- error detector + CLI wiring ------------------------------------------
+
+
+def test_error_output_detector() -> None:
+    assert is_error_output("agentic-table: permission denied")
+    assert not is_error_output("Action:  import")
+
+
+@patch("unique_sdk.cli.cli.cmd_create_sheet")
+def test_cli_create_sheet_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "create-sheet", "asst_1", "--name", "DDQ"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["name"] == "DDQ"
+    assert mock_cmd.call_args.args[1] == "asst_1"  # type: ignore[attr-defined]
+
+
+@patch("unique_sdk.cli.cli.cmd_import")
+def test_cli_import_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "import",
+            "mt_1",
+            "--question-file-id",
+            "c_q",
+            "--source-file-id",
+            "c_src",
+            "--wait",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["question_file_ids"] == ["c_q"]
+    assert kwargs["source_file_ids"] == ["c_src"]
+    assert kwargs["wait"] is True
+
+
+@patch("unique_sdk.cli.cli.cmd_export")
+def test_cli_export_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "export", "mt_1", "--type", "FULL_REPORT", "--json"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["artifact_types"] == ["FULL_REPORT"]
+    assert kwargs["output_json"] is True
+
+
+@patch("unique_sdk.cli.cli.cmd_export")
+def test_cli_export_rejects_invalid_type(mock_cmd: object) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "export", "mt_1", "--type", "NOPE"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+
+
+@patch("unique_sdk.cli.cli.cmd_import")
+def test_cli_write_error_exits_non_zero(mock_cmd: object) -> None:
+    mock_cmd.return_value = "agentic-table: permission denied"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "import", "mt_1", "--question-text", "q?"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 1
+    assert result.output.strip() == "agentic-table: permission denied"
