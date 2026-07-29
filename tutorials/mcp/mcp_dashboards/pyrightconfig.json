@@ -1,0 +1,16 @@
+{
+  "$comment": [
+    "Dataset servers import the shared package from helpers/python/src and their own",
+    "sibling modules via a sys.path insert at the top of server.py, so a type checker",
+    "started from this directory needs the same paths spelled out. Without this,",
+    "every 'from mcp_dashboards...' and third-party import reports as unresolved.",
+    "Add a datasets/<name>/fastmcp entry when adding a dataset."
+  ],
+  "venvPath": "helpers/python",
+  "venv": ".venv",
+  "extraPaths": ["helpers/python/src", "datasets/account_review/fastmcp"],
+  "include": ["helpers/python/src", "helpers/python/tests", "datasets"],
+  "exclude": ["**/node_modules", "**/__pycache__", "**/.venv", "**/dist"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "standard"
+}

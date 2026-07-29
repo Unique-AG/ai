@@ -1,0 +1,1159 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Account Review MCP Dashboard Contract",
+    "description": "Typed domain contract for the account review MCP server and Astro dashboard.",
+    "version": "0.0.0",
+    "x-generated-by": "mcp_dashboards; do not edit by hand; regenerate with npm run generate account_review",
+    "x-source": "datasets/account_review/contract/main.tsp"
+  },
+  "tags": [],
+  "paths": {
+    "/clients": {
+      "get": {
+        "operationId": "Clients_list",
+        "summary": "List clients",
+        "description": "Return a paginated client list with optional search terms.",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "explode": false
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientListResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "Clients_create",
+        "summary": "Create client",
+        "description": "Create a client using the typed domain payload.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/count-by": {
+      "get": {
+        "operationId": "Clients_countBy",
+        "summary": "Count clients by field",
+        "description": "Aggregate clients by a supported domain field such as case_action.status.",
+        "parameters": [
+          {
+            "name": "column",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountByResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/search": {
+      "post": {
+        "operationId": "Clients_search",
+        "summary": "Search clients",
+        "description": "Return clients using structured filters, search, sort, and pagination.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientListResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientListRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/{id}": {
+      "get": {
+        "operationId": "Clients_get",
+        "summary": "Get client",
+        "description": "Return one client by dataset-local primary key.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "Clients_update",
+        "summary": "Update client workflow fields",
+        "description": "Patch the editable workflow fields for a client.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientUpdate"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CaseAction": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "Compliant",
+              "Escalated",
+              "Needs Remediation"
+            ],
+            "description": "Current workflow status for the review case."
+          },
+          "rule_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rule identifier that triggered the action, when applicable."
+          },
+          "open_issue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Open issue description shown to reviewers."
+          },
+          "recommended_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Recommended remediation or reviewer action."
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ISO 8601 due date for the open remediation action, when applicable."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Short action title displayed in the case action bar."
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Long-form action explanation for reviewers."
+          },
+          "button_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Button label used by the dashboard action."
+          },
+          "button_target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Button target or tool hint used by the dashboard action."
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Owner responsible for follow-up."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Workflow action state and recommended next step for the client."
+      },
+      "Client": {
+        "type": "object",
+        "required": [
+          "id",
+          "identity",
+          "contact",
+          "portfolio",
+          "compliance",
+          "review_schedule",
+          "suitability",
+          "case_action",
+          "figures"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Dataset-local primary key."
+          },
+          "identity": {
+            "$ref": "#/components/schemas/ClientIdentity",
+            "description": "Identity and segmentation fields."
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ClientContact",
+            "description": "Contact and residency fields."
+          },
+          "portfolio": {
+            "$ref": "#/components/schemas/PortfolioSummary",
+            "description": "Portfolio summary fields."
+          },
+          "compliance": {
+            "$ref": "#/components/schemas/ComplianceProfile",
+            "description": "Compliance and regulatory profile."
+          },
+          "review_schedule": {
+            "$ref": "#/components/schemas/ReviewSchedule",
+            "description": "Review schedule fields."
+          },
+          "suitability": {
+            "$ref": "#/components/schemas/SuitabilityProfile",
+            "description": "Suitability assessment fields."
+          },
+          "case_action": {
+            "$ref": "#/components/schemas/CaseAction",
+            "description": "Workflow action fields."
+          },
+          "figures": {
+            "$ref": "#/components/schemas/DashboardFigures",
+            "description": "Dashboard figure groups."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Nested domain representation consumed by the FastMCP tools and Astro dashboard."
+      },
+      "ClientContact": {
+        "type": "object",
+        "properties": {
+          "date_of_birth": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date of birth for individuals, when available."
+          },
+          "occupation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Occupation or business role supplied in the workbook."
+          },
+          "marital_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Marital status for individual clients, when available."
+          },
+          "nationality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Client nationality."
+          },
+          "residence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Country or jurisdiction of residence."
+          },
+          "domicile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Country or jurisdiction of domicile."
+          },
+          "incorporation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Company incorporation jurisdiction, when applicable."
+          },
+          "residential_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Residential or registered address text."
+          },
+          "email": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmailAddress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Primary email address."
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Primary phone number as supplied by the source workbook."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Personal, contact, and residency information for a client."
+      },
+      "ClientCreate": {
+        "type": "object",
+        "required": [
+          "identity",
+          "contact",
+          "portfolio",
+          "compliance",
+          "review_schedule",
+          "suitability",
+          "case_action"
+        ],
+        "properties": {
+          "identity": {
+            "$ref": "#/components/schemas/ClientIdentity"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ClientContact"
+          },
+          "portfolio": {
+            "$ref": "#/components/schemas/PortfolioSummary"
+          },
+          "compliance": {
+            "$ref": "#/components/schemas/ComplianceProfile"
+          },
+          "review_schedule": {
+            "$ref": "#/components/schemas/ReviewSchedule"
+          },
+          "suitability": {
+            "$ref": "#/components/schemas/SuitabilityProfile"
+          },
+          "case_action": {
+            "$ref": "#/components/schemas/CaseAction"
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Payload for creating a client from typed dashboard or MCP input."
+      },
+      "ClientFilter": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "Compliant",
+              "Escalated",
+              "Needs Remediation"
+            ],
+            "description": "Filter by workflow status."
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "Low",
+              "Medium",
+              "High"
+            ],
+            "description": "Filter by compliance risk level."
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "Corporate / Holding",
+              "Private Wealth"
+            ],
+            "description": "Filter by commercial segment."
+          },
+          "criticality": {
+            "type": "string",
+            "description": "Filter by operational criticality."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Supported typed filters for client list tools."
+      },
+      "ClientIdentity": {
+        "type": "object",
+        "required": [
+          "name",
+          "reference",
+          "crd_number",
+          "type",
+          "segment"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Display name shown in the dashboard."
+          },
+          "reference": {
+            "$ref": "#/components/schemas/ClientReference",
+            "description": "Stable client reference from the source workbook or upstream system."
+          },
+          "crd_number": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Regulatory CRD or internal registration number."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "Company",
+              "Individual"
+            ],
+            "description": "Client legal form represented in the dataset."
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "Corporate / Holding",
+              "Private Wealth"
+            ],
+            "description": "Commercial segment used for portfolio grouping and filtering."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Client identity, source reference, legal form, and dashboard segment."
+      },
+      "ClientListRequest": {
+        "type": "object",
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/ClientFilter",
+            "description": "Structured filters mapped onto the source SQLite columns."
+          },
+          "search": {
+            "type": "string",
+            "description": "Full-text search phrase applied to selected display fields."
+          },
+          "sort": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SortSpec"
+            },
+            "description": "Ordered sort fields."
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "description": "Maximum number of rows to return."
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Number of matching rows to skip."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Search, filter, sort, and pagination request for listing clients."
+      },
+      "ClientListResult": {
+        "type": "object",
+        "required": [
+          "table",
+          "count",
+          "total_matching",
+          "limit",
+          "offset",
+          "rows"
+        ],
+        "properties": {
+          "table": {
+            "type": "string",
+            "description": "Source table name."
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of rows returned in this response."
+          },
+          "total_matching": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total rows matching the filters before pagination."
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Requested page size."
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Requested offset."
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Client"
+            },
+            "description": "Client rows for this page."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Paginated client list response."
+      },
+      "ClientReference": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Stable source-system reference for a client."
+      },
+      "ClientUpdate": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "Compliant",
+              "Escalated",
+              "Needs Remediation"
+            ],
+            "description": "New workflow status."
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "Low",
+              "Medium",
+              "High"
+            ],
+            "description": "New compliance risk level."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Patch payload for workflow fields that the dashboard edits inline."
+      },
+      "ComplianceProfile": {
+        "type": "object",
+        "required": [
+          "risk_level",
+          "risk_profile",
+          "risk_tolerance",
+          "criticality",
+          "pep",
+          "adverse_media",
+          "sanctions",
+          "fatca_us_person",
+          "verification_source",
+          "documents_on_file",
+          "mandate_type",
+          "client_categorization",
+          "category_review_status"
+        ],
+        "properties": {
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "Low",
+              "Medium",
+              "High"
+            ],
+            "description": "Overall compliance risk bucket."
+          },
+          "risk_profile": {
+            "type": "string",
+            "description": "Investment risk profile recorded for the client."
+          },
+          "risk_tolerance": {
+            "type": "string",
+            "description": "Risk tolerance recorded for suitability review."
+          },
+          "criticality": {
+            "type": "string",
+            "description": "Operational criticality used by review queues."
+          },
+          "pep": {
+            "type": "string",
+            "enum": [
+              "Yes",
+              "No"
+            ],
+            "description": "Whether the client is marked as politically exposed."
+          },
+          "adverse_media": {
+            "type": "string",
+            "enum": [
+              "Yes",
+              "No"
+            ],
+            "description": "Whether adverse media is present."
+          },
+          "sanctions": {
+            "type": "string",
+            "enum": [
+              "Yes",
+              "No"
+            ],
+            "description": "Whether sanctions exposure is present."
+          },
+          "fatca_us_person": {
+            "type": "string",
+            "enum": [
+              "Yes",
+              "No"
+            ],
+            "description": "Whether FATCA US-person status is indicated."
+          },
+          "verification_source": {
+            "type": "string",
+            "description": "Verification source or source-of-wealth evidence."
+          },
+          "documents_on_file": {
+            "type": "string",
+            "description": "Comma-separated document identifiers available for the client."
+          },
+          "mandate_type": {
+            "type": "string",
+            "description": "Mandate description as supplied by the source workbook."
+          },
+          "client_categorization": {
+            "type": "string",
+            "description": "MiFID or client categorization label."
+          },
+          "category_required": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Category reassessment requirement, when applicable."
+          },
+          "category_review_status": {
+            "type": "string",
+            "description": "Current categorization review status."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Compliance, KYC, and regulatory assessment fields."
+      },
+      "CountByResult": {
+        "type": "object",
+        "required": [
+          "table",
+          "column",
+          "total",
+          "counts",
+          "rows"
+        ],
+        "properties": {
+          "table": {
+            "type": "string",
+            "description": "Source table name."
+          },
+          "column": {
+            "type": "string",
+            "description": "Domain or source column used for grouping."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Total rows counted."
+          },
+          "counts": {
+            "type": "object",
+            "unevaluatedProperties": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "Raw bucket-to-count mapping."
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountByRow"
+            },
+            "description": "Ordered rows suitable for dashboard rendering."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Count-by aggregation response for dashboard KPI tiles."
+      },
+      "CountByRow": {
+        "type": "object",
+        "required": [
+          "bucket",
+          "label",
+          "count"
+        ],
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "description": "Raw bucket value."
+          },
+          "label": {
+            "type": "string",
+            "description": "Display label for the bucket."
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of matching clients."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Single bucket returned by a count-by aggregation."
+      },
+      "CurrencyCode": {
+        "type": "string",
+        "pattern": "^[A-Z]{3}$",
+        "description": "Three-letter ISO 4217 currency code used for portfolio values."
+      },
+      "DashboardFigures": {
+        "type": "object",
+        "required": [
+          "documents",
+          "performance",
+          "mandate",
+          "holdings"
+        ],
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FigureMetric"
+            },
+            "description": "Document and evidence metrics."
+          },
+          "performance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FigureMetric"
+            },
+            "description": "Performance-related metrics."
+          },
+          "mandate": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FigureMetric"
+            },
+            "description": "Mandate and suitability metrics."
+          },
+          "holdings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FigureMetric"
+            },
+            "description": "Holdings and portfolio composition metrics."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Grouped dashboard figures shown on the client detail cards."
+      },
+      "EmailAddress": {
+        "type": "string",
+        "format": "email",
+        "description": "Email address for a client or contact person."
+      },
+      "FigureMetric": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Metric label."
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Metric display value."
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Metric percentage value, when available."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Metric status text or severity marker."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Small dashboard metric used in client figures."
+      },
+      "IsoDate": {
+        "type": "string",
+        "format": "date",
+        "description": "Calendar date serialized as ISO 8601 full-date text."
+      },
+      "PortfolioSummary": {
+        "type": "object",
+        "required": [
+          "onboarded",
+          "currency",
+          "value"
+        ],
+        "properties": {
+          "onboarded": {
+            "$ref": "#/components/schemas/IsoDate",
+            "description": "Date the client relationship was onboarded."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/CurrencyCode",
+            "description": "Currency for the portfolio value."
+          },
+          "value": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "description": "Portfolio market value in the declared currency."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Portfolio-level values displayed in the dashboard."
+      },
+      "ReviewSchedule": {
+        "type": "object",
+        "required": [
+          "last_reviewed",
+          "next_review_due",
+          "kyc_refresh_due"
+        ],
+        "properties": {
+          "last_reviewed": {
+            "$ref": "#/components/schemas/IsoDate",
+            "description": "Date of the most recent completed review."
+          },
+          "next_review_due": {
+            "$ref": "#/components/schemas/IsoDate",
+            "description": "Next scheduled relationship review date."
+          },
+          "kyc_refresh_due": {
+            "$ref": "#/components/schemas/IsoDate",
+            "description": "Next KYC refresh due date."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Review dates used for KYC and suitability scheduling."
+      },
+      "SortSpec": {
+        "type": "object",
+        "required": [
+          "field"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Domain field path, for example identity.name or compliance.risk_level."
+          },
+          "dir": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "description": "Sort direction. Defaults to ascending when omitted."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Sort instruction accepted by list-style tools."
+      },
+      "SuitabilityProfile": {
+        "type": "object",
+        "required": [
+          "investment_horizon",
+          "knowledge_experience",
+          "last_suitability_test",
+          "suitability_outcome"
+        ],
+        "properties": {
+          "investment_horizon": {
+            "type": "string",
+            "description": "Investment horizon label from the source workbook."
+          },
+          "knowledge_experience": {
+            "type": "string",
+            "description": "Knowledge and experience assessment."
+          },
+          "last_suitability_test": {
+            "$ref": "#/components/schemas/IsoDate",
+            "description": "Date of the most recent suitability test."
+          },
+          "suitability_outcome": {
+            "type": "string",
+            "description": "Outcome summary for the latest suitability review."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Suitability assessment details for the client portfolio."
+      }
+    }
+  }
+}
