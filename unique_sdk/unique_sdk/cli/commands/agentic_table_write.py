@@ -32,6 +32,7 @@ from unique_sdk._error import UniqueError
 from unique_sdk.api_resources._agentic_table import (
     AgenticTable,
     AgenticTableSheetState,
+    MagicTableActionResult,
     MagicTableArtifact,
     MagicTableArtifactState,
     MagicTableArtifactType,
@@ -73,6 +74,19 @@ def _error(exc: UniqueError) -> str:
     return f"{AGENTIC_TABLE_ERROR_PREFIX} {exc}"
 
 
+def _rejected(result: MagicTableActionResult, *, action: str) -> str:
+    """Render a soft backend rejection as a CLI error line.
+
+    The lifecycle mutations report rejection in a 200 body (``status: false``)
+    rather than an HTTP error, so it has to be mapped explicitly or the command
+    would exit 0 and let an agent's ``&&`` chain continue — exporting stale
+    answers after an import that never landed. ``AgenticTableService`` raises in
+    the same situation.
+    """
+    message = result.get("message") or "no detail returned"
+    return f"{AGENTIC_TABLE_ERROR_PREFIX} {action} rejected: {message}"
+
+
 def cmd_create_sheet(
     state: ShellState,
     assistant_id: str,
@@ -87,7 +101,7 @@ def cmd_create_sheet(
     write access to it. The returned ``sheetId`` is the ``table_id`` for every
     subsequent command.
     """
-    params: dict[str, str] = {"assistantId": assistant_id}
+    params: AgenticTable.CreateSheet = {"assistantId": assistant_id}
     if name is not None:
         params["name"] = name
     if due_at is not None:
@@ -97,7 +111,7 @@ def cmd_create_sheet(
             AgenticTable.create_sheet(
                 user_id=state.config.user_id,
                 company_id=state.config.company_id,
-                **params,  # type: ignore[arg-type]
+                **params,
             )
         )
     except UniqueError as exc:
@@ -125,14 +139,15 @@ def cmd_import(
     Delta semantics: ids/texts already on the sheet are skipped, and the agent
     run is triggered only when *new* questions are added (sources alone do not
     trigger a run). The call is rejected with 422 while the sheet is already
-    ``PROCESSING``.
+    ``PROCESSING``, and with a ``status: false`` body when the backend declines
+    it; either way the command fails rather than falling through to the wait.
 
     With ``wait``, polls the sheet state until the triggered run finishes (or
     ``timeout`` elapses) so the caller can chain an export. If no run starts
     within the start window (e.g. only sources were added), that is reported as
     a note rather than an error.
     """
-    params: dict[str, object] = {"tableId": table_id}
+    params: AgenticTable.AddMetaData = {"tableId": table_id}
     if question_file_ids:
         params["questionFileIds"] = question_file_ids
     if question_texts:
@@ -146,8 +161,10 @@ def cmd_import(
         result = await AgenticTable.add_metadata(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
-            **params,  # type: ignore[arg-type]
+            **params,
         )
+        if not result.get("status"):
+            return _rejected(result, action="import")
         if output_json and not wait:
             return json.dumps({"result": result}, indent=2, default=str)
         if not wait:
@@ -195,10 +212,12 @@ def cmd_export(
 ) -> str:
     """Generate export artifacts for a sheet (``POST .../generate-artifact``).
 
-    Generation is asynchronous. With ``wait``, polls ``list_artifacts`` until
-    every requested type reaches ``DONE`` (or ``timeout``), then prints the
-    artifact table with the ``contentId`` to download; an artifact entering
-    ``ERROR`` fails fast. Without ``wait``, returns once generation is accepted.
+    Generation is asynchronous, so a ``status: false`` body means the trigger
+    itself was declined and the command fails without polling. With ``wait``,
+    polls ``list_artifacts`` until every requested type reaches ``DONE`` (or
+    ``timeout``), then prints the artifact table with the ``contentId`` to
+    download; an artifact entering ``ERROR`` fails fast. Without ``wait``,
+    returns once generation is accepted.
     """
     wanted = [MagicTableArtifactType(t) for t in artifact_types]
 
@@ -209,6 +228,8 @@ def cmd_export(
             tableId=table_id,
             artifactTypes=wanted,
         )
+        if not result.get("status"):
+            return _rejected(result, action="export")
         if output_json and not wait:
             return json.dumps({"result": result}, indent=2, default=str)
         if not wait:
@@ -317,9 +338,11 @@ async def _wait_for_artifacts(
             company_id=state.config.company_id,
             tableId=table_id,
         )
-        current = {
-            a["artifactType"]: a for a in artifacts if a.get("artifactType") in wanted
-        }
+        current: dict[MagicTableArtifactType, MagicTableArtifact] = {}
+        for artifact in artifacts:
+            artifact_type = artifact.get("artifactType")
+            if artifact_type is not None and artifact_type in wanted:
+                current[artifact_type] = artifact
         started.update(
             artifact_type
             for artifact_type, artifact in current.items()

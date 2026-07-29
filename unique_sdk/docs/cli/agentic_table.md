@@ -270,7 +270,7 @@ FULL_REPORT  DONE   artifact_1   cont_export  2026-01-01 00:01
 
 ## Full-loop recipe
 
-Create a sheet, populate and run it, then export the answers. Because each `--wait` step exits non-zero on failure, the steps can be chained with `&&`:
+Create a sheet, populate and run it, then export the answers. Because every step exits non-zero on failure — including a rejection the backend reports in the response body rather than as an HTTP error — the steps can be chained with `&&`:
 
 ```bash
 SHEET=$(unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ" --json | jq -r .sheetId) && \

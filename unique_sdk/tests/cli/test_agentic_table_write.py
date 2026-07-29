@@ -166,6 +166,32 @@ def test_cmd_import_maps_422_verbatim() -> None:
     assert is_error_output(out)
 
 
+def test_cmd_import_soft_failure_is_error() -> None:
+    """A 200 body with ``status: false`` must fail, not print FAILED and exit 0."""
+    with _patch(
+        "add_metadata", return_value={"status": False, "message": "sheet is locked"}
+    ):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"])
+
+    assert is_error_output(out)
+    assert "import rejected" in out
+    assert "sheet is locked" in out
+
+
+def test_cmd_import_soft_failure_skips_wait() -> None:
+    """A declined import must not fall through to polling for a run it never triggered."""
+    with (
+        _patch("add_metadata", return_value={"status": False}),
+        _patch("get_sheet_state") as mock_state,
+        _no_sleep(),
+    ):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"], wait=True)
+
+    assert is_error_output(out)
+    assert "no detail returned" in out
+    mock_state.assert_not_awaited()
+
+
 # -- import (--wait) -------------------------------------------------------
 
 
@@ -246,6 +272,31 @@ def test_cmd_export_maps_403() -> None:
         out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"])
 
     assert out == "agentic-table: permission denied"
+
+
+def test_cmd_export_soft_failure_is_error() -> None:
+    with _patch(
+        "generate_artifact",
+        return_value={"status": False, "message": "nothing to export"},
+    ):
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"])
+
+    assert is_error_output(out)
+    assert "export rejected" in out
+    assert "nothing to export" in out
+
+
+def test_cmd_export_soft_failure_skips_wait() -> None:
+    """A declined generation must not poll for artifacts that were never queued."""
+    with (
+        _patch("generate_artifact", return_value={"status": False}),
+        _patch("list_artifacts") as mock_list,
+        _no_sleep(),
+    ):
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True)
+
+    assert is_error_output(out)
+    mock_list.assert_not_awaited()
 
 
 # -- export (--wait) -------------------------------------------------------
