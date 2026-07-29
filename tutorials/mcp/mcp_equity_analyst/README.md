@@ -1,4 +1,12 @@
-# FA Research MCP (fa-demo)
+# Equity Analyst MCP (formerly fa-demo / FA Research)
+
+> Folder renamed from `mcp_fa_research` on the handover branch — the inner
+> Python package (`src/mcp_fa_research`), the deployed web app
+> (`fa-research-mcp`) and its image name are unchanged. The server has grown to
+> **29 tools** (live quotes + charts, scenario engine, editable house views,
+> jobs engine, nightly SDK regeneration, Excel models, maker/checker) — see
+> `../FLORIAN-MCPS-HANDOVER.md`; the tool list below reflects the original
+> read-only core.
 
 Synthetic data layer for the Exane BNPP CIB sell-side research demo: the analyst
 cockpit feeds (coverage, dossier, 07:00 morning brief with the profit-warning
