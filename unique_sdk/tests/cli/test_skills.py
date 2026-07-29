@@ -56,10 +56,12 @@ def test_search_skill_does_not_reference_uploaded_search() -> None:
     assert "searching uploaded documents" not in text
 
 
-def test_agentic_table_skill_exists_and_documents_read_commands() -> None:
-    """The agentic-table skill is ungated (Tier 0 reads, server-side access
-    enforcement), so it ships in every workspace. It must name itself and
-    document each read command the CLI exposes."""
+def test_agentic_table_skill_documents_every_command() -> None:
+    """The agentic-table skill is ungated and carries the full command range,
+    reads and writes alike. Awareness gating was rejected because a user's
+    access varies per space and per sheet, so a per-space skill flag cannot
+    express what the agent may do; server-side authorization is the control.
+    The skill must therefore name itself and document every command."""
     text = _read_skill("unique-cli-agentic-table")
     assert "name: unique-cli-agentic-table" in text
     for command in (
@@ -67,16 +69,21 @@ def test_agentic_table_skill_exists_and_documents_read_commands() -> None:
         "agentic-table get-cell",
         "agentic-table cell-history",
         "agentic-table list-exports",
+        "agentic-table create-sheet",
+        "agentic-table import",
+        "agentic-table export",
     ):
         assert command in text, f"skill does not document `{command}`"
 
 
-def test_agentic_table_skill_is_read_only() -> None:
-    """Guard against write commands leaking into the ungated read skill: writes
-    have side-effects/authz needs and must live in a separate gated skill."""
+def test_agentic_table_skill_teaches_permission_handling() -> None:
+    """Because the skill advertises commands the caller may not be entitled to
+    use on a given sheet, it has to teach what to do about that: access varies
+    per sheet, a denial is an expected outcome rather than a failure to work
+    around, and probing other ids is not an acceptable response."""
     text = _read_skill("unique-cli-agentic-table").lower()
-    assert "read-only" in text
-    for write_command in ("set-cell", "set_cell", "update-cell", "delete"):
-        assert write_command not in text, (
-            f"ungated read skill must not document write command `{write_command}`"
-        )
+    assert "permission denied" in text
+    assert "per sheet" in text, "skill must state that access varies per sheet"
+    assert "probing" in text or "probe" in text, (
+        "skill must forbid probing other sheet ids after a denial"
+    )
