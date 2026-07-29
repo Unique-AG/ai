@@ -132,8 +132,14 @@ run; adding only sources does not.** Ids and texts already on the sheet are
 skipped. The call is rejected while the sheet is already processing.
 
 `--wait` blocks until the triggered run finishes (default timeout 600s) so you
-can chain an export. If only sources were added and no run started, that is
-reported as a note rather than an error.
+can chain an export.
+
+If you imported **only sources**, no run starts and the command succeeds with a
+note. If you imported **questions** and no run starts within 120s, the command
+fails: the run may just have been picked up late, and treating that as success
+would export a sheet that is still being answered. On that error, re-check the
+sheet state and retry the *export* — do not re-import, which will not start a
+second run for questions the sheet already has.
 
 ```bash
 unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src --wait

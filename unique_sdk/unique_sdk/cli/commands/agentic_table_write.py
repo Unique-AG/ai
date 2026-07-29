@@ -18,8 +18,11 @@ run/artifact polling mirrors ``AgenticTableService.wait_for_run`` /
 accepting a terminal state, so a state left over from an earlier run is not
 mistaken for the freshly triggered one.
 
-These commands always exist in the binary; whether an agent is told about them
-is controlled separately by the gated write skill (see UN-22200 / PR C).
+The skill documents these alongside the read commands rather than gating them
+behind a separate write skill: access varies per sheet, not per space, so a
+skill-level toggle cannot express it. Authorization is enforced server-side on
+every call, and the skill teaches the agent to check its access first and to
+treat a denial as information rather than as a failure to work around.
 """
 
 from __future__ import annotations
@@ -47,11 +50,10 @@ from unique_sdk.cli.state import ShellState
 AGENTIC_TABLE_ERROR_PREFIX = "agentic-table:"
 
 # Poll cadence and default budgets for the opt-in ``--wait`` flows. The run
-# start window is short: if a run has not begun by then the trigger almost
-# certainly added no new questions (import is delta-based), which is reported
-# rather than waited out for the full timeout.
+# start window matches ``AgenticTableService.wait_for_run`` so the CLI and the
+# toolkit agree on how long a pickup may take before it is treated as absent.
 _POLL_INTERVAL_SECONDS = 5.0
-_RUN_START_TIMEOUT_SECONDS = 30.0
+_RUN_START_TIMEOUT_SECONDS = 120.0
 _DEFAULT_WAIT_TIMEOUT_SECONDS = 600.0
 
 
@@ -143,9 +145,17 @@ def cmd_import(
     it; either way the command fails rather than falling through to the wait.
 
     With ``wait``, polls the sheet state until the triggered run finishes (or
-    ``timeout`` elapses) so the caller can chain an export. If no run starts
-    within the start window (e.g. only sources were added), that is reported as
-    a note rather than an error.
+    ``timeout`` elapses) so the caller can chain an export.
+
+    Whether an unobserved run is benign depends on what was submitted, so the
+    two cases are kept apart rather than both reported as a note. A
+    sources-only import never triggers a run, so nothing starting is the
+    expected outcome and the command succeeds. When questions were submitted a
+    run was expected, and not seeing one is indeterminate — the pickup may
+    simply be late — so the command fails rather than letting a ``&&`` chain
+    export a sheet that is still being answered. A re-import of questions the
+    sheet already has lands here too: also a no-op, but not one this command
+    can distinguish from a late pickup.
     """
     params: AgenticTable.AddMetaData = {"tableId": table_id}
     if question_file_ids:
@@ -177,6 +187,14 @@ def cmd_import(
             return (
                 f"{AGENTIC_TABLE_ERROR_PREFIX} timed out after {timeout:g}s waiting "
                 f"for the run to finish (sheet {table_id} still PROCESSING)"
+            )
+        if not started and (question_file_ids or question_texts):
+            window = min(_RUN_START_TIMEOUT_SECONDS, timeout)
+            return (
+                f"{AGENTIC_TABLE_ERROR_PREFIX} imported questions into sheet "
+                f"{table_id} but no run started within {window:g}s (state: "
+                f"{final_state}); it may still be picked up, so re-check the "
+                f"sheet state before exporting"
             )
         if output_json:
             return json.dumps(

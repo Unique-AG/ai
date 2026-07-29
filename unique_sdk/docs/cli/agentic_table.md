@@ -195,7 +195,9 @@ Created:           2026-01-01 00:00
 
 Import questions and/or source files into a sheet. Adding **new questions** (file ids or texts) triggers the agent run; adding only sources does not. Ids/texts already on the sheet are skipped. The call is rejected while the sheet is already processing.
 
-With `--wait`, the command blocks until the triggered run finishes (or `--timeout` elapses) so you can chain an `export`. If only sources were added (no run started), that is reported as a note, not an error.
+With `--wait`, the command blocks until the triggered run finishes (or `--timeout` elapses) so you can chain an `export`.
+
+What happens when no run is observed depends on what you submitted. A sources-only import never starts one, so that is reported as a note and the command succeeds. If you submitted questions, a run was expected — not seeing one within 120s is treated as an error, because the pickup may simply be late and exiting 0 would let a `&&` chain export a sheet that is still being answered. Re-check the sheet state and retry the export rather than the import. Re-importing questions the sheet already has produces the same error: also a no-op, but not one the command can tell apart from a late pickup.
 
 **Synopsis:**
 

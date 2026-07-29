@@ -215,6 +215,7 @@ def test_cmd_import_wait_run_finishes() -> None:
 
 
 def test_cmd_import_wait_no_run_started() -> None:
+    """Sources alone never trigger a run, so nothing starting is the expected outcome."""
     with (
         _patch("add_metadata", return_value=_OK),
         _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE),
@@ -226,6 +227,26 @@ def test_cmd_import_wait_no_run_started() -> None:
 
     assert "No agent run started" in out
     assert not is_error_output(out)
+
+
+def test_cmd_import_wait_questions_but_no_run_is_error() -> None:
+    """A run was expected but never observed: indeterminate, so break the chain.
+
+    Exiting 0 here would let the documented ``&&`` recipe export a sheet whose
+    answers are still being generated.
+    """
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=0.0
+        )
+
+    assert is_error_output(out)
+    assert "no run started" in out
+    assert "re-check the sheet state" in out
 
 
 def test_cmd_import_wait_timeout_is_error() -> None:
