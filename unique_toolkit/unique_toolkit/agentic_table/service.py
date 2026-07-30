@@ -648,6 +648,31 @@ class AgenticTableService:
                 result.get("message") or "Failed to trigger artifact generation"
             )
 
+    async def rerun_row(self, row_order: int) -> None:
+        """Re-run the agent for a single row (`POST .../row/{rowOrder}/rerun`).
+
+        The only way to re-answer part of a sheet: ``import_questions_and_sources``
+        is delta-based and will not re-answer a row that already exists.
+
+        Asynchronous, like the whole-sheet run: this triggers it and returns.
+        Follow with ``wait_for_run`` to block until the sheet leaves PROCESSING.
+
+        Args:
+            row_order: 1-based row position. Row 0 is the header and is rejected.
+
+        Raises:
+            Exception: If the API reports a non-success status, which includes a
+                locked or final row and a sheet that is already PROCESSING.
+        """
+        result = await AgenticTable.rerun_row(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            rowOrder=row_order,
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to trigger row rerun")
+
     async def list_artifacts(self) -> list[MagicTableArtifact]:
         """List export artifacts of the sheet (`GET .../artifacts`)."""
         artifacts = await AgenticTable.list_artifacts(

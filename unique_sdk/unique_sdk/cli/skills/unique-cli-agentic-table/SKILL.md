@@ -156,6 +156,28 @@ returns the same error.
 unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src --wait
 ```
 
+### Re-answer a single row
+
+```bash
+unique-cli agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <seconds>]
+```
+
+Use this to redo one answer. **Re-importing a question will not redo it** —
+import is delta-based and skips questions the sheet already has, so `rerun-row`
+is the only way to re-answer an existing row.
+
+`<row_order>` is 1-based; row 0 is the header and is rejected. A locked row, a
+row in a final review status, and any rerun while the sheet is processing are
+all declined — treat those as the sheet telling you the row is not yours to
+redo, not as something to retry or work around.
+
+A rerun always starts a run, so with `--wait` there is no benign "nothing
+started" case: if no run appears within 120s the command fails.
+
+```bash
+unique-cli agentic-table rerun-row mt_abc123 4 --wait
+```
+
 ### Export answers
 
 ```bash
@@ -194,6 +216,10 @@ To fill in an existing questionnaire from a sheet someone else has already
 answered, skip the create and import steps: read the answers with
 `get-sheet --cells` or `get-cell`, and use `cell-history` if you need to know
 whether an answer came from a person or the assistant.
+
+If a specific answer looks wrong or incomplete, fix that row with `rerun-row`
+and export again, rather than re-importing the question or rebuilding the
+sheet.
 
 ## Rules
 

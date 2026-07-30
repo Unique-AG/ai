@@ -601,6 +601,35 @@ class AgenticTable(APIResource["AgenticTable"]):
         )
 
     @classmethod
+    async def rerun_row(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        rowOrder: int,
+    ) -> MagicTableActionResult:
+        """Re-run the agent for a single row (`POST /magic-table/{tableId}/row/{rowOrder}/rerun`).
+
+        The only way to re-answer part of a sheet: importing questions is
+        delta-based, so it will not re-answer a row that already exists.
+
+        Asynchronous, like the whole-sheet run — the sheet enters ``PROCESSING``
+        and this returns once the trigger is accepted. ``rowOrder`` is 1-based;
+        row 0 is the header and is rejected by the API.
+        """
+        url = f"/magic-table/{tableId}/row/{rowOrder}/rerun"
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                {},
+            ),
+        )
+
+    @classmethod
     async def list_artifacts(
         cls,
         user_id: str,

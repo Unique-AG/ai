@@ -237,6 +237,43 @@ Run finished (state: IDLE).
 
 ---
 
+## agentic-table rerun-row
+
+Re-run the agent for a single row. This is the only way to redo one answer: `import` is delta-based and skips questions the sheet already has, so it will not re-answer an existing row.
+
+`<row_order>` is 1-based; row 0 is the header and is rejected. The backend also declines a row that is locked or in a final review status, and any rerun while the sheet is already processing.
+
+Like the whole-sheet run, a rerun is asynchronous. With `--wait`, the command polls until the sheet leaves `PROCESSING`. Unlike `import`, a rerun always triggers a run, so there is no benign "nothing started" case — not observing one within 120s is an error.
+
+**Synopsis:**
+
+```
+agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <seconds>] [--json]
+```
+
+**Options:**
+
+| Option | Description | Default |
+| --- | --- | --- |
+| `--wait` | Wait for the triggered rerun to finish | off |
+| `--timeout` | Max seconds to wait when `--wait` is set | 600 |
+| `--json` | Print raw JSON | off |
+
+**Example:**
+
+```bash
+unique-cli agentic-table rerun-row mt_abc123 4 --wait
+```
+
+```
+Action:  rerun
+Result:  OK
+Detail:  accepted
+Row 4 rerun finished (state: IDLE).
+```
+
+---
+
 ## agentic-table export
 
 Generate export artifacts (`FULL_REPORT`, `QUESTIONS`, `AGENTIC_REPORT`). Generation is asynchronous. With `--wait`, the command polls until each requested type is `DONE` and prints the artifact table with the `contentId` to download; an artifact entering `ERROR` fails fast.

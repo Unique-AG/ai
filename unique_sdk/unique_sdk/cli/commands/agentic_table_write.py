@@ -4,6 +4,7 @@ The full-loop write slice over the public magic-table API (``2023-12-06``):
 
 - ``create-sheet`` — create an empty sheet in a space.
 - ``import`` — add questions/sources; adding new questions triggers the agent run.
+- ``rerun-row`` — re-run the agent for a single row.
 - ``export`` — generate export artifacts (report / question export) and list them.
 
 Together these let an agent build a sheet, run it, and collect the answers it
@@ -281,6 +282,80 @@ def cmd_import(
             else "No agent run started (import adds a run only for new questions)."
         )
         return f"{format_agentic_table_action_result(result, action='import')}\n{note}"
+
+    try:
+        return asyncio.run(_run())
+    except UniqueError as exc:
+        return _error(exc)
+
+
+def cmd_rerun_row(
+    state: ShellState,
+    table_id: str,
+    row_order: int,
+    *,
+    wait: bool = False,
+    timeout: float = _DEFAULT_WAIT_TIMEOUT_SECONDS,
+    output_json: bool = False,
+) -> str:
+    """Re-run the agent for one row (``POST .../row/{rowOrder}/rerun``).
+
+    The only way to re-answer part of a sheet: ``import`` is delta-based and
+    skips questions the sheet already has, so it cannot redo an existing row.
+
+    ``row_order`` is 1-based; row 0 is the header and is rejected by the API.
+    The backend also declines a row that is locked or in a final review status,
+    and any rerun while the sheet is already ``PROCESSING``.
+
+    Unlike ``import``, a rerun always triggers a run, so there is no benign
+    "nothing started" case: with ``wait``, not observing one is an error.
+    """
+
+    async def _run() -> str:
+        result = await AgenticTable.rerun_row(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            tableId=table_id,
+            rowOrder=row_order,
+        )
+        if not result.get("status"):
+            return _rejected(result, action="rerun")
+        if output_json and not wait:
+            return json.dumps({"result": result}, indent=2, default=str)
+        if not wait:
+            return format_agentic_table_action_result(result, action="rerun")
+
+        started, final_state, timed_out = await _wait_for_run(
+            state, table_id, timeout=timeout
+        )
+        if timed_out:
+            return (
+                f"{AGENTIC_TABLE_ERROR_PREFIX} timed out after {timeout:g}s waiting "
+                f"for the row {row_order} rerun to finish (sheet {table_id} still "
+                "PROCESSING)"
+            )
+        if not started:
+            window = min(_RUN_START_TIMEOUT_SECONDS, timeout)
+            return (
+                f"{AGENTIC_TABLE_ERROR_PREFIX} rerun of row {row_order} on sheet "
+                f"{table_id} was accepted but no run started within {window:g}s "
+                f"(state: {final_state}); it may still be picked up, so re-check "
+                "the sheet state before reading the row back"
+            )
+        if output_json:
+            return json.dumps(
+                {
+                    "result": result,
+                    "rowOrder": row_order,
+                    "finalState": str(final_state) if final_state else None,
+                },
+                indent=2,
+                default=str,
+            )
+        return (
+            f"{format_agentic_table_action_result(result, action='rerun')}\n"
+            f"Row {row_order} rerun finished (state: {final_state})."
+        )
 
     try:
         return asyncio.run(_run())
