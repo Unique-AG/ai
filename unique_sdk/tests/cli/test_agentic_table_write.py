@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from unittest.mock import AsyncMock, patch
 
 from click.testing import CliRunner
@@ -14,11 +15,13 @@ from unique_sdk.api_resources._agentic_table import (
     MagicTableArtifactType,
 )
 from unique_sdk.cli.cli import main as cli_main
+from unique_sdk.cli.commands.agentic_table import is_error_output
 from unique_sdk.cli.commands.agentic_table_write import (
+    _FAST_POLL_WINDOW_SECONDS,
+    _poll_interval,
     cmd_create_sheet,
     cmd_export,
     cmd_import,
-    is_error_output,
 )
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
@@ -247,7 +250,7 @@ def test_cmd_import_wait_questions_but_no_run_is_error() -> None:
 
     assert is_error_output(out)
     assert "no run started" in out
-    assert "re-check the sheet state" in out
+    assert "before exporting" in out, "must steer away from exporting an unrun sheet"
 
 
 def test_cmd_import_wait_timeout_is_error() -> None:
@@ -510,3 +513,166 @@ def test_cli_write_error_exits_non_zero(mock_cmd: object) -> None:
 
     assert result.exit_code == 1
     assert result.output.strip() == "agentic-table: permission denied"
+
+
+# -- polling behaviour -----------------------------------------------------
+
+
+def test_poll_interval_is_dense_before_settling() -> None:
+    """A short run fits inside one settled interval, so the opening window is
+    sampled closely; otherwise a run that finished looks like one that never
+    started."""
+    now = time.monotonic()
+    assert _poll_interval(now, 5.0) == 1.0
+    assert _poll_interval(now - _FAST_POLL_WINDOW_SECONDS - 1, 5.0) == 5.0
+
+
+def test_poll_interval_never_exceeds_the_callers_interval() -> None:
+    assert _poll_interval(time.monotonic(), 0.25) == 0.25
+
+
+def test_wait_survives_a_transient_read_failure() -> None:
+    """The write already landed, so one failed poll must not report it as failed."""
+    states = [
+        UniqueError("bad gateway", http_status=502),
+        AgenticTableSheetState.PROCESSING,
+        AgenticTableSheetState.IDLE,
+    ]
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=60.0
+        )
+
+    assert not is_error_output(out)
+    assert "Run finished" in out
+
+
+def test_wait_does_not_retry_a_denial() -> None:
+    """A 403 is a decision rather than a blip: retrying only delays the report."""
+    with (
+        _patch(
+            "get_sheet_state", side_effect=UniqueError("nope", http_status=403)
+        ) as mock_state,
+        _patch("add_metadata", return_value=_OK),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=60.0
+        )
+
+    assert out == "agentic-table: permission denied"
+    assert mock_state.await_count == 1
+
+
+def test_wait_gives_up_after_repeated_read_failures() -> None:
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", side_effect=UniqueError("down", http_status=502)),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=60.0
+        )
+
+    assert is_error_output(out)
+
+
+def test_export_wait_accepts_a_new_artifact_with_no_timestamp() -> None:
+    """Freshness falls back to identity when ``updatedAt`` is absent.
+
+    Comparing two missing timestamps would exclude the artifact on every poll
+    and hang the wait on a generation that had in fact succeeded.
+    """
+    stale = _artifact("FULL_REPORT", "IN_PROGRESS")
+    fresh = {
+        "id": "art_new",
+        "artifactType": "FULL_REPORT",
+        "artifactState": "DONE",
+        "contentId": "cont_1",
+    }
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=[[stale], [stale, fresh]]),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(),
+            "mt_1",
+            artifact_types=[MagicTableArtifactType.FULL_REPORT],
+            wait=True,
+            timeout=60.0,
+        )
+
+    assert not is_error_output(out)
+    assert "cont_1" in out
+
+
+# -- --json shapes under --wait --------------------------------------------
+
+
+def test_cmd_import_wait_json_shape() -> None:
+    """Agents pipe this to jq, so the keys --wait adds are part of the contract."""
+    states = [
+        AgenticTableSheetState.IDLE,
+        AgenticTableSheetState.PROCESSING,
+        AgenticTableSheetState.IDLE,
+    ]
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(),
+            "mt_1",
+            question_texts=["q?"],
+            wait=True,
+            timeout=60.0,
+            output_json=True,
+        )
+
+    payload = json.loads(out)
+    assert payload["result"] == _OK
+    assert payload["runStarted"] is True
+    assert payload["finalState"] == "IDLE"
+
+
+def test_cmd_export_wait_json_shape() -> None:
+    stale = _artifact("FULL_REPORT", "DONE", updated_at="2026-01-01T00:00:00.000Z")
+    fresh = _artifact(
+        "FULL_REPORT",
+        "DONE",
+        content_id="cont_1",
+        updated_at="2026-01-02T00:00:00.000Z",
+    )
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=[[stale], [stale, fresh]]),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(),
+            "mt_1",
+            artifact_types=[MagicTableArtifactType.FULL_REPORT],
+            wait=True,
+            timeout=60.0,
+            output_json=True,
+        )
+
+    payload = json.loads(out)
+    assert payload["result"] == _OK
+    assert [a["contentId"] for a in payload["artifacts"]] == ["cont_1"]
+
+
+def test_missing_status_field_is_not_reported_as_a_rejection() -> None:
+    """An unintelligible body may mean the mutation landed; do not invite a retry."""
+    with _patch("add_metadata", return_value={}):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"])
+
+    assert is_error_output(out)
+    assert "outcome is unknown" in out
+    assert "rejected" not in out

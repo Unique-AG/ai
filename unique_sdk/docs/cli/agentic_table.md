@@ -197,14 +197,16 @@ Import questions and/or source files into a sheet. Adding **new questions** (fil
 
 With `--wait`, the command blocks until the triggered run finishes (or `--timeout` elapses) so you can chain an `export`.
 
-What happens when no run is observed depends on what you submitted. A sources-only import never starts one, so that is reported as a note and the command succeeds. If you submitted questions, a run was expected — not seeing one within 120s is treated as an error, because the pickup may simply be late and exiting 0 would let a `&&` chain export a sheet that is still being answered. Re-check the sheet state and retry the export rather than the import. Re-importing questions the sheet already has produces the same error: also a no-op, but not one the command can tell apart from a late pickup.
+A run leaves no durable record of itself, so the wait has to catch the sheet in `PROCESSING`. A very short run can pass through between two polls; polling is dense over the opening seconds to narrow that window, but it cannot close it — that needs a per-run signal the public API does not expose yet ([UN-23683](https://unique-ch.atlassian.net/browse/UN-23683)). Transient read failures during the wait are retried, since the import itself has already been accepted by then.
+
+What happens when no run is observed depends on what you submitted. A sources-only import never starts one, so that is reported as a note and the command succeeds. If you submitted questions, a run was expected — not seeing one within 120s is treated as an error, because the pickup may simply be late and exiting 0 would let a `&&` chain export a sheet that is still being answered. The outcome is then unknown rather than failed: poll `get-sheet` until the state settles on `IDLE` and the imported rows carry answers, and export only after that. Exporting straight away would report unanswered rows as the result. Re-importing is not the answer either — questions the sheet already has produce the same error: also a no-op, but not one the command can tell apart from a late pickup.
 
 **Synopsis:**
 
 ```
 agentic-table import <table_id> [--question-file-id <id>]... [--question-text <text>]...
                                 [--source-file-id <id>]... [--context <text>]
-                                [--wait] [--timeout <seconds>] [--json]
+                                [--wait] [--timeout <seconds>] [--start-timeout <seconds>] [--json]
 ```
 
 **Options:**
@@ -217,7 +219,8 @@ agentic-table import <table_id> [--question-file-id <id>]... [--question-text <t
 | `--context` | Free-text context for the run | |
 | `--wait` | Wait for the triggered run to finish | off |
 | `--timeout` | Max seconds to wait when `--wait` is set | 600 |
-| `--json` | Print raw JSON | off |
+| `--start-timeout` | Max seconds to wait for the run to be picked up, before treating it as never started. Counts against `--timeout`. Raise it when the worker queue is slow | 120 |
+| `--json` | Print raw JSON. `--wait` adds `runStarted` and `finalState` alongside `result` | off |
 
 **Example:**
 
@@ -251,7 +254,7 @@ agentic-table export <table_id> --type <TYPE>... [--wait] [--timeout <seconds>] 
 | `--type` | Artifact type: `FULL_REPORT`, `QUESTIONS`, or `AGENTIC_REPORT` (repeatable, required) | |
 | `--wait` | Wait for the requested artifacts to be ready, then list them | off |
 | `--timeout` | Max seconds to wait when `--wait` is set | 600 |
-| `--json` | Print raw JSON | off |
+| `--json` | Print raw JSON. `--wait` adds `artifacts` alongside `result` | off |
 
 **Example:**
 
@@ -272,13 +275,16 @@ FULL_REPORT  DONE   artifact_1   cont_export  2026-01-01 00:01
 
 ## Full-loop recipe
 
-Create a sheet, populate and run it, then export the answers. Because every step exits non-zero on failure — including a rejection the backend reports in the response body rather than as an HTTP error — the steps can be chained with `&&`:
+Create a sheet, populate and run it, then export the answers. Every step exits non-zero on failure — including a rejection the backend reports in the response body rather than as an HTTP error — so the steps can be chained with `&&`:
 
 ```bash
-SHEET=$(unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ" --json | jq -r .sheetId) && \
+SHEET_JSON=$(unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ" --json) && \
+SHEET=$(printf '%s' "$SHEET_JSON" | jq -r .sheetId) && \
 unique-cli agentic-table import "$SHEET" --question-file-id c_questions --source-file-id c_sources --wait && \
 unique-cli agentic-table export "$SHEET" --type FULL_REPORT --wait && \
 unique-cli agentic-table get-sheet "$SHEET" --cells
 ```
+
+Capture the JSON and parse it in two steps rather than piping `create-sheet` straight into `jq`. A shell assignment takes the exit status of the last command in the pipeline, so `SHEET=$(unique-cli ... | jq ...)` reports `jq`'s status and discards the CLI's. Errors go to stderr, so `jq` would read empty input, print nothing and succeed — leaving `$SHEET` empty and the `&&` chain running on against a sheet that was never created. Splitting the assignment puts the CLI's own exit status back in the chain. `set -o pipefail` also works if the recipe runs inside a script you control.
 
 Read the produced answers with `get-sheet --cells` / `get-cell` and download an export via the Content API using the `contentId` shown by `export` / `list-exports`.

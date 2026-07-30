@@ -21,8 +21,11 @@ Commands fall into two groups:
 
 - **Read (Tier 0)** — `get-sheet`, `get-cell`, `cell-history`, `list-exports`.
   Never modify anything, never need confirmation.
-- **Write** — `create-sheet`, `import`, `export`. These create a sheet, add
-  questions and sources, start the agent run, and produce export artifacts.
+- **Write (Tier 1)** — `create-sheet`, `import`, `export`. These create a sheet,
+  add questions and sources, start the agent run, and produce export artifacts.
+  They add to a sheet rather than overwriting existing answers, so they do not
+  prompt for confirmation — but they do change a shared artifact, so say what
+  you did afterwards. Nothing here deletes or replaces a human's answer.
 
 ## Permissions
 
@@ -31,11 +34,14 @@ trip you up, because it is not uniform: the same user can own one sheet, hold
 edit access on a second, and read-only access on a third. Do not assume that
 succeeding on one sheet means you can do the same thing on another.
 
-There is no command yet that reports your access level on a sheet, so:
+There is no command yet that reports your access level on a sheet. Until there
+is, you cannot establish up front what you are allowed to do — a successful
+`get-sheet` proves the sheet exists and you can read it, and nothing more. So:
 
-1. Start with a read (`get-sheet`) before attempting a write on a sheet you
-   have not touched in this session. It costs one call and tells you whether
-   the sheet is reachable at all.
+1. Attempt the operation and handle the outcome. Do not treat a read as a
+   permission check for a write; it is not one. A read first is still worth it
+   when you need the sheet's shape or row numbers anyway, or to fail early on
+   an id that does not resolve.
 2. Treat `agentic-table: permission denied` as **information, not failure**.
    It means the current user lacks the level that operation needs. Report it
    and ask the user how to proceed.
@@ -137,9 +143,14 @@ can chain an export.
 If you imported **only sources**, no run starts and the command succeeds with a
 note. If you imported **questions** and no run starts within 120s, the command
 fails: the run may just have been picked up late, and treating that as success
-would export a sheet that is still being answered. On that error, re-check the
-sheet state and retry the *export* — do not re-import, which will not start a
-second run for questions the sheet already has.
+would export a sheet that is still being answered.
+
+That error means the outcome is unknown, not that the import failed. Do **not**
+export yet — an export now would report unanswered rows as if they were the
+result. Poll `get-sheet` until the state settles on `IDLE` and the rows you
+imported have answers, and only then export. Do not re-import either: the
+questions are already on the sheet, so a second import starts no run and
+returns the same error.
 
 ```bash
 unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src --wait
@@ -163,14 +174,21 @@ unique-cli agentic-table export mt_abc123 --type FULL_REPORT --wait
 
 Create a sheet, populate and run it, then read the answers. Every step exits
 non-zero on failure — including a rejection the backend reports in the response
-body rather than as an HTTP error — so the steps chain safely with `&&`:
+body rather than as an HTTP error — so the steps chain with `&&`:
 
 ```bash
-SHEET=$(unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ" --json | jq -r .sheetId) && \
+SHEET_JSON=$(unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ" --json) && \
+SHEET=$(printf '%s' "$SHEET_JSON" | jq -r .sheetId) && \
 unique-cli agentic-table import "$SHEET" --question-file-id c_questions --source-file-id c_sources --wait && \
 unique-cli agentic-table export "$SHEET" --type FULL_REPORT --wait && \
 unique-cli agentic-table get-sheet "$SHEET" --cells
 ```
+
+Capture the JSON first and parse it in a second step, as above. Do **not** pipe
+`create-sheet` directly into `jq`: an assignment takes the exit status of the
+last command in the pipeline, so the CLI's failure is discarded, and because
+errors go to stderr `jq` reads empty input and succeeds — leaving `$SHEET`
+empty and the rest of the chain running against a sheet that does not exist.
 
 To fill in an existing questionnaire from a sheet someone else has already
 answered, skip the create and import steps: read the answers with

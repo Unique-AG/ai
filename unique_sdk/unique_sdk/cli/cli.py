@@ -23,9 +23,6 @@ from unique_sdk.cli.commands.agentic_table_write import (
     cmd_export,
     cmd_import,
 )
-from unique_sdk.cli.commands.agentic_table_write import (
-    is_error_output as _is_agentic_table_write_error_output,
-)
 from unique_sdk.cli.commands.browser import (
     cmd_browser_action,
     cmd_browser_control,
@@ -2531,7 +2528,7 @@ def agentic_table_create_sheet(
             due_at=due_at,
             output_json=output_json,
         ),
-        is_error=_is_agentic_table_write_error_output,
+        is_error=_is_agentic_table_error_output,
     )
 
 
@@ -2574,6 +2571,17 @@ def agentic_table_create_sheet(
     help="Max seconds to wait when --wait is set.",
 )
 @click.option(
+    "--start-timeout",
+    "start_timeout",
+    type=float,
+    default=120.0,
+    show_default=True,
+    help=(
+        "Max seconds to wait for the run to be picked up before treating it as "
+        "never started. Raise it when the worker queue is slow."
+    ),
+)
+@click.option(
     "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
 )
 @click.pass_context
@@ -2586,6 +2594,7 @@ def agentic_table_import(
     context: str | None,
     wait: bool,
     timeout: float,
+    start_timeout: float,
     output_json: bool,
 ) -> None:
     """Import questions and sources into a sheet.
@@ -2610,9 +2619,10 @@ def agentic_table_import(
             context=context,
             wait=wait,
             timeout=timeout,
+            start_timeout=start_timeout,
             output_json=output_json,
         ),
-        is_error=_is_agentic_table_write_error_output,
+        is_error=_is_agentic_table_error_output,
     )
 
 
@@ -2673,5 +2683,5 @@ def agentic_table_export(
             timeout=timeout,
             output_json=output_json,
         ),
-        is_error=_is_agentic_table_write_error_output,
+        is_error=_is_agentic_table_error_output,
     )

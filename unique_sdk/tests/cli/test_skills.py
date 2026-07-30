@@ -18,9 +18,13 @@ wheel, and a regression here is invisible to ordinary import/CLI tests.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
+import click
+
 import unique_sdk.cli
+from unique_sdk.cli.cli import main
 
 _SKILLS_DIR = Path(unique_sdk.cli.__file__).parent / "skills"
 
@@ -74,6 +78,24 @@ def test_agentic_table_skill_documents_every_command() -> None:
         "agentic-table export",
     ):
         assert command in text, f"skill does not document `{command}`"
+
+
+def test_agentic_table_skill_documents_nothing_that_is_not_a_command() -> None:
+    """The upper bound on an ungated skill.
+
+    Awareness gating was rejected, so nothing stops a command being described
+    here — but a name the CLI does not implement is worse than an absent one:
+    the agent will spend a turn on it and get a usage error. This also catches a
+    command that is renamed or dropped without the skill following.
+    """
+    shell = "\n".join(
+        re.findall(r"```bash\n(.*?)```", _read_skill("unique-cli-agentic-table"), re.S)
+    )
+    documented = set(re.findall(r"unique-cli agentic-table ([a-z][a-z-]*)", shell))
+    group = main.commands["agentic-table"]
+    assert isinstance(group, click.Group)
+    unknown = documented - set(group.commands)
+    assert not unknown, f"skill documents commands the CLI does not have: {unknown}"
 
 
 def test_agentic_table_skill_teaches_permission_handling() -> None:

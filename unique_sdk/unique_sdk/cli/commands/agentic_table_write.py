@@ -11,18 +11,23 @@ already reads with the Tier 0 commands in ``agentic_table.py``. Writes are the
 first callers of the lifecycle mutations, so the write-path error mapping
 (permission denied, sheet-processing, locked-row) lands here.
 
-Each mutation is fire-and-forget by default; ``--wait`` opts into polling the
-sheet/artifact state to completion so a caller can chain the next step. The
-run/artifact polling mirrors ``AgenticTableService.wait_for_run`` /
-``wait_for_artifacts``: it waits for the work to be observed *starting* before
-accepting a terminal state, so a state left over from an earlier run is not
-mistaken for the freshly triggered one.
+Each mutation is fire-and-forget by default; ``--wait`` opts into polling to
+completion so a caller can chain the next step. Both waits have to tell the
+result of *this* trigger apart from state left over from an earlier one, and
+they do it differently because the evidence differs:
+
+- Artifacts are durable records, so ``_wait_for_artifacts`` compares against a
+  snapshot taken before the trigger and accepts only what is new.
+- A run leaves no durable record, so ``_wait_for_run`` has to catch the sheet in
+  ``PROCESSING`` — which a short run can pass through between two polls. Dense
+  early polling narrows that window; only a per-run signal from the backend
+  would close it (UN-23683).
 
 The skill documents these alongside the read commands rather than gating them
 behind a separate write skill: access varies per sheet, not per space, so a
 skill-level toggle cannot express it. Authorization is enforced server-side on
-every call, and the skill teaches the agent to check its access first and to
-treat a denial as information rather than as a failure to work around.
+every call, and the skill teaches the agent to attempt the operation and treat
+a denial as information rather than as a failure to work around.
 """
 
 from __future__ import annotations
@@ -30,6 +35,8 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from collections.abc import Awaitable, Callable
+from typing import NamedTuple, TypeVar
 
 from unique_sdk._error import UniqueError
 from unique_sdk.api_resources._agentic_table import (
@@ -40,14 +47,18 @@ from unique_sdk.api_resources._agentic_table import (
     MagicTableArtifactState,
     MagicTableArtifactType,
 )
+
+# Reads and writes are one CLI group under one error prefix, so they share the
+# prefix and the `is_error_output` predicate that goes with it, both of which
+# live with the reads. Other command modules own a prefix each and define their
+# own predicate; here a second copy would just be the same string twice.
+from unique_sdk.cli.commands.agentic_table import AGENTIC_TABLE_ERROR_PREFIX
 from unique_sdk.cli.formatting import (
     format_agentic_table_action_result,
     format_agentic_table_artifacts,
     format_agentic_table_created_sheet,
 )
 from unique_sdk.cli.state import ShellState
-
-AGENTIC_TABLE_ERROR_PREFIX = "agentic-table:"
 
 # Poll cadence and default budgets for the opt-in ``--wait`` flows. The run
 # start window matches ``AgenticTableService.wait_for_run`` so the CLI and the
@@ -56,10 +67,51 @@ _POLL_INTERVAL_SECONDS = 5.0
 _RUN_START_TIMEOUT_SECONDS = 120.0
 _DEFAULT_WAIT_TIMEOUT_SECONDS = 600.0
 
+# Sheet state is the only evidence that a run happened at all, and it is
+# transient: a small sheet can be picked up and finished well inside one
+# ``_POLL_INTERVAL_SECONDS``, leaving a completed run indistinguishable from one
+# that never started. Sample densely over the window where a short run lives.
+_FAST_POLL_INTERVAL_SECONDS = 1.0
+_FAST_POLL_WINDOW_SECONDS = 20.0
 
-def is_error_output(output: str) -> bool:
-    """Return ``True`` when *output* is an error message from an ``agentic-table`` write command."""
-    return output.startswith(AGENTIC_TABLE_ERROR_PREFIX)
+# A poll is an idempotent read issued *after* the mutation has landed, so a
+# blip on one request must not be reported as the write having failed.
+_POLL_READ_ATTEMPTS = 3
+_POLL_READ_BACKOFF_SECONDS = 1.0
+
+_T = TypeVar("_T")
+
+
+def _poll_interval(started_at: float, interval: float) -> float:
+    """Poll densely at first, then settle to *interval*.
+
+    A run is only visible while it is in flight, and a small sheet can be picked
+    up and finished well inside one 5s interval — which looks identical to a run
+    that never started. Sampling the opening seconds closely shrinks that blind
+    spot without holding a ten-minute wait at a high request rate.
+    """
+    if time.monotonic() - started_at < _FAST_POLL_WINDOW_SECONDS:
+        return min(_FAST_POLL_INTERVAL_SECONDS, interval)
+    return interval
+
+
+async def _poll_read(read: Callable[[], Awaitable[_T]]) -> _T:
+    """Run one polling read, absorbing a transient failure.
+
+    Polls happen after the mutation has already been accepted, so letting a
+    single failed request end the wait would report a write that landed as an
+    error. A 4xx is not retried: it is a decision rather than a blip, and it
+    will read the same way on the next attempt.
+    """
+    for attempt in range(_POLL_READ_ATTEMPTS):
+        try:
+            return await read()
+        except UniqueError as exc:
+            client_error = exc.http_status is not None and 400 <= exc.http_status < 500
+            if client_error or attempt == _POLL_READ_ATTEMPTS - 1:
+                raise
+            await asyncio.sleep(_POLL_READ_BACKOFF_SECONDS)
+    raise AssertionError("unreachable: the loop either returns or raises")
 
 
 def _error(exc: UniqueError) -> str:
@@ -84,7 +136,17 @@ def _rejected(result: MagicTableActionResult, *, action: str) -> str:
     would exit 0 and let an agent's ``&&`` chain continue — exporting stale
     answers after an import that never landed. ``AgenticTableService`` raises in
     the same situation.
+
+    A body with no ``status`` field at all is a different case and says so: the
+    request was not declined, it was unintelligible, and the mutation may well
+    have been applied. Collapsing that into "rejected" would invite a retry.
     """
+    if "status" not in result:
+        return (
+            f"{AGENTIC_TABLE_ERROR_PREFIX} {action} returned a response with no status "
+            "field, so the outcome is unknown — it may have been applied. Check the "
+            "sheet before retrying."
+        )
     message = result.get("message") or "no detail returned"
     return f"{AGENTIC_TABLE_ERROR_PREFIX} {action} rejected: {message}"
 
@@ -134,6 +196,7 @@ def cmd_import(
     context: str | None = None,
     wait: bool = False,
     timeout: float = _DEFAULT_WAIT_TIMEOUT_SECONDS,
+    start_timeout: float = _RUN_START_TIMEOUT_SECONDS,
     output_json: bool = False,
 ) -> str:
     """Import questions/sources into a sheet (``POST /magic-table/{id}/metadata``).
@@ -156,6 +219,10 @@ def cmd_import(
     export a sheet that is still being answered. A re-import of questions the
     sheet already has lands here too: also a no-op, but not one this command
     can distinguish from a late pickup.
+
+    ``start_timeout`` bounds how long a pickup may take before it is treated as
+    absent; raise it when the worker queue is known to be slow, since a run that
+    has not been picked up yet is not the same thing as a run that will not be.
     """
     params: AgenticTable.AddMetaData = {"tableId": table_id}
     if question_file_ids:
@@ -181,7 +248,7 @@ def cmd_import(
             return format_agentic_table_action_result(result, action="import")
 
         started, final_state, timed_out = await _wait_for_run(
-            state, table_id, timeout=timeout
+            state, table_id, timeout=timeout, start_timeout=start_timeout
         )
         if started and timed_out:
             return (
@@ -189,12 +256,14 @@ def cmd_import(
                 f"for the run to finish (sheet {table_id} still PROCESSING)"
             )
         if not started and (question_file_ids or question_texts):
-            window = min(_RUN_START_TIMEOUT_SECONDS, timeout)
+            window = min(start_timeout, timeout)
             return (
                 f"{AGENTIC_TABLE_ERROR_PREFIX} imported questions into sheet "
                 f"{table_id} but no run started within {window:g}s (state: "
-                f"{final_state}); it may still be picked up, so re-check the "
-                f"sheet state before exporting"
+                f"{final_state}); the questions are on the sheet and may still be "
+                f"picked up, or may already have been answered. Poll get-sheet until "
+                f"the state settles and the rows have answers before exporting — an "
+                f"export now would report unanswered rows"
             )
         if output_json:
             return json.dumps(
@@ -241,7 +310,9 @@ def cmd_export(
 
     async def _run() -> str:
         since = (
-            await _latest_artifact_timestamps(state, table_id, wanted) if wait else {}
+            await _artifact_baseline(state, table_id, wanted)
+            if wait
+            else _ArtifactBaseline(ids=frozenset(), latest={})
         )
         result = await AgenticTable.generate_artifact(
             user_id=state.config.user_id,
@@ -300,6 +371,12 @@ async def _wait_for_run(
     the sheet to enter ``PROCESSING`` (bounded by the shorter of ``start_timeout``
     and ``timeout``), then wait for it to leave ``PROCESSING``.
 
+    The first phase is inherently lossy: ``PROCESSING`` is transient, so a run
+    that finishes between two polls is indistinguishable from one that never
+    began. Polling densely at the start (see ``_poll_interval``) narrows the gap
+    but does not close it; closing it needs a durable per-run or per-row signal
+    from the backend, which the public API does not expose yet (UN-23683).
+
     Returns ``(started, final_state, timed_out)``:
     - ``(False, last_state, False)`` — no run began within the start window.
     - ``(True, terminal_state, False)`` — the run started and finished.
@@ -307,54 +384,104 @@ async def _wait_for_run(
     """
 
     async def _state() -> AgenticTableSheetState:
-        return await AgenticTable.get_sheet_state(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            tableId=table_id,
+        return await _poll_read(
+            lambda: AgenticTable.get_sheet_state(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                tableId=table_id,
+            )
         )
 
-    overall_deadline = time.monotonic() + timeout
-    start_deadline = time.monotonic() + min(start_timeout, timeout)
+    began_at = time.monotonic()
+    overall_deadline = began_at + timeout
+    start_deadline = began_at + min(start_timeout, timeout)
     current = await _state()
     while current != AgenticTableSheetState.PROCESSING:
         if time.monotonic() >= start_deadline:
             return False, current, False
-        await asyncio.sleep(interval)
+        await asyncio.sleep(_poll_interval(began_at, interval))
         current = await _state()
 
     while current == AgenticTableSheetState.PROCESSING:
         if time.monotonic() >= overall_deadline:
             return True, current, True
-        await asyncio.sleep(interval)
+        await asyncio.sleep(_poll_interval(began_at, interval))
         current = await _state()
     return True, current, False
 
 
-async def _latest_artifact_timestamps(
+async def _list_artifacts(state: ShellState, table_id: str) -> list[MagicTableArtifact]:
+    return await _poll_read(
+        lambda: AgenticTable.list_artifacts(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            tableId=table_id,
+        )
+    )
+
+
+class _ArtifactBaseline(NamedTuple):
+    """What the sheet's artifacts looked like before a generation was triggered.
+
+    ``ids`` are the records that already existed; ``latest`` is the newest
+    ``updatedAt`` per requested type. Two signals rather than one because either
+    can be absent: ``updatedAt`` is optional in the payload, and a record can be
+    refreshed in place rather than replaced.
+    """
+
+    ids: frozenset[str]
+    latest: dict[MagicTableArtifactType, str]
+
+
+async def _artifact_baseline(
     state: ShellState,
     table_id: str,
     wanted_types: list[MagicTableArtifactType],
-) -> dict[MagicTableArtifactType, str]:
-    """Newest ``updatedAt`` per requested type, for use as a freshness baseline.
+) -> _ArtifactBaseline:
+    """Snapshot the artifacts of interest before triggering a generation.
 
-    Taken before triggering a generation so the wait can tell the resulting
-    artifact apart from one left over from an earlier run.
+    Taken up front so the wait can tell the resulting artifact apart from one
+    left over from an earlier run.
     """
     wanted = set(wanted_types)
-    artifacts = await AgenticTable.list_artifacts(
-        user_id=state.config.user_id,
-        company_id=state.config.company_id,
-        tableId=table_id,
-    )
+    artifacts = await _list_artifacts(state, table_id)
+    ids: set[str] = set()
     latest: dict[MagicTableArtifactType, str] = {}
     for artifact in artifacts:
         artifact_type = artifact.get("artifactType")
         if artifact_type is None or artifact_type not in wanted:
             continue
+        artifact_id = artifact.get("id")
+        if artifact_id is not None:
+            ids.add(artifact_id)
         updated_at = artifact.get("updatedAt") or ""
         if updated_at > latest.get(artifact_type, ""):
             latest[artifact_type] = updated_at
-    return latest
+    return _ArtifactBaseline(ids=frozenset(ids), latest=latest)
+
+
+def _is_fresh(artifact: MagicTableArtifact, baseline: _ArtifactBaseline) -> bool:
+    """Whether *artifact* came out of the generation that was just triggered.
+
+    Identity first: a record that did not exist before the trigger is new, which
+    is how a finished report normally arrives — the backend stores it under its
+    filename, as a separate row from the nameless ``IN_PROGRESS`` marker.
+
+    ``updatedAt`` is the fallback, for a record refreshed in place. It has to be
+    the fallback rather than the primary signal because it is optional in the
+    payload: comparing two absent values would exclude the artifact on every
+    poll and hang the wait on a generation that had in fact succeeded. The
+    comparison is textual, which holds while the backend emits ISO-8601 in UTC
+    at a fixed precision; if that ever changes, identity still carries the case.
+    """
+    artifact_id = artifact.get("id")
+    if artifact_id is not None and artifact_id not in baseline.ids:
+        return True
+    artifact_type = artifact.get("artifactType")
+    if artifact_type is None:
+        return False
+    updated_at = artifact.get("updatedAt") or ""
+    return bool(updated_at) and updated_at > baseline.latest.get(artifact_type, "")
 
 
 async def _wait_for_artifacts(
@@ -362,15 +489,15 @@ async def _wait_for_artifacts(
     table_id: str,
     wanted_types: list[MagicTableArtifactType],
     *,
-    since: dict[MagicTableArtifactType, str],
+    since: _ArtifactBaseline,
     timeout: float,
     interval: float = _POLL_INTERVAL_SECONDS,
 ) -> tuple[str, list[MagicTableArtifact], list[str]]:
     """Poll ``list_artifacts`` until the requested types are freshly ``DONE``.
 
-    ``since`` is the pre-trigger output of ``_latest_artifact_timestamps``; an
-    artifact counts only once its ``updatedAt`` has moved past that baseline, so
-    a report left over from an earlier generation is never mistaken for this one.
+    ``since`` is the pre-trigger snapshot from ``_artifact_baseline``; an
+    artifact counts only once ``_is_fresh`` recognises it, so a report left over
+    from an earlier generation is never mistaken for this one.
 
     Freshness rather than an observed ``IN_PROGRESS`` phase is the signal
     deliberately. A sheet holds more than one artifact of a type — the trigger
@@ -386,20 +513,17 @@ async def _wait_for_artifacts(
     - ``"timeout"`` — ``missing`` lists the type values not yet DONE.
     """
     wanted = set(wanted_types)
-    deadline = time.monotonic() + timeout
+    began_at = time.monotonic()
+    deadline = began_at + timeout
     while True:
-        artifacts = await AgenticTable.list_artifacts(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            tableId=table_id,
-        )
+        artifacts = await _list_artifacts(state, table_id)
         done: dict[MagicTableArtifactType, MagicTableArtifact] = {}
         failed: list[MagicTableArtifact] = []
         for artifact in artifacts:
             artifact_type = artifact.get("artifactType")
             if artifact_type is None or artifact_type not in wanted:
                 continue
-            if (artifact.get("updatedAt") or "") <= since.get(artifact_type, ""):
+            if not _is_fresh(artifact, since):
                 continue
             artifact_state = artifact.get("artifactState")
             if artifact_state == MagicTableArtifactState.DONE:
@@ -413,4 +537,4 @@ async def _wait_for_artifacts(
         if time.monotonic() >= deadline:
             missing = sorted(str(t) for t in wanted - set(done.keys()))
             return "timeout", [], missing
-        await asyncio.sleep(interval)
+        await asyncio.sleep(_poll_interval(began_at, interval))
