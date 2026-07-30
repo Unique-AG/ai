@@ -52,7 +52,7 @@ elicit ask <message> [options]
 | `--schema` | | single required `answer` string | JSON Schema for the form body. |
 | `--chat-id` | `-c` | none | Attach the elicitation to a chat. |
 | `--message-id` | `-m` | none | Attach to a specific message. |
-| `--expires-in` | | none | Seconds before the platform auto-expires the request. |
+| `--expires-in` | | `--timeout`'s value | Seconds before the platform auto-expires the request, decoupled from `--timeout`. See "Decoupling expiry from the local wait" below. |
 | `--timeout` | | `7200` | Max seconds to block locally while polling. |
 | `--poll-interval` | | `2.0` | Seconds between polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
@@ -134,6 +134,57 @@ Updated:    2026-04-16 14:22
 ```
 
 Agents parse the JSON after `Response:` to get the structured answer.
+
+### Decoupling expiry from the local wait
+
+By default `ask` has a single knob: `--timeout` is both how long this process
+blocks polling *and* when the elicitation expires on the platform (it sends
+`--timeout`'s value as the server-side `expiresIn`). That coupling exists so
+the backend's short default expiry never leaves a record `PENDING` after the
+CLI has already stopped waiting.
+
+Pass `--expires-in` to decouple the two:
+
+```bash
+# Elicitation stays live on the platform for 2 hours even though this
+# process only waits 5 minutes before returning a "still PENDING" result.
+unique-cli elicit ask "Approve this change?" --expires-in 7200 --timeout 300
+```
+
+Use this when the caller's own wait budget is shorter than how long a human
+should realistically have to answer -- e.g. a harness with its own
+foreground-wait timeout. Without `--expires-in`, the request would expire
+under the user at the low `--timeout` value before they ever see it; with
+it, the request outlives the process and a later `elicit wait <id>` call (or
+another `ask`-style re-poll) can still pick up the answer. Omitting
+`--expires-in` reproduces exactly today's coupled behavior.
+
+### Elicitation-created stderr line
+
+Immediately after `ask` creates the elicitation -- before it starts polling
+-- it writes one line to **stderr** (never stdout):
+
+```
+UNIQUE_ELICITATION_CREATED id=<id> expires_at=<iso8601>
+```
+
+This is a stable, greppable, machine-readable line intended for callers
+(harnesses, wrapper scripts) that want the elicitation id the instant it
+exists, instead of polling `elicit pending` to discover it. It does not
+change `ask`'s stdout output in any way.
+
+### Transient-failure retries
+
+While polling, `ask` (via the same `cmd_elicit_wait` logic used by the
+standalone `elicit wait` command) retries transient failures -- connection
+errors, timeouts, and 5xx responses -- with bounded exponential backoff,
+instead of ending the wait on the first dropped connection. Each retry is
+logged to stderr with the attempt number and backoff delay. 4xx errors are
+not retried (they cannot succeed on retry). Retries are always bounded by
+the overall `--timeout` (or, for the standalone `elicit wait` command, the
+`--timeout` passed to it) -- a persistent failure still gives up once that
+budget is exhausted, returning the same `elicit: <error>` output as before
+this retry logic existed.
 
 !!! tip "Scripting"
     Extract the response with `awk` + `jq`:
@@ -264,6 +315,8 @@ unique-cli elicit wait elicit_9a7b --timeout 120
 ```
 
 On timeout, the CLI prints `elicit: still PENDING after Ns waiting for <id> (last status: PENDING) — this is NOT a stopping condition`, followed by an explicit `elicit wait` invocation to run again and the last observed snapshot. The elicitation remains live on the platform -- call `elicit wait` again to resume; a non-terminal timeout is never itself a reason to stop.
+
+Transient failures while polling (connection errors, timeouts, 5xx) are retried with bounded exponential backoff, logged to stderr, and bounded by the overall `--timeout` -- see "Transient-failure retries" under `elicit ask` above for details (the retry logic is shared between `ask` and `wait`).
 
 ---
 

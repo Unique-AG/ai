@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
 
 import unique_sdk
@@ -36,6 +37,23 @@ TERMINAL_STATUSES = {
     "EXPIRED",
     "COMPLETED",
 }
+
+# --- Transient-failure retry (UN-23310) ---------------------------------
+#
+# ``cmd_elicit_wait`` used to return on the very first ``APIError`` /
+# ``APIConnectionError`` raised mid-poll, treating a transient 502 the same
+# as a genuine terminal condition. Now that a single ``elicit ask`` call is
+# expected to carry the whole wait unsupervised, that one dropped connection
+# would otherwise cost the entire turn. These constants bound the retry
+# loop's backoff; the overall ``--timeout`` remains the hard outer bound.
+TRANSIENT_RETRY_BASE_SECONDS = 1.0
+TRANSIENT_RETRY_MAX_BACKOFF_SECONDS = 30.0
+
+# Prefix for the machine-readable line ``cmd_elicit_ask`` writes to stderr
+# immediately after creating the elicitation, before it starts polling. Kept
+# as a module constant so producer (here) and any future consumer/tests stay
+# in lockstep on the exact contract string.
+ELICITATION_CREATED_STDERR_PREFIX = "UNIQUE_ELICITATION_CREATED"
 
 # --- Visibility workaround for UN-19815 ---------------------------------
 #
@@ -632,6 +650,74 @@ def cmd_elicit_respond(
         return f"elicit: {exc}"
 
 
+def _is_transient_api_failure(exc: BaseException) -> bool:
+    """Return ``True`` if *exc* is worth retrying.
+
+    Transient: connection-level failures (timeouts, resets --
+    ``APIConnectionError``) and ``APIError``s with no HTTP status or a 5xx
+    status. Not transient: 4xx client errors, which cannot succeed on
+    retry -- retrying those would just burn the wait budget on a request
+    that is doomed regardless.
+
+    Note ``InvalidRequestError`` / ``AuthenticationError`` / ``PermissionError``
+    are not ``APIError`` subclasses and are not matched here; they propagate
+    unchanged, exactly as they did before this retry logic existed.
+    """
+    if isinstance(exc, unique_sdk.APIConnectionError):
+        return True
+    if isinstance(exc, unique_sdk.APIError):
+        status = getattr(exc, "http_status", None)
+        return status is None or status >= 500
+    return False
+
+
+def _get_elicitation_with_retry(
+    state: ShellState,
+    elicitation_id: str,
+    *,
+    deadline: float,
+) -> dict[str, Any]:
+    """Fetch an elicitation, retrying transient failures with backoff.
+
+    Retries are bounded by *deadline* (a ``time.monotonic()`` timestamp) --
+    once it passes, the last exception is re-raised so the caller's overall
+    ``--timeout`` is always the hard outer bound, never exceeded by retries.
+    Non-transient failures (see :func:`_is_transient_api_failure`) are
+    re-raised immediately without retrying. Each retry is logged to stderr
+    with the attempt number and backoff so a string of dropped connections
+    is diagnosable instead of silently eating the wait budget.
+    """
+    backoff = TRANSIENT_RETRY_BASE_SECONDS
+    attempt = 0
+    while True:
+        try:
+            return dict(
+                unique_sdk.Elicitation.get_elicitation(
+                    user_id=state.config.user_id,
+                    company_id=state.config.company_id,
+                    elicitation_id=elicitation_id,
+                )
+            )
+        except (unique_sdk.APIError, unique_sdk.APIConnectionError) as exc:
+            if not _is_transient_api_failure(exc):
+                raise
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise
+            attempt += 1
+            sleep_for = max(
+                0.0, min(backoff, TRANSIENT_RETRY_MAX_BACKOFF_SECONDS, remaining)
+            )
+            print(
+                f"elicit: transient error on attempt {attempt} fetching "
+                f"{elicitation_id} ({exc}); retrying in {sleep_for:.1f}s",
+                file=sys.stderr,
+            )
+            if sleep_for > 0:
+                time.sleep(sleep_for)
+            backoff = min(backoff * 2, TRANSIENT_RETRY_MAX_BACKOFF_SECONDS)
+
+
 def cmd_elicit_wait(
     state: ShellState,
     elicitation_id: str,
@@ -658,12 +744,10 @@ def cmd_elicit_wait(
     try:
         deadline = time.monotonic() + max(1, timeout)
         while True:
-            elicitation = unique_sdk.Elicitation.get_elicitation(
-                user_id=state.config.user_id,
-                company_id=state.config.company_id,
-                elicitation_id=elicitation_id,
+            elicitation = _get_elicitation_with_retry(
+                state, elicitation_id, deadline=deadline
             )
-            last = dict(elicitation)
+            last = elicitation
             status = str(elicitation.get("status", "")).upper()
             if status in TERMINAL_STATUSES:
                 terminal_status = status
@@ -675,12 +759,8 @@ def cmd_elicit_wait(
                 # same instant; this fetch forces the backend's lazy expiry to
                 # run so we report a clean EXPIRED — and publish it to the chat
                 # subscription — instead of a stale PENDING.
-                final = dict(
-                    unique_sdk.Elicitation.get_elicitation(
-                        user_id=state.config.user_id,
-                        company_id=state.config.company_id,
-                        elicitation_id=elicitation_id,
-                    )
+                final = _get_elicitation_with_retry(
+                    state, elicitation_id, deadline=deadline
                 )
                 last = final
                 final_status = str(final.get("status", "")).upper()
@@ -703,7 +783,7 @@ def cmd_elicit_wait(
                     f"{format_elicitation(last)}"
                 )
             time.sleep(poll_interval)
-    except unique_sdk.APIError as exc:
+    except (unique_sdk.APIError, unique_sdk.APIConnectionError) as exc:
         return f"elicit: {exc}"
     finally:
         # If the poll loop exited before we ever received a response
@@ -720,7 +800,7 @@ def cmd_elicit_wait(
                         elicitation_id=elicitation_id,
                     )
                 )
-            except unique_sdk.APIError:
+            except (unique_sdk.APIError, unique_sdk.APIConnectionError):
                 last = None
         ctx = _extract_visibility_context(last)
         if ctx is not None:
@@ -735,6 +815,36 @@ def cmd_elicit_wait(
             )
 
 
+def _emit_elicitation_created_stderr_line(
+    elicitation_id: str,
+    expires_at: object,
+    expires_in_seconds: int,
+) -> None:
+    """Write the ``UNIQUE_ELICITATION_CREATED`` contract line to stderr.
+
+    Format (stable, greppable, one line, stderr only)::
+
+        UNIQUE_ELICITATION_CREATED id=<id> expires_at=<iso8601>
+
+    Prefers the platform-returned ``expiresAt`` (authoritative); falls back
+    to a locally computed timestamp if the platform omitted it, so the line
+    is always emitted with a usable value.
+    """
+    if isinstance(expires_at, str) and expires_at:
+        resolved_expires_at = expires_at
+    else:
+        resolved_expires_at = (
+            (datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in_seconds))
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
+        )
+    print(
+        f"{ELICITATION_CREATED_STDERR_PREFIX} id={elicitation_id} "
+        f"expires_at={resolved_expires_at}",
+        file=sys.stderr,
+    )
+
+
 def cmd_elicit_ask(
     state: ShellState,
     *,
@@ -745,6 +855,7 @@ def cmd_elicit_ask(
     message_id: str | None = None,
     timeout: int = DEFAULT_WAIT_TIMEOUT_SECONDS,
     poll_interval: float = DEFAULT_POLL_INTERVAL_SECONDS,
+    expires_in_seconds: int | None = None,
     metadata: list[tuple[str, str]] | None = None,
     visible: bool = True,
     assistant_id: str | None = None,
@@ -756,6 +867,23 @@ def cmd_elicit_ask(
     When no ``--schema`` is passed, a minimal single-field form asking for a
     free-text ``answer`` is used. This is the preferred entry point when an
     agent needs to ask the user a clarifying question.
+
+    ``expires_in_seconds``, when given, decouples the server-side expiry
+    (``expiresInSeconds`` sent to the platform) from ``timeout`` (how long
+    *this process* blocks polling). When omitted (the default), behaviour is
+    unchanged from before this parameter existed: the elicitation expires
+    exactly when the local wait gives up, coupling the two. Pass this when
+    the caller's own wait budget (e.g. a harness's foreground timeout) is
+    shorter than how long a human should realistically have to answer --
+    otherwise the elicitation expires under the user before they see it.
+
+    Immediately after creation (before polling starts), a single line is
+    written to stderr for callers that want the elicitation id without
+    polling the pending list:
+
+        UNIQUE_ELICITATION_CREATED id=<id> expires_at=<iso8601>
+
+    This is stderr-only and does not change stdout's format.
 
     When ``chat_id`` is set and ``visible`` is ``True`` (the default), the
     elicitation is wrapped in a placeholder thinking timeline so the chat UI
@@ -778,16 +906,17 @@ def cmd_elicit_ask(
                 "required": ["answer"],
             }
 
-        # `ask` exposes a single knob: `--timeout` is both how long we wait and
-        # when the record expires. The two are always the same here, so the
-        # backend's default (5 minutes) never leaves the record PENDING after
-        # we have stopped waiting — which would otherwise prevent the chat UI
-        # from flipping the prompt to EXPIRED and offering the user a way to
-        # continue. The poll loop below reads the freshly EXPIRED record and the
-        # elicitation subscription delivers the terminal status to the chat.
-        # (Use `elicit create --expires-in` if you need expiry decoupled from a
-        # local wait.)
-        expires_in_seconds = timeout
+        # By default `ask` exposes a single knob: `--timeout` is both how long
+        # we wait and when the record expires. The two are the same unless the
+        # caller passes `--expires-in` explicitly, so the backend's default (5
+        # minutes) never leaves the record PENDING after we have stopped
+        # waiting — which would otherwise prevent the chat UI from flipping
+        # the prompt to EXPIRED and offering the user a way to continue. The
+        # poll loop below reads the freshly EXPIRED record and the elicitation
+        # subscription delivers the terminal status to the chat.
+        effective_expires_in_seconds = (
+            expires_in_seconds if expires_in_seconds is not None else timeout
+        )
 
         user_metadata = _parse_metadata_pairs(metadata)
         effective_message_id = message_id
@@ -836,7 +965,7 @@ def cmd_elicit_ask(
             url=None,
             chat_id=chat_id,
             message_id=effective_message_id,
-            expires_in_seconds=expires_in_seconds,
+            expires_in_seconds=effective_expires_in_seconds,
             external_elicitation_id=None,
             metadata=user_metadata,
         )
@@ -855,6 +984,12 @@ def cmd_elicit_ask(
         if not elicitation_id:
             _cleanup_placeholder_if_needed()
             return "elicit: platform did not return an elicitation id"
+
+        _emit_elicitation_created_stderr_line(
+            elicitation_id,
+            elicitation.get("expiresAt"),
+            effective_expires_in_seconds,
+        )
 
         # ``cmd_elicit_wait`` handles its own placeholder teardown by
         # reading the markers back from the elicitation's metadata.
