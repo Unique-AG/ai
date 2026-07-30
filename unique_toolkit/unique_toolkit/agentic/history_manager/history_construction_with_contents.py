@@ -5,14 +5,13 @@ import logging
 import mimetypes
 from datetime import datetime
 from enum import StrEnum
-from itertools import groupby
+from itertools import accumulate, groupby
 from typing import TYPE_CHECKING, Callable, Iterator
 
 if TYPE_CHECKING:
     from unique_toolkit.content.schemas import ContentChunk
     from unique_toolkit.language_model.builder import MessagesBuilder
 
-import numpy as np
 from pydantic import RootModel
 
 from unique_toolkit._common.token.token_counting import (
@@ -691,7 +690,7 @@ def limit_to_token_window(
         encode=encode,
     )
 
-    to_take: list[bool] = (np.cumsum(token_per_message_reversed) < token_limit).tolist()
+    to_take = [total < token_limit for total in accumulate(token_per_message_reversed)]
     to_take.reverse()
 
     return LanguageModelMessages(

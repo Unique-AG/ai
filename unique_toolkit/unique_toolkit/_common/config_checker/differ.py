@@ -5,7 +5,6 @@ import logging
 import re
 from typing import Any
 
-from deepdiff import DeepDiff
 from pydantic import BaseModel, Field
 
 from unique_toolkit._common.config_checker.models import DefaultChange
@@ -54,6 +53,10 @@ class ConfigDiffer:
         Returns:
             List of DefaultChange objects for any differences
         """
+        # deepdiff drags in pandas, which costs ~1.5s of import time in every
+        # service that only ever wants ``register_config`` from this package.
+        from deepdiff import DeepDiff
+
         from unique_toolkit._common.config_checker.exporter import ConfigExporter
 
         new_json = ConfigExporter._serialize_model(new_instance)
