@@ -128,6 +128,21 @@ def regen_env(env: str, progress=None, rebase: bool | None = None) -> dict:
                 expected = review_ids.get(tk)
                 if name == "review.html" and expected and cid and cid != expected:
                     result["id_drift"].append(f"{tk}: {expected} -> {cid}")
+                if name == "review.html" and cid:
+                    # display name: "LVMH Review", not "review.html" — the
+                    # path-upsert resets the title to the filename every regen,
+                    # so re-apply it here (cosmetic; never fails the run).
+                    disp = next((c0["name"] for c0 in seed.COVERAGE
+                                 if c0["ticker"] == tk), "")
+                    if disp:
+                        try:
+                            import unique_sdk
+                            cr = SDK_CREDS[env]
+                            unique_sdk.Content.update(
+                                cr["user_id"], cr["company_id"],
+                                contentId=cid, title=f"{disp} Review")
+                        except Exception:
+                            pass
                 result["files"] += 1
                 if progress:
                     progress(result["files"], total, relpath, cid)
