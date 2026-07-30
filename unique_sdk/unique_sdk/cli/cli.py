@@ -2549,7 +2549,10 @@ def agentic_table_import(
 
 @agentic_table.command(name="rerun-row")
 @click.argument("table_id")
-@click.argument("row_order", type=int)
+# Rejected locally rather than by the endpoint: a rerun is an audited write, so
+# a row number that cannot refer to an answerable row would otherwise cost a
+# round trip and leave an audit entry for input the client could see was wrong.
+@click.argument("row_order", type=click.IntRange(min=1))
 @click.option(
     "--wait",
     "wait",
@@ -2566,6 +2569,17 @@ def agentic_table_import(
     help="Max seconds to wait when --wait is set.",
 )
 @click.option(
+    "--start-timeout",
+    "start_timeout",
+    type=float,
+    default=120.0,
+    show_default=True,
+    help=(
+        "Max seconds to wait for the rerun to be picked up before treating it "
+        "as never started. Raise it when the worker queue is slow."
+    ),
+)
+@click.option(
     "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
 )
 @click.pass_context
@@ -2575,15 +2589,17 @@ def agentic_table_rerun_row(
     row_order: int,
     wait: bool,
     timeout: float,
+    start_timeout: float,
     output_json: bool,
 ) -> None:
     """Re-run the agent for a single row.
 
     \b
     Use this to redo one answer: import is delta-based and skips questions the
-    sheet already has, so it cannot re-answer an existing row. ROW_ORDER is
-    1-based; row 0 is the header. A locked or final row is rejected, as is any
-    rerun while the sheet is already processing.
+    sheet already has, so it cannot re-answer an existing row. ROW_ORDER is the
+    same number get-cell --row takes: row 0 is the header, so answerable rows
+    start at 1. A locked or final row is rejected; so is a rerun while the sheet
+    is already processing, which clears once the current run finishes.
 
     \b
     Examples:
@@ -2597,9 +2613,10 @@ def agentic_table_rerun_row(
             row_order,
             wait=wait,
             timeout=timeout,
+            start_timeout=start_timeout,
             output_json=output_json,
         ),
-        is_error=_is_agentic_table_write_error_output,
+        is_error=_is_agentic_table_error_output,
     )
 
 

@@ -21,11 +21,17 @@ Commands fall into two groups:
 
 - **Read (Tier 0)** — `get-sheet`, `get-cell`, `cell-history`, `list-exports`.
   Never modify anything, never need confirmation.
-- **Write (Tier 1)** — `create-sheet`, `import`, `export`. These create a sheet,
-  add questions and sources, start the agent run, and produce export artifacts.
-  They add to a sheet rather than overwriting existing answers, so they do not
-  prompt for confirmation — but they do change a shared artifact, so say what
-  you did afterwards. Nothing here deletes or replaces a human's answer.
+- **Write (Tier 1)** — `create-sheet`, `import`, `export`, `rerun-row`. These
+  create a sheet, add questions and sources, start the agent run, produce
+  export artifacts, and redo a single answer. None of them prompts for
+  confirmation, but they do change a shared artifact, so say what you did
+  afterwards.
+
+  The first three only add. `rerun-row` is the exception: it replaces the
+  answer in the row you name. The previous answer stays in `cell-history` and
+  a settled row is refused outright, so the change is recoverable and the
+  approved rows are protected — but name the row you are redoing when you
+  report back, and check you have the right one first.
 
 ## Permissions
 
@@ -166,10 +172,19 @@ Use this to redo one answer. **Re-importing a question will not redo it** —
 import is delta-based and skips questions the sheet already has, so `rerun-row`
 is the only way to re-answer an existing row.
 
-`<row_order>` is 1-based; row 0 is the header and is rejected. A locked row, a
-row in a final review status, and any rerun while the sheet is processing are
-all declined — treat those as the sheet telling you the row is not yours to
-redo, not as something to retry or work around.
+`<row_order>` uses **the same numbering as `--row` on `get-cell`**: row 0 is the
+header, data rows start at 1. So the row you inspected with
+`get-cell --row 4` is the row you redo with `rerun-row <table_id> 4` — no
+offset. Row 0 is rejected, since there is nothing to answer in a header.
+
+Two kinds of refusal, which need different responses:
+
+- **The row is not yours to redo.** A locked row, or one in a final review
+  status, is declined because a person has settled that answer. Report it; do
+  not look for a way around it.
+- **Not now.** A rerun while the sheet is already processing is declined
+  because only one run may be in flight. That clears by itself — wait for the
+  current run to finish and try again.
 
 A rerun always starts a run, so with `--wait` there is no benign "nothing
 started" case: if no run appears within 120s the command fails.
@@ -177,6 +192,11 @@ started" case: if no run appears within 120s the command fails.
 ```bash
 unique-cli agentic-table rerun-row mt_abc123 4 --wait
 ```
+
+To redo several rows, do them one at a time with `--wait`: the sheet takes one
+run at a time, so a second `rerun-row` fired before the first finishes is
+declined. There is no batch form. If most of the sheet needs redoing, consider
+a fresh sheet instead.
 
 ### Export answers
 
@@ -223,7 +243,10 @@ sheet.
 
 ## Rules
 
-1. `--row` and `--col` are **0-based** orders. Row 0 is the header row.
+1. Rows and columns are numbered from 0, and row 0 is the header — so the first
+   question is row 1. This holds for `--row`/`--col` on `get-cell` and
+   `cell-history` and for `<row_order>` on `rerun-row` alike; the same number
+   means the same row in every command.
 2. Fetch what you need, not everything. `get-cell` for one value,
    `get-sheet --cells` for an overview — don't dump a whole sheet unless asked.
 3. Use `--wait` when a later step depends on the result, and only then. Without

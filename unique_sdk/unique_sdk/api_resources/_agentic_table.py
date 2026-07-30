@@ -614,8 +614,11 @@ class AgenticTable(APIResource["AgenticTable"]):
         delta-based, so it will not re-answer a row that already exists.
 
         Asynchronous, like the whole-sheet run — the sheet enters ``PROCESSING``
-        and this returns once the trigger is accepted. ``rowOrder`` is 1-based;
-        row 0 is the header and is rejected by the API.
+        and this returns once the trigger is accepted.
+
+        ``rowOrder`` is the sheet's own row numbering, the same one ``get_cell``
+        takes: row 0 is the header, so answerable rows start at 1 and row 0 is
+        rejected by the API.
         """
         url = f"/magic-table/{tableId}/row/{rowOrder}/rerun"
         return cast(

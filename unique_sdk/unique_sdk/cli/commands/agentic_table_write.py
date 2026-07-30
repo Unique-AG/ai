@@ -296,6 +296,7 @@ def cmd_rerun_row(
     *,
     wait: bool = False,
     timeout: float = _DEFAULT_WAIT_TIMEOUT_SECONDS,
+    start_timeout: float = _RUN_START_TIMEOUT_SECONDS,
     output_json: bool = False,
 ) -> str:
     """Re-run the agent for one row (``POST .../row/{rowOrder}/rerun``).
@@ -303,12 +304,18 @@ def cmd_rerun_row(
     The only way to re-answer part of a sheet: ``import`` is delta-based and
     skips questions the sheet already has, so it cannot redo an existing row.
 
-    ``row_order`` is 1-based; row 0 is the header and is rejected by the API.
-    The backend also declines a row that is locked or in a final review status,
-    and any rerun while the sheet is already ``PROCESSING``.
+    ``row_order`` is the same number ``get-cell --row`` takes — row 0 is the
+    header, so answerable rows start at 1 — and the CLI rejects anything below
+    that before the request is made. The backend declines a row that is locked
+    or in a final review status, and any rerun while the sheet is already
+    ``PROCESSING``.
 
     Unlike ``import``, a rerun always triggers a run, so there is no benign
     "nothing started" case: with ``wait``, not observing one is an error.
+
+    The wait watches *sheet* state, which on a shared sheet cannot be attributed
+    to this row's rerun specifically: a run someone else started looks the same.
+    A row-level signal would fix that (UN-23683).
     """
 
     async def _run() -> str:
@@ -326,7 +333,7 @@ def cmd_rerun_row(
             return format_agentic_table_action_result(result, action="rerun")
 
         started, final_state, timed_out = await _wait_for_run(
-            state, table_id, timeout=timeout
+            state, table_id, timeout=timeout, start_timeout=start_timeout
         )
         if timed_out:
             return (
@@ -335,12 +342,13 @@ def cmd_rerun_row(
                 "PROCESSING)"
             )
         if not started:
-            window = min(_RUN_START_TIMEOUT_SECONDS, timeout)
+            window = min(start_timeout, timeout)
             return (
                 f"{AGENTIC_TABLE_ERROR_PREFIX} rerun of row {row_order} on sheet "
-                f"{table_id} was accepted but no run started within {window:g}s "
-                f"(state: {final_state}); it may still be picked up, so re-check "
-                "the sheet state before reading the row back"
+                f"{table_id} was accepted but no run was observed within "
+                f"{window:g}s (state: {final_state}); it may have finished between "
+                "polls or may still be waiting to be picked up, so read the row "
+                "back with cell-history to see whether it was re-answered"
             )
         if output_json:
             return json.dumps(

@@ -241,14 +241,20 @@ Run finished (state: IDLE).
 
 Re-run the agent for a single row. This is the only way to redo one answer: `import` is delta-based and skips questions the sheet already has, so it will not re-answer an existing row.
 
-`<row_order>` is 1-based; row 0 is the header and is rejected. The backend also declines a row that is locked or in a final review status, and any rerun while the sheet is already processing.
+`<row_order>` is the same number `get-cell --row` takes: row 0 is the header, so answerable rows start at 1. `get-cell --row 4` and `rerun-row <table_id> 4` address the same row — there is no offset between the two commands. Values below 1 are rejected by the CLI before the request is made, since a rerun is an audited write and there is no point spending an audit entry on input that cannot be valid.
 
-Like the whole-sheet run, a rerun is asynchronous. With `--wait`, the command polls until the sheet leaves `PROCESSING`. Unlike `import`, a rerun always triggers a run, so there is no benign "nothing started" case — not observing one within 120s is an error.
+The backend declines a row that is locked or in a final review status — a person has settled that answer — and also declines any rerun while the sheet is already processing, which is transient and clears once the current run finishes.
+
+Like the whole-sheet run, a rerun is asynchronous. With `--wait`, the command polls until the sheet leaves `PROCESSING`. Unlike `import`, a rerun always triggers a run, so there is no benign "nothing started" case — not observing one within the start window is an error.
+
+Two limits worth knowing. A rerun is the fastest operation in the system, so it can finish between two polls and be reported as never observed; the error text says so, and `cell-history` on the row settles it. And the wait watches *sheet* state, so on a shared sheet it cannot tell your rerun from a run someone else started. Both need a row-level signal the API does not expose yet ([UN-23683](https://unique-ch.atlassian.net/browse/UN-23683)).
+
+To redo several rows, run them one at a time with `--wait`: the sheet accepts one run at a time, so a second `rerun-row` issued before the first finishes is declined. There is no batch form.
 
 **Synopsis:**
 
 ```
-agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <seconds>] [--json]
+agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <seconds>] [--start-timeout <seconds>] [--json]
 ```
 
 **Options:**
@@ -257,7 +263,8 @@ agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <seconds>] [-
 | --- | --- | --- |
 | `--wait` | Wait for the triggered rerun to finish | off |
 | `--timeout` | Max seconds to wait when `--wait` is set | 600 |
-| `--json` | Print raw JSON | off |
+| `--start-timeout` | Max seconds to wait for the rerun to be picked up, before treating it as never started. Counts against `--timeout` | 120 |
+| `--json` | Print raw JSON. `--wait` adds `rowOrder` and `finalState` alongside `result` | off |
 
 **Example:**
 

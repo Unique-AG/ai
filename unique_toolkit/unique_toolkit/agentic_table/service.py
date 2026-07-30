@@ -658,7 +658,9 @@ class AgenticTableService:
         Follow with ``wait_for_run`` to block until the sheet leaves PROCESSING.
 
         Args:
-            row_order: 1-based row position. Row 0 is the header and is rejected.
+            row_order: Row position in the sheet's own numbering, where row 0 is
+                the header — so answerable rows start at 1, and row 0 is
+                rejected. Same numbering as ``get_cell``.
 
         Raises:
             Exception: If the API reports a non-success status, which includes a

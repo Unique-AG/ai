@@ -497,7 +497,7 @@ def test_cmd_rerun_row_wait_run_finishes() -> None:
 
 
 def test_cmd_rerun_row_wait_no_run_is_error() -> None:
-    """A rerun always triggers a run, so nothing starting is never benign."""
+    """A rerun always triggers a run, so nothing observed is never benign."""
     with (
         _patch("rerun_row", return_value=_OK),
         _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE),
@@ -506,7 +506,8 @@ def test_cmd_rerun_row_wait_no_run_is_error() -> None:
         out = cmd_rerun_row(_state(), "mt_1", 4, wait=True, timeout=0.0)
 
     assert is_error_output(out)
-    assert "no run started" in out
+    assert "no run was observed" in out
+    assert "cell-history" in out, "must say how to settle an unobserved rerun"
 
 
 def test_cmd_rerun_row_wait_timeout_is_error() -> None:
@@ -614,6 +615,50 @@ def test_cli_rerun_row_rejects_non_integer_row(mock_cmd: object) -> None:
     )
 
     assert result.exit_code != 0
+
+
+@pytest.mark.parametrize("row", ["0", "-5"])
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
+def test_cli_rerun_row_rejects_unanswerable_rows_locally(
+    mock_cmd: object, row: str
+) -> None:
+    """Row 0 is the header and negatives address nothing.
+
+    A rerun is an audited write, so refusing these before the request keeps the
+    audit log free of entries the client could see were never valid.
+    """
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "rerun-row", "mt_1", row],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+    mock_cmd.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_cmd_rerun_row_wait_json_shape() -> None:
+    """Agents pipe this to jq, so the keys --wait adds are part of the contract."""
+    states = [
+        AgenticTableSheetState.IDLE,
+        AgenticTableSheetState.PROCESSING,
+        AgenticTableSheetState.IDLE,
+    ]
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(
+            _state(), "mt_1", 4, wait=True, timeout=60.0, output_json=True
+        )
+
+    payload = json.loads(out)
+    assert payload["result"] == _OK
+    assert payload["rowOrder"] == 4
+    assert payload["finalState"] == "IDLE"
 
 
 @patch("unique_sdk.cli.cli.cmd_export")
