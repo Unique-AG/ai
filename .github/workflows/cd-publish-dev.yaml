@@ -53,6 +53,33 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Which packages to cut: "all", or a single package id (e.g. sdk).'
+        required: true
+        type: choice
+        options:
+          - all
+          - sdk
+          - toolkit
+          - mcp
+          - orchestrator
+          - web_search
+          - swot
+          - follow_up_questions
+          - stock_ticker
+          - user_memory
+          - deep_research
+          - internal_search
+          - skill_tool
+          - quartr
+          - six
+          - search_proxy
+          - search_proxy_core
+          - search_proxy_sdk
+          - uqadm
+        default: all
 
 permissions:
   contents: read
@@ -66,7 +93,9 @@ jobs:
     # Skip when the push is the automated dev-bump commit itself — merging
     # that PR only updates pyproject.toml version pins and must not trigger
     # a new publish cycle.
-    if: "!startsWith(github.event.head_commit.message, 'chore: bump dev versions')"
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || !startsWith(github.event.head_commit.message, 'chore: bump dev versions')
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.publishable.outputs.matrix }}
@@ -77,6 +106,14 @@ jobs:
       cycle: ${{ steps.calver.outputs.cycle }}
       cut_sha: ${{ github.sha }}
     steps:
+      - name: Reject dispatch from a non-main ref
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+        run: |
+          echo "::error::dev cuts can only be dispatched from main, got '${DISPATCH_REF}'"
+          exit 1
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Enough history for paths-filter to diff before..after.
@@ -87,7 +124,13 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
+          DISPATCH_PACKAGES: ${{ inputs.packages }}
         run: |
+          if [[ -n "$DISPATCH_PACKAGES" ]]; then
+            echo "manual dispatch — selected=${DISPATCH_PACKAGES}" >&2
+            echo "selected=${DISPATCH_PACKAGES}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # If any file that affects the publish machinery itself changed,
           # set selected=all so every publishable package is rebuilt and
           # the change is exercised end-to-end. Otherwise we stay in
@@ -126,6 +169,7 @@ jobs:
 
       - uses: ./.github/actions/detect-changes
         id: detect
+        if: github.event_name != 'workflow_dispatch'
 
       - uses: ./.github/actions/get-packages-matrix
         id: pkgs
@@ -135,22 +179,31 @@ jobs:
         with:
           packages: ${{ steps.pkgs.outputs.packages }}
           selected: ${{ steps.invalidator.outputs.selected }}
-          changes: ${{ steps.detect.outputs.changes }}
+          changes: ${{ steps.detect.outputs.changes || '{}' }}
 
       - name: Drop non-publishable packages
         id: publishable
         env:
           RAW_MATRIX: ${{ steps.select.outputs.matrix }}
+          IS_DISPATCH: ${{ github.event_name == 'workflow_dispatch' }}
+          DISPATCH_PACKAGES: ${{ inputs.packages }}
+          ALL_PACKAGES: ${{ steps.pkgs.outputs.packages }}
+          SELECTED_OVERRIDE: ${{ steps.invalidator.outputs.selected || 'auto-detect' }}
         run: |
           # Strip publish_skip entries and any package without a pypi_name.
           MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
           SELECTED_IDS=$(jq -c '[.include[].id]' <<<"$MATRIX")
+          if [[ "$IS_DISPATCH" == "true" && "$(jq '.include | length' <<<"$MATRIX")" -eq 0 ]]; then
+            VALID=$(jq -r '[.[] | select((.publish_skip != true) and (.pypi_name != null)) | .id] | sort | join(", ")' <<<"$ALL_PACKAGES")
+            echo "::error::'${DISPATCH_PACKAGES}' matched no publishable package. Valid ids: all, ${VALID}"
+            exit 1
+          fi
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "selected_ids=$SELECTED_IDS" >> "$GITHUB_OUTPUT"
           {
             echo "### Dev publish — selection"
             echo ""
-            echo "- Selected override: \`${{ steps.invalidator.outputs.selected || 'auto-detect' }}\`"
+            echo "- Selected override: \`${SELECTED_OVERRIDE}\`"
             echo "- Packages queued: $(jq '.include | length' <<<"$MATRIX")"
             echo ""
             echo '```json'
@@ -336,6 +389,7 @@ jobs:
           # not whatever main looks like by the time this job runs.
           ref: ${{ github.sha }}
           fetch-depth: 0
+          fetch-tags: true
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Tag dev cut
@@ -344,15 +398,22 @@ jobs:
         run: |
           SHORT="$(git rev-parse --short=12 "$SHA")"
           TAG="dev-cut-${SHORT}"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "::notice::${TAG} already exists — keeping the existing cut"
+            echo "existed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$TAG" "$SHA"
           git push origin "$TAG"
-          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
-          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "existed=false" >> "$GITHUB_OUTPUT"
         id: tag
 
       - name: Create GitHub pre-release for cut
+        if: steps.tag.outputs.existed != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           NEW_VERSIONS: ${{ needs.resolve.outputs.new_versions }}

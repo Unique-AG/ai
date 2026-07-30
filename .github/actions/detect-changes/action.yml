@@ -23,6 +23,8 @@ runs:
           sdk:
             - 'unique_sdk/**'
             - '!unique_sdk/**/*.md'
+          sdk_skills:
+            - 'unique_sdk/unique_sdk/**/skills/**'
           mcp:
             - 'unique_mcp/**'
             - '!unique_mcp/**/*.md'
@@ -32,6 +34,8 @@ runs:
           web_search:
             - 'tool_packages/unique_web_search/**'
             - '!tool_packages/unique_web_search/**/*.md'
+          web_search_skills:
+            - 'tool_packages/unique_web_search/src/**/skills/**'
           swot:
             - 'tool_packages/unique_swot/**'
             - '!tool_packages/unique_swot/**/*.md'
@@ -75,4 +79,13 @@ runs:
       shell: bash
       run: |
         CHANGES_JSON='${{ toJson(steps.filter.outputs) }}'
-        echo "changes=$(echo "$CHANGES_JSON" | jq -c .)" >> $GITHUB_OUTPUT
+        MERGED=$(jq -c '
+          reduce (keys[] | select(endswith("_skills"))) as $helper (.;
+            ($helper | rtrimstr("_skills")) as $pkg
+            | (if .[$helper] == "true" then .[$pkg] = "true" else . end)
+            | del(.[$helper])
+          )
+          | del(.changes)
+        ' <<<"$CHANGES_JSON")
+        echo "changes=$MERGED" >> $GITHUB_OUTPUT
+        echo "$MERGED" | jq .

@@ -30,7 +30,7 @@ on:
           - skill_tool
         default: ""
       ref:
-        description: "Git ref (SHA or tag) to check out. Defaults to github.sha when omitted."
+        description: "Release tag to retry (e.g. unique-sdk-v2026.30.0). Defaults to github.sha, which only publishes if that ref carries an unreleased version."
         required: false
         default: ""
 
