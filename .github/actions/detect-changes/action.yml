@@ -13,6 +13,11 @@ runs:
       id: filter
       with:
         predicate-quantifier: 'every'
+        # Each `<id>` filter excludes *.md, because markdown is normally docs.
+        # A `<id>_skills` filter adds back the markdown that is packaged into
+        # the wheel and read at runtime; `serialize` ORs it into `<id>`. Add
+        # one for every package that grows a `skills/` directory, otherwise
+        # editing a shipped skill silently publishes nothing.
         filters: |
           toolkit:
             - 'unique_toolkit/**'
@@ -23,6 +28,8 @@ runs:
           sdk:
             - 'unique_sdk/**'
             - '!unique_sdk/**/*.md'
+          sdk_skills:
+            - 'unique_sdk/unique_sdk/**/skills/**'
           mcp:
             - 'unique_mcp/**'
             - '!unique_mcp/**/*.md'
@@ -32,6 +39,8 @@ runs:
           web_search:
             - 'tool_packages/unique_web_search/**'
             - '!tool_packages/unique_web_search/**/*.md'
+          web_search_skills:
+            - 'tool_packages/unique_web_search/src/**/skills/**'
           swot:
             - 'tool_packages/unique_swot/**'
             - '!tool_packages/unique_swot/**/*.md'
@@ -75,4 +84,16 @@ runs:
       shell: bash
       run: |
         CHANGES_JSON='${{ toJson(steps.filter.outputs) }}'
-        echo "changes=$(echo "$CHANGES_JSON" | jq -c .)" >> $GITHUB_OUTPUT
+        # paths-filter also emits a `changes` array of matched filter names.
+        # Nothing consumes it, and after the fold it would still name the
+        # `_skills` helpers, so drop it and keep the output a pure id -> bool map.
+        MERGED=$(jq -c '
+          reduce (keys[] | select(endswith("_skills"))) as $helper (.;
+            ($helper | rtrimstr("_skills")) as $pkg
+            | (if .[$helper] == "true" then .[$pkg] = "true" else . end)
+            | del(.[$helper])
+          )
+          | del(.changes)
+        ' <<<"$CHANGES_JSON")
+        echo "changes=$MERGED" >> $GITHUB_OUTPUT
+        echo "$MERGED" | jq .

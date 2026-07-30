@@ -1,5 +1,15 @@
 name: "[CD] Publish to PyPI"
 
+# Stable channel. Normally fires on the `release: published` event that
+# release-please creates, and builds the version already written into
+# pyproject.toml by the release PR.
+#
+# The manual dispatch is a retry path for a release whose publish job failed,
+# not a way to ship unreleased work: it has no version-bumping step, so
+# dispatching it against `main` rebuilds the last released version and PyPI
+# rejects the upload as a duplicate file. To get unreleased `main` onto PyPI,
+# dispatch `cd-publish-dev.yaml` for a `.devN` cut instead.
+
 on:
   release:
     types: [published]
@@ -30,7 +40,7 @@ on:
           - skill_tool
         default: ""
       ref:
-        description: "Git ref (SHA or tag) to check out. Defaults to github.sha when omitted."
+        description: "Release tag to retry (e.g. unique-sdk-v2026.30.0). Defaults to github.sha, which only publishes if that ref carries an unreleased version."
         required: false
         default: ""
 
