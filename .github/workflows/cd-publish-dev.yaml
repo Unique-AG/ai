@@ -2,12 +2,12 @@ name: "[CD] Publish dev builds to PyPI"
 
 # On every push to `main`, build and publish `.devN` wheels of the
 # publishable AI-repo packages whose sources actually changed in the
-# push range. Also dispatchable — see "Manual dispatch" below.
+# push range.
 #
 # Change detection reuses the same `detect-changes` + `select-packages`
 # composite actions that drive pull-request CI, so the definition of
-# "this package changed" (including which markdown counts as docs rather
-# than shipped source) is identical across lint/test/typecheck/publish.
+# "this package changed" (including doc/markdown exclusions) is
+# identical across lint/test/typecheck/publish.
 #
 # The release-please / release-cut / release-tag skip guard lands in
 # the follow-up release-process PR alongside those workflows — none of
@@ -48,16 +48,6 @@ name: "[CD] Publish dev builds to PyPI"
 #   lists every package version produced by the run. This gives `cd-publish-rc`
 #   a stable, reproducible promotion target — pick a `dev-cut-*` tag and
 #   republish that exact set of packages as `{cycle}.0rcN`.
-#
-# Manual dispatch
-# ===============
-#   `cd-publish.yaml` cannot re-publish: it builds whatever version sits in
-#   pyproject.toml, which on `main` is always the last stable release, so PyPI
-#   rejects it as a duplicate file. Cutting a fresh dev build is therefore the
-#   only way to get an unreleased `main` onto PyPI on demand, and it needs its
-#   own dispatch entry point. Dispatch skips change detection and publishes
-#   the requested selection; `main` only, since the CalVer cycle and the
-#   dev-bump PR are both main-relative.
 
 on:
   push:
@@ -82,7 +72,7 @@ jobs:
   resolve:
     # Skip when the push is the automated dev-bump commit itself — merging
     # that PR only updates pyproject.toml version pins and must not trigger
-    # a new publish cycle. A dispatch has no head_commit and is never skipped.
+    # a new publish cycle.
     if: >-
       github.event_name == 'workflow_dispatch'
       || !startsWith(github.event.head_commit.message, 'chore: bump dev versions')
@@ -96,9 +86,6 @@ jobs:
       cycle: ${{ steps.calver.outputs.cycle }}
       cut_sha: ${{ github.sha }}
     steps:
-      # `open-dev-bump-pr` rewrites and pushes against `main`, and the CalVer
-      # cycle is only meaningful there, so a dispatch off another ref would
-      # publish one branch's code under main's version line.
       - name: Reject dispatch from a non-main ref
         if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
         run: |
@@ -117,8 +104,6 @@ jobs:
           AFTER: ${{ github.event.after }}
           DISPATCH_PACKAGES: ${{ inputs.packages }}
         run: |
-          # A dispatch states its selection outright; there is no push range
-          # to diff and no auto-detection to invalidate.
           if [[ -n "$DISPATCH_PACKAGES" ]]; then
             echo "manual dispatch — selected=${DISPATCH_PACKAGES}" >&2
             echo "selected=${DISPATCH_PACKAGES}" >> "$GITHUB_OUTPUT"
@@ -160,8 +145,6 @@ jobs:
           done
           echo "selected=" >> "$GITHUB_OUTPUT"
 
-      # paths-filter has no push range to diff on a dispatch, and the explicit
-      # selection makes its result unused anyway.
       - uses: ./.github/actions/detect-changes
         id: detect
         if: github.event_name != 'workflow_dispatch'
@@ -187,9 +170,6 @@ jobs:
           # Strip publish_skip entries and any package without a pypi_name.
           MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
           SELECTED_IDS=$(jq -c '[.include[].id]' <<<"$MATRIX")
-          # An empty matrix is the normal outcome for a push that touched no
-          # package, but on a dispatch it means the requested id was wrong —
-          # fail instead of reporting success for a run that published nothing.
           if [[ "$IS_DISPATCH" == "true" && "$(jq '.include | length' <<<"$MATRIX")" -eq 0 ]]; then
             VALID=$(jq -r '[.[] | select((.publish_skip != true) and (.pypi_name != null)) | .id] | sort | join(", ")' <<<"$ALL_PACKAGES")
             echo "::error::'${DISPATCH_PACKAGES}' matched no publishable package. Valid ids: all, ${VALID}"
@@ -396,9 +376,6 @@ jobs:
           TAG="dev-cut-${SHORT}"
           echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
           echo "short=$SHORT" >> "$GITHUB_OUTPUT"
-          # A dispatch can re-cut a SHA that already carries a tag. The wheels
-          # are on PyPI by now, so treat the existing tag as satisfied rather
-          # than failing the run over it.
           if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
             echo "::notice::${TAG} already exists — keeping the existing cut"
             echo "existed=true" >> "$GITHUB_OUTPUT"
