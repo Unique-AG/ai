@@ -447,6 +447,86 @@ class TestElicitWait:
         mock.side_effect = unique_sdk.APIError("fail")
         assert "elicit:" in cmd_elicit_wait(_state(), "x", timeout=1)
 
+    @patch("unique_sdk.cli.commands.elicitation.time.sleep")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_transient_error_then_success_retries_and_returns_terminal(
+        self,
+        mock_get: MagicMock,
+        mock_sleep: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A 502 mid-poll must be retried, not treated as a stopping
+        condition -- this is the core bug fix in PR4 (UN-23310).
+        """
+        transient = unique_sdk.APIError("bad gateway", http_status=502)
+        mock_get.side_effect = [
+            transient,
+            _elicitation(status="RESPONDED", response_content={"answer": "ok"}),
+        ]
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=30)
+        assert "RESPONDED" in result
+        assert mock_sleep.call_count == 1
+        captured = capsys.readouterr()
+        assert "transient error on attempt 1" in captured.err
+
+    @patch("unique_sdk.cli.commands.elicitation.time.sleep")
+    @patch("unique_sdk.cli.commands.elicitation.time.monotonic")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_persistent_transient_error_gives_up_within_timeout(
+        self,
+        mock_get: MagicMock,
+        mock_monotonic: MagicMock,
+        mock_sleep: MagicMock,
+    ) -> None:
+        """A persistent 502 must give up once --timeout is exhausted, with
+        the same ``elicit: <error>`` contract as an unresolved wait always
+        had -- not hang forever, and not silently return a fake terminal
+        status.
+        """
+        mock_get.side_effect = unique_sdk.APIError("bad gateway", http_status=502)
+        # First call establishes the deadline (0.0 + 10 == 10.0). Every
+        # subsequent monotonic() call happens inside the retry helper's
+        # except branch; once it reports we're past the deadline, the
+        # helper re-raises instead of sleeping again.
+        mock_monotonic.side_effect = [0.0, 5.0, 11.0]
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=10)
+        assert "elicit:" in result
+        assert "bad gateway" in result
+
+    @patch("unique_sdk.cli.commands.elicitation.time.sleep")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_4xx_error_is_not_retried(
+        self,
+        mock_get: MagicMock,
+        mock_sleep: MagicMock,
+    ) -> None:
+        """A 4xx cannot succeed on retry -- retrying it would just burn the
+        wait budget on a request that is doomed regardless.
+        """
+        mock_get.side_effect = unique_sdk.APIError("bad request", http_status=400)
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=30)
+        assert "elicit:" in result
+        assert "bad request" in result
+        assert mock_sleep.call_count == 0
+
+    @patch("unique_sdk.cli.commands.elicitation.time.sleep")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_connection_error_is_retried(
+        self,
+        mock_get: MagicMock,
+        mock_sleep: MagicMock,
+    ) -> None:
+        """Connection-level failures (timeouts, resets) are transient too,
+        not just HTTP 5xx responses.
+        """
+        mock_get.side_effect = [
+            unique_sdk.APIConnectionError("connection reset"),
+            _elicitation(status="ACCEPTED", response_content={"answer": "ok"}),
+        ]
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=30)
+        assert "ACCEPTED" in result
+        assert mock_sleep.call_count == 1
+
 
 class TestElicitAsk:
     @patch("unique_sdk.Elicitation.get_elicitation")
@@ -500,13 +580,80 @@ class TestElicitAsk:
     def test_expiry_always_matches_wait_timeout(
         self, mock_create: MagicMock, mock_get: MagicMock
     ) -> None:
-        """`ask` has a single knob: the record expires exactly when we stop waiting."""
+        """Characterization test (write first, before any PR4 edit): without
+        --expires-in, `ask` has a single knob and the record expires exactly
+        when we stop waiting. The request payload sent to the platform must
+        be byte-identical to what it was before --expires-in existed.
+        """
         mock_create.return_value = _elicitation()
         mock_get.return_value = _elicitation(
             status="RESPONDED", response_content={"answer": "hi"}
         )
         cmd_elicit_ask(_state(), message="What?", timeout=10)
         assert mock_create.call_args[1]["expiresInSeconds"] == 10
+        assert mock_create.call_args[1] == {
+            "user_id": "u1",
+            "company_id": "c1",
+            "mode": "FORM",
+            "message": "What?",
+            "toolName": "agent_question",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "answer": {
+                        "type": "string",
+                        "description": "Free-text answer to the question.",
+                    },
+                },
+                "required": ["answer"],
+            },
+            "expiresInSeconds": 10,
+        }
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.Elicitation.create_elicitation")
+    def test_expires_in_decouples_expiry_from_timeout(
+        self, mock_create: MagicMock, mock_get: MagicMock
+    ) -> None:
+        """`--expires-in` sends its own value to the server; `--timeout`
+        continues to govern only the local wait budget.
+        """
+        mock_create.return_value = _elicitation()
+        mock_get.return_value = _elicitation(
+            status="RESPONDED", response_content={"answer": "hi"}
+        )
+        cmd_elicit_ask(_state(), message="What?", timeout=300, expires_in_seconds=7200)
+        assert mock_create.call_args[1]["expiresInSeconds"] == 7200
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.Elicitation.create_elicitation")
+    def test_stderr_line_emitted_once_stdout_unchanged(
+        self,
+        mock_create: MagicMock,
+        mock_get: MagicMock,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """The UNIQUE_ELICITATION_CREATED contract line is stderr-only and
+        does not alter stdout's format -- the harness/skills parse stdout,
+        so any drift there is a regression, not a feature.
+        """
+        mock_create.return_value = _elicitation(eid="elicit_xyz")
+        mock_get.return_value = _elicitation(
+            eid="elicit_xyz",
+            status="RESPONDED",
+            response_content={"answer": "hi"},
+        )
+        expected_stdout = cmd_elicit_ask(_state(), message="What?")
+        # cmd_elicit_ask returns its would-be stdout as a plain string (the
+        # CLI layer is responsible for echoing it) -- capture stderr only.
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        stderr_lines = [ln for ln in captured.err.splitlines() if ln.strip()]
+        assert len(stderr_lines) == 1
+        assert stderr_lines[0].startswith(
+            "UNIQUE_ELICITATION_CREATED id=elicit_xyz expires_at="
+        )
+        assert "RESPONDED" in expected_stdout
 
 
 # --- Visibility workaround (UN-19815) -----------------------------------
@@ -1175,10 +1322,28 @@ class TestShellElicit:
         out = _capture(_shell(), 'elicit ask "x" --poll-interval abc')
         assert "Invalid --poll-interval" in out
 
-    def test_ask_rejects_expires_in_option(self) -> None:
-        """`ask` exposes only --timeout; --expires-in lives on `create`."""
-        out = _capture(_shell(), 'elicit ask "x" --expires-in 60')
-        assert "No such option" in out
+    @patch("unique_sdk.cli.shell.cmd_elicit_ask")
+    def test_ask_accepts_expires_in_option(self, mock: MagicMock) -> None:
+        """PR4 (UN-23310): `ask` now accepts --expires-in to decouple the
+        server-side expiry from --timeout (the local wait budget).
+        """
+        mock.return_value = "ASKED"
+        out = _capture(_shell(), 'elicit ask "x" --expires-in 7200 --timeout 300')
+        assert "ASKED" in out
+        kw = mock.call_args[1]
+        assert kw["expires_in_seconds"] == 7200
+        assert kw["timeout"] == 300
+
+    @patch("unique_sdk.cli.shell.cmd_elicit_ask")
+    def test_ask_without_expires_in_defaults_to_none(self, mock: MagicMock) -> None:
+        """Characterization: omitting --expires-in must forward ``None`` so
+        ``cmd_elicit_ask`` falls back to coupling expiry with --timeout,
+        exactly as it did before --expires-in existed.
+        """
+        mock.return_value = "ASKED"
+        out = _capture(_shell(), 'elicit ask "x" --timeout 30')
+        assert "ASKED" in out
+        assert mock.call_args[1]["expires_in_seconds"] is None
 
     def test_ask_invalid_metadata(self) -> None:
         out = _capture(_shell(), 'elicit ask "x" --metadata badformat')

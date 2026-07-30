@@ -1154,9 +1154,24 @@ def elicit() -> None:
     default=DEFAULT_WAIT_TIMEOUT_SECONDS,
     show_default=True,
     help=(
-        "Max seconds to block waiting for the user's response. This also "
-        "sets when the elicitation expires, so the request expires exactly "
-        "when we stop waiting and the chat UI can offer a way to continue."
+        "Max seconds to block waiting for the user's response. Without "
+        "--expires-in, this also sets when the elicitation expires, so the "
+        "request expires exactly when we stop waiting and the chat UI can "
+        "offer a way to continue."
+    ),
+)
+@click.option(
+    "--expires-in",
+    "expires_in_seconds",
+    type=int,
+    default=None,
+    help=(
+        "Seconds before the platform expires the request, decoupled from "
+        "--timeout (the local wait budget). Use this when this process's "
+        "wait budget is shorter than how long a human should realistically "
+        "get to answer (e.g. a harness with its own foreground timeout) -- "
+        "otherwise the request expires under the user before they can "
+        "answer. Defaults to --timeout, exactly matching prior behavior."
     ),
 )
 @click.option(
@@ -1217,6 +1232,7 @@ def elicit_ask(
     chat_id: str | None,
     message_id: str | None,
     timeout: int,
+    expires_in_seconds: int | None,
     poll_interval: float,
     metadata: tuple[str, ...],
     visible: bool = True,
@@ -1229,7 +1245,9 @@ def elicit_ask(
     \b
     Creates a FORM elicitation in the Unique UI with the given MESSAGE
     and blocks until the user responds, the elicitation is declined /
-    cancelled / expired, or --timeout is reached.
+    cancelled / expired, or --timeout is reached. Immediately after
+    creation, before polling starts, a single line is written to stderr:
+    "UNIQUE_ELICITATION_CREATED id=<id> expires_at=<iso8601>".
 
     \b
     Examples:
@@ -1237,6 +1255,8 @@ def elicit_ask(
       unique-cli elicit ask "Confirm deletion of /Archive" --timeout 60
       unique-cli elicit ask "Pick a region" \\
         --schema '{"type":"object","properties":{"region":{"type":"string","enum":["EU","US","APAC"]}},"required":["region"]}'
+      unique-cli elicit ask "Long-running approval" \\
+        --expires-in 7200 --timeout 300
     """
     parsed_metadata: list[tuple[str, str]] = []
     for kv in metadata:
@@ -1253,6 +1273,7 @@ def elicit_ask(
         "chat_id": chat_id,
         "message_id": _resolve_cli_message_id(ctx, message_id),
         "timeout": timeout,
+        "expires_in_seconds": expires_in_seconds,
         "poll_interval": poll_interval,
         "metadata": parsed_metadata or None,
         "visible": visible,
