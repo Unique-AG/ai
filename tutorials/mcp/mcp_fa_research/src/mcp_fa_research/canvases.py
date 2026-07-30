@@ -96,6 +96,8 @@ CSS = """
   .qsrc{color:var(--mut);font-size:10.5px;margin-left:auto;text-align:right;}
   .spark{height:24px;width:120px;vertical-align:middle;flex-shrink:0;}
   .bigchart{width:100%;height:auto;display:block;}
+  .rfr{float:right;border:1px solid var(--line);background:#fff;color:var(--mut);border-radius:8px;font-size:11px;line-height:1;padding:3px 8px;cursor:pointer;letter-spacing:0;text-transform:none;font-weight:500;}
+  .rfr:hover{color:var(--ink);border-color:var(--mut);}
   .crow{display:none;}
   .qtape{display:flex;flex-direction:column;gap:0;align-items:stretch;}
   .qrow{display:flex;align-items:center;gap:12px;padding:5px 6px;border-bottom:1px dashed var(--line);
@@ -467,7 +469,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
     # per-ticker arg trips stale connector registries); this page's name is
     # highlighted via baked CSS on data-tk.
     quote = (
-        '<div class="card qwrap"><h2>Live quotes <span class="mut">· Yahoo Finance '
+        '<div class="card qwrap"><h2><button class="rfr" title="Refresh now" data-unique-action="refresh" data-unique-source-list="q">↻</button>Live quotes <span class="mut">· Yahoo Finance '
         'via FA Research MCP · 24-month sparkline · red = 12m target · 5-min '
         'refresh</span></h2>'
         '<div class="quote qtape" data-unique-list="q" '
@@ -497,7 +499,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
     # every row carries the chart image, baked CSS displays only this page's
     # ticker (the per-ticker arg trips stale connector registries).
     chart = (
-        '<div class="card"><h2>Price vs target — 2 years <span class="mut">· weekly '
+        '<div class="card"><h2><button class="rfr" title="Refresh now" data-unique-action="refresh" data-unique-source-list="ch">↻</button>Price vs target — 2 years <span class="mut">· weekly '
         'closes · Yahoo Finance via FA Research MCP · red = 12m target · dot = last '
         'close · 5-min refresh</span></h2>'
         '<div class="chwrap" data-unique-list="ch" '
