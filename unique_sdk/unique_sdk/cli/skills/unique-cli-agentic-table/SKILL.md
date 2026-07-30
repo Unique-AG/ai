@@ -165,7 +165,7 @@ unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-i
 ### Re-answer a single row
 
 ```bash
-unique-cli agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <seconds>]
+unique-cli agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <seconds>] [--start-timeout <seconds>]
 ```
 
 Use this to redo one answer. **Re-importing a question will not redo it** —

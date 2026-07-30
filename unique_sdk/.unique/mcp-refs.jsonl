@@ -1,6 +1,0 @@
-{"sourceNumber": 1, "toolName": "tool", "serverName": "srv_1", "title": null, "snippet": null, "details": null, "text": "MCP tool call: tool\nServer: srv_1\n\n[text] result"}
-{"sourceNumber": 2, "toolName": "tool", "serverName": "srv_1", "title": null, "snippet": null, "details": null, "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
-{"sourceNumber": 3, "toolName": "search", "serverName": "mcp_srv_1", "title": null, "snippet": null, "details": null, "text": "MCP tool call: search\nServer: mcp_srv_1\n\n[text] result"}
-{"sourceNumber": 4, "toolName": "search_emails", "serverName": null, "title": null, "snippet": null, "details": null, "text": "MCP tool call: search_emails\nServer: <unknown-server>\n\n[text] hello"}
-{"sourceNumber": 5, "toolName": "tool", "serverName": "srv_1", "title": null, "snippet": null, "details": null, "text": "mcp: formatter error (boom); raw response:\n{}"}
-{"sourceNumber": 6, "toolName": "search_emails", "serverName": "srv_1", "title": null, "snippet": null, "details": null, "text": "ok"}
