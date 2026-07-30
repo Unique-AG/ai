@@ -7,30 +7,52 @@ Ask the user a structured question and get a typed answer back. Elicitations are
 
 The CLI exposes the full lifecycle:
 
-- `elicit ask` -- **create + wait** in a single call (the one you usually want)
+- `elicit ask` -- **create + wait** in a single call
 - `elicit create` -- fire-and-forget create (FORM or URL mode)
 - `elicit pending` -- list open requests for the current user
 - `elicit get` -- fetch one elicitation by ID
 - `elicit wait` -- poll an existing elicitation until it reaches a terminal state
 - `elicit respond` -- respond on behalf of the user (scripting / tests)
 
+### Choosing between `ask` and `create` + `wait`
+
+`elicit ask` and `elicit create` + `elicit wait` are two ways to get the same
+answer -- **which one to use depends on your calling context**, not a fixed
+rule of this doc:
+
+- **`elicit ask`** is the right choice for a single blocking call: scripts,
+  tests, ops usage, or an agent environment whose instructions say it
+  supervises long-running tool calls (does not silently background or kill
+  the process before a human answers).
+- **`elicit create` + a short polling loop with `elicit wait`** is the right
+  choice when the caller cannot safely block for the full wait in one call --
+  e.g. most agent harnesses, whose Bash/shell tool has its own short
+  foreground-wait timeout. See the [`unique-cli-elicitation` skill's "Two
+  patterns" section](../../unique_sdk/cli/skills/unique-cli-elicitation/SKILL.md)
+  for the agent-facing version of this guidance, including which one to
+  default to when instructions are silent.
+
 Elicitations move through these statuses:
 
 | Status | Meaning |
 |--------|---------|
 | `PENDING` | Created, waiting for a response |
-| `RESPONDED` / `COMPLETED` | The user submitted an answer (`responseContent` is populated) |
-| `DECLINED` | The user explicitly declined |
+| `RESPONDED` / `ACCEPTED` / `COMPLETED` | The user submitted an answer, or accepted an empty-schema confirmation (`responseContent` is populated for `RESPONDED`/`COMPLETED`) |
+| `DECLINED` / `REJECTED` | The user explicitly declined, or rejected an empty-schema confirmation |
 | `CANCELLED` | Cancelled by the user or system |
-| `EXPIRED` | Not answered before `expiresAt` |
+| `EXPIRED` | Not answered before `expiresAt` (`--expires-in`, or `--timeout` if `--expires-in` was not passed) |
 
-Any status other than `PENDING` is **terminal** -- `elicit wait` returns as soon as one of these is reached.
+`ACCEPTED`/`REJECTED` are accept/decline synonyms for `RESPONDED`/`DECLINED`
+produced by some response paths (e.g. the Codex approval-bridge integration);
+treat them identically (`ACCEPTED` → proceed, `REJECTED` → stop).
+
+Any status other than `PENDING` is **terminal** -- `elicit wait` returns as soon as one of these is reached. A non-terminal (`PENDING`) result -- including a local `--timeout` being reached while the platform-side request is still open -- is never itself a decline, cancellation, or answer; it only ever means "keep waiting."
 
 ---
 
 ## elicit ask
 
-Create a FORM elicitation and block until the user responds, declines, cancels, expires, or the local `--timeout` elapses. This is the idiomatic way for an agent to request input from the user.
+Create a FORM elicitation and block until the user responds, declines, cancels, expires, or the local `--timeout` elapses. This is the idiomatic single-call way to request input from the user -- appropriate for scripts, tests, ops usage, and agent environments that supervise long-running tool calls (see "Choosing between `ask` and `create` + `wait`" above).
 
 **Synopsis:**
 
@@ -372,7 +394,7 @@ For the common case of "ask and immediately use the answer", `elicit ask` collap
 
 - Always set `"required"` on fields that must be present -- this prevents empty submissions.
 - Use `"enum"` for finite choices so the UI renders a selector instead of a free-text box.
-- For pure yes/no confirmations use an empty-properties schema (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED` -- do **not** add a boolean `confirm` field. The UI's Confirm button and a checkbox are two separate signals: a user can press Confirm with the box unchecked, showing **Accepted** in the UI while the response carries `confirm: false`. Treat `DECLINED` / `CANCELLED` / `EXPIRED` as "stop". Reserve `"type": "boolean"` for genuine data fields where `false` is a valid submittable answer.
+- For pure yes/no confirmations use an empty-properties schema (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED` -- do **not** add a boolean `confirm` field. The UI's Confirm button and a checkbox are two separate signals: a user can press Confirm with the box unchecked, showing **Accepted** in the UI while the response carries `confirm: false`. Treat `DECLINED` / `REJECTED` / `CANCELLED` / `EXPIRED` as "stop". Reserve `"type": "boolean"` for genuine data fields where `false` is a valid submittable answer.
 - Add short `"description"` strings -- they appear as helper text next to each field.
 - Keep schemas small. Several sequential `elicit ask` calls are usually clearer than one giant form.
 
@@ -382,14 +404,15 @@ After `elicit ask` / `elicit wait` returns, always branch on the `Status:` value
 
 | Status | Typical action |
 |--------|----------------|
-| `RESPONDED` / `COMPLETED` | Parse `Response:` JSON and proceed with the task. |
-| `DECLINED` | Stop. Acknowledge to the user that you stopped and ask what to do next. |
+| `RESPONDED` / `ACCEPTED` / `COMPLETED` | Parse `Response:` JSON and proceed with the task (`ACCEPTED` is the accept-synonym produced by some response paths; treat it like `RESPONDED`). |
+| `DECLINED` / `REJECTED` | Stop. Acknowledge to the user that you stopped and ask what to do next (`REJECTED` is the decline-synonym produced by some response paths; treat it like `DECLINED`). |
 | `CANCELLED` | Stop. The user (or system) aborted the flow. |
 | `EXPIRED` | The request timed out platform-side. Decide whether to re-ask. |
-| `elicit: still PENDING after Ns ...` (CLI only) | Local wait exceeded `--timeout`. This is **not** a stopping condition -- the request is still live on the platform; call `elicit wait <id>` again immediately. |
+| `elicit: still PENDING after Ns ...` / `elicit: timed out after Ns ...` (CLI only) | Local wait exceeded `--timeout`. This is **not** a stopping condition and **not** the same as `EXPIRED` -- the request is still live on the platform (until its own `expiresAt`); call `elicit wait <id>` again immediately. |
 
 ## Related
 
+- [`unique-cli-elicitation` skill](../../unique_sdk/cli/skills/unique-cli-elicitation/SKILL.md) -- Agent-facing guidance, including which of `ask` vs `create` + `wait` to default to
 - [Elicitation API Reference](../api_resources/elicitation.md) -- Python SDK methods, return types, and async variants
 - [Command Reference](commands.md) -- All CLI commands
 - [Scheduled Tasks](scheduled_tasks.md) -- Another long-running platform workflow managed via the CLI
