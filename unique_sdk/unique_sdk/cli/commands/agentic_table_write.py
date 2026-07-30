@@ -240,6 +240,9 @@ def cmd_export(
     wanted = [MagicTableArtifactType(t) for t in artifact_types]
 
     async def _run() -> str:
+        since = (
+            await _latest_artifact_timestamps(state, table_id, wanted) if wait else {}
+        )
         result = await AgenticTable.generate_artifact(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
@@ -254,7 +257,7 @@ def cmd_export(
             return format_agentic_table_action_result(result, action="export")
 
         status, artifacts, missing = await _wait_for_artifacts(
-            state, table_id, wanted, timeout=timeout
+            state, table_id, wanted, since=since, timeout=timeout
         )
         if status == "error":
             failed = ", ".join(sorted(str(a.get("artifactType")) for a in artifacts))
@@ -327,20 +330,55 @@ async def _wait_for_run(
     return True, current, False
 
 
+async def _latest_artifact_timestamps(
+    state: ShellState,
+    table_id: str,
+    wanted_types: list[MagicTableArtifactType],
+) -> dict[MagicTableArtifactType, str]:
+    """Newest ``updatedAt`` per requested type, for use as a freshness baseline.
+
+    Taken before triggering a generation so the wait can tell the resulting
+    artifact apart from one left over from an earlier run.
+    """
+    wanted = set(wanted_types)
+    artifacts = await AgenticTable.list_artifacts(
+        user_id=state.config.user_id,
+        company_id=state.config.company_id,
+        tableId=table_id,
+    )
+    latest: dict[MagicTableArtifactType, str] = {}
+    for artifact in artifacts:
+        artifact_type = artifact.get("artifactType")
+        if artifact_type is None or artifact_type not in wanted:
+            continue
+        updated_at = artifact.get("updatedAt") or ""
+        if updated_at > latest.get(artifact_type, ""):
+            latest[artifact_type] = updated_at
+    return latest
+
+
 async def _wait_for_artifacts(
     state: ShellState,
     table_id: str,
     wanted_types: list[MagicTableArtifactType],
     *,
+    since: dict[MagicTableArtifactType, str],
     timeout: float,
     interval: float = _POLL_INTERVAL_SECONDS,
 ) -> tuple[str, list[MagicTableArtifact], list[str]]:
-    """Poll ``list_artifacts`` until the requested types are ``DONE``.
+    """Poll ``list_artifacts`` until the requested types are freshly ``DONE``.
 
-    Mirrors ``AgenticTableService.wait_for_artifacts``: a terminal state is
-    accepted for a type only after ``IN_PROGRESS`` has been observed for it, so
-    an artifact left over from an earlier generation is not mistaken for the
-    newly triggered one.
+    ``since`` is the pre-trigger output of ``_latest_artifact_timestamps``; an
+    artifact counts only once its ``updatedAt`` has moved past that baseline, so
+    a report left over from an earlier generation is never mistaken for this one.
+
+    Freshness rather than an observed ``IN_PROGRESS`` phase is the signal
+    deliberately. A sheet holds more than one artifact of a type — the trigger
+    records its ``IN_PROGRESS`` marker under no name and the finished report is
+    stored under its filename, so they are separate records and the marker is
+    never updated to ``DONE``. Waiting to see the report itself turn
+    ``IN_PROGRESS`` would also lose any generation that finishes inside one poll
+    interval, which is the common case on a small sheet.
 
     Returns ``(status, artifacts, missing)`` where ``status`` is:
     - ``"done"`` — ``artifacts`` are the DONE records (one per requested type).
@@ -348,7 +386,6 @@ async def _wait_for_artifacts(
     - ``"timeout"`` — ``missing`` lists the type values not yet DONE.
     """
     wanted = set(wanted_types)
-    started: set[MagicTableArtifactType] = set()
     deadline = time.monotonic() + timeout
     while True:
         artifacts = await AgenticTable.list_artifacts(
@@ -356,30 +393,21 @@ async def _wait_for_artifacts(
             company_id=state.config.company_id,
             tableId=table_id,
         )
-        current: dict[MagicTableArtifactType, MagicTableArtifact] = {}
+        done: dict[MagicTableArtifactType, MagicTableArtifact] = {}
+        failed: list[MagicTableArtifact] = []
         for artifact in artifacts:
             artifact_type = artifact.get("artifactType")
-            if artifact_type is not None and artifact_type in wanted:
-                current[artifact_type] = artifact
-        started.update(
-            artifact_type
-            for artifact_type, artifact in current.items()
-            if artifact.get("artifactState") == MagicTableArtifactState.IN_PROGRESS
-        )
-        failed = [
-            artifact
-            for artifact_type, artifact in current.items()
-            if artifact_type in started
-            and artifact.get("artifactState") == MagicTableArtifactState.ERROR
-        ]
+            if artifact_type is None or artifact_type not in wanted:
+                continue
+            if (artifact.get("updatedAt") or "") <= since.get(artifact_type, ""):
+                continue
+            artifact_state = artifact.get("artifactState")
+            if artifact_state == MagicTableArtifactState.DONE:
+                done[artifact_type] = artifact
+            elif artifact_state == MagicTableArtifactState.ERROR:
+                failed.append(artifact)
         if failed:
             return "error", failed, []
-        done = {
-            artifact_type: artifact
-            for artifact_type, artifact in current.items()
-            if artifact_type in started
-            and artifact.get("artifactState") == MagicTableArtifactState.DONE
-        }
         if wanted <= set(done.keys()):
             return "done", [done[t] for t in wanted_types], []
         if time.monotonic() >= deadline:

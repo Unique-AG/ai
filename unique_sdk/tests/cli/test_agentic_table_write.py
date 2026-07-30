@@ -70,14 +70,15 @@ def _artifact(
     artifact_state: str,
     *,
     content_id: str | None = None,
+    updated_at: str = "2026-01-01T00:00:00.000Z",
 ) -> dict[str, object]:
     return {
-        "id": f"art_{artifact_type}",
+        "id": f"art_{artifact_type}_{updated_at}",
         "artifactType": artifact_type,
         "artifactState": artifact_state,
         "contentId": content_id,
-        "createdAt": "2026-01-01T00:00:00.000Z",
-        "updatedAt": "2026-01-01T00:01:00.000Z",
+        "createdAt": updated_at,
+        "updatedAt": updated_at,
     }
 
 
@@ -308,16 +309,21 @@ def test_cmd_export_soft_failure_is_error() -> None:
 
 
 def test_cmd_export_soft_failure_skips_wait() -> None:
-    """A declined generation must not poll for artifacts that were never queued."""
+    """A declined generation must not poll for artifacts that were never queued.
+
+    One call is expected regardless: the freshness baseline is taken before the
+    trigger. Anything beyond it would be polling for a generation that a
+    ``status: false`` body says never started.
+    """
     with (
         _patch("generate_artifact", return_value={"status": False}),
-        _patch("list_artifacts") as mock_list,
+        _patch("list_artifacts", return_value=[]) as mock_list,
         _no_sleep(),
     ):
         out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True)
 
     assert is_error_output(out)
-    mock_list.assert_not_awaited()
+    assert mock_list.await_count == 1
 
 
 # -- export (--wait) -------------------------------------------------------
@@ -325,6 +331,7 @@ def test_cmd_export_soft_failure_skips_wait() -> None:
 
 def test_cmd_export_wait_done_lists_artifacts() -> None:
     lists = [
+        [],  # pre-trigger snapshot
         [_artifact("FULL_REPORT", MagicTableArtifactState.IN_PROGRESS)],
         [_artifact("FULL_REPORT", MagicTableArtifactState.DONE, content_id="cont_x")],
     ]
@@ -342,8 +349,42 @@ def test_cmd_export_wait_done_lists_artifacts() -> None:
     assert not is_error_output(out)
 
 
+def test_cmd_export_wait_returns_report_finished_between_polls() -> None:
+    """The report can go DONE without its IN_PROGRESS phase ever being seen.
+
+    A sheet carries two records per type: the trigger's nameless marker, which
+    is never updated to DONE, and the report itself. On a small sheet the report
+    is written within one poll interval, so waiting to observe it IN_PROGRESS
+    would hang until timeout even though the export succeeded.
+    """
+    marker = _artifact("FULL_REPORT", MagicTableArtifactState.IN_PROGRESS)
+    stale = _artifact(
+        "FULL_REPORT", MagicTableArtifactState.DONE, content_id="cont_old"
+    )
+    fresh = _artifact(
+        "FULL_REPORT",
+        MagicTableArtifactState.DONE,
+        content_id="cont_new",
+        updated_at="2026-01-01T00:00:05.000Z",
+    )
+    lists = [[stale, marker], [stale, marker], [fresh, marker]]
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=lists),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True, timeout=60.0
+        )
+
+    assert not is_error_output(out)
+    assert "cont_new" in out
+    assert "cont_old" not in out
+
+
 def test_cmd_export_wait_error_is_error() -> None:
     lists = [
+        [],  # pre-trigger snapshot
         [_artifact("FULL_REPORT", MagicTableArtifactState.IN_PROGRESS)],
         [_artifact("FULL_REPORT", MagicTableArtifactState.ERROR)],
     ]
