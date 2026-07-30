@@ -106,6 +106,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_GLM_5_1,
             LanguageModelName.LITELLM_GLM_5_2,
             LanguageModelName.LITELLM_KIMI_K2_6,
+            LanguageModelName.LITELLM_KIMI_K3,
             LanguageModelName.LITELLM_QWEN_3,
             LanguageModelName.LITELLM_QWEN_3_THINKING,
             LanguageModelName.LITELLM_OPENAI_O1,
