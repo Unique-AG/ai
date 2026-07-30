@@ -389,6 +389,7 @@ jobs:
           # not whatever main looks like by the time this job runs.
           ref: ${{ github.sha }}
           fetch-depth: 0
+          fetch-tags: true
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Tag dev cut
