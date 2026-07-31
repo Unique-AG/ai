@@ -118,7 +118,10 @@ class TestImportQuestionsAndSources:
 
 class TestGenerateArtifacts:
     async def test_triggers_generation(self, service):
-        with _patch("generate_artifact", return_value={"status": True}) as mock:
+        with (
+            _patch("generate_artifact", return_value={"status": True}) as mock,
+            _patch("list_artifacts", return_value=[]),
+        ):
             await service.generate_artifacts([MagicTableArtifactType.FULL_REPORT])
 
         mock.assert_awaited_once_with(
@@ -129,9 +132,21 @@ class TestGenerateArtifacts:
         )
 
     async def test_raises_on_failure_status(self, service):
-        with _patch("generate_artifact", return_value={"status": False}):
+        with (
+            _patch("generate_artifact", return_value={"status": False}),
+            _patch("list_artifacts", return_value=[]),
+        ):
             with pytest.raises(Exception, match="Failed to trigger"):
                 await service.generate_artifacts([MagicTableArtifactType.QUESTIONS])
+
+    async def test_failed_trigger_does_not_arm_the_baseline(self, service):
+        with (
+            _patch("generate_artifact", return_value={"status": False}),
+            _patch("list_artifacts", return_value=[]),
+        ):
+            with pytest.raises(Exception, match="Failed to trigger"):
+                await service.generate_artifacts([MagicTableArtifactType.QUESTIONS])
+        assert service._artifact_baseline is None
 
 
 class TestRerunRow:
@@ -448,3 +463,103 @@ class TestWaitForArtifacts:
                 await service.wait_for_artifacts(
                     [MagicTableArtifactType.FULL_REPORT], timeout=0, poll_interval=0
                 )
+
+
+class TestWaitForArtifactsWithBaseline:
+    """generate_artifacts + wait_for_artifacts on the same instance: the wait
+    is fenced by the pre-trigger snapshot instead of the IN_PROGRESS heuristic."""
+
+    _artifact = staticmethod(TestWaitForArtifacts._artifact)
+
+    @staticmethod
+    def _stale_pair():
+        # A completed earlier export: the durable nameless IN_PROGRESS marker
+        # plus the DONE report it produced.
+        return [
+            TestWaitForArtifactsWithBaseline._artifact(
+                "FULL_REPORT",
+                "DONE",
+                "artifact_old_done",
+                updated_at="2026-01-01T00:01:02.000Z",
+            ),
+            TestWaitForArtifactsWithBaseline._artifact(
+                "FULL_REPORT",
+                "IN_PROGRESS",
+                "artifact_old_marker",
+                updated_at="2026-01-01T00:01:00.000Z",
+            ),
+        ]
+
+    async def _generate_and_wait(self, service, list_responses, timeout=10):
+        with (
+            _patch("generate_artifact", return_value={"status": True}),
+            _patch("list_artifacts", side_effect=list_responses),
+        ):
+            await service.generate_artifacts([MagicTableArtifactType.FULL_REPORT])
+            return await service.wait_for_artifacts(
+                [MagicTableArtifactType.FULL_REPORT], timeout=timeout, poll_interval=0
+            )
+
+    async def test_leftovers_from_earlier_generation_are_fenced_out(self, service):
+        stale = self._stale_pair()
+        new_done = self._artifact(
+            "FULL_REPORT",
+            "DONE",
+            "artifact_new_done",
+            updated_at="2026-01-01T00:02:05.000Z",
+        )
+        artifacts = await self._generate_and_wait(
+            service,
+            [
+                stale,  # snapshot taken by generate_artifacts
+                stale,  # first poll: only leftovers -> keep waiting
+                [new_done, *stale],
+            ],
+        )
+        assert artifacts[0].id == "artifact_new_done"
+
+    async def test_stale_marker_does_not_open_the_gate(self, service):
+        # Bugbot scenario: the durable IN_PROGRESS marker of an earlier export
+        # must not let the wait return that export's DONE record.
+        stale = self._stale_pair()
+        with pytest.raises(AgenticTableRunTimeoutError):
+            await self._generate_and_wait(service, [stale, stale, stale], timeout=0)
+
+    async def test_accepts_export_finishing_before_first_poll(self, service):
+        # No IN_PROGRESS phase is ever observed; freshness alone accepts it.
+        new_done = self._artifact(
+            "FULL_REPORT",
+            "DONE",
+            "artifact_new_done",
+            updated_at="2026-01-01T00:02:05.000Z",
+        )
+        artifacts = await self._generate_and_wait(service, [[], [new_done]])
+        assert artifacts[0].id == "artifact_new_done"
+
+    async def test_accepts_record_refreshed_in_place(self, service):
+        before = self._artifact(
+            "FULL_REPORT",
+            "DONE",
+            "artifact_reused",
+            updated_at="2026-01-01T00:01:02.000Z",
+        )
+        after = self._artifact(
+            "FULL_REPORT",
+            "DONE",
+            "artifact_reused",
+            updated_at="2026-01-01T00:02:05.000Z",
+        )
+        artifacts = await self._generate_and_wait(service, [[before], [after]])
+        assert artifacts[0].id == "artifact_reused"
+        assert artifacts[0].updated_at == "2026-01-01T00:02:05.000Z"
+
+    async def test_raises_on_fresh_error_record(self, service):
+        stale = self._stale_pair()
+        new_error = self._artifact(
+            "FULL_REPORT",
+            "ERROR",
+            "artifact_new_error",
+            updated_at="2026-01-01T00:02:05.000Z",
+        )
+        with pytest.raises(AgenticTableArtifactError):
+            await self._generate_and_wait(service, [stale, [new_error, *stale]])
