@@ -4,7 +4,7 @@ This package contains only the **framework-specific** event handler contracts
 that reference ``openai.types.*`` payloads. The framework-agnostic
 pieces (``TextState``, ``StreamEventHandlerProtocol``, ``TextFlushed``,
 ``ActivityProgressUpdate``, ``AppendixProducer``, ``UsageProducer``)
-live in the domain layer at :mod:`unique_toolkit.experimental._internal.streaming` —
+live in the domain layer at :mod:`unique_toolkit._internal.streaming` —
 import them from there.
 
 * :mod:`chat_completions` — Chat Completions event handler protocols.
