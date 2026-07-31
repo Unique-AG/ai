@@ -18,8 +18,16 @@ class Space(APIResource["Space"]):
     def OBJECT_NAME(cls) -> Literal["space"]:
         return "space"
 
+    # Prefer ``UNIQUE_CONDUCT`` for Conduct spaces. The public API maps it to
+    # the persisted value ``SWAPPABLE_INTELLIGENCE`` and reverse-maps on read.
+    # ``SWAPPABLE_INTELLIGENCE`` remains accepted for back-compat.
     UiType: TypeAlias = Literal[
-        "MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"
+        "MAGIC_TABLE",
+        "UNIQUE_CUSTOM",
+        "TRANSLATION",
+        "UNIQUE_AI",
+        "UNIQUE_CONDUCT",
+        "SWAPPABLE_INTELLIGENCE",
     ]
 
     class ModuleParams(TypedDict):
