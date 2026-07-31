@@ -11,6 +11,7 @@ if TYPE_CHECKING:
         TraceContextTextMapPropagator,
     )
 
+# Keep ASGI aliases local; tracing should not depend on asgiref solely for typing.
 ASGIScope: TypeAlias = MutableMapping[str, object]
 ASGIMessage: TypeAlias = MutableMapping[str, object]
 ASGIReceive: TypeAlias = Callable[[], Awaitable[ASGIMessage]]
