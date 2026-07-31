@@ -23,6 +23,7 @@ from unique_sdk.cli.commands.agentic_table_write import (
     cmd_create_sheet,
     cmd_export,
     cmd_import,
+    cmd_rerun_row,
 )
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
@@ -433,6 +434,94 @@ def test_cmd_export_wait_timeout_is_error() -> None:
 # -- error detector + CLI wiring ------------------------------------------
 
 
+# -- rerun-row -------------------------------------------------------------
+
+
+def test_cmd_rerun_row_no_wait() -> None:
+    with _patch("rerun_row", return_value=_OK) as mock_rerun:
+        out = cmd_rerun_row(_state(), "mt_1", 4)
+
+    assert "Result:" in out and "OK" in out
+    assert not is_error_output(out)
+    kwargs = mock_rerun.await_args.kwargs
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["rowOrder"] == 4
+
+
+def test_cmd_rerun_row_soft_failure_is_error() -> None:
+    """A locked or final row is declined in a 200 body, so it must still fail."""
+    with _patch(
+        "rerun_row", return_value={"status": False, "message": "row is locked"}
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4)
+
+    assert is_error_output(out)
+    assert "rerun rejected" in out
+    assert "row is locked" in out
+
+
+def test_cmd_rerun_row_soft_failure_skips_wait() -> None:
+    with (
+        _patch("rerun_row", return_value={"status": False}),
+        _patch("get_sheet_state") as mock_state,
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4, wait=True)
+
+    assert is_error_output(out)
+    mock_state.assert_not_awaited()
+
+
+def test_cmd_rerun_row_permission_denied() -> None:
+    with _patch("rerun_row", side_effect=UniqueError("nope", http_status=403)):
+        out = cmd_rerun_row(_state(), "mt_1", 4)
+
+    assert out == "agentic-table: permission denied"
+
+
+def test_cmd_rerun_row_wait_run_finishes() -> None:
+    states = [
+        AgenticTableSheetState.IDLE,  # not started yet
+        AgenticTableSheetState.PROCESSING,  # rerun started
+        AgenticTableSheetState.IDLE,  # rerun finished
+    ]
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4, wait=True, timeout=60.0)
+
+    assert "Row 4 rerun finished" in out and "IDLE" in out
+    assert not is_error_output(out)
+
+
+def test_cmd_rerun_row_wait_no_run_is_error() -> None:
+    """A rerun always triggers a run, so nothing observed is never benign."""
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4, wait=True, timeout=0.0)
+
+    assert is_error_output(out)
+    assert "no run was observed" in out
+    assert "cell-history" in out, "must say how to settle an unobserved rerun"
+
+
+def test_cmd_rerun_row_wait_timeout_is_error() -> None:
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.PROCESSING),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4, wait=True, timeout=0.0)
+
+    assert is_error_output(out)
+    assert "timed out" in out
+
+
 def test_error_output_detector() -> None:
     assert is_error_output("agentic-table: permission denied")
     assert not is_error_output("Action:  import")
@@ -499,6 +588,79 @@ def test_cli_export_wiring(mock_cmd: object) -> None:
     assert kwargs["output_json"] is True
 
 
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
+def test_cli_rerun_row_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "rerun-row", "mt_1", "4", "--wait"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert mock_cmd.call_args.args[1:] == ("mt_1", 4)  # type: ignore[attr-defined]
+    assert mock_cmd.call_args.kwargs["wait"] is True  # type: ignore[attr-defined]
+
+
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
+def test_cli_rerun_row_rejects_non_integer_row(mock_cmd: object) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "rerun-row", "mt_1", "abc"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+
+
+@pytest.mark.parametrize("row", ["0", "-5"])
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
+def test_cli_rerun_row_rejects_unanswerable_rows_locally(
+    mock_cmd: object, row: str
+) -> None:
+    """Row 0 is the header and negatives address nothing.
+
+    A rerun is an audited write, so refusing these before the request keeps the
+    audit log free of entries the client could see were never valid.
+    """
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "rerun-row", "mt_1", row],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+    mock_cmd.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_cmd_rerun_row_wait_json_shape() -> None:
+    """Agents pipe this to jq, so the keys --wait adds are part of the contract."""
+    states = [
+        AgenticTableSheetState.IDLE,
+        AgenticTableSheetState.PROCESSING,
+        AgenticTableSheetState.IDLE,
+    ]
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(
+            _state(), "mt_1", 4, wait=True, timeout=60.0, output_json=True
+        )
+
+    payload = json.loads(out)
+    assert payload["result"] == _OK
+    assert payload["rowOrder"] == 4
+    assert payload["finalState"] == "IDLE"
+
+
 @patch("unique_sdk.cli.cli.cmd_export")
 def test_cli_export_rejects_invalid_type(mock_cmd: object) -> None:
     runner = CliRunner()
@@ -513,32 +675,38 @@ def test_cli_export_rejects_invalid_type(mock_cmd: object) -> None:
 
 
 @pytest.mark.parametrize(
-    ("command", "option"),
+    ("argv", "option"),
     [
-        ("import", "--timeout"),
-        ("import", "--start-timeout"),
-        ("export", "--timeout"),
+        (["import", "mt_1"], "--timeout"),
+        (["import", "mt_1"], "--start-timeout"),
+        (["export", "mt_1", "--type", "FULL_REPORT"], "--timeout"),
+        (["rerun-row", "mt_1", "1"], "--timeout"),
+        (["rerun-row", "mt_1", "1"], "--start-timeout"),
     ],
 )
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
 @patch("unique_sdk.cli.cli.cmd_import")
 @patch("unique_sdk.cli.cli.cmd_export")
 def test_cli_rejects_a_negative_wait_budget(
-    mock_export: object, mock_import: object, command: str, option: str
+    mock_export: object,
+    mock_import: object,
+    mock_rerun: object,
+    argv: list[str],
+    option: str,
 ) -> None:
     """A negative budget is a typo, and expires instantly — say so up front."""
     runner = CliRunner()
-    extra = ["--type", "FULL_REPORT"] if command == "export" else []
 
     result = runner.invoke(
         cli_main,
-        ["agentic-table", command, "mt_1", *extra, option, "-1", "--wait"],
+        ["agentic-table", *argv, option, "-1", "--wait"],
         env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
     )
 
     assert result.exit_code != 0
     assert option in result.output
-    mock_import.assert_not_called()  # type: ignore[attr-defined]
-    mock_export.assert_not_called()  # type: ignore[attr-defined]
+    for mock in (mock_export, mock_import, mock_rerun):
+        mock.assert_not_called()  # type: ignore[attr-defined]
 
 
 @patch("unique_sdk.cli.cli.cmd_import")

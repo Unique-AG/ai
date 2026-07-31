@@ -134,6 +134,27 @@ class TestGenerateArtifacts:
                 await service.generate_artifacts([MagicTableArtifactType.QUESTIONS])
 
 
+class TestRerunRow:
+    async def test_triggers_rerun(self, service):
+        with _patch("rerun_row", return_value={"status": True}) as mock:
+            await service.rerun_row(4)
+
+        mock.assert_awaited_once_with(
+            user_id=USER_ID,
+            company_id=COMPANY_ID,
+            tableId=TABLE_ID,
+            rowOrder=4,
+        )
+
+    async def test_raises_on_failure_status(self, service):
+        """A locked or final row is declined in a 200 body, not an HTTP error."""
+        with _patch(
+            "rerun_row", return_value={"status": False, "message": "row locked"}
+        ):
+            with pytest.raises(Exception, match="row locked"):
+                await service.rerun_row(4)
+
+
 class TestListArtifacts:
     async def test_validates_models(self, service):
         with _patch(
