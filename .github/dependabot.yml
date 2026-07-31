@@ -11,7 +11,7 @@ updates:
     # 2-week stability window: skip releases newer than this. github-actions is
     # not semver-graded by Dependabot, so default-days governs all bumps.
     cooldown:
-      default-days: 14
+      default-days: 3
     commit-message:
       prefix: chore(deps)
     labels:
@@ -34,7 +34,7 @@ updates:
       day: friday
     open-pull-requests-limit: 5
     cooldown:
-      default-days: 14
+      default-days: 3
     commit-message:
       prefix: chore(deps)
     labels:
