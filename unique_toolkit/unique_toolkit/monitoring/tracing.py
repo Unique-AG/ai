@@ -61,12 +61,12 @@ class TracingSettings(BaseSettings):
         """Resolve standard OTel settings with Node service compatibility aliases."""
         if self.traces_exporter:
             return self.traces_exporter
+        if self.exporter_otlp_traces_endpoint or self.exporter_otlp_endpoint:
+            return TraceExporter.OTLP
         if self.enabled is False:
             return None
         if self.enabled is True:
             return self.span_processor or TraceExporter.OTLP
-        if self.exporter_otlp_traces_endpoint or self.exporter_otlp_endpoint:
-            return TraceExporter.OTLP
         return None
 
     @property

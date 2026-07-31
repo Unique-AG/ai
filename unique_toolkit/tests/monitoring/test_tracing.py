@@ -6,6 +6,7 @@ import builtins
 
 import pytest
 from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.util._once import Once
 
 from unique_toolkit.monitoring import (
@@ -107,19 +108,19 @@ def test_resolve_exporter__defaults_to_otlp__when_node_tracing_is_enabled(
 
 @pytest.mark.ai
 @pytest.mark.unit
-def test_resolve_exporter__returns_none__when_node_tracing_is_disabled(
+def test_resolve_exporter__prefers_standard_endpoint__over_node_tracing_disable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Purpose: Verify the Node disable flag prevents endpoint-based setup.
-    Why this matters: Services must be able to opt out despite shared OTLP endpoint settings.
-    Setup summary: Disable Node-compatible tracing with an endpoint present and assert no exporter.
+    Purpose: Verify standard endpoint settings override the Node compatibility disable flag.
+    Why this matters: Standard OpenTelemetry configuration must take precedence.
+    Setup summary: Disable Node-compatible tracing with an endpoint present and assert OTLP.
     """
     monkeypatch.delenv("OTEL_TRACES_EXPORTER", raising=False)
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "false")
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
 
-    assert TracingSettings().exporter_name is None
+    assert TracingSettings().exporter_name is TraceExporter.OTLP
 
 
 @pytest.mark.ai
@@ -446,5 +447,23 @@ def test_configure_tracing__does_not_replace_provider__when_called_twice(
 
     assert configure_tracing() is True
     provider = trace.get_tracer_provider()
+    assert configure_tracing() is True
+    assert trace.get_tracer_provider() is provider
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_configure_tracing__does_not_replace_an_existing_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify tracing preserves SDK configuration installed before toolkit startup.
+    Why this matters: Applications may initialize OpenTelemetry outside this bootstrap.
+    Setup summary: Install a provider, configure tracing, and assert its identity remains.
+    """
+    monkeypatch.setenv("OTEL_TRACES_EXPORTER", "console")
+    provider = TracerProvider()
+    trace.set_tracer_provider(provider)
+
     assert configure_tracing() is True
     assert trace.get_tracer_provider() is provider
