@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Awaitable, Callable, Iterable, MutableMapping
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
     from opentelemetry.trace.propagation.tracecontext import (
@@ -24,23 +26,44 @@ _OTEL_EXTRA_MESSAGE = (
 )
 
 
-def _resolve_exporter() -> str | None:
-    """Resolve standard OTel settings with Node service compatibility aliases."""
-    exporter_name = os.getenv("OTEL_TRACES_EXPORTER")
-    if exporter_name:
-        return exporter_name
+class TracingSettings(BaseSettings):
+    """Environment settings for optional OpenTelemetry tracing."""
 
-    enabled = os.getenv("ENABLE_OPENTELEMETRY")
-    if enabled == "false":
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_prefix="OTEL_",
+        env_ignore_empty=True,
+        extra="ignore",
+    )
+
+    traces_exporter: str | None = None
+    service_name: str | None = None
+    service_version: str | None = None
+    exporter_otlp_traces_endpoint: str | None = None
+    exporter_otlp_endpoint: str | None = None
+    span_processor: str | None = None
+    enabled: bool | None = Field(
+        default=None,
+        validation_alias="ENABLE_OPENTELEMETRY",
+    )
+    version: str | None = Field(default=None, validation_alias="VERSION")
+
+    @property
+    def exporter_name(self) -> str | None:
+        """Resolve standard OTel settings with Node service compatibility aliases."""
+        if self.traces_exporter:
+            return self.traces_exporter
+        if self.enabled is False:
+            return None
+        if self.enabled is True:
+            return self.span_processor or "otlp"
+        if self.exporter_otlp_traces_endpoint or self.exporter_otlp_endpoint:
+            return "otlp"
         return None
-    if enabled == "true":
-        return os.getenv("OTEL_SPAN_PROCESSOR") or "otlp"
 
-    if os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") or os.getenv(
-        "OTEL_EXPORTER_OTLP_ENDPOINT"
-    ):
-        return "otlp"
-    return None
+    @property
+    def resolved_service_version(self) -> str | None:
+        """Return the standard OTel version with the Node deployment fallback."""
+        return self.service_version or self.version
 
 
 def _missing_otel_extra() -> ImportError:
@@ -115,7 +138,8 @@ def configure_tracing(
     tracing configuration. Prometheus metrics and application logging remain
     separate, so ``OTEL_METRICS_READER`` and ``OTEL_LOGS_PROCESSOR`` are ignored.
     """
-    exporter_name = _resolve_exporter()
+    settings = TracingSettings()
+    exporter_name = settings.exporter_name
 
     if exporter_name in {None, "none"}:
         return False
@@ -150,12 +174,12 @@ def configure_tracing(
 
     attributes: dict[str, str] = {}
     resolved_service_name = (
-        service_name if service_name is not None else os.getenv("OTEL_SERVICE_NAME")
+        service_name if service_name is not None else settings.service_name
     )
     resolved_service_version = (
         service_version
         if service_version is not None
-        else os.getenv("OTEL_SERVICE_VERSION", os.getenv("VERSION"))
+        else settings.resolved_service_version
     )
     if resolved_service_name is not None:
         attributes["service.name"] = resolved_service_name

@@ -10,10 +10,10 @@ from opentelemetry.util._once import Once
 
 from unique_toolkit.monitoring import (
     TraceContextMiddleware,
+    TracingSettings,
     configure_tracing,
     inject_trace_headers,
 )
-from unique_toolkit.monitoring.tracing import _resolve_exporter
 
 
 def _reset_tracer_provider() -> None:
@@ -84,7 +84,7 @@ def test_resolve_exporter__maps_node_alias__when_tracing_is_enabled(
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "true")
     monkeypatch.setenv("OTEL_SPAN_PROCESSOR", processor)
 
-    assert _resolve_exporter() == expected
+    assert TracingSettings().exporter_name == expected
 
 
 @pytest.mark.ai
@@ -101,7 +101,7 @@ def test_resolve_exporter__defaults_to_otlp__when_node_tracing_is_enabled(
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "true")
     monkeypatch.delenv("OTEL_SPAN_PROCESSOR", raising=False)
 
-    assert _resolve_exporter() == "otlp"
+    assert TracingSettings().exporter_name == "otlp"
 
 
 @pytest.mark.ai
@@ -118,7 +118,7 @@ def test_resolve_exporter__returns_none__when_node_tracing_is_disabled(
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "false")
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
 
-    assert _resolve_exporter() is None
+    assert TracingSettings().exporter_name is None
 
 
 @pytest.mark.ai
@@ -135,7 +135,7 @@ def test_resolve_exporter__prefers_standard_exporter__over_node_aliases(
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "false")
     monkeypatch.setenv("OTEL_SPAN_PROCESSOR", "none")
 
-    assert _resolve_exporter() == "console"
+    assert TracingSettings().exporter_name == "console"
 
 
 @pytest.mark.ai
@@ -152,7 +152,7 @@ def test_resolve_exporter__uses_endpoint__when_exporter_unset(
     monkeypatch.delenv("ENABLE_OPENTELEMETRY", raising=False)
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
 
-    assert _resolve_exporter() == "otlp"
+    assert TracingSettings().exporter_name == "otlp"
 
 
 @pytest.mark.ai
@@ -170,13 +170,13 @@ def test_resolve_exporter__treats_empty_values_as_unset(
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
-    assert _resolve_exporter() is None
+    assert TracingSettings().exporter_name is None
 
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "true")
-    assert _resolve_exporter() == "otlp"
+    assert TracingSettings().exporter_name == "otlp"
 
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "false")
-    assert _resolve_exporter() is None
+    assert TracingSettings().exporter_name is None
 
 
 @pytest.mark.ai

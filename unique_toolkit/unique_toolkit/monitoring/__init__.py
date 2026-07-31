@@ -1,10 +1,16 @@
 from unique_toolkit.monitoring.tracing import (
     TraceContextMiddleware,
+    TracingSettings,
     configure_tracing,
     inject_trace_headers,
 )
 
-__all__ = ["TraceContextMiddleware", "configure_tracing", "inject_trace_headers"]
+__all__ = [
+    "TraceContextMiddleware",
+    "TracingSettings",
+    "configure_tracing",
+    "inject_trace_headers",
+]
 
 _MONITORING_AVAILABLE = False
 try:
