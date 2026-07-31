@@ -236,8 +236,17 @@ def get_dossier(ticker: _TICKER) -> str:
     row = next(c for c in seed.current_coverage() if c["ticker"] == t)
     d = seed.current_dossiers()[t]
     ov = seed.current_overnight().get(t)
+    nh_rows = []
+    for x in d["note_history"]:
+        ts, sep, label = x.partition(" · ")
+        nh_rows.append({"key": x, "ts": ts if sep else "",
+                        "label": label if sep else x})
     return json.dumps({**row, **d,
                        "overnight": ov,
+                       # display-ready shapes for the live review cards
+                       "thesis_bullets": [{"text": b.strip()}
+                                          for b in d["thesis"].split(";") if b.strip()],
+                       "note_history_rows": nh_rows,
                        "interaction_log_text": " · ".join(d["interaction_log"]),
                        "note_history_text": " · ".join(d["note_history"])})
 
@@ -990,8 +999,8 @@ def update_thesis(
     d = env_state.state()["dossiers"][key]
     d["thesis"] = thesis.strip()
     return json.dumps({"updated": True, "ticker": key, "thesis": d["thesis"],
-                       "note": "Baked into the review at the next regeneration "
-                               "(nightly, desk-brief job, or ↻ on the dashboard)."})
+                       "note": "The review card is LIVE — it refreshes within a minute "
+                               "(or instantly via the card's ↻ button)."})
 
 
 @mcp.tool(name="add_note_history", title="Add a note-history entry",
@@ -1056,7 +1065,9 @@ def update_scenario_case(
                 if r.get("probability", "").strip().rstrip("%").replace(".", "").isdigit())
     return json.dumps({"updated": True, "ticker": key, "row": row,
                        "probability_sum": f"{total:.0f}%",
-                       "note": "Baked into the review/Lab at the next regeneration."})
+                       "note": "The review's scenario card is LIVE — it refreshes within a "
+                               "minute (or instantly via its ↻); the Lab bakes at the "
+                               "next regeneration."})
 
 
 @mcp.tool(name="update_analyst_note", title="Edit or delete a desk note",

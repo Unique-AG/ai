@@ -437,17 +437,32 @@ def build_review(tk: str, names: list[tuple]) -> str:
                   _json.dumps({"prompt": status_prompt}).replace("'", "&#39;") +
                   "'>" + e(c["status"]) + '</button>')
 
-    # investment thesis — bullets, editable with AI (update_thesis)
-    th_bullets = "".join(f"<li>{e(b.strip())}</li>"
-                         for b in d["thesis"].split(";") if b.strip())
+    # investment thesis — LIVE bound list (update_thesis edits appear within 60s)
     th_prompt = ('Apply this instruction to the INVESTMENT THESIS of ' + c["name"] +
                  ' (' + tk + '): "__INSTR__". Current thesis: "' + d["thesis"] + '". '
                  'Produce the revised thesis as short semicolon-separated bullets and '
-                 'store it with update_thesis(ticker, thesis); confirm what changed and '
-                 'remind me the dashboard bakes it at the next regeneration.')
-    thesis_card = ('<div class="card" data-ai-card><h2>Investment thesis '
-                   '<span class="mut">· editable — the agent stores it via update_thesis'
-                   '</span></h2><ul class="thl">' + th_bullets + '</ul>'
+                 'store it with update_thesis(ticker, thesis); confirm what changed — '
+                 'the card refreshes live within a minute (or via its ↻ button).')
+    th_args = _json.dumps({"ticker": tk})
+    thesis_card = ('<div class="card" data-ai-card><h2>'
+                   '<button class="rfr" title="Refresh now" data-unique-action="refresh" '
+                   'data-unique-source-list="th">↻</button>'
+                   'Investment thesis <span class="mut">· live · editable — the agent '
+                   'stores it via update_thesis</span></h2>'
+                   '<ul class="thl" data-unique-list="th" '
+                   'data-unique-source-server="Demo - CIB - Sell-Side Equity Analyst" '
+                   'data-unique-source-tool="get_dossier" '
+                   "data-unique-source-args='" + th_args + "' "
+                   'data-unique-source-path="thesis_bullets" '
+                   'data-unique-source-poll="60000">'
+                   '<template data-unique-item>'
+                   '<li data-unique-key="text" data-unique-field="text"></li></template>'
+                   '<li class="state" data-unique-state="loading" style="list-style:none">'
+                   '<span class="spin"></span> loading thesis…</li>'
+                   '<li class="state err" data-unique-state="error" style="list-style:none">'
+                   'Thesis unavailable — check the Demo - CIB - Sell-Side Equity Analyst '
+                   'connector.</li>'
+                   '</ul>'
                    + _edit_rows('Edit with AI — e.g. add a bullet on China entry-price risk',
                                 th_prompt) + '</div>')
 
@@ -560,14 +575,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
     sc = seed.current_scenarios().get(tk)
     sc_html = ""
     if sc:
-        sc_rows = "".join(
-            f'<tr><td><b>{e(r["scenario"])}</b><br><span style="color:var(--mut);font-size:12px">'
-            f'{e(r["assumption"])}</span></td>'
-            f'<td class="num">{e(r["eps_impact"])}</td>'
-            f'<td class="num">{e(r["tp_impact"])}</td>'
-            f'<td class="num">{e(r.get("probability", ""))}</td>'
-            f'<td style="color:var(--ink2);font-size:12.5px">{e(r["hypothesis"])}</td></tr>'
-            for r in sc["rows"])
+        sc_args = _json.dumps({"ticker": tk})
         lab_id = REVIEW_IDS.get("__scenario_lab__", "") if tk == "MC FP" else ""
         lab_btn = (f'<button class="btn primary" data-unique-action="openDocument" '
                    f"data-unique-payload='{{\"contentId\":\"{e(lab_id)}\"}}'>🧪 Open the "
@@ -587,12 +595,34 @@ def build_review(tk: str, names: list[tuple]) -> str:
                   f"China timing and (if LVMH) destocking end, then run compute_scenario "
                   f"and explain every number.")
             + "</div>")
-        sc_html = (f'<div class="card" data-ai-card><h2>Scenario analysis — our hypotheses '
-                   f'<span class="mut">· {e(sc["period"])} · base {e(sc["base_tp"])}</span></h2>'
+        sc_html = (f'<div class="card" data-ai-card><h2>'
+                   f'<button class="rfr" title="Refresh now" data-unique-action="refresh" '
+                   f'data-unique-source-list="sc">↻</button>'
+                   f'Scenario analysis — our hypotheses '
+                   f'<span class="mut">· {e(sc["period"])} · base {e(sc["base_tp"])} · live</span></h2>'
                    '<table class="est"><thead><tr><th>Scenario / assumption</th>'
                    '<th class="num">EPS</th><th class="num">Target price</th>'
                    '<th class="num">Prob.</th><th>Our hypothesis</th></tr></thead>'
-                   f'<tbody>{sc_rows}</tbody></table>'
+                   '<tbody data-unique-list="sc" '
+                   'data-unique-source-server="Demo - CIB - Sell-Side Equity Analyst" '
+                   'data-unique-source-tool="get_scenarios" '
+                   f"data-unique-source-args='{sc_args}' "
+                   'data-unique-source-path="rows" '
+                   'data-unique-source-poll="60000">'
+                   '<template data-unique-item>'
+                   '<tr data-unique-key="scenario">'
+                   '<td><b data-unique-field="scenario"></b><br>'
+                   '<span style="color:var(--mut);font-size:12px" data-unique-field="assumption"></span></td>'
+                   '<td class="num" data-unique-field="eps_impact"></td>'
+                   '<td class="num" data-unique-field="tp_impact"></td>'
+                   '<td class="num" data-unique-field="probability"></td>'
+                   '<td style="color:var(--ink2);font-size:12.5px" data-unique-field="hypothesis"></td>'
+                   '</tr></template>'
+                   '<tr data-unique-state="loading"><td colspan="5" class="state">'
+                   '<span class="spin"></span> loading scenarios…</td></tr>'
+                   '<tr data-unique-state="error"><td colspan="5" class="state err">'
+                   'Scenarios unavailable — check the Demo - CIB - Sell-Side Equity Analyst connector.</td></tr>'
+                   '</tbody></table>'
                    f'<p class="mut" style="margin:10px 0 0;font-size:12.5px">{e(sc["note"])} '
                    f'Any other shock: the scenario engine computes it live.</p>'
                    + f'{engine_btns}'
@@ -602,14 +632,32 @@ def build_review(tk: str, names: list[tuple]) -> str:
                                 'update_scenario_case (match by scenario title); if the '
                                 'shock itself changes, RECOMPUTE eps/tp with '
                                 'compute_scenario first — never invent numbers; keep '
-                                'probabilities summing to 100%. Confirm the updated row.')
+                                'probabilities summing to 100%. Confirm the updated row — the card '
+                                'refreshes live within a minute (or via its ↻ button).')
                    + '</div>')
 
     log = "".join(f"<li>{e(x)}</li>" for x in d["interaction_log"])
-    notes = "".join(
-        (lambda p: f'<li><span class="mut" style="font-size:11px">{e(p[0])}</span> · {e(p[2])}</li>'
-         if len(p) == 3 else f"<li>{e(x)}</li>")(x.partition(" · "))
-        for x in d["note_history"])
+    nh_card = ('<div class="card"><h2>'
+               '<button class="rfr" title="Refresh now" data-unique-action="refresh" '
+               'data-unique-source-list="nh">↻</button>'
+               'Note history <span class="mut">· live — entries added via add_note_history '
+               'appear here</span></h2>'
+               '<ul class="log" data-unique-list="nh" '
+               'data-unique-source-server="Demo - CIB - Sell-Side Equity Analyst" '
+               'data-unique-source-tool="get_dossier" '
+               "data-unique-source-args='" + _json.dumps({"ticker": tk}) + "' "
+               'data-unique-source-path="note_history_rows" '
+               'data-unique-source-poll="60000">'
+               '<template data-unique-item>'
+               '<li data-unique-key="key"><span class="mut" style="font-size:11px" '
+               'data-unique-field="ts"></span> · <span data-unique-field="label"></span></li>'
+               '</template>'
+               '<li class="state" data-unique-state="loading" style="list-style:none">'
+               '<span class="spin"></span> loading note history…</li>'
+               '<li class="state err" data-unique-state="error" style="list-style:none">'
+               'Note history unavailable — check the Demo - CIB - Sell-Side Equity Analyst '
+               'connector.</li>'
+               '</ul></div>')
 
     actions = "".join([
         act("Run first-take", f"Run the results first-take for {c['name']} ({tk})."),
@@ -645,7 +693,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
   {cons_html}
   {sc_html}
   <div class="card"><h2>Interaction log</h2><ul class="log">{log}</ul></div>
-  <div class="card"><h2>Note history</h2><ul class="log">{notes}</ul></div>
+  {nh_card}
   <div class="card"><h2>Actions <span class="mut">· drafts for your review, nothing sent</span></h2>
     <div class="acts">{actions}</div></div>
   <div class="foot">SYNTHETIC — DEMO USE ONLY · coverage as of the 07:00 overnight run · live quotes via FA Research MCP (Yahoo Finance, timestamped)</div>
