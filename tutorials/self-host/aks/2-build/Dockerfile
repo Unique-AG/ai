@@ -7,7 +7,8 @@
 # policies.
 # ============================================================================
 
-FROM python:3.12-slim-bookworm
+# Pinned by version and digest, same governed image the platform docker-base uses.
+FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
 
 ARG POETRY_VERSION=1.7.1
 

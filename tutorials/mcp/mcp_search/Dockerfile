@@ -5,7 +5,7 @@
 # -----------------------------------------------------------------------------
 # Build stage
 # -----------------------------------------------------------------------------
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:e5b65587bce7de595f299855d7385fe7fca39b8a74baa261ba1b7147afa78e58 AS builder
+FROM ghcr.io/astral-sh/uv:0.11.33-python3.12-trixie-slim@sha256:7b5a3c8f80fb965911cf8f0c6690b30b39f10f691fc1e52cd6cc44bc509c3aeb AS builder
 
 WORKDIR /app
 
@@ -33,7 +33,7 @@ RUN uv sync --frozen --no-dev
 # -----------------------------------------------------------------------------
 # Runtime stage
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b AS runtime
+FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS runtime
 
 WORKDIR /app
 

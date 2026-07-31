@@ -53,7 +53,7 @@ Two ways to authenticate:
 ### Prerequisites
 
 1. **Request Azure resources** — Follow [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs) to add entry to [environments.yaml](https://github.com/Unique-AG/infrastructure/blob/main/providers/azure/unique-ag/lab/demo/001/config/environments.yaml)
-2. **Create `Dockerfile`** — builds container from `src/`, uses `node:20-alpine`, runs `npm run start:sse`
+2. **Create `Dockerfile`** — builds container from `src/`, uses a digest-pinned `node:24.18.0-trixie-slim`, runs `npm run start:sse`
 3. **Create `.dockerignore`** — excludes `node_modules`, `.env`, `.msal-cache.json`, `.access-token.txt` (prevents leaking secrets)
 4. **Create `deploy.sh`** — Azure CLI script that creates resources and deploys
 
