@@ -10,6 +10,7 @@ from opentelemetry.util._once import Once
 
 from unique_toolkit.monitoring import (
     TraceContextMiddleware,
+    TraceExporter,
     TracingSettings,
     configure_tracing,
     inject_trace_headers,
@@ -66,14 +67,14 @@ def test_configure_tracing__returns_false__without_exporter_or_endpoint(
 @pytest.mark.parametrize(
     ("processor", "expected"),
     [
-        ("console", "console"),
-        ("none", "none"),
+        ("console", TraceExporter.CONSOLE),
+        ("none", TraceExporter.NONE),
     ],
 )
 def test_resolve_exporter__maps_node_alias__when_tracing_is_enabled(
     monkeypatch: pytest.MonkeyPatch,
     processor: str,
-    expected: str,
+    expected: TraceExporter,
 ) -> None:
     """
     Purpose: Verify the Node enable flag maps its configured span processor.
@@ -101,7 +102,7 @@ def test_resolve_exporter__defaults_to_otlp__when_node_tracing_is_enabled(
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "true")
     monkeypatch.delenv("OTEL_SPAN_PROCESSOR", raising=False)
 
-    assert TracingSettings().exporter_name == "otlp"
+    assert TracingSettings().exporter_name is TraceExporter.OTLP
 
 
 @pytest.mark.ai
@@ -238,7 +239,7 @@ def test_configure_tracing__raises__for_unsupported_exporter(
     """
     monkeypatch.setenv("OTEL_TRACES_EXPORTER", "jaeger")
 
-    with pytest.raises(ValueError, match="Unsupported trace exporter"):
+    with pytest.raises(ValueError, match="Input should be"):
         configure_tracing()
 
 

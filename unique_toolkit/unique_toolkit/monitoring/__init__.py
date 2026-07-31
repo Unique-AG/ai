@@ -1,5 +1,6 @@
 from unique_toolkit.monitoring.tracing import (
     TraceContextMiddleware,
+    TraceExporter,
     TracingSettings,
     configure_tracing,
     inject_trace_headers,
@@ -7,6 +8,7 @@ from unique_toolkit.monitoring.tracing import (
 
 __all__ = [
     "TraceContextMiddleware",
+    "TraceExporter",
     "TracingSettings",
     "configure_tracing",
     "inject_trace_headers",

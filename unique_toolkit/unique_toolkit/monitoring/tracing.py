@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterable, MutableMapping
+from enum import StrEnum
 from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
 
 from pydantic import Field
@@ -26,6 +27,14 @@ _OTEL_EXTRA_MESSAGE = (
 )
 
 
+class TraceExporter(StrEnum):
+    """Trace exporters supported by the toolkit bootstrap."""
+
+    NONE = "none"
+    CONSOLE = "console"
+    OTLP = "otlp"
+
+
 class TracingSettings(BaseSettings):
     """Environment settings for optional OpenTelemetry tracing."""
 
@@ -35,12 +44,12 @@ class TracingSettings(BaseSettings):
         extra="ignore",
     )
 
-    traces_exporter: str | None = None
+    traces_exporter: TraceExporter | None = None
     service_name: str | None = None
     service_version: str | None = None
     exporter_otlp_traces_endpoint: str | None = None
     exporter_otlp_endpoint: str | None = None
-    span_processor: str | None = None
+    span_processor: TraceExporter | None = None
     enabled: bool | None = Field(
         default=None,
         validation_alias="ENABLE_OPENTELEMETRY",
@@ -48,16 +57,16 @@ class TracingSettings(BaseSettings):
     version: str | None = Field(default=None, validation_alias="VERSION")
 
     @property
-    def exporter_name(self) -> str | None:
+    def exporter_name(self) -> TraceExporter | None:
         """Resolve standard OTel settings with Node service compatibility aliases."""
         if self.traces_exporter:
             return self.traces_exporter
         if self.enabled is False:
             return None
         if self.enabled is True:
-            return self.span_processor or "otlp"
+            return self.span_processor or TraceExporter.OTLP
         if self.exporter_otlp_traces_endpoint or self.exporter_otlp_endpoint:
-            return "otlp"
+            return TraceExporter.OTLP
         return None
 
     @property
@@ -141,13 +150,8 @@ def configure_tracing(
     settings = TracingSettings()
     exporter_name = settings.exporter_name
 
-    if exporter_name in {None, "none"}:
+    if exporter_name in {None, TraceExporter.NONE}:
         return False
-
-    if exporter_name not in {None, "console", "otlp"}:
-        raise ValueError(
-            "Unsupported trace exporter. Expected 'none', 'console', or 'otlp'."
-        )
 
     try:
         from opentelemetry import trace
@@ -187,7 +191,7 @@ def configure_tracing(
         attributes["service.version"] = resolved_service_version
 
     provider = TracerProvider(resource=Resource.create(attributes))
-    if exporter_name == "console":
+    if exporter_name == TraceExporter.CONSOLE:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     else:
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
