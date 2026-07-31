@@ -169,6 +169,7 @@ def test_resolve_exporter__treats_empty_values_as_unset(
     monkeypatch.setenv("OTEL_SPAN_PROCESSOR", "")
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+    monkeypatch.delenv("ENABLE_OPENTELEMETRY", raising=False)
 
     assert TracingSettings().exporter_name is None
 
@@ -177,6 +178,26 @@ def test_resolve_exporter__treats_empty_values_as_unset(
 
     monkeypatch.setenv("ENABLE_OPENTELEMETRY", "false")
     assert TracingSettings().exporter_name is None
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_tracing_settings__treats_empty_service_values_as_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify blank service attributes do not block the deployment version fallback.
+    Why this matters: Trace resources must not contain empty service attributes.
+    Setup summary: Set blank standard service values and assert the Node version remains usable.
+    """
+    monkeypatch.setenv("OTEL_SERVICE_NAME", "")
+    monkeypatch.setenv("OTEL_SERVICE_VERSION", "")
+    monkeypatch.setenv("VERSION", "node-version")
+
+    settings = TracingSettings()
+
+    assert settings.service_name is None
+    assert settings.resolved_service_version == "node-version"
 
 
 @pytest.mark.ai
