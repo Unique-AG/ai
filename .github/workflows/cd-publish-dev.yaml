@@ -213,9 +213,9 @@ jobs:
 
       - name: Install uv
         if: fromJson(steps.publishable.outputs.matrix).include[0] != null
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
-          version: '0.11.5'
+          version: '0.11.28'
 
       - name: Compute CalVer cycle
         id: calver
@@ -273,9 +273,9 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
-          version: '0.11.5'
+          version: '0.11.28'
 
       - name: Rewrite pyproject.toml for dev version
         env:
@@ -490,9 +490,9 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
-          version: '0.11.5'
+          version: '0.11.28'
 
       - name: Ensure dev-version-bump label exists
         env:
