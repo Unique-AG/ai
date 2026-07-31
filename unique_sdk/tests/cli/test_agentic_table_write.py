@@ -6,6 +6,7 @@ import json
 import time
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from unique_sdk._error import UniqueError
@@ -311,6 +312,17 @@ def test_cmd_export_soft_failure_is_error() -> None:
     assert "nothing to export" in out
 
 
+def test_cmd_export_unknown_type_is_an_error_line_not_an_exception() -> None:
+    """``click.Choice`` guards the CLI path; a direct caller has to be told too."""
+    with _patch("generate_artifact") as mock_generate:
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT", "SUMMARY"])
+
+    assert is_error_output(out)
+    assert "unknown artifact type: SUMMARY" in out
+    assert "FULL_REPORT" in out  # the valid one is listed as accepted, not rejected
+    mock_generate.assert_not_awaited()
+
+
 def test_cmd_export_soft_failure_skips_wait() -> None:
     """A declined generation must not poll for artifacts that were never queued.
 
@@ -498,6 +510,35 @@ def test_cli_export_rejects_invalid_type(mock_cmd: object) -> None:
     )
 
     assert result.exit_code != 0
+
+
+@pytest.mark.parametrize(
+    ("command", "option"),
+    [
+        ("import", "--timeout"),
+        ("import", "--start-timeout"),
+        ("export", "--timeout"),
+    ],
+)
+@patch("unique_sdk.cli.cli.cmd_import")
+@patch("unique_sdk.cli.cli.cmd_export")
+def test_cli_rejects_a_negative_wait_budget(
+    mock_export: object, mock_import: object, command: str, option: str
+) -> None:
+    """A negative budget is a typo, and expires instantly — say so up front."""
+    runner = CliRunner()
+    extra = ["--type", "FULL_REPORT"] if command == "export" else []
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", command, "mt_1", *extra, option, "-1", "--wait"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+    assert option in result.output
+    mock_import.assert_not_called()  # type: ignore[attr-defined]
+    mock_export.assert_not_called()  # type: ignore[attr-defined]
 
 
 @patch("unique_sdk.cli.cli.cmd_import")

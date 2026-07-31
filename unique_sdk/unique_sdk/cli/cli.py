@@ -2565,7 +2565,7 @@ def agentic_table_create_sheet(
 @click.option(
     "--timeout",
     "timeout",
-    type=float,
+    type=click.FloatRange(min=0),
     default=600.0,
     show_default=True,
     help="Max seconds to wait when --wait is set.",
@@ -2573,7 +2573,7 @@ def agentic_table_create_sheet(
 @click.option(
     "--start-timeout",
     "start_timeout",
-    type=float,
+    type=click.FloatRange(min=0),
     default=120.0,
     show_default=True,
     help=(
@@ -2646,7 +2646,7 @@ def agentic_table_import(
 @click.option(
     "--timeout",
     "timeout",
-    type=float,
+    type=click.FloatRange(min=0),
     default=600.0,
     show_default=True,
     help="Max seconds to wait when --wait is set.",

@@ -306,6 +306,17 @@ def cmd_export(
     download; an artifact entering ``ERROR`` fails fast. Without ``wait``,
     returns once generation is accepted.
     """
+    # `click.Choice` already rejects an unknown type on the command line, but
+    # this function is importable and the enum would raise a bare ValueError
+    # past that guard — an exception where every other failure here is an
+    # `agentic-table:` line the caller can test with `is_error_output`.
+    allowed = {t.value for t in MagicTableArtifactType}
+    unknown = [t for t in artifact_types if t not in allowed]
+    if unknown:
+        return (
+            f"{AGENTIC_TABLE_ERROR_PREFIX} unknown artifact type: "
+            f"{', '.join(unknown)} (expected: {', '.join(sorted(allowed))})"
+        )
     wanted = [MagicTableArtifactType(t) for t in artifact_types]
 
     async def _run() -> str:
