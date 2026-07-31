@@ -667,6 +667,32 @@ def build_review(tk: str, names: list[tuple]) -> str:
         act("Open coverage dossier", f"Open the coverage dossier for {c['name']} ({tk})."),
     ])
 
+    style_gate = (f'<style>.rv .qrow[data-tk="{tk}"]{{background:var(--mint-wash);'
+                  f'outline:1px solid var(--mint-dot);}}\n'
+                  f'  .rv .crow[data-tk="{tk}"]{{display:block;}}</style>')
+    sections = {
+        "quote": quote,
+        "chart": chart,
+        "tiles": f'<div class="tiles">{tiles}</div>',
+        "overnight": ov_html,
+        "thesis": thesis_card,
+        "products": _products(tk, c["name"]),
+        "fundamentals": _fundamentals(tk),
+        "estimates": est_html,
+        "consensus": cons_html,
+        "scenario": sc_html,
+        "log": f'<div class="card"><h2>Interaction log</h2><ul class="log">{log}</ul></div>',
+        "notes": nh_card,
+        "actions": (f'<div class="card"><h2>Actions <span class="mut">· drafts for your review, '
+                    f'nothing sent</span></h2><div class="acts">{actions}</div></div>'),
+    }
+    # stored section layout (update_dashboard_layout) — applied at every regen
+    lay = seed.current_layout("review") if hasattr(seed, "current_layout") else {}
+    order = [k for k in (lay.get("order") or seed.REVIEW_SECTION_ORDER)
+             if k in sections] if hasattr(seed, "REVIEW_SECTION_ORDER") else list(sections)
+    hidden = set(lay.get("hidden") or [])
+    body = "\n  ".join(sections[k] for k in order if k not in hidden and sections[k])
+
     return f"""<!doctype html>
 <meta charset="utf-8" />
 <!-- Coverage review — {e(c['name'])} ({tk}). Unique-themed canvas for the FA demo.
@@ -680,22 +706,8 @@ def build_review(tk: str, names: list[tuple]) -> str:
       <div class="sub">{e(c['sector'])} · {status_btn}</div></div>
     <span class="rate {e(c['rating'])}">{e(c['rating'])}</span>
   </div>
-  {quote}
-  {chart}
-  <style>.rv .qrow[data-tk="{tk}"]{{background:var(--mint-wash);outline:1px solid var(--mint-dot);}}
-  .rv .crow[data-tk="{tk}"]{{display:block;}}</style>
-  <div class="tiles">{tiles}</div>
-  {ov_html}
-  {thesis_card}
-  {_products(tk, c['name'])}
-  {_fundamentals(tk)}
-  {est_html}
-  {cons_html}
-  {sc_html}
-  <div class="card"><h2>Interaction log</h2><ul class="log">{log}</ul></div>
-  {nh_card}
-  <div class="card"><h2>Actions <span class="mut">· drafts for your review, nothing sent</span></h2>
-    <div class="acts">{actions}</div></div>
+  {style_gate}
+  {body}
   <div class="foot">SYNTHETIC — DEMO USE ONLY · coverage as of the 07:00 overnight run · live quotes via FA Research MCP (Yahoo Finance, timestamped)</div>
 </div>
 """

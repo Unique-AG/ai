@@ -897,6 +897,7 @@ def baseline(env: str = "") -> dict:
         "control_queue": copy.deepcopy(CONTROL_QUEUE_SEED),
         "analyst_notes": copy.deepcopy(ANALYST_NOTES_SEED),
         "dossiers": copy.deepcopy(DOSSIERS),
+        "layout": {},   # per-dashboard section layout (update_dashboard_layout)
     }
 
 
@@ -913,6 +914,20 @@ def register_state_resolver(resolver) -> None:
 
 def current_state() -> dict | None:
     return _STATE_RESOLVER() if _STATE_RESOLVER else None
+
+
+# canonical section keys per dashboard — the review builder applies the stored
+# layout at every regeneration; the cockpit list documents what the skill may move.
+REVIEW_SECTION_ORDER = ["quote", "chart", "tiles", "overnight", "thesis", "products",
+                        "fundamentals", "estimates", "consensus", "scenario", "log",
+                        "notes", "actions"]
+COCKPIT_SECTIONS = ["ribbon", "ticker", "tabs", "coverage", "brief", "inbox",
+                    "agenda", "jobs", "dnotes"]
+
+
+def current_layout(dashboard: str) -> dict:
+    st = current_state()
+    return ((st or {}).get("layout") or {}).get(dashboard) or {}
 
 
 def current_dossiers() -> dict:

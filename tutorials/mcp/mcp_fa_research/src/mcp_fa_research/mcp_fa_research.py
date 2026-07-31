@@ -1152,6 +1152,91 @@ def update_brief_item(
                        ("ticker", "severity", "headline", "valuation_impact")}})
 
 
+@mcp.tool(name="get_dashboard_layout", title="Read a dashboard's section layout",
+          description="Current SECTION LAYOUT of a dashboard: 'review' (the six coverage "
+                      "reviews — applied by the builder at every regeneration) or 'cockpit' "
+                      "(documented sections; the update-dashboard skill materializes cockpit "
+                      "changes in the HTML). Returns {dashboard, sections (canonical keys), "
+                      "default_order, order, hidden}.")
+def get_dashboard_layout(
+    dashboard: Annotated[str, Field(default="review",
+                                    description="'review' or 'cockpit'.")] = "review",
+) -> str:
+    keys = {"review": seed.REVIEW_SECTION_ORDER, "cockpit": seed.COCKPIT_SECTIONS}
+    if dashboard not in keys:
+        return json.dumps({"error": f"unknown dashboard {dashboard!r}",
+                           "available": sorted(keys)})
+    cur = seed.current_layout(dashboard)
+    return json.dumps({"dashboard": dashboard, "sections": keys[dashboard],
+                       "default_order": keys[dashboard],
+                       "order": cur.get("order") or keys[dashboard],
+                       "hidden": cur.get("hidden") or []})
+
+
+@mcp.tool(name="update_dashboard_layout", title="Save a dashboard's section layout",
+          description="Persist a SECTION-ONLY layout change (reorder / hide sections) via "
+                      "MCP — no HTML surgery needed. dashboard='review': applied by the "
+                      "builder at EVERY regeneration (survives the nightly; apply_now "
+                      "regenerates immediately). dashboard='cockpit': stores the layout as "
+                      "the source of truth — the update-dashboard skill must then "
+                      "materialize it in cockpit.html. order/hidden are comma-separated "
+                      "section keys (get_dashboard_layout lists them); omitted sections "
+                      "keep the default order tail. reset=true restores the default. "
+                      "Mutates per-env demo state; Reset_Demo_Data also restores.")
+def update_dashboard_layout(
+    dashboard: Annotated[str, Field(default="review",
+                                    description="'review' or 'cockpit'.")] = "review",
+    order: Annotated[str, Field(default="", description="Comma-separated section keys in "
+                                "the desired order (partial lists allowed — the rest keep "
+                                "the default order after them).")] = "",
+    hidden: Annotated[str, Field(default="", description="Comma-separated section keys to "
+                                 "hide (replaces the hidden set).")] = "",
+    reset: Annotated[bool, Field(default=False, description="Restore the default "
+                                 "layout.")] = False,
+    apply_now: Annotated[bool, Field(default=True, description="review only: regenerate "
+                                     "the review pages immediately in this environment "
+                                     "(~30s in the background).")] = True,
+) -> str:
+    keys = {"review": seed.REVIEW_SECTION_ORDER, "cockpit": seed.COCKPIT_SECTIONS}
+    if dashboard not in keys:
+        return json.dumps({"error": f"unknown dashboard {dashboard!r}",
+                           "available": sorted(keys)})
+    valid = keys[dashboard]
+    lay = env_state.state().setdefault("layout", {})
+    if reset:
+        lay.pop(dashboard, None)
+        eff = {"order": valid, "hidden": []}
+    else:
+        req = [s.strip() for s in order.split(",") if s.strip()]
+        hid = [s.strip() for s in hidden.split(",") if s.strip()]
+        bad = [s for s in req + hid if s not in valid]
+        if bad:
+            return json.dumps({"error": f"unknown section(s): {bad}",
+                               "sections": valid})
+        new_order = (req + [s for s in valid if s not in req]) if req else \
+            (seed.current_layout(dashboard).get("order") or valid)
+        cur_hidden = hid if hidden.strip() else \
+            (seed.current_layout(dashboard).get("hidden") or [])
+        lay[dashboard] = {"order": new_order, "hidden": cur_hidden}
+        eff = lay[dashboard]
+    note = ""
+    if dashboard == "review" and apply_now:
+        import threading
+
+        import nightly
+        env = env_state.current_env()
+        threading.Thread(target=nightly.run_regen, args=(env,), daemon=True).start()
+        note = ("Review pages are regenerating in the background (~30s) — the new "
+                "layout shows on the next open/refresh.")
+    elif dashboard == "review":
+        note = "Applied at the next regeneration (nightly, or run the regen job)."
+    else:
+        note = ("Stored. Now materialize it in cockpit.html via the update-dashboard "
+                "skill (section order/visibility edits, path-upsert, re-apply the "
+                "display title).")
+    return json.dumps({"updated": True, "dashboard": dashboard, **eff, "note": note})
+
+
 @mcp.tool(name="Reset_Demo_Data", title="Reset demo data",
           description="Restore the FA research demo to its labeled baseline snapshot: "
                       "morning brief (un-acknowledged), action inbox, jobs, coverage "
@@ -1243,6 +1328,18 @@ TOOL_PROMPTS: dict[str, tuple[str, str]] = {
         "Synthetic last-close indication only — prefer get_live_quotes for anything "
         "the user will read as 'the price now'.",
         "Label clearly as the storyline indication, not a live quote."),
+    "get_dashboard_layout": (
+        "Read a dashboard's section layout (review/cockpit) before proposing or "
+        "applying layout changes — lists the canonical section keys.",
+        "Show order + hidden as compact lists; mention Reset_Demo_Data restores the "
+        "default."),
+    "update_dashboard_layout": (
+        "THE way to persist section-only dashboard changes (reorder/hide) — use it "
+        "instead of editing HTML whenever the ask is purely about sections. review = "
+        "auto-applied at regeneration; cockpit = also materialize via the "
+        "update-dashboard skill.",
+        "Confirm the effective order/hidden lists and relay the note (background "
+        "regen or skill follow-up)."),
     "get_live_quotes": (
         "THE single live-quote source (server-side Yahoo fetch). Optional ticker "
         "filter. Falls back to the synthetic indication per symbol (live: false). "
