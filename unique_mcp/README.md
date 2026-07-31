@@ -248,3 +248,20 @@ See [`docs/zitadel/README.md`](docs/zitadel/README.md) for step-by-step instruct
 ```bash
 cd unique_mcp && uv run pytest tests/ -q
 ```
+
+### Platform helpers (logging + metrics)
+
+On import, `unique_mcp` sets `FASTMCP_CHECK_FOR_UPDATES=off` (unless already set).
+
+```python
+from unique_mcp.logging import configure_logging
+from unique_mcp.monitoring import setup_ops
+
+configure_logging()  # always pino-json; silences /probe /health /metrics access logs
+
+mcp = FastMCP("my-server")
+middleware = [...]
+middleware.append(setup_ops(mcp))  # mounts /probe /health /metrics + HTTP metrics
+
+mcp.run(transport="http", middleware=middleware)
+```

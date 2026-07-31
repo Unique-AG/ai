@@ -5261,7 +5261,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "typing-extensions" },
-    { name = "unique-toolkit" },
+    { name = "unique-toolkit", extra = ["monitoring"] },
 ]
 
 [package.metadata]
@@ -5273,7 +5273,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "typing-extensions", specifier = ">=4.6.0" },
-    { name = "unique-toolkit", editable = "unique_toolkit" },
+    { name = "unique-toolkit", extras = ["monitoring"], editable = "unique_toolkit" },
 ]
 
 [package.metadata.requires-dev]
