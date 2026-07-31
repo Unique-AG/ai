@@ -675,32 +675,38 @@ def test_cli_export_rejects_invalid_type(mock_cmd: object) -> None:
 
 
 @pytest.mark.parametrize(
-    ("command", "option"),
+    ("argv", "option"),
     [
-        ("import", "--timeout"),
-        ("import", "--start-timeout"),
-        ("export", "--timeout"),
+        (["import", "mt_1"], "--timeout"),
+        (["import", "mt_1"], "--start-timeout"),
+        (["export", "mt_1", "--type", "FULL_REPORT"], "--timeout"),
+        (["rerun-row", "mt_1", "1"], "--timeout"),
+        (["rerun-row", "mt_1", "1"], "--start-timeout"),
     ],
 )
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
 @patch("unique_sdk.cli.cli.cmd_import")
 @patch("unique_sdk.cli.cli.cmd_export")
 def test_cli_rejects_a_negative_wait_budget(
-    mock_export: object, mock_import: object, command: str, option: str
+    mock_export: object,
+    mock_import: object,
+    mock_rerun: object,
+    argv: list[str],
+    option: str,
 ) -> None:
     """A negative budget is a typo, and expires instantly — say so up front."""
     runner = CliRunner()
-    extra = ["--type", "FULL_REPORT"] if command == "export" else []
 
     result = runner.invoke(
         cli_main,
-        ["agentic-table", command, "mt_1", *extra, option, "-1", "--wait"],
+        ["agentic-table", *argv, option, "-1", "--wait"],
         env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
     )
 
     assert result.exit_code != 0
     assert option in result.output
-    mock_import.assert_not_called()  # type: ignore[attr-defined]
-    mock_export.assert_not_called()  # type: ignore[attr-defined]
+    for mock in (mock_export, mock_import, mock_rerun):
+        mock.assert_not_called()  # type: ignore[attr-defined]
 
 
 @patch("unique_sdk.cli.cli.cmd_import")
