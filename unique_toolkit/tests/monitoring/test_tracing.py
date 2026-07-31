@@ -157,6 +157,30 @@ def test_resolve_exporter__uses_endpoint__when_exporter_unset(
 
 @pytest.mark.ai
 @pytest.mark.unit
+def test_resolve_exporter__treats_empty_values_as_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify blank OpenTelemetry values do not enable or invalidate tracing.
+    Why this matters: OpenTelemetry defines empty environment variables as unset.
+    Setup summary: Set blank exporter, processor, and endpoints and assert tracing is disabled.
+    """
+    monkeypatch.setenv("OTEL_TRACES_EXPORTER", "")
+    monkeypatch.setenv("OTEL_SPAN_PROCESSOR", "")
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+    assert _resolve_exporter() is None
+
+    monkeypatch.setenv("ENABLE_OPENTELEMETRY", "true")
+    assert _resolve_exporter() == "otlp"
+
+    monkeypatch.setenv("ENABLE_OPENTELEMETRY", "false")
+    assert _resolve_exporter() is None
+
+
+@pytest.mark.ai
+@pytest.mark.unit
 def test_configure_tracing__raises_install_hint__when_otel_extra_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

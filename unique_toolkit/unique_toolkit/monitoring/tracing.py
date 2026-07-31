@@ -1,7 +1,21 @@
 """OpenTelemetry tracing bootstrap for toolkit consumers."""
 
+from __future__ import annotations
+
 import os
-from collections.abc import MutableMapping
+from collections.abc import Awaitable, Callable, Iterable, MutableMapping
+from typing import TYPE_CHECKING, TypeAlias, cast
+
+if TYPE_CHECKING:
+    from opentelemetry.trace.propagation.tracecontext import (
+        TraceContextTextMapPropagator,
+    )
+
+ASGIScope: TypeAlias = MutableMapping[str, object]
+ASGIMessage: TypeAlias = MutableMapping[str, object]
+ASGIReceive: TypeAlias = Callable[[], Awaitable[ASGIMessage]]
+ASGISend: TypeAlias = Callable[[ASGIMessage], Awaitable[None]]
+ASGIApp: TypeAlias = Callable[[ASGIScope, ASGIReceive, ASGISend], Awaitable[None]]
 
 _OTEL_EXTRA_MESSAGE = (
     "OpenTelemetry tracing requires the unique_toolkit[otel] extra. "
@@ -12,18 +26,17 @@ _OTEL_EXTRA_MESSAGE = (
 def _resolve_exporter() -> str | None:
     """Resolve standard OTel settings with Node service compatibility aliases."""
     exporter_name = os.getenv("OTEL_TRACES_EXPORTER")
-    if exporter_name is not None:
+    if exporter_name:
         return exporter_name
 
     enabled = os.getenv("ENABLE_OPENTELEMETRY")
     if enabled == "false":
         return None
     if enabled == "true":
-        return os.getenv("OTEL_SPAN_PROCESSOR", "otlp")
+        return os.getenv("OTEL_SPAN_PROCESSOR") or "otlp"
 
-    if (
-        os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") is not None
-        or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT") is not None
+    if os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") or os.getenv(
+        "OTEL_EXPORTER_OTLP_ENDPOINT"
     ):
         return "otlp"
     return None
@@ -34,7 +47,7 @@ def _missing_otel_extra() -> ImportError:
     return ImportError(_OTEL_EXTRA_MESSAGE)
 
 
-def _trace_context_propagator():
+def _trace_context_propagator() -> TraceContextTextMapPropagator:
     """Return a W3C trace-context propagator without forwarding baggage."""
     try:
         from opentelemetry.trace.propagation.tracecontext import (
@@ -48,11 +61,13 @@ def _trace_context_propagator():
 class TraceContextMiddleware:
     """ASGI middleware that continues W3C trace context with one server span."""
 
-    def __init__(self, app, span_name: str = "HTTP request"):
-        self.app = app
-        self._span_name = span_name
+    def __init__(self, app: ASGIApp, span_name: str = "HTTP request") -> None:
+        self.app: ASGIApp = app
+        self._span_name: str = span_name
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(
+        self, scope: ASGIScope, receive: ASGIReceive, send: ASGISend
+    ) -> None:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
 
@@ -63,7 +78,8 @@ class TraceContextMiddleware:
             raise _missing_otel_extra() from error
 
         headers: dict[str, str] = {}
-        for name, value in scope.get("headers", []):
+        raw_headers = cast(Iterable[tuple[bytes, bytes]], scope.get("headers", ()))
+        for name, value in raw_headers:
             key = name.decode("latin-1").lower()
             if key not in {"traceparent", "tracestate"}:
                 continue
@@ -131,7 +147,7 @@ def configure_tracing(
     except ImportError as error:
         raise _missing_otel_extra() from error
 
-    attributes = {}
+    attributes: dict[str, str] = {}
     resolved_service_name = (
         service_name if service_name is not None else os.getenv("OTEL_SERVICE_NAME")
     )
