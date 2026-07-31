@@ -17,7 +17,12 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel
 class Status(StrEnum):
     Compliant = "Compliant"
     Escalated = "Escalated"
-    Needs_Remediation = "Needs Remediation"
+    Screening_hit = "Screening hit"
+    Deadline_approaching = "Deadline approaching"
+    Limit_exceeded = "Limit exceeded"
+    Review_required = "Review required"
+    Regulatory_breach = "Regulatory breach"
+    Regulatory_change = "Regulatory change"
 
 
 class RiskLevel(StrEnum):
@@ -46,6 +51,10 @@ class ClientFilter(BaseModel):
     ] = None
     criticality: Annotated[
         str | None, Field(description="Filter by operational criticality.")
+    ] = None
+    needs_attention: Annotated[
+        bool | None,
+        Field(description="When true, exclude Compliant clients (attention rail)."),
     ] = None
 
 
@@ -187,6 +196,41 @@ class IsoDate(RootModel[date]):
     root: Annotated[
         date, Field(description="Calendar date serialized as ISO 8601 full-date text.")
     ]
+
+
+class Audience(StrEnum):
+    client = "client"
+    compliance = "compliance"
+
+
+class NewStatus(StrEnum):
+    Compliant = "Compliant"
+    Escalated = "Escalated"
+    Screening_hit = "Screening hit"
+    Deadline_approaching = "Deadline approaching"
+    Limit_exceeded = "Limit exceeded"
+    Review_required = "Review required"
+    Regulatory_breach = "Regulatory breach"
+    Regulatory_change = "Regulatory change"
+
+
+class OutboundEmailDraft(BaseModel):
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    audience: Annotated[
+        Audience,
+        Field(description="Whether this email goes to the client or to Compliance."),
+    ]
+    to: Annotated[EmailAddress, Field(description="Recipient email address.")]
+    subject: Annotated[str, Field(description="Email subject line.")]
+    body: Annotated[str, Field(description="Email body text.")]
+    new_status: Annotated[
+        NewStatus | None,
+        Field(
+            description="Optional new workflow status to apply after the email is accepted."
+        ),
+    ] = None
 
 
 class PortfolioSummary(BaseModel):
@@ -470,6 +514,24 @@ class ClientCreate(BaseModel):
     case_action: CaseAction
 
 
+class ClientEmailDraftResult(BaseModel):
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    client: Annotated[
+        Client, Field(description="Client row after any accepted status update.")
+    ]
+    draft: Annotated[
+        OutboundEmailDraft, Field(description="Accepted email draft contents.")
+    ]
+    status_updated: Annotated[
+        bool,
+        Field(
+            description="True when case_action.status was updated as part of this draft."
+        ),
+    ]
+
+
 class ClientListResult(BaseModel):
     model_config = ConfigDict(
         extra="allow",
@@ -484,3 +546,42 @@ class ClientListResult(BaseModel):
     limit: Annotated[int, Field(description="Requested page size.")]
     offset: Annotated[int, Field(description="Requested offset.")]
     rows: Annotated[list[Client], Field(description="Client rows for this page.")]
+
+
+class SendEmailResult(BaseModel):
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    client: Annotated[
+        Client, Field(description="Client row after any accepted status update.")
+    ]
+    draft: Annotated[
+        OutboundEmailDraft,
+        Field(
+            description="Email contents reviewed by the RM (present whether or not delivery was confirmed)."
+        ),
+    ]
+    sent: Annotated[
+        bool,
+        Field(
+            description="True when the RM confirmed send; false when draft review or send confirmation was cancelled."
+        ),
+    ]
+    status_updated: Annotated[
+        bool,
+        Field(
+            description="True when case_action.status was updated as part of a confirmed send."
+        ),
+    ]
+    message_id: Annotated[
+        str | None,
+        Field(
+            description="Simulated outbound message id when sent; null when not sent (demo facade, no real SMTP)."
+        ),
+    ] = None
+    delivery_message: Annotated[
+        str,
+        Field(
+            description="Human-readable delivery outcome the agent must relay: whether the mail was sent or not."
+        ),
+    ]

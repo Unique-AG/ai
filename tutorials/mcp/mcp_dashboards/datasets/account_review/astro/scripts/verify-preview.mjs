@@ -39,10 +39,13 @@ window.document.dispatchEvent(new window.Event("DOMContentLoaded", { bubbles: tr
 console.log("Attention rail + KPIs hydrate from mock data:");
 const cards = window.document.querySelectorAll('[data-unique-list="attentionLive"] .acard');
 const clients = JSON.parse(readFileSync(path.join(ROOT, "src/data/mock.json"), "utf-8")).clients;
-const expectedAttentionCount = clients.filter((c) => getPath(c, "case_action.status") === "Needs Remediation").length;
+const expectedAttentionCount = clients.filter((c) => {
+  const status = getPath(c, "case_action.status");
+  return status !== "Compliant" && status !== "Escalated";
+}).length;
 assert(
   cards.length === expectedAttentionCount,
-  `${cards.length} attention cards rendered (expected ${expectedAttentionCount} "Needs Remediation" clients)`
+  `${cards.length} attention cards rendered (expected ${expectedAttentionCount} open non-Escalated clients)`
 );
 
 const kpis = window.document.querySelectorAll('[data-unique-list="portfolioKpis"] .kpi');
@@ -61,28 +64,28 @@ assert(firstRiskTooltip && !firstRiskTooltip.includes("{compliance.risk_level}")
 const unresolvedHref = window.document.querySelector('[href="client_href"]');
 assert(!unresolvedHref, "client links resolve client_href (no literal placeholder hrefs)");
 
-console.log("\ncallTool (portfolio risk edit) mutates state and refreshes bound lists:");
+console.log("\nportfolio risk column is read-only:");
 const firstAttentionHref = firstCard.getAttribute("href");
 const matchingPortfolioLink = window.document.querySelector(`[data-unique-list="clientsLive"] a[href="${firstAttentionHref}"]`);
 assert(!!matchingPortfolioLink, "first attention client also appears in the portfolio table");
 const matchingPortfolioRow = matchingPortfolioLink.closest("tr");
-const riskCell = matchingPortfolioRow.querySelector(".risk .cellval");
-const beforeRisk = riskCell.textContent;
-const mediumRiskBtn = Array.from(matchingPortfolioRow.querySelectorAll('button[data-unique-source-tool="update_client"]')).find((button) =>
-  button.getAttribute("data-unique-source-args").includes('"risk_level":"Medium"')
-);
-assert(!!mediumRiskBtn, "portfolio Medium risk button present for first attention client");
-assert(!mediumRiskBtn.getAttribute("data-unique-source-args").includes("{id}"), "Medium risk button args are fully interpolated (no leftover {id})");
-mediumRiskBtn.dispatchEvent(new window.Event("click", { bubbles: true }));
-assert(riskCell.textContent === "Medium", `risk cell updated after inline edit (${beforeRisk} → ${riskCell.textContent})`);
+const riskCell = matchingPortfolioRow.querySelector("td.riskcell .risk .cellval");
+assert(!!riskCell?.textContent, "portfolio risk cell shows a risk level");
+const riskEditBtn = matchingPortfolioRow.querySelector('button[data-unique-source-tool="update_client"]');
+assert(!riskEditBtn, "portfolio risk cell has no inline update_client controls");
 
 console.log("\nsendPrompt shows a fully-interpolated prompt (regression check for the earlier {placeholder} bug):");
-const aiButton = window.document.querySelector('[data-unique-list="clientPages"] button[data-unique-action="sendPrompt"]');
-assert(!!aiButton, "found at least one case action-bar button");
-aiButton.dispatchEvent(new window.Event("click", { bubbles: true }));
+const aiTrigger = window.document.querySelector(
+  '[data-unique-list="clientPages"] label.banner-action[data-unique-action="sendPrompt"]',
+);
+assert(!!aiTrigger, "found at least one case action-bar sendPrompt trigger");
+aiTrigger.click();
 const toast = window.document.getElementById("mock-prompt-preview");
 assert(!toast.hidden, "prompt preview toast is shown after clicking Analyse with AI");
 assert(!toast.textContent.includes("{identity.name}"), "prompt text has no leftover {identity.name} placeholder");
 assert(!toast.textContent.includes("{id}"), "prompt text has no leftover {id} placeholder");
+const actDone = aiTrigger.closest(".act")?.querySelector(".act-done");
+assert(actDone instanceof window.HTMLInputElement && actDone.checked, "action trigger hides after click (act-done checked)");
+assert(window.getComputedStyle(aiTrigger).display === "none", "action trigger is not visible after click");
 
 console.log("\nAll checks passed.");

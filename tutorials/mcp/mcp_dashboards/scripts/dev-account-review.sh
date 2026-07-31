@@ -18,6 +18,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "Starting account_review FastMCP server..."
+# Live-local has no Zitadel in front of the MCP; keep OIDC off for local demos.
+export AUTH_DISABLED="${AUTH_DISABLED:-true}"
+export UNIQUE_MCP_LOCAL_BASE_URL="${UNIQUE_MCP_LOCAL_BASE_URL:-http://127.0.0.1:8004}"
 uv run --project "$ROOT/helpers/python" python "$MCP_SERVER" &
 PIDS+=("$!")
 

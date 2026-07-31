@@ -1,21 +1,15 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
 
-@pytest.mark.ai
-def test_AI_account_review_server__uses_dataset_local_paths__for_excel_and_sqlite() -> (
-    None
-):
-    """
-    Purpose: Verify the generated account-review FastMCP app owns its Excel and SQLite paths.
-    Why this matters: Dataset apps must be isolated from shared helper state and from other datasets.
-    Setup summary: Import the server module by file path and assert its configured paths live under fastmcp/data.
-    """
-    # Arrange
+def _load_account_review_server() -> Any:
     server_path = (
         Path(__file__).resolve().parents[3]
         / "datasets"
@@ -28,12 +22,29 @@ def test_AI_account_review_server__uses_dataset_local_paths__for_excel_and_sqlit
     )
     assert spec is not None
     assert spec.loader is not None
-
-    # Act
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    return module
 
-    # Assert
+
+@pytest.mark.ai
+def test_AI_account_review_server__uses_dataset_local_paths__for_excel_and_sqlite() -> (
+    None
+):
+    """
+    Purpose: Verify the generated account-review FastMCP app owns its Excel and SQLite paths.
+    Why this matters: Dataset apps must be isolated from shared helper state and from other datasets.
+    Setup summary: Import the server module by file path and assert its configured paths live under fastmcp/data.
+    """
+    module = _load_account_review_server()
+    server_path = (
+        Path(__file__).resolve().parents[3]
+        / "datasets"
+        / "account_review"
+        / "fastmcp"
+        / "server.py"
+    )
+
     assert (
         module.settings.excel_path
         == server_path.parent / "data" / "account_review_dataset.xlsx"
@@ -42,6 +53,164 @@ def test_AI_account_review_server__uses_dataset_local_paths__for_excel_and_sqlit
         module.settings.sqlite_path
         == server_path.parent / "data" / "account_review.sqlite"
     )
+
+
+@pytest.mark.ai
+def test_AI_email_draft_elicit_model__omits_nullable_unions__for_platform_elicitation() -> (
+    None
+):
+    """
+    Purpose: Verify email elicitation schemas never emit Status | null for new_status.
+    Why this matters: Unique platform elicitation rejects nullable union types and fails send_email.
+    Setup summary: Build client and compliance draft forms and assert JSON Schema has no null.
+    """
+    module = _load_account_review_server()
+    Status = module.Status
+    Audience = module.Audience
+    OutboundEmailDraft = module.OutboundEmailDraft
+    client = SimpleNamespace(
+        case_action=SimpleNamespace(status=Status.Screening_hit),
+    )
+
+    for audience, expected_default in (
+        (Audience.client, Status.Screening_hit),
+        (Audience.compliance, Status.Escalated),
+    ):
+        proposed = OutboundEmailDraft(
+            audience=audience,
+            to="to@example.com",
+            subject="Subject",
+            body="Body",
+            new_status=Status.Escalated if audience is Audience.compliance else None,
+        )
+        form = module._email_draft_elicit_model(
+            proposed=proposed, client=client, audience=audience
+        )
+        schema = form.model_json_schema()
+        encoded = json.dumps(schema)
+        assert "null" not in encoded, schema
+        new_status = schema["properties"]["new_status"]
+        assert "anyOf" not in new_status
+        assert "oneOf" not in new_status
+        assert form.model_fields["new_status"].default == expected_default
+        assert form.model_fields["to"].default == "to@example.com"
+
+
+@pytest.mark.ai
+def test_AI_email_str__unwraps_email_address_root_model__as_plain_address() -> None:
+    """
+    Purpose: Verify EmailAddress RootModel values serialize to plain addresses.
+    Why this matters: str(EmailAddress) yields root='a@b.com', which broke elicitation defaults.
+    Setup summary: Format a RootModel address and a raw string through `_email_str`.
+    """
+    module = _load_account_review_server()
+    email = module.OutboundEmailDraft(
+        audience=module.Audience.compliance,
+        to="compliance@unique.ai",
+        subject="s",
+        body="b",
+    ).to
+
+    assert module._email_str(email) == "compliance@unique.ai"
+    assert module._email_str("plain@unique.ai") == "plain@unique.ai"
+    assert "root=" not in module._email_str(email)
+
+
+@pytest.mark.ai
+def test_AI_default_email_draft__signs_with_signer_and_uses_unique_compliance_inbox() -> (
+    None
+):
+    """
+    Purpose: Verify drafts sign with signer_name and Compliance goes to compliance@unique.ai.
+    Why this matters: Hardcoded Elena Maltseva / schroders.demo were wrong for the Unique demo.
+    Setup summary: Build a minimal client stub and draft client + compliance emails.
+    """
+    module = _load_account_review_server()
+    Status = module.Status
+    Audience = module.Audience
+    client = SimpleNamespace(
+        identity=SimpleNamespace(name="Ada Lovelace", reference="CH-1"),
+        contact=SimpleNamespace(email="ada@example.com"),
+        compliance=SimpleNamespace(criticality="AMBER", risk_level="High"),
+        case_action=SimpleNamespace(
+            status=Status.Screening_hit,
+            title="PEP hit",
+            open_issue="PEP match",
+            recommended_action="Escalate to Compliance",
+            rule_code="R-SCR-PEP",
+        ),
+    )
+
+    compliance = module._default_email_draft(
+        client, Audience.compliance, signer_name="Cedric Demo"
+    )
+    assert compliance.to.root == "compliance@unique.ai"
+    assert "Cedric Demo" in compliance.body
+    assert "Elena Maltseva" not in compliance.body
+    assert "Relationship Manager" not in compliance.body
+
+    client_mail = module._default_email_draft(
+        client, Audience.client, signer_name="Cedric Demo"
+    )
+    assert module._email_str(client_mail.to) == "ada@example.com"
+    assert client_mail.body.endswith("Cedric Demo")
+
+
+@pytest.mark.ai
+def test_AI_send_email_payload__reports_sent_and_not_sent__with_delivery_message() -> (
+    None
+):
+    """
+    Purpose: Verify send_email facade results always answer whether mail was sent.
+    Why this matters: Agents must relay sent vs not-sent; cancel must not be a bare ToolError.
+    Setup summary: Load one real client from the dataset DB and assert both sent payloads.
+    """
+    module = _load_account_review_server()
+    Audience = module.Audience
+    OutboundEmailDraft = module.OutboundEmailDraft
+    module.repo.ensure_ready()
+    row = module.repo.list_rows("clients", limit=1).rows[0]
+    client = module._client_from_row(
+        row, module.DashboardFigures(**module._empty_figure_groups())
+    )
+    draft = OutboundEmailDraft(
+        audience=Audience.client,
+        to="ada@example.com",
+        subject="Action required",
+        body="Please renew your passport.",
+    )
+
+    sent_payload = module._send_email_payload(
+        client=client,
+        draft=draft,
+        sent=True,
+        status_updated=True,
+        message_id="msg-1-client-abc",
+        delivery_message=(
+            "Email sent to ada@example.com (the client) — simulated delivery "
+            "(facade; message_id=msg-1-client-abc)."
+        ),
+    )
+    assert sent_payload["sent"] is True
+    assert sent_payload["message_id"] == "msg-1-client-abc"
+    assert "sent" in sent_payload["delivery_message"].lower()
+    assert sent_payload["status_updated"] is True
+
+    not_sent = module._send_email_payload(
+        client=client,
+        draft=draft,
+        sent=False,
+        status_updated=False,
+        message_id=None,
+        delivery_message=(
+            "Email not sent — send confirmation was cancelled. "
+            "No message was delivered to ada@example.com."
+        ),
+    )
+    assert not_sent["sent"] is False
+    assert not_sent["message_id"] is None
+    assert "not sent" in not_sent["delivery_message"].lower()
+    assert not_sent["status_updated"] is False
 
 
 @pytest.mark.ai

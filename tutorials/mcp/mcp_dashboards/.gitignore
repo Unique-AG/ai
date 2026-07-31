@@ -4,6 +4,12 @@ __pycache__/
 *.py[cod]
 dist/
 .astro/
+.direnv/
+
+# Local / Azure deploy secrets (see datasets/*/fastmcp/*.env.example)
+.env
+*.env
+!*.env.example
 
 # Local dataset runtime files
 *.sqlite

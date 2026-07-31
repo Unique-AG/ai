@@ -159,7 +159,7 @@ class DeleteRowResult(BaseModel):
 
 
 class ServerStatus(BaseModel):
-    """Health-check payload for GET /."""
+    """Health-check payload for GET /api/status."""
 
     server: str = "running"
     dataset: str

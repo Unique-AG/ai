@@ -1,9 +1,9 @@
 ---
-// The `:target`-routed client detail page: smart-action banner, header, the 8
-// always-visible profile sections, and any case-specific figures. One
-// `<template data-unique-item>` in index.astro's clientPages DataList
-// renders one of these per client row (see that file's big comment on why
-// clientPages is a sibling of, not nested in, .view-main).
+// The `:target`-routed client detail page: top-left back control, smart-action
+// banner, header, the 8 always-visible profile sections, and any case-specific
+// figures. One `<template data-unique-item>` in index.astro's clientPages
+// DataList renders one of these per client row (see that file's big comment on
+// why clientPages is a sibling of, not nested in, .view-main).
 import CaseActionBar from "./CaseActionBar.astro";
 import CaseFigure from "./CaseFigure.astro";
 import FieldGrid from "./FieldGrid.astro";
@@ -35,6 +35,10 @@ const { pairs } = Astro.props;
   {...clientRow.attr("data-rule", "case_action.rule_code")}
   {...clientRow.key("id")}
 >
+  <a class="btn btn-back detail-back" href="#top" aria-label="Back to console">
+    <Icon name="chevron-left" size={18} />
+  </a>
+
   <section
     class="crit-banner actionbar"
     {...clientRow.attr("data-status", "case_action.status")}
@@ -71,7 +75,13 @@ const { pairs } = Astro.props;
     </div>
   </header>
 
-  <Section dataKey="exec-summary" title="Executive summary">
+  <!--
+    Folds start collapsed except Executive summary (always useful triage).
+    cases.json `open_sections` force-opens the fold(s) that matter for the
+    row's rule_code via renderOpenSectionsCss — everything else stays folded
+    until the RM opens it.
+  -->
+  <Section dataKey="exec-summary" title="Executive summary" open>
     <span slot="meta" class="sec-meta case-badge" {...clientRow.attr("data-rule", "case_action.rule_code")} />
     <div class="tags">
       <span class="tag" {...clientRow.field("identity.segment")} />
@@ -103,15 +113,6 @@ const { pairs } = Astro.props;
     </div>
   </Section>
 
-  <!--
-    The four sections below are generic client-profile data — unlike
-    the case-specific figures further down, they show real values
-    for every client regardless of which (if any) remediation case
-    is open on this row. lib/cases.ts's renderOpenSectionsCss still
-    force-opens the one relevant to a case (see src/data/cases.json),
-    but for now every section also ships with `open` so all of them
-    render expanded.
-  -->
   <Section dataKey="portfolio-mandate" title="Portfolio and Mandate">
     <span slot="meta" class="sec-meta" {...clientRow.field("compliance.mandate_type")} />
     <FigureRows prefix="mand" class="mandate-figure" />
@@ -145,9 +146,4 @@ const { pairs } = Astro.props;
     ))
   }
 
-  <div class="detail-bar">
-    <a class="btn btn-back" href="#top">
-      <Icon name="chevron-left" size={16} /> Back to console
-    </a>
-  </div>
 </main>

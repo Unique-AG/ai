@@ -9,6 +9,7 @@ cannot interpolate from ``{field}`` templates.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 
@@ -32,6 +33,19 @@ def flatten_dotted_paths(value: Any, *, prefix: str = "") -> dict[str, Any]:
     return out
 
 
+def due_date_bucket(value: Any, *, today: date | None = None) -> str:
+    """Map a due date to ``urgent`` / ``scheduled`` / ``none`` for portfolio filters."""
+    if value is None or value == "":
+        return "none"
+    text = str(value).strip()[:10]
+    try:
+        due = date.fromisoformat(text)
+    except ValueError:
+        return "none"
+    ref = today or date.today()
+    return "urgent" if due <= ref else "scheduled"
+
+
 def enrich_binding_row(row: dict[str, Any]) -> dict[str, Any]:
     """Return a row dict with nested data, dotted mirrors, and platform attr helpers."""
     flat = flatten_dotted_paths(row)
@@ -45,6 +59,8 @@ def enrich_binding_row(row: dict[str, Any]) -> dict[str, Any]:
     risk_level = flat.get("compliance.risk_level")
     if risk_level is not None:
         merged["compliance.risk_level_tooltip"] = f"{risk_level} risk"
+
+    merged["case_action.due_bucket"] = due_date_bucket(flat.get("case_action.due_date"))
 
     for key, value in flat.items():
         if key.endswith(".pct") and value is not None:

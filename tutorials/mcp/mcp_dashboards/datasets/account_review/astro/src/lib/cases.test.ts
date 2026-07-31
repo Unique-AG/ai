@@ -49,6 +49,7 @@ test("AI_renderCaseCss emits visibility + escaped badge + figbar CSS per rule co
 test("AI_renderOpenSectionsCss force-opens only the sections a case names", () => {
   const css = renderOpenSectionsCss([docExpiry, advMedia]);
   assert.match(css, /\[data-rule="R-DOC-EXPIRY"\] \.sec\[data-key="docs-kyc"\]/);
+  assert.match(css, /display:\s*block\s*!important/, "beats UA hide on closed <details>");
   assert.ok(!css.includes("R-SCR-ADVMEDIA"), "a case with no open_sections contributes no rules");
 });
 
@@ -58,4 +59,41 @@ test("AI_caseDefinitionSchema rejects a case with no rule_codes", () => {
 
 test("AI_caseDefinitionSchema rejects a dual_action with an empty actions list", () => {
   assert.throws(() => caseDefinitionSchema.parse({ ...docExpiry, dual_action: { actions: [] } }), /actions/);
+});
+
+test("AI_caseDefinitionSchema requires single-action instructions to finish with send_email", () => {
+  assert.throws(
+    () =>
+      caseDefinitionSchema.parse({
+        ...docExpiry,
+        instructions: "Then sketch a plan and stop.",
+      }),
+    /send_email/,
+  );
+  assert.doesNotThrow(() =>
+    caseDefinitionSchema.parse({
+      ...docExpiry,
+      instructions:
+        'Then call `send_email` with `pk` {id} and `audience` "client". Confirm send.',
+    }),
+  );
+});
+
+test("AI_caseDefinitionSchema requires dual_action instructions to finish with send_email", () => {
+  assert.throws(
+    () =>
+      caseDefinitionSchema.parse({
+        ...advMedia,
+        dual_action: {
+          actions: [
+            {
+              label: "Escalate",
+              toast: "Escalating",
+              instructions: "Hand off in-tool without email.",
+            },
+          ],
+        },
+      }),
+    /send_email/,
+  );
 });

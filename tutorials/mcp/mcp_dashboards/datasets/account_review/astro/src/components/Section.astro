@@ -11,10 +11,12 @@ export interface Props {
   open?: boolean;
 }
 
-const { dataKey, title, open = true } = Astro.props;
+// Default collapsed — cases.json `open_sections` force-opens the one fold
+// that matters for the row's rule_code (see renderOpenSectionsCss).
+const { dataKey, title, open = false } = Astro.props;
 ---
 
-<details class="card sec" data-key={dataKey} open={open}>
+<details class="card sec" data-key={dataKey} open={open || undefined}>
   <summary class="sec-sum">
     <span class="sec-chev"><Icon name="chevron-right" size={16} /></span>
     <h2>{title}</h2>

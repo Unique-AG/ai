@@ -7,6 +7,11 @@ unique.env
 docs/examples_from_docs/*.env
 docs/examples_from_docs/unique.env
 
+# Generated dependency graph / analysis
+data/dep_graph.html
+data/dep_*.json
+data/dep_analysis.md
+
 # Coverage analysis files
 coverage_analysis/
 coverage.xml

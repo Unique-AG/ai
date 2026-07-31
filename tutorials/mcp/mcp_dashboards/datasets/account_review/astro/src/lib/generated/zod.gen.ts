@@ -13,7 +13,12 @@ export const zClientFilter = z.object({
     status: z.enum([
         'Compliant',
         'Escalated',
-        'Needs Remediation'
+        'Screening hit',
+        'Deadline approaching',
+        'Limit exceeded',
+        'Review required',
+        'Regulatory breach',
+        'Regulatory change'
     ]).optional(),
     risk_level: z.enum([
         'Low',
@@ -21,7 +26,8 @@ export const zClientFilter = z.object({
         'High'
     ]).optional(),
     segment: z.enum(['Corporate / Holding', 'Private Wealth']).optional(),
-    criticality: z.string().optional()
+    criticality: z.string().optional(),
+    needs_attention: z.boolean().optional()
 });
 
 /**
@@ -47,7 +53,12 @@ export const zClientUpdate = z.object({
     status: z.enum([
         'Compliant',
         'Escalated',
-        'Needs Remediation'
+        'Screening hit',
+        'Deadline approaching',
+        'Limit exceeded',
+        'Review required',
+        'Regulatory breach',
+        'Regulatory change'
     ]).optional(),
     risk_level: z.enum([
         'Low',
@@ -142,7 +153,12 @@ export const zCaseAction = z.object({
     status: z.enum([
         'Compliant',
         'Escalated',
-        'Needs Remediation'
+        'Screening hit',
+        'Deadline approaching',
+        'Limit exceeded',
+        'Review required',
+        'Regulatory breach',
+        'Regulatory change'
     ]),
     rule_code: z.string().nullish(),
     open_issue: z.string().nullish(),
@@ -169,6 +185,26 @@ export const zClientContact = z.object({
     residential_address: z.string().nullish(),
     email: zEmailAddress.nullish(),
     phone: z.string().nullish()
+});
+
+/**
+ * Email draft the RM reviews before sending outside the platform.
+ */
+export const zOutboundEmailDraft = z.object({
+    audience: z.enum(['client', 'compliance']),
+    to: zEmailAddress,
+    subject: z.string(),
+    body: z.string(),
+    new_status: z.enum([
+        'Compliant',
+        'Escalated',
+        'Screening hit',
+        'Deadline approaching',
+        'Limit exceeded',
+        'Review required',
+        'Regulatory breach',
+        'Regulatory change'
+    ]).optional()
 });
 
 /**
@@ -247,6 +283,15 @@ export const zClientCreate = z.object({
 });
 
 /**
+ * Result of drafting an email via MCP elicitation without sending.
+ */
+export const zClientEmailDraftResult = z.object({
+    client: zClient,
+    draft: zOutboundEmailDraft,
+    status_updated: z.boolean()
+});
+
+/**
  * Paginated client list response.
  */
 export const zClientListResult = z.object({
@@ -256,6 +301,18 @@ export const zClientListResult = z.object({
     limit: z.number().int().min(-2147483648, { message: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { message: 'Invalid value: Expected int32 to be <= 2147483647' }),
     offset: z.number().int().min(-2147483648, { message: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { message: 'Invalid value: Expected int32 to be <= 2147483647' }),
     rows: z.array(zClient)
+});
+
+/**
+ * Result of attempting to send an email after the RM reviews the draft.
+ */
+export const zSendEmailResult = z.object({
+    client: zClient,
+    draft: zOutboundEmailDraft,
+    sent: z.boolean(),
+    status_updated: z.boolean(),
+    message_id: z.string().nullish(),
+    delivery_message: z.string()
 });
 
 export const zClientsListQuery = z.object({
@@ -311,3 +368,29 @@ export const zClientsUpdatePath = z.object({
  * The request has succeeded.
  */
 export const zClientsUpdateResponse = zClient;
+
+export const zClientsDraftEmailPath = z.object({
+    id: z.number().int().min(-2147483648, { message: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { message: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zClientsDraftEmailQuery = z.object({
+    audience: z.enum(['client', 'compliance']).optional()
+});
+
+/**
+ * The request has succeeded.
+ */
+export const zClientsDraftEmailResponse = zClientEmailDraftResult;
+
+export const zClientsSendEmailPath = z.object({
+    id: z.number().int().min(-2147483648, { message: 'Invalid value: Expected int32 to be >= -2147483648' }).max(2147483647, { message: 'Invalid value: Expected int32 to be <= 2147483647' })
+});
+
+export const zClientsSendEmailQuery = z.object({
+    audience: z.enum(['client', 'compliance'])
+});
+
+/**
+ * The request has succeeded.
+ */
+export const zClientsSendEmailResponse = zSendEmailResult;

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Account Review — DB admin</title>
+  <style>
+    :root {
+      --ink: #142033;
+      --muted: #5c6b7f;
+      --line: #d8dee8;
+      --bg: #eef1f5;
+      --surface: #fff;
+      --accent: #1f4b99;
+      --danger: #b42318;
+      --danger-bg: #fef3f2;
+      --ok: #067647;
+      --ok-bg: #ecfdf3;
+      --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 16px 22px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    header h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+    header .meta { color: var(--muted); font-size: 0.85rem; }
+    header a { color: var(--accent); }
+    main { padding: 18px 22px 40px; max-width: 1400px; margin: 0 auto; }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin-bottom: 14px;
+    }
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+    .tab, button, .btn {
+      appearance: none; border: 1px solid var(--line); background: var(--surface);
+      color: var(--ink); border-radius: 8px; padding: 7px 12px; font: inherit;
+      font-size: 0.9rem; cursor: pointer;
+    }
+    .tab.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-danger { background: var(--danger-bg); border-color: #fecdca; color: var(--danger); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    input[type="search"], input.cell {
+      border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+      font: inherit; font-size: 0.9rem; background: var(--surface);
+    }
+    input[type="search"] { min-width: 220px; }
+    .flash {
+      display: none; margin-bottom: 12px; padding: 10px 12px; border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .flash.show { display: block; }
+    .flash.ok { background: var(--ok-bg); color: var(--ok); }
+    .flash.err { background: var(--danger-bg); color: var(--danger); }
+    .panel {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+      overflow: auto; max-height: calc(100vh - 210px);
+    }
+    table { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 0.82rem; }
+    th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+    th {
+      position: sticky; top: 0; background: #f7f9fc; z-index: 1;
+      font-weight: 600; white-space: nowrap;
+    }
+    td.pk { font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+    td.actions { white-space: nowrap; position: sticky; right: 0; background: var(--surface); }
+    input.cell { width: 100%; min-width: 110px; padding: 4px 6px; border-radius: 6px; }
+    input.cell.dirty { border-color: var(--accent); background: #f0f5ff; }
+    .pager { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--muted); font-size: 0.85rem; }
+    .empty { padding: 28px; color: var(--muted); }
+    dialog {
+      border: 1px solid var(--line); border-radius: 12px; padding: 20px;
+      max-width: 420px; width: calc(100% - 32px);
+    }
+    dialog::backdrop { background: rgba(20, 32, 51, 0.35); }
+    dialog h2 { margin: 0 0 8px; font-size: 1.05rem; }
+    dialog p { margin: 0 0 16px; color: var(--muted); font-size: 0.92rem; }
+    dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Account Review — database admin</h1>
+      <div class="meta" id="statusMeta">Loading…</div>
+    </div>
+    <div class="meta">
+      MCP: <a href="/mcp" id="mcpLink">/mcp</a>
+      · <a href="/api/status">/api/status</a>
+    </div>
+  </header>
+  <main>
+    <div class="flash" id="flash"></div>
+    <div class="toolbar">
+      <div class="tabs" id="tabs"></div>
+      <input type="search" id="search" placeholder="Search…" />
+      <button type="button" class="btn" id="reloadBtn">Reload</button>
+      <button type="button" class="btn btn-danger" id="resetBtn">Reset from Excel…</button>
+    </div>
+    <div class="panel" id="panel"><div class="empty">Select a table.</div></div>
+    <div class="pager">
+      <button type="button" class="btn" id="prevBtn">Previous</button>
+      <span id="pageInfo"></span>
+      <button type="button" class="btn" id="nextBtn">Next</button>
+    </div>
+  </main>
+
+  <dialog id="resetDialog">
+    <h2>Reset demo database?</h2>
+    <p>This deletes the current SQLite file and rebuilds it from the Excel workbook. Unsaved edits are lost.</p>
+    <div class="row">
+      <button type="button" class="btn" id="resetCancel">Cancel</button>
+      <button type="button" class="btn btn-danger" id="resetConfirm">Reset</button>
+    </div>
+  </dialog>
+
+  <script>
+    const state = {
+      tables: [],
+      schemas: {},
+      table: null,
+      limit: 40,
+      offset: 0,
+      total: 0,
+      search: "",
+      dirty: new Map(),
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const flashEl = $("flash");
+
+    function flash(msg, kind = "ok") {
+      flashEl.textContent = msg;
+      flashEl.className = `flash show ${kind}`;
+      clearTimeout(flashEl._t);
+      flashEl._t = setTimeout(() => { flashEl.className = "flash"; }, 4000);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(path, {
+        headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+        ...opts,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText || `HTTP ${res.status}`);
+      return data;
+    }
+
+    function pkFor(table) {
+      const schema = state.schemas[table];
+      return schema?.primary_key || "id";
+    }
+
+    function columnsFor(table) {
+      return state.schemas[table]?.columns || [];
+    }
+
+    async function loadStatus() {
+      const s = await api("/api/status");
+      $("statusMeta").textContent =
+        `${s.dataset} · db ${s.db_path} · auth ${s.auth_disabled ? "disabled" : "on"}`;
+    }
+
+    async function loadSchema() {
+      const schema = await api("/api/schema");
+      state.tables = schema.tables.map((t) => t.name);
+      state.schemas = Object.fromEntries(schema.tables.map((t) => [t.name, t]));
+      const tabs = $("tabs");
+      tabs.innerHTML = "";
+      for (const name of state.tables) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "tab" + (name === state.table ? " active" : "");
+        btn.textContent = name;
+        btn.addEventListener("click", () => {
+          state.table = name;
+          state.offset = 0;
+          state.dirty.clear();
+          renderTabs();
+          loadRows();
+        });
+        tabs.appendChild(btn);
+      }
+      if (!state.table && state.tables.length) state.table = state.tables[0];
+      renderTabs();
+    }
+
+    function renderTabs() {
+      for (const btn of $("tabs").querySelectorAll(".tab")) {
+        btn.classList.toggle("active", btn.textContent === state.table);
+      }
+    }
+
+    async function loadRows() {
+      if (!state.table) return;
+      const q = new URLSearchParams({
+        limit: String(state.limit),
+        offset: String(state.offset),
+      });
+      if (state.search) q.set("search", state.search);
+      const data = await api(`/api/tables/${encodeURIComponent(state.table)}/rows?${q}`);
+      state.total = data.total_matching;
+      renderTable(data.rows);
+      $("pageInfo").textContent =
+        `${data.offset + 1}–${data.offset + data.count} of ${data.total_matching}`;
+      $("prevBtn").disabled = state.offset <= 0;
+      $("nextBtn").disabled = state.offset + data.count >= data.total_matching;
+    }
+
+    function renderTable(rows) {
+      const cols = columnsFor(state.table);
+      const pk = pkFor(state.table);
+      if (!rows.length) {
+        $("panel").innerHTML = `<div class="empty">No rows.</div>`;
+        return;
+      }
+      const thead = cols.map((c) => `<th title="${c.sqlite_type}">${c.name}</th>`).join("") + "<th></th>";
+      const body = rows.map((row) => {
+        const id = row[pk];
+        const cells = cols.map((c) => {
+          if (c.name === pk || c.primary_key) {
+            return `<td class="pk">${escapeHtml(row[c.name])}</td>`;
+          }
+          const val = row[c.name] ?? "";
+          return `<td><input class="cell" data-id="${escapeAttr(id)}" data-col="${escapeAttr(c.name)}" value="${escapeAttr(val)}" /></td>`;
+        }).join("");
+        return `<tr data-id="${escapeAttr(id)}">${cells}<td class="actions">
+          <button type="button" class="btn btn-primary save" data-id="${escapeAttr(id)}" disabled>Save</button>
+          <button type="button" class="btn btn-danger del" data-id="${escapeAttr(id)}">Delete</button>
+        </td></tr>`;
+      }).join("");
+      $("panel").innerHTML = `<table><thead><tr>${thead}</tr></thead><tbody>${body}</tbody></table>`;
+
+      for (const input of $("panel").querySelectorAll("input.cell")) {
+        input.addEventListener("input", () => markDirty(input));
+      }
+      for (const btn of $("panel").querySelectorAll("button.save")) {
+        btn.addEventListener("click", () => saveRow(btn.dataset.id));
+      }
+      for (const btn of $("panel").querySelectorAll("button.del")) {
+        btn.addEventListener("click", () => deleteRow(btn.dataset.id));
+      }
+    }
+
+    function markDirty(input) {
+      const id = input.dataset.id;
+      const col = input.dataset.col;
+      if (!state.dirty.has(id)) state.dirty.set(id, {});
+      state.dirty.get(id)[col] = input.value;
+      input.classList.add("dirty");
+      const save = $("panel").querySelector(`button.save[data-id="${cssEscape(id)}"]`);
+      if (save) save.disabled = false;
+    }
+
+    async function saveRow(id) {
+      const fields = state.dirty.get(String(id)) || state.dirty.get(id);
+      if (!fields || !Object.keys(fields).length) return;
+      try {
+        await api(`/api/tables/${encodeURIComponent(state.table)}/rows/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ fields }),
+        });
+        state.dirty.delete(String(id));
+        state.dirty.delete(id);
+        flash(`Saved row ${id}`);
+        await loadRows();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    }
+
+    async function deleteRow(id) {
+      if (!confirm(`Delete row ${id} from ${state.table}?`)) return;
+      try {
+        await api(`/api/tables/${encodeURIComponent(state.table)}/rows/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        flash(`Deleted row ${id}`);
+        await loadRows();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    }
+
+    function escapeHtml(v) {
+      return String(v ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+    function escapeAttr(v) {
+      return String(v ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("<", "&lt;");
+    }
+    function cssEscape(v) {
+      return String(v).replaceAll(/\\/g, "\\\\").replaceAll(/"/g, '\\"');
+    }
+
+    $("reloadBtn").addEventListener("click", () => loadRows().catch((e) => flash(e.message, "err")));
+    $("prevBtn").addEventListener("click", () => {
+      state.offset = Math.max(0, state.offset - state.limit);
+      loadRows().catch((e) => flash(e.message, "err"));
+    });
+    $("nextBtn").addEventListener("click", () => {
+      state.offset += state.limit;
+      loadRows().catch((e) => flash(e.message, "err"));
+    });
+    let searchTimer;
+    $("search").addEventListener("input", (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        state.search = e.target.value.trim();
+        state.offset = 0;
+        loadRows().catch((err) => flash(err.message, "err"));
+      }, 250);
+    });
+
+    const dialog = $("resetDialog");
+    $("resetBtn").addEventListener("click", () => dialog.showModal());
+    $("resetCancel").addEventListener("click", () => dialog.close());
+    $("resetConfirm").addEventListener("click", async () => {
+      dialog.close();
+      try {
+        const summary = await api("/api/reset", { method: "POST", body: "{}" });
+        const n = (summary.tables || []).reduce((a, t) => a + (t.row_count || 0), 0);
+        flash(`Reset complete — ${n} rows reloaded from Excel`);
+        state.offset = 0;
+        state.dirty.clear();
+        await loadStatus();
+        await loadSchema();
+        await loadRows();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    });
+
+    (async () => {
+      try {
+        await loadStatus();
+        await loadSchema();
+        await loadRows();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    })();
+  </script>
+</body>
+</html>

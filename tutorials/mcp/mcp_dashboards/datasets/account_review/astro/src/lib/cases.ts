@@ -15,37 +15,80 @@ import { z } from "zod";
 // bundler, which accepts a bare JSON import either way.
 import casesFile from "../data/cases.json" with { type: "json" };
 
+/** Every smart-action prompt must end by emailing the client or Compliance. */
+const SEND_EMAIL_INSTRUCTION =
+  /`?send_email`?[\s\S]*?audience[\s\S]{0,40}["']?(client|compliance)["']?/i;
+
+function assertEndsWithSendEmail(
+  instructions: string,
+  ctx: z.RefinementCtx,
+  path: (string | number)[],
+): void {
+  if (!SEND_EMAIL_INSTRUCTION.test(instructions)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'Smart-action instructions must call `send_email` with audience "client" or "compliance".',
+      path,
+    });
+  }
+}
+
 const caseActionSchema = z.object({
   label: z.string(),
   toast: z.string(),
   instructions: z.string(),
 });
 
-export const caseDefinitionSchema = z.object({
-  case_id: z.string(),
-  use_case: z.number().int().positive(),
-  /** Rule codes this case covers — a client row's `rule_code` field selects which case applies. */
-  rule_codes: z.array(z.string()).min(1),
-  /** Short badge label shown on `.case-badge`. */
-  tag: z.string(),
-  icon: z.string(),
-  /** Title for CaseFigure's primary (fig-prefixed) figure block, if this case has one. */
-  figure_title: z.string().optional(),
-  /** Title for CaseFigure's secondary (perf-prefixed) figure block, if this case has one. */
-  figure2_title: z.string().optional(),
-  /** Client-page section `data-key`s to force-open for this case — see renderOpenSectionsCss. */
-  open_sections: z.array(z.string()).optional(),
-  /** Show the `.figbar` progress-bar fill under CaseFigure's figure rows for this case (default: hidden). */
-  figure_bars: z.boolean().optional(),
-  /** Two side-by-side actions instead of the default single "Analyse with AI" button. */
-  dual_action: z.object({ actions: z.array(caseActionSchema).min(1) }).optional(),
-  /** Extra prose appended to the default single-action prompt (see CaseActionBar.astro's promptFor). */
-  instructions: z.string().optional(),
-  /** Short underlined link label shown in the smart-action banner (defaults to button_label). */
-  banner_link: z.string().optional(),
-  /** Short bold headline shown before the open issue in the smart-action banner. */
-  banner_headline: z.string().optional(),
-});
+export const caseDefinitionSchema = z
+  .object({
+    case_id: z.string(),
+    use_case: z.number().int().positive(),
+    /** Rule codes this case covers — a client row's `rule_code` field selects which case applies. */
+    rule_codes: z.array(z.string()).min(1),
+    /** Short badge label shown on `.case-badge`. */
+    tag: z.string(),
+    icon: z.string(),
+    /** Title for CaseFigure's primary (fig-prefixed) figure block, if this case has one. */
+    figure_title: z.string().optional(),
+    /** Title for CaseFigure's secondary (perf-prefixed) figure block, if this case has one. */
+    figure2_title: z.string().optional(),
+    /** Client-page section `data-key`s to force-open for this case — see renderOpenSectionsCss. */
+    open_sections: z.array(z.string()).optional(),
+    /** Show the `.figbar` progress-bar fill under CaseFigure's figure rows for this case (default: hidden). */
+    figure_bars: z.boolean().optional(),
+    /** Two side-by-side actions instead of the default single "Analyse with AI" button. */
+    dual_action: z.object({ actions: z.array(caseActionSchema).min(1) }).optional(),
+    /** Extra prose appended to the default single-action prompt (see CaseActionBar.astro's promptFor). */
+    instructions: z.string().optional(),
+    /** Short underlined link label shown in the smart-action banner (defaults to button_label). */
+    banner_link: z.string().optional(),
+    /** Short bold headline shown before the open issue in the smart-action banner. */
+    banner_headline: z.string().optional(),
+  })
+  .superRefine((c, ctx) => {
+    if (c.dual_action) {
+      c.dual_action.actions.forEach((action, i) => {
+        assertEndsWithSendEmail(action.instructions, ctx, [
+          "dual_action",
+          "actions",
+          i,
+          "instructions",
+        ]);
+      });
+      return;
+    }
+    if (!c.instructions) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Single-action cases need instructions that finish with send_email to client or compliance.",
+        path: ["instructions"],
+      });
+      return;
+    }
+    assertEndsWithSendEmail(c.instructions, ctx, ["instructions"]);
+  });
 
 export type CaseDefinition = z.infer<typeof caseDefinitionSchema>;
 
@@ -97,13 +140,19 @@ export function renderCaseCss(allCases: CaseDefinition[]): { visibility: string;
   return { visibility: visibility.join("\n"), badges: badges.join("\n"), bars: bars.join("\n") };
 }
 
-/** Force-open CSS for generic client-page sections named in a case's open_sections. */
+/** Force-open CSS for generic client-page sections named in a case's open_sections.
+ *
+ * Sections ship collapsed (`<details>` without `open`). One static template
+ * serves every rule_code, so the relevant fold is revealed with CSS keyed off
+ * `.detail[data-rule=…]` rather than a static `open` attribute. `!important`
+ * beats the UA rule that hides non-summary children of closed `<details>`.
+ */
 export function renderOpenSectionsCss(allCases: CaseDefinition[]): string {
   const rules: string[] = [];
   for (const [ruleCode, c] of rulePairs(allCases)) {
     for (const key of c.open_sections ?? []) {
       rules.push(`
-.detail[data-rule="${ruleCode}"] .sec[data-key="${key}"] > .sec-body { display: block; }
+.detail[data-rule="${ruleCode}"] .sec[data-key="${key}"] > .sec-body { display: block !important; }
 .detail[data-rule="${ruleCode}"] .sec[data-key="${key}"] > .sec-sum .sec-chev { transform: rotate(90deg); }`);
     }
   }

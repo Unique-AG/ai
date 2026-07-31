@@ -295,12 +295,12 @@ body:has(.view-client:target) .view-main {
 .risk-icon {
   display: none;
 }
-.status-icon-needs,
 .risk-icon-high {
   display: inline-block;
 }
-/* portfolio table — status icon mapping (see product icon spec) */
-td.statcell .status-icon {
+/* portfolio table + attention cards — status icons by product label */
+td.statcell .status-icon,
+.acard .status-icon {
   display: none;
 }
 td.statcell .status-indicator {
@@ -308,103 +308,77 @@ td.statcell .status-indicator {
   height: 22px;
   flex: 0 0 auto;
 }
-tr[data-status="Compliant"] td.statcell[data-status="Compliant"] .status-icon-compliant,
-td.statcell[data-status="Compliant"] .status-icon-compliant {
+
+/* Alert (red !): Screening hit, Regulatory breach, Regulatory change */
+td.statcell[data-status="Screening hit"] .status-icon-alert,
+td.statcell[data-status="Regulatory breach"] .status-icon-alert,
+td.statcell[data-status="Regulatory change"] .status-icon-alert,
+.acard[data-status="Screening hit"] .status-icon-alert,
+.acard[data-status="Regulatory breach"] .status-icon-alert,
+.acard[data-status="Regulatory change"] .status-icon-alert {
   display: inline-block;
 }
-tr[data-status="Compliant"] td.statcell[data-status="Compliant"] .status-indicator,
-td.statcell[data-status="Compliant"] .status-indicator {
-  border-color: #a9dfbf;
-  background: var(--green-bg);
-  color: var(--green);
-}
-tr[data-status="Escalated"] td.statcell[data-status="Escalated"] .status-icon-escalated,
-td.statcell[data-status="Escalated"] .status-icon-escalated {
-  display: inline-block;
-}
-tr[data-status="Escalated"] td.statcell[data-status="Escalated"] .status-indicator,
-td.statcell[data-status="Escalated"] .status-indicator {
-  border-color: var(--line);
-  background: var(--line-2);
-  color: var(--muted);
-}
-tr[data-status="Escalated"][data-rule="R-SCR-ADVMEDIA"] td.statcell .status-icon-escalated,
-tr[data-status="Escalated"][data-rule="R-SCR-PEP"] td.statcell .status-icon-escalated,
-td.statcell[data-status="Escalated"][data-rule="R-SCR-ADVMEDIA"] .status-icon-escalated,
-td.statcell[data-status="Escalated"][data-rule="R-SCR-PEP"] .status-icon-escalated {
-  display: none;
-}
-tr[data-status="Escalated"][data-rule="R-SCR-ADVMEDIA"] td.statcell .status-icon-waiting,
-tr[data-status="Escalated"][data-rule="R-SCR-PEP"] td.statcell .status-icon-waiting,
-td.statcell[data-status="Escalated"][data-rule="R-SCR-ADVMEDIA"] .status-icon-waiting,
-td.statcell[data-status="Escalated"][data-rule="R-SCR-PEP"] .status-icon-waiting {
-  display: inline-block;
-}
-tr[data-status="Needs Remediation"][data-rule="R-SUIT-ALLOC"] td.statcell .status-icon-breach,
-td.statcell[data-status="Needs Remediation"][data-rule="R-SUIT-ALLOC"] .status-icon-breach {
-  display: inline-block;
-}
-tr[data-status="Needs Remediation"][data-rule="R-SUIT-ALLOC"] td.statcell .status-indicator,
-td.statcell[data-status="Needs Remediation"][data-rule="R-SUIT-ALLOC"] .status-indicator {
-  border-color: #f3d18a;
-  background: var(--amber-bg);
-  color: var(--amber);
-}
-tr[data-status="Needs Remediation"][data-rule="R-DOC-EXPIRY"] td.statcell .status-icon-watch,
-tr[data-status="Needs Remediation"][data-crit="AMBER"]:not([data-rule="R-SUIT-ALLOC"]) td.statcell .status-icon-watch,
-td.statcell[data-status="Needs Remediation"][data-rule="R-DOC-EXPIRY"] .status-icon-watch,
-td.statcell[data-status="Needs Remediation"][data-crit="AMBER"]:not([data-rule="R-SUIT-ALLOC"]) .status-icon-watch {
-  display: inline-block;
-}
-tr[data-status="Needs Remediation"][data-rule="R-DOC-EXPIRY"] td.statcell .status-indicator,
-tr[data-status="Needs Remediation"][data-crit="AMBER"]:not([data-rule="R-SUIT-ALLOC"]) td.statcell .status-indicator,
-td.statcell[data-status="Needs Remediation"][data-rule="R-DOC-EXPIRY"] .status-indicator,
-td.statcell[data-status="Needs Remediation"][data-crit="AMBER"]:not([data-rule="R-SUIT-ALLOC"]) .status-indicator {
-  border-color: #f3d18a;
-  background: var(--amber-bg);
-  color: var(--amber);
-}
-tr[data-status="Needs Remediation"][data-crit="RED"]:not([data-rule="R-SUIT-ALLOC"]) td.statcell .status-icon-act,
-td.statcell[data-status="Needs Remediation"][data-crit="RED"]:not([data-rule="R-SUIT-ALLOC"]) .status-icon-act {
-  display: inline-block;
-}
-tr[data-status="Needs Remediation"][data-crit="RED"]:not([data-rule="R-SUIT-ALLOC"]) td.statcell .status-indicator,
-td.statcell[data-status="Needs Remediation"][data-crit="RED"]:not([data-rule="R-SUIT-ALLOC"]) .status-indicator {
+td.statcell[data-status="Screening hit"] .status-indicator,
+td.statcell[data-status="Regulatory breach"] .status-indicator,
+td.statcell[data-status="Regulatory change"] .status-indicator,
+.acard[data-status="Screening hit"] .status-indicator,
+.acard[data-status="Regulatory breach"] .status-indicator,
+.acard[data-status="Regulatory change"] .status-indicator {
   border-color: #f3b7bf;
   background: #fff7f8;
   color: #d94d5d;
 }
-tr[data-status="Needs Remediation"][data-rule="R-SUIT-ALLOC"] td.statcell .status-icon-act,
-tr[data-status="Needs Remediation"][data-rule="R-SUIT-ALLOC"] td.statcell .status-icon-watch,
-tr[data-status="Needs Remediation"][data-crit="AMBER"] td.statcell .status-icon-act,
-tr[data-status="Needs Remediation"][data-rule="R-DOC-EXPIRY"] td.statcell .status-icon-act,
-td.statcell[data-status="Needs Remediation"][data-rule="R-SUIT-ALLOC"] .status-icon-act,
-td.statcell[data-status="Needs Remediation"][data-rule="R-SUIT-ALLOC"] .status-icon-watch,
-td.statcell[data-status="Needs Remediation"][data-crit="AMBER"] .status-icon-act,
-td.statcell[data-status="Needs Remediation"][data-rule="R-DOC-EXPIRY"] .status-icon-act {
-  display: none;
+
+/* Flag (amber): Limit exceeded, Review required */
+td.statcell[data-status="Limit exceeded"] .status-icon-flag,
+td.statcell[data-status="Review required"] .status-icon-flag,
+.acard[data-status="Limit exceeded"] .status-icon-flag,
+.acard[data-status="Review required"] .status-icon-flag {
+  display: inline-block;
 }
-.acard[data-status="Escalated"] .status-indicator {
+td.statcell[data-status="Limit exceeded"] .status-indicator,
+td.statcell[data-status="Review required"] .status-indicator,
+.acard[data-status="Limit exceeded"] .status-indicator,
+.acard[data-status="Review required"] .status-indicator {
   border-color: #f3d18a;
   background: var(--amber-bg);
   color: var(--amber);
 }
-.acard[data-status="Escalated"] .status-icon {
-  display: none;
+
+/* Bell (amber): Deadline approaching */
+td.statcell[data-status="Deadline approaching"] .status-icon-bell,
+.acard[data-status="Deadline approaching"] .status-icon-bell {
+  display: inline-block;
 }
+td.statcell[data-status="Deadline approaching"] .status-indicator,
+.acard[data-status="Deadline approaching"] .status-indicator {
+  border-color: #f3d18a;
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+/* Escalated (handed to Compliance) */
+td.statcell[data-status="Escalated"] .status-icon-escalated,
 .acard[data-status="Escalated"] .status-icon-escalated {
   display: inline-block;
 }
+td.statcell[data-status="Escalated"] .status-indicator,
+.acard[data-status="Escalated"] .status-indicator {
+  border-color: var(--line);
+  background: var(--line-2);
+  color: var(--muted);
+}
+
+/* Compliant (green check) */
+td.statcell[data-status="Compliant"] .status-icon-compliant,
+.acard[data-status="Compliant"] .status-icon-compliant {
+  display: inline-block;
+}
+td.statcell[data-status="Compliant"] .status-indicator,
 .acard[data-status="Compliant"] .status-indicator {
   border-color: #a9dfbf;
   background: var(--green-bg);
   color: var(--green);
-}
-.acard[data-status="Compliant"] .status-icon {
-  display: none;
-}
-.acard[data-status="Compliant"] .status-icon-compliant {
-  display: inline-block;
 }
 .acard[data-risk="Medium"] .risk-indicator,
 td[data-risk="Medium"] .risk-indicator {
@@ -595,24 +569,20 @@ details.portfolio[open] > summary .chev {
   letter-spacing: -0.02em;
   margin-top: 2px;
 }
-.kpi[data-bucket="Escalated"] .k-v {
+.kpi[data-bucket="escalation"] .k-v {
+  color: var(--red);
+}
+.kpi[data-bucket="breach"] .k-v {
   color: var(--amber);
 }
-.kpi[data-bucket="Needs Remediation"] .k-v {
-  color: var(--red);
+.kpi[data-bucket="deadline"] .k-v {
+  color: var(--amber);
 }
 .kpi[data-bucket="Compliant"] .k-v {
   color: var(--green);
 }
 .kpi[data-bucket="total"] .k-v {
   color: var(--ink);
-}
-.kpi[data-bucket="act_now"] .k-v {
-  color: var(--red);
-}
-.kpi[data-bucket="breach"] .k-v,
-.kpi[data-bucket="watch"] .k-v {
-  color: var(--amber);
 }
 
 .portfolio-toolbar {
@@ -672,6 +642,71 @@ details.portfolio[open] > summary .chev {
   outline: none;
   border-color: #b8c4d8;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+/*
+ * Script-free portfolio filters for platform `live` (no filter-bar host).
+ * Selected <option>:checked drives :has() rules that hide non-matching rows.
+ * Local hosts still re-fetch via data-unique-filter-bar; CSS remains a no-op
+ * when the returned rows already match.
+ */
+.portfolio:has([data-unique-filter-field="status"] option[value="Screening hit"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-status="Screening hit"]),
+.portfolio:has([data-unique-filter-field="status"] option[value="Deadline approaching"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-status="Deadline approaching"]),
+.portfolio:has([data-unique-filter-field="status"] option[value="Limit exceeded"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-status="Limit exceeded"]),
+.portfolio:has([data-unique-filter-field="status"] option[value="Review required"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-status="Review required"]),
+.portfolio:has([data-unique-filter-field="status"] option[value="Regulatory breach"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-status="Regulatory breach"]),
+.portfolio:has([data-unique-filter-field="status"] option[value="Regulatory change"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-status="Regulatory change"]),
+.portfolio:has([data-unique-filter-field="status"] option[value="Escalated"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-status="Escalated"]),
+.portfolio:has([data-unique-filter-field="status"] option[value="Compliant"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-status="Compliant"]),
+.portfolio:has([data-unique-filter-field="risk_level"] option[value="High"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-risk="High"]),
+.portfolio:has([data-unique-filter-field="risk_level"] option[value="Medium"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-risk="Medium"]),
+.portfolio:has([data-unique-filter-field="risk_level"] option[value="Low"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-risk="Low"]),
+.portfolio:has([data-unique-filter-due] option[value="urgent"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-due="urgent"]),
+.portfolio:has([data-unique-filter-due] option[value="scheduled"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-due="scheduled"]),
+.portfolio:has([data-unique-filter-due] option[value="none"]:checked)
+  [data-unique-list="clientsLive"]
+  tbody
+  tr:not([data-due="none"]) {
+  display: none;
 }
 
 /* portfolio table */
@@ -796,13 +831,21 @@ td.c-trig:empty::after {
   color: var(--muted);
 }
 /* live badges on the detail card, driven by data-status / data-risk */
-.badge[data-status="Escalated"] {
+.badge[data-status="Screening hit"],
+.badge[data-status="Regulatory breach"],
+.badge[data-status="Regulatory change"] {
+  background: var(--red-bg);
+  color: var(--red);
+}
+.badge[data-status="Limit exceeded"],
+.badge[data-status="Review required"],
+.badge[data-status="Deadline approaching"] {
   background: var(--amber-bg);
   color: var(--amber);
 }
-.badge[data-status="Needs Remediation"] {
-  background: var(--red-bg);
-  color: var(--red);
+.badge[data-status="Escalated"] {
+  background: var(--line-2);
+  color: var(--muted);
 }
 .badge[data-status="Compliant"] {
   background: var(--green-bg);
@@ -883,8 +926,8 @@ a.c-nm:hover {
 /* __CASE_BADGE_CSS__ */
 
 /* in-cell edit menu */
-td.editcell,
-td.statcell {
+td.statcell,
+td.riskcell {
   vertical-align: middle;
 }
 .cellmenu {
@@ -1015,6 +1058,21 @@ td.statcell {
 .btn-back {
   font-weight: 600;
 }
+.detail-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0 0 12px;
+  border-radius: 9px;
+  color: var(--ink-2);
+}
+.detail-back:hover {
+  background: var(--bg);
+  border-color: var(--line);
+}
 
 /* toolbar / admin */
 .toolbar {
@@ -1022,6 +1080,11 @@ td.statcell {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+.portfolio-admin {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 .confirm {
   display: none;
@@ -1141,6 +1204,23 @@ td.statcell {
   left: 0;
   right: auto;
   top: calc(100% + 8px);
+}
+.act-done {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.act:has(.act-done:checked) .banner-action {
+  display: none;
+}
+.act:has(.act-done:checked) > .toast {
+  position: static;
+  opacity: 1;
+  transform: none;
+  display: inline;
+  vertical-align: baseline;
 }
 .detail-head {
   background: var(--surface);
@@ -1374,10 +1454,10 @@ details.sec[open] > .sec-sum .sec-chev {
 /* __CASE_BARS_CSS__ */
 
 /*
-  Generic sections (History, Documents and KYC, ...) start collapsed by
-  default; a case can force one open on load via cases.json's
-  "open_sections" — the section stays a normal, user-collapsible <details>
-  otherwise (see src/data/cases.json + lib/cases.js's renderOpenSectionsCss).
+  Generic sections start collapsed (Section.astro default open=false).
+  Executive summary is the only fold open for every client. A case force-opens
+  the fold(s) that matter for its rule_code via cases.json "open_sections"
+  (see lib/cases.ts renderOpenSectionsCss). Other folds stay user-collapsible.
 */
 /* __CASE_OPEN_SECTIONS_CSS__ */
 
@@ -1422,9 +1502,6 @@ details.sec[open] > .sec-sum .sec-chev {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 4px 9px;
-}
-.detail-bar {
-  display: flex;
 }
 
 /* toasts */

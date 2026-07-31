@@ -66,8 +66,7 @@ export function dataListAttrs(opts: {
 // `{`/`}` characters would collide with FieldRefs' brace-matching, which
 // only makes sense for plain text with isolated `{field}` placeholders
 // (hrefs, tooltips, prose). Typo-checking that JSON's *keys* is instead the
-// job of typing the function that builds it (see EditableCell.astro's
-// `sourceArgs`, which takes `field: keyof ClientRow`).
+// job of typing the function that builds the JSON template string.
 type CallToolArgs = { args: Record<string, unknown> } | { argsTemplate: string };
 
 export function callToolAttrs(opts: { tool: string; refresh: string } & CallToolArgs) {

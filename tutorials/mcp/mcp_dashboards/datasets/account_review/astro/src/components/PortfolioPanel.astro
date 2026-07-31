@@ -1,15 +1,19 @@
 ---
 // The "Your portfolio" panel: status KPIs, the full client table with
-// inline risk editor, read-only status, and the reset-demo-data toolbar. Only ever
-// rendered once per page, but broken out of index.astro so the page shell
-// reads as a list of named regions.
+// read-only status/risk, and (local modes only) the reset-demo-data toolbar.
+// Only ever rendered once per page, but broken out of index.astro so the
+// page shell reads as a list of named regions.
 import DataList from "./DataList.astro";
-import EditableCell from "./EditableCell.astro";
 import Icon from "./Icon.astro";
 import PortfolioFilters from "./PortfolioFilters.astro";
+import RiskCell from "./RiskCell.astro";
 import StatusCell from "./StatusCell.astro";
 import { callToolAttrs, clientRow, kpiRow } from "../lib/contract";
-import { portfolioListRefresh, riskColumn } from "../lib/editableCell";
+import { portfolioListRefresh } from "../lib/editableCell";
+import { getMode } from "../lib/mode";
+
+const mode = getMode();
+const showReset = mode !== "live";
 ---
 
 <details class="panel portfolio" open>
@@ -42,6 +46,8 @@ import { portfolioListRefresh, riskColumn } from "../lib/editableCell";
           <tr
             {...clientRow.key("id")}
             {...clientRow.attr("data-status", "case_action.status")}
+            {...clientRow.attr("data-risk", "compliance.risk_level")}
+            {...clientRow.attr("data-due", "case_action.due_bucket")}
             {...clientRow.attr("data-crit", "compliance.criticality")}
             {...clientRow.attr("data-rule", "case_action.rule_code")}
           >
@@ -52,7 +58,7 @@ import { portfolioListRefresh, riskColumn } from "../lib/editableCell";
               </div>
             </td>
             <StatusCell />
-            <EditableCell {...riskColumn} refresh={portfolioListRefresh} />
+            <RiskCell />
             <td class="c-due" {...clientRow.field("case_action.due_date")} />
             <td class="c-trig" {...clientRow.field("case_action.open_issue")} />
           </tr>
@@ -63,20 +69,24 @@ import { portfolioListRefresh, riskColumn } from "../lib/editableCell";
     <p data-unique-state="empty" class="small muted" style="padding: 14px 4px">No clients found.</p>
   </DataList>
 
-  <div class="toolbar" style="margin-top: 16px">
-    <a class="btn btn-danger" href="#reset-db">Reset demo data…</a>
-    <span class="confirm" id="reset-db">
-      <span class="act">
-        <button
-          type="button"
-          class="btn btn-danger"
-          {...callToolAttrs({ tool: "reset_from_excel", args: {}, refresh: portfolioListRefresh })}
-        >
-          Confirm reset
-        </button>
-        <span class="toast toast-danger" role="status">↺ Reset sent — lists will refresh shortly</span>
-      </span>
-      <a class="btn btn-ghost" href="#top">Cancel</a>
-    </span>
-  </div>
+  {
+    showReset && (
+      <div class="toolbar portfolio-admin">
+        <a class="btn btn-danger" href="#reset-db">Reset demo data…</a>
+        <span class="confirm" id="reset-db">
+          <span class="act">
+            <button
+              type="button"
+              class="btn btn-danger"
+              {...callToolAttrs({ tool: "reset_from_excel", args: {}, refresh: portfolioListRefresh })}
+            >
+              Confirm reset
+            </button>
+            <span class="toast toast-danger" role="status">↺ Reset sent — lists will refresh shortly</span>
+          </span>
+          <a class="btn btn-ghost" href="#top">Cancel</a>
+        </span>
+      </div>
+    )
+  }
 </details>

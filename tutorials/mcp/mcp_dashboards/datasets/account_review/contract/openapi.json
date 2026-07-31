@@ -214,6 +214,92 @@
           }
         }
       }
+    },
+    "/clients/{id}/email-draft": {
+      "post": {
+        "operationId": "Clients_draftEmail",
+        "summary": "Draft email",
+        "description": "Elicit an email draft to the client or Compliance, optionally update status, without sending.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "audience",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "client",
+                "compliance"
+              ]
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientEmailDraftResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/{id}/email-send": {
+      "post": {
+        "operationId": "Clients_sendEmail",
+        "summary": "Send email",
+        "description": "Elicit and review an email draft to the client or Compliance, confirm send, then report whether delivery succeeded (simulated facade). Always returns sent true/false with delivery_message — never leave the outcome ambiguous.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "audience",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "client",
+                "compliance"
+              ]
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendEmailResult"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -229,7 +315,12 @@
             "enum": [
               "Compliant",
               "Escalated",
-              "Needs Remediation"
+              "Screening hit",
+              "Deadline approaching",
+              "Limit exceeded",
+              "Review required",
+              "Regulatory breach",
+              "Regulatory change"
             ],
             "description": "Current workflow status for the review case."
           },
@@ -553,6 +644,32 @@
         },
         "description": "Payload for creating a client from typed dashboard or MCP input."
       },
+      "ClientEmailDraftResult": {
+        "type": "object",
+        "required": [
+          "client",
+          "draft",
+          "status_updated"
+        ],
+        "properties": {
+          "client": {
+            "$ref": "#/components/schemas/Client",
+            "description": "Client row after any accepted status update."
+          },
+          "draft": {
+            "$ref": "#/components/schemas/OutboundEmailDraft",
+            "description": "Accepted email draft contents."
+          },
+          "status_updated": {
+            "type": "boolean",
+            "description": "True when case_action.status was updated as part of this draft."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Result of drafting an email via MCP elicitation without sending."
+      },
       "ClientFilter": {
         "type": "object",
         "properties": {
@@ -561,7 +678,12 @@
             "enum": [
               "Compliant",
               "Escalated",
-              "Needs Remediation"
+              "Screening hit",
+              "Deadline approaching",
+              "Limit exceeded",
+              "Review required",
+              "Regulatory breach",
+              "Regulatory change"
             ],
             "description": "Filter by workflow status."
           },
@@ -585,6 +707,10 @@
           "criticality": {
             "type": "string",
             "description": "Filter by operational criticality."
+          },
+          "needs_attention": {
+            "type": "boolean",
+            "description": "When true, exclude Compliant clients (attention rail)."
           }
         },
         "unevaluatedProperties": {
@@ -735,7 +861,12 @@
             "enum": [
               "Compliant",
               "Escalated",
-              "Needs Remediation"
+              "Screening hit",
+              "Deadline approaching",
+              "Limit exceeded",
+              "Review required",
+              "Regulatory breach",
+              "Regulatory change"
             ],
             "description": "New workflow status."
           },
@@ -1045,6 +1176,55 @@
         "format": "date",
         "description": "Calendar date serialized as ISO 8601 full-date text."
       },
+      "OutboundEmailDraft": {
+        "type": "object",
+        "required": [
+          "audience",
+          "to",
+          "subject",
+          "body"
+        ],
+        "properties": {
+          "audience": {
+            "type": "string",
+            "enum": [
+              "client",
+              "compliance"
+            ],
+            "description": "Whether this email goes to the client or to Compliance."
+          },
+          "to": {
+            "$ref": "#/components/schemas/EmailAddress",
+            "description": "Recipient email address."
+          },
+          "subject": {
+            "type": "string",
+            "description": "Email subject line."
+          },
+          "body": {
+            "type": "string",
+            "description": "Email body text."
+          },
+          "new_status": {
+            "type": "string",
+            "enum": [
+              "Compliant",
+              "Escalated",
+              "Screening hit",
+              "Deadline approaching",
+              "Limit exceeded",
+              "Review required",
+              "Regulatory breach",
+              "Regulatory change"
+            ],
+            "description": "Optional new workflow status to apply after the email is accepted."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Email draft the RM reviews before sending outside the platform."
+      },
       "PortfolioSummary": {
         "type": "object",
         "required": [
@@ -1098,6 +1278,53 @@
           "not": {}
         },
         "description": "Review dates used for KYC and suitability scheduling."
+      },
+      "SendEmailResult": {
+        "type": "object",
+        "required": [
+          "client",
+          "draft",
+          "sent",
+          "status_updated",
+          "delivery_message"
+        ],
+        "properties": {
+          "client": {
+            "$ref": "#/components/schemas/Client",
+            "description": "Client row after any accepted status update."
+          },
+          "draft": {
+            "$ref": "#/components/schemas/OutboundEmailDraft",
+            "description": "Email contents reviewed by the RM (present whether or not delivery was confirmed)."
+          },
+          "sent": {
+            "type": "boolean",
+            "description": "True when the RM confirmed send; false when draft review or send confirmation was cancelled."
+          },
+          "status_updated": {
+            "type": "boolean",
+            "description": "True when case_action.status was updated as part of a confirmed send."
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Simulated outbound message id when sent; null when not sent (demo facade, no real SMTP)."
+          },
+          "delivery_message": {
+            "type": "string",
+            "description": "Human-readable delivery outcome the agent must relay: whether the mail was sent or not."
+          }
+        },
+        "unevaluatedProperties": {
+          "not": {}
+        },
+        "description": "Result of attempting to send an email after the RM reviews the draft."
       },
       "SortSpec": {
         "type": "object",

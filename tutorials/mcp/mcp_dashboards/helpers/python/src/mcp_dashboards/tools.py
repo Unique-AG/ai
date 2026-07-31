@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import logging
 from typing import Any, Callable, TypeVar
 
@@ -20,9 +21,25 @@ def tool_errors(
     contract stays honest: a failure travels as a protocol-level error the
     client sees via `isError`, rather than a success payload the caller has to
     sniff for an `error` key.
+
+    Supports both sync and async tool handlers.
     """
 
     def decorate(func: Callable[..., R]) -> Callable[..., R]:
+        if inspect.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> R:
+                try:
+                    return await func(*args, **kwargs)
+                except ToolError:
+                    raise
+                except Exception as exc:
+                    logger.exception("Tool %s failed", func.__name__)
+                    raise ToolError(f"{type(exc).__name__}: {exc}") from exc
+
+            return async_wrapper  # type: ignore[return-value]
+
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> R:
             try:

@@ -1,8 +1,5 @@
 ---
-// The "Needing attention" rail: live clients with status "Needs
-// Remediation" (Escalated ones are deliberately excluded — see
-// data-unique-source-args below). Only ever rendered once per page, but
-// broken out of index.astro so the page shell reads as a list of named regions.
+// The "Needing attention" rail: live clients whose status is not Compliant.
 import DataList from "./DataList.astro";
 import Icon from "./Icon.astro";
 import { clientRow } from "../lib/contract";
@@ -16,7 +13,7 @@ import { clientRow } from "../lib/contract";
     class="rail"
     listName="attentionLive"
     tool="list_clients"
-    args={{ filters: { status: "Needs Remediation" }, limit: 200 }}
+    args={{ filters: { needs_attention: true }, limit: 200 }}
   >
     <template data-unique-item>
       <div class="acard-wrap">
@@ -37,9 +34,11 @@ import { clientRow } from "../lib/contract";
             </span>
             <span class="acard-indicators">
               <span class="status-indicator" tabindex="0" {...clientRow.attr("data-tooltip", "case_action.status")}>
-                <Icon name="alert-circle" class="status-icon status-icon-needs" size={16} />
-                <Icon name="circle-arrow-up" class="status-icon status-icon-escalated" size={16} />
-                <Icon name="check-circle" class="status-icon status-icon-compliant" size={16} />
+                <Icon name="alert-circle" class="status-icon status-icon-alert" size={16} />
+                <Icon name="flag" class="status-icon status-icon-flag" size={16} />
+                <Icon name="bell" class="status-icon status-icon-bell" size={16} />
+                <Icon name="arrow-up-right" class="status-icon status-icon-escalated" size={16} />
+                <Icon name="shield-check" class="status-icon status-icon-compliant" size={16} />
               </span>
               <span class="risk-indicator" tabindex="0" {...clientRow.attr("data-tooltip", "compliance.risk_level_tooltip")}>
                 <Icon name="chevron-up" class="risk-icon risk-icon-high" size={16} />

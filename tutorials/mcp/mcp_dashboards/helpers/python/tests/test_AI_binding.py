@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
-from mcp_dashboards.binding import enrich_binding_row, flatten_dotted_paths
+from mcp_dashboards.binding import (
+    due_date_bucket,
+    enrich_binding_row,
+    flatten_dotted_paths,
+)
 
 
 @pytest.mark.ai
@@ -16,13 +22,13 @@ def test_AI_flatten_dotted_paths__mirrors_nested_domain_fields__as_dotted_keys()
     row = {
         "id": 3,
         "identity": {"name": "Dmitry Volkov", "reference": "CH-priv-0231"},
-        "case_action": {"status": "Needs Remediation"},
+        "case_action": {"status": "Screening hit"},
     }
 
     flat = flatten_dotted_paths(row)
 
     assert flat["identity.name"] == "Dmitry Volkov"
-    assert flat["case_action.status"] == "Needs Remediation"
+    assert flat["case_action.status"] == "Screening hit"
 
 
 @pytest.mark.ai
@@ -49,3 +55,21 @@ def test_AI_enrich_binding_row__adds_platform_attr_helpers__without_dropping_nes
     assert enriched["client_dom_id"] == "client-7"
     assert enriched["compliance.risk_level_tooltip"] == "High risk"
     assert enriched["figures.mandate.0.pct_bar_style"] == "width:66.0%"
+    assert enriched["case_action.due_bucket"] == "none"
+
+
+@pytest.mark.ai
+def test_AI_due_date_bucket__classifies_iso_dates__relative_to_today() -> None:
+    """
+    Purpose: Verify due dates map to urgent/scheduled/none for portfolio filters.
+    Why this matters: Platform live filtering is CSS-only and needs a precomputed data-due bucket.
+    Setup summary: Classify empty, past, and future ISO dates against a fixed reference day.
+    """
+    today = date(2026, 7, 29)
+
+    assert due_date_bucket(None, today=today) == "none"
+    assert due_date_bucket("", today=today) == "none"
+    assert due_date_bucket("2026-07-29", today=today) == "urgent"
+    assert due_date_bucket("2026-07-28", today=today) == "urgent"
+    assert due_date_bucket("2026-08-01", today=today) == "scheduled"
+    assert due_date_bucket("not-a-date", today=today) == "none"

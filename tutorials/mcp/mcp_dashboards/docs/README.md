@@ -14,6 +14,7 @@ Package-level READMEs cover their own subject in more depth:
 | [`helpers/astro/`](../helpers/astro/README.md) | The shared browser host: the DOM interpreter, MCP client, elicitation form, and `live-local` host |
 | [`helpers/contracts/`](../helpers/contracts/README.md) | The TypeSpec → OpenAPI → Pydantic + Zod generation script and its reproducibility guarantees |
 | [`datasets/account_review/astro/`](../datasets/account_review/astro/README.md) | The reference dashboard: build modes, commands, and what it owns |
+| [`datasets/account_review/docs/`](../datasets/account_review/docs/README.md) | RM remediation use cases: visual process docs (Mermaid) for the six rule codes |
 
 ## Where to start
 

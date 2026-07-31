@@ -26,26 +26,29 @@ Note that `models.py` holds *storage*-level models. A dataset's public domain
 models are generated from its TypeSpec contract into
 `datasets/<name>/fastmcp/generated/models.py` and are never hand-written.
 
-`elicitation.py` is currently unused — no tool in the reference dataset elicits.
-It is kept because the `live-local` host can already render an elicitation form
-if a tool starts requesting one.
+`elicitation.py` is used by account_review `update_client` (status confirm),
+`draft_client_email`, and `send_email` (draft form; send also confirms delivery).
+The `live-local` host renders the modal.
 
 ## Settings
 
-A dataset server constructs `AppSettings` with explicit dataset-local paths:
+A dataset server constructs `AppSettings` with dataset-local path defaults, but
+only when the matching env vars are unset — so Azure can override
+`SQLITE_PATH=/home/data/...` without losing local isolation:
 
 ```python
-settings = AppSettings(
-    excel_path=DATASET_ROOT / "data" / "account_review_dataset.xlsx",
-    sqlite_path=DATASET_ROOT / "data" / "account_review.sqlite",
-)
+kwargs = {}
+if "EXCEL_PATH" not in os.environ:
+    kwargs["excel_path"] = DATASET_ROOT / "data" / "account_review_dataset.xlsx"
+if "SQLITE_PATH" not in os.environ:
+    kwargs["sqlite_path"] = DATASET_ROOT / "data" / "account_review.sqlite"
+settings = AppSettings(**kwargs)
 ```
 
 Pydantic-settings ranks constructor arguments above environment variables, so
-anything a dataset passes explicitly cannot be overridden from the environment or
-a `.env` file. Only the fields left unset — `host`, `port`, and the header
-detection knobs — read from the environment. That is what keeps datasets from
-colliding: the framework never picks a global SQLite path.
+never pass `excel_path=` / `sqlite_path=` when you want `EXCEL_PATH` /
+`SQLITE_PATH` to win. `host`, `port`, `auth_disabled`, and the header detection
+knobs also read from the environment.
 
 ## Repository
 

@@ -8,7 +8,7 @@
  */
 import { startLiveHost } from "@mcp-dashboards/host/liveHost.ts";
 
-import { zClient, zClientListResult, zCountByResult } from "../lib/generated/zod.gen.ts";
+import { zClient, zClientEmailDraftResult, zClientListResult, zCountByResult, zSendEmailResult } from "../lib/generated/zod.gen.ts";
 
 startLiveHost({
   toolResultSchemas: {
@@ -16,5 +16,7 @@ startLiveHost({
     count_clients_by: zCountByResult,
     portfolio_kpis: zCountByResult,
     update_client: zClient,
+    draft_client_email: zClientEmailDraftResult,
+    send_email: zSendEmailResult,
   },
 });

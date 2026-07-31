@@ -68,9 +68,19 @@ function queryTable(mock: MockData, tool: string, args: Row): Row[] {
   }
 
   const filters = (typeof args.filters === "object" && args.filters !== null ? args.filters : {}) as Row;
+  const needsAttention = Boolean(filters.needs_attention);
+  const equalityFilters = Object.fromEntries(
+    Object.entries(filters).filter(([key]) => key !== "needs_attention"),
+  ) as Row;
   let matched = rows.filter((row) =>
-    Object.entries(filters).every(([key, value]) => String(readPath(row, domainPath(key))) === String(value)),
+    Object.entries(equalityFilters).every(([key, value]) => String(readPath(row, domainPath(key))) === String(value)),
   );
+  if (needsAttention) {
+    matched = matched.filter((row) => {
+      const status = String(readPath(row, domainPath("status")) ?? "");
+      return status !== "Compliant" && status !== "Escalated";
+    });
+  }
 
   const search = typeof args.search === "string" ? args.search.trim() : "";
   if (search) matched = matched.filter((row) => matchesSearch(row, search));

@@ -88,9 +88,15 @@ function buildInput(key: string, definition: ElicitProperty): HTMLInputElement |
     input.checked = definition.default !== undefined ? Boolean(definition.default) : false;
     return input;
   }
-  if ((definition.description?.length ?? 0) > LONG_DESCRIPTION) {
+  if (
+    key === "body" ||
+    key === "message" ||
+    key === "content" ||
+    key === "prompt" ||
+    (definition.description?.length ?? 0) > LONG_DESCRIPTION
+  ) {
     const input = document.createElement("textarea");
-    input.rows = 3;
+    input.rows = key === "body" ? 8 : 3;
     input.value = definition.default != null ? String(definition.default) : "";
     return input;
   }

@@ -1,10 +1,11 @@
 """Framework settings shared by per-dataset MCP servers.
 
-Each dataset server passes explicit Excel and SQLite paths when it constructs
-`AppSettings`. Pydantic-settings ranks constructor arguments above environment
-variables, so anything a dataset passes explicitly cannot be overridden from the
-environment or a `.env` file — only the fields a dataset leaves unset (the
-transport host and port, header detection) read from the environment.
+Each dataset server should pass Excel and SQLite paths only when the matching
+environment variables are unset. Pydantic-settings ranks constructor arguments
+above environment variables, so an explicit `excel_path=` / `sqlite_path=`
+argument cannot be overridden by `EXCEL_PATH` / `SQLITE_PATH` — which is what
+keeps datasets isolated locally, and why deploy must leave those kwargs off when
+Azure supplies persisted paths.
 """
 
 from __future__ import annotations
@@ -38,6 +39,10 @@ class AppSettings(BaseSettings):
         ge=1,
         le=65535,
         description="Port the streamable-http transport binds to.",
+    )
+    auth_disabled: bool = Field(
+        default=False,
+        description="When true, skip Zitadel OIDC (local demos only).",
     )
     excel_header_row: int | None = Field(
         default=None,

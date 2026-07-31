@@ -91,14 +91,16 @@ export function applyDueDateFilter(rows: Row[], dueFilter: unknown): Row[] {
 
 /** Computes portfolio header KPI rows from a client array. */
 export function portfolioKpiRows(rows: Row[]): Row[] {
-  const needs = (row: Row) => readPath(row, "case_action.status") === "Needs Remediation";
-  const actNow = rows.filter((row) => needs(row) && readPath(row, "compliance.criticality") === "RED").length;
-  const breach = rows.filter((row) => needs(row) && readPath(row, "case_action.rule_code") === "R-SUIT-ALLOC").length;
-  const watch = rows.filter((row) => needs(row) && readPath(row, "compliance.criticality") === "AMBER").length;
+  const statusOf = (row: Row) => String(readPath(row, "case_action.status") ?? "");
+  const escalation = rows.filter((row) =>
+    ["Escalated", "Screening hit", "Regulatory breach", "Regulatory change"].includes(statusOf(row)),
+  ).length;
+  const breach = rows.filter((row) => statusOf(row) === "Limit exceeded").length;
+  const deadline = rows.filter((row) => statusOf(row) === "Deadline approaching").length;
   return [
     { bucket: "total", label: "Total Clients", count: rows.length },
-    { bucket: "act_now", label: "Act now", count: actNow },
+    { bucket: "escalation", label: "Escalation", count: escalation },
     { bucket: "breach", label: "Breach", count: breach },
-    { bucket: "watch", label: "Watch", count: watch },
+    { bucket: "deadline", label: "Deadline approaching", count: deadline },
   ];
 }

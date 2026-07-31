@@ -7,15 +7,12 @@ import Icon from "./Icon.astro";
 <td
   class="statcell"
   {...clientRow.attr("data-status", "case_action.status")}
-  {...clientRow.attr("data-crit", "compliance.criticality")}
-  {...clientRow.attr("data-rule", "case_action.rule_code")}
 >
   <span class="stat">
     <span class="status-indicator" tabindex="0" {...clientRow.attr("data-tooltip", "case_action.status")}>
-      <Icon name="alert-circle" class="status-icon status-icon-act" size={16} />
-      <Icon name="flag" class="status-icon status-icon-breach" size={16} />
-      <Icon name="bell" class="status-icon status-icon-watch" size={16} />
-      <Icon name="hourglass" class="status-icon status-icon-waiting" size={16} />
+      <Icon name="alert-circle" class="status-icon status-icon-alert" size={16} />
+      <Icon name="flag" class="status-icon status-icon-flag" size={16} />
+      <Icon name="bell" class="status-icon status-icon-bell" size={16} />
       <Icon name="arrow-up-right" class="status-icon status-icon-escalated" size={16} />
       <Icon name="shield-check" class="status-icon status-icon-compliant" size={16} />
     </span>

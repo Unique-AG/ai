@@ -15,7 +15,7 @@
         "docs-kyc"
       ],
       "banner_link": "Draft email",
-      "instructions": "Then draft the email you would send to the client requesting a certified copy of the renewed document, written ready for the RM to paste into Outlook. Do not call any tool for this step \u2014 it stays a draft for the RM to review and send."
+      "instructions": "Then call `send_email` with `pk` {id} and `audience` \"client\". The tool elicits the draft for review, then asks you to confirm send. Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the email was sent (cite `delivery_message` / `message_id`); if `sent` is false, say clearly that it was not sent and why."
     },
     {
       "case_id": "adverse-media",
@@ -32,7 +32,7 @@
         "history"
       ],
       "banner_link": "Review",
-      "instructions": "Then call `update_client` with `pk` {id} and fields `{ \"status\": \"Escalated\" }`, and draft the Compliance note in chat."
+      "instructions": "Then call `send_email` with `pk` {id} and `audience` \"compliance\". The tool elicits the Compliance note (new_status defaults to Escalated), then asks you to confirm send. Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the escalation email was sent and that the portfolio row shows Escalated; if `sent` is false, say clearly that it was not sent and why."
     },
     {
       "case_id": "suit-alloc",
@@ -48,7 +48,7 @@
         "portfolio-performance"
       ],
       "banner_link": "Rebalance",
-      "instructions": "Then sketch a rebalancing proposal \u2014 what to trim, what to redeploy into, and the rough cost and tax impact \u2014 that would bring the allocation back within the agreed risk-profile tolerance."
+      "instructions": "Then sketch a rebalancing proposal \u2014 what to trim, what to redeploy into, and the rough cost and tax impact \u2014 that would bring the allocation back within the agreed risk-profile tolerance. Finish by calling `send_email` with `pk` {id} and `audience` \"client\" so the proposal (or discretionary confirmation) goes to the client. Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the email was sent (cite `delivery_message` / `message_id`); if `sent` is false, say clearly that it was not sent and why."
     },
     {
       "case_id": "suit-review",
@@ -63,7 +63,7 @@
         "suitability-profile"
       ],
       "banner_link": "Complete",
-      "instructions": "Then run a short suitability-review questionnaire with me here in chat using what you know about the client, and summarise the answers ready for the file."
+      "instructions": "Then run a short suitability-review questionnaire with me here in chat using what you know about the client, and summarise the answers ready for the file. Finish by calling `send_email` with `pk` {id} and `audience` \"client\" to send the questionnaire / request any missing answers. Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the email was sent (cite `delivery_message` / `message_id`); if `sent` is false, say clearly that it was not sent and why."
     },
     {
       "case_id": "reg-change",
@@ -83,16 +83,16 @@
           {
             "label": "\ud83d\udce8 Email client",
             "toast": "\u2728 Sent to me \u2014 drafting the client email",
-            "instructions": "Then draft the email you would send this client requesting the evidence or acknowledgement needed to re-categorise them."
+            "instructions": "Then draft the reassessment gap summary, and call `send_email` with `pk` {id} and `audience` \"client\". Review the elicited draft and confirm send. Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the email was sent; if `sent` is false, say clearly that it was not sent and why."
           },
           {
             "label": "\ud83d\udea8 Escalate to compliance",
             "toast": "\u2728 Sent to me \u2014 escalating to Compliance",
-            "instructions": "Then call `update_client` with `pk` {id} and fields `{ \"status\": \"Escalated\" }`, and draft the Compliance note in chat."
+            "instructions": "Then draft why the client cannot qualify, and call `send_email` with `pk` {id} and `audience` \"compliance\". Review the elicited Compliance note (new_status defaults to Escalated) and confirm send. Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the escalation email was sent and the portfolio row shows Escalated; if `sent` is false, say clearly that it was not sent and why."
           }
         ]
       },
-      "instructions": "Then draft the reassessment: what changed, why this client is now in scope, and the concrete remediation options \u2014 re-categorise, re-paper, ask the client for evidence, or divest."
+      "instructions": "Then draft the reassessment: what changed, why this client is now in scope, and the concrete remediation options \u2014 re-categorise, re-paper, ask the client for evidence, or divest. Finish by calling `send_email` with `pk` {id} and `audience` \"client\" (or \"compliance\" if they cannot qualify). Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the email was sent; if `sent` is false, say clearly that it was not sent and why."
     },
     {
       "case_id": "sow-refresh",
@@ -104,8 +104,11 @@
       "icon": "\ud83d\udcb0",
       "figure_title": "Wealth event",
       "banner_headline": "Source of wealth",
+      "open_sections": [
+        "docs-kyc"
+      ],
       "banner_link": "Assess",
-      "instructions": "Then draft a Source-of-Wealth corroboration plan for this event, including which supporting documents to request from the client."
+      "instructions": "Then draft a Source-of-Wealth corroboration plan for this event, including which supporting documents to request from the client. Finish by calling `send_email` with `pk` {id} and `audience` \"client\" to request those documents. Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the email was sent (cite `delivery_message` / `message_id`); if `sent` is false, say clearly that it was not sent and why."
     }
   ]
 }

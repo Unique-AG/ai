@@ -460,5 +460,6 @@ As of now:
 | Shared, dataset-agnostic dashboard host | Extracted to `helpers/astro/`; 813 of 933 host lines are shared, leaving a dataset a schema registry and a preview mirror |
 | Script-free `live` build | Holds today (one 79 KB HTML file, zero `<script>` tags), but nothing enforces it — `npm run check` does not assert it |
 | Second dataset proving reusability | Does not exist. The `helpers/astro/` seam is drawn from reading the code, not from a real second consumer, so expect to adjust it |
-| MCP elicitation | Helper exists in `helpers/python`, no dataset tool uses it; the live-local host can render the form if one does |
-| Authentication | None. The local server is unauthenticated and its CORS policy allows every origin, which is why `live-local` is documented as a dev-only mode |
+| MCP elicitation | `update_client` (status confirm), `draft_client_email` / `send_email` (draft form; send also confirms delivery). Audience is `client` or `compliance`. |
+| Authentication | Local/live-local defaults to `AUTH_DISABLED=true`. Azure deploy (`datasets/account_review/fastmcp/deploy.sh`) wires Zitadel via `unique_mcp` when `ZITADEL_*` credentials are present |
+| DB admin website | Implemented for `account_review`: `/` serves `static/admin.html`; `/api/*` lists/updates/deletes rows and `POST /api/reset` rebuilds from Excel |

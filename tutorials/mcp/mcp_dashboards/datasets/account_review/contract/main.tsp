@@ -10,7 +10,15 @@ namespace AccountReview;
 
 alias NullableString = string | null;
 alias NullableNumber = float64 | null;
-alias ReviewStatus = "Compliant" | "Escalated" | "Needs Remediation";
+alias ReviewStatus =
+  | "Compliant"
+  | "Escalated"
+  | "Screening hit"
+  | "Deadline approaching"
+  | "Limit exceeded"
+  | "Review required"
+  | "Regulatory breach"
+  | "Regulatory change";
 alias RiskLevel = "Low" | "Medium" | "High";
 alias ClientSegment = "Corporate / Holding" | "Private Wealth";
 alias ClientType = "Company" | "Individual";
@@ -305,6 +313,63 @@ model ClientFilter {
 
   @doc("Filter by operational criticality.")
   criticality?: string;
+
+  @doc("When true, exclude Compliant clients (attention rail).")
+  needs_attention?: boolean;
+}
+
+/** Who an outbound remediation email is addressed to. */
+alias EmailAudience = "client" | "compliance";
+
+@doc("Email draft the RM reviews before sending outside the platform.")
+model OutboundEmailDraft {
+  @doc("Whether this email goes to the client or to Compliance.")
+  audience: EmailAudience;
+
+  @doc("Recipient email address.")
+  to: EmailAddress;
+
+  @doc("Email subject line.")
+  subject: string;
+
+  @doc("Email body text.")
+  body: string;
+
+  @doc("Optional new workflow status to apply after the email is accepted.")
+  new_status?: ReviewStatus;
+}
+
+@doc("Result of drafting an email via MCP elicitation without sending.")
+model ClientEmailDraftResult {
+  @doc("Client row after any accepted status update.")
+  client: Client;
+
+  @doc("Accepted email draft contents.")
+  draft: OutboundEmailDraft;
+
+  @doc("True when case_action.status was updated as part of this draft.")
+  status_updated: boolean;
+}
+
+@doc("Result of attempting to send an email after the RM reviews the draft.")
+model SendEmailResult {
+  @doc("Client row after any accepted status update.")
+  client: Client;
+
+  @doc("Email contents reviewed by the RM (present whether or not delivery was confirmed).")
+  draft: OutboundEmailDraft;
+
+  @doc("True when the RM confirmed send; false when draft review or send confirmation was cancelled.")
+  sent: boolean;
+
+  @doc("True when case_action.status was updated as part of a confirmed send.")
+  status_updated: boolean;
+
+  @doc("Simulated outbound message id when sent; null when not sent (demo facade, no real SMTP).")
+  message_id?: string | null;
+
+  @doc("Human-readable delivery outcome the agent must relay: whether the mail was sent or not.")
+  delivery_message: string;
 }
 
 @doc("Search, filter, sort, and pagination request for listing clients.")
@@ -414,4 +479,16 @@ interface Clients {
   @summary("Update client workflow fields")
   @doc("Patch the editable workflow fields for a client.")
   op update(@path id: int32, @body fields: ClientUpdate): Client;
+
+  @post
+  @route("/{id}/email-draft")
+  @summary("Draft email")
+  @doc("Elicit an email draft to the client or Compliance, optionally update status, without sending.")
+  op draftEmail(@path id: int32, @query audience?: EmailAudience): ClientEmailDraftResult;
+
+  @post
+  @route("/{id}/email-send")
+  @summary("Send email")
+  @doc("Elicit and review an email draft to the client or Compliance, confirm send, then report whether delivery succeeded (simulated facade). Always returns sent true/false with delivery_message — never leave the outcome ambiguous.")
+  op sendEmail(@path id: int32, @query audience: EmailAudience): SendEmailResult;
 }

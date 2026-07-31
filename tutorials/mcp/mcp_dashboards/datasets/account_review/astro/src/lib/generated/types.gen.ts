@@ -15,7 +15,7 @@ export type CaseAction = {
     /**
      * Current workflow status for the review case.
      */
-    status: 'Compliant' | 'Escalated' | 'Needs Remediation';
+    status: 'Compliant' | 'Escalated' | 'Screening hit' | 'Deadline approaching' | 'Limit exceeded' | 'Review required' | 'Regulatory breach' | 'Regulatory change';
     /**
      * Rule identifier that triggered the action, when applicable.
      */
@@ -156,13 +156,31 @@ export type ClientCreate = {
 };
 
 /**
+ * Result of drafting an email via MCP elicitation without sending.
+ */
+export type ClientEmailDraftResult = {
+    /**
+     * Client row after any accepted status update.
+     */
+    client: Client;
+    /**
+     * Accepted email draft contents.
+     */
+    draft: OutboundEmailDraft;
+    /**
+     * True when case_action.status was updated as part of this draft.
+     */
+    status_updated: boolean;
+};
+
+/**
  * Supported typed filters for client list tools.
  */
 export type ClientFilter = {
     /**
      * Filter by workflow status.
      */
-    status?: 'Compliant' | 'Escalated' | 'Needs Remediation';
+    status?: 'Compliant' | 'Escalated' | 'Screening hit' | 'Deadline approaching' | 'Limit exceeded' | 'Review required' | 'Regulatory breach' | 'Regulatory change';
     /**
      * Filter by compliance risk level.
      */
@@ -175,6 +193,10 @@ export type ClientFilter = {
      * Filter by operational criticality.
      */
     criticality?: string;
+    /**
+     * When true, exclude Compliant clients (attention rail).
+     */
+    needs_attention?: boolean;
 };
 
 /**
@@ -271,7 +293,7 @@ export type ClientUpdate = {
     /**
      * New workflow status.
      */
-    status?: 'Compliant' | 'Escalated' | 'Needs Remediation';
+    status?: 'Compliant' | 'Escalated' | 'Screening hit' | 'Deadline approaching' | 'Limit exceeded' | 'Review required' | 'Regulatory breach' | 'Regulatory change';
     /**
      * New compliance risk level.
      */
@@ -446,6 +468,32 @@ export type FigureMetric = {
 export type IsoDate = string;
 
 /**
+ * Email draft the RM reviews before sending outside the platform.
+ */
+export type OutboundEmailDraft = {
+    /**
+     * Whether this email goes to the client or to Compliance.
+     */
+    audience: 'client' | 'compliance';
+    /**
+     * Recipient email address.
+     */
+    to: EmailAddress;
+    /**
+     * Email subject line.
+     */
+    subject: string;
+    /**
+     * Email body text.
+     */
+    body: string;
+    /**
+     * Optional new workflow status to apply after the email is accepted.
+     */
+    new_status?: 'Compliant' | 'Escalated' | 'Screening hit' | 'Deadline approaching' | 'Limit exceeded' | 'Review required' | 'Regulatory breach' | 'Regulatory change';
+};
+
+/**
  * Portfolio-level values displayed in the dashboard.
  */
 export type PortfolioSummary = {
@@ -479,6 +527,36 @@ export type ReviewSchedule = {
      * Next KYC refresh due date.
      */
     kyc_refresh_due: IsoDate;
+};
+
+/**
+ * Result of attempting to send an email after the RM reviews the draft.
+ */
+export type SendEmailResult = {
+    /**
+     * Client row after any accepted status update.
+     */
+    client: Client;
+    /**
+     * Email contents reviewed by the RM (present whether or not delivery was confirmed).
+     */
+    draft: OutboundEmailDraft;
+    /**
+     * True when the RM confirmed send; false when draft review or send confirmation was cancelled.
+     */
+    sent: boolean;
+    /**
+     * True when case_action.status was updated as part of a confirmed send.
+     */
+    status_updated: boolean;
+    /**
+     * Simulated outbound message id when sent; null when not sent (demo facade, no real SMTP).
+     */
+    message_id?: string | null;
+    /**
+     * Human-readable delivery outcome the agent must relay: whether the mail was sent or not.
+     */
+    delivery_message: string;
 };
 
 /**
@@ -622,3 +700,43 @@ export type ClientsUpdateResponses = {
 };
 
 export type ClientsUpdateResponse = ClientsUpdateResponses[keyof ClientsUpdateResponses];
+
+export type ClientsDraftEmailData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: {
+        audience?: 'client' | 'compliance';
+    };
+    url: '/clients/{id}/email-draft';
+};
+
+export type ClientsDraftEmailResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: ClientEmailDraftResult;
+};
+
+export type ClientsDraftEmailResponse = ClientsDraftEmailResponses[keyof ClientsDraftEmailResponses];
+
+export type ClientsSendEmailData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query: {
+        audience: 'client' | 'compliance';
+    };
+    url: '/clients/{id}/email-send';
+};
+
+export type ClientsSendEmailResponses = {
+    /**
+     * The request has succeeded.
+     */
+    200: SendEmailResult;
+};
+
+export type ClientsSendEmailResponse = ClientsSendEmailResponses[keyof ClientsSendEmailResponses];
