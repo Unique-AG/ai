@@ -1,6 +1,6 @@
 [project]
 name = "uqadm"
-version = "2026.30.0"
+version = "2026.32.0"
 description = "Unique admin CLI (space list, export, upsert, migrate, delete): separate from unique-cli"
 readme = "README.md"
 requires-python = ">=3.11"

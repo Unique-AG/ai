@@ -2,8 +2,8 @@ apiVersion: v2
 name: search-proxy
 description: Dedicated Helm chart for the Unique search proxy connector
 type: application
-version: "2026.30.0" # x-release-please-version
-appVersion: "2026.30.0" # x-release-please-version
+version: "2026.32.0" # x-release-please-version
+appVersion: "2026.32.0" # x-release-please-version
 dependencies:
   - name: base
     version: "0.1.0-eeb8aa"
