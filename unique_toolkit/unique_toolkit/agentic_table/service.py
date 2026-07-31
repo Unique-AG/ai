@@ -56,41 +56,48 @@ def _artifact_timestamp(value: str) -> datetime:
 
 
 class _ArtifactBaseline(NamedTuple):
-    """What a sheet's artifacts looked like just before an export was triggered.
+    """What a sheet's artifacts of one type looked like just before an export of
+    that type was triggered.
 
-    ``ids`` are the records that already existed; ``latest`` is the newest
-    ``updated_at`` per type. Two signals because either can carry the result: a
-    finished report normally arrives as a new record (the trigger's nameless
-    IN_PROGRESS marker and the named report are separate rows), but a re-export
-    can also refresh an existing record in place.
+    ``ids`` are the records of the type that already existed; ``latest`` is
+    their newest ``updated_at``. Two signals because either can carry the
+    result: a finished report normally arrives as a new record (the trigger's
+    nameless IN_PROGRESS marker and the named report are separate rows), but a
+    re-export can also refresh an existing record in place.
+
+    Kept per artifact type so that triggering one type does not fence out an
+    already-completed export of another type.
 
     Mirrors the ``_ArtifactBaseline`` used by the SDK CLI's export wait.
     """
 
     ids: frozenset[str]
-    latest: dict[MagicTableArtifactType, datetime]
+    latest: datetime | None
 
 
-def _snapshot_artifacts(artifacts: list[MagicTableArtifact]) -> _ArtifactBaseline:
-    latest: dict[MagicTableArtifactType, datetime] = {}
-    for artifact in artifacts:
-        timestamp = _artifact_timestamp(artifact.updated_at)
-        if (
-            artifact.artifact_type not in latest
-            or timestamp > latest[artifact.artifact_type]
-        ):
-            latest[artifact.artifact_type] = timestamp
-    return _ArtifactBaseline(
-        ids=frozenset(artifact.id for artifact in artifacts), latest=latest
-    )
+def _snapshot_artifacts(
+    artifacts: list[MagicTableArtifact],
+    artifact_types: list[MagicTableArtifactType],
+) -> dict[MagicTableArtifactType, _ArtifactBaseline]:
+    baselines: dict[MagicTableArtifactType, _ArtifactBaseline] = {}
+    for artifact_type in artifact_types:
+        records = [a for a in artifacts if a.artifact_type == artifact_type]
+        timestamps = [_artifact_timestamp(a.updated_at) for a in records]
+        baselines[artifact_type] = _ArtifactBaseline(
+            ids=frozenset(a.id for a in records),
+            latest=max(timestamps) if timestamps else None,
+        )
+    return baselines
 
 
 def _is_fresh(artifact: MagicTableArtifact, baseline: _ArtifactBaseline) -> bool:
     """Whether *artifact* came out of a generation triggered after *baseline*."""
     if artifact.id not in baseline.ids:
         return True
-    latest = baseline.latest.get(artifact.artifact_type)
-    return latest is not None and _artifact_timestamp(artifact.updated_at) > latest
+    return (
+        baseline.latest is not None
+        and _artifact_timestamp(artifact.updated_at) > baseline.latest
+    )
 
 
 class LockedAgenticTableError(Exception):
@@ -132,9 +139,9 @@ class AgenticTableService:
         self.table_id = table_id
         self.logger = logger
         self.created_sheet: CreatedMagicTableSheet | None = None
-        # Snapshot taken by generate_artifacts so wait_for_artifacts can tell the
-        # new export apart from records left by earlier generations.
-        self._artifact_baseline: _ArtifactBaseline | None = None
+        # Per-type snapshots taken by generate_artifacts so wait_for_artifacts can
+        # tell a new export apart from records left by earlier generations.
+        self._artifact_baselines: dict[MagicTableArtifactType, _ArtifactBaseline] = {}
 
     @classmethod
     async def create_sheet(
@@ -681,14 +688,17 @@ class AgenticTableService:
         (or poll ``list_artifacts``) to detect completion, then download the artifact's
         ``content_id`` via the Content API.
 
-        Snapshots the sheet's artifacts before triggering, so a following
-        ``wait_for_artifacts`` on this instance can tell the new export apart
-        from records left over from earlier generations.
+        Snapshots the sheet's artifacts of the requested types before
+        triggering, so a following ``wait_for_artifacts`` on this instance can
+        tell the new export apart from records left over from earlier
+        generations. Only the requested types' snapshots are replaced; a
+        baseline armed by an earlier trigger for another type is kept, so its
+        completed export stays recognisable.
 
         Raises:
             Exception: If the API reports a non-success status.
         """
-        baseline = _snapshot_artifacts(await self.list_artifacts())
+        baselines = _snapshot_artifacts(await self.list_artifacts(), artifact_types)
         result = await AgenticTable.generate_artifact(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -699,7 +709,7 @@ class AgenticTableService:
             raise Exception(
                 result.get("message") or "Failed to trigger artifact generation"
             )
-        self._artifact_baseline = baseline
+        self._artifact_baselines.update(baselines)
 
     async def rerun_row(self, row_order: int) -> None:
         """Re-run the agent for a single row (`POST .../row/{rowOrder}/rerun`).
@@ -857,16 +867,17 @@ class AgenticTableService:
         result, and reports from earlier generations remain listed. Two fences
         keep the wait from mistaking leftovers for the new export:
 
-        - When ``generate_artifacts`` was called on this instance, only records
-          that are *fresh* relative to its pre-trigger snapshot count: a record
-          id that did not exist before, or an ``updated_at`` newer than the
-          snapshot. This also accepts exports that finish before the first poll.
-        - Without a snapshot (export triggered elsewhere), a terminal state is
-          accepted only after IN_PROGRESS has been observed for that type, and
-          the newest record (by ``updated_at``) per type decides the state. This
-          cannot distinguish a result of an earlier generation whose trigger
-          marker is still IN_PROGRESS — prefer triggering and waiting on the
-          same service instance.
+        - For a type that ``generate_artifacts`` was called for on this
+          instance, only records that are *fresh* relative to that trigger's
+          snapshot count: a record id that did not exist before, or an
+          ``updated_at`` newer than the snapshot. This also accepts exports
+          that finish before the first poll.
+        - For a type without a snapshot (export triggered elsewhere), a
+          terminal state is accepted only after IN_PROGRESS has been observed
+          for that type, and the newest record (by ``updated_at``) decides the
+          state. This cannot distinguish a result of an earlier generation
+          whose trigger marker is still IN_PROGRESS — prefer triggering and
+          waiting on the same service instance.
 
         Because the API exposes only the current artifact state, keep
         ``poll_interval`` shorter than the expected minimum generation time.
@@ -884,23 +895,28 @@ class AgenticTableService:
             AgenticTableRunTimeoutError: Not all artifacts were DONE within ``timeout``.
         """
         wanted = set(artifact_types)
-        baseline = self._artifact_baseline
+        baselines = {
+            artifact_type: baseline
+            for artifact_type, baseline in self._artifact_baselines.items()
+            if artifact_type in wanted
+        }
         started: set[MagicTableArtifactType] = set()
         deadline = time.monotonic() + timeout
         while True:
             artifacts = await self.list_artifacts()
             relevant = [a for a in artifacts if a.artifact_type in wanted]
-            if baseline is not None:
-                candidates = [a for a in relevant if _is_fresh(a, baseline)]
-                gate = {a.artifact_type for a in candidates}
-            else:
-                candidates = relevant
-                started.update(
-                    artifact.artifact_type
-                    for artifact in relevant
-                    if artifact.artifact_state == MagicTableArtifactState.IN_PROGRESS
-                )
-                gate = started
+            candidates: list[MagicTableArtifact] = []
+            for artifact in relevant:
+                baseline = baselines.get(artifact.artifact_type)
+                if baseline is None:
+                    candidates.append(artifact)
+                    if artifact.artifact_state == MagicTableArtifactState.IN_PROGRESS:
+                        started.add(artifact.artifact_type)
+                elif _is_fresh(artifact, baseline):
+                    candidates.append(artifact)
+            gate = started | {
+                a.artifact_type for a in candidates if a.artifact_type in baselines
+            }
             # Newest record per type decides the state; older duplicates (e.g. the
             # stale nameless IN_PROGRESS row from the export trigger) are ignored.
             current: dict[MagicTableArtifactType, MagicTableArtifact] = {}

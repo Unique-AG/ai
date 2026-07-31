@@ -146,7 +146,7 @@ class TestGenerateArtifacts:
         ):
             with pytest.raises(Exception, match="Failed to trigger"):
                 await service.generate_artifacts([MagicTableArtifactType.QUESTIONS])
-        assert service._artifact_baseline is None
+        assert service._artifact_baselines == {}
 
 
 class TestRerunRow:
@@ -563,3 +563,42 @@ class TestWaitForArtifactsWithBaseline:
         )
         with pytest.raises(AgenticTableArtifactError):
             await self._generate_and_wait(service, [stale, [new_error, *stale]])
+
+    async def test_later_trigger_for_other_type_keeps_earlier_fence(self, service):
+        # A FULL_REPORT export completes, then QUESTIONS is triggered: the second
+        # snapshot must not fence out the already-completed FULL_REPORT record.
+        report_done = self._artifact(
+            "FULL_REPORT",
+            "DONE",
+            "artifact_report_done",
+            updated_at="2026-01-01T00:02:05.000Z",
+        )
+        questions_done = self._artifact(
+            "QUESTIONS",
+            "DONE",
+            "artifact_questions_done",
+            updated_at="2026-01-01T00:03:05.000Z",
+        )
+        with (
+            _patch("generate_artifact", return_value={"status": True}),
+            _patch(
+                "list_artifacts",
+                side_effect=[
+                    [],  # snapshot for the FULL_REPORT trigger
+                    [report_done],  # snapshot for the QUESTIONS trigger
+                    [report_done],  # wait poll: FULL_REPORT must count as fresh
+                    [report_done, questions_done],
+                ],
+            ),
+        ):
+            await service.generate_artifacts([MagicTableArtifactType.FULL_REPORT])
+            await service.generate_artifacts([MagicTableArtifactType.QUESTIONS])
+            artifacts = await service.wait_for_artifacts(
+                [MagicTableArtifactType.FULL_REPORT, MagicTableArtifactType.QUESTIONS],
+                timeout=10,
+                poll_interval=0,
+            )
+        assert [a.id for a in artifacts] == [
+            "artifact_report_done",
+            "artifact_questions_done",
+        ]
