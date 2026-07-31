@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.30.0...unique-sdk-v2026.32.0) (2026-07-31)
+
+
+### Features
+
+* **cli:** agentic-table read commands (get-sheet, get-cell, cell-history) [UN-22199] ([#2101](https://github.com/Unique-AG/ai/issues/2101)) ([7ac1bc2](https://github.com/Unique-AG/ai/commit/7ac1bc268417e892ba0bd4e0e2dd5d9f6e8db274))
+* **cli:** agentic-table rerun-row for re-answering a single row [UN-22201] ([#2173](https://github.com/Unique-AG/ai/issues/2173)) ([2199613](https://github.com/Unique-AG/ai/commit/2199613af689e7dbed5fa822b7e273fa15146430))
+* **cli:** agentic-table write commands (create-sheet, import, export) [UN-22200] ([#2168](https://github.com/Unique-AG/ai/issues/2168)) ([6aeae9e](https://github.com/Unique-AG/ai/commit/6aeae9ee55d4107746fcf2203a0715b191698ab2))
+* **sdk:** harden elicit ask for supervised waits ([#2171](https://github.com/Unique-AG/ai/issues/2171)) ([5efb3e4](https://github.com/Unique-AG/ai/commit/5efb3e4d6e93bb0894a99acf44d3f84db35e9e38))
+* **sdk:** thread chatId through web-search CLI/SDK to activate node-chat Web Search toggle guard ([#2135](https://github.com/Unique-AG/ai/issues/2135)) ([583c75b](https://github.com/Unique-AG/ai/commit/583c75ba582089e94c469472a32758095bc55b92))
+* Token count analytics ([#2112](https://github.com/Unique-AG/ai/issues/2112)) ([f475dc4](https://github.com/Unique-AG/ai/commit/f475dc4606dd723e0fecfcdd09ace2f9c329e960))
+
+
+### Bug Fixes
+
+* **ai-modules:** improve elicitation skill ([#2145](https://github.com/Unique-AG/ai/issues/2145)) ([599371f](https://github.com/Unique-AG/ai/commit/599371f1d0fb25cdb32234b6b6b336ecb4e44cc2))
+* **cli:** choose cite --read-method by modality read, not page location [UN-23250] ([#2147](https://github.com/Unique-AG/ai/issues/2147)) ([aea070e](https://github.com/Unique-AG/ai/commit/aea070e1df7b0faa9321130e1e61c5f8aa853be9))
+* **sdk:** elicit-wait PENDING timeout message must instruct polling again [UN-23181] ([#2113](https://github.com/Unique-AG/ai/issues/2113)) ([848de2d](https://github.com/Unique-AG/ai/commit/848de2d482d0807dd400848a43d311914b0cf688))
+* **unique_sdk:** chat-monotonic MCP source numbering and richer citation sources [UN-23199] ([#2131](https://github.com/Unique-AG/ai/issues/2131)) ([81a770d](https://github.com/Unique-AG/ai/commit/81a770d47bc73602fb9449ef3285e47c06daba9f))
+* **unique_sdk:** keep crawl-error payloads out of the web-refs manifest [UN-23356] ([#2150](https://github.com/Unique-AG/ai/issues/2150)) ([ea220ff](https://github.com/Unique-AG/ai/commit/ea220ffcb4737ca835bfa618d1f7b890ff2ca2b0))
+* **unique_sdk:** UN-23307 redact request payload debug logs by default ([#2143](https://github.com/Unique-AG/ai/issues/2143)) ([30e5886](https://github.com/Unique-AG/ai/commit/30e5886493c223f823b4e9f81bd81b59fcc21a52))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
 ## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.28.0...unique-sdk-v2026.30.0) (2026-07-17)
 
 
