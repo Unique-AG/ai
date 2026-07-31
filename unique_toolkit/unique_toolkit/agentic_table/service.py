@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from datetime import datetime
 from typing import Any, cast
 
 from typing_extensions import deprecated
@@ -47,6 +48,11 @@ def _sheet_batch_cells_include_row_metadata_from_api(
     first = cells[0]
     rm = first.get("rowMetadata")
     return "rowMetadata" in first and isinstance(rm, list)
+
+
+def _artifact_timestamp(value: str) -> datetime:
+    """Parse an artifact ISO-8601 timestamp (e.g. ``2026-07-31T16:26:36.344Z``)."""
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 class LockedAgenticTableError(Exception):
@@ -798,11 +804,16 @@ class AgenticTableService:
     ) -> list[MagicTableArtifact]:
         """Wait until artifacts of the given types are DONE, by polling ``list_artifacts``.
 
-        Artifact records are upserted per type: triggering an export flips the record
-        of that type to IN_PROGRESS and back to DONE when the file is ready. A
-        terminal state is accepted only after IN_PROGRESS has been observed for
-        that artifact type, so a result left over from an earlier generation is
-        not mistaken for the newly triggered one.
+        Triggering an export records an IN_PROGRESS artifact of that type, which is
+        flipped to DONE (or ERROR) when the file is ready. A terminal state is accepted
+        only after IN_PROGRESS has been observed for that artifact type, so a result
+        left over from an earlier generation is not mistaken for the newly triggered one.
+
+        A sheet can hold several records of the same type: on the first export the
+        trigger's nameless IN_PROGRESS record is not always the record the worker
+        completes, leaving a stale IN_PROGRESS row next to the DONE result. The state
+        decision is therefore made on the newest record (by ``updated_at``) of each
+        requested type, while IN_PROGRESS detection considers all of them.
 
         Because the API exposes only the current artifact state, a complete
         IN_PROGRESS-to-terminal transition between two polls cannot be observed.
@@ -825,12 +836,19 @@ class AgenticTableService:
         deadline = time.monotonic() + timeout
         while True:
             artifacts = await self.list_artifacts()
-            current = {
-                a.artifact_type: a for a in artifacts if a.artifact_type in wanted
-            }
+            relevant = [a for a in artifacts if a.artifact_type in wanted]
+            # Newest record per type decides the state; older duplicates (e.g. the
+            # stale nameless IN_PROGRESS row from the export trigger) are ignored.
+            current: dict[MagicTableArtifactType, MagicTableArtifact] = {}
+            for artifact in relevant:
+                newest = current.get(artifact.artifact_type)
+                if newest is None or _artifact_timestamp(
+                    artifact.updated_at
+                ) > _artifact_timestamp(newest.updated_at):
+                    current[artifact.artifact_type] = artifact
             started.update(
-                artifact_type
-                for artifact_type, artifact in current.items()
+                artifact.artifact_type
+                for artifact in relevant
                 if artifact.artifact_state == MagicTableArtifactState.IN_PROGRESS
             )
             failed = [

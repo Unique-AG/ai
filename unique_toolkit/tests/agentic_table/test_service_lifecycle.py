@@ -277,14 +277,19 @@ class TestWaitForRun:
 
 class TestWaitForArtifacts:
     @staticmethod
-    def _artifact(artifact_type: str, state: str, artifact_id: str = "artifact_1"):
+    def _artifact(
+        artifact_type: str,
+        state: str,
+        artifact_id: str = "artifact_1",
+        updated_at: str = "2026-01-01T00:01:00.000Z",
+    ):
         return {
             "id": artifact_id,
             "artifactType": artifact_type,
             "artifactState": state,
             "contentId": "cont_export" if state == "DONE" else None,
             "createdAt": "2026-01-01T00:00:00.000Z",
-            "updatedAt": "2026-01-01T00:01:00.000Z",
+            "updatedAt": updated_at,
         }
 
     async def test_returns_when_all_types_done(self, service):
@@ -346,6 +351,80 @@ class TestWaitForArtifacts:
             )
         assert len(artifacts) == 1
         assert artifacts[0].artifact_state == MagicTableArtifactState.DONE
+
+    async def test_tolerates_stale_in_progress_duplicate_from_export_trigger(
+        self, service
+    ):
+        # First export on a sheet: the trigger's nameless IN_PROGRESS record is not
+        # the one the worker completes, so a stale IN_PROGRESS row remains next to
+        # the DONE result (observed on QA, sheet with two FULL_REPORT records).
+        stale = self._artifact(
+            "FULL_REPORT",
+            "IN_PROGRESS",
+            "artifact_stale",
+            updated_at="2026-01-01T00:01:00.000Z",
+        )
+        done = self._artifact(
+            "FULL_REPORT",
+            "DONE",
+            "artifact_done",
+            updated_at="2026-01-01T00:01:02.000Z",
+        )
+        responses = [
+            [stale],
+            [done, stale],  # API returns newest-first
+        ]
+        with _patch("list_artifacts", side_effect=responses):
+            artifacts = await service.wait_for_artifacts(
+                [MagicTableArtifactType.FULL_REPORT], timeout=10, poll_interval=0
+            )
+        assert len(artifacts) == 1
+        assert artifacts[0].id == "artifact_done"
+        assert artifacts[0].content_id == "cont_export"
+
+    async def test_newest_record_decides_regardless_of_list_order(self, service):
+        stale = self._artifact(
+            "FULL_REPORT",
+            "IN_PROGRESS",
+            "artifact_stale",
+            updated_at="2026-01-01T00:01:00.000Z",
+        )
+        done = self._artifact(
+            "FULL_REPORT",
+            "DONE",
+            "artifact_done",
+            updated_at="2026-01-01T00:01:02.000Z",
+        )
+        responses = [
+            [stale],
+            [stale, done],  # oldest-first order must give the same result
+        ]
+        with _patch("list_artifacts", side_effect=responses):
+            artifacts = await service.wait_for_artifacts(
+                [MagicTableArtifactType.FULL_REPORT], timeout=10, poll_interval=0
+            )
+        assert artifacts[0].id == "artifact_done"
+
+    async def test_returns_when_generation_finishes_before_first_poll(self, service):
+        # Fast exports can complete before the first poll: the stale IN_PROGRESS
+        # duplicate still proves the run started, and the newest record is DONE.
+        stale = self._artifact(
+            "FULL_REPORT",
+            "IN_PROGRESS",
+            "artifact_stale",
+            updated_at="2026-01-01T00:01:00.000Z",
+        )
+        done = self._artifact(
+            "FULL_REPORT",
+            "DONE",
+            "artifact_done",
+            updated_at="2026-01-01T00:01:02.000Z",
+        )
+        with _patch("list_artifacts", return_value=[done, stale]):
+            artifacts = await service.wait_for_artifacts(
+                [MagicTableArtifactType.FULL_REPORT], timeout=10, poll_interval=0
+            )
+        assert artifacts[0].id == "artifact_done"
 
     async def test_raises_on_error_state(self, service):
         with _patch(
