@@ -320,6 +320,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # keyless cosign signing in cd-containerize.yaml
     uses: ./.github/workflows/cd-containerize-batch.yaml
     secrets: inherit
     with:
