@@ -3,7 +3,7 @@
 !!! warning "Experimental"
     The CLI is experimental and its interface may change in future releases.
 
-Read Agentic Table (magic table) sheets, cells, and cell history through the public magic-table API. These are **Tier 0** reads: they never write and never require confirmation. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as `agentic-table: permission denied`.
+Work with Agentic Table (magic table) sheets through the public magic-table API. The **read** commands (`get-sheet`, `get-cell`, `cell-history`, `list-exports`) are **Tier 0**: they never write and never require confirmation. The **write** commands (`create-sheet`, `import`, `export`) drive the full loop — create a sheet, populate it, run the agent, and export the answers. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as `agentic-table: permission denied`.
 
 ## agentic-table get-sheet
 
@@ -147,3 +147,144 @@ TYPE         STATE        ID          CONTENT       UPDATED
 FULL_REPORT  DONE         artifact_1  cont_export   2026-01-01 00:01
 QUESTIONS    IN_PROGRESS  artifact_2  -             2026-01-01 00:00
 ```
+
+---
+
+## agentic-table create-sheet
+
+Create a new, empty sheet in a space. The printed `ID` is the `table_id` used by every other command.
+
+**Synopsis:**
+
+```
+agentic-table create-sheet <assistant_id> [--name <name>] [--due-at <iso8601>] [--json]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `assistant_id` | The space (assistant) the sheet is created in; you must have write access |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--name` | Sheet name |
+| `--due-at` | Due date (ISO-8601, e.g. `2026-12-31T00:00:00Z`) |
+| `--json` | Print the raw sheet JSON |
+
+**Example:**
+
+```bash
+unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ"
+```
+
+```
+Sheet:             Vendor DDQ
+ID:                mt_abc123
+Due diligence ID:  dd_1
+State:             IDLE
+Created by:        user_abc
+Created:           2026-01-01 00:00
+```
+
+---
+
+## agentic-table import
+
+Import questions and/or source files into a sheet. Adding **new questions** (file ids or texts) triggers the agent run; adding only sources does not. Ids/texts already on the sheet are skipped. The call is rejected while the sheet is already processing.
+
+With `--wait`, the command blocks until the triggered run finishes (or `--timeout` elapses) so you can chain an `export`.
+
+A run leaves no durable record of itself, so the wait has to catch the sheet in `PROCESSING`. A very short run can pass through between two polls; polling is dense over the opening seconds to narrow that window, but it cannot close it — that needs a per-run signal the public API does not expose yet ([UN-23683](https://unique-ch.atlassian.net/browse/UN-23683)). Transient read failures during the wait are retried, since the import itself has already been accepted by then.
+
+What happens when no run is observed depends on what you submitted. A sources-only import never starts one, so that is reported as a note and the command succeeds. If you submitted questions, a run was expected — not seeing one within 120s is treated as an error, because the pickup may simply be late and exiting 0 would let a `&&` chain export a sheet that is still being answered. The outcome is then unknown rather than failed: poll `get-sheet` until the state settles on `IDLE` and the imported rows carry answers, and export only after that. Exporting straight away would report unanswered rows as the result. Re-importing is not the answer either — questions the sheet already has produce the same error: also a no-op, but not one the command can tell apart from a late pickup.
+
+**Synopsis:**
+
+```
+agentic-table import <table_id> [--question-file-id <id>]... [--question-text <text>]...
+                                [--source-file-id <id>]... [--context <text>]
+                                [--wait] [--timeout <seconds>] [--start-timeout <seconds>] [--json]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--question-file-id` | Content id of a questionnaire file (repeatable) | |
+| `--question-text` | A question to add directly (repeatable) | |
+| `--source-file-id` | Content id of a source/knowledge file (repeatable) | |
+| `--context` | Free-text context for the run | |
+| `--wait` | Wait for the triggered run to finish | off |
+| `--timeout` | Max seconds to wait when `--wait` is set | 600 |
+| `--start-timeout` | Max seconds to wait for the run to be picked up, before treating it as never started. Counts against `--timeout`. Raise it when the worker queue is slow | 120 |
+| `--json` | Print raw JSON. `--wait` adds `runStarted` and `finalState` alongside `result` | off |
+
+**Example:**
+
+```bash
+unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src --wait
+```
+
+```
+Action:  import
+Result:  OK
+Detail:  accepted
+Run finished (state: IDLE).
+```
+
+---
+
+## agentic-table export
+
+Generate export artifacts (`FULL_REPORT`, `QUESTIONS`, `AGENTIC_REPORT`). Generation is asynchronous. With `--wait`, the command polls until each requested type is `DONE` and prints the artifact table with the `contentId` to download; an artifact entering `ERROR` fails fast.
+
+**Synopsis:**
+
+```
+agentic-table export <table_id> --type <TYPE>... [--wait] [--timeout <seconds>] [--json]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--type` | Artifact type: `FULL_REPORT`, `QUESTIONS`, or `AGENTIC_REPORT` (repeatable, required) | |
+| `--wait` | Wait for the requested artifacts to be ready, then list them | off |
+| `--timeout` | Max seconds to wait when `--wait` is set | 600 |
+| `--json` | Print raw JSON. `--wait` adds `artifacts` alongside `result` | off |
+
+**Example:**
+
+```bash
+unique-cli agentic-table export mt_abc123 --type FULL_REPORT --wait
+```
+
+```
+Action:  export
+Result:  OK
+1 export artifact(s):
+
+TYPE         STATE  ID           CONTENT      UPDATED
+FULL_REPORT  DONE   artifact_1   cont_export  2026-01-01 00:01
+```
+
+---
+
+## Full-loop recipe
+
+Create a sheet, populate and run it, then export the answers. Every step exits non-zero on failure — including a rejection the backend reports in the response body rather than as an HTTP error — so the steps can be chained with `&&`:
+
+```bash
+SHEET_JSON=$(unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ" --json) && \
+SHEET=$(printf '%s' "$SHEET_JSON" | jq -r .sheetId) && \
+unique-cli agentic-table import "$SHEET" --question-file-id c_questions --source-file-id c_sources --wait && \
+unique-cli agentic-table export "$SHEET" --type FULL_REPORT --wait && \
+unique-cli agentic-table get-sheet "$SHEET" --cells
+```
+
+Capture the JSON and parse it in two steps rather than piping `create-sheet` straight into `jq`. A shell assignment takes the exit status of the last command in the pipeline, so `SHEET=$(unique-cli ... | jq ...)` reports `jq`'s status and discards the CLI's. Errors go to stderr, so `jq` would read empty input, print nothing and succeed — leaving `$SHEET` empty and the `&&` chain running on against a sheet that was never created. Splitting the assignment puts the CLI's own exit status back in the chain. `set -o pipefail` also works if the recipe runs inside a script you control.
+
+Read the produced answers with `get-sheet --cells` / `get-cell` and download an export via the Content API using the `contentId` shown by `export` / `list-exports`.
