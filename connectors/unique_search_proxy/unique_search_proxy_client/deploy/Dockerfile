@@ -6,13 +6,6 @@
 #
 # Both cd-containerize and ci-containerize set context: .
 # =============================================================================
-
-# ── Stage 0: uv, pinned ───────────────────────────────────────────────────────
-# Same version and digest that docker-base/python/3.12 pins in the platform
-# monorepo, so every Python image in the org builds with the same uv. A mutable
-# tag here would pull an unreviewed third party binary into every build of a
-# customer facing image. Referenced through a named stage rather than
-# `COPY --from=<image>` so a FROM based updater sees and bumps it.
 FROM ghcr.io/astral-sh/uv:0.11.33@sha256:77280f2f771df71f90786c314fe1bbc1e023feac652969bbf139c280babf2eb7 AS uv
 
 # ── Stage 1: install deps into an isolated venv ───────────────────────────────
