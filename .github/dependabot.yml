@@ -21,3 +21,26 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # Keeps container images in Dockerfiles up to date. Without this, the digest
+  # pins in the shipped images never move and a pinned base silently ages.
+  # Friday cadence matches the docker-base rebuilds in the platform monorepo,
+  # so base and consumer patches land in one review window.
+  - package-ecosystem: docker
+    directories:
+      - "**/*"
+    schedule:
+      interval: weekly
+      day: friday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - docker
+    groups:
+      docker:
+        patterns:
+          - "*"
