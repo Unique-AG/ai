@@ -1,10 +1,11 @@
 [project]
 name = "unique-mcp"
 version = "2026.34.0.dev1"
-description = "Add your description here"
+description = "Shared FastMCP platform helpers for Unique: auth injectors, pino-json logging, and ops/metrics routes"
 readme = "README.md"
 authors = [
-    { name = "Cedric Klinkert", email = "cedric@unique.ch" }
+    { name = "Cedric Klinkert", email = "cedric@unique.ch" },
+    { name = "Sanzio Monti", email = "github@sanziomonti.xyz" },
 ]
 requires-python = ">=3.12"
 dependencies = [
