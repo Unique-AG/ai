@@ -33,13 +33,14 @@ from unique_mcp.auth.zitadel.oidc_proxy import (
 from unique_mcp.settings import ServerSettings
 
 DATASET_ROOT = Path(__file__).resolve().parent
-PROJECT_ROOT = DATASET_ROOT.parents[2]
-HELPER_SRC = PROJECT_ROOT / "helpers" / "python" / "src"
 if str(DATASET_ROOT) not in sys.path:
     sys.path.insert(0, str(DATASET_ROOT))
-# Monorepo layout only — in the Docker image mcp_dashboards is installed via uv.
-if HELPER_SRC.is_dir() and str(HELPER_SRC) not in sys.path:
-    sys.path.insert(0, str(HELPER_SRC))
+# Monorepo: .../mcp_dashboards/datasets/account_review/fastmcp → helpers/python/src.
+# Docker: /app/dataset — mcp_dashboards is installed via uv; parents[2] does not exist.
+if len(DATASET_ROOT.parents) > 2:
+    helper_src = DATASET_ROOT.parents[2] / "helpers" / "python" / "src"
+    if helper_src.is_dir() and str(helper_src) not in sys.path:
+        sys.path.insert(0, str(helper_src))
 
 from admin_site import register_admin_routes  # noqa: E402
 from generated.models import (  # noqa: E402

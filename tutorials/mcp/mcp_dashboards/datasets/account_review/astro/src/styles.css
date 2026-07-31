@@ -173,11 +173,30 @@ body:has(.view-client:target) .view-main {
   overflow-x: auto;
   padding: 4px 2px 12px;
   scroll-snap-type: x proximity;
+  /* Hide scrollbar until hover — less visual noise when idle */
+  scrollbar-width: none;
+}
+.rail:hover {
+  scrollbar-width: thin;
+}
+.rail::-webkit-scrollbar {
+  height: 0;
+}
+.rail:hover::-webkit-scrollbar {
+  height: 6px;
+}
+.rail::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+.rail:hover::-webkit-scrollbar-thumb {
+  background: #c5ccd8;
 }
 .acard-wrap {
   position: relative;
   scroll-snap-align: start;
-  height: 126px;
+  /* Room for a 2-line title + 2-line body + footer */
+  height: 148px;
 }
 .acard {
   position: relative;
@@ -216,7 +235,7 @@ body:has(.view-client:target) .view-main {
   line-height: 1.25;
   letter-spacing: -0.01em;
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

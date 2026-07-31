@@ -25,9 +25,8 @@ fastmcp/
   import_plan.py      # workbook -> SQLite, dataset-owned
   server.py           # the MCP tools, hand-written against generated models
   deploy.sh              # Azure ACR + Web App deploy
-  deploy-with-secrets.sh # wraps deploy.sh with secretspec via nix
+  deploy-with-secrets.sh # wraps deploy.sh with secretspec + 1Password
   secretspec.toml        # secret declarations (values in 1Password)
-  shell.nix / flake.nix  # ephemeral secretspec from nixpkgs
 astro/                   # the dashboard (see its own README)
 ```
 
@@ -110,40 +109,22 @@ build + Linux Web App.
 1. Azure CLI logged in (`az login`)
 2. An existing Azure resource group (same as [`mcp_search`](../../../mcp_search/)
    is fine: `rg-lab-demo-001-unique-search-mcp`)
-3. Nix + [SecretSpec](https://secretspec.dev) from nixpkgs (see below), plus
-   1Password CLI (`op`) with desktop integration enabled
+3. [SecretSpec](https://secretspec.dev) on PATH and 1Password CLI (`op`) with
+   desktop integration enabled
 4. Secrets declared in [`fastmcp/secretspec.toml`](./fastmcp/secretspec.toml)
    stored in your 1Password vault (default provider URI:
    `onepassword://Private` — edit the vault name if yours differs)
 5. Zitadel redirect URI (after deploy, using your `AZURE_WEBAPP_NAME`):
    `https://<AZURE_WEBAPP_NAME>.azurewebsites.net/auth/callback`
 
-### SecretSpec via nix
+### Secrets (SecretSpec + 1Password)
 
-From `datasets/account_review/fastmcp` — **no profile install**; ephemeral only:
+From `datasets/account_review/fastmcp` (agent does not touch 1Password):
 
 ```bash
 cd datasets/account_review/fastmcp
 
-# Option A — direnv (recommended)
-direnv allow          # loads shell.nix → secretspec on PATH
-
-# Option B — one-shot shell
-nix-shell             # or: nix shell nixpkgs#secretspec
-
-# Option C — flake (after `git add flake.nix shell.nix`)
-nix develop
-```
-
-Keep the **system** `op` binary. Do not add `_1password-cli` from nixpkgs into
-the shell — it breaks desktop CLI unlock.
-
-Then (you run these; the agent does not touch 1Password):
-
-```bash
-# One-time: point the provider at your vault if not Private
-# edit secretspec.toml → [providers].onepassword = "onepassword://YourVault"
-
+# One-time: edit secretspec.toml → [providers].onepassword if vault ≠ Private
 secretspec check --profile deploy
 
 # Required Azure targets (suggested lab values):
@@ -163,9 +144,8 @@ secretspec set ZITADEL_CLIENT_SECRET --profile deploy
 
 ```bash
 cd datasets/account_review/fastmcp
+az login   # once per session
 ./deploy-with-secrets.sh
-# equivalent:
-# secretspec run --profile deploy --reason "Deploy account-review MCP" -- ./deploy.sh
 ```
 
 What it does:

@@ -25,4 +25,5 @@ ENV EXCEL_PATH=/app/dataset/data/account_review_dataset.xlsx
 ENV SQLITE_PATH=/app/dataset/data/account_review.sqlite
 
 EXPOSE 8004
-CMD ["uv", "run", "python", "/app/dataset/server.py"]
+# Use the synced venv directly — `uv run` re-resolves and can pull dev deps at boot.
+CMD ["/app/.venv/bin/python", "/app/dataset/server.py"]

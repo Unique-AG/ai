@@ -44,13 +44,8 @@ for key in "${REQUIRED_SECRETS[@]}"; do
 done
 if [ "${#missing[@]}" -gt 0 ]; then
   echo "ERROR: required secret(s) not set: ${missing[*]}"
-  echo "Inject with SecretSpec (1Password via nix), then re-run:"
+  echo "Inject with SecretSpec (1Password), then re-run:"
   echo "  secretspec check --profile deploy"
-  echo "  secretspec set AZURE_SUBSCRIPTION_ID --profile deploy"
-  echo "  secretspec set AZURE_RESOURCE_GROUP --profile deploy"
-  echo "  secretspec set AZURE_LOCATION --profile deploy"
-  echo "  secretspec set AZURE_WEBAPP_NAME --profile deploy"
-  echo "  secretspec set AZURE_CONTAINER_REGISTRY --profile deploy"
   echo "  ./deploy-with-secrets.sh"
   exit 1
 fi
@@ -125,17 +120,47 @@ az appservice plan create -n "${AZURE_WEBAPP_NAME}-plan" -g "$AZURE_RESOURCE_GRO
   2>/dev/null || echo "App Service plan exists"
 
 # === CREATE WEB APP (or update container if it already exists) ===
-az webapp create -n "$AZURE_WEBAPP_NAME" -g "$AZURE_RESOURCE_GROUP" -p "${AZURE_WEBAPP_NAME}-plan" \
-  --deployment-container-image-name "${AZURE_CONTAINER_REGISTRY}.azurecr.io/${AZURE_WEBAPP_NAME}:latest" \
-  2>/dev/null || \
-az webapp config container set -n "$AZURE_WEBAPP_NAME" -g "$AZURE_RESOURCE_GROUP" \
-  --container-image-name "${AZURE_CONTAINER_REGISTRY}.azurecr.io/${AZURE_WEBAPP_NAME}:latest"
+# Same create-or-update pattern as mcp_sqlite_excel / mcp_onenote.
+# If the app already exists, create fails and we fall through to container set.
+# Azure CLI 2.88 can also crash create on first provision (check_name_availability);
+# in that case ARM REST creates the site once, then container set continues as usual.
+IMAGE="${AZURE_CONTAINER_REGISTRY}.azurecr.io/${AZURE_WEBAPP_NAME}:latest"
+PLAN_NAME="${AZURE_WEBAPP_NAME}-plan"
+
+if ! az webapp create -n "$AZURE_WEBAPP_NAME" -g "$AZURE_RESOURCE_GROUP" -p "$PLAN_NAME" \
+  --deployment-container-image-name "$IMAGE" 2>/dev/null; then
+  SITE_URL="https://management.azure.com/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${AZURE_RESOURCE_GROUP}/providers/Microsoft.Web/sites/${AZURE_WEBAPP_NAME}?api-version=2022-09-01"
+  if ! az rest --method get --url "$SITE_URL" &>/dev/null; then
+    echo "az webapp create failed and site missing — creating via ARM REST (Azure CLI 2.88 workaround)"
+    PLAN_ID="/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${AZURE_RESOURCE_GROUP}/providers/Microsoft.Web/serverfarms/${PLAN_NAME}"
+    az rest --method put \
+      --url "$SITE_URL" \
+      --body "{
+        \"location\": \"${AZURE_LOCATION}\",
+        \"kind\": \"app,linux,container\",
+        \"properties\": {
+          \"serverFarmId\": \"${PLAN_ID}\",
+          \"reserved\": true,
+          \"httpsOnly\": true,
+          \"siteConfig\": {
+            \"linuxFxVersion\": \"DOCKER|${IMAGE}\",
+            \"appCommandLine\": \"\",
+            \"alwaysOn\": true
+          }
+        }
+      }"
+  else
+    echo "Web App '$AZURE_WEBAPP_NAME' exists — updating container image"
+  fi
+  az webapp config container set -n "$AZURE_WEBAPP_NAME" -g "$AZURE_RESOURCE_GROUP" \
+    --container-image-name "$IMAGE"
+fi
 
 # === CONFIGURE ACR ACCESS (admin credentials so App Service can pull) ===
 ACR_USER=$(az acr credential show -n "$AZURE_CONTAINER_REGISTRY" --query username -o tsv)
 ACR_PASS=$(az acr credential show -n "$AZURE_CONTAINER_REGISTRY" --query passwords[0].value -o tsv)
 az webapp config container set -n "$AZURE_WEBAPP_NAME" -g "$AZURE_RESOURCE_GROUP" \
-  --container-image-name "${AZURE_CONTAINER_REGISTRY}.azurecr.io/${AZURE_WEBAPP_NAME}:latest" \
+  --container-image-name "$IMAGE" \
   --container-registry-url "https://${AZURE_CONTAINER_REGISTRY}.azurecr.io" \
   --container-registry-user "$ACR_USER" \
   --container-registry-password "$ACR_PASS"
@@ -145,7 +170,8 @@ SETTINGS="WEBSITES_PORT=${PORT}"
 SETTINGS="$SETTINGS UNIQUE_MCP_PUBLIC_BASE_URL=${UNIQUE_MCP_PUBLIC_BASE_URL}"
 SETTINGS="$SETTINGS UNIQUE_MCP_LOCAL_BASE_URL=${UNIQUE_MCP_LOCAL_BASE_URL}"
 SETTINGS="$SETTINGS EXCEL_PATH=/app/dataset/data/account_review_dataset.xlsx"
-# /home is persisted on Azure App Service Linux
+# /home is persisted on Azure App Service Linux when app service storage is enabled.
+SETTINGS="$SETTINGS WEBSITES_ENABLE_APP_SERVICE_STORAGE=true"
 SETTINGS="$SETTINGS SQLITE_PATH=/home/data/account_review.sqlite"
 # FastMCP HostOriginGuard: allow Azure hostname (JSON list for pydantic-settings)
 PUBLIC_HOST="${UNIQUE_MCP_PUBLIC_BASE_URL#https://}"
