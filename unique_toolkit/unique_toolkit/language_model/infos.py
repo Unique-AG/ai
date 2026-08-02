@@ -104,10 +104,12 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
     GEMINI_3_1_PRO_PREVIEW = "litellm:gemini-3-1-pro-preview"
+    GEMINI_3_6_FLASH = "litellm:gemini-3-6-flash"
     GEMINI_3_FLASH_PREVIEW = "litellm:gemini-3-flash-preview"
     GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
     GROK_4_1_FAST_NON_REASONING = "litellm:grok-4-1-fast-non-reasoning"
     GROK_4_1_FAST_REASONING = "litellm:grok-4-1-fast-reasoning"
+    GROK_4_5 = "litellm:grok-4-5"
     LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
@@ -2052,6 +2054,28 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 1, 19),
                     supported_reasoning_efforts=[],
                 )
+            case LanguageModelName.GEMINI_3_6_FLASH:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-3-6-flash",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2026, 3, day=1),
+                    published_at=date(2026, 7, 21),
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
+                )
             case LanguageModelName.GEMINI_3_FLASH_PREVIEW:
                 return cls(
                     name=model_name,
@@ -2138,6 +2162,30 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 11, day=4),
                     published_at=date(2025, 11, 19),
                     supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.GROK_4_5:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.XAI,
+                    version="grok-4-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 500_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(480_000 * 0.9),
+                        token_limit_output=int(480_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2026, 2, day=1),
+                    published_at=date(2026, 7, 16),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5:
                 return cls(
