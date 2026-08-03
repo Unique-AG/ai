@@ -343,6 +343,18 @@ class CaseAction(BaseModel):
     owner: Annotated[
         str | None, Field(description="Owner responsible for follow-up.")
     ] = None
+    sof_transaction_amount: Annotated[
+        float | None,
+        Field(
+            description="Subscription/transaction amount under Source of Funds review, in the case currency."
+        ),
+    ] = None
+    sof_folder_id: Annotated[
+        str | None,
+        Field(
+            description="Knowledge-base folder id scoping Internal Search for this case's supporting evidence."
+        ),
+    ] = None
 
 
 class ClientContact(BaseModel):

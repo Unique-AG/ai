@@ -93,6 +93,8 @@ CLIENTS_SCHEMA = TableSchema(
         _column("case_action_button_label"),
         _column("case_action_button_target"),
         _column("case_action_owner"),
+        _column("case_action_sof_transaction_amount", "REAL"),
+        _column("case_action_sof_folder_id"),
     ],
 )
 
@@ -261,6 +263,8 @@ def _client_row(source: dict[str, Any]) -> dict[str, Any]:
         "case_action_button_label": source.get("action_button"),
         "case_action_button_target": source.get("action_button_target"),
         "case_action_owner": source.get("action_owner"),
+        "case_action_sof_transaction_amount": source.get("sof_transaction_amount"),
+        "case_action_sof_folder_id": source.get("sof_folder_id"),
     }
 
 

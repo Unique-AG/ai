@@ -52,6 +52,14 @@ export type CaseAction = {
      * Owner responsible for follow-up.
      */
     owner?: string | null;
+    /**
+     * Subscription/transaction amount under Source of Funds review, in the case currency.
+     */
+    sof_transaction_amount?: number | null;
+    /**
+     * Knowledge-base folder id scoping Internal Search for this case's supporting evidence.
+     */
+    sof_folder_id?: string | null;
 };
 
 /**

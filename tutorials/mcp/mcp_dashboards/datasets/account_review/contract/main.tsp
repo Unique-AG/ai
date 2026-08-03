@@ -218,6 +218,12 @@ model CaseAction {
 
   @doc("Owner responsible for follow-up.")
   owner?: NullableString;
+
+  @doc("Subscription/transaction amount under Source of Funds review, in the case currency.")
+  sof_transaction_amount?: NullableNumber;
+
+  @doc("Knowledge-base folder id scoping Internal Search for this case's supporting evidence.")
+  sof_folder_id?: NullableString;
 }
 
 @doc("Small dashboard metric used in client figures.")

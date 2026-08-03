@@ -1,4 +1,4 @@
-// Loads + validates src/data/cases.json (the registry of the 6 RM
+// Loads + validates src/data/cases.json (the registry of the 7 RM
 // Account-Remediation use cases — Product doc: RM Account-Remediation
 // Dashboard — Use Cases) and ports build.py's rule_case_pairs/
 // render_case_css/render_open_sections_css from Python string-building to
@@ -65,6 +65,15 @@ export const caseDefinitionSchema = z
     banner_link: z.string().optional(),
     /** Short bold headline shown before the open issue in the smart-action banner. */
     banner_headline: z.string().optional(),
+    /**
+     * Skip CaseActionBar.astro's default "always finish by calling send_email"
+     * trailing sentence. Every other case ends in an email; R-SOF-CHECK is
+     * conditional (only on gate failure), so the generic sentence would push
+     * the model to email even on a clean pass. The case's own `instructions`
+     * still has to spell out the send_email + audience call itself for the
+     * failure branch, so this flag is independent of assertEndsWithSendEmail.
+     */
+    skip_default_email_note: z.boolean().optional(),
   })
   .superRefine((c, ctx) => {
     if (c.dual_action) {

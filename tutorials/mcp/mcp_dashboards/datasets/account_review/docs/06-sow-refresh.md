@@ -93,4 +93,4 @@ flowchart LR
 | **Why it matters** | KYC + SoW + ongoing remediation on one surface |
 | **Code** | `cases.json` → `sow-refresh` · `send_email` audience `client` |
 
-← [prev](./05-reg-change.md) · [index](./README.md) · [glossary](./glossary.md)
+← [prev](./05-reg-change.md) · [index](./README.md) · [next →](./07-sof-check.md)

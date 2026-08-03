@@ -1,6 +1,6 @@
 # RM Account-Remediation — process docs
 
-Visual guide to the six Relationship Manager (RM) use cases this dataset
+Visual guide to the seven Relationship Manager (RM) use cases this dataset
 implements. Source product brief:
 [RM Account-Remediation Dashboard — Use Cases](https://unique-ch.atlassian.net/wiki/spaces/Product/pages/2508980226).
 
@@ -75,11 +75,14 @@ flowchart LR
 | [04-suit-review.md](./04-suit-review.md) | `R-SUIT-REVIEW` | Review due → questionnaire → send client |
 | [05-reg-change.md](./05-reg-change.md) | `R-REG-CHANGE` | In-scope rule → reassess → send client or Compliance |
 | [06-sow-refresh.md](./06-sow-refresh.md) | `R-SOW-REFRESH` | Wealth mismatch → SoW plan → send client |
+| [07-sof-check.md](./07-sof-check.md) | `R-SOF-CHECK` | Subscription flagged → 4-gate skill → escalate Compliance, or confirm with no email |
 | [glossary.md](./glossary.md) | — | Acronyms + two agents |
 
-Every smart action is **RM-started after they see the card**. Unique Conduct
-always ends with an in-platform `send_email` confirm to the client or Compliance
-— analysis alone is not enough; nothing leaves until the RM accepts.
+Every smart action is **RM-started after they see the card**. Six of the seven
+end with an in-platform `send_email` confirm to the client or Compliance —
+analysis alone is not enough; nothing leaves until the RM accepts. `R-SOF-CHECK`
+is the exception: it only emails Compliance on a gate failure, and sends
+nothing at all when the check passes clean.
 
 ## Code wiring
 

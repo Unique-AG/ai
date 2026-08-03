@@ -39,6 +39,14 @@ function promptFor(instructions: string): string {
   // before it ever reaches sendPromptAttrs, losing the literal type
   // FieldRefs needs to inspect. The nested placeholders below are generated
   // Client fields verified by review rather than by the widened string type.
+  // R-SOF-CHECK is conditional (send_email only on gate failure, nothing on a
+  // clean pass) — skip_default_email_note lets it opt out of the sentence
+  // below, which every other case relies on unconditionally.
+  const defaultEmailNote = useCase.skip_default_email_note
+    ? ""
+    : `Always finish by calling \`send_email\` to the client or Compliance — analysis alone is not enough. ` +
+      `After the tool returns, tell the RM clearly whether the mail was **sent** or **not sent**, ` +
+      `using \`sent\` and \`delivery_message\` from the result.\n\n`;
   const prompt =
     `Analyse **{identity.name}** (\`{identity.reference}\`, row {id})\n\n` +
     `**Case:** ${useCase.icon} ${useCase.tag} (\`{case_action.rule_code}\`)\n` +
@@ -48,9 +56,7 @@ function promptFor(instructions: string): string {
     `Please cover:\n1. What this means and why it matters\n2. Likely root causes or context\n` +
     `3. Severity and urgency\n4. Your recommendation\n\n` +
     `${instructions}\n\n` +
-    `Always finish by calling \`send_email\` to the client or Compliance — analysis alone is not enough. ` +
-    `After the tool returns, tell the RM clearly whether the mail was **sent** or **not sent**, ` +
-    `using \`sent\` and \`delivery_message\` from the result.\n\n` +
+    `${defaultEmailNote}` +
     `MCP server: \`${mcpServer}\``;
   return prompt;
 }
