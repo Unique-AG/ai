@@ -1,3 +1,19 @@
+from unique_toolkit.monitoring.tracing import (
+    TraceContextMiddleware,
+    TraceExporter,
+    TracingSettings,
+    configure_tracing,
+    inject_trace_headers,
+)
+
+__all__ = [
+    "TraceContextMiddleware",
+    "TraceExporter",
+    "TracingSettings",
+    "configure_tracing",
+    "inject_trace_headers",
+]
+
 _MONITORING_AVAILABLE = False
 try:
     from prometheus_client import (  # pyright: ignore[reportMissingImports]
@@ -27,7 +43,7 @@ if _MONITORING_AVAILABLE:
         track_execution,
     )
 
-    __all__ = [
+    __all__ += [
         "REGISTRY",
         "MetricNamespace",
         "MetricsMiddleware",
