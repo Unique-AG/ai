@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterable, MutableMapping
 from enum import StrEnum
-from typing import TYPE_CHECKING, ClassVar, TypeAlias, cast
+from typing import TYPE_CHECKING, ClassVar, Self, TypeAlias, cast
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
@@ -46,22 +46,29 @@ class TracingSettings(BaseSettings):
 
     traces_exporter: TraceExporter | None = None
     service_name: str | None = None
-    service_version: str | None = None
-    exporter_otlp_traces_endpoint: str | None = None
-    exporter_otlp_endpoint: str | None = None
+    service_version: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OTEL_SERVICE_VERSION", "VERSION"),
+    )
+    otlp_endpoint: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+            "OTEL_EXPORTER_OTLP_ENDPOINT",
+        ),
+    )
     span_processor: TraceExporter | None = None
     enabled: bool | None = Field(
         default=None,
         validation_alias="ENABLE_OPENTELEMETRY",
     )
-    version: str | None = Field(default=None, validation_alias="VERSION")
 
     @property
-    def exporter_name(self) -> TraceExporter | None:
+    def exporter(self) -> TraceExporter | None:
         """Resolve standard OTel settings with Node service compatibility aliases."""
         if self.traces_exporter:
             return self.traces_exporter
-        if self.exporter_otlp_traces_endpoint or self.exporter_otlp_endpoint:
+        if self.otlp_endpoint:
             return TraceExporter.OTLP
         if self.enabled is False:
             return None
@@ -69,10 +76,13 @@ class TracingSettings(BaseSettings):
             return self.span_processor or TraceExporter.OTLP
         return None
 
-    @property
-    def resolved_service_version(self) -> str | None:
-        """Return the standard OTel version with the Node deployment fallback."""
-        return self.service_version or self.version
+    @classmethod
+    def try_load(cls) -> Self | None:
+        """Load env settings, or ``None`` when tracing cannot be enabled."""
+        settings = cls()
+        if settings.exporter in {None, TraceExporter.NONE}:
+            return None
+        return settings
 
 
 def _missing_otel_extra() -> ImportError:
@@ -147,22 +157,14 @@ def configure_tracing(
     tracing configuration. Prometheus metrics and application logging remain
     separate, so ``OTEL_METRICS_READER`` and ``OTEL_LOGS_PROCESSOR`` are ignored.
     """
-    settings = TracingSettings()
-    exporter_name = settings.exporter_name
-
-    if exporter_name in {None, TraceExporter.NONE}:
+    settings = TracingSettings.try_load()
+    if settings is None:
         return False
+    exporter = settings.exporter
+    assert exporter is not None  # try_load guarantees a concrete exporter
 
     try:
         from opentelemetry import trace
-        from opentelemetry.trace import ProxyTracerProvider
-    except ImportError as error:
-        raise _missing_otel_extra() from error
-
-    if not isinstance(trace.get_tracer_provider(), ProxyTracerProvider):
-        return True
-
-    try:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
             OTLPSpanExporter,
         )
@@ -173,25 +175,25 @@ def configure_tracing(
             ConsoleSpanExporter,
             SimpleSpanProcessor,
         )
+        from opentelemetry.trace import ProxyTracerProvider
     except ImportError as error:
         raise _missing_otel_extra() from error
 
-    attributes: dict[str, str] = {}
-    resolved_service_name = (
-        service_name if service_name is not None else settings.service_name
+    if not isinstance(trace.get_tracer_provider(), ProxyTracerProvider):
+        return True
+
+    name = service_name if service_name is not None else settings.service_name
+    version = (
+        service_version if service_version is not None else settings.service_version
     )
-    resolved_service_version = (
-        service_version
-        if service_version is not None
-        else settings.resolved_service_version
-    )
-    if resolved_service_name is not None:
-        attributes["service.name"] = resolved_service_name
-    if resolved_service_version is not None:
-        attributes["service.version"] = resolved_service_version
+    attributes = {
+        key: value
+        for key, value in (("service.name", name), ("service.version", version))
+        if value is not None
+    }
 
     provider = TracerProvider(resource=Resource.create(attributes))
-    if exporter_name == TraceExporter.CONSOLE:
+    if exporter is TraceExporter.CONSOLE:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     else:
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
