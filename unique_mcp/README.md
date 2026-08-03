@@ -254,14 +254,18 @@ cd unique_mcp && uv run pytest tests/ -q
 On import, `unique_mcp` sets `FASTMCP_CHECK_FOR_UPDATES=off` (unless already set).
 
 ```python
+from unique_toolkit.monitoring import configure_tracing
 from unique_mcp.logging import configure_logging
 from unique_mcp.monitoring import setup_ops
 
-configure_logging()  # always pino-json; silences /probe /health /metrics access logs
+configure_tracing(service_name="my-mcp")  # opt-in via OTEL_* / ENABLE_OPENTELEMETRY
+configure_logging()  # pino-json; silences /probe /health /metrics access logs
 
 mcp = FastMCP("my-server")
 middleware = [...]
-middleware.append(setup_ops(mcp))  # mounts /probe /health /metrics + HTTP metrics
+# /probe /health /metrics + HTTP metrics + per-tool mcp_* metrics.
+# Traces: FastMCP tools/call spans (join via caller _meta.traceparent).
+middleware.append(setup_ops(mcp))
 
 mcp.run(transport="http", middleware=middleware)
 ```

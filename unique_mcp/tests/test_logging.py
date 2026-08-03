@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 
 import pytest
+from opentelemetry import context, trace
+from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
 
 from unique_mcp.logging import _PinoJson, _QuietAccess, configure_logging
 
@@ -66,6 +69,68 @@ def test_pino_json__emits_level_time_msg() -> None:
     assert payload["context"] == "unique_mcp.test"
     assert payload["company_id"] == "co-1"
     assert isinstance(payload["time"], int)
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_pino_json__err_is_structured_object() -> None:
+    """
+    Purpose: Verify exceptions serialize like connectors TS err shape.
+    Why this matters: Loki Explore expects err.name / message / stack, not a string.
+    Setup summary: Format a LogRecord with exc_info from a RuntimeError.
+    """
+    try:
+        raise RuntimeError("nope")
+    except RuntimeError:
+        record = logging.LogRecord(
+            name="unique_mcp.test",
+            level=logging.ERROR,
+            pathname=__file__,
+            lineno=1,
+            msg="operation failed",
+            args=(),
+            exc_info=sys.exc_info(),
+        )
+
+    payload = json.loads(_PinoJson().format(record))
+
+    assert payload["err"]["name"] == "RuntimeError"
+    assert payload["err"]["message"] == "nope"
+    assert "RuntimeError: nope" in payload["err"]["stack"]
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_pino_json__includes_trace_fields_from_active_span() -> None:
+    """
+    Purpose: Verify trace_id/span_id/trace_flags come from the active OTel span.
+    Why this matters: QA Loki correlates MCP logs the same way as TS MCPs.
+    Setup summary: Attach a NonRecordingSpan and format a record.
+    """
+    span_ctx = SpanContext(
+        trace_id=0xA048E90ACEF882E46FDFE481C06237C1,
+        span_id=0x745E84549F5E6FE3,
+        is_remote=False,
+        trace_flags=TraceFlags(0x01),
+    )
+    token = context.attach(trace.set_span_in_context(NonRecordingSpan(span_ctx)))
+    try:
+        record = logging.LogRecord(
+            name="unique_mcp.test",
+            level=logging.INFO,
+            pathname=__file__,
+            lineno=1,
+            msg="traced",
+            args=(),
+            exc_info=None,
+        )
+        payload = json.loads(_PinoJson().format(record))
+    finally:
+        context.detach(token)
+
+    assert payload["trace_id"] == "a048e90acef882e46fdfe481c06237c1"
+    assert payload["span_id"] == "745e84549f5e6fe3"
+    assert payload["trace_flags"] == 1
 
 
 @pytest.mark.ai

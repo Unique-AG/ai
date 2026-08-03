@@ -20,10 +20,13 @@ dependencies = [
     # Declared directly: setup_ops imports starlette Middleware/Request/Response
     # (also pulled transitively via fastmcp; deptry flags undeclared use).
     "starlette>=1.3.1,<2",
+    # Direct import in logging.py for trace_id/span_id (also via toolkit[otel]/
+    # / fastmcp); declare for deptry.
+    "opentelemetry-api>=1.27,<2",
     # 4.6.0 is the floor: 4.4.0/4.5.0 fail to import on Python 3.12 (a
     # TypeVar subclassing incompatibility, fixed in 4.6.0), verified locally.
     "typing-extensions>=4.6.0",
-    "unique-toolkit[monitoring]>=2026.34.0.dev4,<2026.34.0rc0",
+    "unique-toolkit[monitoring,otel]>=2026.34.0.dev4,<2026.34.0rc0",
 ]
 
 [build-system]

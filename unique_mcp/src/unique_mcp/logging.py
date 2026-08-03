@@ -6,7 +6,10 @@ import json
 import logging
 import os
 import sys
+import traceback
 from typing import Any, Literal
+
+from opentelemetry import trace
 
 _SKIP = ("/probe", "/health", "/metrics", "/ready")
 _PINO_LEVEL = {
@@ -27,6 +30,28 @@ class _QuietAccess(logging.Filter):
         return not any(p in msg for p in _SKIP)
 
 
+def _trace_fields() -> dict[str, str | int]:
+    ctx = trace.get_current_span().get_span_context()
+    if not ctx.is_valid:
+        return {}
+    return {
+        "trace_id": format(ctx.trace_id, "032x"),
+        "span_id": format(ctx.span_id, "016x"),
+        "trace_flags": int(ctx.trace_flags),
+    }
+
+
+def _err_payload(
+    exc_info: tuple[type[BaseException], BaseException, Any],
+) -> dict[str, str]:
+    exc_type, exc, tb = exc_info
+    return {
+        "name": exc_type.__name__,
+        "message": str(exc),
+        "stack": "".join(traceback.format_exception(exc_type, exc, tb)),
+    }
+
+
 class _PinoJson(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
@@ -34,12 +59,13 @@ class _PinoJson(logging.Formatter):
             "time": int(record.created * 1000),
             "msg": record.getMessage(),
             "context": record.name,
+            **_trace_fields(),
         }
         for key, value in record.__dict__.items():
             if key not in _RESERVED and not key.startswith("_"):
                 payload[key] = value
-        if record.exc_info:
-            payload["err"] = self.formatException(record.exc_info)
+        if record.exc_info and not isinstance(payload.get("err"), dict):
+            payload["err"] = _err_payload(record.exc_info)  # type: ignore[arg-type]
         return json.dumps(payload, default=str, ensure_ascii=False)
 
 
