@@ -19,16 +19,23 @@ from unique_mcp.logging import _PinoJson, _QuietAccess, configure_logging
     ("message", "expected"),
     [
         ('127.0.0.1:1 - "GET /probe HTTP/1.1" 200', False),
+        ('127.0.0.1:1 - "GET /probe/ HTTP/1.1" 200', False),
         ('127.0.0.1:1 - "GET /metrics HTTP/1.1" 200', False),
         ('127.0.0.1:1 - "GET /health HTTP/1.1" 200', False),
+        ('127.0.0.1:1 - "GET /ready HTTP/1.1" 200', False),
         ('127.0.0.1:1 - "GET /mcp HTTP/1.1" 200', True),
         ('127.0.0.1:1 - "POST /mcp HTTP/1.1" 200', True),
+        # Substring / query must not suppress real traffic (Bugbot MEDIUM).
+        ('127.0.0.1:1 - "GET /mcp?next=/probe HTTP/1.1" 200', True),
+        ('127.0.0.1:1 - "GET /api/healthcheck HTTP/1.1" 200', True),
+        ('127.0.0.1:1 - "POST /tools/metrics-export HTTP/1.1" 200', True),
+        ("not an access line at all", True),
     ],
 )
 def test_quiet_access__skips_probe_and_metrics(message: str, expected: bool) -> None:
     """
-    Purpose: Verify access logs for probe/health/metrics are dropped.
-    Why this matters: Scrapes and k8s probes otherwise drown real request logs.
+    Purpose: Verify access logs for exact ops paths are dropped, not substrings.
+    Why this matters: Scrapes drown logs; substring skips hid attacker-controlled URLs.
     Setup summary: Filter sample uvicorn access lines; assert keep/drop.
     """
     record = logging.LogRecord(

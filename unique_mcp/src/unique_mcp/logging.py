@@ -5,13 +5,17 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import traceback
 from typing import Any, Literal
 
 from opentelemetry import trace
 
-_SKIP = ("/probe", "/health", "/metrics", "/ready")
+# Exact request paths to silence in uvicorn access logs (not substring matches).
+_SKIP_PATHS = frozenset({"/probe", "/health", "/metrics", "/ready"})
+# Uvicorn: '127.0.0.1:1 - "GET /path?query HTTP/1.1" 200'
+_ACCESS_PATH = re.compile(r'"[A-Z]+ ([^?\s"]+)(?:\?[^"\s]*)? HTTP/')
 _PINO_LEVEL = {
     logging.DEBUG: 20,
     logging.INFO: 30,
@@ -27,7 +31,11 @@ _RESERVED = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__) | 
 class _QuietAccess(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        return not any(p in msg for p in _SKIP)
+        match = _ACCESS_PATH.search(msg)
+        if match is None:
+            return True
+        path = match.group(1).rstrip("/") or "/"
+        return path not in _SKIP_PATHS
 
 
 def _trace_fields() -> dict[str, str | int]:
