@@ -36,28 +36,30 @@ from serp_records import (
 SEARCH_ENGINES: list[EngineConfig | None] = [
     EngineConfig(engine="google", fetch_size=10),
     EngineConfig(engine="brave", fetch_size=10),
-    EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
     EngineConfig(engine="perplexity", fetch_size=10),
-    # Vertex AI grounding — fetched by agent_bench.py; its SERP is Vertex's full
-    # grounded answer (shown in the drill-down), condensed by the shared answerer.
-    EngineConfig(
-        engine="vertexai",
-        fetch_size=1,
-        params={"vertexai_model_name": "gemini-3-flash-preview"},
-    ),
-    # Grounding with Bing — fetched by agent_bench.py; its SERP is Bing's full
-    # grounded answer (shown in the drill-down), condensed by the shared answerer.
-    EngineConfig(engine="bing", fetch_size=5),
+    # arms not part of the full-dataset run; re-enable together with the
+    # earlier stages (an arm with no files just renders as an empty column).
+    # EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
+    # EngineConfig(
+    #     engine="vertexai",
+    #     fetch_size=1,
+    #     params={"vertexai_model_name": "gemini-3-flash-preview"},
+    # ),
+    # EngineConfig(engine="bing", fetch_size=5),
     None,  # no search — closed-book baseline
 ]
 BENCHMARK_CONFIGS = [
-    BenchmarkConfig(dataset="simpleqa", sample_n=300, seed=20260714),
+    BenchmarkConfig(dataset="simpleqa", sample_n=None, seed=20260714),
     BenchmarkConfig(dataset="freshqa", sample_n=None, seed=20260714),
+    # the superseded 300-item sample — re-add to compare it side by side
+    # (pure read, its files are still on disk):
+    # BenchmarkConfig(dataset="simpleqa", sample_n=300, seed=20260714),
 ]
 # First entry is the strongest answerer — the dropdown's default view.
 ANSWERER_CONFIGS = [
     AnswererConfig(model="AZURE_GPT_54_2026_0305", top_k=10),
-    AnswererConfig(model="AZURE_GPT_41_2025_0414", top_k=10),
+    # only answered on the n300 sample, not on the full run:
+    # AnswererConfig(model="AZURE_GPT_41_2025_0414", top_k=10),
 ]
 # Judge pinned to the strongest available model (currently GPT 5.4); see
 # grade_bench.py — never varied per run.

@@ -1,12 +1,17 @@
 # %% [markdown]
-# # Benchmark — agent-engine fetch stage (Vertex AI grounding)
+# # Benchmark — agent-engine fetch stage (Vertex AI / Bing grounding)
 #
-# Fetches the "SERP evidence" for *agent* engines (Vertex AI grounding) that
-# `serp_bench.py` cannot drive — an agent engine grounds *and* drafts a full
-# answer in one call, via the `/v1/agent-search` proxy endpoint rather than
-# `/v1/search`. This stage stores Vertex's grounded answer as the arm's single
-# `SerpResult`, so the **shared answerer** (`answer_bench.py`) then condenses it
-# into the short graded answer — the same answerer model as every other arm.
+# Fetches the "SERP evidence" for *agent* engines on their own — an agent engine
+# grounds *and* drafts a full answer in one call, via the `/v1/agent-search`
+# proxy endpoint rather than `/v1/search`. This stage stores that grounded answer
+# as the arm's single `SerpResult`, so the **shared answerer**
+# (`answer_bench.py`) then condenses it into the short graded answer — the same
+# answerer model as every other arm.
+#
+# `serp_bench.py` drives agent arms too, interleaved with the SERP arms and
+# behind the per-engine throttle. Prefer it when the arms are meant to be
+# compared: same time window, same live web. Use this stage to fetch or backfill
+# agent arms alone, e.g. an extra Vertex model on evidence already gathered.
 #
 # This mirrors an agentic setup where our agent owns the final user-facing
 # answer and delegates grounded research to Vertex: Vertex supplies the full,
@@ -32,6 +37,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+from agent_evidence import GROUNDING_INSTRUCTIONS, grounded_answer_to_evidence
 from qa_datasets import QAItem, load_dataset
 from serp_records import (
     BenchmarkConfig,
@@ -44,7 +50,7 @@ from serp_records import (
     latest_records,
     results_path,
 )
-from unique_search_proxy_core.agent_engines.output_schema import AgentSearchOutput
+from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_sdk import AgentSearchClient, UniqueSearchProxyClient
 
 # %% Parameters
@@ -75,53 +81,20 @@ BENCHMARK_CONFIGS = [
     BenchmarkConfig(dataset="freshqa", sample_n=None, seed=20260714),
 ]
 PROXY_BASE_URL = "http://localhost:2349"
+# Tenant context sent on every proxy call: the `/v1` routes require it, and
+# tagging it `benchmark` keeps bench traffic identifiable in the proxy logs.
+BENCH_CONTEXT = RequestContext(
+    company_id="benchmark", user_id="benchmark", chat_id="agent-bench"
+)
 CONCURRENCY = 4
 RESULTS_DIR = Path(__file__).parent / "results"
 
-# generation_instructions that steer Vertex to draft one COMPLETE grounded
-# answer. This aligns with the proxy's comprehensive output schema (no terseness
-# conflict); the shared answerer handles brevity downstream.
-GROUNDING_INSTRUCTIONS = """\
-You are a grounded research agent. Using web search, answer the user's question \
-as completely and accurately as possible. Return a SINGLE result whose \
-`detailed_answer` is your full answer — include every fact, date, name, and \
-figure needed for it to be correct and unambiguous. Put the discrete supporting \
-facts in `key_facts` and cite your main source in `source_url`/`source_title`. \
-If web search does not contain the answer, say so in `detailed_answer`."""
-
 # %% Agent search client (provider keys live server-side in the proxy)
-transport = UniqueSearchProxyClient(base_url=PROXY_BASE_URL)
-agent_client = AgentSearchClient(transport=transport)
-
-
-# %% Vertex's grounded answer → one SerpResult the shared answerer will condense
-def grounded_answer_to_evidence(raw_answer: str) -> list[SerpResult]:
-    """The proxy pins Vertex to a results-list schema; fold it into a single
-    evidence blob (the full grounded answer). Falls back to raw text if the
-    payload is not the expected JSON (e.g. a provider that answers in prose)."""
-    try:
-        parsed = AgentSearchOutput.model_validate_json(raw_answer)
-    except ValueError:
-        text = raw_answer.strip()
-        return (
-            [SerpResult(url="", title="Vertex AI grounded answer", snippet=text)]
-            if text
-            else []
-        )
-    blocks = [
-        "\n".join([item.detailed_answer.strip(), *(f"- {k}" for k in item.key_facts)])
-        for item in parsed.results
-        if item.detailed_answer.strip() or item.key_facts
-    ]
-    answer_text = "\n\n".join(block.strip() for block in blocks).strip()
-    if not answer_text:
-        return []
-    primary_url = parsed.results[0].source_url if parsed.results else ""
-    return [
-        SerpResult(
-            url=primary_url, title="Vertex AI grounded answer", snippet=answer_text
-        )
-    ]
+# The proxy rejects `/v1` calls without tenant context headers (422), so go
+# through the facade — it owns the transport that attaches them. Constructing
+# `AgentSearchClient` directly on the facade would leave the context behind.
+proxy_client = UniqueSearchProxyClient(base_url=PROXY_BASE_URL, context=BENCH_CONTEXT)
+agent_client: AgentSearchClient = proxy_client.agent_search
 
 
 # %% Fetch loop — resumable: already-fetched items are skipped on re-run
@@ -142,7 +115,9 @@ async def fetch_serp(
                 generation_instructions=GROUNDING_INSTRUCTIONS,
                 **engine_config.params,
             )
-            results = grounded_answer_to_evidence(response.answer or "")
+            results = grounded_answer_to_evidence(
+                response.answer or "", engine=engine_config.engine
+            )
         except Exception as exc:  # noqa: BLE001 — engine failures are benchmark data
             error = f"{type(exc).__name__}: {exc}"
         latency_s = round(time.perf_counter() - started, 3)

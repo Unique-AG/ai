@@ -48,6 +48,22 @@ excluded from deptry and basedpyright in the package `pyproject.toml`.
 - **Failures are data.** Engine errors and empty SERPs are recorded, not
   raised: an empty SERP flows to the answerer as "(no results returned)" and
   grades as NOT_ATTEMPTED.
+- **Rate limits are per engine, so the backoff is too** (`throttling.py`). A
+  429 is a property of the engine, not of the request that tripped it, so
+  retrying per request just hammers a closed door. Each arm gets an
+  `EngineThrottle` owning its concurrency, a shared cooldown gate (one failure
+  parks the whole arm; concurrent failures collapse into one episode) and a
+  circuit breaker. A blip is retried invisibly; a burst throttle pauses the arm
+  until it clears; an exhausted daily quota trips the arm after ~2 min, after
+  which its remaining items fail fast *without sending requests* so the other
+  engines aren't held up. Tripped items are recorded as errors, which is
+  exactly what the resume logic retries next run. Latency is measured on the
+  successful attempt only, so backoff never inflates the engine comparison.
+  A timeout waiting for an answer is the exception: that is a slow *question*
+  (agent engines think for minutes on hard ones), so it is recorded for the next
+  run instead of parking the arm. Give the client more room than the route's
+  server-side budget — 120s on `/v1/agent-search` — or you measure your own
+  timeout instead of the engine's.
 
 ## Stages
 
@@ -57,12 +73,19 @@ excluded from deptry and basedpyright in the package `pyproject.toml`.
    `EngineConfig.params` (e.g. `{"extra_snippets": False}` for the Brave
    volume-control arm) and pass through to the proxy request verbatim.
 
-   **Agent fetch** (`agent_bench.py`) — the SERP-file producer for agent engines
-   (Vertex AI, Grounding with Bing). Calls `/v1/agent-search`, stores the
-   engine's full grounded answer as the arm's single `SerpResult`. Add the same
-   `EngineConfig`(s) to
-   `SEARCH_ENGINES` in the answer/grade/inspect stages so the arm flows through
-   the rest of the pipeline unchanged. Needs the search proxy running, like fetch.
+   Agent engines (Vertex AI, Grounding with Bing) are arms here too: the stage
+   routes them to `/v1/agent-search` and stores the engine's full grounded
+   answer as the arm's single `SerpResult` (`agent_evidence.py`), which is what
+   lets the shared answerer treat them like any SERP arm. They interleave with
+   the SERP arms and use the same per-engine throttle.
+
+   **Agent fetch** (`agent_bench.py`) — the same agent arms *alone*, for
+   fetching or backfilling one without touching the SERP arms. Prefer
+   `serp_bench.py` when the arms are meant to be compared.
+
+   Either way, add the same `EngineConfig`(s) to `SEARCH_ENGINES` in the
+   answer/grade/inspect stages so the arm flows through the rest of the pipeline
+   unchanged. Both need the search proxy running.
 2. **Answer** (`answer_bench.py`) — every answerer in `ANSWERER_CONFIGS`
    (model + `top_k`; list the strongest first — it becomes the inspector's
    default) answers each question from the persisted snippets only, via the
@@ -102,7 +125,12 @@ via `agent_bench`, then both meet at `answer_bench` → `grade_bench`. The
 inspector also runs headless: `uv run python inspect_bench.py`, then open
 `results/inspect.html`.
 
-Mind quotas: free-tier Google CSE allows 100 queries/day.
+Mind quotas: free-tier Google CSE allows 100 queries/day. The full SimpleQA set
+is 4,326 questions per engine, so the fetch stage will hit a Google quota stop
+long before it finishes. That is handled, not fatal: the Google arm backs off,
+then halts itself while Brave and Perplexity run to completion; re-running the
+fetch cell on a later day retries exactly the items that didn't land. Watch the
+throttling-summary cell for `HALTED` arms and cooldown counts.
 
 ## Datasets (`qa_datasets.py`)
 

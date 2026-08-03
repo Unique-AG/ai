@@ -45,24 +45,24 @@ from unique_toolkit.framework_utilities.openai.client import get_async_openai_cl
 SEARCH_ENGINES: list[EngineConfig | None] = [
     EngineConfig(engine="google", fetch_size=10),
     EngineConfig(engine="brave", fetch_size=10),
-    EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
     EngineConfig(engine="perplexity", fetch_size=10),
-    # Vertex AI grounding: fetched by agent_bench.py (agent engine — serp_bench
-    # can't drive it). Its "SERP" is Vertex's full grounded answer, which this
-    # shared answerer condenses into the short graded answer.
-    EngineConfig(
-        engine="vertexai",
-        fetch_size=1,
-        params={"vertexai_model_name": "gemini-3-flash-preview"},
-    ),
-    # Grounding with Bing: fetched by agent_bench.py (agent engine — serp_bench
-    # can't drive it). Its "SERP" is Bing's full grounded answer, which this
-    # shared answerer condenses into the short graded answer.
-    EngineConfig(engine="bing", fetch_size=5),
+    # control arm: single-excerpt Brave snippets — re-enable here and in
+    # serp_bench.py together (it needs its own SERP file).
+    # EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
+    # Agent arms, out of scope for the full-dataset run — fetched by serp_bench.py
+    # (interleaved with the SERP arms) or agent_bench.py (on their own). Their
+    # "SERP" is the engine's full grounded answer, which this shared answerer
+    # condenses into the short graded answer. Fetch the arm first.
+    # EngineConfig(
+    #     engine="vertexai",
+    #     fetch_size=1,
+    #     params={"vertexai_model_name": "gemini-3-flash-preview"},
+    # ),
+    # EngineConfig(engine="bing", fetch_size=5),
     None,  # no search — closed-book baseline
 ]
 BENCHMARK_CONFIGS = [
-    BenchmarkConfig(dataset="simpleqa", sample_n=300, seed=20260714),
+    BenchmarkConfig(dataset="simpleqa", sample_n=None, seed=20260714),
     BenchmarkConfig(dataset="freshqa", sample_n=None, seed=20260714),
 ]
 # First entry is the strongest answerer — the inspector's default view.
@@ -70,7 +70,9 @@ ANSWERER_CONFIGS = [
     AnswererConfig(model="AZURE_GPT_54_2026_0305", top_k=10),
     # AnswererConfig(model="AZURE_GPT_41_2025_0414", top_k=10),
 ]
-CONCURRENCY = 4
+# raised from 4 for the full run (~17k answers across the arms); the client
+# retries 429s with backoff and anything still failing is retried on re-run.
+CONCURRENCY = 16
 RESULTS_DIR = Path(__file__).parent / "results"
 
 

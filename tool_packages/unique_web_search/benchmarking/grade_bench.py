@@ -38,32 +38,34 @@ from unique_toolkit.framework_utilities.openai.client import get_async_openai_cl
 SEARCH_ENGINES: list[EngineConfig | None] = [
     EngineConfig(engine="google", fetch_size=10),
     EngineConfig(engine="brave", fetch_size=10),
-    EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
     EngineConfig(engine="perplexity", fetch_size=10),
-    # Vertex AI grounding — fetched by agent_bench.py, answered by the shared
-    # answerer (see answer_bench.py); graded here like any other arm.
-    EngineConfig(
-        engine="vertexai",
-        fetch_size=1,
-        params={"vertexai_model_name": "gemini-3-flash-preview"},
-    ),
-    # Grounding with Bing — fetched by agent_bench.py, answered by the shared
-    # answerer (see answer_bench.py); graded here like any other arm.
-    EngineConfig(engine="bing", fetch_size=5),
+    # control arm: single-excerpt Brave snippets — keep in sync with
+    # serp_bench.py / answer_bench.py.
+    # EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
+    # Agent arms, out of scope for the full-dataset run — fetched by
+    # serp_bench.py or agent_bench.py, answered by the shared answerer (see
+    # answer_bench.py); graded here like any other arm once re-enabled.
+    # EngineConfig(
+    #     engine="vertexai",
+    #     fetch_size=1,
+    #     params={"vertexai_model_name": "gemini-3-flash-preview"},
+    # ),
+    # EngineConfig(engine="bing", fetch_size=5),
     None,  # no search — closed-book baseline
 ]
 BENCHMARK_CONFIGS = [
-    BenchmarkConfig(dataset="simpleqa", sample_n=300, seed=20260714),
+    BenchmarkConfig(dataset="simpleqa", sample_n=None, seed=20260714),
     BenchmarkConfig(dataset="freshqa", sample_n=None, seed=20260714),
 ]
 ANSWERER_CONFIGS = [
     AnswererConfig(model="AZURE_GPT_54_2026_0305", top_k=10),
     # AnswererConfig(model="AZURE_GPT_41_2025_0414", top_k=10),
 ]
-# Judge pinned to the strongest available model (currently GPT 5.5) for every
+# Judge pinned to the strongest available model (currently GPT 5.4) for every
 # run — never varied per experiment, so grades stay comparable across runs.
 GRADER_CONFIG = GraderConfig(model="AZURE_GPT_54_2026_0305")
-CONCURRENCY = 4
+# raised from 4 for the full run (one grade per answer); see answer_bench.py.
+CONCURRENCY = 16
 RESULTS_DIR = Path(__file__).parent / "results"
 
 
