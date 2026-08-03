@@ -252,6 +252,7 @@ cd unique_mcp && uv run pytest tests/ -q
 ### Platform helpers (logging + metrics)
 
 On import, `unique_mcp` sets `FASTMCP_CHECK_FOR_UPDATES=off` (unless already set).
+Call `configure_tracing` from `unique-toolkit[otel]` when you want Tempo/OTLP export.
 
 ```python
 from unique_toolkit.monitoring import configure_tracing
