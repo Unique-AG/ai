@@ -36,7 +36,9 @@ on:
         default: ''
 
 permissions:
+  contents: read
   packages: write
+  id-token: write # keyless cosign signing
 
 jobs:
   containerize:
@@ -69,6 +71,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push container
+        id: build-and-push
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           cache-from: type=registry,ref=${{ inputs.image_repo }}:cache
@@ -77,6 +80,30 @@ jobs:
           file: ${{ inputs.package_dir }}/deploy/Dockerfile
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
-          provenance: false
+          # Full provenance and an SBOM are attached to the image. Customers pull
+          # these images directly, so they need to be able to see how it was built
+          # and what is in it without us shipping a separate document.
+          provenance: mode=max
+          sbom: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Sign the digest, not the tags. Verification pins the workflow identity, so a
+      # signature can only come from this workflow on main or on a release tag.
+      - name: Sign and verify the image with the GitHub OIDC token
+        env:
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          images=""
+          for tag in ${TAGS}; do
+            images+="${tag}@${DIGEST} "
+          done
+          cosign sign --yes ${images}
+          cosign verify ${images} \
+            --certificate-identity-regexp="^https://github.com/${{ github.repository }}/\.github/workflows/.*@refs/(heads/main|tags/.*)$" \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com

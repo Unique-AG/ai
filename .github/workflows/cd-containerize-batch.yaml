@@ -37,6 +37,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write # forwarded to cd-containerize.yaml for keyless cosign signing
 
 jobs:
   prepare:
