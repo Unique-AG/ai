@@ -6,11 +6,12 @@
 #
 # Both cd-containerize and ci-containerize set context: .
 # =============================================================================
+FROM ghcr.io/astral-sh/uv:0.11.33@sha256:77280f2f771df71f90786c314fe1bbc1e023feac652969bbf139c280babf2eb7 AS uv
 
 # ── Stage 1: install deps into an isolated venv ───────────────────────────────
-FROM python:3.12-slim-bookworm@sha256:31c0807da611e2e377a2e9b566ad4eb038ac5a5838cbbbe6f2262259b5dc77a0 AS builder
+FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/bin/uv
+COPY --from=uv /uv /usr/bin/uv
 
 # copy mode avoids hard-link failures across layers; compile bytecode at build time
 ENV UV_COMPILE_BYTECODE=1 \
@@ -23,7 +24,7 @@ COPY . .
 RUN uv sync --frozen --package unique-search-proxy --no-dev --no-editable
 
 # ── Stage 2: lean runtime image ───────────────────────────────────────────────
-FROM python:3.12-slim-bookworm@sha256:31c0807da611e2e377a2e9b566ad4eb038ac5a5838cbbbe6f2262259b5dc77a0
+FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
@@ -31,7 +32,8 @@ ENV PYTHONFAULTHANDLER=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
-RUN useradd -m appuser
+# uid 1000 is what the Helm chart pins as runAsUser
+RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
 

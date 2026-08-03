@@ -8,10 +8,10 @@ updates:
     schedule:
       interval: daily
     open-pull-requests-limit: 5
-    # 2-week stability window: skip releases newer than this. github-actions is
+    # 3-day stability window: skip releases newer than this. github-actions is
     # not semver-graded by Dependabot, so default-days governs all bumps.
     cooldown:
-      default-days: 14
+      default-days: 3
     commit-message:
       prefix: chore(deps)
     labels:
@@ -19,5 +19,26 @@ updates:
       - github-actions
     groups:
       github-actions:
+        patterns:
+          - "*"
+
+  # Keeps container images in Dockerfiles up to date. Without this, the digest
+  # pins in the shipped images never move and a pinned base silently ages.
+  - package-ecosystem: docker
+    directories:
+      - "**/*"
+    schedule:
+      interval: weekly
+      day: friday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - docker
+    groups:
+      docker:
         patterns:
           - "*"
