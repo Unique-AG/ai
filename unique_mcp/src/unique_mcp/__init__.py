@@ -1,3 +1,5 @@
+# Apply FASTMCP_* process defaults before any submodule imports fastmcp.
+from unique_mcp import _bootstrap as _bootstrap  # noqa: F401
 from unique_mcp.meta import (
     CONFIG_META_KEY,
     CONFIG_SCHEMA_META_KEY,

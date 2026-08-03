@@ -1,10 +1,11 @@
 [project]
 name = "unique-mcp"
 version = "2026.34.0.dev1"
-description = "Add your description here"
+description = "Shared FastMCP platform helpers for Unique: auth injectors, pino-json logging, and ops/metrics routes"
 readme = "README.md"
 authors = [
-    { name = "Cedric Klinkert", email = "cedric@unique.ch" }
+    { name = "Cedric Klinkert", email = "cedric@unique.ch" },
+    { name = "Sanzio Monti", email = "github@sanziomonti.xyz" },
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -16,10 +17,14 @@ dependencies = [
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
+    # Declared for deptry (also transitive via fastmcp).
+    "starlette>=1.3.1,<2",
+    # Declared for deptry (also via toolkit[otel] / fastmcp).
+    "opentelemetry-api>=1.27,<2",
     # 4.6.0 is the floor: 4.4.0/4.5.0 fail to import on Python 3.12 (a
     # TypeVar subclassing incompatibility, fixed in 4.6.0), verified locally.
     "typing-extensions>=4.6.0",
-    "unique-toolkit>=2026.34.0.dev4,<2026.34.0rc0",
+    "unique-toolkit[monitoring,otel]>=2026.34.0.dev4,<2026.34.0rc0",
 ]
 
 [build-system]
