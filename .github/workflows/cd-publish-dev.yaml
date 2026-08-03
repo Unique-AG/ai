@@ -114,7 +114,7 @@ jobs:
           echo "::error::dev cuts can only be dispatched from main, got '${DISPATCH_REF}'"
           exit 1
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Enough history for paths-filter to diff before..after.
           fetch-depth: 0
@@ -265,10 +265,10 @@ jobs:
       matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
     name: publish-dev-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
 
@@ -384,7 +384,7 @@ jobs:
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Tag and notes target the commit the dev wheels were built from,
           # not whatever main looks like by the time this job runs.
@@ -485,7 +485,7 @@ jobs:
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           token: ${{ steps.app-token.outputs.token }}
