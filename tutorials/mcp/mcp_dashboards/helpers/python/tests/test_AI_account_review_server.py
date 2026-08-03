@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import json
 from pathlib import Path
@@ -211,6 +212,56 @@ def test_AI_send_email_payload__reports_sent_and_not_sent__with_delivery_message
     assert not_sent["message_id"] is None
     assert "not sent" in not_sent["delivery_message"].lower()
     assert not_sent["status_updated"] is False
+
+
+@pytest.mark.ai
+def test_AI_send_email__sends_after_draft_accept__without_second_elicitation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify accepting the editable email form is enough to send the demo email.
+    Why this matters: RMs should not have to confirm twice after reviewing the complete form.
+    Setup summary: Patch draft elicitation to return an accepted draft and fail the test if confirm is called.
+    """
+    module = _load_account_review_server()
+    Audience = module.Audience
+    OutboundEmailDraft = module.OutboundEmailDraft
+    module.repo.ensure_ready()
+    row = module.repo.list_rows("clients", limit=1).rows[0]
+    client = module._client_from_row(
+        row, module.DashboardFigures(**module._empty_figure_groups())
+    )
+    draft = OutboundEmailDraft(
+        audience=Audience.client,
+        to="ada@example.com",
+        subject="Action required",
+        body="Please renew your passport.",
+    )
+    calls = SimpleNamespace(draft=0, confirm=0)
+
+    async def fake_elicit_email_draft(**kwargs: Any) -> Any:  # noqa: ARG001
+        calls.draft += 1
+        return draft
+
+    async def fail_if_confirmed(*args: Any, **kwargs: Any) -> bool:  # noqa: ARG001
+        calls.confirm += 1
+        raise AssertionError("send_email should not ask for a second confirmation")
+
+    monkeypatch.setattr(module, "_client_by_pk", lambda pk: client)
+    monkeypatch.setattr(module, "_elicit_email_draft", fake_elicit_email_draft)
+    monkeypatch.setattr(module, "elicit_confirm", fail_if_confirmed)
+    monkeypatch.setattr(
+        module, "_apply_optional_status", lambda pk, current, status: (current, False)
+    )
+
+    result = asyncio.run(
+        module.send_email(1, signer_name="Cedric Demo", ctx=SimpleNamespace())
+    )
+
+    assert calls.draft == 1
+    assert calls.confirm == 0
+    assert result["sent"] is True
+    assert result["draft"]["subject"] == "Action required"
 
 
 @pytest.mark.ai

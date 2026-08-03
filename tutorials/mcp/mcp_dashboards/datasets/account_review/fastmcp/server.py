@@ -58,7 +58,9 @@ from generated.models import (  # noqa: E402
     CountByRow,
     DashboardFigures,
     Dir,
+    EmailAddress,
     FigureMetric,
+    NewStatus,
     OutboundEmailDraft,
     PortfolioSummary,
     ReviewSchedule,
@@ -434,6 +436,18 @@ def _email_str(value: Any) -> str:
     return str(value)
 
 
+def _email_address(value: Any) -> EmailAddress:
+    return EmailAddress(root=_email_str(value))
+
+
+def _new_status(value: Any) -> NewStatus | None:
+    if value is None:
+        return None
+    if isinstance(value, NewStatus):
+        return value
+    return NewStatus(str(value))
+
+
 def _normalize_signer_name(signer_name: str) -> str:
     name = signer_name.strip()
     if not name:
@@ -461,7 +475,7 @@ def _default_email_draft(
     if audience is Audience.compliance:
         return OutboundEmailDraft(
             audience=Audience.compliance,
-            to=COMPLIANCE_INBOX,
+            to=_email_address(COMPLIANCE_INBOX),
             subject=(
                 f"Escalation: {client.identity.name} "
                 f"({client.identity.reference}) — {title}"
@@ -479,7 +493,7 @@ def _default_email_draft(
                 f"{signature}"
             ),
             # Resolving a screening/regulatory hit by escalating → Escalated.
-            new_status=Status.Escalated,
+            new_status=NewStatus.Escalated,
         )
 
     email = _email_str(client.contact.email)
@@ -490,7 +504,7 @@ def _default_email_draft(
         )
     return OutboundEmailDraft(
         audience=Audience.client,
-        to=email,
+        to=_email_address(email),
         subject=f"Action required: {title}",
         body=(
             f"Dear {client.identity.name},\n\n"
@@ -595,12 +609,15 @@ async def _elicit_email_draft(
     )
     if accepted is None:
         return None
+    accepted_data: Any = accepted
     return OutboundEmailDraft(
         audience=audience,
-        to=_email_str(getattr(accepted, "to", None)) or _email_str(proposed.to),
-        subject=getattr(accepted, "subject", None) or proposed.subject,
-        body=getattr(accepted, "body", None) or proposed.body,
-        new_status=accepted.new_status,
+        to=_email_address(
+            _email_str(getattr(accepted_data, "to", None)) or _email_str(proposed.to)
+        ),
+        subject=getattr(accepted_data, "subject", None) or proposed.subject,
+        body=getattr(accepted_data, "body", None) or proposed.body,
+        new_status=_new_status(getattr(accepted_data, "new_status", None)),
     )
 
 
@@ -852,11 +869,12 @@ async def draft_client_email(
     description=(
         "Send an email to the client or Compliance. Always pass signer_name as the "
         "currently logged-in user's display name (never invent a demo RM such as "
-        "Elena Maltseva). Elicits the draft for review and edit, then asks for an "
-        "explicit send confirmation. Always returns whether the mail was sent "
-        "(sent true/false + delivery_message) — even when the RM cancels, and even "
-        "though delivery is a demo facade (no real SMTP; message_id is simulated). "
-        "new_status is applied only on a confirmed send. "
+        "Elena Maltseva). Elicits one editable draft form; accepting that form sends "
+        "the email, while cancelling it sends nothing. Always returns whether the "
+        "mail was sent (sent true/false + delivery_message) — even when the RM "
+        "cancels, and even though delivery is a demo facade (no real SMTP; "
+        "message_id is simulated). new_status is applied only when the edited form "
+        "is accepted and the simulated send occurs. "
         "Compliance mail goes to compliance@unique.ai."
     ),
 )
@@ -903,25 +921,6 @@ async def send_email(
 
     audience_label = "Compliance" if resolved is Audience.compliance else "the client"
     to_addr = _email_str(draft.to)
-    confirmed = await elicit_confirm(
-        ctx,
-        f"Send this email to **{to_addr}** ({audience_label}) for "
-        f"**{client.identity.name}** (`{client.identity.reference}`)?\n\n"
-        f"**Subject:** {draft.subject}",
-    )
-    if not confirmed:
-        return _send_email_payload(  # type: ignore[return-value]
-            client=client,
-            draft=draft,
-            sent=False,
-            status_updated=False,
-            message_id=None,
-            delivery_message=(
-                f"Email not sent — send confirmation was cancelled. "
-                f"No message was delivered to {to_addr}."
-            ),
-        )
-
     message_id = f"msg-{pk}-{resolved.value}-{uuid.uuid4().hex[:10]}"
     logger.info(
         "Simulated email send message_id=%s audience=%s to=%s subject=%s",

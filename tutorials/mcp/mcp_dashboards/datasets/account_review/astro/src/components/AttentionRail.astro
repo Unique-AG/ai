@@ -50,9 +50,12 @@ import { clientRow } from "../lib/contract";
         </a>
       </div>
     </template>
-    <p data-unique-state="loading" class="small muted" style="padding: 10px 4px">Loading clients needing attention…</p>
+    <p data-unique-state="loading" class="small muted" style="padding: 10px 4px" hidden aria-hidden="true"></p>
     <p data-unique-state="empty" class="small muted" style="padding: 10px 4px">
       Nothing needs attention — every open issue is escalated or cleared.
+    </p>
+    <p data-unique-state="error" class="small muted" style="display: none; padding: 10px 4px">
+      Clients needing attention could not be loaded.
     </p>
   </DataList>
 </section>

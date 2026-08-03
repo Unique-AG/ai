@@ -168,6 +168,23 @@ What it does:
 The root URL serves a small admin console: pick a table, edit cells, delete
 rows, or **Reset from Excel** to rebuild SQLite from the workbook.
 
+### Demo data (sales)
+
+Sales can tune the deployed demo data without running any developer tooling:
+
+1. Open `https://<AZURE_WEBAPP_NAME>.azurewebsites.net/` (for the lab deploy:
+   `https://account-review-mcp.azurewebsites.net/`).
+2. Use the **Clients** tab to search for a client, edit cells, and click
+   **Save** on the changed row.
+3. Wait for the dashboard's next poll (about 15 seconds), or refresh the
+   dashboard iframe if you need to see the change immediately.
+4. Use **Reset from Excel...** when the demo should go back to the clean seed
+   data. This wipes ad-hoc edits and rebuilds SQLite from the workbook packaged
+   in the deployed image.
+
+The lab admin URL is a shared demo surface. Do not enter production client data
+or production secrets.
+
 For a lab deploy without Zitadel, either omit the `ZITADEL_*` secrets or set
 `AUTH_DISABLED=true` in the deploy profile.
 

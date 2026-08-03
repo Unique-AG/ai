@@ -25,7 +25,8 @@ const showReset = mode !== "live";
         <div class="k-v" {...kpiRow.field("count")} />
       </div>
     </template>
-    <p data-unique-state="loading" class="small muted">Loading portfolio summary…</p>
+    <p data-unique-state="loading" class="small muted" hidden aria-hidden="true"></p>
+    <p data-unique-state="error" class="small muted" style="display: none">Portfolio summary could not be loaded.</p>
   </DataList>
 
   <PortfolioFilters />
@@ -65,8 +66,9 @@ const showReset = mode !== "live";
         </template>
       </tbody>
     </table>
-    <p data-unique-state="loading" class="small muted" style="padding: 14px 4px">Loading clients from the database…</p>
+    <p data-unique-state="loading" class="small muted" style="padding: 14px 4px" hidden aria-hidden="true"></p>
     <p data-unique-state="empty" class="small muted" style="padding: 14px 4px">No clients found.</p>
+    <p data-unique-state="error" class="small muted" style="display: none; padding: 14px 4px">Clients could not be loaded.</p>
   </DataList>
 
   {

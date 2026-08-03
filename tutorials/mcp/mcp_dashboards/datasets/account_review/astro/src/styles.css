@@ -571,6 +571,9 @@ details.portfolio[open] > summary .chev {
   border-radius: 12px;
   overflow: hidden;
 }
+.kpis > [data-unique-state="loading"] {
+  display: none !important;
+}
 .kpi {
   padding: 16px 18px;
   border-right: 1px solid var(--line);
