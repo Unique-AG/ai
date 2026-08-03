@@ -351,6 +351,8 @@ def _client_from_row(row: dict[str, Any], figures: DashboardFigures) -> Client:
             button_label=row.get("case_action_button_label"),
             button_target=row.get("case_action_button_target"),
             owner=row.get("case_action_owner"),
+            sof_transaction_amount=row.get("case_action_sof_transaction_amount"),
+            sof_folder_id=row.get("case_action_sof_folder_id"),
         ),
         figures=figures,
     )

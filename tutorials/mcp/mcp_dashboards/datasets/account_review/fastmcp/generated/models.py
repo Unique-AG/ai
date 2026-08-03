@@ -15,495 +15,507 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel
 
 
 class Status(StrEnum):
-    Compliant = "Compliant"
-    Escalated = "Escalated"
-    Screening_hit = "Screening hit"
-    Deadline_approaching = "Deadline approaching"
-    Limit_exceeded = "Limit exceeded"
-    Review_required = "Review required"
-    Regulatory_breach = "Regulatory breach"
-    Regulatory_change = "Regulatory change"
+    Compliant = 'Compliant'
+    Escalated = 'Escalated'
+    Screening_hit = 'Screening hit'
+    Deadline_approaching = 'Deadline approaching'
+    Limit_exceeded = 'Limit exceeded'
+    Review_required = 'Review required'
+    Regulatory_breach = 'Regulatory breach'
+    Regulatory_change = 'Regulatory change'
 
 
 class RiskLevel(StrEnum):
-    Low = "Low"
-    Medium = "Medium"
-    High = "High"
+    Low = 'Low'
+    Medium = 'Medium'
+    High = 'High'
 
 
 class Segment(StrEnum):
-    Corporate___Holding = "Corporate / Holding"
-    Private_Wealth = "Private Wealth"
+    Corporate___Holding = 'Corporate / Holding'
+    Private_Wealth = 'Private Wealth'
 
 
 class ClientFilter(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     status: Annotated[
-        Status | None, Field(description="Filter by workflow status.")
+        Status | None, Field(description='Filter by workflow status.')
     ] = None
     risk_level: Annotated[
-        RiskLevel | None, Field(description="Filter by compliance risk level.")
+        RiskLevel | None, Field(description='Filter by compliance risk level.')
     ] = None
     segment: Annotated[
-        Segment | None, Field(description="Filter by commercial segment.")
+        Segment | None, Field(description='Filter by commercial segment.')
     ] = None
     criticality: Annotated[
-        str | None, Field(description="Filter by operational criticality.")
+        str | None, Field(description='Filter by operational criticality.')
     ] = None
     needs_attention: Annotated[
         bool | None,
-        Field(description="When true, exclude Compliant clients (attention rail)."),
+        Field(description='When true, exclude Compliant clients (attention rail).'),
     ] = None
 
 
 class Type(StrEnum):
-    Company = "Company"
-    Individual = "Individual"
+    Company = 'Company'
+    Individual = 'Individual'
 
 
 class ClientReference(RootModel[str]):
     root: Annotated[
         str,
-        Field(description="Stable source-system reference for a client.", min_length=1),
+        Field(description='Stable source-system reference for a client.', min_length=1),
     ]
 
 
 class ClientUpdate(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
-    status: Annotated[Status | None, Field(description="New workflow status.")] = None
+    status: Annotated[Status | None, Field(description='New workflow status.')] = None
     risk_level: Annotated[
-        RiskLevel | None, Field(description="New compliance risk level.")
+        RiskLevel | None, Field(description='New compliance risk level.')
     ] = None
 
 
 class Pep(StrEnum):
-    Yes = "Yes"
-    No = "No"
+    Yes = 'Yes'
+    No = 'No'
 
 
 class AdverseMedia(StrEnum):
-    Yes = "Yes"
-    No = "No"
+    Yes = 'Yes'
+    No = 'No'
 
 
 class Sanctions(StrEnum):
-    Yes = "Yes"
-    No = "No"
+    Yes = 'Yes'
+    No = 'No'
 
 
 class FatcaUsPerson(StrEnum):
-    Yes = "Yes"
-    No = "No"
+    Yes = 'Yes'
+    No = 'No'
 
 
 class ComplianceProfile(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     risk_level: Annotated[
-        RiskLevel, Field(description="Overall compliance risk bucket.")
+        RiskLevel, Field(description='Overall compliance risk bucket.')
     ]
     risk_profile: Annotated[
-        str, Field(description="Investment risk profile recorded for the client.")
+        str, Field(description='Investment risk profile recorded for the client.')
     ]
     risk_tolerance: Annotated[
-        str, Field(description="Risk tolerance recorded for suitability review.")
+        str, Field(description='Risk tolerance recorded for suitability review.')
     ]
     criticality: Annotated[
-        str, Field(description="Operational criticality used by review queues.")
+        str, Field(description='Operational criticality used by review queues.')
     ]
     pep: Annotated[
-        Pep, Field(description="Whether the client is marked as politically exposed.")
+        Pep, Field(description='Whether the client is marked as politically exposed.')
     ]
     adverse_media: Annotated[
-        AdverseMedia, Field(description="Whether adverse media is present.")
+        AdverseMedia, Field(description='Whether adverse media is present.')
     ]
     sanctions: Annotated[
-        Sanctions, Field(description="Whether sanctions exposure is present.")
+        Sanctions, Field(description='Whether sanctions exposure is present.')
     ]
     fatca_us_person: Annotated[
-        FatcaUsPerson, Field(description="Whether FATCA US-person status is indicated.")
+        FatcaUsPerson, Field(description='Whether FATCA US-person status is indicated.')
     ]
     verification_source: Annotated[
-        str, Field(description="Verification source or source-of-wealth evidence.")
+        str, Field(description='Verification source or source-of-wealth evidence.')
     ]
     documents_on_file: Annotated[
         str,
         Field(
-            description="Comma-separated document identifiers available for the client."
+            description='Comma-separated document identifiers available for the client.'
         ),
     ]
     mandate_type: Annotated[
         str,
-        Field(description="Mandate description as supplied by the source workbook."),
+        Field(description='Mandate description as supplied by the source workbook.'),
     ]
     client_categorization: Annotated[
-        str, Field(description="MiFID or client categorization label.")
+        str, Field(description='MiFID or client categorization label.')
     ]
     category_required: Annotated[
         str | None,
-        Field(description="Category reassessment requirement, when applicable."),
+        Field(description='Category reassessment requirement, when applicable.'),
     ] = None
     category_review_status: Annotated[
-        str, Field(description="Current categorization review status.")
+        str, Field(description='Current categorization review status.')
     ]
 
 
 class CountByRow(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
-    bucket: Annotated[str, Field(description="Raw bucket value.")]
-    label: Annotated[str, Field(description="Display label for the bucket.")]
-    count: Annotated[int, Field(description="Number of matching clients.")]
+    bucket: Annotated[str, Field(description='Raw bucket value.')]
+    label: Annotated[str, Field(description='Display label for the bucket.')]
+    count: Annotated[int, Field(description='Number of matching clients.')]
 
 
 class CurrencyCode(RootModel[str]):
     root: Annotated[
         str,
         Field(
-            description="Three-letter ISO 4217 currency code used for portfolio values.",
-            pattern="^[A-Z]{3}$",
+            description='Three-letter ISO 4217 currency code used for portfolio values.',
+            pattern='^[A-Z]{3}$',
         ),
     ]
 
 
 class EmailAddress(RootModel[EmailStr]):
     root: Annotated[
-        EmailStr, Field(description="Email address for a client or contact person.")
+        EmailStr, Field(description='Email address for a client or contact person.')
     ]
 
 
 class FigureMetric(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
-    label: Annotated[str | None, Field(description="Metric label.")] = None
-    value: Annotated[str | None, Field(description="Metric display value.")] = None
+    label: Annotated[str | None, Field(description='Metric label.')] = None
+    value: Annotated[str | None, Field(description='Metric display value.')] = None
     pct: Annotated[
-        float | None, Field(description="Metric percentage value, when available.")
+        float | None, Field(description='Metric percentage value, when available.')
     ] = None
     status: Annotated[
-        str | None, Field(description="Metric status text or severity marker.")
+        str | None, Field(description='Metric status text or severity marker.')
     ] = None
 
 
 class IsoDate(RootModel[date]):
     root: Annotated[
-        date, Field(description="Calendar date serialized as ISO 8601 full-date text.")
+        date, Field(description='Calendar date serialized as ISO 8601 full-date text.')
     ]
 
 
 class Audience(StrEnum):
-    client = "client"
-    compliance = "compliance"
+    client = 'client'
+    compliance = 'compliance'
 
 
 class NewStatus(StrEnum):
-    Compliant = "Compliant"
-    Escalated = "Escalated"
-    Screening_hit = "Screening hit"
-    Deadline_approaching = "Deadline approaching"
-    Limit_exceeded = "Limit exceeded"
-    Review_required = "Review required"
-    Regulatory_breach = "Regulatory breach"
-    Regulatory_change = "Regulatory change"
+    Compliant = 'Compliant'
+    Escalated = 'Escalated'
+    Screening_hit = 'Screening hit'
+    Deadline_approaching = 'Deadline approaching'
+    Limit_exceeded = 'Limit exceeded'
+    Review_required = 'Review required'
+    Regulatory_breach = 'Regulatory breach'
+    Regulatory_change = 'Regulatory change'
 
 
 class OutboundEmailDraft(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     audience: Annotated[
         Audience,
-        Field(description="Whether this email goes to the client or to Compliance."),
+        Field(description='Whether this email goes to the client or to Compliance.'),
     ]
-    to: Annotated[EmailAddress, Field(description="Recipient email address.")]
-    subject: Annotated[str, Field(description="Email subject line.")]
-    body: Annotated[str, Field(description="Email body text.")]
+    to: Annotated[EmailAddress, Field(description='Recipient email address.')]
+    subject: Annotated[str, Field(description='Email subject line.')]
+    body: Annotated[str, Field(description='Email body text.')]
     new_status: Annotated[
         NewStatus | None,
         Field(
-            description="Optional new workflow status to apply after the email is accepted."
+            description='Optional new workflow status to apply after the email is accepted.'
         ),
     ] = None
 
 
 class PortfolioSummary(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     onboarded: Annotated[
-        IsoDate, Field(description="Date the client relationship was onboarded.")
+        IsoDate, Field(description='Date the client relationship was onboarded.')
     ]
     currency: Annotated[
-        CurrencyCode, Field(description="Currency for the portfolio value.")
+        CurrencyCode, Field(description='Currency for the portfolio value.')
     ]
     value: Annotated[
         float,
-        Field(description="Portfolio market value in the declared currency.", ge=0.0),
+        Field(description='Portfolio market value in the declared currency.', ge=0.0),
     ]
 
 
 class ReviewSchedule(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     last_reviewed: Annotated[
-        IsoDate, Field(description="Date of the most recent completed review.")
+        IsoDate, Field(description='Date of the most recent completed review.')
     ]
     next_review_due: Annotated[
-        IsoDate, Field(description="Next scheduled relationship review date.")
+        IsoDate, Field(description='Next scheduled relationship review date.')
     ]
-    kyc_refresh_due: Annotated[IsoDate, Field(description="Next KYC refresh due date.")]
+    kyc_refresh_due: Annotated[IsoDate, Field(description='Next KYC refresh due date.')]
 
 
 class Dir(StrEnum):
-    asc = "asc"
-    desc = "desc"
+    asc = 'asc'
+    desc = 'desc'
 
 
 class SortSpec(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     field: Annotated[
         str,
         Field(
-            description="Domain field path, for example identity.name or compliance.risk_level."
+            description='Domain field path, for example identity.name or compliance.risk_level.'
         ),
     ]
     dir: Annotated[
         Dir | None,
-        Field(description="Sort direction. Defaults to ascending when omitted."),
+        Field(description='Sort direction. Defaults to ascending when omitted.'),
     ] = None
 
 
 class SuitabilityProfile(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     investment_horizon: Annotated[
-        str, Field(description="Investment horizon label from the source workbook.")
+        str, Field(description='Investment horizon label from the source workbook.')
     ]
     knowledge_experience: Annotated[
-        str, Field(description="Knowledge and experience assessment.")
+        str, Field(description='Knowledge and experience assessment.')
     ]
     last_suitability_test: Annotated[
-        IsoDate, Field(description="Date of the most recent suitability test.")
+        IsoDate, Field(description='Date of the most recent suitability test.')
     ]
     suitability_outcome: Annotated[
-        str, Field(description="Outcome summary for the latest suitability review.")
+        str, Field(description='Outcome summary for the latest suitability review.')
     ]
 
 
 class CaseAction(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     status: Annotated[
-        Status, Field(description="Current workflow status for the review case.")
+        Status, Field(description='Current workflow status for the review case.')
     ]
     rule_code: Annotated[
         str | None,
         Field(
-            description="Rule identifier that triggered the action, when applicable."
+            description='Rule identifier that triggered the action, when applicable.'
         ),
     ] = None
     open_issue: Annotated[
-        str | None, Field(description="Open issue description shown to reviewers.")
+        str | None, Field(description='Open issue description shown to reviewers.')
     ] = None
     recommended_action: Annotated[
-        str | None, Field(description="Recommended remediation or reviewer action.")
+        str | None, Field(description='Recommended remediation or reviewer action.')
     ] = None
     due_date: Annotated[
         IsoDate | None,
         Field(
-            description="ISO 8601 due date for the open remediation action, when applicable."
+            description='ISO 8601 due date for the open remediation action, when applicable.'
         ),
     ] = None
     title: Annotated[
         str | None,
-        Field(description="Short action title displayed in the case action bar."),
+        Field(description='Short action title displayed in the case action bar.'),
     ] = None
     explanation: Annotated[
-        str | None, Field(description="Long-form action explanation for reviewers.")
+        str | None, Field(description='Long-form action explanation for reviewers.')
     ] = None
     button_label: Annotated[
-        str | None, Field(description="Button label used by the dashboard action.")
+        str | None, Field(description='Button label used by the dashboard action.')
     ] = None
     button_target: Annotated[
         str | None,
-        Field(description="Button target or tool hint used by the dashboard action."),
+        Field(description='Button target or tool hint used by the dashboard action.'),
     ] = None
     owner: Annotated[
-        str | None, Field(description="Owner responsible for follow-up.")
+        str | None, Field(description='Owner responsible for follow-up.')
+    ] = None
+    sof_transaction_amount: Annotated[
+        float | None,
+        Field(
+            description='Subscription/transaction amount under Source of Funds review, in the case currency.'
+        ),
+    ] = None
+    sof_folder_id: Annotated[
+        str | None,
+        Field(
+            description="Knowledge-base folder id scoping Internal Search for this case's supporting evidence."
+        ),
     ] = None
 
 
 class ClientContact(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     date_of_birth: Annotated[
         IsoDate | None,
-        Field(description="Date of birth for individuals, when available."),
+        Field(description='Date of birth for individuals, when available.'),
     ] = None
     occupation: Annotated[
         str | None,
-        Field(description="Occupation or business role supplied in the workbook."),
+        Field(description='Occupation or business role supplied in the workbook.'),
     ] = None
     marital_status: Annotated[
         str | None,
-        Field(description="Marital status for individual clients, when available."),
+        Field(description='Marital status for individual clients, when available.'),
     ] = None
-    nationality: Annotated[str | None, Field(description="Client nationality.")] = None
+    nationality: Annotated[str | None, Field(description='Client nationality.')] = None
     residence: Annotated[
-        str | None, Field(description="Country or jurisdiction of residence.")
+        str | None, Field(description='Country or jurisdiction of residence.')
     ] = None
     domicile: Annotated[
-        str | None, Field(description="Country or jurisdiction of domicile.")
+        str | None, Field(description='Country or jurisdiction of domicile.')
     ] = None
     incorporation: Annotated[
         str | None,
-        Field(description="Company incorporation jurisdiction, when applicable."),
+        Field(description='Company incorporation jurisdiction, when applicable.'),
     ] = None
     residential_address: Annotated[
-        str | None, Field(description="Residential or registered address text.")
+        str | None, Field(description='Residential or registered address text.')
     ] = None
     email: Annotated[
-        EmailAddress | None, Field(description="Primary email address.")
+        EmailAddress | None, Field(description='Primary email address.')
     ] = None
     phone: Annotated[
         str | None,
-        Field(description="Primary phone number as supplied by the source workbook."),
+        Field(description='Primary phone number as supplied by the source workbook.'),
     ] = None
 
 
 class ClientIdentity(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     name: Annotated[
-        str, Field(description="Display name shown in the dashboard.", min_length=1)
+        str, Field(description='Display name shown in the dashboard.', min_length=1)
     ]
     reference: Annotated[
         ClientReference,
         Field(
-            description="Stable client reference from the source workbook or upstream system."
+            description='Stable client reference from the source workbook or upstream system.'
         ),
     ]
     crd_number: Annotated[
         str,
         Field(
-            description="Regulatory CRD or internal registration number.", min_length=1
+            description='Regulatory CRD or internal registration number.', min_length=1
         ),
     ]
     type: Annotated[
-        Type, Field(description="Client legal form represented in the dataset.")
+        Type, Field(description='Client legal form represented in the dataset.')
     ]
     segment: Annotated[
         Segment,
         Field(
-            description="Commercial segment used for portfolio grouping and filtering."
+            description='Commercial segment used for portfolio grouping and filtering.'
         ),
     ]
 
 
 class ClientListRequest(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     filters: Annotated[
         ClientFilter | None,
-        Field(description="Structured filters mapped onto the source SQLite columns."),
+        Field(description='Structured filters mapped onto the source SQLite columns.'),
     ] = None
     search: Annotated[
         str | None,
         Field(
-            description="Full-text search phrase applied to selected display fields."
+            description='Full-text search phrase applied to selected display fields.'
         ),
     ] = None
     sort: Annotated[
-        list[SortSpec] | None, Field(description="Ordered sort fields.")
+        list[SortSpec] | None, Field(description='Ordered sort fields.')
     ] = None
     limit: Annotated[
-        int | None, Field(description="Maximum number of rows to return.", ge=1)
+        int | None, Field(description='Maximum number of rows to return.', ge=1)
     ] = None
     offset: Annotated[
-        int | None, Field(description="Number of matching rows to skip.", ge=0)
+        int | None, Field(description='Number of matching rows to skip.', ge=0)
     ] = None
 
 
 class CountByResult(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
-    table: Annotated[str, Field(description="Source table name.")]
+    table: Annotated[str, Field(description='Source table name.')]
     column: Annotated[
-        str, Field(description="Domain or source column used for grouping.")
+        str, Field(description='Domain or source column used for grouping.')
     ]
-    total: Annotated[int, Field(description="Total rows counted.")]
-    counts: Annotated[dict[str, Any], Field(description="Raw bucket-to-count mapping.")]
+    total: Annotated[int, Field(description='Total rows counted.')]
+    counts: Annotated[dict[str, Any], Field(description='Raw bucket-to-count mapping.')]
     rows: Annotated[
         list[CountByRow],
-        Field(description="Ordered rows suitable for dashboard rendering."),
+        Field(description='Ordered rows suitable for dashboard rendering.'),
     ]
 
 
 class DashboardFigures(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     documents: Annotated[
-        list[FigureMetric], Field(description="Document and evidence metrics.")
+        list[FigureMetric], Field(description='Document and evidence metrics.')
     ]
     performance: Annotated[
-        list[FigureMetric], Field(description="Performance-related metrics.")
+        list[FigureMetric], Field(description='Performance-related metrics.')
     ]
     mandate: Annotated[
-        list[FigureMetric], Field(description="Mandate and suitability metrics.")
+        list[FigureMetric], Field(description='Mandate and suitability metrics.')
     ]
     holdings: Annotated[
         list[FigureMetric],
-        Field(description="Holdings and portfolio composition metrics."),
+        Field(description='Holdings and portfolio composition metrics.'),
     ]
 
 
 class Client(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
-    id: Annotated[int, Field(description="Dataset-local primary key.")]
+    id: Annotated[int, Field(description='Dataset-local primary key.')]
     identity: Annotated[
-        ClientIdentity, Field(description="Identity and segmentation fields.")
+        ClientIdentity, Field(description='Identity and segmentation fields.')
     ]
     contact: Annotated[
-        ClientContact, Field(description="Contact and residency fields.")
+        ClientContact, Field(description='Contact and residency fields.')
     ]
     portfolio: Annotated[
-        PortfolioSummary, Field(description="Portfolio summary fields.")
+        PortfolioSummary, Field(description='Portfolio summary fields.')
     ]
     compliance: Annotated[
-        ComplianceProfile, Field(description="Compliance and regulatory profile.")
+        ComplianceProfile, Field(description='Compliance and regulatory profile.')
     ]
     review_schedule: Annotated[
-        ReviewSchedule, Field(description="Review schedule fields.")
+        ReviewSchedule, Field(description='Review schedule fields.')
     ]
     suitability: Annotated[
-        SuitabilityProfile, Field(description="Suitability assessment fields.")
+        SuitabilityProfile, Field(description='Suitability assessment fields.')
     ]
-    case_action: Annotated[CaseAction, Field(description="Workflow action fields.")]
-    figures: Annotated[DashboardFigures, Field(description="Dashboard figure groups.")]
+    case_action: Annotated[CaseAction, Field(description='Workflow action fields.')]
+    figures: Annotated[DashboardFigures, Field(description='Dashboard figure groups.')]
 
 
 class ClientCreate(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     identity: ClientIdentity
     contact: ClientContact
@@ -516,72 +528,72 @@ class ClientCreate(BaseModel):
 
 class ClientEmailDraftResult(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     client: Annotated[
-        Client, Field(description="Client row after any accepted status update.")
+        Client, Field(description='Client row after any accepted status update.')
     ]
     draft: Annotated[
-        OutboundEmailDraft, Field(description="Accepted email draft contents.")
+        OutboundEmailDraft, Field(description='Accepted email draft contents.')
     ]
     status_updated: Annotated[
         bool,
         Field(
-            description="True when case_action.status was updated as part of this draft."
+            description='True when case_action.status was updated as part of this draft.'
         ),
     ]
 
 
 class ClientListResult(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
-    table: Annotated[str, Field(description="Source table name.")]
+    table: Annotated[str, Field(description='Source table name.')]
     count: Annotated[
-        int, Field(description="Number of rows returned in this response.")
+        int, Field(description='Number of rows returned in this response.')
     ]
     total_matching: Annotated[
-        int, Field(description="Total rows matching the filters before pagination.")
+        int, Field(description='Total rows matching the filters before pagination.')
     ]
-    limit: Annotated[int, Field(description="Requested page size.")]
-    offset: Annotated[int, Field(description="Requested offset.")]
-    rows: Annotated[list[Client], Field(description="Client rows for this page.")]
+    limit: Annotated[int, Field(description='Requested page size.')]
+    offset: Annotated[int, Field(description='Requested offset.')]
+    rows: Annotated[list[Client], Field(description='Client rows for this page.')]
 
 
 class SendEmailResult(BaseModel):
     model_config = ConfigDict(
-        extra="allow",
+        extra='allow',
     )
     client: Annotated[
-        Client, Field(description="Client row after any accepted status update.")
+        Client, Field(description='Client row after any accepted status update.')
     ]
     draft: Annotated[
         OutboundEmailDraft,
         Field(
-            description="Email contents reviewed by the RM (present whether or not delivery was confirmed)."
+            description='Email contents reviewed by the RM (present whether or not delivery was confirmed).'
         ),
     ]
     sent: Annotated[
         bool,
         Field(
-            description="True when the RM confirmed send; false when draft review or send confirmation was cancelled."
+            description='True when the RM confirmed send; false when draft review or send confirmation was cancelled.'
         ),
     ]
     status_updated: Annotated[
         bool,
         Field(
-            description="True when case_action.status was updated as part of a confirmed send."
+            description='True when case_action.status was updated as part of a confirmed send.'
         ),
     ]
     message_id: Annotated[
         str | None,
         Field(
-            description="Simulated outbound message id when sent; null when not sent (demo facade, no real SMTP)."
+            description='Simulated outbound message id when sent; null when not sent (demo facade, no real SMTP).'
         ),
     ] = None
     delivery_message: Annotated[
         str,
         Field(
-            description="Human-readable delivery outcome the agent must relay: whether the mail was sent or not."
+            description='Human-readable delivery outcome the agent must relay: whether the mail was sent or not.'
         ),
     ]

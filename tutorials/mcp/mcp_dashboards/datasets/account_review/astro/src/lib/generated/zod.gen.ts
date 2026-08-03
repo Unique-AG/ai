@@ -168,7 +168,9 @@ export const zCaseAction = z.object({
     explanation: z.string().nullish(),
     button_label: z.string().nullish(),
     button_target: z.string().nullish(),
-    owner: z.string().nullish()
+    owner: z.string().nullish(),
+    sof_transaction_amount: z.number().nullish(),
+    sof_folder_id: z.string().nullish()
 });
 
 /**

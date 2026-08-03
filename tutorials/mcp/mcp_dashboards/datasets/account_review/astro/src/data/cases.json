@@ -1,5 +1,5 @@
 {
-  "description": "Registry of the 6 RM Account-Remediation use cases (Product doc: RM Account-Remediation Dashboard \u2014 Use Cases). CaseActionBar.astro/CaseFigure.astro expand this into one action-bar variant and one figure variant per rule_code, so the client detail page always opens with only the smart action and the figure relevant to that row's rule_code \u2014 everything else stays reusable across cases.",
+  "description": "Registry of the 7 RM Account-Remediation use cases (Product doc: RM Account-Remediation Dashboard \u2014 Use Cases). CaseActionBar.astro/CaseFigure.astro expand this into one action-bar variant and one figure variant per rule_code, so the client detail page always opens with only the smart action and the figure relevant to that row's rule_code \u2014 everything else stays reusable across cases.",
   "cases": [
     {
       "case_id": "doc-expiry",
@@ -109,6 +109,22 @@
       ],
       "banner_link": "Assess",
       "instructions": "Then draft a Source-of-Wealth corroboration plan for this event, including which supporting documents to request from the client. Finish by calling `send_email` with `pk` {id} and `audience` \"client\" to request those documents. Afterwards, report the outcome from the tool result: if `sent` is true, tell the RM the email was sent (cite `delivery_message` / `message_id`); if `sent` is false, say clearly that it was not sent and why."
+    },
+    {
+      "case_id": "sof-check",
+      "use_case": 7,
+      "rule_codes": [
+        "R-SOF-CHECK"
+      ],
+      "tag": "Source of Funds check",
+      "icon": "🧾",
+      "banner_headline": "Source of Funds check",
+      "open_sections": [
+        "docs-kyc"
+      ],
+      "banner_link": "Run SoF check",
+      "skip_default_email_note": true,
+      "instructions": "This is a Source of Funds check, not a general review — use the `source-of-funds-check` skill to run it; do not analyse it yourself first. Case folder to search: {case_action.sof_folder_id}. Transaction amount: {case_action.sof_transaction_amount}. Total wealth for comparison: {portfolio.value}. Run all four gates in order and report each outcome as it goes, including Gate 2's ratio and Gate 3's simulated findings even when they pass. If any gate fails: call `send_email` with `pk` {id} and `audience` \"compliance\" describing which gate failed and why, go through the elicit-draft-then-confirm flow and actually confirm the send this time, then call `update_client` with `pk` {id} setting `status` to \"Review required\". If all four gates pass: do NOT call `send_email` — there is nothing to send — instead call `update_client` with `pk` {id} setting `status` to \"Compliant\". Afterwards, report the outcome: if an email was sent, cite `delivery_message` / `message_id`; if no email was needed, say so plainly and confirm the status update."
     }
   ]
 }

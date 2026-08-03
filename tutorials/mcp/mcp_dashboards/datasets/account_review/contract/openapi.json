@@ -422,6 +422,29 @@
               }
             ],
             "description": "Owner responsible for follow-up."
+          },
+          "sof_transaction_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Subscription/transaction amount under Source of Funds review, in the case currency."
+          },
+          "sof_folder_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Knowledge-base folder id scoping Internal Search for this case's supporting evidence."
           }
         },
         "unevaluatedProperties": {
