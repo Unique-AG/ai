@@ -38,7 +38,6 @@ from unique_mcp.logging import _PinoJson, _QuietAccess, configure_logging
         # bare METHOD path status
         ("GET /ready 200", False),
         ("POST /mcp 200", True),
-        # Substring / query must not suppress real traffic (Bugbot MEDIUM).
         ('127.0.0.1:1 - "GET /mcp?next=/probe HTTP/1.1" 200', True),
         ('127.0.0.1:1 - "GET /api/healthcheck HTTP/1.1" 200', True),
         ('127.0.0.1:1 - "POST /tools/metrics-export HTTP/1.1" 200', True),
@@ -47,9 +46,9 @@ from unique_mcp.logging import _PinoJson, _QuietAccess, configure_logging
 )
 def test_quiet_access__skips_probe_and_metrics(message: str, expected: bool) -> None:
     """
-    Purpose: Verify access logs for exact ops paths are dropped, not substrings.
-    Why this matters: Scrapes drown logs; substring skips hid attacker-controlled URLs.
-    Setup summary: Filter sample ASGI access lines; assert keep/drop.
+    Purpose: Verify only exact ops paths are dropped from ASGI access logs.
+    Why this matters: Scrapes drown logs; substrings must not hide real traffic.
+    Setup summary: Filter sample access lines; assert keep/drop.
     """
     record = logging.LogRecord(
         name="uvicorn.access",

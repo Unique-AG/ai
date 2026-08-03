@@ -258,13 +258,11 @@ from unique_toolkit.monitoring import configure_tracing
 from unique_mcp.logging import configure_logging
 from unique_mcp.monitoring import setup_ops
 
-configure_tracing(service_name="my-mcp")  # opt-in via OTEL_* / ENABLE_OPENTELEMETRY
-configure_logging()  # pino-json; silences /probe /health /metrics access logs
+configure_tracing(service_name="my-mcp")
+configure_logging()
 
 mcp = FastMCP("my-server")
 middleware = [...]
-# /probe /health /metrics + HTTP metrics + per-tool mcp_* metrics.
-# Traces: FastMCP tools/call spans (join via caller _meta.traceparent).
 middleware.append(setup_ops(mcp))
 
 mcp.run(transport="http", middleware=middleware)

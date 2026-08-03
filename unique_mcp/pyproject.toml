@@ -17,11 +17,9 @@ dependencies = [
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
-    # Declared directly: setup_ops imports starlette Middleware/Request/Response
-    # (also pulled transitively via fastmcp; deptry flags undeclared use).
+    # Declared for deptry (also transitive via fastmcp).
     "starlette>=1.3.1,<2",
-    # Direct import in logging.py for trace_id/span_id (also via toolkit[otel]/
-    # / fastmcp); declare for deptry.
+    # Declared for deptry (also via toolkit[otel] / fastmcp).
     "opentelemetry-api>=1.27,<2",
     # 4.6.0 is the floor: 4.4.0/4.5.0 fail to import on Python 3.12 (a
     # TypeVar subclassing incompatibility, fixed in 4.6.0), verified locally.

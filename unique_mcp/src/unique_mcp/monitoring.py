@@ -52,7 +52,6 @@ class _McpMetrics(McpMw):
             elapsed = time.perf_counter() - start
             _duration.labels(kind=kind, name=name).observe(elapsed)
             _calls.labels(kind=kind, name=name, status=status).inc()
-            # LogRecord reserves `name`; use `operation` for the MCP name.
             extra = {
                 "kind": kind,
                 "operation": name,
@@ -89,17 +88,7 @@ def setup_ops(
     excluded_paths: set[str] | None = None,
     duration_buckets: Sequence[float] | None = None,
 ) -> Middleware:
-    """Mount ops routes + MCP metrics; return HTTP metrics middleware.
-
-    FastMCP owns MCP ``tools/call`` spans (continues ``_meta.traceparent`` /
-    an active context). Call ``configure_tracing()`` at startup so those spans
-    export. HTTP ``TraceContextMiddleware`` is intentionally not installed —
-    on streamable HTTP it often creates an orphan root beside FastMCP's tree.
-
-    Idempotent for MCP mount/middleware: a second call on the same ``mcp`` does
-    not remount ops or attach another ``_McpMetrics`` (which would inflate
-    ``mcp_*``). Append the returned Starlette ``Middleware`` only once.
-    """
+    """Mount ops routes + MCP metrics; return HTTP metrics middleware."""
     if not any(getattr(p, "server", None) is _OPS for p in mcp.providers):
         mcp.mount(_OPS)
     if not any(isinstance(mw, _McpMetrics) for mw in mcp.middleware):

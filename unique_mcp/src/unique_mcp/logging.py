@@ -12,10 +12,7 @@ from typing import Any, Literal
 
 from opentelemetry import trace
 
-# Exact request paths to silence in ASGI access logs (not substring matches).
 _SKIP_PATHS = frozenset({"/probe", "/health", "/metrics", "/ready"})
-# METHOD + path as in uvicorn, combined/CLF, and simple ASGI access lines.
-# Query string is excluded from the path group.
 _ACCESS_PATH = re.compile(
     r'(?:^|[\s"])(?:GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)\s+([^?\s"]+)',
     re.IGNORECASE,
@@ -41,8 +38,7 @@ _RESERVED = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__) | 
 
 class _QuietAccess(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        msg = record.getMessage()
-        match = _ACCESS_PATH.search(msg)
+        match = _ACCESS_PATH.search(record.getMessage())
         if match is None:
             return True
         path = match.group(1).rstrip("/") or "/"
