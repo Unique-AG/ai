@@ -1,6 +1,6 @@
 # Pinned by version and digest for reproducible builds, same governed image the
 # platform docker-base uses (python 3.12 on Debian trixie, linux/amd64).
-FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+FROM python:3.14-slim-trixie@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6
 WORKDIR /app
 
 COPY pyproject.toml README.md ./

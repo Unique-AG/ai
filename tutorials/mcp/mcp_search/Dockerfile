@@ -5,7 +5,7 @@
 # -----------------------------------------------------------------------------
 # Build stage
 # -----------------------------------------------------------------------------
-FROM ghcr.io/astral-sh/uv:0.11.33-python3.12-trixie-slim@sha256:7b5a3c8f80fb965911cf8f0c6690b30b39f10f691fc1e52cd6cc44bc509c3aeb AS builder
+FROM ghcr.io/astral-sh/uv:0.12.0-python3.12-trixie-slim@sha256:837853d0f4703dbada56fd0807ea1db01eccca02db0af3b1f0cee5e902077107 AS builder
 
 WORKDIR /app
 
@@ -33,7 +33,7 @@ RUN uv sync --frozen --no-dev
 # -----------------------------------------------------------------------------
 # Runtime stage
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS runtime
+FROM python:3.14-slim-trixie@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6 AS runtime
 
 WORKDIR /app
 
