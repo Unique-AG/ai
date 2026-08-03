@@ -12,10 +12,21 @@ from typing import Any, Literal
 
 from opentelemetry import trace
 
-# Exact request paths to silence in uvicorn access logs (not substring matches).
+# Exact request paths to silence in ASGI access logs (not substring matches).
 _SKIP_PATHS = frozenset({"/probe", "/health", "/metrics", "/ready"})
-# Uvicorn: '127.0.0.1:1 - "GET /path?query HTTP/1.1" 200'
-_ACCESS_PATH = re.compile(r'"[A-Z]+ ([^?\s"]+)(?:\?[^"\s]*)? HTTP/')
+# METHOD + path as in uvicorn, combined/CLF, and simple ASGI access lines.
+# Query string is excluded from the path group.
+_ACCESS_PATH = re.compile(
+    r'(?:^|[\s"])(?:GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)\s+([^?\s"]+)',
+    re.IGNORECASE,
+)
+_ACCESS_LOGGERS = (
+    "uvicorn.access",
+    "uvicorn.asgi",
+    "hypercorn.access",
+    "granian.access",
+    "daphne.access",
+)
 _PINO_LEVEL = {
     logging.DEBUG: 20,
     logging.INFO: 30,
@@ -98,7 +109,7 @@ def configure_logging(
         handler.setLevel(resolved)
 
     quiet = _QuietAccess()
-    for name in ("uvicorn.access", "uvicorn.asgi"):
+    for name in _ACCESS_LOGGERS:
         log = logging.getLogger(name)
         if not any(isinstance(f, _QuietAccess) for f in log.filters):
             log.addFilter(quiet)

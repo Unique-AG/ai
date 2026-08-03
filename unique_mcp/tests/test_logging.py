@@ -18,6 +18,7 @@ from unique_mcp.logging import _PinoJson, _QuietAccess, configure_logging
 @pytest.mark.parametrize(
     ("message", "expected"),
     [
+        # uvicorn
         ('127.0.0.1:1 - "GET /probe HTTP/1.1" 200', False),
         ('127.0.0.1:1 - "GET /probe/ HTTP/1.1" 200', False),
         ('127.0.0.1:1 - "GET /metrics HTTP/1.1" 200', False),
@@ -25,6 +26,18 @@ from unique_mcp.logging import _PinoJson, _QuietAccess, configure_logging
         ('127.0.0.1:1 - "GET /ready HTTP/1.1" 200', False),
         ('127.0.0.1:1 - "GET /mcp HTTP/1.1" 200', True),
         ('127.0.0.1:1 - "POST /mcp HTTP/1.1" 200', True),
+        # combined / CLF-style (hypercorn and others)
+        (
+            '127.0.0.1 - - [03/Aug/2026:12:00:00 +0000] "GET /metrics HTTP/1.1" 200 12',
+            False,
+        ),
+        (
+            '127.0.0.1 - - [03/Aug/2026:12:00:00 +0000] "POST /mcp HTTP/1.1" 200 12',
+            True,
+        ),
+        # bare METHOD path status
+        ("GET /ready 200", False),
+        ("POST /mcp 200", True),
         # Substring / query must not suppress real traffic (Bugbot MEDIUM).
         ('127.0.0.1:1 - "GET /mcp?next=/probe HTTP/1.1" 200', True),
         ('127.0.0.1:1 - "GET /api/healthcheck HTTP/1.1" 200', True),
@@ -36,7 +49,7 @@ def test_quiet_access__skips_probe_and_metrics(message: str, expected: bool) -> 
     """
     Purpose: Verify access logs for exact ops paths are dropped, not substrings.
     Why this matters: Scrapes drown logs; substring skips hid attacker-controlled URLs.
-    Setup summary: Filter sample uvicorn access lines; assert keep/drop.
+    Setup summary: Filter sample ASGI access lines; assert keep/drop.
     """
     record = logging.LogRecord(
         name="uvicorn.access",
@@ -146,12 +159,16 @@ def test_configure_logging__installs_access_filter_idempotently() -> None:
     """
     Purpose: Verify configure_logging attaches a single quiet-access filter.
     Why this matters: Re-configure must not stack duplicate filters.
-    Setup summary: Clear filters, configure twice, assert one _QuietAccess.
+    Setup summary: Clear filters on common ASGI access loggers, configure twice.
     """
-    access = logging.getLogger("uvicorn.access")
-    access.filters.clear()
+    for name in ("uvicorn.access", "hypercorn.access", "granian.access"):
+        logging.getLogger(name).filters.clear()
 
     configure_logging(level="INFO")
     configure_logging(level="INFO")
 
-    assert sum(isinstance(f, _QuietAccess) for f in access.filters) == 1
+    for name in ("uvicorn.access", "hypercorn.access", "granian.access"):
+        assert (
+            sum(isinstance(f, _QuietAccess) for f in logging.getLogger(name).filters)
+            == 1
+        )
