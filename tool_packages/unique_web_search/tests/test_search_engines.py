@@ -118,6 +118,132 @@ class TestBingSearchInit:
         assert isinstance(search.response_parsers[1], LLMParserStrategy)
 
 
+class TestBingLegacySearch:
+    """Tests for the direct (non-proxy) Bing search path."""
+
+    @staticmethod
+    def _patch_bing_runtime(mocker, results: list[WebSearchResult]):
+        agent_client = AsyncMock()
+        get_project_client = mocker.patch(
+            "unique_web_search.services.search_engine.bing.get_project_client",
+            return_value=agent_client,
+        )
+        create_and_process_run = mocker.patch(
+            "unique_web_search.services.search_engine.bing.create_and_process_run",
+            new_callable=AsyncMock,
+            return_value=results,
+        )
+        return get_project_client, create_and_process_run
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__unset_agent_id_and_endpoint__passes_empty_strings(
+        self, mocker
+    ) -> None:
+        """
+        Purpose: Verify None agent_id/endpoint are converted to empty strings downstream.
+        Why this matters: Both helpers take plain strings and treat "" as "fall back to the
+            environment/auto-provisioning"; passing None would raise a type/attribute error.
+        Setup summary: Build a config with both fields None; run _legacy_search with the Azure
+            helpers patched; assert the forwarded values are "".
+        """
+        # Arrange
+        config = BingSearchConfig(agent_id=None, endpoint=None)
+        expected = [
+            WebSearchResult(
+                url="https://example.com",
+                title="Test",
+                snippet="Test snippet",
+                content="Test content",
+            )
+        ]
+        get_project_client, create_and_process_run = self._patch_bing_runtime(
+            mocker, expected
+        )
+        search = BingSearch(config, Mock())
+
+        # Act
+        results = await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert results == expected
+        assert get_project_client.call_args.args[1] == ""
+        assert create_and_process_run.call_args.kwargs["agent_id"] == ""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__configured_agent_id_and_endpoint__are_forwarded(
+        self, mocker
+    ) -> None:
+        """
+        Purpose: Verify configured agent_id and endpoint reach the Azure helpers unchanged.
+        Why this matters: Deployments pinning an existing agent must not be silently
+            redirected to auto-provisioning.
+        Setup summary: Build a config with both fields set; run _legacy_search with the Azure
+            helpers patched; assert the configured values are forwarded.
+        """
+        # Arrange
+        config = BingSearchConfig(
+            agent_id="my-agent-id-123",
+            endpoint="https://my-project.azure.com",
+        )
+        get_project_client, create_and_process_run = self._patch_bing_runtime(
+            mocker, []
+        )
+        search = BingSearch(config, Mock())
+
+        # Act
+        await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert get_project_client.call_args.args[1] == "https://my-project.azure.com"
+        assert create_and_process_run.call_args.kwargs["agent_id"] == "my-agent-id-123"
+
+
+class TestAgentProxyInvocation:
+    """Tests for the config-to-kwargs mapping used by the agent proxy path."""
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize("agent_id", [None, ""])
+    def test_agent_proxy_invocation__unset_agent_id__is_omitted(
+        self, agent_id: str | None
+    ) -> None:
+        """
+        Purpose: Verify unset agent_id values are dropped from the proxy invocation kwargs.
+        Why this matters: Sending an empty agent_id to the proxy skips server-side
+            auto-provisioning and fails the search.
+        Setup summary: Build a config with an unset agent_id; assert it is absent from the
+            invocation while populated fields remain.
+        """
+        # Arrange
+        config = BingSearchConfig(agent_id=agent_id)
+        search = BingSearch(config, Mock())
+
+        # Act
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING)
+
+        # Assert
+        assert "agent_id" not in invocation
+        assert invocation["fetch_size"] == config.fetch_size
+
+    @pytest.mark.ai
+    def test_agent_proxy_invocation__configured_agent_id__is_included(self) -> None:
+        """
+        Purpose: Verify a configured agent_id is forwarded to the proxy invocation kwargs.
+        Why this matters: Deployments pinning an existing agent rely on it being sent.
+        Setup summary: Build a config with agent_id set; assert it appears in the invocation.
+        """
+        # Arrange
+        config = BingSearchConfig(agent_id="my-agent-id-123")
+        search = BingSearch(config, Mock())
+
+        # Act
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING)
+
+        # Assert
+        assert invocation["agent_id"] == "my-agent-id-123"
+
+
 class TestGetSearchEngineModelConfig:
     """Tests for get_search_engine_model_config utility function."""
 
