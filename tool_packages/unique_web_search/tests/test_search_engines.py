@@ -187,7 +187,9 @@ class TestBingLegacySearch:
             agent_id="my-agent-id-123",
             endpoint="https://my-project.azure.com",
         )
-        get_project_client, create_and_process_run = self._patch_bing_runtime(mocker, [])
+        get_project_client, create_and_process_run = self._patch_bing_runtime(
+            mocker, []
+        )
         search = BingSearch(config, Mock())
 
         # Act
