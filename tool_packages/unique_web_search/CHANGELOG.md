@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.32.2](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.32.1...unique-web-search-v2026.32.2) (2026-08-04)
+
+
+### Bug Fixes
+
+* config validation error bing grounding ([#2209](https://github.com/Unique-AG/ai/issues/2209)) ([d404621](https://github.com/Unique-AG/ai/commit/d4046214516d57686ff289890fcf14634a809d0c))
+* fix validation error web search ([#2206](https://github.com/Unique-AG/ai/issues/2206)) ([7feef9c](https://github.com/Unique-AG/ai/commit/7feef9c796f3fa883ddf550e16183ac36cd8493d))
+
 ## [2026.32.1](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.32.0...unique-web-search-v2026.32.1) (2026-08-03)
 
 
