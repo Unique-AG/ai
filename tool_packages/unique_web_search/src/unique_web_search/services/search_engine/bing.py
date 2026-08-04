@@ -1,12 +1,13 @@
 import asyncio
-from typing import override
+from typing import Annotated, Any, override
 
-from pydantic import Field
+from pydantic import BeforeValidator, Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model import LanguageModelService
 
@@ -31,13 +32,35 @@ from unique_web_search.services.search_engine.utils.grounding.bing import (
 from unique_web_search.settings import env_settings
 
 
+def _none_as_empty(value: Any) -> Any:
+    """Accept the ``null`` written by previously stored configs."""
+    return "" if value is None else value
+
+
+# Plain ``str`` instead of ``str | None`` so the config form renders a single
+# text input; a union would render an RJSF branch selector ("… option 1/2").
+_OptionalText = Annotated[str, BeforeValidator(_none_as_empty)]
+
+
 class BingSearchConfig(BingAgentConfig):
-    agent_id: str | None = Field(
-        default=env_settings.azure_ai_assistant_id,
+    agent_id: Annotated[  # pyright: ignore[reportIncompatibleVariableOverride]
+        _OptionalText,
+        RJSFMetaTag.StringWidget.textfield(
+            placeholder="Leave empty to use the auto-provisioned agent",
+            empty_value="",
+        ),
+    ] = Field(
+        default=env_settings.azure_ai_assistant_id or "",
         description="The ID of the agent to use for the search. **This parameter is temporary and will be auto-provisioned in future versions.**",
     )
-    endpoint: str | None = Field(
-        default=env_settings.azure_ai_project_endpoint,
+    endpoint: Annotated[
+        _OptionalText,
+        RJSFMetaTag.StringWidget.textfield(
+            placeholder="Leave empty to use the auto-provisioned resource",
+            empty_value="",
+        ),
+    ] = Field(
+        default=env_settings.azure_ai_project_endpoint or "",
         description="The endpoint to use for the search. **This parameter is not required to be set. It's loaded automatically from auto-provisioned resource**",
     )
     language_model: LMI = get_LMI_default_field(

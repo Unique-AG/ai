@@ -1211,7 +1211,7 @@ class TestBingSearchConfig:
         """
         Purpose: Verify agent_id and endpoint default to unset values.
         Why this matters: Empty defaults enable auto-provisioning fallback path.
-        Setup summary: Create config with no overrides; assert agent_id and endpoint are None.
+        Setup summary: Create config with no overrides; assert agent_id and endpoint are empty.
         """
         from unique_web_search.services.search_engine.bing import BingSearchConfig
 
@@ -1219,8 +1219,8 @@ class TestBingSearchConfig:
         config = BingSearchConfig()
 
         # Assert
-        assert config.agent_id is None
-        assert config.endpoint is None
+        assert config.agent_id == ""
+        assert config.endpoint == ""
 
     @pytest.mark.ai
     def test_config__agent_id_and_endpoint_null__are_accepted(self) -> None:
@@ -1228,7 +1228,8 @@ class TestBingSearchConfig:
         Purpose: Verify stored ``agentId``/``endpoint`` nulls validate against the config schema.
         Why this matters: Migrated space configurations persist null for an unset agent or
             endpoint, and rejecting it breaks the admin configuration form.
-        Setup summary: Validate a payload with both fields set to None; assert it round-trips.
+        Setup summary: Validate a payload with both fields set to None; assert they are
+            coerced to the empty string that marks an unset value.
         """
         from unique_web_search.services.search_engine.bing import BingSearchConfig
 
@@ -1236,8 +1237,8 @@ class TestBingSearchConfig:
         config = BingSearchConfig.model_validate({"agent_id": None, "endpoint": None})
 
         # Assert
-        assert config.agent_id is None
-        assert config.endpoint is None
+        assert config.agent_id == ""
+        assert config.endpoint == ""
 
     @pytest.mark.ai
     def test_config__custom_agent_id_and_endpoint__stored_correctly(self) -> None:
