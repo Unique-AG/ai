@@ -32,12 +32,12 @@ from unique_web_search.settings import env_settings
 
 
 class BingSearchConfig(BingAgentConfig):
-    agent_id: str = Field(
-        default=env_settings.azure_ai_assistant_id or "",
+    agent_id: str | None = Field(
+        default=env_settings.azure_ai_assistant_id,
         description="The ID of the agent to use for the search. **This parameter is temporary and will be auto-provisioned in future versions.**",
     )
-    endpoint: str = Field(
-        default=env_settings.azure_ai_project_endpoint or "",
+    endpoint: str | None = Field(
+        default=env_settings.azure_ai_project_endpoint,
         description="The endpoint to use for the search. **This parameter is not required to be set. It's loaded automatically from auto-provisioned resource**",
     )
     language_model: LMI = get_LMI_default_field(
@@ -98,12 +98,12 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         params: ExposedParams | None,
     ) -> list[WebSearchResult]:
         del params
-        agent_client = get_project_client(self.credentials, self.config.endpoint)
+        agent_client = get_project_client(self.credentials, self.config.endpoint or "")
 
         async with agent_client:
             search_results = await create_and_process_run(
                 agent_client,
-                agent_id=self.config.agent_id,
+                agent_id=self.config.agent_id or "",
                 query=query,
                 fetch_size=self.config.fetch_size,
                 response_parsers_strategies=self.response_parsers,

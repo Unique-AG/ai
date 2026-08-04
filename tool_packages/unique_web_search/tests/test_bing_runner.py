@@ -1207,11 +1207,11 @@ class TestBingSearchConfig:
         assert config.generation_instructions == custom
 
     @pytest.mark.ai
-    def test_config__agent_id_and_endpoint__default_to_empty_string(self) -> None:
+    def test_config__agent_id_and_endpoint__default_to_unset(self) -> None:
         """
-        Purpose: Verify agent_id and endpoint default to empty strings.
+        Purpose: Verify agent_id and endpoint default to unset values.
         Why this matters: Empty defaults enable auto-provisioning fallback path.
-        Setup summary: Create config with no overrides; assert agent_id and endpoint are "".
+        Setup summary: Create config with no overrides; assert agent_id and endpoint are None.
         """
         from unique_web_search.services.search_engine.bing import BingSearchConfig
 
@@ -1219,8 +1219,25 @@ class TestBingSearchConfig:
         config = BingSearchConfig()
 
         # Assert
-        assert config.agent_id == ""
-        assert config.endpoint == ""
+        assert config.agent_id is None
+        assert config.endpoint is None
+
+    @pytest.mark.ai
+    def test_config__agent_id_and_endpoint_null__are_accepted(self) -> None:
+        """
+        Purpose: Verify stored ``agentId``/``endpoint`` nulls validate against the config schema.
+        Why this matters: Migrated space configurations persist null for an unset agent or
+            endpoint, and rejecting it breaks the admin configuration form.
+        Setup summary: Validate a payload with both fields set to None; assert it round-trips.
+        """
+        from unique_web_search.services.search_engine.bing import BingSearchConfig
+
+        # Act
+        config = BingSearchConfig.model_validate({"agent_id": None, "endpoint": None})
+
+        # Assert
+        assert config.agent_id is None
+        assert config.endpoint is None
 
     @pytest.mark.ai
     def test_config__custom_agent_id_and_endpoint__stored_correctly(self) -> None:
@@ -1260,8 +1277,8 @@ class TestBingSearchConfig:
 
         # Act
         config = BingSearchConfig(
-            agent_id=mock_env.azure_ai_assistant_id or "",
-            endpoint=mock_env.azure_ai_project_endpoint or "",
+            agent_id=mock_env.azure_ai_assistant_id,
+            endpoint=mock_env.azure_ai_project_endpoint,
         )
 
         # Assert
@@ -1286,8 +1303,8 @@ class TestBingSearchConfig:
 
         # Act
         config = BingSearchConfig(
-            agent_id=mock_env.azure_ai_assistant_id or "",
-            endpoint=mock_env.azure_ai_project_endpoint or "",
+            agent_id=mock_env.azure_ai_assistant_id,
+            endpoint=mock_env.azure_ai_project_endpoint,
         )
 
         # Assert

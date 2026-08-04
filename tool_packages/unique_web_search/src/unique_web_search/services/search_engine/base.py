@@ -184,7 +184,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
             value = getattr(self.config, field_name)
             # Empty values fall through to the SDK/server defaults (e.g. an unset
             # ``agent_id`` triggers server-side auto-provisioning).
-            if value == "":
+            if value is None or value == "":
                 continue
             invocation[field_name] = value
         return invocation
