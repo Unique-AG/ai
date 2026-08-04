@@ -39,12 +39,12 @@ def _none_as_empty(value: Any) -> Any:
 
 # Plain ``str`` instead of ``str | None`` so the config form renders a single
 # text input; a union would render an RJSF branch selector ("… option 1/2").
-OptionalText = Annotated[str, BeforeValidator(_none_as_empty)]
+_OptionalText = Annotated[str, BeforeValidator(_none_as_empty)]
 
 
 class BingSearchConfig(BingAgentConfig):
-    agent_id: Annotated[
-        OptionalText,
+    agent_id: Annotated[  # pyright: ignore[reportIncompatibleVariableOverride]
+        _OptionalText,
         RJSFMetaTag.StringWidget.textfield(
             placeholder="Leave empty to use the auto-provisioned agent",
             empty_value="",
@@ -54,7 +54,7 @@ class BingSearchConfig(BingAgentConfig):
         description="The ID of the agent to use for the search. **This parameter is temporary and will be auto-provisioned in future versions.**",
     )
     endpoint: Annotated[
-        OptionalText,
+        _OptionalText,
         RJSFMetaTag.StringWidget.textfield(
             placeholder="Leave empty to use the auto-provisioned resource",
             empty_value="",
