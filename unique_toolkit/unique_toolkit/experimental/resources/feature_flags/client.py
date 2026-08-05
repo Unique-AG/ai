@@ -177,21 +177,15 @@ class FeatureFlagClient:
 
     @staticmethod
     def _env_fallback(flag: str, company_id: str | None = None) -> bool:
-        """Read *flag* from env vars using the same semantics as ``FeatureFlag``.
-
-        Supports both plain booleans (``"true"`` / ``"false"``) and
-        comma-separated company-ID allowlists (``"company1,company2"``),
-        consistent with ``unique_toolkit.agentic.feature_flags.FeatureFlags``.
-        """
-        raw = os.getenv(flag, "false").strip()
-        raw_lower = raw.lower()
+        """Read *flag* from env vars: plain booleans or comma-separated company-ID allowlists."""
+        raw = os.getenv(flag, "false")
+        raw_lower = raw.strip().lower()
         if raw_lower in ("true", "1", "yes"):
             return True
         if raw_lower in ("false", "0", "no", ""):
             return False
-        # Comma-separated company-ID allowlist
-        allowed = {part.strip() for part in raw.split(",") if part.strip()}
-        return company_id in allowed if company_id else False
+        allowlist = [c.strip() for c in raw.split(",") if c.strip()]
+        return company_id in allowlist if company_id else False
 
 
 class BoundFeatureFlagClient:
@@ -215,12 +209,18 @@ class BoundFeatureFlagClient:
         return (await self.evaluate(flag)).value
 
 
+# For is_flag_enabled() callers with no real company_id. Not a real company:
+# bool-configured flags still resolve correctly; allowlist-configured ones safely read as off.
+COMPANY_ID_PLACEHOLDER = "company_id_placeholder"
+
+
 def get_feature_flag_client() -> FeatureFlagClient:
     """Return the process-level :class:`FeatureFlagClient` singleton.
 
-    Built lazily via :meth:`FeatureFlagClient.from_settings` which reads
-    ``CONFIGURATION_BACKEND_URL`` and ``FEATURE_FLAG_SERVICE_ID`` from env.
-    Falls back to env-var defaults on missing config or transport errors.
+    Built lazily via :meth:`FeatureFlagClient.from_settings`, which reads
+    ``CONFIGURATION_BACKEND_URL`` and ``FEATURE_FLAG_SERVICE_ID`` from env and
+    raises :class:`ValueError` if either is missing. Evaluations fall back to
+    env-var defaults (or a stale cached value) only on *transport* errors.
     """
     return FeatureFlagClient.from_settings()
 

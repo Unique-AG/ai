@@ -21,7 +21,7 @@ from tenacity import (
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
-from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -39,6 +39,10 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
 )
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.experimental.resources.feature_flags import (
+    COMPANY_ID_PLACEHOLDER,
+    is_flag_enabled,
+)
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
@@ -389,6 +393,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
         # Cleared at the start of each run(); holds this-turn download sizes.
         self._file_size_map: dict[str, int] = {}
 
+        # Resolved in run() (before apply_postprocessing_to_response) since flag evaluation is async.
+        self._fence_ff_on = False
+        self._html_fence_ff_on = False
+
     def _build_retry(self) -> AsyncRetrying:
         """Build a tenacity retry policy from the current config.
 
@@ -408,6 +416,17 @@ class DisplayCodeInterpreterFilesPostProcessor(
     ) -> ArtifactsDebugInfo | None:
         run_t0 = time.monotonic()
         self._log.info("run() started — fetching and uploading code interpreter files")
+
+        self._fence_ff_on = await is_flag_enabled(
+            FeatureFlagNames.enable_code_execution_fence_un_17972,
+            company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
+        )
+        # htmlWithSource requires BOTH the fence FF and the HTML-fence FF on; default
+        # (FF off) keeps HtmlRendering, so existing deployments are unaffected.
+        self._html_fence_ff_on = await is_flag_enabled(
+            FeatureFlagNames.enable_html_with_fence_un_17927,
+            company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
+        )
 
         container_files = loop_response.container_files
         self._log.info(
@@ -554,9 +573,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._log.info(
             "apply_postprocessing started — %d file(s) in content_map, fence_ff=%s",
             len(self._content_map),
-            feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-                self._company_id
-            ),
+            self._fence_ff_on,
         )
 
         if loop_response.message.references is None:
@@ -566,18 +583,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         ref_number = _get_next_ref_number(loop_response.message.references)
         changed = False
-        fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
-        )
-        # HTML uses htmlWithSource only when BOTH the code-execution fence FF AND the
-        # dedicated HTML-fence FF are on. Default (FF off) keeps HtmlRendering so
-        # existing deployments are unaffected.
-        html_fence_ff_on = (
-            fence_ff_on
-            and feature_flags.enable_html_with_fence_un_17927.is_enabled(
-                self._company_id
-            )
-        )
 
         replaced_files: list[str] = []
         missed_files: list[str] = []
@@ -611,7 +616,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             # HTML rendered as HtmlRendering block unless the dedicated html-fence FF
             # is on (enable_html_with_fence_un_17927). Default keeps HtmlRendering.
-            elif is_html and not html_fence_ff_on:
+            elif is_html and not self._html_fence_ff_on:
                 loop_response.message.text, replaced = _replace_container_html_citation(
                     text=loop_response.message.text or "",
                     filename=filename,
@@ -619,7 +624,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # Non-HTML files, or HTML when html_fence_ff_on → inline content link for
+            # Non-HTML files, or HTML when self._html_fence_ff_on → inline content link for
             # subsequent fence injection (htmlWithSource / imgWithSource / fileWithSource)
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
@@ -627,7 +632,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     filename=filename,
                     content_id=content_id,
                     ref_number=ref_number,
-                    use_content_link=fence_ff_on,
+                    use_content_link=self._fence_ff_on,
                 )
                 changed |= replaced
 
@@ -644,7 +649,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             # HtmlRendering and htmlWithSource both embed contentId directly — no ContentReference needed
             is_html_rendered = is_html
-            if replaced and not (is_image or is_html_rendered or fence_ff_on):
+            if replaced and not (is_image or is_html_rendered or self._fence_ff_on):
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
@@ -663,9 +668,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
             error_files,
         )
 
-        if fence_ff_on:
+        if self._fence_ff_on:
             code_blocks = _build_code_blocks(
-                loop_response, self._content_map, include_html=html_fence_ff_on
+                loop_response, self._content_map, include_html=self._html_fence_ff_on
             )
             self._log.info(
                 "Fence injection — %d code block(s), files: %s",
@@ -673,7 +678,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 [f.filename for b in code_blocks for f in b.files],
             )
             _warn_unmatched_code_blocks(
-                self._content_map, code_blocks, include_html=html_fence_ff_on
+                self._content_map, code_blocks, include_html=self._html_fence_ff_on
             )
             text_before = loop_response.message.text
             loop_response.message.text = _inject_code_execution_fences(

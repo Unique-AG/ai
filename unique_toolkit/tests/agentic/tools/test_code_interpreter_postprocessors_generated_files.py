@@ -37,9 +37,26 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
 )
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.experimental.resources.feature_flags import COMPANY_ID_PLACEHOLDER
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
-GEN_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.feature_flags"
+GENERATED_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.is_flag_enabled"
+
+
+def _set_gen_files_feature_flags(
+    proc: DisplayCodeInterpreterFilesPostProcessor,
+    *,
+    fence_ff_on: bool = False,
+    html_fence_ff_on: bool = False,
+) -> None:
+    """Seed flag state on the instance, as `run()` would after awaiting it.
+
+    Production resolves both flags asynchronously in `run()` (always awaited
+    before `apply_postprocessing_to_response`), so unit tests exercising
+    `apply_postprocessing_to_response` directly seed the post-`run()` state.
+    """
+    proc._fence_ff_on = fence_ff_on
+    proc._html_fence_ff_on = html_fence_ff_on
 
 
 class _MockStreamResponse:
@@ -511,6 +528,43 @@ def _make_response(calls, annotations):
     response.code_interpreter_calls = calls
     response.container_files = annotations
     return response
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_display_files_postprocessor__run__uses_placeholder__when_no_company_id() -> (
+    None
+):
+    """
+    Purpose: Verify run() doesn't crash when constructed without a company_id, and
+    passes COMPANY_ID_PLACEHOLDER to is_flag_enabled instead of an empty string.
+    Why this matters: is_flag_enabled() raises on an empty company_id; the old
+    `self._company_id or ""` would crash the whole turn instead of resolving the flag.
+    Setup summary: Construct with company_id=None; assert run() completes and both FF
+    checks were called with COMPANY_ID_PLACEHOLDER, not "".
+    """
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    client = MagicMock()
+    client.with_options.return_value = client
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=client,
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id=None,
+        user_id=None,
+        chat_id=None,
+    )
+    mock_is_flag_enabled = AsyncMock(return_value=False)
+    response = _make_response([], [])
+
+    with patch(GENERATED_FILES_FF, mock_is_flag_enabled):
+        await proc.run(response)
+
+    assert mock_is_flag_enabled.await_count == 2
+    for _, kwargs in mock_is_flag_enabled.await_args_list:
+        assert kwargs["company_id"] == COMPANY_ID_PLACEHOLDER
+        assert kwargs["company_id"] != ""
 
 
 @pytest.mark.ai
@@ -1737,16 +1791,12 @@ def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
 
 
 @pytest.mark.ai
-@patch(GEN_FILES_FF)
-def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
-    mock_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing__normalizes_none_message_text__to_empty_string() -> None:
     """
     Purpose: `apply_postprocessing_to_response` must coerce `message.text` None to ''.
     Why this matters: Downstream regex/replace assumes a string; Responses payloads can
     omit text until postprocessing.
     """
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1764,23 +1814,21 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
         references=[],
     )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
+    _set_gen_files_feature_flags(proc)
     proc.apply_postprocessing_to_response(loop)
     assert msg.text == ""
 
 
 @pytest.mark.ai
-@patch(GEN_FILES_FF)
-def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_file(
-    mock_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_file() -> (
+    None
+):
     """
     Purpose: When fence FF is ON, non-image files must NOT be added to message.references.
     Why this matters: Files are rendered as fence blocks in message.text; references entries
     would incorrectly surface them as source citations in the references panel.
     Setup summary: One .pdf with sandbox link, fence FF ON; assert references stays empty.
     """
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
-    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1799,22 +1847,18 @@ def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_fi
         container_files=[],
         code_interpreter_calls=[],
     )
+    _set_gen_files_feature_flags(proc, fence_ff_on=True)
     proc.apply_postprocessing_to_response(loop_response)
     assert message.references == []
 
 
 @pytest.mark.ai
-@patch(GEN_FILES_FF)
-def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file(
-    mock_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file() -> None:
     """
     Purpose: When fence FF is OFF, non-image files must still be added to message.references.
     Why this matters: The legacy references UI uses these entries for download/open actions.
     Setup summary: One .pdf with sandbox link, fence FF OFF; assert one ContentReference appended.
     """
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
-    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1833,6 +1877,7 @@ def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file(
         container_files=[],
         code_interpreter_calls=[],
     )
+    _set_gen_files_feature_flags(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert len(message.references) == 1
     ref = message.references[0]
@@ -1841,10 +1886,7 @@ def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file(
 
 
 @pytest.mark.ai
-@patch(GEN_FILES_FF)
-def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
-    mock_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing__ff_off__existing_citation_refs_preserved() -> None:
     """
     Purpose: Pre-existing (ingestion/citation) references are preserved when fence FF is OFF
     and a new artifact reference is appended alongside them.
@@ -1852,8 +1894,6 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
     Setup summary: One pre-existing ContentReference; one .xlsx with sandbox link; FF OFF.
     Assert both refs present after postprocessing.
     """
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
-    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1879,6 +1919,7 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
         container_files=[],
         code_interpreter_calls=[],
     )
+    _set_gen_files_feature_flags(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert len(message.references) == 2
     source_ids = {r.source_id for r in message.references}
@@ -1887,14 +1928,9 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
 
 
 @pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=False,
-)
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_off(
-    _mock_fence_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_off() -> (
+    None
+):
     """
     Purpose: HTML uses HtmlRendering when the code-execution fence FF is off.
     Why this matters: Default path — HtmlRendering is the correct output when the
@@ -1914,6 +1950,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
         code_interpreter_calls=[],
     )
 
+    _set_gen_files_feature_flags(proc)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -1923,14 +1960,9 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
 
 
 @pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=True,
-)
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_on_but_html_fence_ff_off(
-    _mock_fence_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_on_but_html_fence_ff_off() -> (
+    None
+):
     """
     Purpose: HTML still uses HtmlRendering when the fence FF is on but the html-fence FF
     (enable_html_with_fence_un_17927) is off (the default).
@@ -1953,6 +1985,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
         code_interpreter_calls=[call],
     )
 
+    _set_gen_files_feature_flags(proc, fence_ff_on=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -1963,20 +1996,9 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
 
 
 @pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_html_with_fence_un_17927.is_enabled",
-    return_value=True,
-)
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=True,
-)
-def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_ffs_on(
-    _mock_fence_ff: MagicMock,
-    _mock_html_fence_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_ffs_on() -> (
+    None
+):
     """
     Purpose: HTML uses htmlWithSource fence injection when BOTH the code-execution
     fence FF and the html-fence FF (enable_html_with_fence_un_17927) are on.
@@ -1998,6 +2020,7 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
         code_interpreter_calls=[call],
     )
 
+    _set_gen_files_feature_flags(proc, fence_ff_on=True, html_fence_ff_on=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True

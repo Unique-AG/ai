@@ -12,10 +12,15 @@ Required env vars::
 
 Quick start — explicit IDs::
 
-    from unique_toolkit.experimental.resources.feature_flags import FeatureFlagClient
+    from unique_toolkit.experimental.resources.feature_flags import FeatureFlagClient, is_flag_enabled
 
-    client = FeatureFlagClient.from_settings()  # singleton; call at startup or first request
-    enabled = await client.is_enabled("FEATURE_FLAG_ENABLE_X", company_id=company_id)
+    # Requires CONFIGURATION_BACKEND_URL / FEATURE_FLAG_SERVICE_ID to be set;
+    # falls back to the env-var value (or stale cache) on transport errors.
+    enabled = await is_flag_enabled("FEATURE_FLAG_ENABLE_X", company_id=company_id)
+
+    # Or manage the singleton directly:
+    client = FeatureFlagClient.from_settings()  # raises if URL/service_id absent
+    client = get_feature_flag_client()          # same — thin passthrough to from_settings()
 
 Per-request binding (when you have UniqueSettings / AuthContext)::
 
@@ -32,6 +37,7 @@ See README.md for the full evaluation-order diagram and adoption steps.
 """
 
 from .client import (
+    COMPANY_ID_PLACEHOLDER,
     BoundFeatureFlagClient,
     FeatureFlagClient,
     get_feature_flag_client,
@@ -41,6 +47,7 @@ from .schemas import FlagEvaluation
 from .settings import FeatureFlagSettings
 
 __all__ = [
+    "COMPANY_ID_PLACEHOLDER",
     "BoundFeatureFlagClient",
     "FeatureFlagClient",
     "FlagEvaluation",

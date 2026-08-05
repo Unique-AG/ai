@@ -1,7 +1,7 @@
 """Tests for code interpreter ShowExecutedCode postprocessor (config and behavior)."""
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -9,8 +9,27 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     ShowExecutedCodePostprocessor,
     ShowExecutedCodePostprocessorConfig,
 )
+from unique_toolkit.experimental.resources.feature_flags import COMPANY_ID_PLACEHOLDER
 
-CODE_DISPLAY_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display.feature_flags"
+CODE_DISPLAY_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display.is_flag_enabled"
+
+
+def _build_code_display_postprocessor(
+    config: ShowExecutedCodePostprocessorConfig,
+    company_id: str | None = None,
+    *,
+    is_flag_enabled_return: bool = True,
+) -> ShowExecutedCodePostprocessor:
+    """Build a postprocessor with `_is_enabled` pre-seeded, as `run()` would set it.
+
+    Production resolves the flag asynchronously in `run()` (always awaited by
+    `PostprocessorManager` before `apply_postprocessing_to_response`), so unit
+    tests exercising `apply_postprocessing_to_response` directly seed the
+    post-`run()` state instead of re-patching `is_flag_enabled` per call.
+    """
+    postprocessor = ShowExecutedCodePostprocessor(config=config, company_id=company_id)
+    postprocessor._is_enabled = is_flag_enabled_return
+    return postprocessor
 
 
 @pytest.mark.ai
@@ -42,7 +61,9 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__pre
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig()
-    postprocessor = ShowExecutedCodePostprocessor(config=config)
+    postprocessor = _build_code_display_postprocessor(
+        config=config, is_flag_enabled_return=True
+    )
     message = SimpleNamespace(text="Existing answer.")
     code_call = SimpleNamespace(code="print(1)")
     loop_response = SimpleNamespace(
@@ -73,7 +94,9 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__ret
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig()
-    postprocessor = ShowExecutedCodePostprocessor(config=config)
+    postprocessor = _build_code_display_postprocessor(
+        config=config, is_flag_enabled_return=True
+    )
     message = SimpleNamespace(text="Only text.")
     loop_response = SimpleNamespace(code_interpreter_calls=[], message=message)
 
@@ -97,7 +120,7 @@ async def test_show_executed_code_postprocessor__remove_from_text__strips_detail
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig(remove_from_history=True)
-    postprocessor = ShowExecutedCodePostprocessor(config=config)
+    postprocessor = _build_code_display_postprocessor(config=config)
     text = (
         "<details><summary>Code Interpreter Call</summary>\n\n```python\nx = 1\n```\n\n</details>\n\n"
         "Here is the answer."
@@ -124,7 +147,7 @@ async def test_show_executed_code_postprocessor__remove_from_text__leaves_text_u
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig(remove_from_history=False)
-    postprocessor = ShowExecutedCodePostprocessor(config=config)
+    postprocessor = _build_code_display_postprocessor(config=config)
     text = "<details><summary>Code Interpreter Call</summary></details>Keep this."
 
     # Act
@@ -146,13 +169,9 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__no_
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig()
-    mock_ff = MagicMock()
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
-
-    with patch(CODE_DISPLAY_FF, mock_ff):
-        postprocessor = ShowExecutedCodePostprocessor(
-            config=config, company_id="company-123"
-        )
+    postprocessor = _build_code_display_postprocessor(
+        config=config, company_id="company-123", is_flag_enabled_return=False
+    )
 
     message = SimpleNamespace(text="Existing answer.")
     code_call = SimpleNamespace(code="print(1)")
@@ -181,20 +200,45 @@ async def test_show_executed_code_postprocessor__run__no_op__when_fence_ff_on() 
     import asyncio
 
     config = ShowExecutedCodePostprocessorConfig()
-    mock_ff = MagicMock()
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
 
-    with patch(CODE_DISPLAY_FF, mock_ff):
+    with (
+        patch(CODE_DISPLAY_FF, AsyncMock(return_value=True)),
+        patch.object(asyncio, "sleep") as mock_sleep,
+    ):
         postprocessor = ShowExecutedCodePostprocessor(
             config=config, company_id="company-123"
         )
-
-    loop_response = SimpleNamespace(code_interpreter_calls=[])
-
-    with patch.object(asyncio, "sleep") as mock_sleep:
+        loop_response = SimpleNamespace(code_interpreter_calls=[])
         await postprocessor.run(loop_response)
 
     mock_sleep.assert_not_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_show_executed_code_postprocessor__run__uses_placeholder__when_no_company_id() -> (
+    None
+):
+    """
+    Purpose: Verify run() doesn't crash when constructed without a company_id, and
+    passes COMPANY_ID_PLACEHOLDER to is_flag_enabled instead of an empty string.
+    Why this matters: is_flag_enabled() raises on an empty company_id; the old
+    `self._company_id or ""` would crash the whole turn instead of resolving the flag.
+    Setup summary: Construct with company_id=None; assert run() completes and the FF
+    check was called with COMPANY_ID_PLACEHOLDER, not "".
+    """
+    config = ShowExecutedCodePostprocessorConfig()
+    mock_is_flag_enabled = AsyncMock(return_value=False)
+
+    with patch(CODE_DISPLAY_FF, mock_is_flag_enabled):
+        postprocessor = ShowExecutedCodePostprocessor(config=config, company_id=None)
+        loop_response = SimpleNamespace(code_interpreter_calls=[])
+        await postprocessor.run(loop_response)
+
+    mock_is_flag_enabled.assert_awaited_once()
+    _, kwargs = mock_is_flag_enabled.await_args
+    assert kwargs["company_id"] == COMPANY_ID_PLACEHOLDER
+    assert kwargs["company_id"] != ""
 
 
 @pytest.mark.ai
@@ -208,7 +252,9 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__no_
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig(enable=False)
-    postprocessor = ShowExecutedCodePostprocessor(config=config)
+    postprocessor = _build_code_display_postprocessor(
+        config=config, is_flag_enabled_return=False
+    )
     message = SimpleNamespace(text="Existing answer.")
     code_call = SimpleNamespace(code="print(1)")
     loop_response = SimpleNamespace(
@@ -240,7 +286,10 @@ async def test_show_executed_code_postprocessor__run__no_op__when_enable_false()
     postprocessor = ShowExecutedCodePostprocessor(config=config)
     loop_response = SimpleNamespace(code_interpreter_calls=[])
 
-    with patch.object(asyncio, "sleep") as mock_sleep:
+    with (
+        patch(CODE_DISPLAY_FF, AsyncMock(return_value=False)),
+        patch.object(asyncio, "sleep") as mock_sleep,
+    ):
         await postprocessor.run(loop_response)
 
     mock_sleep.assert_not_called()
@@ -257,13 +306,9 @@ def test_show_executed_code_postprocessor__disabled_when_enable_false_even_if_ff
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig(enable=False)
-    mock_ff = MagicMock()
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
-
-    with patch(CODE_DISPLAY_FF, mock_ff):
-        postprocessor = ShowExecutedCodePostprocessor(
-            config=config, company_id="company-123"
-        )
+    postprocessor = _build_code_display_postprocessor(
+        config=config, company_id="company-123", is_flag_enabled_return=False
+    )
 
     message = SimpleNamespace(text="Existing answer.")
     code_call = SimpleNamespace(code="print(1)")

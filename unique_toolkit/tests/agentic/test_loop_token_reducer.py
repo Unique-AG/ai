@@ -8,7 +8,7 @@ token reduction in agentic tool loops.
 import json
 from logging import Logger
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -108,6 +108,20 @@ def language_model_info() -> LanguageModelInfo:
     Why this matters: LoopTokenReducer requires language model info for token limits.
     """
     return LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+
+
+@pytest.fixture(autouse=True)
+def _default_selected_uploaded_files_ff_off():
+    """`get_history_from_db` now awaits the selected-uploaded-files flag lazily
+    (previously the coroutine was silently dropped — see UN-19522 bugbot fix).
+    Default it to disabled so tests that don't care about this flag don't need
+    live `CONFIGURATION_BACKEND_URL` / `FEATURE_FLAG_SERVICE_ID` env vars.
+    """
+    with patch(
+        "unique_toolkit.agentic.history_manager.utils.is_flag_enabled",
+        AsyncMock(return_value=False),
+    ):
+        yield
 
 
 @pytest.fixture
@@ -1552,20 +1566,24 @@ async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enab
 
 
 @pytest.mark.ai
-def test_get_selected_uploaded_content_ids_ff_disabled(test_event):
+@pytest.mark.asyncio
+async def test_get_selected_uploaded_content_ids_ff_disabled(test_event):
     """When the feature flag is disabled, should return None."""
     from unique_toolkit.agentic.history_manager.utils import (
         get_selected_uploaded_content_ids,
     )
 
-    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
-        ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
-        result = get_selected_uploaded_content_ids(test_event)
+    with patch(
+        "unique_toolkit.agentic.history_manager.utils.is_flag_enabled",
+        AsyncMock(return_value=False),
+    ):
+        result = await get_selected_uploaded_content_ids(test_event)
     assert result is None
 
 
 @pytest.mark.ai
-def test_get_selected_uploaded_content_ids_ff_enabled_with_selection(test_event):
+@pytest.mark.asyncio
+async def test_get_selected_uploaded_content_ids_ff_enabled_with_selection(test_event):
     """When FF is enabled and files are selected, should return the selected IDs."""
     from unique_toolkit.agentic.history_manager.utils import (
         get_selected_uploaded_content_ids,
@@ -1575,14 +1593,17 @@ def test_get_selected_uploaded_content_ids_ff_enabled_with_selection(test_event)
     additional.selected_uploaded_file_ids = ["file_1", "file_2"]
     test_event.payload.additional_parameters = additional
 
-    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
-        ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        result = get_selected_uploaded_content_ids(test_event)
+    with patch(
+        "unique_toolkit.agentic.history_manager.utils.is_flag_enabled",
+        AsyncMock(return_value=True),
+    ):
+        result = await get_selected_uploaded_content_ids(test_event)
     assert result == {"file_1", "file_2"}
 
 
 @pytest.mark.ai
-def test_get_selected_uploaded_content_ids_ff_enabled_no_additional_params(
+@pytest.mark.asyncio
+async def test_get_selected_uploaded_content_ids_ff_enabled_no_additional_params(
     test_event,
 ):
     """When FF is enabled but additional_parameters is None, should return None."""
@@ -1592,14 +1613,17 @@ def test_get_selected_uploaded_content_ids_ff_enabled_no_additional_params(
 
     test_event.payload.additional_parameters = None
 
-    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
-        ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        result = get_selected_uploaded_content_ids(test_event)
+    with patch(
+        "unique_toolkit.agentic.history_manager.utils.is_flag_enabled",
+        AsyncMock(return_value=True),
+    ):
+        result = await get_selected_uploaded_content_ids(test_event)
     assert result is None
 
 
 @pytest.mark.ai
-def test_get_selected_uploaded_content_ids_ff_enabled_empty_selection(test_event):
+@pytest.mark.asyncio
+async def test_get_selected_uploaded_content_ids_ff_enabled_empty_selection(test_event):
     """When FF is enabled but no files selected, should return empty set."""
     from unique_toolkit.agentic.history_manager.utils import (
         get_selected_uploaded_content_ids,
@@ -1609,7 +1633,9 @@ def test_get_selected_uploaded_content_ids_ff_enabled_empty_selection(test_event
     additional.selected_uploaded_file_ids = []
     test_event.payload.additional_parameters = additional
 
-    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
-        ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        result = get_selected_uploaded_content_ids(test_event)
+    with patch(
+        "unique_toolkit.agentic.history_manager.utils.is_flag_enabled",
+        AsyncMock(return_value=True),
+    ):
+        result = await get_selected_uploaded_content_ids(test_event)
     assert result == set()
