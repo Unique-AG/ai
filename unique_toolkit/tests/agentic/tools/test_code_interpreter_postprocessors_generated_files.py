@@ -3,7 +3,7 @@
 import logging
 import time
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -37,7 +37,10 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
 )
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.experimental.resources.feature_flags import COMPANY_ID_PLACEHOLDER
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
+
+GENERATED_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.is_flag_enabled"
 
 
 def _set_gen_files_feature_flags(
@@ -525,6 +528,43 @@ def _make_response(calls, annotations):
     response.code_interpreter_calls = calls
     response.container_files = annotations
     return response
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_display_files_postprocessor__run__uses_placeholder__when_no_company_id() -> (
+    None
+):
+    """
+    Purpose: Verify run() doesn't crash when constructed without a company_id, and
+    passes COMPANY_ID_PLACEHOLDER to is_flag_enabled instead of an empty string.
+    Why this matters: is_flag_enabled() raises on an empty company_id; the old
+    `self._company_id or ""` would crash the whole turn instead of resolving the flag.
+    Setup summary: Construct with company_id=None; assert run() completes and both FF
+    checks were called with COMPANY_ID_PLACEHOLDER, not "".
+    """
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    client = MagicMock()
+    client.with_options.return_value = client
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=client,
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id=None,
+        user_id=None,
+        chat_id=None,
+    )
+    mock_is_flag_enabled = AsyncMock(return_value=False)
+    response = _make_response([], [])
+
+    with patch(GENERATED_FILES_FF, mock_is_flag_enabled):
+        await proc.run(response)
+
+    assert mock_is_flag_enabled.await_count == 2
+    for _, kwargs in mock_is_flag_enabled.await_args_list:
+        assert kwargs["company_id"] == COMPANY_ID_PLACEHOLDER
+        assert kwargs["company_id"] != ""
 
 
 @pytest.mark.ai

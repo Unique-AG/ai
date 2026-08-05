@@ -9,6 +9,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     ShowExecutedCodePostprocessor,
     ShowExecutedCodePostprocessorConfig,
 )
+from unique_toolkit.experimental.resources.feature_flags import COMPANY_ID_PLACEHOLDER
 
 CODE_DISPLAY_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display.is_flag_enabled"
 
@@ -211,6 +212,33 @@ async def test_show_executed_code_postprocessor__run__no_op__when_fence_ff_on() 
         await postprocessor.run(loop_response)
 
     mock_sleep.assert_not_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_show_executed_code_postprocessor__run__uses_placeholder__when_no_company_id() -> (
+    None
+):
+    """
+    Purpose: Verify run() doesn't crash when constructed without a company_id, and
+    passes COMPANY_ID_PLACEHOLDER to is_flag_enabled instead of an empty string.
+    Why this matters: is_flag_enabled() raises on an empty company_id; the old
+    `self._company_id or ""` would crash the whole turn instead of resolving the flag.
+    Setup summary: Construct with company_id=None; assert run() completes and the FF
+    check was called with COMPANY_ID_PLACEHOLDER, not "".
+    """
+    config = ShowExecutedCodePostprocessorConfig()
+    mock_is_flag_enabled = AsyncMock(return_value=False)
+
+    with patch(CODE_DISPLAY_FF, mock_is_flag_enabled):
+        postprocessor = ShowExecutedCodePostprocessor(config=config, company_id=None)
+        loop_response = SimpleNamespace(code_interpreter_calls=[])
+        await postprocessor.run(loop_response)
+
+    mock_is_flag_enabled.assert_awaited_once()
+    _, kwargs = mock_is_flag_enabled.await_args
+    assert kwargs["company_id"] == COMPANY_ID_PLACEHOLDER
+    assert kwargs["company_id"] != ""
 
 
 @pytest.mark.ai
