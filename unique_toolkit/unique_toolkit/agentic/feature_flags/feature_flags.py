@@ -3,6 +3,7 @@ from typing import Any
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing_extensions import deprecated
 
 from unique_toolkit._common.config_checker import register_config
 
@@ -32,6 +33,9 @@ class FeatureFlagNames(StrEnum):
     enable_new_answers_ui_un_14411 = "FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411"
 
 
+@deprecated(
+    "Use unique_toolkit.experimental.resources.feature_flags.is_flag_enabled instead"
+)
 class FeatureFlag:
     """A feature flag that can be enabled globally or for specific company IDs.
 
@@ -71,6 +75,9 @@ class FeatureFlag:
         return f"FeatureFlag({self.value})"
 
 
+@deprecated(
+    "Use unique_toolkit.experimental.resources.feature_flags.is_flag_enabled instead"
+)
 @register_config()
 class FeatureFlags(BaseSettings):
     """Feature flags loaded from environment variables.
@@ -171,5 +178,7 @@ class FeatureFlags(BaseSettings):
         return FeatureFlag(False)
 
 
-# Initialize once at module load - import this where needed
-feature_flags = FeatureFlags()
+# Deprecated, unused elsewhere in this toolkit — kept only for external
+# backward compatibility. Use unique_toolkit.experimental.resources.feature_flags
+# .is_flag_enabled instead.
+feature_flags = FeatureFlags()  # pyright: ignore[reportDeprecated]

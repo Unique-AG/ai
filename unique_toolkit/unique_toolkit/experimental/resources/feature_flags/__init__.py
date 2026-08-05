@@ -37,6 +37,7 @@ See README.md for the full evaluation-order diagram and adoption steps.
 """
 
 from .client import (
+    COMPANY_ID_PLACEHOLDER,
     BoundFeatureFlagClient,
     FeatureFlagClient,
     get_feature_flag_client,
@@ -46,6 +47,7 @@ from .schemas import FlagEvaluation
 from .settings import FeatureFlagSettings
 
 __all__ = [
+    "COMPANY_ID_PLACEHOLDER",
     "BoundFeatureFlagClient",
     "FeatureFlagClient",
     "FlagEvaluation",

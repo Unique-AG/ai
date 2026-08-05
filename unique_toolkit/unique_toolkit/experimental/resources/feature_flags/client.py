@@ -7,7 +7,6 @@ from typing import ClassVar
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
-from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
 from unique_toolkit.app.unique_settings import AuthContextProtocol, UniqueSettings
 
 from ._graphql_client import evaluate_flag
@@ -178,15 +177,15 @@ class FeatureFlagClient:
 
     @staticmethod
     def _env_fallback(flag: str, company_id: str | None = None) -> bool:
-        """Read *flag* from env vars using the same semantics as ``FeatureFlag``.
-
-        Delegates parsing to ``FeatureFlags.parse_feature_flag`` (plain booleans
-        or comma-separated company-ID allowlists) so the two env-var fallback
-        paths — this client and ``unique_toolkit.agentic.feature_flags`` —
-        can't drift apart.
-        """
+        """Read *flag* from env vars: plain booleans or comma-separated company-ID allowlists."""
         raw = os.getenv(flag, "false")
-        return FeatureFlags.parse_feature_flag(raw).is_enabled(company_id)
+        raw_lower = raw.strip().lower()
+        if raw_lower in ("true", "1", "yes"):
+            return True
+        if raw_lower in ("false", "0", "no", ""):
+            return False
+        allowlist = [c.strip() for c in raw.split(",") if c.strip()]
+        return company_id in allowlist if company_id else False
 
 
 class BoundFeatureFlagClient:
@@ -208,6 +207,11 @@ class BoundFeatureFlagClient:
 
     async def is_enabled(self, flag: str) -> bool:
         return (await self.evaluate(flag)).value
+
+
+# For is_flag_enabled() callers with no real company_id. Not a real company:
+# bool-configured flags still resolve correctly; allowlist-configured ones safely read as off.
+COMPANY_ID_PLACEHOLDER = "company_id_placeholder"
 
 
 def get_feature_flag_client() -> FeatureFlagClient:
