@@ -15,9 +15,6 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
-from unique_toolkit.agentic.history_manager.utils import (
-    get_selected_uploaded_content_ids,
-)
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
@@ -122,6 +119,7 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        selected_uploaded_content_ids: frozenset[str] | None = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -147,6 +145,7 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        selected_uploaded_content_ids: frozenset[str] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -171,6 +170,7 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        selected_uploaded_content_ids: frozenset[str] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -202,7 +202,6 @@ class UniqueAI:
                 agent_file_registry if agent_file_registry is not None else []
             )
             file_cfg = self._config.agent.experimental.open_file_tool_config
-            selected_ids = get_selected_uploaded_content_ids(event)
             self._open_file_runtime = OpenFileToolRuntime(
                 logger=logger,
                 config=OpenFileToolRuntimeConfig(
@@ -213,9 +212,7 @@ class UniqueAI:
                         self._config.agent.experimental.responses_api_config.use_responses_api
                         or self._config.agent.experimental.use_responses_api
                     ),
-                    selected_content_ids=(
-                        frozenset(selected_ids) if selected_ids is not None else None
-                    ),
+                    selected_content_ids=selected_uploaded_content_ids,
                 ),
                 content_service=content_service,
                 tool_manager=tool_manager,
