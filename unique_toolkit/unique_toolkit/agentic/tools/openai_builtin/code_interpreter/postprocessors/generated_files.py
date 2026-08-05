@@ -39,7 +39,10 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
 )
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
+from unique_toolkit.experimental.resources.feature_flags import (
+    COMPANY_ID_PLACEHOLDER,
+    is_flag_enabled,
+)
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
@@ -390,8 +393,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         # Cleared at the start of each run(); holds this-turn download sizes.
         self._file_size_map: dict[str, int] = {}
 
-        # Resolved in `run()` (awaited by PostprocessorManager before
-        # `apply_postprocessing_to_response`) since flag evaluation is async.
+        # Resolved in run() (before apply_postprocessing_to_response) since flag evaluation is async.
         self._fence_ff_on = False
         self._html_fence_ff_on = False
 
@@ -417,14 +419,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         self._fence_ff_on = await is_flag_enabled(
             FeatureFlagNames.enable_code_execution_fence_un_17972,
-            company_id=self._company_id or "",
+            company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
         )
-        # HTML uses htmlWithSource only when BOTH the code-execution fence FF AND the
-        # dedicated HTML-fence FF are on. Default (FF off) keeps HtmlRendering so
-        # existing deployments are unaffected.
+        # htmlWithSource requires BOTH the fence FF and the HTML-fence FF on; default
+        # (FF off) keeps HtmlRendering, so existing deployments are unaffected.
         self._html_fence_ff_on = await is_flag_enabled(
             FeatureFlagNames.enable_html_with_fence_un_17927,
-            company_id=self._company_id or "",
+            company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
         )
 
         container_files = loop_response.container_files

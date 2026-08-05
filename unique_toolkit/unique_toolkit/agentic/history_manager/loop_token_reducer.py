@@ -110,10 +110,8 @@ class LoopTokenReducer:
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
         self._event = event
-        # Resolved lazily on first async use (`get_history_from_db`) since
-        # evaluating the underlying feature flag is async; `_resolved` tracks
-        # whether resolution has happened yet, distinct from a resolved `None`
-        # (flag off — include all uploaded content).
+        # Lazily resolved on first async use since the flag check is async;
+        # `_resolved` distinguishes "not yet checked" from a resolved `None` (flag off).
         self._selected_content_ids: set[str] | None = None
         self._selected_content_ids_resolved = False
 
