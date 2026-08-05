@@ -22,6 +22,9 @@ from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation im
     HallucinationEvaluation,
 )
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.history_manager.utils import (
+    get_selected_uploaded_content_ids,
+)
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -662,6 +665,12 @@ async def _build_responses(
         response_watcher=common_components.response_watcher,
     )
 
+    selected_uploaded_content_ids = (
+        await get_selected_uploaded_content_ids(event)
+        if config.agent.experimental.open_file_tool_config.enabled
+        else None
+    )
+
     return UniqueAI(
         event=event,
         config=config,
@@ -682,6 +691,11 @@ async def _build_responses(
         loop_iteration_runner=loop_iteration_runner,
         agent_file_registry=agent_file_registry,
         user_memory_text=common_components.user_memory_text,
+        selected_uploaded_content_ids=(
+            frozenset(selected_uploaded_content_ids)
+            if selected_uploaded_content_ids is not None
+            else None
+        ),
     )
 
 
