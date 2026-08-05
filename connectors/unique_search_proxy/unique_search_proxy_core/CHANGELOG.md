@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.28.4](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.28.3...unique-search-proxy-core-v2026.28.4) (2026-08-05)
+
+
+### Miscellaneous
+
+* **unique-search-proxy-core:** Synchronize ai versions
+
 ## [2026.28.3](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.28.2...unique-search-proxy-core-v2026.28.3) (2026-07-09)
 
 
