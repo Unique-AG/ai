@@ -181,4 +181,4 @@ class FeatureFlags(BaseSettings):
 # Deprecated, unused elsewhere in this toolkit — kept only for external
 # backward compatibility. Use unique_toolkit.experimental.resources.feature_flags
 # .is_flag_enabled instead.
-feature_flags = FeatureFlags()  # pyright: ignore[reportDeprecated]
+feature_flags = FeatureFlags()
