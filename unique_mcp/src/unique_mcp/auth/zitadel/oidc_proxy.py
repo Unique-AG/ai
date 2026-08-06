@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING, Any
 from fastmcp.server.auth.oidc_proxy import OIDCProxy
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from unique_mcp.auth.zitadel.scopes import ZITADEL_DEFAULT_MCP_SCOPES
+from unique_mcp.auth.zitadel.scopes import (
+    ZITADEL_DEFAULT_MCP_SCOPES,
+    ZITADEL_UPSTREAM_AUTHORIZE_SCOPES,
+)
 from unique_mcp.util.find_env_file import find_env_file
 
 if TYPE_CHECKING:
@@ -44,10 +47,13 @@ def create_zitadel_oidc_proxy(
             a new instance will be created from environment variables.
         client_storage: Storage backend for OAuth state.
         **kwargs: Forwarded directly to ``OIDCProxy``. Unless ``extra_authorize_params``
-            already sets ``scope``, the default Zitadel/MCP scope list is injected so
-            Zitadel never receives an empty scope on the authorize request.
-            Do NOT use ``required_scopes`` for this: Zitadel access tokens often omit
-            several requested scopes from the JWT, which would cause the JWT verifier
+            already sets ``scope``, upstream Zitadel scopes (openid/profile/email/…)
+            are injected so Zitadel never receives an empty or MCP-only scope list.
+            ``forward_resource`` defaults to ``False`` because Zitadel does not fully
+            support RFC 8707 ``resource`` and forwarding it can break the login UI
+            (``Could not find authrequest (CACHE-d24aD)``).
+            Do NOT use ``required_scopes`` for MCP capability scopes: Zitadel access
+            tokens often omit them from the JWT, which would cause the JWT verifier
             to reject every token (invalid_token loop).
 
     Returns:
@@ -59,12 +65,16 @@ def create_zitadel_oidc_proxy(
         kwargs.pop("extra_authorize_params", None) or {}
     )
     if "scope" not in extra_authorize_params:
-        extra_authorize_params["scope"] = " ".join(ZITADEL_DEFAULT_MCP_SCOPES)
+        extra_authorize_params["scope"] = " ".join(ZITADEL_UPSTREAM_AUTHORIZE_SCOPES)
 
     # Advertise / accept these scopes for DCR and /authorize. Do NOT pass them as
     # ``required_scopes`` to OIDCProxy: that wires them into the JWT verifier, and
     # Zitadel access tokens often omit scopes from the JWT → invalid_token loop.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
+
+    # Zitadel does not fully implement RFC 8707; forwarding ``resource`` has been
+    # observed to invalidate the auth request before the login UI loads.
+    kwargs.setdefault("forward_resource", False)
 
     proxy = OIDCProxy(
         config_url=settings.config_url,

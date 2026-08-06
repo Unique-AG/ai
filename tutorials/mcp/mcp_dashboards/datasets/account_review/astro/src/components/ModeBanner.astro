@@ -1,0 +1,30 @@
+---
+import type { DashboardMode, McpLiveConfig } from "../lib/mode";
+
+export interface Props {
+  mode: DashboardMode;
+  mcpLiveConfig: McpLiveConfig | null;
+}
+
+const { mode, mcpLiveConfig } = Astro.props;
+
+const labels: Record<Exclude<DashboardMode, "live">, string> = {
+  preview: "Preview",
+  "live-local": "Live local",
+};
+
+const title =
+  mode === "live-local" && mcpLiveConfig?.baseUrl
+    ? `Streamable HTTP to ${mcpLiveConfig.baseUrl}`
+    : mode === "preview"
+      ? "Mock data — local review only"
+      : undefined;
+---
+
+{
+  mode !== "live" && (
+    <div class:list={["mode-badge", mode]} title={title}>
+      {labels[mode]}
+    </div>
+  )
+}
