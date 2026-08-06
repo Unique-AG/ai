@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.32.0...unique-search-proxy-v2026.34.0) (2026-08-06)
+
+
+### Bug Fixes
+
+* **search-proxy:** pin uv in the container image ([#2186](https://github.com/Unique-AG/ai/issues/2186)) ([7d70692](https://github.com/Unique-AG/ai/commit/7d7069239655d364ff81b49ace574d655b7e9e6d))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.30.0...unique-search-proxy-v2026.32.0) (2026-07-31)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.32.0...uqadm-v2026.34.0) (2026-08-06)
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.30.0...uqadm-v2026.32.0) (2026-07-31)
 
 

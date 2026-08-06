@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.32.0...unique-toolkit-v2026.34.0) (2026-08-06)
+
+
+### Features
+
+* **toolkit:** add opt-in OpenTelemetry tracing ([#2182](https://github.com/Unique-AG/ai/issues/2182)) ([1af41b9](https://github.com/Unique-AG/ai/commit/1af41b99c925b72c822134f7fed679f7c7668c55))
+* **unique-toolkit:** adding grok 4.5 and gemini 3.6 flash to toolkit ([#2194](https://github.com/Unique-AG/ai/issues/2194)) ([b27e90f](https://github.com/Unique-AG/ai/commit/b27e90fb8592c75fffded2b2b6fc7de47ef515c6))
+* **unique-toolkit:** use remote FeatureFlagClient with FeatureFlags settings fallback ([#1970](https://github.com/Unique-AG/ai/issues/1970)) ([2ddf869](https://github.com/Unique-AG/ai/commit/2ddf869a2f42f108547d6a3088f7fe7e316333fa))
+
+
+### Bug Fixes
+
+* **agentic-table:** wait_for_artifacts must not pin on stale duplicate artifact records [UN-23742] ([#2192](https://github.com/Unique-AG/ai/issues/2192)) ([355c18d](https://github.com/Unique-AG/ai/commit/355c18d1523cf62707017607e9a6c8d3a569ee4f))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.30.0...unique-toolkit-v2026.32.0) (2026-07-31)
 
 
