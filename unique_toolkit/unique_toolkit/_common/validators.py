@@ -1,12 +1,16 @@
 import logging
+from collections.abc import Callable
 from typing import Annotated, Any
 
 from pydantic import BeforeValidator, Field, PlainSerializer, ValidationInfo
 from pydantic.fields import FieldInfo
 
-from unique_toolkit.language_model import LanguageModelName
+from unique_toolkit.language_model.enum_narrowing import (
+    build_language_model_enum_from_names,
+)
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
+    LanguageModelName,
     LanguageModelProvider,
 )
 
@@ -32,6 +36,45 @@ LMI = Annotated[
         return_type=str | LanguageModelInfo,
     ),
 ]
+
+
+def _build_restricted_lmi_validator(
+    allowed_model_names: set[str],
+) -> Callable[[Any], LanguageModelInfo]:
+    def _validate(v: Any) -> LanguageModelInfo:
+        info = validate_and_init_language_model_info(v)
+        if str(info.name) not in allowed_model_names:
+            raise ValueError(
+                f"Language model {info.name!r} is not available for this tenant."
+            )
+        return info
+
+    return _validate
+
+
+def build_lmi_annotation(available_models: list[str]) -> Any:
+    """
+    Return an Annotated LMI type whose json_schema_input_type is restricted
+    to `available_models`. Drop-in replacement for LMI in model_json_schema()
+    calls that need a tenant-scoped schema.
+    """
+    if not available_models:
+        return LMI
+
+    narrowed_enum = build_language_model_enum_from_names(available_models)
+    allowed_model_names = {member.value for member in narrowed_enum}
+    return Annotated[
+        LanguageModelInfo,
+        BeforeValidator(
+            _build_restricted_lmi_validator(allowed_model_names),
+            json_schema_input_type=narrowed_enum,
+        ),
+        PlainSerializer(
+            serialize_lmi,
+            when_used="json",
+            return_type=str | LanguageModelInfo,
+        ),
+    ]
 
 
 def get_LMI_default_field(llm_name: LanguageModelName, **kwargs) -> Any:
