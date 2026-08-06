@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 from fastmcp.server.providers import FileSystemProvider
+from key_value.aio.stores.memory import MemoryStore
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
@@ -24,6 +25,10 @@ def main() -> None:
     server_settings = ServerSettings()
 
     oidc_proxy = create_zitadel_oidc_proxy(
+        # In-memory: dev-only, loses every session on restart and doesn't work
+        # across replicas. Never deploy this tutorial multi-pod as-is — use a
+        # shared, encrypted-at-rest AsyncKeyValue backend for real deployments.
+        client_storage=MemoryStore(),
         mcp_server_base_url=server_settings.base_url.encoded_string(),
         zitadel_oidc_proxy_settings=ZitadelOIDCProxySettings(),  # type: ignore[call-arg]
         # Zitadel often issues opaque (non-JWT) access tokens even when the app
@@ -31,10 +36,11 @@ def main() -> None:
         # token-swap after /token succeeds; otherwise every /mcp call returns
         # invalid_token despite a successful login.
         verify_id_token=True,
+        # With verify_id_token=True, FastMCP applies required_scopes via
+        # update_default_scopes itself, so passing it here also advertises the
+        # scopes for DCR/authorize without a separate manual call.
+        required_scopes=list(ZITADEL_DEFAULT_MCP_SCOPES),
     )
-    # OIDCProxy does not advertise scopes by default; without this, DCR rejects
-    # openid/profile and clients fail authorize (invalid_scope → invalid_token).
-    oidc_proxy.update_default_scopes(list(ZITADEL_DEFAULT_MCP_SCOPES))
 
     tools_provider = FileSystemProvider(Path(__file__).parent / "tools")
 
@@ -50,7 +56,11 @@ def main() -> None:
     middleware = [
         Middleware(
             CORSMiddleware,
-            allow_credentials=True,
+            # MCP clients authenticate via the Authorization header, not cookies,
+            # so credentials aren't needed here. allow_credentials=True combined
+            # with a wildcard origin makes starlette reflect any Origin verbatim
+            # instead of "*" — a credentialed-CORS hole. Keep it False.
+            allow_credentials=False,
             allow_origins=["*"],
             allow_methods=["*"],
             allow_headers=["*"],

@@ -83,10 +83,12 @@ The OIDC proxy uses OpenID Connect discovery for automatic configuration:
 
 ```python
 from fastmcp import FastMCP
+from key_value.aio.stores.memory import MemoryStore
 from unique_mcp.auth.zitadel.oidc_proxy import create_zitadel_oidc_proxy
 
 mcp = FastMCP()
-mcp.auth = create_zitadel_oidc_proxy()
+# MemoryStore is dev-only: see "Production storage" below before deploying.
+mcp.auth = create_zitadel_oidc_proxy(client_storage=MemoryStore())
 mcp.run()
 ```
 
@@ -104,6 +106,37 @@ mcp.run()
 ```
 
 **Note:** By default, the MCP server runs on `http://localhost:8003`. You can customize this by passing `mcp_server_base_url` to the proxy creation function.
+
+## Production storage
+
+`create_zitadel_oidc_proxy()` requires a `client_storage` argument — there is no
+default. This is deliberate: FastMCP's own default is an encrypted on-disk store,
+which is fine for a single long-lived process but not for Kubernetes:
+
+- It's per-pod. Every replica gets its own store, so a session created against
+  pod A is invisible to pod B.
+- The store may not exist. A read-only root filesystem or an ephemeral container
+  image means the on-disk path is unwritable, which crashes the server on boot.
+- FastMCP's own access tokens are *reference* tokens — the JWT is opaque, and its
+  JTI is resolved against `client_storage` on every request. If the store is lost
+  (pod restart, rollout, scale-down) every logged-in user is instantly logged out,
+  not just new logins.
+
+For any deployment with more than one replica, or where pods restart routinely,
+pass a shared storage backend instead, for example a `PostgreSQLStore` wrapped in
+a `FernetEncryptionWrapper` for encryption at rest (this is what `kb-mcp` in the
+`connectors` repo uses). For local, single-process development where losing
+sessions on restart is fine, pass an explicit in-memory store:
+
+```python
+from key_value.aio.stores.memory import MemoryStore
+
+mcp.auth = create_zitadel_oidc_proxy(client_storage=MemoryStore())
+```
+
+Fail closed here rather than falling back to a default: a missing storage
+backend should be a decision made in code review, not a silent default that
+only surfaces as a production incident.
 
 ## Summary
 

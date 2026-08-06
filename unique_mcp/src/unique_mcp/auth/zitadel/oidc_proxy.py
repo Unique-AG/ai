@@ -31,18 +31,29 @@ class ZitadelOIDCProxySettings(BaseSettings):
 
 def create_zitadel_oidc_proxy(
     *,
+    client_storage: AsyncKeyValue,
     mcp_server_base_url: str = "http://localhost:8003",
     zitadel_oidc_proxy_settings: ZitadelOIDCProxySettings | None = None,
-    client_storage: AsyncKeyValue | None = None,
     **kwargs: Any,
 ) -> OIDCProxy:
     """Create a Zitadel OIDC proxy instance.
 
     Args:
+        client_storage: Storage backend for OAuth client/token state. Required:
+            FastMCP's own default is an on-disk store under the user's home
+            directory, which is a footgun in a container — it may not exist on a
+            read-only root filesystem (crash on boot), and even when writable it
+            is per-pod, so every restart loses the store that FastMCP's reference
+            tokens depend on for JTI lookup, logging out every user on every
+            restart/rollout. In a multi-replica or containerized deployment, pass
+            a shared backend (e.g. a database-backed ``AsyncKeyValue`` with
+            encryption at rest); see the "Production storage" section in
+            ``unique_mcp/docs/zitadel/README.md``. For local single-process dev
+            where losing sessions on restart is acceptable, pass an in-memory
+            store explicitly (e.g. ``key_value.aio.stores.memory.MemoryStore()``).
         mcp_server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
         zitadel_oidc_proxy_settings: Optional settings instance. If not provided,
             a new instance will be created from environment variables.
-        client_storage: Storage backend for OAuth state.
         **kwargs: Forwarded directly to ``OIDCProxy``. Unless ``extra_authorize_params``
             already sets ``scope``, the default Zitadel/MCP scope list is injected so
             Zitadel never receives an empty scope on the authorize request.
