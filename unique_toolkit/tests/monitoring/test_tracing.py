@@ -15,6 +15,8 @@ from unique_toolkit.monitoring import (
     TracingSettings,
     configure_tracing,
     inject_trace_headers,
+    instrument_fastapi_app,
+    instrument_requests,
 )
 
 
@@ -472,3 +474,138 @@ def test_configure_tracing__does_not_replace_an_existing_provider(
 
     assert configure_tracing() is True
     assert trace.get_tracer_provider() is provider
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_instrument_fastapi_app__raises_fastapi_install_hint__when_fastapi_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify a missing fastapi package is attributed to the fastapi extra, not otel.
+    Why this matters: opentelemetry-instrumentation-fastapi imports fastapi internally, so
+    its own ImportError would otherwise be misreported as a missing otel extra.
+    Setup summary: Block the fastapi import and assert the fastapi-specific install hint.
+    """
+    pytest.importorskip("fastapi")
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    original_import = builtins.__import__
+
+    def import_without_fastapi(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "fastapi":
+            raise ImportError("fastapi is unavailable")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_fastapi)
+
+    with pytest.raises(ImportError, match=r"unique_toolkit\[fastapi\]"):
+        instrument_fastapi_app(app)
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_instrument_fastapi_app__raises_otel_install_hint__when_otel_extra_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the FastAPI helper explains how to install its optional dependency.
+    Why this matters: An opaque ImportError would make onboarding a new service harder.
+    Setup summary: Block the fastapi instrumentation import and assert the install hint.
+    """
+    pytest.importorskip("fastapi")
+    from fastapi import FastAPI
+
+    original_import = builtins.__import__
+
+    def import_without_fastapi_instrumentation(
+        name, globals=None, locals=None, fromlist=(), level=0
+    ):
+        if name == "opentelemetry.instrumentation.fastapi":
+            raise ImportError("instrumentation package is unavailable")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_fastapi_instrumentation)
+
+    with pytest.raises(ImportError, match=r"unique_toolkit\[otel\]"):
+        instrument_fastapi_app(FastAPI())
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_instrument_fastapi_app__traces_inbound_requests() -> None:
+    """
+    Purpose: Verify an instrumented app produces a valid server span for inbound requests.
+    Why this matters: This is what joins assistants-core's spans to a caller's trace.
+    Setup summary: Instrument a FastAPI app, call it via TestClient, assert a recorded span.
+    """
+    pytest.importorskip("fastapi")
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+
+    app = FastAPI()
+
+    @app.get("/ping")
+    def ping() -> dict[str, bool]:
+        return {"ok": True}
+
+    instrument_fastapi_app(app, excluded_urls="/metrics")
+
+    response = TestClient(app).get("/ping")
+
+    assert response.status_code == 200
+    assert any(span.name.endswith("/ping") for span in exporter.get_finished_spans())
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_instrument_requests__raises_install_hint__when_otel_extra_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the requests helper explains how to install its optional dependency.
+    Why this matters: An opaque ImportError would make onboarding a new service harder.
+    Setup summary: Block the requests instrumentation import and assert the install hint.
+    """
+    original_import = builtins.__import__
+
+    def import_without_requests_instrumentation(
+        name, globals=None, locals=None, fromlist=(), level=0
+    ):
+        if name == "opentelemetry.instrumentation.requests":
+            raise ImportError("instrumentation package is unavailable")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_requests_instrumentation)
+
+    with pytest.raises(ImportError, match=r"unique_toolkit\[otel\]"):
+        instrument_requests()
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_instrument_requests__is_idempotent() -> None:
+    """
+    Purpose: Verify calling the requests helper twice does not raise.
+    Why this matters: Process startup paths may configure tracing more than once.
+    Setup summary: Instrument requests twice and assert no exception, then uninstrument.
+    """
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
+    instrument_requests()
+    try:
+        instrument_requests()
+        assert RequestsInstrumentor().is_instrumented_by_opentelemetry is True
+    finally:
+        RequestsInstrumentor().uninstrument()

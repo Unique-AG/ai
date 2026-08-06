@@ -10,6 +10,7 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
+    from fastapi import FastAPI
     from opentelemetry.trace.propagation.tracecontext import (
         TraceContextTextMapPropagator,
     )
@@ -24,6 +25,10 @@ ASGIApp: TypeAlias = Callable[[ASGIScope, ASGIReceive, ASGISend], Awaitable[None
 _OTEL_EXTRA_MESSAGE = (
     "OpenTelemetry tracing requires the unique_toolkit[otel] extra. "
     "Install it with: uv add 'unique-toolkit[otel]'"
+)
+_FASTAPI_EXTRA_MESSAGE = (
+    "FastAPI instrumentation requires the unique_toolkit[fastapi] extra. "
+    "Install it with: uv add 'unique-toolkit[fastapi]'"
 )
 
 
@@ -88,6 +93,11 @@ class TracingSettings(BaseSettings):
 def _missing_otel_extra() -> ImportError:
     """Create a consistent error for an unavailable optional tracing dependency."""
     return ImportError(_OTEL_EXTRA_MESSAGE)
+
+
+def _missing_fastapi_extra() -> ImportError:
+    """Create a consistent error for an unavailable optional FastAPI dependency."""
+    return ImportError(_FASTAPI_EXTRA_MESSAGE)
 
 
 def _trace_context_propagator() -> TraceContextTextMapPropagator:
@@ -199,3 +209,39 @@ def configure_tracing(
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(provider)
     return True
+
+
+def instrument_fastapi_app(app: FastAPI, *, excluded_urls: str | None = None) -> None:
+    """Trace inbound requests for an already-created FastAPI app instance.
+
+    Uses ``FastAPIInstrumentor.instrument_app`` rather than the global
+    ``FastAPIInstrumentor().instrument()``: the global form swaps out the
+    ``fastapi.FastAPI`` class, so it only takes effect for app objects created
+    afterward. Instrumenting the instance has no such ordering requirement.
+    """
+    try:
+        import fastapi  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    except ImportError as error:
+        # opentelemetry-instrumentation-fastapi imports fastapi internally, so without
+        # this explicit check its own ImportError would be misreported below as a
+        # missing otel extra when fastapi itself is what's actually missing.
+        raise _missing_fastapi_extra() from error
+
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    except ImportError as error:
+        raise _missing_otel_extra() from error
+    FastAPIInstrumentor.instrument_app(app, excluded_urls=excluded_urls)
+
+
+def instrument_requests() -> None:
+    """Trace outbound calls made with the ``requests`` library.
+
+    Patches ``requests`` at module level, so callers that already imported it
+    are still covered.
+    """
+    try:
+        from opentelemetry.instrumentation.requests import RequestsInstrumentor
+    except ImportError as error:
+        raise _missing_otel_extra() from error
+    RequestsInstrumentor().instrument()
