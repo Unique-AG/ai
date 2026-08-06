@@ -10,7 +10,7 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
-    from fastapi import FastAPI
+    from fastapi import FastAPI  # pyright: ignore[reportMissingImports]
     from opentelemetry.trace.propagation.tracecontext import (
         TraceContextTextMapPropagator,
     )
@@ -220,7 +220,7 @@ def instrument_fastapi_app(app: FastAPI, *, excluded_urls: str | None = None) ->
     afterward. Instrumenting the instance has no such ordering requirement.
     """
     try:
-        import fastapi  # noqa: F401  # pyright: ignore[reportUnusedImport]
+        import fastapi  # noqa: F401  # pyright: ignore[reportMissingImports, reportUnusedImport]
     except ImportError as error:
         # opentelemetry-instrumentation-fastapi imports fastapi internally, so without
         # this explicit check its own ImportError would be misreported below as a
