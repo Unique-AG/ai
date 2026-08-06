@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+from pathlib import Path
 
 import pytest
 from opentelemetry import trace
@@ -207,6 +208,27 @@ def test_tracing_settings__treats_empty_service_values_as_unset(
 
     assert settings.service_name is None
     assert settings.service_version == "node-version"
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_tracing_settings__reads_enable_opentelemetry__from_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Purpose: Verify ENABLE_OPENTELEMETRY is read from a .env file, not just os.environ.
+    Why this matters: pydantic-settings does not populate os.environ from .env, so a local
+    dev opt-in written only to .env would otherwise silently never enable tracing.
+    Setup summary: Write the flag to a temp .env, delete it from real os.environ, assert on.
+    """
+    monkeypatch.delenv("ENABLE_OPENTELEMETRY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("ENABLE_OPENTELEMETRY=true\n")
+
+    settings = TracingSettings(_env_file=str(env_file))
+
+    assert settings.enabled is True
+    assert settings.exporter is TraceExporter.OTLP
 
 
 @pytest.mark.ai
@@ -566,6 +588,86 @@ def test_instrument_fastapi_app__traces_inbound_requests() -> None:
 
     assert response.status_code == 200
     assert any(span.name.endswith("/ping") for span in exporter.get_finished_spans())
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_instrument_fastapi_app__excludes_urls_matching_excluded_urls() -> None:
+    """
+    Purpose: Verify excluded_urls actually suppresses spans for the matching route.
+    Why this matters: This is what keeps polled routes like /metrics out of every trace.
+    Setup summary: Instrument with excluded_urls, call both routes, assert only one traced.
+    """
+    pytest.importorskip("fastapi")
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+
+    app = FastAPI()
+
+    @app.get("/ping")
+    def ping() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.get("/metrics")
+    def metrics() -> dict[str, bool]:
+        return {"metrics": True}
+
+    instrument_fastapi_app(app, excluded_urls="/metrics")
+
+    client = TestClient(app)
+    client.get("/ping")
+    client.get("/metrics")
+
+    span_names = [span.name for span in exporter.get_finished_spans()]
+    assert any(name.endswith("/ping") for name in span_names)
+    assert not any(name.endswith("/metrics") for name in span_names)
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+def test_instrument_fastapi_app__is_idempotent() -> None:
+    """
+    Purpose: Verify calling the FastAPI helper twice on the same app does not raise.
+    Why this matters: Process startup paths may configure tracing more than once.
+    Setup summary: Instrument the same app twice and assert one span per request.
+    """
+    pytest.importorskip("fastapi")
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+
+    app = FastAPI()
+
+    @app.get("/ping")
+    def ping() -> dict[str, bool]:
+        return {"ok": True}
+
+    instrument_fastapi_app(app)
+    instrument_fastapi_app(app)
+
+    TestClient(app).get("/ping")
+
+    route_spans = [s for s in exporter.get_finished_spans() if s.name == "GET /ping"]
+    assert len(route_spans) == 1
 
 
 @pytest.mark.ai

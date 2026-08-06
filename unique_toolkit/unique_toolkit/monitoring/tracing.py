@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, ClassVar, Self, TypeAlias, cast
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from unique_toolkit.app.find_env_file import find_env_file
+
 if TYPE_CHECKING:
     from fastapi import FastAPI  # pyright: ignore[reportMissingImports]
     from opentelemetry.trace.propagation.tracecontext import (
@@ -47,6 +49,8 @@ class TracingSettings(BaseSettings):
         env_prefix="OTEL_",
         env_ignore_empty=True,
         extra="ignore",
+        env_file=find_env_file(".env", required=False),
+        env_file_encoding="utf-8",
     )
 
     traces_exporter: TraceExporter | None = None
@@ -175,9 +179,12 @@ def configure_tracing(
 
     try:
         from opentelemetry import trace
+        from opentelemetry.baggage.propagation import W3CBaggagePropagator
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
             OTLPSpanExporter,
         )
+        from opentelemetry.propagate import set_global_textmap
+        from opentelemetry.propagators.composite import CompositePropagator
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import (
@@ -186,6 +193,9 @@ def configure_tracing(
             SimpleSpanProcessor,
         )
         from opentelemetry.trace import ProxyTracerProvider
+        from opentelemetry.trace.propagation.tracecontext import (
+            TraceContextTextMapPropagator,
+        )
     except ImportError as error:
         raise _missing_otel_extra() from error
 
@@ -206,8 +216,20 @@ def configure_tracing(
     if exporter is TraceExporter.CONSOLE:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     else:
-        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+        # Sizing pinned to match the Node services' instrumentation.ts.
+        provider.add_span_processor(
+            BatchSpanProcessor(
+                OTLPSpanExporter(),
+                max_queue_size=2048,
+                max_export_batch_size=512,
+                schedule_delay_millis=5000,
+            )
+        )
     trace.set_tracer_provider(provider)
+    # Trace-context + baggage, the shared subset of the Node services' propagator.
+    set_global_textmap(
+        CompositePropagator([TraceContextTextMapPropagator(), W3CBaggagePropagator()])
+    )
     return True
 
 
