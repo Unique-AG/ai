@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.32.0...unique-mcp-v2026.34.0) (2026-08-06)
+
+
+### Features
+
+* **unique_mcp:** add platform logging and ops helpers ([#2179](https://github.com/Unique-AG/ai/issues/2179)) ([47e6349](https://github.com/Unique-AG/ai/commit/47e63499682f4e12dc24af30c1ac06b8b7b5d593))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.30.0...unique-mcp-v2026.32.0) (2026-07-31)
 
 
