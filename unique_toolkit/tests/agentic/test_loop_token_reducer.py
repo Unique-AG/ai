@@ -1093,12 +1093,13 @@ def test_limit_to_token_window__keeps_recent_messages_AI(
 
 
 @pytest.mark.ai
-def test_limit_to_token_window__returns_empty__when_first_message_exceeds_limit_AI(
+def test_limit_to_token_window__keeps_newest_turn__when_it_alone_exceeds_limit_AI(
     loop_token_reducer: LoopTokenReducer,
 ) -> None:
     """
-    Purpose: Verify _limit_to_token_window handles oversized single message.
-    Why this matters: Edge case where even one message exceeds limit.
+    Purpose: The newest turn is kept even when it alone exceeds the limit.
+    Why this matters: UN-23154 — the history must not collapse to nothing when
+    the newest turn is large; older turns are dropped instead.
     """
     # Arrange
     messages: list[LanguageModelMessage] = [
@@ -1109,7 +1110,7 @@ def test_limit_to_token_window__returns_empty__when_first_message_exceeds_limit_
     result = loop_token_reducer._limit_to_token_window(messages, token_limit=10)
 
     # Assert
-    assert len(result) == 0
+    assert result == messages
 
 
 @pytest.mark.ai
@@ -1546,63 +1547,50 @@ async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enab
     assert reducer.max_db_source_number == 5
 
 
-# UN-23154 regression
+def _big_tool_turn(question: str, tool_call_id: str) -> list[LanguageModelMessage]:
+    """A conversational turn whose persisted tool output is large plain text."""
+    return [
+        LanguageModelUserMessage(content=question),
+        LanguageModelAssistantMessage(
+            content=None,
+            tool_calls=[
+                LanguageModelFunctionCall(
+                    id=tool_call_id,
+                    function=LanguageModelFunction(name="InternalSearch", arguments={}),
+                )
+            ],
+        ),
+        LanguageModelToolMessage(
+            tool_call_id=tool_call_id,
+            name="InternalSearch",
+            content="HUGE RESULT " * 4000,  # ~48k chars, chunk-less plain text
+        ),
+        LanguageModelAssistantMessage(content="Here is the answer."),
+    ]
+
+
 @pytest.mark.ai
 @patch(
     "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls_async"
 )
-async def test_get_history_from_db__preserves_oldest_turn__when_recent_tool_outputs_are_huge_AI(
+async def test_get_history_from_db__drops_oldest_segments_without_shrinking__when_over_budget_AI(
     mock_get_history: "Mock",
     mock_logger: Logger,
     test_event: ChatEvent,
     mock_reference_manager: ReferenceManager,
     language_model_info: LanguageModelInfo,
 ) -> None:
-    """UN-23154: a tiny oldest turn must survive when recent turns carry huge
-    persisted tool outputs.
-
-    With tool-call persistence the DB history includes every prior turn's full
-    tool output. The only lever applied to that history today is dropping whole
-    turns (``_limit_to_token_window``), and the content-reduction levers
-    (source dropping / plain-text truncation) are applied only to the current
-    loop history. So a couple of huge recent tool turns exhaust the history
-    budget and the oldest — often tiny and semantically important — turn is
-    evicted wholesale instead of shrinking the large recent tool outputs. This
-    is the wholesale-clearing symptom in the ticket. The fix must shrink older
-    tool-response content before dropping whole turns so turn 1 survives.
+    """UN-23154: when the persisted history is over budget, drop whole oldest
+    segments and keep recent tool calls intact — never shrink tool outputs.
     """
-    # Arrange – turn 1 is tiny (the recall anchor); turns 2-4 carry huge
-    # chunk-less plain-text tool outputs.
+    # Arrange – turn 1 is tiny; turns 2-4 carry huge plain-text tool outputs.
     tiny_turn: list[LanguageModelMessage] = [
-        LanguageModelUserMessage(content="What EUR/USD rate did you report first?"),
-        LanguageModelAssistantMessage(content="EUR/USD was 1.1427."),
+        LanguageModelUserMessage(content="oldest question"),
+        LanguageModelAssistantMessage(content="oldest answer."),
     ]
-
-    def big_tool_turn(question: str, tool_call_id: str) -> list[LanguageModelMessage]:
-        return [
-            LanguageModelUserMessage(content=question),
-            LanguageModelAssistantMessage(
-                content=None,
-                tool_calls=[
-                    LanguageModelFunctionCall(
-                        id=tool_call_id,
-                        function=LanguageModelFunction(
-                            name="InternalSearch", arguments={}
-                        ),
-                    )
-                ],
-            ),
-            LanguageModelToolMessage(
-                tool_call_id=tool_call_id,
-                name="InternalSearch",
-                content="HUGE RESULT " * 4000,  # ~48k chars, chunk-less plain text
-            ),
-            LanguageModelAssistantMessage(content="Here is the answer."),
-        ]
-
-    turn2 = big_tool_turn("internal search 2", "tc2")
-    turn3 = big_tool_turn("internal search 3", "tc3")
-    turn4 = big_tool_turn("internal search 4", "tc4")
+    turn2 = _big_tool_turn("internal search 2", "tc2")
+    turn3 = _big_tool_turn("internal search 3", "tc3")
+    turn4 = _big_tool_turn("internal search 4", "tc4")
     full = tiny_turn + turn2 + turn3 + turn4
 
     reducer = LoopTokenReducer(
@@ -1617,13 +1605,9 @@ async def test_get_history_from_db__preserves_oldest_turn__when_recent_tool_outp
     def turn_tokens(turn: list[LanguageModelMessage]) -> int:
         return reducer._count_message_tokens(LanguageModelMessages(root=turn))
 
-    # Budget holds the two newest huge turns plus the tiny oldest turn, but not a
-    # third huge turn at full size. Greedy whole-turn dropping therefore keeps
-    # only turns 3 & 4 and evicts turns 1 & 2 — losing the anchor. If older tool
-    # outputs are shrunk instead, all four turns fit and turn 1 survives.
-    reducer._max_history_tokens = (
-        turn_tokens(tiny_turn) + turn_tokens(turn3) + turn_tokens(turn4) + 20
-    )
+    # Budget fits the two newest huge turns but not a third: whole segments are
+    # dropped oldest-first, so turns 1 & 2 go and turns 3 & 4 stay intact.
+    reducer._max_history_tokens = turn_tokens(turn3) + turn_tokens(turn4) + 20
 
     async def fake_history(**_kwargs: object):
         return (LanguageModelMessages(root=list(full)), 0, {})
@@ -1633,12 +1617,19 @@ async def test_get_history_from_db__preserves_oldest_turn__when_recent_tool_outp
     # Act
     result = await reducer.get_history_from_db()
 
-    # Assert – the oldest turn's user message must still be present.
+    # Assert
     result_text = " ".join(m.content for m in result if isinstance(m.content, str))
-    assert "What EUR/USD rate did you report first?" in result_text, (
-        "UN-23154: oldest turn was evicted wholesale instead of shrinking the "
-        "large recent tool outputs to make room."
-    )
+    # Oldest complete segments were dropped as whole units.
+    assert "oldest question" not in result_text
+    assert "internal search 2" not in result_text
+    # Recent segments were kept.
+    assert "internal search 3" in result_text
+    assert "internal search 4" in result_text
+    # Tool outputs of kept segments are intact — nothing was shrunk/truncated.
+    assert PLAIN_TEXT_TRUNCATION_MARKER not in result_text
+    kept_tool_messages = [m for m in result if isinstance(m, LanguageModelToolMessage)]
+    assert kept_tool_messages
+    assert all(m.content == "HUGE RESULT " * 4000 for m in kept_tool_messages)
 
 
 # ---------------------------------------------------------------------------
