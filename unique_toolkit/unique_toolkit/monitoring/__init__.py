@@ -4,6 +4,8 @@ from unique_toolkit.monitoring.tracing import (
     TracingSettings,
     configure_tracing,
     inject_trace_headers,
+    instrument_fastapi_app,
+    instrument_requests,
 )
 
 __all__ = [
@@ -12,6 +14,8 @@ __all__ = [
     "TracingSettings",
     "configure_tracing",
     "inject_trace_headers",
+    "instrument_fastapi_app",
+    "instrument_requests",
 ]
 
 _MONITORING_AVAILABLE = False
