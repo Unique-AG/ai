@@ -193,7 +193,8 @@ def get_unique_settings() -> UniqueSettings:
     .. deprecated:: kept for callers that cannot await; new code should use
        :func:`get_unique_settings_async`.
 
-    Priority: ``_meta`` auth → JWT claims → env ``UNIQUE_AUTH_*``.
+    Priority: JWT claims → ``_meta`` auth (unauthenticated requests only)
+    → env ``UNIQUE_AUTH_*``.
 
     This sync path does **not** call Zitadel ``/userinfo``. When a JWT omits
     the company claim, callers that must not fall back to a fixed service
@@ -203,17 +204,22 @@ def get_unique_settings() -> UniqueSettings:
 
     meta = get_request_meta()
 
-    if meta is not None:
-        if chat_context := _chat_from_meta(meta):
-            settings = settings.with_chat(chat_context)
-        if auth_context := _auth_from_meta(meta):
-            return settings.with_auth(auth_context)
+    # Chat context is not identity — safe to take from `_meta` either way.
+    if meta is not None and (chat_context := _chat_from_meta(meta)):
+        settings = settings.with_chat(chat_context)
 
-    # When `_meta` carries chat keys but no auth keys, we may have applied
-    # `with_chat` above and still need JWT/env auth here. `with_auth` keeps
-    # the already-bound chat context (see `UniqueSettings.with_auth`).
+    # `with_auth` keeps any chat context bound above (see UniqueSettings.with_auth).
     if auth_context := _fastmcp_access_token_to_auth_context():
         return settings.with_auth(auth_context)
+
+    # `_meta` identity is caller-supplied and NOT bound to the bearer token, so
+    # it is honoured only when the request carries no access token at all — i.e.
+    # a trusted platform-internal call. Consulting it for an authenticated
+    # request would let any client that can set `tools/call._meta` assert an
+    # arbitrary user_id/company_id and read another tenant's data.
+    if get_access_token() is None and meta is not None:
+        if auth_context := _auth_from_meta(meta):
+            return settings.with_auth(auth_context)
 
     return settings
 
@@ -221,7 +227,8 @@ def get_unique_settings() -> UniqueSettings:
 async def get_unique_settings_async() -> UniqueSettings:
     """Like :func:`get_unique_settings`, but try Zitadel userinfo before env.
 
-    Priority: ``_meta`` auth → JWT claims → Zitadel ``/userinfo`` → env.
+    Priority: JWT claims → Zitadel ``/userinfo`` → ``_meta`` auth
+    (unauthenticated requests only) → env.
 
     Use this in tools that must search/act as the **logged-in** user. When an
     access token is present but neither JWT nor userinfo yield both IDs, this
@@ -234,17 +241,25 @@ async def get_unique_settings_async() -> UniqueSettings:
 
     meta = get_request_meta()
 
-    if meta is not None:
-        if chat_context := _chat_from_meta(meta):
-            settings = settings.with_chat(chat_context)
-        if auth_context := _auth_from_meta(meta):
-            return settings.with_auth(auth_context)
+    # Chat context is not identity — safe to take from `_meta` either way.
+    if meta is not None and (chat_context := _chat_from_meta(meta)):
+        settings = settings.with_chat(chat_context)
 
     if auth_context := _fastmcp_access_token_to_auth_context():
         return settings.with_auth(auth_context)
 
     if auth_context := await _userinfo_to_auth_context():
         return settings.with_auth(auth_context)
+
+    # `_meta` identity is caller-supplied and NOT bound to the bearer token, so
+    # it is honoured only when the request carries no access token at all — i.e.
+    # a trusted platform-internal call. For an authenticated request we fall
+    # through to the raise below rather than trusting `_meta`; otherwise any
+    # client able to set `tools/call._meta` could assert an arbitrary
+    # user_id/company_id and read another tenant's data.
+    if get_access_token() is None and meta is not None:
+        if auth_context := _auth_from_meta(meta):
+            return settings.with_auth(auth_context)
 
     # Currently unreachable: with a real access token, get_unique_userinfo
     # (called above via _userinfo_to_auth_context) either returns a complete
