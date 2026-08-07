@@ -151,6 +151,13 @@ def test_create_zitadel_oauth_proxy__raises__when_client_storage_omitted() -> No
 
 
 @pytest.mark.ai
+def test_create_zitadel_oauth_proxy__raises__when_client_storage_is_none() -> None:
+    """Explicit None must not reach FastMCP's on-disk fallback."""
+    with pytest.raises(ValueError, match="client_storage must not be None"):
+        create_zitadel_oauth_proxy(client_storage=None)  # type: ignore[arg-type]
+
+
+@pytest.mark.ai
 def test_create_zitadel_oauth_proxy__forwards_client_storage__to_oauth_proxy() -> None:
     """
     Purpose: Verify the supplied client_storage reaches OAuthProxy.

@@ -49,6 +49,20 @@ def test_create_zitadel_oidc_proxy__raises__when_client_storage_omitted() -> Non
         create_zitadel_oidc_proxy()  # pyright: ignore[reportCallIssue]
 
 
+def test_create_zitadel_oidc_proxy__raises__when_client_storage_is_none() -> None:
+    """Explicit None must not reach FastMCP's on-disk fallback."""
+    with pytest.raises(ValueError, match="client_storage must not be None"):
+        create_zitadel_oidc_proxy(
+            client_storage=None,  # type: ignore[arg-type]
+            mcp_server_base_url="http://localhost:8003",
+            zitadel_oidc_proxy_settings=ZitadelOIDCProxySettings(
+                base_url="http://localhost:10116",
+                client_id="test_client",
+                client_secret="test_secret",
+            ),
+        )
+
+
 @pytest.mark.ai
 def test_create_zitadel_oidc_proxy__forwards_client_storage__to_oidc_proxy(
     sample_mcp_server_url: str,

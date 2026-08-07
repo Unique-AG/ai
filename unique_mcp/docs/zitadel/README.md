@@ -98,10 +98,11 @@ Alternatively, use the OAuth proxy for more explicit endpoint configuration:
 
 ```python
 from fastmcp import FastMCP
+from key_value.aio.stores.memory import MemoryStore
 from unique_mcp.auth.zitadel.oauth_proxy import create_zitadel_oauth_proxy
 
 mcp = FastMCP()
-mcp.auth = create_zitadel_oauth_proxy()
+mcp.auth = create_zitadel_oauth_proxy(client_storage=MemoryStore())
 mcp.run()
 ```
 
@@ -109,9 +110,10 @@ mcp.run()
 
 ## Production storage
 
-`create_zitadel_oidc_proxy()` requires a `client_storage` argument — there is no
-default. This is deliberate: FastMCP's own default is an encrypted on-disk store,
-which is fine for a single long-lived process but not for Kubernetes:
+Both `create_zitadel_oidc_proxy()` and `create_zitadel_oauth_proxy()` require a
+`client_storage` argument — there is no default. This is deliberate: FastMCP's
+own default is an encrypted on-disk store, which is fine for a single long-lived
+process but not for Kubernetes:
 
 - It's per-pod. Every replica gets its own store, so a session created against
   pod A is invisible to pod B.

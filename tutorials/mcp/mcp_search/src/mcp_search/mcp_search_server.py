@@ -13,7 +13,6 @@ from unique_mcp.auth.zitadel.oidc_proxy import (
     ZitadelOIDCProxySettings,
     create_zitadel_oidc_proxy,
 )
-from unique_mcp.auth.zitadel.scopes import ZITADEL_DEFAULT_MCP_SCOPES
 from unique_mcp.settings import ServerSettings
 
 
@@ -36,10 +35,14 @@ def main() -> None:
         # token-swap after /token succeeds; otherwise every /mcp call returns
         # invalid_token despite a successful login.
         verify_id_token=True,
-        # With verify_id_token=True, FastMCP applies required_scopes via
-        # update_default_scopes itself, so passing it here also advertises the
-        # scopes for DCR/authorize without a separate manual call.
-        required_scopes=list(ZITADEL_DEFAULT_MCP_SCOPES),
+        # Require only identity scopes Zitadel reliably grants. Custom mcp:*
+        # scopes must stay advertised (factory valid_scopes / authorize scope)
+        # but not required — RequireAuthMiddleware 403s on any missing grant.
+        required_scopes=[
+            "openid",
+            "profile",
+            "urn:zitadel:iam:user:resourceowner",
+        ],
     )
 
     tools_provider = FileSystemProvider(Path(__file__).parent / "tools")

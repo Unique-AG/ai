@@ -57,18 +57,29 @@ def create_zitadel_oidc_proxy(
         **kwargs: Forwarded directly to ``OIDCProxy``. Unless ``extra_authorize_params``
             already sets ``scope``, the default Zitadel/MCP scope list is injected so
             Zitadel never receives an empty scope on the authorize request.
-            With ``verify_id_token=False`` (the default), avoid passing
-            ``required_scopes``: it is wired into the JWT verifier, and Zitadel access
-            tokens often omit several requested scopes from the JWT, which would cause
-            the verifier to reject every token (invalid_token loop). With
-            ``verify_id_token=True``, FastMCP already excludes ``required_scopes`` from
-            the verifier and instead applies it via ``update_default_scopes`` (see
-            ``fastmcp/server/auth/oidc_proxy.py``), so passing ``required_scopes`` is
-            safe in that mode and the ``valid_scopes`` handling below is redundant.
+            Avoid putting custom scopes (``mcp:*``, ``email``, …) in
+            ``required_scopes``: Zitadel often omits unrecognised or non-granted
+            scopes from the token response. With ``verify_id_token=False`` (the
+            default) that wires them into the JWT verifier → ``invalid_token`` on
+            every request. With ``verify_id_token=True``, FastMCP withholds them
+            from the verifier but still sets ``OIDCProxy.required_scopes`` and
+            ``RequireAuthMiddleware`` enforces them against the upstream-granted
+            scope list → ``403 insufficient_scope`` instead. Advertise the full
+            list via ``valid_scopes`` / authorize ``scope``; require only identity
+            scopes Zitadel reliably grants (``openid``, ``profile``,
+            ``urn:zitadel:iam:user:resourceowner``).
 
     Returns:
         Configured OIDCProxy instance
     """
+    # Keyword-only + no default only blocks omission. Explicit None still reaches
+    # FastMCP's per-pod on-disk fallback — the footgun this argument exists to kill.
+    if client_storage is None:
+        raise ValueError(
+            "client_storage must not be None; pass an AsyncKeyValue backend "
+            "(e.g. MemoryStore() for local single-process dev)."
+        )
+
     settings = zitadel_oidc_proxy_settings or ZitadelOIDCProxySettings()  # type: ignore[call-arg]
 
     extra_authorize_params: dict[str, str] = dict(
@@ -77,12 +88,12 @@ def create_zitadel_oidc_proxy(
     if "scope" not in extra_authorize_params:
         extra_authorize_params["scope"] = " ".join(ZITADEL_DEFAULT_MCP_SCOPES)
 
-    # Advertise / accept these scopes for DCR and /authorize. With the default
-    # verify_id_token=False, do NOT pass them as ``required_scopes`` to OIDCProxy:
-    # that wires them into the JWT verifier, and Zitadel access tokens often omit
-    # scopes from the JWT → invalid_token loop. With verify_id_token=True, FastMCP
-    # itself calls update_default_scopes for required_scopes, making this manual
-    # call redundant in that mode (see fastmcp/server/auth/oidc_proxy.py).
+    # Advertise / accept these scopes for DCR and /authorize. Do NOT pass the
+    # full list as ``required_scopes``: Zitadel may omit custom scopes, and
+    # FastMCP enforces ``required_scopes`` either in the JWT verifier
+    # (verify_id_token=False → invalid_token) or via RequireAuthMiddleware
+    # (verify_id_token=True → insufficient_scope). Callers that need
+    # required_scopes should pass a short identity-only list explicitly.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
 
     proxy = OIDCProxy(

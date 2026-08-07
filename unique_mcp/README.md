@@ -67,6 +67,7 @@ Construct the MCP server yourself: `ServerSettings` + `ZitadelOAuthProxySettings
 ```python
 from fastmcp import FastMCP
 from fastmcp.dependencies import Depends
+from key_value.aio.stores.memory import MemoryStore
 
 from unique_mcp import get_unique_settings, get_unique_service_factory, get_unique_userinfo
 from unique_mcp.auth.zitadel.oauth_proxy import (
@@ -80,6 +81,7 @@ server_settings = ServerSettings()
 zitadel_settings = ZitadelOAuthProxySettings()
 
 oauth_proxy = create_zitadel_oauth_proxy(
+    client_storage=MemoryStore(),  # swap for shared durable store in prod
     mcp_server_base_url=server_settings.base_url.encoded_string(),
     zitadel_oauth_proxy_settings=zitadel_settings,
 )

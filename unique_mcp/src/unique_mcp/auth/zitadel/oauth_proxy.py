@@ -77,6 +77,12 @@ def create_zitadel_oauth_proxy(
     Returns:
         Configured OAuthProxy instance
     """
+    if client_storage is None:
+        raise ValueError(
+            "client_storage must not be None; pass an AsyncKeyValue backend "
+            "(e.g. MemoryStore() for local single-process dev)."
+        )
+
     settings = zitadel_oauth_proxy_settings or ZitadelOAuthProxySettings()
 
     token_verifier = JWTVerifier(
