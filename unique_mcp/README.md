@@ -16,11 +16,13 @@ You wire a normal `FastMCP` instance with the Zitadel OAuth proxy (`create_zitad
 
 | Priority     | Source                          | Fields                                         | When it wins                                  |
 | ------------ | ------------------------------- | ---------------------------------------------- | --------------------------------------------- |
-| 1 (highest)  | `_meta` keys in the MCP request | `unique.app/auth/user-id`, `unique.app/auth/company-id` | Trusted internal callers overriding identity  |
-| 2            | Zitadel JWT claims (server-side token swap) | `sub`, `urn:zitadel:iam:user:resourceowner:id` | Normal OAuth flow with fully-configured token |
-| 3 (fallback) | Environment-loaded settings     | `UniqueSettings.from_env_auto_with_sdk_init()` | No usable `_meta` or complete JWT claims      |
+| 1 (highest)  | Zitadel JWT claims (server-side token swap) | `sub`, `urn:zitadel:iam:user:resourceowner:id` | Normal OAuth flow with fully-configured token |
+| 2            | `_meta` keys in the MCP request | `unique.app/auth/user-id`, `unique.app/auth/company-id` | **Only when the request carries no access token** — trusted platform-internal callers |
+| 3 (fallback) | Environment-loaded settings     | `UniqueSettings.from_env_auto_with_sdk_init()` | No token and no usable `_meta`                |
 
 Both `user-id` and `company-id` must be present for priority 1 or 2 to apply. The sync helper does **not** call Zitadel `/userinfo` — incomplete JWTs fall through to env `UNIQUE_AUTH_*`.
+
+> **Why `_meta` ranks below the token:** `_meta` is caller-supplied and not bound to the bearer token. If it outranked the JWT, any client able to set `tools/call._meta` could assert an arbitrary `user_id`/`company_id` and read another tenant's data. It is therefore ignored entirely once an access token is present.
 
 **`get_unique_settings_async`** — same as above, but inserts Zitadel `/userinfo` **before** the env fallback. Prefer this in tools that must act as the **logged-in** user. If an access token is present but neither JWT nor userinfo yield both IDs, it **raises** instead of using the fixed service user.
 
@@ -28,17 +30,17 @@ Both `user-id` and `company-id` must be present for priority 1 or 2 to apply. Th
 
 ```mermaid
 flowchart TD
-    A([Tool call arrives]) --> B{_meta contains\nuser-id + company-id?}
-    B -- yes --> C[Use _meta identity]
-    B -- no --> D{Zitadel JWT has sub\n+ company claim?}
+    A([Tool call arrives]) --> D{Zitadel JWT has sub\n+ company claim?}
     D -- yes --> E[Use Zitadel JWT claims]
     D -- no --> H{Async resolver?\nget_unique_settings_async}
     H -- yes --> I{Zitadel /userinfo\nyields sub + company?}
     I -- yes --> J[Use userinfo identity]
     I -- no --> K{Access token present?}
     K -- yes --> L([Raise: refuse env fallback])
-    K -- no --> F[Use env-loaded UniqueSettings auth]
-    H -- no, sync --> F
+    K -- no --> B{_meta contains\nuser-id + company-id?}
+    B -- yes --> C[Use _meta identity]
+    B -- no --> F[Use env-loaded UniqueSettings auth]
+    H -- no, sync --> K
     C & E & J --> G[Build UniqueSettings → tool executes]
     F --> G
 ```
@@ -108,8 +110,8 @@ if __name__ == "__main__":
 
 | Name                         | Role                                                                 |
 | ---------------------------- | -------------------------------------------------------------------- |
-| `get_unique_settings`        | Sync dependency: `_meta` → JWT → env auth                            |
-| `get_unique_settings_async`  | Async: `_meta` → JWT → userinfo → env; refuses env when logged in    |
+| `get_unique_settings`        | Sync dependency: JWT → `_meta` (no token only) → env auth             |
+| `get_unique_settings_async`  | Async: JWT → userinfo → `_meta` (no token only); refuses env when logged in |
 | `get_unique_service_factory` | Sync dependency: `UniqueServiceFactory` from resolved settings       |
 | `get_unique_userinfo`        | Async: Zitadel userinfo → `UniqueUserInfo` (requires access token)   |
 
@@ -175,11 +177,11 @@ sequenceDiagram
     MCP-->>Client: tool result
 ```
 
-### 3 — Trusted internal caller with `_meta` override
+### 3 — Platform-internal caller supplying identity via `_meta`
 
-An internal service calls the tool on behalf of a known user by passing identity directly in the MCP `_meta` field. This takes highest priority — but **only works if both `unique.app/auth/user-id` and `unique.app/auth/company-id` are present**. If either is missing, the provider falls through to JWT/env resolution, which will use env auth if the JWT is also incomplete.
+An internal service calls the tool on behalf of a known user by passing identity directly in the MCP `_meta` field. Both `unique.app/auth/user-id` and `unique.app/auth/company-id` must be present; if either is missing the provider falls through to env resolution.
 
-> **Security:** The server takes `_meta` values as-is without further validation. Only use this from callers you fully trust — never expose it to external users.
+> **Security:** `_meta` values are taken as-is, with no validation and no binding to the bearer token. They are therefore honoured **only when the request carries no access token**. Sending `_meta` identity alongside a Bearer token has no effect — the token wins, and on the async resolver an unresolvable token raises rather than falling back. Use `_meta` only from callers you fully trust, and never expose it to external users.
 
 ```json
 {
@@ -200,10 +202,10 @@ sequenceDiagram
     participant InternalSvc as Internal Service
     participant MCP as MCP Server
 
-    InternalSvc->>MCP: tools/call + Bearer <token> + _meta
-    MCP->>MCP: verify Bearer token (transport-level auth)
+    InternalSvc->>MCP: tools/call + _meta (no Authorization header)
+    MCP->>MCP: no access token → _meta identity is eligible
     alt _meta has both user-id + company-id
-        MCP->>MCP: build UniqueSettings from _meta (skip JWT/env for auth)
+        MCP->>MCP: build UniqueSettings from _meta
         MCP->>MCP: call Unique API with provided identity
         alt identity is valid
             MCP-->>InternalSvc: tool result
@@ -211,7 +213,7 @@ sequenceDiagram
             MCP-->>InternalSvc: error (API rejects identity)
         end
     else _meta incomplete or absent
-        MCP->>MCP: fall through to JWT claims / env
+        MCP->>MCP: fall through to env auth
         MCP-->>InternalSvc: result or misconfiguration
     end
 ```

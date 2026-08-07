@@ -619,22 +619,50 @@ def test_get_unique_service_factory__builds_factory_with_resolved_settings(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_get_unique_settings_async__uses_meta__before_jwt_and_userinfo(
+async def test_get_unique_settings_async__uses_meta__when_no_access_token(
     base_settings: UniqueSettings,
 ) -> None:
     """
-    Purpose: Async resolver honors trusted _meta identity first.
-    Why this matters: Unique AI passes identity via _meta; it must win.
-    Setup summary: meta carries canonical user/company keys; expect them back.
+    Purpose: Async resolver honors _meta identity on unauthenticated requests.
+    Why this matters: Unique AI passes identity via _meta when no OIDC token is
+    involved; tightening the authenticated path must not break that.
+    Setup summary: no access token, meta carries canonical user/company keys.
     """
     meta = {MetaKeys.USER_ID: "meta-user", MetaKeys.COMPANY_ID: "meta-company"}
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
         patch(f"{_MOD}.get_request_meta", return_value=meta),
+        patch(f"{_MOD}.get_access_token", return_value=None),
     ):
         s = await get_unique_settings_async()
     assert s.authcontext.get_confidential_user_id() == "meta-user"
     assert s.authcontext.get_confidential_company_id() == "meta-company"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__ignores_meta__when_access_token_present(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: `_meta` identity is ignored on an authenticated request, even when
+    neither JWT claims nor userinfo resolve.
+    Why this matters: `_meta` is unbound to the bearer token, so honouring it for
+    a token holder would let any client assert an arbitrary tenant. The resolver
+    must raise rather than fall through to `_meta` or to UNIQUE_AUTH_*.
+    Setup summary: token present, JWT and userinfo both yield nothing, meta
+    carries identity — expect a refusal.
+    """
+    meta = {MetaKeys.USER_ID: "meta-user", MetaKeys.COMPANY_ID: "meta-company"}
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=meta),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(f"{_MOD}._userinfo_to_auth_context", return_value=None),
+        patch(f"{_MOD}.get_access_token", return_value=object()),
+        pytest.raises(ValueError, match="Refusing UNIQUE_AUTH_"),
+    ):
+        await get_unique_settings_async()
 
 
 @pytest.mark.ai
