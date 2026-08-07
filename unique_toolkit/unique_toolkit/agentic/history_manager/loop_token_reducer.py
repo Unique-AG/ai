@@ -447,8 +447,7 @@ class LoopTokenReducer:
                 self._count_message_tokens(LanguageModelMessages(root=[msg]))
                 for msg in turn
             )
-            # Keep the newest turn even if it alone exceeds the limit (UN-23154).
-            if selected_turns and token_count + turn_tokens > token_limit:
+            if token_count + turn_tokens > token_limit:
                 break
             selected_turns.append(turn)
             token_count += turn_tokens

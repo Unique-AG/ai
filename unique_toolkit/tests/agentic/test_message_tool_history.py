@@ -793,21 +793,19 @@ class TestCompactMessageTools:
         assert result[0].response.content == content
 
     @pytest.mark.ai
-    def test_no_citations_returns_records_unchanged(self):
+    def test_no_citations_removes_structured_sources(self):
         """
-        Purpose: An assistant text with no [sourceN] patterns leaves all records
-            untouched.
-        Why this matters: If the assistant chose not to cite any source the tool
-            results should be preserved for potential future turns.
-        Setup summary: Three sources, assistant text with no [source…] tokens
-            → response content unchanged.
+        Purpose: Structured sources are removed when the assistant cites none.
+        Why this matters: Persisting every retrieved chunk can make the next
+            request drop its complete conversation history.
+        Setup summary: Three sources and no citations produce an empty source list.
         """
         content = self._make_sources([0, 1, 2])
         records = [self._make_record(content)]
         result = HistoryManager.compact_message_tools(
             records=records, assistant_text="No sources used here."
         )
-        assert result[0].response.content == content
+        assert json.loads(result[0].response.content) == []
 
     @pytest.mark.ai
     def test_strips_uncited_sources(self):
@@ -847,17 +845,16 @@ class TestCompactMessageTools:
         assert len(parsed) == 2
 
     @pytest.mark.ai
-    def test_non_json_content_left_unchanged(self):
+    def test_no_citations_keeps_non_source_content(self):
         """
-        Purpose: A response whose content is not valid JSON is left unchanged
-            rather than crashing or being cleared.
-        Why this matters: Legacy or non-search tools may return plain text;
-            compaction must degrade gracefully for them.
-        Setup summary: response content = "plain text result" → content unchanged.
+        Purpose: Zero-citation compaction does not alter non-source content.
+        Why this matters: MCP and custom tools can return plain text that must
+            not be mistaken for structured search sources.
+        Setup summary: A plain-text result and no citations remain unchanged.
         """
         records = [self._make_record("plain text result")]
         result = HistoryManager.compact_message_tools(
-            records=records, assistant_text="Used [source0] here."
+            records=records, assistant_text="No sources used here."
         )
         assert result[0].response.content == "plain text result"
 

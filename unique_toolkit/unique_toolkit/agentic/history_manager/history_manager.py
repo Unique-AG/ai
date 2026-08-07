@@ -348,8 +348,6 @@ class HistoryManager:
             int(m)
             for m in re.findall(r"\[source(\d+)\]", assistant_text, re.IGNORECASE)
         }
-        if not cited:
-            return records
 
         return [
             record.model_copy(
