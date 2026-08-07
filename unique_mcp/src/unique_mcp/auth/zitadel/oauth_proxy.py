@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
@@ -49,7 +51,7 @@ class ZitadelOAuthProxySettings(BaseSettings):
 
 def create_zitadel_oauth_proxy(
     *,
-    client_storage: "AsyncKeyValue",
+    client_storage: AsyncKeyValue,
     mcp_server_base_url: str = "http://localhost:8003",
     zitadel_oauth_proxy_settings: ZitadelOAuthProxySettings | None = None,
     **kwargs: Any,

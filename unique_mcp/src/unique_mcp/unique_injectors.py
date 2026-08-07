@@ -244,8 +244,10 @@ async def get_unique_settings_async() -> UniqueSettings:
     if auth_context := await _userinfo_to_auth_context():
         return settings.with_auth(auth_context)
 
+    access_token = get_access_token()
+
     # `_meta` identity is unbound to the token: trust it only without one.
-    if get_access_token() is None and meta is not None:
+    if access_token is None and meta is not None:
         if auth_context := _auth_from_meta(meta):
             return settings.with_auth(auth_context)
 
@@ -257,7 +259,7 @@ async def get_unique_settings_async() -> UniqueSettings:
     # swallows lookup failures and returns None instead of raising (e.g. an
     # env-var-only / no-OIDC-proxy MCP deployment); without it, that case
     # would silently fall through to the UNIQUE_AUTH_* return below.
-    if get_access_token() is not None:
+    if access_token is not None:
         raise ValueError(
             "Authenticated session could not be resolved to user_id and "
             "company_id (JWT claims incomplete and userinfo unavailable). "
