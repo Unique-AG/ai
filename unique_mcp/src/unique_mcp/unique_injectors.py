@@ -196,9 +196,10 @@ def get_unique_settings() -> UniqueSettings:
     Priority: JWT claims → ``_meta`` auth (unauthenticated requests only)
     → env ``UNIQUE_AUTH_*``.
 
-    This sync path does **not** call Zitadel ``/userinfo``. When a JWT omits
-    the company claim, callers that must not fall back to a fixed service
-    user should use :func:`get_unique_settings_async` instead.
+    No ``/userinfo`` lookup here, and ``_meta`` is skipped once a token is
+    present — so an authenticated request whose JWT lacks the company claim
+    silently falls through to the ``UNIQUE_AUTH_*`` service user. Use
+    :func:`get_unique_settings_async`, which raises instead.
     """
     settings = _base_settings()
 
