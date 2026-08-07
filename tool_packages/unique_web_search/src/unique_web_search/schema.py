@@ -53,6 +53,12 @@ class WebSearchDebugInfo(BaseModel):
     web_page_chunks: list[WebPageChunk] = []
     execution_time: float | None = None
     num_chunks_in_final_prompts: int = 0
+    elicitation_approval: bool | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    elicitation_prompt_change: bool | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     def model_dump(self, *, with_debug_details: bool = True, **kwargs):
         """

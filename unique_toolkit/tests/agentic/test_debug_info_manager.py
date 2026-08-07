@@ -877,6 +877,8 @@ class TestAddAnalytics:
                     "is_forced": False,
                     "is_exclusive": True,
                     "loop_iteration": 1,
+                    "elicitation_approval": True,
+                    "elicitation_prompt_change": False,
                 },
             },
         ]
@@ -903,6 +905,8 @@ class TestAddAnalytics:
                 "is_exclusive": True,
                 "is_mcp": True,
                 "loop_iteration": 1,
+                "elicitation_approval": True,
+                "elicitation_prompt_change": False,
             },
         ]
         assert debug_info_manager.get()["analytics"]["subagent_names_used"] == [

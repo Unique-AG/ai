@@ -281,6 +281,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             chat_service=self._chat_service,
             display_name=self.display_name(),
             config=self.config.query_elicitation_config,
+            debug_info=debug_info,
         )
 
         services = ExecutorServiceContext(
