@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from key_value.aio.stores.memory import MemoryStore
 
 from unique_mcp.auth.zitadel.oauth_proxy import (
     ZitadelOAuthProxySettings,
@@ -79,7 +80,8 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
         ) as mock_jwt_verifier:
             with patch("unique_mcp.auth.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
                 proxy = create_zitadel_oauth_proxy(
-                    mcp_server_base_url=sample_mcp_server_url
+                    client_storage=MemoryStore(),
+                    mcp_server_base_url=sample_mcp_server_url,
                 )
 
                 # Assert
@@ -125,8 +127,52 @@ def test_create_zitadel_oauth_proxy__uses_default_server_url__when_not_provided(
     with patch("unique_mcp.auth.zitadel.oauth_proxy.ZitadelOAuthProxySettings"):
         with patch("unique_mcp.auth.zitadel.oauth_proxy.JWTVerifier"):
             with patch("unique_mcp.auth.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
-                create_zitadel_oauth_proxy()
+                create_zitadel_oauth_proxy(client_storage=MemoryStore())
 
                 # Assert
                 call_args = mock_oauth.call_args
                 assert call_args.kwargs["base_url"] == "http://localhost:8003"
+
+
+@pytest.mark.ai
+def test_create_zitadel_oauth_proxy__raises__when_client_storage_omitted() -> None:
+    """
+    Purpose: Verify client_storage is a required argument.
+    Why this matters: FastMCP's default is a per-pod on-disk store. In a container
+    that path may not exist on a read-only root filesystem (crash on boot), and
+    when it does exist it is ephemeral — losing it invalidates every live session,
+    because FastMCP access tokens are reference tokens resolved via a JTI lookup in
+    that store. Callers must choose a backend deliberately rather than inherit one.
+    Setup summary: Call the factory with no client_storage, expect TypeError.
+    """
+    # Arrange & Act & Assert
+    with pytest.raises(TypeError, match="client_storage"):
+        create_zitadel_oauth_proxy()  # pyright: ignore[reportCallIssue]
+
+
+@pytest.mark.ai
+def test_create_zitadel_oauth_proxy__raises__when_client_storage_is_none() -> None:
+    """Explicit None must not reach FastMCP's on-disk fallback."""
+    with pytest.raises(ValueError, match="client_storage must not be None"):
+        create_zitadel_oauth_proxy(client_storage=None)  # type: ignore[arg-type]
+
+
+@pytest.mark.ai
+def test_create_zitadel_oauth_proxy__forwards_client_storage__to_oauth_proxy() -> None:
+    """
+    Purpose: Verify the supplied client_storage reaches OAuthProxy.
+    Why this matters: A storage backend that is accepted but silently dropped would
+    reintroduce the ephemeral-store failure this argument exists to prevent.
+    Setup summary: Pass a known store, assert it is forwarded verbatim.
+    """
+    # Arrange
+    storage = MemoryStore()
+
+    # Act
+    with patch("unique_mcp.auth.zitadel.oauth_proxy.ZitadelOAuthProxySettings"):
+        with patch("unique_mcp.auth.zitadel.oauth_proxy.JWTVerifier"):
+            with patch("unique_mcp.auth.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
+                create_zitadel_oauth_proxy(client_storage=storage)
+
+    # Assert
+    assert mock_oauth.call_args.kwargs["client_storage"] is storage

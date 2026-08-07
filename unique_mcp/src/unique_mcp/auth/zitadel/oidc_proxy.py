@@ -31,28 +31,38 @@ class ZitadelOIDCProxySettings(BaseSettings):
 
 def create_zitadel_oidc_proxy(
     *,
+    client_storage: AsyncKeyValue,
     mcp_server_base_url: str = "http://localhost:8003",
     zitadel_oidc_proxy_settings: ZitadelOIDCProxySettings | None = None,
-    client_storage: AsyncKeyValue | None = None,
     **kwargs: Any,
 ) -> OIDCProxy:
     """Create a Zitadel OIDC proxy instance.
 
     Args:
+        client_storage: OAuth client/token state. Required — FastMCP's default is
+            a per-pod on-disk store, which drops every session on restart and
+            breaks across replicas. See "Production storage" in
+            ``unique_mcp/docs/zitadel/README.md``; ``MemoryStore()`` for local dev.
         mcp_server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
         zitadel_oidc_proxy_settings: Optional settings instance. If not provided,
             a new instance will be created from environment variables.
-        client_storage: Storage backend for OAuth state.
         **kwargs: Forwarded directly to ``OIDCProxy``. Unless ``extra_authorize_params``
             already sets ``scope``, the default Zitadel/MCP scope list is injected so
             Zitadel never receives an empty scope on the authorize request.
-            Do NOT use ``required_scopes`` for this: Zitadel access tokens often omit
-            several requested scopes from the JWT, which would cause the JWT verifier
-            to reject every token (invalid_token loop).
+            Keep ``required_scopes`` to identity scopes only — Zitadel drops custom
+            ``mcp:*`` scopes, and FastMCP rejects any that are missing
+            (``invalid_token``, or ``insufficient_scope`` under ``verify_id_token``).
 
     Returns:
         Configured OIDCProxy instance
     """
+    # No default blocks omission, not an explicit None.
+    if client_storage is None:
+        raise ValueError(
+            "client_storage must not be None; pass an AsyncKeyValue backend "
+            "(e.g. MemoryStore() for local single-process dev)."
+        )
+
     settings = zitadel_oidc_proxy_settings or ZitadelOIDCProxySettings()  # type: ignore[call-arg]
 
     extra_authorize_params: dict[str, str] = dict(
@@ -61,9 +71,7 @@ def create_zitadel_oidc_proxy(
     if "scope" not in extra_authorize_params:
         extra_authorize_params["scope"] = " ".join(ZITADEL_DEFAULT_MCP_SCOPES)
 
-    # Advertise / accept these scopes for DCR and /authorize. Do NOT pass them as
-    # ``required_scopes`` to OIDCProxy: that wires them into the JWT verifier, and
-    # Zitadel access tokens often omit scopes from the JWT → invalid_token loop.
+    # Advertised for DCR and /authorize only — see required_scopes in the docstring.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
 
     proxy = OIDCProxy(

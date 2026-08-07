@@ -193,27 +193,28 @@ def get_unique_settings() -> UniqueSettings:
     .. deprecated:: kept for callers that cannot await; new code should use
        :func:`get_unique_settings_async`.
 
-    Priority: ``_meta`` auth → JWT claims → env ``UNIQUE_AUTH_*``.
+    Priority: JWT claims → ``_meta`` auth (unauthenticated requests only)
+    → env ``UNIQUE_AUTH_*``.
 
-    This sync path does **not** call Zitadel ``/userinfo``. When a JWT omits
-    the company claim, callers that must not fall back to a fixed service
-    user should use :func:`get_unique_settings_async` instead.
+    No ``/userinfo`` lookup here, and ``_meta`` is skipped once a token is
+    present — so an authenticated request whose JWT lacks the company claim
+    silently falls through to the ``UNIQUE_AUTH_*`` service user. Use
+    :func:`get_unique_settings_async`, which raises instead.
     """
     settings = _base_settings()
 
     meta = get_request_meta()
 
-    if meta is not None:
-        if chat_context := _chat_from_meta(meta):
-            settings = settings.with_chat(chat_context)
-        if auth_context := _auth_from_meta(meta):
-            return settings.with_auth(auth_context)
+    if meta is not None and (chat_context := _chat_from_meta(meta)):
+        settings = settings.with_chat(chat_context)
 
-    # When `_meta` carries chat keys but no auth keys, we may have applied
-    # `with_chat` above and still need JWT/env auth here. `with_auth` keeps
-    # the already-bound chat context (see `UniqueSettings.with_auth`).
     if auth_context := _fastmcp_access_token_to_auth_context():
         return settings.with_auth(auth_context)
+
+    # `_meta` identity is unbound to the token: trust it only without one.
+    if get_access_token() is None and meta is not None:
+        if auth_context := _auth_from_meta(meta):
+            return settings.with_auth(auth_context)
 
     return settings
 
@@ -221,7 +222,8 @@ def get_unique_settings() -> UniqueSettings:
 async def get_unique_settings_async() -> UniqueSettings:
     """Like :func:`get_unique_settings`, but try Zitadel userinfo before env.
 
-    Priority: ``_meta`` auth → JWT claims → Zitadel ``/userinfo`` → env.
+    Priority: JWT claims → Zitadel ``/userinfo`` → ``_meta`` auth
+    (unauthenticated requests only) → env.
 
     Use this in tools that must search/act as the **logged-in** user. When an
     access token is present but neither JWT nor userinfo yield both IDs, this
@@ -234,17 +236,21 @@ async def get_unique_settings_async() -> UniqueSettings:
 
     meta = get_request_meta()
 
-    if meta is not None:
-        if chat_context := _chat_from_meta(meta):
-            settings = settings.with_chat(chat_context)
-        if auth_context := _auth_from_meta(meta):
-            return settings.with_auth(auth_context)
+    if meta is not None and (chat_context := _chat_from_meta(meta)):
+        settings = settings.with_chat(chat_context)
 
     if auth_context := _fastmcp_access_token_to_auth_context():
         return settings.with_auth(auth_context)
 
     if auth_context := await _userinfo_to_auth_context():
         return settings.with_auth(auth_context)
+
+    access_token = get_access_token()
+
+    # `_meta` identity is unbound to the token: trust it only without one.
+    if access_token is None and meta is not None:
+        if auth_context := _auth_from_meta(meta):
+            return settings.with_auth(auth_context)
 
     # Currently unreachable: with a real access token, get_unique_userinfo
     # (called above via _userinfo_to_auth_context) either returns a complete
@@ -254,7 +260,7 @@ async def get_unique_settings_async() -> UniqueSettings:
     # swallows lookup failures and returns None instead of raising (e.g. an
     # env-var-only / no-OIDC-proxy MCP deployment); without it, that case
     # would silently fall through to the UNIQUE_AUTH_* return below.
-    if get_access_token() is not None:
+    if access_token is not None:
         raise ValueError(
             "Authenticated session could not be resolved to user_id and "
             "company_id (JWT claims incomplete and userinfo unavailable). "
