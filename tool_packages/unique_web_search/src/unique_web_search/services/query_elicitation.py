@@ -20,6 +20,8 @@ from unique_toolkit.elicitation import (
     ElicitationStatus,
 )
 
+from unique_web_search.schema import WebSearchDebugInfo
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -92,17 +94,20 @@ class QueryElicitationService:
         chat_service: ChatService,
         display_name: str,
         config: QueryElicitationConfig,
+        debug_info: WebSearchDebugInfo,
     ):
         """Initialize the query elicitation service.
 
         Args:
             chat_service: Service for interacting with chat/elicitation APIs
             display_name: Display name for the tool in elicitation UI
-            timeout_seconds: Timeout in seconds for waiting for user approval
+            config: Elicitation configuration
+            debug_info: Web search debug information updated with the outcome
         """
         self._chat_service = chat_service
         self._display_name = display_name
         self._config = config
+        self._debug_info = debug_info
 
     async def __call__(self, queries: list[str]) -> list[str]:
         if not self._config.enable_elicitation:
@@ -118,6 +123,8 @@ class QueryElicitationService:
             json_schema=model.model_json_schema(),
             expires_in_seconds=self._config.timeout_seconds,
         )
+        self._debug_info.elicitation_approval = False
+        self._debug_info.elicitation_prompt_change = False
         _LOGGER.info(
             f"Elicitation created: {elicitation.id}. Waiting for user response for {self._config.timeout_seconds} seconds..."
         )
@@ -129,11 +136,15 @@ class QueryElicitationService:
             )
             if elicitation.status == ElicitationStatus.ACCEPTED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} accepted")
-                queries = QueryElicitationModel.model_validate(
+                self._debug_info.elicitation_approval = True
+                submitted_queries = QueryElicitationModel.model_validate(
                     elicitation.response_content
                 ).queries
+                self._debug_info.elicitation_prompt_change = (
+                    submitted_queries != queries
+                )
 
-                if len(queries) == 0:
+                if len(submitted_queries) == 0:
                     raise ElicitationFailedException(
                         context="The user approved the web search request but removed all search queries from the form, resulting in zero queries to execute.",
                         instruction="The web search tool did not execute because no search queries were provided. "
@@ -144,7 +155,7 @@ class QueryElicitationService:
                         "Ask if they would like to retry the search with specific queries, or if they can describe what information they're looking for so you can help formulate appropriate search queries for the next approval.",
                     )
 
-                return queries
+                return submitted_queries
 
             elif elicitation.status == ElicitationStatus.DECLINED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} declined")

@@ -24,6 +24,8 @@ class AnalyticsTool(TypedDict, total=False):
     is_sub_agent: bool
     is_mcp: bool
     loop_iteration: int
+    elicitation_approval: bool
+    elicitation_prompt_change: bool
 
 
 class AnalyticsSkill(TypedDict):
@@ -294,6 +296,10 @@ def _to_analytics_tool_entry(
         analytics_tool["is_mcp"] = True
     if "loop_iteration" in info:
         analytics_tool["loop_iteration"] = info["loop_iteration"]
+    if "elicitation_approval" in info:
+        analytics_tool["elicitation_approval"] = info["elicitation_approval"]
+    if "elicitation_prompt_change" in info:
+        analytics_tool["elicitation_prompt_change"] = info["elicitation_prompt_change"]
     return analytics_tool
 
 
