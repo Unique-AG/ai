@@ -4,8 +4,6 @@ from pathlib import Path
 from fastmcp import FastMCP
 from fastmcp.server.providers import FileSystemProvider
 from key_value.aio.stores.memory import MemoryStore
-from starlette.middleware import Middleware
-from starlette.middleware.cors import CORSMiddleware
 
 from mcp_search.references import SERVER_CITATION_INSTRUCTIONS
 from mcp_search.routes import get_custom_routes_provider
@@ -24,9 +22,7 @@ def main() -> None:
     server_settings = ServerSettings()
 
     oidc_proxy = create_zitadel_oidc_proxy(
-        # In-memory: dev-only, loses every session on restart and doesn't work
-        # across replicas. Never deploy this tutorial multi-pod as-is — use a
-        # shared, encrypted-at-rest AsyncKeyValue backend for real deployments.
+        # Dev only: sessions are lost on restart and not shared across replicas.
         client_storage=MemoryStore(),
         mcp_server_base_url=server_settings.base_url.encoded_string(),
         zitadel_oidc_proxy_settings=ZitadelOIDCProxySettings(),  # type: ignore[call-arg]
@@ -35,9 +31,7 @@ def main() -> None:
         # token-swap after /token succeeds; otherwise every /mcp call returns
         # invalid_token despite a successful login.
         verify_id_token=True,
-        # Require only identity scopes Zitadel reliably grants. Custom mcp:*
-        # scopes must stay advertised (factory valid_scopes / authorize scope)
-        # but not required — RequireAuthMiddleware 403s on any missing grant.
+        # Identity scopes only — Zitadel drops custom mcp:* scopes and FastMCP 403s.
         required_scopes=[
             "openid",
             "profile",
@@ -56,20 +50,6 @@ def main() -> None:
 
     mcp.mount(get_custom_routes_provider())
 
-    middleware = [
-        Middleware(
-            CORSMiddleware,
-            # MCP clients authenticate via the Authorization header, not cookies,
-            # so credentials aren't needed here. allow_credentials=True combined
-            # with a wildcard origin makes starlette reflect any Origin verbatim
-            # instead of "*" — a credentialed-CORS hole. Keep it False.
-            allow_credentials=False,
-            allow_origins=["*"],
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-    ]
-
     # fastmcp >= 3.4.3 validates Host and Origin headers (DNS-rebinding
     # protection; 421/403 otherwise). Behind a reverse proxy / PaaS the public
     # hostname differs from the bind address AND TLS terminates upstream (the
@@ -83,7 +63,6 @@ def main() -> None:
         host=server_settings.local_base_url.host,
         port=server_settings.local_base_url.port,
         log_level="debug",
-        middleware=middleware,
         allowed_hosts=[public_host] if public_host else None,
         allowed_origins=[public_origin] if public_origin else None,
     )

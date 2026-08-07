@@ -39,41 +39,24 @@ def create_zitadel_oidc_proxy(
     """Create a Zitadel OIDC proxy instance.
 
     Args:
-        client_storage: Storage backend for OAuth client/token state. Required:
-            FastMCP's own default is an on-disk store under the user's home
-            directory, which is a footgun in a container — it may not exist on a
-            read-only root filesystem (crash on boot), and even when writable it
-            is per-pod, so every restart loses the store that FastMCP's reference
-            tokens depend on for JTI lookup, logging out every user on every
-            restart/rollout. In a multi-replica or containerized deployment, pass
-            a shared backend (e.g. a database-backed ``AsyncKeyValue`` with
-            encryption at rest); see the "Production storage" section in
-            ``unique_mcp/docs/zitadel/README.md``. For local single-process dev
-            where losing sessions on restart is acceptable, pass an in-memory
-            store explicitly (e.g. ``key_value.aio.stores.memory.MemoryStore()``).
+        client_storage: OAuth client/token state. Required — FastMCP's default is
+            a per-pod on-disk store, which drops every session on restart and
+            breaks across replicas. See "Production storage" in
+            ``unique_mcp/docs/zitadel/README.md``; ``MemoryStore()`` for local dev.
         mcp_server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
         zitadel_oidc_proxy_settings: Optional settings instance. If not provided,
             a new instance will be created from environment variables.
         **kwargs: Forwarded directly to ``OIDCProxy``. Unless ``extra_authorize_params``
             already sets ``scope``, the default Zitadel/MCP scope list is injected so
             Zitadel never receives an empty scope on the authorize request.
-            Avoid putting custom scopes (``mcp:*``, ``email``, …) in
-            ``required_scopes``: Zitadel often omits unrecognised or non-granted
-            scopes from the token response. With ``verify_id_token=False`` (the
-            default) that wires them into the JWT verifier → ``invalid_token`` on
-            every request. With ``verify_id_token=True``, FastMCP withholds them
-            from the verifier but still sets ``OIDCProxy.required_scopes`` and
-            ``RequireAuthMiddleware`` enforces them against the upstream-granted
-            scope list → ``403 insufficient_scope`` instead. Advertise the full
-            list via ``valid_scopes`` / authorize ``scope``; require only identity
-            scopes Zitadel reliably grants (``openid``, ``profile``,
-            ``urn:zitadel:iam:user:resourceowner``).
+            Keep ``required_scopes`` to identity scopes only — Zitadel drops custom
+            ``mcp:*`` scopes, and FastMCP rejects any that are missing
+            (``invalid_token``, or ``insufficient_scope`` under ``verify_id_token``).
 
     Returns:
         Configured OIDCProxy instance
     """
-    # Keyword-only + no default only blocks omission. Explicit None still reaches
-    # FastMCP's per-pod on-disk fallback — the footgun this argument exists to kill.
+    # No default blocks omission, not an explicit None.
     if client_storage is None:
         raise ValueError(
             "client_storage must not be None; pass an AsyncKeyValue backend "
@@ -88,12 +71,7 @@ def create_zitadel_oidc_proxy(
     if "scope" not in extra_authorize_params:
         extra_authorize_params["scope"] = " ".join(ZITADEL_DEFAULT_MCP_SCOPES)
 
-    # Advertise / accept these scopes for DCR and /authorize. Do NOT pass the
-    # full list as ``required_scopes``: Zitadel may omit custom scopes, and
-    # FastMCP enforces ``required_scopes`` either in the JWT verifier
-    # (verify_id_token=False → invalid_token) or via RequireAuthMiddleware
-    # (verify_id_token=True → insufficient_scope). Callers that need
-    # required_scopes should pass a short identity-only list explicitly.
+    # Advertised for DCR and /authorize only — see required_scopes in the docstring.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
 
     proxy = OIDCProxy(

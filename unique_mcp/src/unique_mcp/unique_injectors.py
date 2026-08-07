@@ -204,19 +204,13 @@ def get_unique_settings() -> UniqueSettings:
 
     meta = get_request_meta()
 
-    # Chat context is not identity — safe to take from `_meta` either way.
     if meta is not None and (chat_context := _chat_from_meta(meta)):
         settings = settings.with_chat(chat_context)
 
-    # `with_auth` keeps any chat context bound above (see UniqueSettings.with_auth).
     if auth_context := _fastmcp_access_token_to_auth_context():
         return settings.with_auth(auth_context)
 
-    # `_meta` identity is caller-supplied and NOT bound to the bearer token, so
-    # it is honoured only when the request carries no access token at all — i.e.
-    # a trusted platform-internal call. Consulting it for an authenticated
-    # request would let any client that can set `tools/call._meta` assert an
-    # arbitrary user_id/company_id and read another tenant's data.
+    # `_meta` identity is unbound to the token: trust it only without one.
     if get_access_token() is None and meta is not None:
         if auth_context := _auth_from_meta(meta):
             return settings.with_auth(auth_context)
@@ -241,7 +235,6 @@ async def get_unique_settings_async() -> UniqueSettings:
 
     meta = get_request_meta()
 
-    # Chat context is not identity — safe to take from `_meta` either way.
     if meta is not None and (chat_context := _chat_from_meta(meta)):
         settings = settings.with_chat(chat_context)
 
@@ -251,12 +244,7 @@ async def get_unique_settings_async() -> UniqueSettings:
     if auth_context := await _userinfo_to_auth_context():
         return settings.with_auth(auth_context)
 
-    # `_meta` identity is caller-supplied and NOT bound to the bearer token, so
-    # it is honoured only when the request carries no access token at all — i.e.
-    # a trusted platform-internal call. For an authenticated request we fall
-    # through to the raise below rather than trusting `_meta`; otherwise any
-    # client able to set `tools/call._meta` could assert an arbitrary
-    # user_id/company_id and read another tenant's data.
+    # `_meta` identity is unbound to the token: trust it only without one.
     if get_access_token() is None and meta is not None:
         if auth_context := _auth_from_meta(meta):
             return settings.with_auth(auth_context)
