@@ -85,7 +85,11 @@ class LanguageModelService:
         """
         Initialize the LanguageModelService with an event.
         """
-        return cls(company_id=event.company_id, user_id=event.user_id)
+        service = cls(company_id=event.company_id, user_id=event.user_id)
+        if isinstance(event, AssistantWebhookEvent):
+            service._chat_id = event.payload.chat_id
+            service._assistant_id = event.payload.assistant_id
+        return service
 
     @classmethod
     def from_settings(cls, settings: UniqueSettings | str | None = None, **kwargs: Any):
@@ -338,6 +342,8 @@ class LanguageModelService:
             other_options=other_options,
             tools=tools,
             start_text=start_text,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
         )
 
     async def complete_with_references_async(
@@ -363,4 +369,6 @@ class LanguageModelService:
             other_options=other_options,
             tools=tools,
             start_text=start_text,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
         )

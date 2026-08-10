@@ -11,6 +11,8 @@ from unique_toolkit.language_model.functions import (
     _to_search_context,
     complete,
     complete_async,
+    complete_with_references,
+    complete_with_references_async,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -213,6 +215,73 @@ async def test_complete_async__omits_empty_attribution_ids(mock_create) -> None:
     )
 
     assert mock_create.call_args.kwargs["headers"] == {"x-chat-id": "chat_1"}
+
+
+@pytest.mark.ai
+@patch.object(unique_sdk.ChatCompletion, "create")
+def test_complete_with_references__forwards_attribution_ids(mock_create) -> None:
+    """Purpose: Verify referenced sync completions retain usage attribution.
+    Why this matters: Reference rendering must not drop chat and assistant headers.
+    Setup summary: Complete with references and inspect the SDK request headers.
+    """
+    mock_create.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "finishReason": "completed",
+                "message": {"content": "Test response", "role": "assistant"},
+            }
+        ]
+    }
+
+    complete_with_references(
+        company_id="test_company",
+        user_id="test_user",
+        messages=LanguageModelMessages([]),
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+    )
+
+    assert mock_create.call_args.kwargs["headers"] == {
+        "x-chat-id": "chat_1",
+        "x-assistant-id": "assistant_1",
+    }
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch.object(unique_sdk.ChatCompletion, "create_async")
+async def test_complete_with_references_async__forwards_attribution_ids(
+    mock_create,
+) -> None:
+    """Purpose: Verify referenced async completions retain usage attribution.
+    Why this matters: Async reference rendering must preserve attribution headers.
+    Setup summary: Complete with references and inspect the async SDK request headers.
+    """
+    mock_create.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "finishReason": "completed",
+                "message": {"content": "Test response", "role": "assistant"},
+            }
+        ]
+    }
+
+    await complete_with_references_async(
+        company_id="test_company",
+        user_id="test_user",
+        messages=LanguageModelMessages([]),
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+    )
+
+    assert mock_create.call_args.kwargs["headers"] == {
+        "x-chat-id": "chat_1",
+        "x-assistant-id": "assistant_1",
+    }
 
 
 def test_resolve_temp_and_reasoning_clamps_temperature():

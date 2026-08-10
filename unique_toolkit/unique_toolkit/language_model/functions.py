@@ -474,6 +474,8 @@ def complete_with_references(
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict[str, Any] | None = None,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
 
@@ -486,6 +488,8 @@ def complete_with_references(
         timeout=timeout,
         tools=tools,
         other_options=other_options,
+        chat_id=chat_id,
+        assistant_id=assistant_id,
     )
 
     return _create_language_model_stream_response_with_references(
@@ -507,6 +511,8 @@ async def complete_with_references_async(
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict[str, Any] | None = None,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
     response = await complete_async(
@@ -518,6 +524,8 @@ async def complete_with_references_async(
         timeout=timeout,
         tools=tools,
         other_options=other_options,
+        chat_id=chat_id,
+        assistant_id=assistant_id,
     )
 
     return _create_language_model_stream_response_with_references(
