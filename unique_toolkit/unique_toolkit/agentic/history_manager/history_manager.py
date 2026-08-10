@@ -226,6 +226,7 @@ class HistoryManager:
         rendered_user_message_string: str,
         rendered_system_message_string: str,
         remove_from_text: Callable[[str], Awaitable[str]],
+        reserved_input_tokens: int = 0,
     ) -> LanguageModelMessages:
         self._logger.info("Getting history for model call -> ")
 
@@ -237,6 +238,7 @@ class HistoryManager:
             loop_history=self._loop_history,
             remove_from_text=remove_from_text,
             image_data_urls_from_tools=image_data_from_tools,
+            reserved_input_tokens=reserved_input_tokens,
         )
         self._collected_tool_response_image_urls = []
 

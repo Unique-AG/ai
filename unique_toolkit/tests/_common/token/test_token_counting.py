@@ -1,6 +1,7 @@
 # Original source
 # https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
 
+import json
 from pathlib import Path
 
 import pytest
@@ -10,11 +11,18 @@ from PIL import Image
 from unique_toolkit._common.token.token_counting import (
     SpecialToolCallingTokens,
     count_tokens,
+    num_token_for_language_model_messages,
+    num_tokens_for_tool_definitions,
     num_tokens_for_tools,
     num_tokens_from_messages,
 )
 from unique_toolkit._common.utils.image.encode import image_to_base64
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelMessages,
+)
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 
@@ -121,6 +129,72 @@ def test_num_tokens_from_messages():
             num_tokens_from_messages(example_messages, encode=encoder.encode)
             == expected_count
         )
+
+
+@pytest.mark.ai
+def test_language_model_message_count__includes_assistant_tool_calls() -> None:
+    """
+    Purpose: Verify assistant tool-call JSON contributes to message token usage.
+    Why this matters: Multi-step tool history must not silently bypass input budgets.
+    Setup summary: Compare an empty assistant message with one carrying a function call.
+    """
+    model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+    without_tool_call = LanguageModelMessages(
+        root=[LanguageModelAssistantMessage(content="")]
+    )
+    with_tool_call = LanguageModelMessages(
+        root=[
+            LanguageModelAssistantMessage.from_functions(
+                [
+                    LanguageModelFunction(
+                        name="GetWeather",
+                        arguments={"city": "Zürich"},
+                    )
+                ]
+            )
+        ]
+    )
+
+    assert num_token_for_language_model_messages(
+        with_tool_call,
+        model.get_encoder(),
+    ) > num_token_for_language_model_messages(
+        without_tool_call,
+        model.get_encoder(),
+    )
+
+
+@pytest.mark.ai
+def test_tool_definition_count__uses_model_encoder_on_provider_neutral_json() -> None:
+    """
+    Purpose: Verify tool schemas are counted as canonical JSON with the model encoder.
+    Why this matters: The reserve must work for every provider without OpenAI constants.
+    Setup summary: Count one schema and compare it with direct canonical JSON encoding.
+    """
+    model = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "lookup",
+                "description": "Look up a record",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"id": {"type": "string"}},
+                },
+            },
+        }
+    ]
+    serialized = json.dumps(
+        tools,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+    assert num_tokens_for_tool_definitions(tools, model) == len(
+        model.get_encoder()(serialized)
+    )
 
 
 def test_num_tokens_for_tools():

@@ -8,6 +8,9 @@ from unique_toolkit._common.token.token_counting import (
     num_token_for_language_model_messages,
 )
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.agentic.history_manager.exceptions import (
+    InputTokenBudgetExceededError,
+)
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
     FileContentSerializer,
     get_full_history_with_contents_and_tool_calls_async,
@@ -40,6 +43,22 @@ SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION = env_settings.input_aggressive_reduction
 PLAIN_TEXT_TRUNCATION_MARKER = "\n\n[... tool response too long and was truncated]"
 # TODO: Make this configurable
 MIN_PLAIN_TEXT_CHARS_TO_KEEP = 1000
+
+
+def calculate_input_token_budget(
+    language_model: LMI,
+    *,
+    reserved_input_tokens: int = 0,
+) -> int:
+    """Return the corrected, safety-adjusted input budget after reservations."""
+    if reserved_input_tokens < 0:
+        raise ValueError("reserved_input_tokens must be non-negative")
+
+    effective_limit = int(
+        language_model.token_limits.token_limit_input
+        * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
+    )
+    return max(0, effective_limit - reserved_input_tokens)
 
 
 def _truncate_plain_text(text: str, overshoot_factor: float) -> str:
@@ -102,10 +121,7 @@ class LoopTokenReducer:
         self._content_service = ContentService.from_event(event)
         self._user_message = event.payload.user_message
         self._chat_id = event.payload.chat_id
-        self._effective_token_limit = int(
-            self._language_model.token_limits.token_limit_input
-            * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
-        )
+        self._effective_token_limit = calculate_input_token_budget(self._language_model)
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
@@ -142,8 +158,13 @@ class LoopTokenReducer:
         loop_history: list[LanguageModelMessage],
         remove_from_text: Callable[[str], Awaitable[str]],
         image_data_urls_from_tools: list[tuple[str, str]] | None = None,
+        reserved_input_tokens: int = 0,
     ) -> LanguageModelMessages:
         """Compose the system and user messages for the plan execution step, which is evaluating if any further tool calls are required."""
+        adjusted_token_limit = calculate_input_token_budget(
+            self._language_model,
+            reserved_input_tokens=reserved_input_tokens,
+        )
 
         history_from_db = await self._prep_db_history(
             original_user_message,
@@ -161,12 +182,14 @@ class LoopTokenReducer:
         token_count = self._count_message_tokens(messages)
         self._log_token_usage(token_count)
 
-        while self._exceeds_token_limit(token_count) and self._can_reduce_history(
-            loop_history
-        ):
+        while self._exceeds_token_limit(
+            token_count, adjusted_token_limit
+        ) and self._can_reduce_history(loop_history):
             token_count_before_reduction = token_count
             loop_history[:] = self._handle_token_limit_exceeded(
-                loop_history, token_count
+                loop_history,
+                token_count,
+                adjusted_token_limit,
             )
             messages = self._construct_history(
                 history_from_db,
@@ -180,12 +203,24 @@ class LoopTokenReducer:
 
         token_count = self._count_message_tokens(messages)
         self._logger.info(
-            f"Final token count after reduction: {token_count} of model_capacity {self._language_model.token_limits.token_limit_input}"
+            f"Final token count after reduction: {token_count} of adjusted input "
+            f"budget {adjusted_token_limit}"
         )
+
+        if self._exceeds_token_limit(token_count, adjusted_token_limit):
+            raise InputTokenBudgetExceededError(
+                token_count=token_count,
+                token_budget=adjusted_token_limit,
+                reserved_input_tokens=reserved_input_tokens,
+            )
 
         return messages
 
-    def _exceeds_token_limit(self, token_count: int) -> bool:
+    def _exceeds_token_limit(
+        self,
+        token_count: int,
+        token_limit: int | None = None,
+    ) -> bool:
         """Whether the payload is over the effective input-token limit.
 
         This is purely a size check. Whether anything can actually be reduced to
@@ -193,7 +228,9 @@ class LoopTokenReducer:
         """
         # TODO: This is not fully correct at the moment as the token_count
         # include system_prompt and user question already
-        return token_count > self._effective_token_limit
+        return token_count > (
+            self._effective_token_limit if token_limit is None else token_limit
+        )
 
     def _can_reduce_history(self, loop_history: list[LanguageModelMessage]) -> bool:
         """Whether there is any tool response left to reduce.
@@ -255,16 +292,20 @@ class LoopTokenReducer:
         return constructed_history
 
     def _handle_token_limit_exceeded(
-        self, loop_history: list[LanguageModelMessage], token_count: int
+        self,
+        loop_history: list[LanguageModelMessage],
+        token_count: int,
+        token_limit: int | None = None,
     ) -> list[LanguageModelMessage]:
         """Handle case where token limit is exceeded by reducing sources in tool responses."""
+        effective_token_limit = (
+            self._effective_token_limit if token_limit is None else token_limit
+        )
         overshoot_factor = (
-            token_count / self._effective_token_limit
-            if self._effective_token_limit > 0
-            else 1.0
+            token_count / effective_token_limit if effective_token_limit > 0 else 1.0
         )
         self._logger.warning(
-            f"Length of messages exceeds limit of {self._effective_token_limit} tokens "
+            f"Length of messages exceeds limit of {effective_token_limit} tokens "
             f"(overshoot factor: {overshoot_factor:.2f}x). Reducing number of sources per tool call.",
         )
 

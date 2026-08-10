@@ -579,6 +579,15 @@ class TestPlanOrExecuteOpenFileRetry:
         final_response = _make_loop_response()
 
         ua._compose_message_plan_execution = AsyncMock(return_value=initial_messages)  # type: ignore[method-assign]
+        ua._get_tool_reminders = MagicMock(return_value=[])  # type: ignore[method-assign]
+        ua._count_reserved_input_tokens = MagicMock(return_value=0)  # type: ignore[method-assign]
+        ua._preflight_model_input = MagicMock(  # type: ignore[method-assign]
+            side_effect=lambda *, messages, tool_definitions, tool_choices: (
+                messages,
+                tool_definitions,
+                tool_choices,
+            )
+        )
         ua._tool_manager.get_tool_definitions.side_effect = [
             ["OpenFile", "InternalSearch"],
             ["InternalSearch"],
@@ -609,6 +618,112 @@ class TestPlanOrExecuteOpenFileRetry:
         assert second_call["messages"] is retried_messages
         assert second_call["tools"] == ["InternalSearch"]
         assert second_call["tool_choices"] == []
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_plan_or_execute__oversized_preflight__does_not_call_provider(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify final preflight blocks an oversized provider request.
+        Why this matters: A known-invalid payload must fail locally with a typed error.
+        Setup summary: Use a tiny model budget and assert the loop runner is not awaited.
+        """
+        from unique_toolkit.agentic.history_manager.exceptions import (
+            InputTokenBudgetExceededError,
+        )
+        from unique_toolkit.language_model.infos import (
+            LanguageModelInfo,
+            LanguageModelName,
+        )
+        from unique_toolkit.language_model.schemas import (
+            LanguageModelMessages,
+            LanguageModelUserMessage,
+        )
+
+        ua = _build_unique_ai()
+        model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+        model.token_limits.token_limit_input = 100
+        ua._config.space.language_model = model
+        ua._config.agent.experimental.open_file_tool_config.enabled = False
+        ua._config.agent.experimental.responses_api_config.use_responses_api = False
+        ua._config.agent.experimental.use_responses_api = False
+        ua._config.agent.experimental.temperature = 0.0
+        ua._tool_manager.get_tool_definitions.return_value = []
+        ua._tool_manager.get_tool_prompts.return_value = []
+        ua._tool_manager.get_forced_tools.return_value = []
+        ua._history_manager.get_content_chunks_for_backend.return_value = []
+        ua._compose_message_plan_execution = AsyncMock(  # type: ignore[method-assign]
+            return_value=LanguageModelMessages(
+                root=[LanguageModelUserMessage(content="oversized " * 500)]
+            )
+        )
+        ua._loop_iteration_runner = AsyncMock()
+
+        with pytest.raises(InputTokenBudgetExceededError):
+            await ua._plan_or_execute()
+
+        ua._loop_iteration_runner.assert_not_awaited()
+
+    @pytest.mark.ai
+    def test_preflight__open_file_attachment_overflow__strips_and_recounts(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify file attachments are removed before an avoidable overflow.
+        Why this matters: The provider-error retry should be a fallback, not first defense.
+        Setup summary: Attach a large file part, strip it in runtime, and assert fit.
+        """
+        from unique_toolkit.agentic.tools.experimental.open_file_tool import (
+            OpenFileToolRuntime,
+        )
+        from unique_toolkit.language_model.infos import (
+            LanguageModelInfo,
+            LanguageModelName,
+        )
+        from unique_toolkit.language_model.schemas import (
+            LanguageModelMessages,
+            LanguageModelUserMessage,
+        )
+
+        ua = _build_unique_ai()
+        model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+        model.token_limits.token_limit_input = 200
+        ua._config.space.language_model = model
+        ua._config.agent.experimental.open_file_tool_config.enabled = True
+        ua._tool_manager.get_tool_definitions.return_value = []
+        ua._tool_manager.get_forced_tools.return_value = []
+        messages = LanguageModelMessages(
+            root=[
+                LanguageModelUserMessage(
+                    content=[
+                        {"type": "text", "text": "small prompt"},
+                        {
+                            "type": "file",
+                            "file": {
+                                "filename": "large.pdf",
+                                "file_data": "x" * 5_000,
+                            },
+                        },
+                    ]
+                )
+            ]
+        )
+        ua._open_file_runtime = MagicMock()
+        ua._open_file_runtime.prepare_retry_messages.side_effect = (
+            OpenFileToolRuntime.strip_file_parts_from_messages
+        )
+
+        final_messages, final_tools, final_choices = ua._preflight_model_input(
+            messages=messages,
+            tool_definitions=[],
+            tool_choices=[],
+        )
+
+        assert not ua._messages_have_file_parts(final_messages)
+        assert final_tools == []
+        assert final_choices == []
+        assert ua._file_fallback_occurred is True
 
 
 class TestRunExecutionTimingIntegration:
@@ -722,6 +837,13 @@ class TestRunExecutionTimingIntegration:
         )
         ua._render_user_prompt = AsyncMock(return_value="user")  # type: ignore[method-assign]
         ua._render_system_prompt = AsyncMock(return_value="system")  # type: ignore[method-assign]
+        ua._preflight_model_input = MagicMock(  # type: ignore[method-assign]
+            side_effect=lambda *, messages, tool_definitions, tool_choices: (
+                messages,
+                tool_definitions,
+                tool_choices,
+            )
+        )
         ua._thinking_manager.thinking_is_displayed = MagicMock(return_value=True)
         return ua
 
