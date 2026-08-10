@@ -46,7 +46,7 @@ def download_file(url: str, filename: str):
     file_path = Path(random_dir) / filename
 
     # Download the file and save it to the random directory
-    response = requests.get(url)
+    response = requests.get(url, timeout=unique_sdk.blob_transfer_timeout)
     if response.status_code == 200:
         with open(file_path, "wb") as file:
             file.write(response.content)
@@ -100,6 +100,7 @@ def _put_preview_pdf(write_url: str, preview_pdf_path: str) -> None:
                 "X-Ms-Blob-Content-Type": _PREVIEW_PDF_MIME_TYPE,
                 "X-Ms-Blob-Type": "BlockBlob",
             },
+            timeout=unique_sdk.blob_transfer_timeout,
         )
     if response.status_code >= 400:
         raise RuntimeError(
@@ -219,13 +220,19 @@ def upload_file(
         raise ValueError("createdContent.writeUrl is None")
     uploadUrl = _apply_ingestion_upload_url_override(uploadUrl)
     with open(path_to_file, "rb") as file:
-        requests.put(
+        response = requests.put(
             uploadUrl,
             data=file,
             headers={
                 "X-Ms-Blob-Content-Type": mime_type,
                 "X-Ms-Blob-Type": "BlockBlob",
             },
+            timeout=unique_sdk.blob_transfer_timeout,
+        )
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"Content upload failed with status {response.status_code}: "
+            f"{response.text[:500]}"
         )
 
     # Step 3 — finalize upsert: ``byteSize`` + ``fileUrl`` flip the row
@@ -362,7 +369,9 @@ def download_content(
     # Issue the request before resolving the destination. A non-200
     # response should never leave a half-created directory or empty
     # file behind for callers who supplied ``target_path``.
-    response = requests.get(url, headers=headers)
+    response = requests.get(
+        url, headers=headers, timeout=unique_sdk.blob_transfer_timeout
+    )
     if response.status_code != 200:
         raise Exception(f"Error downloading file: Status code {response.status_code}")
 
