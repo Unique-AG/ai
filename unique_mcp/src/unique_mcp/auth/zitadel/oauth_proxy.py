@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
@@ -49,19 +51,32 @@ class ZitadelOAuthProxySettings(BaseSettings):
 
 def create_zitadel_oauth_proxy(
     *,
+    client_storage: AsyncKeyValue,
     mcp_server_base_url: str = "http://localhost:8003",
     zitadel_oauth_proxy_settings: ZitadelOAuthProxySettings | None = None,
-    client_storage: "AsyncKeyValue | None" = None,
     **kwargs: Any,
 ) -> OAuthProxy:
     """Create a Zitadel OAuth proxy instance.
 
     Args:
-        server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
+        client_storage: OAuth client/token state. Required — FastMCP's default is
+            a per-pod on-disk store, which drops every session on restart and
+            breaks across replicas. See "Production storage" in
+            ``unique_mcp/docs/zitadel/README.md``; ``MemoryStore()`` for local dev.
+        mcp_server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
+        zitadel_oauth_proxy_settings: Optional settings instance. If not provided,
+            a new instance will be created from environment variables.
+        **kwargs: Forwarded directly to ``OAuthProxy``.
 
     Returns:
         Configured OAuthProxy instance
     """
+    if client_storage is None:
+        raise ValueError(
+            "client_storage must not be None; pass an AsyncKeyValue backend "
+            "(e.g. MemoryStore() for local single-process dev)."
+        )
+
     settings = zitadel_oauth_proxy_settings or ZitadelOAuthProxySettings()
 
     token_verifier = JWTVerifier(
