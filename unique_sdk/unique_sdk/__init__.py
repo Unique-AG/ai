@@ -15,6 +15,10 @@ api_verify_mode: bool = True
 default_http_client: "HTTPClient | None" = None
 ingestion_upload_api_url_internal: str | None = None
 
+# Timeout (seconds) for the direct-to-blob requests in utils/file_io.py,
+# which bypass _http_client. Defaults to match _http_client's own default.
+blob_transfer_timeout: float = 600
+
 # Set to either 'debug' or 'info', controls console logging
 log: Literal["debug", "info"] | None = None
 
