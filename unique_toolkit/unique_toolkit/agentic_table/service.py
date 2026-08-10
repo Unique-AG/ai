@@ -771,6 +771,59 @@ class AgenticTableService:
         if not result.get("status"):
             raise Exception(result.get("message") or "Failed to create sheet metadata")
 
+    async def create_row_metadata(
+        self,
+        row: int,
+        entries: list[RowMetadataEntry],
+    ) -> None:
+        """Create key/value row metadata for a single row, addressed by row order.
+
+        Row metadata is the per-row key/value store surfaced by the agentic
+        table's row-metadata UI and forwarded onto knowledge-base content at
+        add-to-library time. The backend endpoint addresses rows by their id, not
+        their order, so the id is resolved from column ``0`` of the row first
+        (mirrors ``get_row_metadata`` read helpers).
+
+        NOTE: not to be confused with ``set_cell_metadata`` (selection /
+        agreement status) or ``create_sheet_metadata`` (sheet-level metadata).
+
+        Args:
+            row (int): The row index (row order).
+            entries (list[RowMetadataEntry]): Key/value entries to create. Empty
+                is a no-op.
+
+        Raises:
+            ValueError: If the row id cannot be resolved from the row.
+            Exception: If the API reports a non-success status.
+        """
+        if not entries:
+            return
+        cell = await self.get_cell(row, 0, include_row_metadata=False)
+        if not cell.row_id:
+            raise ValueError(
+                f"Cannot write row metadata: row {row} has no resolvable row id "
+                f"on table {self.table_id}."
+            )
+        result = await AgenticTable.create_row_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            rowId=cell.row_id,
+            entries=[
+                cast(
+                    Any,
+                    {
+                        "key": entry.key,
+                        "value": entry.value,
+                        "exactFilter": entry.exact_filter,
+                    },
+                )
+                for entry in entries
+            ],
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to create row metadata")
+
     async def delete_sheet_metadata(self, metadata_id: str) -> None:
         """Delete a sheet metadata entry by its id.
 

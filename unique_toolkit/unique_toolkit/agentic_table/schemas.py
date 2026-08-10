@@ -363,6 +363,11 @@ class MagicTableCellMetaData(BaseModel):
 class MagicTableCell(BaseModel):
     model_config = get_configuration_dict()
     sheet_id: str
+    row_id: str | None = Field(
+        default=None,
+        alias="rowId",
+        description="The backend id of the row this cell belongs to (needed to write row metadata).",
+    )
     row_order: int = Field(description="The row index of the cell.")
     column_order: int = Field(description="The column index of the cell.")
     row_locked: bool = Field(default=False, description="Lock status of the row.")

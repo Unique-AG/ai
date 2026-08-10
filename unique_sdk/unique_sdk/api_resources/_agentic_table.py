@@ -137,6 +137,7 @@ class _AgenticTableCellRequired(TypedDict):
 
 class AgenticTableCell(_AgenticTableCellRequired, total=False):
     sheetId: str
+    rowId: str
     rowLocked: bool
     logEntries: list[LogEntry] | None
     metaData: AgenticTableCellMetaData
@@ -325,6 +326,17 @@ class AgenticTable(APIResource["AgenticTable"]):
         """Body for `POST /magic-table/{tableId}/sheet/metadata` (create sheet metadata entries)."""
 
         tableId: str
+        entries: list[MagicTableMetadataEntry]
+
+    class CreateRowMetadata(RequestOptions):
+        """Body for `POST /magic-table/{tableId}/row/{rowId}/metadata` (create row metadata entries).
+
+        The row is addressed by its ``MagicTableRow`` id (not row order); resolve
+        the id from a cell first (``get_cell`` returns it as ``rowId``).
+        """
+
+        tableId: str
+        rowId: str
         entries: list[MagicTableMetadataEntry]
 
     @classmethod
@@ -666,6 +678,28 @@ class AgenticTable(APIResource["AgenticTable"]):
         """Create sheet metadata entries (`POST /magic-table/{tableId}/sheet/metadata`)."""
         url = f"/magic-table/{params['tableId']}/sheet/metadata"
         params.pop("tableId")
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def create_row_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.CreateRowMetadata"],
+    ) -> MagicTableActionResult:
+        """Bulk-create row metadata entries (`POST /magic-table/{tableId}/row/{rowId}/metadata`)."""
+        url = f"/magic-table/{params['tableId']}/row/{params['rowId']}/metadata"
+        params.pop("tableId")
+        params.pop("rowId")
         return cast(
             MagicTableActionResult,
             await cls._static_request_async(
