@@ -83,6 +83,10 @@ class TestLanguageModelServiceUnit:
         mock_create.assert_called_once_with(
             company_id="test_company",
             user_id="test_user",
+            headers={
+                "x-chat-id": "test_chat",
+                "x-assistant-id": "test_assistant",
+            },
             model=model_name.name,
             messages=[],
             timeout=240000,
@@ -115,6 +119,10 @@ class TestLanguageModelServiceUnit:
         mock_create.assert_called_once_with(
             company_id="test_company",
             user_id="test_user",
+            headers={
+                "x-chat-id": "test_chat",
+                "x-assistant-id": "test_assistant",
+            },
             model=model_name,
             messages=[],
             timeout=240000,
@@ -196,6 +204,10 @@ class TestLanguageModelServiceUnit:
         mock_create.assert_called_once_with(
             company_id="test_company",
             user_id="test_user",
+            headers={
+                "x-chat-id": "test_chat",
+                "x-assistant-id": "test_assistant",
+            },
             model=model_name.name,
             messages=[],
             timeout=240000,
@@ -229,6 +241,10 @@ class TestLanguageModelServiceUnit:
         mock_create.assert_called_once_with(
             company_id="test_company",
             user_id="test_user",
+            headers={
+                "x-chat-id": "test_chat",
+                "x-assistant-id": "test_assistant",
+            },
             model=model_name,
             messages=[],
             timeout=240000,
@@ -366,6 +382,10 @@ class TestLanguageModelServiceUnit:
         mock_create.assert_called_once_with(
             company_id="test_company",
             user_id="test_user",
+            headers={
+                "x-chat-id": "test_chat",
+                "x-assistant-id": "test_assistant",
+            },
             model=model_name.name,
             messages=[],
             timeout=240000,
@@ -404,6 +424,10 @@ class TestLanguageModelServiceUnit:
         mock_create.assert_called_once_with(
             company_id="test_company",
             user_id="test_user",
+            headers={
+                "x-chat-id": "test_chat",
+                "x-assistant-id": "test_assistant",
+            },
             model=model_name.name,
             messages=[],
             timeout=240000,
