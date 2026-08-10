@@ -245,6 +245,8 @@ class LanguageModelService:
             other_options=other_options,
             structured_output_model=structured_output_model,
             structured_output_enforce_schema=structured_output_enforce_schema,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
         )
 
     async def complete_async(
@@ -273,6 +275,8 @@ class LanguageModelService:
             other_options=other_options,
             structured_output_model=structured_output_model,
             structured_output_enforce_schema=structured_output_enforce_schema,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
         )
 
     @classmethod
@@ -289,6 +293,8 @@ class LanguageModelService:
         structured_output_model: Optional[Type[BaseModel] | dict[str, Any]] = None,
         structured_output_enforce_schema: bool = False,
         other_options: Optional[dict[str, Any]] = None,
+        chat_id: str | None = None,
+        assistant_id: str | None = None,
     ) -> LanguageModelResponse:
         """
         Calls the completion endpoint asynchronously without streaming the response.
@@ -305,6 +311,8 @@ class LanguageModelService:
             other_options=other_options,
             structured_output_model=structured_output_model,
             structured_output_enforce_schema=structured_output_enforce_schema,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
         )
 
     def complete_with_references(

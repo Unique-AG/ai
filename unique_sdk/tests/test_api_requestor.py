@@ -244,6 +244,37 @@ def test_get_request_args(mock_build_api_url, mock_api_encode, mock_requests):
     assert post_data is None
 
 
+@pytest.mark.ai
+@patch("unique_sdk._http_client.requests")
+def test_get_request_args__merges_attribution_with_automatic_headers(
+    mock_requests,
+) -> None:
+    """Purpose: Verify supplied attribution preserves automatic SDK headers.
+    Why this matters: Linking usage must not drop app, company, or user identity.
+    Setup summary: Build POST arguments with custom IDs and assert the merged headers.
+    """
+    mock_requests.return_value = "response"
+    requestor = APIRequestor(
+        user_id="user_1",
+        company_id="company_1",
+        key="api_key",
+        app_id="app_1",
+    )
+
+    _, _, headers, _ = requestor._get_request_args(
+        "post",
+        "/resource",
+        {},
+        {"x-chat-id": "chat_1", "x-assistant-id": "assistant_1"},
+    )
+
+    assert headers["x-app-id"] == "app_1"
+    assert headers["x-company-id"] == "company_1"
+    assert headers["x-user-id"] == "user_1"
+    assert headers["x-chat-id"] == "chat_1"
+    assert headers["x-assistant-id"] == "assistant_1"
+
+
 @patch("unique_sdk._http_client.requests")
 @pytest.mark.ai
 def test_AI_get_request_args_put_sends_json_body(mock_requests):

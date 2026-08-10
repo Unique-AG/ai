@@ -2,13 +2,25 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.app.schemas import (
+    ChatEvent,
+    ChatEventAssistantMessage,
+    ChatEventPayload,
+    ChatEventUserMessage,
+    EventName,
+)
 from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.default_language_model import (
     DEFAULT_LANGUAGE_MODEL,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
-from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
+from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelCompletionChoice,
+    LanguageModelResponse,
+    LanguageModelTokenUsage,
+)
 
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
@@ -34,6 +46,45 @@ from unique_user_memory.user_memory_prompts import (
 )
 
 _TEST_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL)
+
+
+def _chat_event() -> ChatEvent:
+    return ChatEvent(
+        id="event_1",
+        event=EventName.EXTERNAL_MODULE_CHOSEN,
+        user_id="user_1",
+        company_id="company_1",
+        payload=ChatEventPayload(
+            assistant_id="assistant_1",
+            chat_id="chat_1",
+            name="module",
+            description="module_description",
+            configuration={},
+            user_message=ChatEventUserMessage(
+                id="user_message_1",
+                text="Remember this",
+                created_at="2021-01-01T00:00:00Z",
+                language="EN",
+                original_text="Remember this",
+            ),
+            assistant_message=ChatEventAssistantMessage(
+                id="assistant_message_1",
+                created_at="2021-01-01T00:00:00Z",
+            ),
+        ),
+    )
+
+
+def _completion_response(content: str) -> LanguageModelResponse:
+    return LanguageModelResponse(
+        choices=[
+            LanguageModelCompletionChoice(
+                index=0,
+                message=LanguageModelAssistantMessage(content=content),
+                finish_reason="stop",
+            )
+        ]
+    )
 
 
 def test_memory_profile_keeps_follow_up_tasks_but_excludes_open_questions() -> None:
@@ -221,6 +272,69 @@ async def test_condense_user_memory_accepts_frontmatter_output(
     )
 
     assert result == condensed
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_user_memory_llm_paths_forward_event_attribution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify gate, rewrite, and condense use event-attributed completions.
+    Why this matters: Every user-memory ModelUsage row must link to its chat.
+    Setup summary: Exercise all shared service paths and inspect toolkit calls.
+    """
+    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    condensed = "# User Memory\n\n## Identity\n- Concise"
+    complete_async = AsyncMock(
+        side_effect=[
+            _completion_response("UPDATE"),
+            _completion_response(rewritten),
+            _completion_response(condensed),
+        ]
+    )
+    monkeypatch.setattr(
+        "unique_toolkit.language_model.service.complete_async",
+        complete_async,
+    )
+    event = _chat_event()
+    logger = MagicMock()
+
+    gate_result = await should_consolidate_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="Remember concise answers",
+        assistant_message="Noted",
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        logger=logger,
+    )
+    rewrite_result = await consolidate_user_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="Remember concise answers",
+        assistant_message="Noted",
+        config=UserMemoryConfig(consolidation_gate_enabled=False),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        logger=logger,
+    )
+    condense_result = await condense_user_memory(
+        content=empty_profile("user_1"),
+        max_tokens=2000,
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        logger=logger,
+    )
+
+    assert gate_result is True
+    assert rewritten in rewrite_result
+    assert condense_result == condensed
+    assert complete_async.await_count == 3
+    assert all(
+        call.kwargs["chat_id"] == "chat_1"
+        and call.kwargs["assistant_id"] == "assistant_1"
+        for call in complete_async.await_args_list
+    )
 
 
 def test_count_tokens_uses_language_model_encoder() -> None:

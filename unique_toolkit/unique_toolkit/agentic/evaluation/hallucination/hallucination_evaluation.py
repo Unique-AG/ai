@@ -36,6 +36,8 @@ class HallucinationEvaluation(Evaluation):
         self.config = config
         self._company_id = event.company_id
         self._user_id = event.user_id
+        self._chat_id = event.payload.chat_id
+        self._assistant_id = event.payload.assistant_id
         self._reference_manager = reference_manager
         self._user_message = event.payload.user_message.text
         super().__init__(EvaluationMetricName.HALLUCINATION)
@@ -75,6 +77,8 @@ class HallucinationEvaluation(Evaluation):
                 output_text=loop_response.message.text,
             ),
             config=self.config,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
         )
 
         score_to_label = self.config.score_to_label

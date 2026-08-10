@@ -108,6 +108,8 @@ class TestLanguageModelServiceUnit:
             other_options=None,
             structured_output_enforce_schema=False,
             structured_output_model=None,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
         )
 
     @pytest.mark.asyncio
@@ -131,4 +133,44 @@ class TestLanguageModelServiceUnit:
             other_options=None,
             structured_output_enforce_schema=False,
             structured_output_model=None,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.language_model.service.complete_async")
+    async def test_complete_async_util__forwards_attribution_ids(
+        self, mock_complete_async
+    ) -> None:
+        """Purpose: Verify the compatibility utility forwards attribution IDs.
+        Why this matters: Hallucination evaluation still uses this shared utility.
+        Setup summary: Call the utility with IDs and inspect its function delegation.
+        """
+        mock_complete_async.return_value = LanguageModelResponse(choices=[])
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_0613
+
+        await LanguageModelService.complete_async_util(
+            company_id="test_company",
+            user_id="test_user",
+            messages=messages,
+            model_name=model_name,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+        )
+
+        mock_complete_async.assert_awaited_once_with(
+            company_id="test_company",
+            user_id="test_user",
+            messages=messages,
+            model_name=model_name,
+            temperature=0.0,
+            timeout=240000,
+            tools=None,
+            other_options=None,
+            structured_output_enforce_schema=False,
+            structured_output_model=None,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
         )

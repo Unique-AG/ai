@@ -194,12 +194,16 @@ class APIResource(UniqueObject, Generic[T]):
         user_id: str | None = None,
         company_id: str | None = None,
         params=None,
+        supplied_headers: Mapping[str, str] | None = None,
     ):
         params = None if params is None else params.copy()
 
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
 
-        response = requestor.request(method_, url_, params)
+        if supplied_headers is None:
+            response = requestor.request(method_, url_, params)
+        else:
+            response = requestor.request(method_, url_, params, supplied_headers)
         return convert_to_unique_object(response, user_id, company_id, params)
 
     # The `method_` and `url_` arguments are suffixed with an underscore to
@@ -213,10 +217,16 @@ class APIResource(UniqueObject, Generic[T]):
         user_id: str | None = None,
         company_id: str | None = None,
         params=None,
+        supplied_headers: Mapping[str, str] | None = None,
     ):
         params = None if params is None else params.copy()
 
         requestor = APIRequestor(user_id=user_id, company_id=company_id)
 
-        response = await requestor.request_async(method_, url_, params)
+        if supplied_headers is None:
+            response = await requestor.request_async(method_, url_, params)
+        else:
+            response = await requestor.request_async(
+                method_, url_, params, supplied_headers
+            )
         return convert_to_unique_object(response, user_id, company_id, params)
