@@ -14,12 +14,12 @@
     "check:account-review": "npm --prefix datasets/account_review/astro run check"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "^0.99.0",
-    "@typespec/compiler": "^1.14.0",
-    "@typespec/http": "^1.14.0",
-    "@typespec/openapi3": "^1.14.0",
-    "@typespec/rest": "^0.84.0",
-    "typescript": "^5.9.3",
-    "zod": "^3.25.0"
+    "@hey-api/openapi-ts": "0.99.0",
+    "@typespec/compiler": "1.14.0",
+    "@typespec/http": "1.14.0",
+    "@typespec/openapi3": "1.14.0",
+    "@typespec/rest": "0.84.0",
+    "typescript": "5.9.3",
+    "zod": "3.25.76"
   }
 }

@@ -20,15 +20,15 @@
     "check": "npm run test && npm run typecheck && npm run build && npm run verify"
   },
   "dependencies": {
-    "astro": "^4.16.0",
-    "zod": "^3.25.0"
+    "astro": "4.16.19",
+    "zod": "3.25.76"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.9",
-    "@types/node": "^26.1.1",
-    "esbuild": "^0.21.5",
-    "jsdom": "^29.1.1",
-    "playwright": "^1.61.1",
-    "typescript": "^5.9.3"
+    "@astrojs/check": "0.9.10",
+    "@types/node": "26.2.0",
+    "esbuild": "0.21.5",
+    "jsdom": "29.1.1",
+    "playwright": "1.62.1",
+    "typescript": "5.9.3"
   }
 }

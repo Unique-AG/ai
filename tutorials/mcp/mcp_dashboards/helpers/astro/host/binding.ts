@@ -32,6 +32,20 @@ export function flattenDottedPaths(value: unknown, prefix = ""): Row {
   return out;
 }
 
+const ISO_DATE_RE = /^(\d{4}-\d{2}-\d{2})$/;
+
+function dueDateBucket(value: unknown): "none" | "urgent" | "scheduled" {
+  if (value == null || value === "") return "none";
+  const match = ISO_DATE_RE.exec(String(value).trim());
+  if (!match) return "none";
+  const iso = match[1]!;
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const today = `${now.getFullYear()}-${month}-${day}`;
+  return iso <= today ? "urgent" : "scheduled";
+}
+
 /** Return a row with nested data, dotted mirrors, and platform attr helpers. */
 export function enrichBindingRow(row: Row): Row {
   const flat = flattenDottedPaths(row);
@@ -47,6 +61,8 @@ export function enrichBindingRow(row: Row): Row {
   if (riskLevel != null) {
     merged["compliance.risk_level_tooltip"] = `${riskLevel} risk`;
   }
+
+  merged["case_action.due_bucket"] = dueDateBucket(flat["case_action.due_date"]);
 
   for (const [key, value] of Object.entries(flat)) {
     if (key.endsWith(".pct") && value != null) {

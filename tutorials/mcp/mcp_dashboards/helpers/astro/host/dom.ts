@@ -26,6 +26,11 @@ const PROMPT_TOAST_MS = 12_000;
 /** Reads a dotted path out of a row or tool result. Returns undefined at any missing link. */
 export function readPath(source: unknown, path: string | null | undefined): unknown {
   if (!path) return source;
+  // Prefer exact top-level keys (platform helpers like `compliance.risk_level_tooltip`).
+  if (source != null && typeof source === "object" && !Array.isArray(source)) {
+    const row = source as Row;
+    if (Object.prototype.hasOwnProperty.call(row, path)) return row[path];
+  }
   return String(path)
     .split(".")
     .reduce<unknown>((value, key) => {

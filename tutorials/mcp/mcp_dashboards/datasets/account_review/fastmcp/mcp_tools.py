@@ -320,10 +320,9 @@ async def send_email(
     to_addr = email_str(draft.to)
     message_id = f"msg-{pk}-{resolved.value}-{uuid.uuid4().hex[:10]}"
     logger.info(
-        "Simulated email send message_id=%s audience=%s to=%s subject=%s",
+        "Simulated email send message_id=%s audience=%s subject=%s",
         message_id,
         resolved.value,
-        to_addr,
         draft.subject,
     )
     client, status_updated = apply_optional_status(pk, client, draft.new_status)

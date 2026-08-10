@@ -1,5 +1,5 @@
 # Build context is a staged directory prepared by deploy.sh (not the full monorepo).
-FROM python:3.12-slim
+FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
 WORKDIR /app
 
 COPY unique_mcp /deps/unique_mcp
@@ -25,7 +25,7 @@ COPY mcp_dashboards/datasets/account_review/fastmcp/server.py ./dataset/
 COPY mcp_dashboards/datasets/account_review/fastmcp/scripts/docker_rewrite_sources.py /tmp/docker_rewrite_sources.py
 
 RUN python /tmp/docker_rewrite_sources.py \
-    && pip install --no-cache-dir uv \
+    && pip install --no-cache-dir uv==0.11.33 \
     && uv sync --no-dev
 
 ENV UNIQUE_MCP_LOCAL_BASE_URL=http://0.0.0.0:8004
