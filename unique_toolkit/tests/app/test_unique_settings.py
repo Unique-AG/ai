@@ -650,38 +650,60 @@ def test_unique_api__base_path__returns_default_path__for_standard_hostname() ->
 
 @pytest.mark.ai
 @pytest.mark.parametrize(
-    "hostname,expected_path",
+    "base_url,expected_path",
     [
-        ("gateway.qa.unique.com", "/public/chat-gen2"),
-        ("gateway.unique.com", "/public/chat-gen2"),
-        ("localhost", "/public"),
-        ("svc.cluster.local", "/public"),
-        ("my-service.default.svc.cluster", "/public"),
-        ("my-service.default.svc", "/public"),
+        ("https://gateway.qa.unique.com/", "/public/chat-gen2"),
+        ("https://gateway.unique.com/", "/public/chat-gen2"),
+        ("http://localhost/", "/public"),
+        ("http://localhost:8092/", "/public"),
+        ("http://localhost:8096/", ""),
+        ("http://127.0.0.1:8096/", ""),
+        ("http://svc.cluster.local/", "/public"),
+        ("http://my-service.default.svc.cluster/", "/public"),
+        ("http://my-service.default.svc/", "/public"),
+        ("http://unique-api.finance-gpt.svc.cluster.local/", ""),
+        ("http://unique-api.finance-gpt.svc.cluster.local:80/", ""),
     ],
     ids=[
         "qa-gateway",
         "prod-gateway",
-        "localhost",
+        "localhost-default-port",
+        "localhost-node-chat",
+        "localhost-unique-api",
+        "loopback-unique-api",
         "cluster-local",
         "svc-dot-in-hostname",
         "hostname-ends-with-svc",
+        "unique-api-in-cluster",
+        "unique-api-in-cluster-explicit-port",
     ],
 )
 def test_unique_api__base_path__returns_special_path__for_special_hostnames(
-    hostname: str, expected_path: str
+    base_url: str, expected_path: str
 ) -> None:
     """
-    Purpose: Verify base_path returns correct path based on hostname patterns.
-    Why this matters: Ensures correct API path selection for different deployment environments.
-    Setup summary: Create UniqueApi with special hostnames, assert correct path returned.
+    Purpose: Verify base_path returns correct path based on hostname/port patterns.
+    Why this matters: unique-api is root-mounted; node-chat keeps /public. URL alone
+    must select the path so callers can switch API_BASE without a new env var.
+    Setup summary: Create UniqueApi with special base URLs, assert correct path returned.
     """
     # Arrange
-    api = UniqueApi(base_url=f"https://{hostname}/")
+    api = UniqueApi(base_url=base_url)
     # Act
     _, base_path = api.base_path()
     # Assert
     assert base_path == expected_path
+
+
+@pytest.mark.ai
+def test_unique_api__sdk_url__uses_root_path__for_unique_api_hostname() -> None:
+    """
+    Purpose: Verify sdk_url keeps a root path when API_BASE points at unique-api.
+    Why this matters: In-cluster unique-api has no /public prefix; appending it 404s.
+    Setup summary: Create UniqueApi with unique-api service URL, assert root sdk_url.
+    """
+    api = UniqueApi(base_url="http://unique-api.finance-gpt.svc.cluster.local/")
+    assert api.sdk_url() == "http://unique-api.finance-gpt.svc.cluster.local"
 
 
 @pytest.mark.ai
