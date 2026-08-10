@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
+from unique_toolkit.content import Content
 
 if TYPE_CHECKING:
     from unique_orchestrator.unique_ai import UniqueAI
@@ -103,6 +104,125 @@ class TestUniqueAIUploadedDocumentsInit:
         """
         ua = _make_unique_ai(monkeypatch, uploaded_documents=None)
         assert ua._uploaded_documents == []
+
+
+class TestRenderSystemPromptUploadedCsv:
+    """Tests for CSV-upload guidance in _render_system_prompt."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_csv_mime_type__adds_processing_guidance(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify that CSV MIME metadata adds explicit system guidance.
+        Why this matters: CSV ingestion is disabled, so the model must use Code
+        Interpreter instead of repeatedly searching or requesting the upload.
+        Setup summary: Render with one text/csv upload and assert its name and
+        routing instructions are included.
+        """
+        document = Content(id="cont_csv", key="quarterly-data", mime_type="text/csv")
+        ua = _make_unique_ai(monkeypatch, uploaded_documents=[document])
+
+        result = await ua._render_system_prompt()
+
+        assert "# Uploaded CSV Files" in result
+        assert "- quarterly-data (content_id: cont_csv)" in result
+        assert "cannot be searched or read with UploadedSearchTool" in result
+        assert "Do not ask the user to upload these files again" in result
+        assert "Use Code Interpreter" in result
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_csv_filename__adds_guidance_when_mime_type_is_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify that a CSV filename is a fallback when MIME metadata is absent.
+        Why this matters: Older uploads may not have reliable MIME metadata but still
+        need correct processing instructions.
+        Setup summary: Render with an uppercase .CSV filename and assert it is listed.
+        """
+        document = Content(id="cont_csv", key="DATA.CSV", mime_type=None)
+        ua = _make_unique_ai(monkeypatch, uploaded_documents=[document])
+
+        result = await ua._render_system_prompt()
+
+        assert "- DATA.CSV (content_id: cont_csv)" in result
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_multiple_csv_files__lists_each_upload(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify that guidance identifies every CSV visible to the turn.
+        Why this matters: The model must not overlook or request a second attached CSV.
+        Setup summary: Render with MIME- and extension-detected CSVs and assert both
+        names are present.
+        """
+        documents = [
+            Content(id="cont_1", key="first.csv"),
+            Content(id="cont_2", key="second", mime_type="text/csv"),
+        ]
+        ua = _make_unique_ai(monkeypatch, uploaded_documents=documents)
+
+        result = await ua._render_system_prompt()
+
+        assert "- first.csv (content_id: cont_1)" in result
+        assert "- second (content_id: cont_2)" in result
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_non_csv_file__does_not_add_csv_guidance(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify that ordinary document uploads do not trigger CSV guidance.
+        Why this matters: Searchable documents must retain their normal retrieval path.
+        Setup summary: Render with a PDF and assert the configured base prompt is
+        unchanged.
+        """
+        document = Content(
+            id="cont_pdf",
+            key="report.pdf",
+            mime_type="application/pdf",
+        )
+        ua = _make_unique_ai(monkeypatch, uploaded_documents=[document])
+
+        result = await ua._render_system_prompt()
+
+        assert result == "0"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_code_interpreter_csv_artifact__does_not_add_upload_guidance(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify that generated CSV artifacts are not described as user uploads.
+        Why this matters: Mislabeling model-generated output would confuse later turns
+        and incorrectly tell the model to process its own result as user input.
+        Setup summary: Render with a CSV carrying code-execution artifact metadata and
+        assert the configured base prompt is unchanged.
+        """
+        document = Content(
+            id="cont_generated",
+            key="generated.csv",
+            mime_type="text/csv",
+            metadata={
+                "codeExecutionArtifactMetadata": {
+                    "container_id": "container_1",
+                    "file_id": "file_1",
+                    "filepath": "/mnt/data/generated.csv",
+                }
+            },
+        )
+        ua = _make_unique_ai(monkeypatch, uploaded_documents=[document])
+
+        result = await ua._render_system_prompt()
+
+        assert result == "0"
 
 
 class TestRenderSystemPromptUserMemory:

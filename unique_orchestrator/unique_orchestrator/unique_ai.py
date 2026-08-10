@@ -33,6 +33,9 @@ from unique_toolkit.agentic.tools.experimental.open_file_tool import (
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
     DisplayCodeInterpreterFilesPostProcessor,
 )
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.artifacts import (
+    load_code_execution_metadata,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
     ArtifactsDebugInfo,
 )
@@ -68,6 +71,42 @@ from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.settings import env_settings
 from unique_orchestrator.utils import resolve_other_options
+
+_CSV_MIME_TYPE = "text/csv"
+
+
+def _is_user_uploaded_csv(content: Content) -> bool:
+    """Return whether content is a user-uploaded CSV file."""
+    if load_code_execution_metadata(content) is not None:
+        return False
+
+    return content.mime_type == _CSV_MIME_TYPE or (
+        isinstance(content.key, str) and content.key.lower().endswith(".csv")
+    )
+
+
+def _build_uploaded_csv_system_message(uploaded_documents: list[Content]) -> str:
+    """Build system guidance for CSV files that uploaded search cannot ingest."""
+    csv_documents = [
+        document for document in uploaded_documents if _is_user_uploaded_csv(document)
+    ]
+    if not csv_documents:
+        return ""
+
+    document_lines = "\n".join(
+        f"- {' '.join(document.key.splitlines())} (content_id: {document.id})"
+        for document in csv_documents
+    )
+    return (
+        "# Uploaded CSV Files\n"
+        "The user has already uploaded these CSV files:\n"
+        f"{document_lines}\n\n"
+        "CSV files are intentionally not ingested and cannot be searched or read "
+        "with UploadedSearchTool. Do not ask the user to upload these files again. "
+        "Use Code Interpreter to read and analyze them when it is activated. If "
+        "Code Interpreter is not activated, explain that it is required to process "
+        "the uploaded CSV files."
+    )
 
 
 def _load_invocation_stats_from_debug_info(
@@ -837,6 +876,13 @@ class UniqueAI:
             uploaded_documents_expired=uploaded_documents_expired,
             user_memory=self._user_memory_text,
         )
+        uploaded_csv_system_message = _build_uploaded_csv_system_message(
+            self._uploaded_documents
+        )
+        if uploaded_csv_system_message:
+            system_message = (
+                f"{system_message.rstrip()}\n\n{uploaded_csv_system_message}"
+            )
         return system_message
 
     def _finalize_loop_timing(self, loop_start: float) -> None:
