@@ -16,6 +16,11 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 
 class TestLanguageModelInfos:
+    def test_from_name_applies_anthropic_input_token_multiplier(self):
+        model = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7)
+
+        assert model.token_limits.token_limit_input == 750_000
+
     def test_can_list_all_defined_models(self):
         models = LanguageModel.list_models()
         expected_models = [

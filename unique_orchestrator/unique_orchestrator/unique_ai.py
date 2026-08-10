@@ -788,10 +788,20 @@ class UniqueAI:
         tool_reminders: list[str],
     ) -> int:
         language_model = self._config.space.language_model
-        return num_tokens_for_tool_definitions(
+        tool_definition_tokens = num_tokens_for_tool_definitions(
             tool_definitions,
             language_model,
-        ) + sum(count_tokens(reminder, language_model) for reminder in tool_reminders)
+        )
+        tool_reminder_tokens = sum(
+            count_tokens(reminder, language_model) for reminder in tool_reminders
+        )
+        reserved_input_tokens = tool_definition_tokens + tool_reminder_tokens
+        self._logger.info(
+            "Reserved model input tokens: "
+            f"tools={tool_definition_tokens}, reminders={tool_reminder_tokens}, "
+            f"total={reserved_input_tokens}"
+        )
+        return reserved_input_tokens
 
     def _preflight_model_input(
         self,
@@ -803,10 +813,19 @@ class UniqueAI:
         """Validate the exact outgoing payload before any provider invocation."""
         language_model = self._config.space.language_model
         token_budget = calculate_input_token_budget(language_model)
-        token_count = num_token_for_language_model_messages(
+        message_tokens = num_token_for_language_model_messages(
             messages,
             language_model.get_encoder(),
-        ) + num_tokens_for_tool_definitions(tool_definitions, language_model)
+        )
+        tool_definition_tokens = num_tokens_for_tool_definitions(
+            tool_definitions, language_model
+        )
+        token_count = message_tokens + tool_definition_tokens
+        self._logger.info(
+            "Model input token preflight: "
+            f"messages={message_tokens}, tools={tool_definition_tokens}, "
+            f"total={token_count}, budget={token_budget}"
+        )
 
         if token_count <= token_budget:
             return messages, tool_definitions, tool_choices
@@ -823,20 +842,26 @@ class UniqueAI:
             self._file_fallback_occurred = True
             tool_definitions = self._tool_manager.get_tool_definitions()
             tool_choices = self._tool_manager.get_forced_tools()
-            token_count = num_token_for_language_model_messages(
+            message_tokens = num_token_for_language_model_messages(
                 messages,
                 language_model.get_encoder(),
-            ) + num_tokens_for_tool_definitions(tool_definitions, language_model)
+            )
+            tool_definition_tokens = num_tokens_for_tool_definitions(
+                tool_definitions, language_model
+            )
+            token_count = message_tokens + tool_definition_tokens
+            self._logger.info(
+                "Model input token preflight after removing files: "
+                f"messages={message_tokens}, tools={tool_definition_tokens}, "
+                f"total={token_count}, budget={token_budget}"
+            )
             if token_count <= token_budget:
                 return messages, tool_definitions, tool_choices
 
         raise InputTokenBudgetExceededError(
             token_count=token_count,
             token_budget=token_budget,
-            reserved_input_tokens=num_tokens_for_tool_definitions(
-                tool_definitions,
-                language_model,
-            ),
+            reserved_input_tokens=tool_definition_tokens,
         )
 
     @staticmethod
