@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from unique_toolkit.agentic_table.schemas import MagicTableCell, RowMetadataEntry
+from unique_toolkit.agentic_table.schemas import MagicTableCell, RowMetadataEntryInput
 from unique_toolkit.agentic_table.service import AgenticTableService
 
 
@@ -12,22 +12,22 @@ def _service() -> AgenticTableService:
     )
 
 
+def _cell(row_id: str | None = "row-123") -> MagicTableCell:
+    return MagicTableCell(
+        sheetId="t1", rowId=row_id, rowOrder=4, columnOrder=0, text=""
+    )
+
+
 @pytest.mark.asyncio
 async def test_create_row_metadata_resolves_row_id_and_maps_entries():
     service = _service()
     entries = [
-        RowMetadataEntry(id="ignored-1", key="client", value="Mercer", exact_filter=True),
-        RowMetadataEntry(id="ignored-2", key="strategy", value="CGM", exact_filter=True),
+        RowMetadataEntryInput(key="client", value="Mercer", exact_filter=True),
+        RowMetadataEntryInput(key="strategy", value="CGM", exact_filter=True),
     ]
     with (
         patch.object(
-            AgenticTableService,
-            "get_cell",
-            new=AsyncMock(
-                return_value=MagicTableCell(
-                    sheetId="t1", rowId="row-123", rowOrder=4, columnOrder=0, text=""
-                )
-            ),
+            AgenticTableService, "get_cell", new=AsyncMock(return_value=_cell())
         ),
         patch(
             "unique_toolkit.agentic_table.service.AgenticTable.create_row_metadata",
@@ -47,6 +47,49 @@ async def test_create_row_metadata_resolves_row_id_and_maps_entries():
 
 
 @pytest.mark.asyncio
+async def test_create_row_metadata_uses_provided_row_id_without_lookup():
+    # Batch callers read the row range once and pass the id; paying a get_cell
+    # per row is what makes a large library push O(n) round trips.
+    service = _service()
+    with (
+        patch.object(AgenticTableService, "get_cell", new=AsyncMock()) as mock_get_cell,
+        patch(
+            "unique_toolkit.agentic_table.service.AgenticTable.create_row_metadata",
+            new=AsyncMock(return_value={"status": True}),
+        ) as mock_create,
+    ):
+        await service.create_row_metadata(
+            4,
+            [RowMetadataEntryInput(key="client", value="Mercer")],
+            row_id="row-456",
+        )
+
+    mock_get_cell.assert_not_awaited()
+    assert mock_create.await_args.kwargs["rowId"] == "row-456"
+
+
+@pytest.mark.asyncio
+async def test_create_row_metadata_defaults_exact_filter_to_false():
+    service = _service()
+    with (
+        patch.object(
+            AgenticTableService, "get_cell", new=AsyncMock(return_value=_cell())
+        ),
+        patch(
+            "unique_toolkit.agentic_table.service.AgenticTable.create_row_metadata",
+            new=AsyncMock(return_value={"status": True}),
+        ) as mock_create,
+    ):
+        await service.create_row_metadata(
+            4, [RowMetadataEntryInput(key="reviewer", value="Alex")]
+        )
+
+    assert mock_create.await_args.kwargs["entries"] == [
+        {"key": "reviewer", "value": "Alex", "exactFilter": False}
+    ]
+
+
+@pytest.mark.asyncio
 async def test_create_row_metadata_noop_on_empty():
     service = _service()
     with patch(
@@ -61,17 +104,11 @@ async def test_create_row_metadata_noop_on_empty():
 async def test_create_row_metadata_raises_without_row_id():
     service = _service()
     with patch.object(
-        AgenticTableService,
-        "get_cell",
-        new=AsyncMock(
-            return_value=MagicTableCell(
-                sheetId="t1", rowOrder=4, columnOrder=0, text=""
-            )
-        ),
+        AgenticTableService, "get_cell", new=AsyncMock(return_value=_cell(row_id=None))
     ):
         with pytest.raises(ValueError):
             await service.create_row_metadata(
-                4, [RowMetadataEntry(id="x", key="client", value="Mercer")]
+                4, [RowMetadataEntryInput(key="client", value="Mercer")]
             )
 
 
@@ -80,13 +117,7 @@ async def test_create_row_metadata_raises_on_api_failure():
     service = _service()
     with (
         patch.object(
-            AgenticTableService,
-            "get_cell",
-            new=AsyncMock(
-                return_value=MagicTableCell(
-                    sheetId="t1", rowId="row-123", rowOrder=4, columnOrder=0, text=""
-                )
-            ),
+            AgenticTableService, "get_cell", new=AsyncMock(return_value=_cell())
         ),
         patch(
             "unique_toolkit.agentic_table.service.AgenticTable.create_row_metadata",
@@ -95,5 +126,5 @@ async def test_create_row_metadata_raises_on_api_failure():
     ):
         with pytest.raises(Exception, match="boom"):
             await service.create_row_metadata(
-                4, [RowMetadataEntry(id="x", key="client", value="Mercer")]
+                4, [RowMetadataEntryInput(key="client", value="Mercer")]
             )

@@ -27,6 +27,7 @@ from .schemas import (
     MagicTableCell,
     MagicTableSheet,
     RowMetadataEntry,
+    RowMetadataEntryInput,
     SheetMetadataEntryInput,
 )
 
@@ -774,7 +775,8 @@ class AgenticTableService:
     async def create_row_metadata(
         self,
         row: int,
-        entries: list[RowMetadataEntry],
+        entries: list[RowMetadataEntryInput],
+        row_id: str | None = None,
     ) -> None:
         """Create key/value row metadata for a single row, addressed by row order.
 
@@ -789,8 +791,12 @@ class AgenticTableService:
 
         Args:
             row (int): The row index (row order).
-            entries (list[RowMetadataEntry]): Key/value entries to create. Empty
-                is a no-op.
+            entries (list[RowMetadataEntryInput]): Key/value entries to create.
+                Empty is a no-op.
+            row_id (str | None): The backend row id, when the caller already has
+                it. Callers writing many rows should read the range once (cells
+                carry ``rowId``) and pass it, rather than paying a ``get_cell``
+                round trip per row.
 
         Raises:
             ValueError: If the row id cannot be resolved from the row.
@@ -798,8 +804,10 @@ class AgenticTableService:
         """
         if not entries:
             return
-        cell = await self.get_cell(row, 0, include_row_metadata=False)
-        if not cell.row_id:
+        if row_id is None:
+            cell = await self.get_cell(row, 0, include_row_metadata=False)
+            row_id = cell.row_id
+        if not row_id:
             raise ValueError(
                 f"Cannot write row metadata: row {row} has no resolvable row id "
                 f"on table {self.table_id}."
@@ -808,15 +816,11 @@ class AgenticTableService:
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            rowId=cell.row_id,
+            rowId=row_id,
             entries=[
                 cast(
                     Any,
-                    {
-                        "key": entry.key,
-                        "value": entry.value,
-                        "exactFilter": entry.exact_filter,
-                    },
+                    entry.model_dump(by_alias=True, exclude_none=True),
                 )
                 for entry in entries
             ],

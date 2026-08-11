@@ -457,3 +457,19 @@ class SheetMetadataEntryInput(BaseModel):
         default=False,
         description="Whether the metadata is to be used for strict filtering",
     )
+
+
+class RowMetadataEntryInput(BaseModel):
+    """Input entry for creating row metadata (key/value pairs) on a row.
+
+    Distinct from :class:`RowMetadataEntry`, the read shape, which carries the
+    server-assigned ``id``. Ids are never accepted on create.
+    """
+
+    model_config = get_configuration_dict()
+    key: str
+    value: str
+    exact_filter: bool = Field(
+        default=False,
+        description="Whether the metadata is to be used for strict filtering",
+    )
