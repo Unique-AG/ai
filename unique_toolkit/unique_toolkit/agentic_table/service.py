@@ -17,7 +17,10 @@ from unique_sdk import (
     SelectionMethod,
 )
 from unique_sdk import AgenticTableCell as SDKAgenticTableCell
-from unique_sdk.api_resources._agentic_table import ActivityStatus
+from unique_sdk.api_resources._agentic_table import (
+    ActivityStatus,
+    MagicTableMetadataEntry,
+)
 
 from .schemas import (
     CreatedMagicTableSheet,
@@ -27,6 +30,7 @@ from .schemas import (
     MagicTableCell,
     MagicTableSheet,
     RowMetadataEntry,
+    RowMetadataEntryInput,
     SheetMetadataEntryInput,
 )
 
@@ -764,6 +768,63 @@ class AgenticTableService:
         )
         if not result.get("status"):
             raise Exception(result.get("message") or "Failed to create sheet metadata")
+
+    async def create_row_metadata(
+        self,
+        row: int,
+        entries: list[RowMetadataEntryInput],
+        row_id: str | None = None,
+    ) -> None:
+        """Create key/value row metadata for a single row, addressed by row order.
+
+        Row metadata is the per-row key/value store surfaced by the agentic
+        table's row-metadata UI and forwarded onto knowledge-base content at
+        add-to-library time. The backend endpoint addresses rows by their id, not
+        their order, so unless ``row_id`` is given the id is resolved from column
+        ``0`` of the row first (mirrors ``get_row_metadata`` read helpers).
+
+        NOTE: not to be confused with ``set_cell_metadata`` (selection /
+        agreement status) or ``create_sheet_metadata`` (sheet-level metadata).
+
+        Args:
+            row (int): The row index (row order).
+            entries (list[RowMetadataEntryInput]): Key/value entries to create.
+                Empty is a no-op.
+            row_id (str | None): The backend row id, when the caller already has
+                it. Callers writing many rows should read the range once (cells
+                carry ``rowId``) and pass it, rather than paying a ``get_cell``
+                round trip per row.
+
+        Raises:
+            ValueError: If the row id cannot be resolved from the row.
+            Exception: If the API reports a non-success status.
+        """
+        if not entries:
+            return
+        if row_id is None:
+            cell = await self.get_cell(row, 0, include_row_metadata=False)
+            row_id = cell.row_id
+        if not row_id:
+            raise ValueError(
+                f"Cannot write row metadata: row {row} has no resolvable row id "
+                f"on table {self.table_id}."
+            )
+        result = await AgenticTable.create_row_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            rowId=row_id,
+            entries=[
+                MagicTableMetadataEntry(
+                    key=entry.key,
+                    value=entry.value,
+                    exactFilter=entry.exact_filter,
+                )
+                for entry in entries
+            ],
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to create row metadata")
 
     async def delete_sheet_metadata(self, metadata_id: str) -> None:
         """Delete a sheet metadata entry by its id.

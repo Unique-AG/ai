@@ -363,6 +363,11 @@ class MagicTableCellMetaData(BaseModel):
 class MagicTableCell(BaseModel):
     model_config = get_configuration_dict()
     sheet_id: str
+    row_id: str | None = Field(
+        default=None,
+        alias="rowId",
+        description="The backend id of the row this cell belongs to (needed to write row metadata).",
+    )
     row_order: int = Field(description="The row index of the cell.")
     column_order: int = Field(description="The column index of the cell.")
     row_locked: bool = Field(default=False, description="Lock status of the row.")
@@ -444,6 +449,22 @@ class MagicTableArtifact(BaseModel):
 
 class SheetMetadataEntryInput(BaseModel):
     """Input entry for creating sheet metadata (key/value pairs) on a sheet."""
+
+    model_config = get_configuration_dict()
+    key: str
+    value: str
+    exact_filter: bool = Field(
+        default=False,
+        description="Whether the metadata is to be used for strict filtering",
+    )
+
+
+class RowMetadataEntryInput(BaseModel):
+    """Input entry for creating row metadata (key/value pairs) on a row.
+
+    Distinct from :class:`RowMetadataEntry`, the read shape, which carries the
+    server-assigned ``id``. Ids are never accepted on create.
+    """
 
     model_config = get_configuration_dict()
     key: str
