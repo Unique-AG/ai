@@ -1672,7 +1672,8 @@ class LanguageModelInfo(BaseModel):
                     version="claude-sonnet-5",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
+                        # TODO: Remove the 0.7 adjustment once a proper Claude tokenizer is implemented.
+                        token_limit_input=int(1_000_000 / 0.7),
                         token_limit_output=128_000,
                     ),
                     info_cutoff_at=date(2026, 1, 1),
