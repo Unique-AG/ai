@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.32.4](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.32.3...unique-toolkit-v2026.32.4) (2026-08-11)
+
+
+### Bug Fixes
+
+* claude tokenizer offset ([#2243](https://github.com/Unique-AG/ai/issues/2243)) ([95c896b](https://github.com/Unique-AG/ai/commit/95c896b5d049616a877af53ee58b243858f71038))
+
 ## [2026.32.3](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.32.2...unique-toolkit-v2026.32.3) (2026-08-11)
 
 
