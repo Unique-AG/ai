@@ -439,7 +439,6 @@ class AgenticTableService:
         include_log_history: bool = False,
         include_cell_meta_data: bool = False,
         include_row_metadata: bool = False,
-        scope_to_assigned_rows: bool = False,
     ) -> MagicTableSheet:
         """
         Gets the sheet data from the Agentic Table paginated by batch_size.
@@ -451,8 +450,6 @@ class AgenticTableService:
             include_log_history (bool): Whether to include the log history.
             include_cell_meta_data (bool): Whether to include the cell metadata (renderer, selection, agreement status).
             include_row_metadata (bool): Whether to include the row metadata (key value pairs).
-            scope_to_assigned_rows (bool): When true, scope row count and cell batches to rows
-                assigned to the current user (Can Answer role).
         Returns:
             MagicTableSheet: The sheet data.
         """
@@ -465,7 +462,6 @@ class AgenticTableService:
             includeCells=False,
             includeLogHistory=False,
             includeCellMetaData=False,
-            scopeToAssignedRows=scope_to_assigned_rows,
         )
         total_rows = sheet_info.get("magicTableRowCount")
         if total_rows is None:
@@ -495,7 +491,6 @@ class AgenticTableService:
                     startRow=row,
                     endRow=end_row_batch - 1,
                     includeRowMetadata=True,
-                    scopeToAssignedRows=scope_to_assigned_rows,
                 )
             else:
                 sheet_partial = await AgenticTable.get_sheet_data(
@@ -508,7 +503,6 @@ class AgenticTableService:
                     includeCellMetaData=include_cell_meta_data,  # renderer, selection, agreement status
                     startRow=row,
                     endRow=end_row_batch - 1,
-                    scopeToAssignedRows=scope_to_assigned_rows,
                 )
             if "magicTableCells" in sheet_partial:
                 batch_cells = sheet_partial["magicTableCells"]
