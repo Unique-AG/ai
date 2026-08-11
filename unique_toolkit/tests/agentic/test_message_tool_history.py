@@ -793,19 +793,23 @@ class TestCompactMessageTools:
         assert result[0].response.content == content
 
     @pytest.mark.ai
-    def test_no_citations_removes_structured_sources(self):
+    def test_no_citations_replaces_structured_sources_with_message(self):
         """
-        Purpose: Structured sources are removed when the assistant cites none.
+        Purpose: Structured sources are replaced when the assistant cites none.
         Why this matters: Persisting every retrieved chunk can make the next
-            request drop its complete conversation history.
-        Setup summary: Three sources and no citations produce an empty source list.
+            request drop its complete history, while an empty response can cause
+            the model to repeat the search.
+        Setup summary: Three sources and no citations produce a short result message.
         """
         content = self._make_sources([0, 1, 2])
         records = [self._make_record(content)]
         result = HistoryManager.compact_message_tools(
             records=records, assistant_text="No sources used here."
         )
-        assert json.loads(result[0].response.content) == []
+        assert (
+            result[0].response.content
+            == "The search did not produce any relevant information that could be cited."
+        )
 
     @pytest.mark.ai
     def test_strips_uncited_sources(self):
