@@ -276,7 +276,6 @@ class AgenticTable(APIResource["AgenticTable"]):
         includeCellMetaData: NotRequired[bool]
         includeSheetMetadata: NotRequired[bool]
         includeRowMetadata: NotRequired[bool]
-        scopeToAssignedRows: NotRequired[bool]
         startRow: NotRequired[int]
         endRow: NotRequired[int]
 
