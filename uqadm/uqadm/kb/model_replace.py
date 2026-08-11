@@ -13,6 +13,7 @@ from unique_sdk import Folder
 from unique_sdk.cli.config import Config
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.core.config_output import write_config_document
 from uqadm.core.interactive import confirm_each
 from uqadm.core.model_refs import (
     MISSING,
@@ -23,10 +24,7 @@ from uqadm.core.model_refs import (
     value_matches,
 )
 from uqadm.core.model_target import ModelTarget, ModelTargetError, resolve_model_target
-from uqadm.core.payload_files import (
-    load_json_or_yaml_mapping,
-    snapshot_format_for_path,
-)
+from uqadm.core.payload_files import load_json_or_yaml_mapping
 
 _PAGE_SIZE = 100
 
@@ -55,26 +53,6 @@ def verify_replacements(
         elif value_matches(value, from_model):
             failures.append(f"{ref.path}: still set to {from_model!r}")
     return failures
-
-
-def _write_config(config: dict[str, Any], output: Path | None) -> None:
-    normalized: dict[str, Any] = json.loads(
-        json.dumps(config, sort_keys=True, default=str)
-    )
-    if output is None:
-        typer.echo(json.dumps(normalized, indent=2, sort_keys=True))
-        return
-    try:
-        fmt = snapshot_format_for_path(output)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        sys.exit(2)
-    if fmt == "json":
-        text = json.dumps(normalized, indent=2, sort_keys=True)
-    else:
-        text = yaml.safe_dump(normalized, default_flow_style=False, sort_keys=True)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(text.rstrip("\n") + "\n", encoding="utf-8")
 
 
 def _get_folder_info(
@@ -200,7 +178,7 @@ def _run_file_mode(
     if dry_run:
         typer.echo("Dry-run: no output written.", err=True)
         return
-    _write_config(new_config, output)
+    write_config_document(new_config, output)
     if output is not None:
         typer.echo(f"Wrote rewritten ingestion config to {output}.", err=True)
 
@@ -229,7 +207,7 @@ def _run_single(
     _echo_refs(refs)
 
     if output is not None:
-        _write_config(new_config, output)
+        write_config_document(new_config, output)
         typer.echo(f"Wrote rewritten ingestion config to {output} (no API changes).")
         return
     if dry_run:

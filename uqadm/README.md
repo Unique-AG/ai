@@ -3,7 +3,7 @@
 Admin CLI for the Unique platform. It groups these command families:
 
 - **`space`** — list, export, diff, migrate, upsert, model replacement, access grants, ingestion settings, and delete assistant spaces.
-- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, set folder ingestion config, replace models in ingestion config.
+- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, read/set folder ingestion config, replace models in ingestion config.
 - **`chat`** — send messages to an assistant and inspect chat history.
 - **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
 - **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
@@ -450,7 +450,7 @@ uqadm space delete space_old123 --dry-run
 ## `uqadm kb`
 
 Manage **knowledge-base folders**: create paths, sync/download/remove files and
-folders, grant group access, and set folder ingestion config (via
+folders, grant group access, and read or set folder ingestion config (via
 ``unique_sdk.Folder`` and ``Content.delete`` for targeted file removal).
 
 ```bash
@@ -568,6 +568,37 @@ Grant **group** ``READ`` or ``WRITE`` on a folder. By default the change **appli
 uqadm kb access grant --folder-path /Dept/HR --group grp_1 --permission READ
 uqadm kb access grant --scope-id scope_abc --group grp_1 --group grp_2 --permission WRITE --no-subfolders
 ```
+
+### `kb ingestion get`
+
+Print the ingestion config currently set on a folder scope (``Folder.get_info``).
+The emitted mapping is exactly what ``kb ingestion set`` consumes, so the two
+commands round-trip. Requires exactly one of ``--folder-path`` or ``--scope-id``.
+
+Without ``-o`` the config goes to **stdout as JSON** and all messages go to
+stderr, so the output pipes cleanly (e.g. into ``jq``); with ``-o`` the format
+follows the file suffix. A folder with no ingestion config emits ``{}`` plus a
+note on stderr.
+
+```bash
+uqadm kb ingestion get --folder-path /Dept/HR
+uqadm kb ingestion get --scope-id scope_abc --slot qa
+uqadm kb ingestion get --folder-path /Dept/HR -o ./ingest.yaml
+
+# Inspect a single key
+uqadm kb ingestion get --folder-path /Dept/HR | jq .chunkingConfiguration
+
+# Copy one folder's config onto another
+uqadm kb ingestion get --folder-path /Dept/HR -o /tmp/hr.json
+uqadm kb ingestion set /tmp/hr.json --folder-path /Dept/Legal --no-subfolders
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Folder path (mutually exclusive with `--scope-id`). |
+| `--scope-id` | Folder scope id (mutually exclusive with `--folder-path`). |
+| `-o`, `--output PATH` | Write the config to this `.json`/`.yaml`/`.yml` file instead of stdout. |
+| `--slot SLOT` | Credential slot (default: configured default). |
 
 ### `kb ingestion set CONFIG_FILE`
 

@@ -11,7 +11,7 @@ from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 from uqadm.kb.access import cmd_access_grant
 from uqadm.kb.download import cmd_download
-from uqadm.kb.ingestion import cmd_ingestion_set
+from uqadm.kb.ingestion import cmd_ingestion_get, cmd_ingestion_set
 from uqadm.kb.mkdir import cmd_mkdir
 from uqadm.kb.model_replace import cmd_model_replace
 from uqadm.kb.rm import cmd_rm
@@ -22,8 +22,9 @@ kb_app = typer.Typer(
     help=(
         "Knowledge-base folder administration: create paths (Folder.create_paths), "
         "sync/download files, remove folders/files (Folder.delete, Content.delete), "
-        "grant group access (Folder.add_access), set ingestion config and replace "
-        "models in it (Folder.update_ingestion_config)."
+        "grant group access (Folder.add_access), read ingestion config "
+        "(Folder.get_info), set it and replace models in it "
+        "(Folder.update_ingestion_config)."
     ),
     no_args_is_help=True,
 )
@@ -33,9 +34,10 @@ _ACCESS_SUBHELP = (
     "by default applies to subfolders (see grant --no-subfolders)."
 )
 _INGESTION_SUBHELP = (
-    "Load folder ingestion settings from a JSON/YAML file, or replace a language "
-    "model across them. Wraps Folder.update_ingestion_config (not the same shape "
-    "as space settings.ingestionConfig)."
+    "Read a folder's ingestion settings (Folder.get_info), load them from a "
+    "JSON/YAML file, or replace a language model across them. Writes wrap "
+    "Folder.update_ingestion_config (not the same shape as space "
+    "settings.ingestionConfig)."
 )
 
 _SLOT_HELP = (
@@ -440,9 +442,65 @@ kb_app.add_typer(access_app, name="access")
 
 ingestion_app = typer.Typer(
     help=_INGESTION_SUBHELP,
-    short_help="Folder ingestion JSON/YAML (Folder.update_ingestion_config).",
+    short_help="Folder ingestion JSON/YAML (Folder.get_info / update_ingestion_config).",
     no_args_is_help=True,
 )
+
+
+@ingestion_app.command(
+    "get",
+    short_help="Print a folder scope's current ingestion config.",
+)
+def kb_ingestion_get(
+    ctx: typer.Context,
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
+    folder_path: Annotated[
+        Optional[str],
+        typer.Option(
+            "--folder-path", help="Folder path (mutually exclusive with --scope-id)."
+        ),
+    ] = None,
+    scope_id: Annotated[
+        Optional[str],
+        typer.Option(
+            "--scope-id",
+            help="Folder scope id (mutually exclusive with --folder-path).",
+        ),
+    ] = None,
+    output: Annotated[
+        Optional[Path],
+        typer.Option(
+            "-o",
+            "--output",
+            help=("Write the config to this .json/.yaml/.yml file instead of stdout."),
+        ),
+    ] = None,
+) -> None:
+    """Print the ingestion config currently set on a folder scope.
+
+    Reads ``ingestionConfig`` via ``Folder.get_info`` and emits it as a mapping
+    that ``uqadm kb ingestion set`` accepts unchanged, so this is the read half
+    of a config round-trip. Requires exactly one of ``--folder-path`` or
+    ``--scope-id``.
+
+    Without ``-o`` the config goes to stdout as JSON (progress and warnings go
+    to stderr, so the output pipes cleanly); with ``-o`` the format follows the
+    file suffix. A folder with no ingestion config emits an empty mapping.
+
+    Examples:
+
+      uqadm kb ingestion get --folder-path /Dept/HR
+      uqadm kb ingestion get --scope-id scope_abc --slot qa
+      uqadm kb ingestion get --folder-path /Dept/HR -o ./ingest.yaml
+    """
+    resolved_slot = _resolve(slot)
+    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    cmd_ingestion_get(
+        cfg,
+        folder_path=folder_path,
+        scope_id=scope_id,
+        output=output,
+    )
 
 
 @ingestion_app.command(
