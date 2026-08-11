@@ -1,6 +1,7 @@
 """Tests for hallucination evaluation utils."""
 
 from typing import List, Optional
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -14,6 +15,7 @@ from unique_toolkit.agentic.evaluation.hallucination.utils import (
     _from_order_source_selection_mode,
     _from_original_response_source_selection_mode,
     _get_msgs,
+    check_hallucination,
     context_text_from_stream_response,
 )
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricInput
@@ -25,8 +27,11 @@ from unique_toolkit.language_model.infos import (
     ModelCapabilities,
 )
 from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelCompletionChoice,
     LanguageModelMessageRole,
     LanguageModelMessages,
+    LanguageModelResponse,
     LanguageModelStreamResponse,
 )
 
@@ -99,6 +104,49 @@ def evaluation_input() -> EvaluationMetricInput:
         context_texts=["Context 1", "Context 2"],
         output_text="Test output",
     )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_check_hallucination__forwards_attribution_ids(
+    monkeypatch: pytest.MonkeyPatch,
+    hallucination_config: HallucinationConfig,
+    evaluation_input: EvaluationMetricInput,
+) -> None:
+    """Purpose: Verify hallucination completion receives chat attribution IDs.
+    Why this matters: Secondary evaluator usage must link to the originating chat.
+    Setup summary: Mock the completion utility, run the check, and inspect its call.
+    """
+    complete_async_util = AsyncMock(
+        return_value=LanguageModelResponse(
+            choices=[
+                LanguageModelCompletionChoice(
+                    index=0,
+                    message=LanguageModelAssistantMessage(
+                        content='{"value": "low", "reason": "grounded"}'
+                    ),
+                    finish_reason="stop",
+                )
+            ]
+        )
+    )
+    monkeypatch.setattr(
+        "unique_toolkit.agentic.evaluation.hallucination.utils."
+        "LanguageModelService.complete_async_util",
+        complete_async_util,
+    )
+
+    await check_hallucination(
+        company_id="company_1",
+        user_id="user_1",
+        input=evaluation_input.model_copy(update={"history_messages": []}),
+        config=hallucination_config,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+    )
+
+    assert complete_async_util.await_args.kwargs["chat_id"] == "chat_1"
+    assert complete_async_util.await_args.kwargs["assistant_id"] == "assistant_1"
 
 
 @pytest.mark.ai

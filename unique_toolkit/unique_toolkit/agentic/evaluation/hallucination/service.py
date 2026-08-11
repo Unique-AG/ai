@@ -59,4 +59,6 @@ class HallucinationEvaluator:
             user_id=self.event.user_id,
             input=input,
             config=config,
+            chat_id=self.event.payload.chat_id,
+            assistant_id=self.event.payload.assistant_id,
         )

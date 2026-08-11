@@ -59,6 +59,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
         user_id: str | None = None,
         **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
+        supplied_headers = params.pop("headers", None)
         return cast(
             "ChatCompletion",
             cls._static_request(
@@ -67,6 +68,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 company_id=company_id,
                 user_id=user_id,
                 params=params,
+                supplied_headers=supplied_headers,
             ),
         )
 
@@ -77,6 +79,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
         user_id: str | None = None,
         **params: Unpack["ChatCompletion.CreateParams"],
     ) -> "ChatCompletion":
+        supplied_headers = params.pop("headers", None)
         return cast(
             "ChatCompletion",
             await cls._static_request_async(
@@ -85,5 +88,6 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 company_id=company_id,
                 user_id=user_id,
                 params=params,
+                supplied_headers=supplied_headers,
             ),
         )

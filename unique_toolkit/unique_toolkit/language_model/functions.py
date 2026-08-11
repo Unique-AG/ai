@@ -41,6 +41,18 @@ from .constants import (
 logger = logging.getLogger(f"toolkit.language_model.{__name__}")
 
 
+def _completion_headers(
+    chat_id: str | None,
+    assistant_id: str | None,
+) -> dict[str, str] | None:
+    headers: dict[str, str] = {}
+    if chat_id:
+        headers["x-chat-id"] = chat_id
+    if assistant_id:
+        headers["x-assistant-id"] = assistant_id
+    return headers or None
+
+
 def complete(
     company_id: str,
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
@@ -52,6 +64,8 @@ def complete(
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
     user_id: str | None = None,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
 ) -> LanguageModelResponse:
     """Call the completion endpoint synchronously without streaming the response.
 
@@ -87,14 +101,26 @@ def complete(
         )
 
     try:
-        response = unique_sdk.ChatCompletion.create(
-            company_id=company_id,
-            user_id=user_id,
-            model=model,  # pyright: ignore[reportArgumentType]
-            messages=messages_dict,  # pyright: ignore[reportArgumentType]
-            timeout=timeout,
-            options=options,
-        )
+        headers = _completion_headers(chat_id, assistant_id)
+        if headers is None:
+            response = unique_sdk.ChatCompletion.create(
+                company_id=company_id,
+                user_id=user_id,
+                model=model,  # pyright: ignore[reportArgumentType]
+                messages=messages_dict,  # pyright: ignore[reportArgumentType]
+                timeout=timeout,
+                options=options,
+            )
+        else:
+            response = unique_sdk.ChatCompletion.create(
+                company_id=company_id,
+                user_id=user_id,
+                headers=headers,
+                model=model,  # pyright: ignore[reportArgumentType]
+                messages=messages_dict,  # pyright: ignore[reportArgumentType]
+                timeout=timeout,
+                options=options,
+            )
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.error(f"Error completing: {e}")
@@ -112,6 +138,8 @@ async def complete_async(
     other_options: dict[str, Any] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
 ) -> LanguageModelResponse:
     """Call the completion endpoint asynchronously without streaming the response.
 
@@ -156,14 +184,26 @@ async def complete_async(
     )
 
     try:
-        response = await unique_sdk.ChatCompletion.create_async(
-            company_id=company_id,
-            user_id=user_id,
-            model=model,  # pyright: ignore[reportArgumentType]
-            messages=messages_dict,  # pyright: ignore[reportArgumentType]
-            timeout=timeout,
-            options=options,
-        )
+        headers = _completion_headers(chat_id, assistant_id)
+        if headers is None:
+            response = await unique_sdk.ChatCompletion.create_async(
+                company_id=company_id,
+                user_id=user_id,
+                model=model,  # pyright: ignore[reportArgumentType]
+                messages=messages_dict,  # pyright: ignore[reportArgumentType]
+                timeout=timeout,
+                options=options,
+            )
+        else:
+            response = await unique_sdk.ChatCompletion.create_async(
+                company_id=company_id,
+                user_id=user_id,
+                headers=headers,
+                model=model,  # pyright: ignore[reportArgumentType]
+                messages=messages_dict,  # pyright: ignore[reportArgumentType]
+                timeout=timeout,
+                options=options,
+            )
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.exception(f"Error completing: {e}")
@@ -434,6 +474,8 @@ def complete_with_references(
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict[str, Any] | None = None,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
 
@@ -446,6 +488,8 @@ def complete_with_references(
         timeout=timeout,
         tools=tools,
         other_options=other_options,
+        chat_id=chat_id,
+        assistant_id=assistant_id,
     )
 
     return _create_language_model_stream_response_with_references(
@@ -467,6 +511,8 @@ async def complete_with_references_async(
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict[str, Any] | None = None,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
     response = await complete_async(
@@ -478,6 +524,8 @@ async def complete_with_references_async(
         timeout=timeout,
         tools=tools,
         other_options=other_options,
+        chat_id=chat_id,
+        assistant_id=assistant_id,
     )
 
     return _create_language_model_stream_response_with_references(

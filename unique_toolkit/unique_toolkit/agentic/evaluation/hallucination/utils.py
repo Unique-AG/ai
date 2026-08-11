@@ -37,6 +37,8 @@ async def check_hallucination(
     user_id: str,
     input: EvaluationMetricInput,
     config: EvaluationMetricConfig,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
 ) -> EvaluationMetricResult:
     """
     Analyzes the level of hallucination in the generated output by comparing it with the provided input
@@ -77,7 +79,12 @@ async def check_hallucination(
     try:
         msgs = _get_msgs(input, config)
         result = await LanguageModelService.complete_async_util(
-            company_id=company_id, user_id=user_id, messages=msgs, model_name=model_name
+            company_id=company_id,
+            user_id=user_id,
+            messages=msgs,
+            model_name=model_name,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
         )
     except Exception as e:
         error_message = "Error occurred during hallucination metric analysis"

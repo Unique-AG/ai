@@ -36,6 +36,8 @@ def _make_event() -> SimpleNamespace:
         company_id="company_1",
         user_id="user_1",
         payload=SimpleNamespace(
+            chat_id="chat_1",
+            assistant_id="assistant_1",
             user_message=SimpleNamespace(text="what is ACME revenue?"),
         ),
     )
@@ -61,8 +63,18 @@ def captured_context(monkeypatch: pytest.MonkeyPatch) -> dict:
     """Patch check_hallucination to capture the context_texts it receives."""
     captured: dict = {}
 
-    async def _fake_check_hallucination(*, company_id, user_id, input, config):
+    async def _fake_check_hallucination(
+        *,
+        company_id,
+        user_id,
+        input,
+        config,
+        chat_id,
+        assistant_id,
+    ):
         captured["context_texts"] = list(input.context_texts or [])
+        captured["chat_id"] = chat_id
+        captured["assistant_id"] = assistant_id
         return EvaluationMetricResult(
             name=EvaluationMetricName.HALLUCINATION,
             value="LOW",
@@ -86,6 +98,8 @@ async def test_external_context_is_appended(captured_context: dict) -> None:
 
     # No chunks → context comes solely from the external (MCP) source.
     assert captured_context["context_texts"] == ["ACME revenue: 1M"]
+    assert captured_context["chat_id"] == "chat_1"
+    assert captured_context["assistant_id"] == "assistant_1"
     assert result.value == "LOW"
     assert result.is_positive is True
 
