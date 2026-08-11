@@ -2,8 +2,8 @@
 
 Admin CLI for the Unique platform. It groups these command families:
 
-- **`space`** — list, export, diff, migrate, upsert, access grants, ingestion settings, and delete assistant spaces.
-- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, set folder ingestion config.
+- **`space`** — list, export, diff, migrate, upsert, model replacement, access grants, ingestion settings, and delete assistant spaces.
+- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, set folder ingestion config, replace models in ingestion config.
 - **`chat`** — send messages to an assistant and inspect chat history.
 - **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
 - **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
@@ -326,6 +326,74 @@ Supported URL path markers: `/space/<id>`, `/custom-space/<id>`, `/swappable-int
 
 Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, and modules matched by name. Scope rules, MCP bindings, and briefings are not migrated.
 
+### `space model-replace`
+
+Replace one language model with another across a space configuration. Rewrites
+every **model-bearing key** whose value equals ``--from-model`` — top-level
+``languageModel``, ``switchableLanguageModels`` entries, and nested module/tool
+configuration keys (``languageModel``, ``fallbackLanguageModel``,
+``hallucinationModel``, ``model``, ``modelName``, …) at any depth. Prompt text
+and non-model fields (``languageModelMaxInputTokens``, ``allowModelSwitching``)
+are never touched.
+
+``--to-model`` accepts either a **model name** or a **path to a JSON/YAML file**
+holding language-model info (which must include ``name``). A name is written at
+each matched site as a plain string; a file is written as the full mapping it
+contains. A value that looks like a path but does not resolve to a file is
+rejected, so a mistyped path can never be written into your configs as a model
+name.
+
+**Input** is exactly one of: a ``SPACE_ID`` (live space), ``-f FILE`` (local
+snapshot), or ``--all`` (interactive sweep over every space in the slot,
+prompting ``y/n/a/q`` per matching space).
+
+Only ``--all`` prompts. Naming a single ``SPACE_ID`` applies the update
+immediately — use ``--dry-run`` (or ``-o``) first if you want to see the matched
+paths before anything is written.
+
+**Output**: with ``-o FILE`` the rewritten snapshot is written to disk
+(``.json``/``.yaml``/``.yml``) and **no API write happens**; with ``-f`` and no
+``-o`` it prints to stdout. Otherwise the space is updated **in place** with a
+minimal payload (only the changed top-level fields and changed module
+configurations are sent).
+
+```bash
+# Preview which paths would change
+uqadm space model-replace asst_abc --from-model AZURE_GPT_4o_2024_0806 \
+  --to-model AZURE_GPT_5_2025_0807 --dry-run
+
+# Update the live space in place
+uqadm space model-replace asst_abc --from-model AZURE_GPT_4o_2024_0806 \
+  --to-model AZURE_GPT_5_2025_0807
+
+# Produce a rewritten snapshot file instead of writing to the platform
+uqadm space model-replace asst_abc --from-model OLD --to-model NEW -o migrated.yaml
+
+# Rewrite a local snapshot, replacement model described by a YAML/JSON file
+uqadm space model-replace -f backup.yaml --from-model OLD \
+  --to-model ./new-model.yaml -o backup.migrated.yaml
+
+# Interactively sweep every space in a slot
+uqadm space model-replace --all --slot prod --from-model OLD --to-model NEW
+```
+
+| Option | Description |
+|--------|-------------|
+| `SPACE_ID` | Space id or URL (mutually exclusive with `--file` / `--all`). |
+| `-f`, `--file FILE` | Local snapshot (`.json`/`.yaml`/`.yml`) to rewrite instead of a live space. |
+| `--all` | Iterate every space in the slot, prompting per matching space (`y`/`n`/`a`/`q`). |
+| `--name TEXT` | With `--all`: case-insensitive partial filter on space name. |
+| `--from-model NAME` | Model name currently in the configuration to replace. Required. |
+| `--to-model NAME\|FILE` | Replacement model: a model name, or a path to a `.json`/`.yaml`/`.yml` file with language-model info (must include `name`). Required. |
+| `-o`, `--output PATH` | Write the rewritten snapshot to a file instead of updating the platform. |
+| `--dry-run` | Print matched paths and planned updates without writing anything. |
+| `-y`, `--yes` | With `--all`: apply without prompting. |
+| `--slot SLOT` | Credential slot (default: configured default). |
+
+Note: a single-space run does not follow links into sub-agent spaces (they are
+separate configuration trees); ``--all`` covers them because it iterates every
+space in the slot.
+
 ### `space access-grant SPACE_ID`
 
 Add **user or group** entries to a space ACL via ``Space.add_space_access``. The API **merges** new entries with existing access; it does not replace the full ACL.
@@ -509,6 +577,68 @@ Apply **folder** ingestion settings from a JSON/YAML file (mapping root) using `
 uqadm kb ingestion set ./folder-ingest.json --folder-path /Dept/HR
 uqadm kb ingestion set ./ingest.yaml --scope-id scope_abc --slot qa
 ```
+
+### `kb ingestion model-replace`
+
+Replace one language model with another in **folder ingestion configs**. Reads
+the folder's current ``ingestionConfig`` (``Folder.get_info``), rewrites every
+model-bearing key whose value equals ``--from-model``
+(``vttConfig.languageModel``, ``metadataExtractionConfig.languageModel``,
+``pdfConfig``/``htmlConfig`` ``imageContentExtraction.languageModel``,
+``chunkingConfiguration.model``), and writes it back via
+``Folder.update_ingestion_config``.
+
+After each write the config is **re-read and verified**: the public API
+validates only a subset of ingestion-config model keys, so a key that the API
+rejected or dropped fails loudly with a non-zero exit instead of passing
+silently.
+
+``--to-model`` accepts either a **model name** or a **path to a JSON/YAML file**
+holding language-model info, exactly as in ``space model-replace``.
+
+**Input** is exactly one of: ``--folder-path`` / ``--scope-id`` (live folder),
+``-f FILE`` (local config file), or ``--all`` (interactive walk over every KB
+folder in the slot, prompting ``y/n/a/q`` per matching folder). With ``-o`` the
+rewritten config is written to a file and no API write happens.
+
+Only ``--all`` prompts. Naming a single ``--folder-path`` / ``--scope-id``
+applies the update immediately — use ``--dry-run`` (or ``-o``) first to review
+the matched paths.
+
+Unlike ``ingestion set``, the update applies to **this folder only** unless
+``--subfolders`` is passed — pushing one folder's rewritten config down would
+clobber subfolder-specific settings. ``--all`` rewrites each folder from its
+own current config instead.
+
+```bash
+# Single folder, preview
+uqadm kb ingestion model-replace --folder-path /Dept/HR \
+  --from-model AZURE_GPT_4o_2024_0806 --to-model AZURE_GPT_5_2025_0807 --dry-run
+
+# Single folder, update in place (verified after write)
+uqadm kb ingestion model-replace --scope-id scope_abc --from-model OLD --to-model NEW
+
+# Rewrite a local ingestion config file
+uqadm kb ingestion model-replace -f ./ingest.yaml --from-model OLD --to-model NEW \
+  -o ingest.migrated.yaml
+
+# Interactively walk every KB folder in a slot
+uqadm kb ingestion model-replace --all --slot prod --from-model OLD --to-model NEW
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Folder path (mutually exclusive with `--scope-id`, `--file`, `--all`). |
+| `--scope-id` | Folder scope id (mutually exclusive with `--folder-path`, `--file`, `--all`). |
+| `-f`, `--file FILE` | Local ingestion config (`.json`/`.yaml`/`.yml`) to rewrite instead of a live folder. |
+| `--all` | Walk every KB folder in the slot, prompting per matching folder (`y`/`n`/`a`/`q`). |
+| `--from-model NAME` | Model name currently in the ingestion config to replace. Required. |
+| `--to-model NAME\|FILE` | Replacement model: a model name, or a path to a `.json`/`.yaml`/`.yml` file with language-model info (must include `name`). Required. |
+| `-o`, `--output PATH` | Write the rewritten config to a file instead of updating the platform. |
+| `--subfolders` | Push the rewritten config to descendant folders too (`applyToSubScopes`). Default: this folder only. |
+| `--dry-run` | Print matched paths and planned updates without writing anything. |
+| `-y`, `--yes` | With `--all`: apply without prompting. |
+| `--slot SLOT` | Credential slot (default: configured default). |
 
 ---
 

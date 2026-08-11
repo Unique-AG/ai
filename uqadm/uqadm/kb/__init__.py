@@ -13,6 +13,7 @@ from uqadm.kb.access import cmd_access_grant
 from uqadm.kb.download import cmd_download
 from uqadm.kb.ingestion import cmd_ingestion_set
 from uqadm.kb.mkdir import cmd_mkdir
+from uqadm.kb.model_replace import cmd_model_replace
 from uqadm.kb.rm import cmd_rm
 from uqadm.kb.sync import cmd_sync
 
@@ -21,8 +22,8 @@ kb_app = typer.Typer(
     help=(
         "Knowledge-base folder administration: create paths (Folder.create_paths), "
         "sync/download files, remove folders/files (Folder.delete, Content.delete), "
-        "grant group access (Folder.add_access), set ingestion "
-        "(Folder.update_ingestion_config)."
+        "grant group access (Folder.add_access), set ingestion config and replace "
+        "models in it (Folder.update_ingestion_config)."
     ),
     no_args_is_help=True,
 )
@@ -32,8 +33,9 @@ _ACCESS_SUBHELP = (
     "by default applies to subfolders (see grant --no-subfolders)."
 )
 _INGESTION_SUBHELP = (
-    "Load folder ingestion settings from a JSON/YAML file. Wraps "
-    "Folder.update_ingestion_config (not the same shape as space settings.ingestionConfig)."
+    "Load folder ingestion settings from a JSON/YAML file, or replace a language "
+    "model across them. Wraps Folder.update_ingestion_config (not the same shape "
+    "as space settings.ingestionConfig)."
 )
 
 _SLOT_HELP = (
@@ -507,6 +509,145 @@ def kb_ingestion_set(
         folder_path=folder_path,
         scope_id=scope_id,
         apply_to_subfolders=not no_subfolders,
+    )
+
+
+@ingestion_app.command(
+    "model-replace",
+    short_help="Replace a language model in folder ingestion configs.",
+)
+def kb_ingestion_model_replace(
+    ctx: typer.Context,
+    from_model: Annotated[
+        str,
+        typer.Option(
+            "--from-model",
+            help="Model name currently in the ingestion config that should be replaced.",
+        ),
+    ],
+    to_model: Annotated[
+        str,
+        typer.Option(
+            "--to-model",
+            help=(
+                "Replacement model: a model name, or a path to a .json/.yaml/.yml "
+                "file with language-model info (must include 'name')."
+            ),
+        ),
+    ],
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
+    folder_path: Annotated[
+        Optional[str],
+        typer.Option(
+            "--folder-path",
+            help="Folder path (mutually exclusive with --scope-id, --file, --all).",
+        ),
+    ] = None,
+    scope_id: Annotated[
+        Optional[str],
+        typer.Option(
+            "--scope-id",
+            help="Folder scope id (mutually exclusive with --folder-path, --file, --all).",
+        ),
+    ] = None,
+    file: Annotated[
+        Optional[Path],
+        typer.Option(
+            "-f",
+            "--file",
+            help="Local ingestion config (.json/.yaml/.yml) to rewrite instead of a live folder.",
+            exists=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ] = None,
+    all_folders: Annotated[
+        bool,
+        typer.Option(
+            "--all",
+            help="Walk every KB folder in the slot, prompting per matching folder.",
+        ),
+    ] = False,
+    output: Annotated[
+        Optional[Path],
+        typer.Option(
+            "-o",
+            "--output",
+            help=(
+                "Write the rewritten ingestion config to this .json/.yaml/.yml "
+                "file instead of updating the platform (stdout for --file without -o)."
+            ),
+        ),
+    ] = None,
+    subfolders: Annotated[
+        bool,
+        typer.Option(
+            "--subfolders",
+            help=(
+                "Push the rewritten config to descendant folders too "
+                "(applyToSubScopes). Default: this folder only, because each "
+                "subfolder may have its own distinct config."
+            ),
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Print matched paths and planned updates without writing anything.",
+        ),
+    ] = False,
+    yes: Annotated[
+        bool,
+        typer.Option("-y", "--yes", help="With --all: apply without prompting."),
+    ] = False,
+) -> None:
+    """Replace one language model with another in folder ingestion configs.
+
+    Reads the current ``ingestionConfig`` (``Folder.get_info``), rewrites every
+    model-bearing key whose value equals ``--from-model`` (``vttConfig.languageModel``,
+    ``metadataExtractionConfig.languageModel``, ``pdfConfig``/``htmlConfig``
+    ``imageContentExtraction.languageModel``, ``chunkingConfiguration.model``),
+    and writes it back via ``Folder.update_ingestion_config``. After each write
+    the config is re-read and verified: the public API validates only a subset
+    of model keys, so a dropped/rejected key fails loudly with a non-zero exit.
+
+    ``--to-model`` takes a model name, or a path to a .json/.yaml/.yml file
+    holding language-model info: a name is written as a plain string, a file is
+    written as the full mapping it contains.
+
+    Input is exactly one of: ``--folder-path`` / ``--scope-id`` (live folder),
+    ``--file`` (local config file), or ``--all`` (interactive walk over every
+    folder in the slot, prompting y/n/a/q per matching folder). With ``-o`` the
+    rewritten config is written to a file and no API write happens. Only
+    ``--all`` prompts: a single folder applies immediately, so use ``--dry-run``
+    first to preview. Unlike ``uqadm kb ingestion set``, the update applies
+    to this folder only unless ``--subfolders`` is passed, because pushing one
+    folder's config down would clobber subfolder-specific settings.
+
+    Examples:
+
+      uqadm kb ingestion model-replace --folder-path /Dept/HR --from-model AZURE_GPT_4o_2024_0806 --to-model AZURE_GPT_5_2025_0807
+      uqadm kb ingestion model-replace --scope-id scope_abc --from-model OLD --to-model NEW --dry-run
+      uqadm kb ingestion model-replace -f ./ingest.yaml --from-model OLD --to-model NEW -o ingest.migrated.yaml
+      uqadm kb ingestion model-replace --all --slot prod --from-model OLD --to-model NEW
+    """
+    cfg = None
+    if folder_path or scope_id or all_folders:
+        resolved_slot = _resolve(slot)
+        cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    cmd_model_replace(
+        cfg,
+        folder_path=folder_path,
+        scope_id=scope_id,
+        file_path=file,
+        sweep_all=all_folders,
+        from_model=from_model,
+        to_model=to_model,
+        output=output,
+        apply_to_subfolders=subfolders,
+        dry_run=dry_run,
+        assume_yes=yes,
     )
 
 
