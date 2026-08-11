@@ -34,4 +34,4 @@ def test_chat_message_validates_assessment_without_object():
     parsed = ChatMessage.model_validate(raw_message)
 
     assert parsed.assessment is not None
-    assert parsed.assessment[0].object == "message_assessment"
+    assert parsed.assessment[0].object == "message-assessment"

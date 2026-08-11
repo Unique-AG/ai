@@ -757,7 +757,7 @@ class TestChatServiceUnit:
             "isVisible": True,
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
-            "object": "message_assessment",
+            "object": "message-assessment",
         }
 
         result = self.service.create_message_assessment(
@@ -801,7 +801,7 @@ class TestChatServiceUnit:
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
             "completedAt": mocked_datetime,
-            "object": "message_assessment",
+            "object": "message-assessment",
         }
 
         result = self.service.modify_message_assessment(
@@ -854,7 +854,7 @@ class TestChatServiceUnit:
             "isVisible": True,
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
-            "object": "message_assessment",
+            "object": "message-assessment",
             "title": None,
         }
 
@@ -908,7 +908,7 @@ class TestChatServiceUnit:
             "isVisible": True,
             "createdAt": mocked_datetime,
             "updatedAt": mocked_datetime,
-            "object": "message_assessment",
+            "object": "message-assessment",
         }
 
         mock_modify.return_value = mock_response

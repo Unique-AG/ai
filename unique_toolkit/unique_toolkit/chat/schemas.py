@@ -108,7 +108,7 @@ class ChatMessageAssessment(BaseModel):
     model_config = model_config
 
     id: str
-    object: Literal["message_assessment"] = "message_assessment"
+    object: Literal["message-assessment"] = "message-assessment"
     message_id: str
     status: ChatMessageAssessmentStatus
     type: ChatMessageAssessmentType
