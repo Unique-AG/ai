@@ -348,8 +348,6 @@ class HistoryManager:
             int(m)
             for m in re.findall(r"\[source(\d+)\]", assistant_text, re.IGNORECASE)
         }
-        if not cited:
-            return records
 
         return [
             record.model_copy(
@@ -374,8 +372,9 @@ def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
 
     The content is expected to be a JSON array of dicts containing at least
     a "source_number" key.  Items whose "source_number" is not in *cited*
-    are removed.  If the content is not valid JSON or not in the expected
-    format it is returned unchanged.
+    are removed. If no sources are cited, the response is replaced with a short
+    message. If the content is not valid JSON or not in the expected format it
+    is returned unchanged.
     """
     try:
         data = json.loads(content)
@@ -389,6 +388,11 @@ def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
         isinstance(item, dict) and "source_number" in item for item in data
     ):
         return content
+
+    if not cited:
+        return (
+            "The search did not produce any relevant information that could be cited."
+        )
 
     filtered = [item for item in data if item.get("source_number") in cited]
     return serialize_tool_content_json(filtered)
