@@ -17,7 +17,10 @@ from unique_sdk import (
     SelectionMethod,
 )
 from unique_sdk import AgenticTableCell as SDKAgenticTableCell
-from unique_sdk.api_resources._agentic_table import ActivityStatus
+from unique_sdk.api_resources._agentic_table import (
+    ActivityStatus,
+    MagicTableMetadataEntry,
+)
 
 from .schemas import (
     CreatedMagicTableSheet,
@@ -783,8 +786,8 @@ class AgenticTableService:
         Row metadata is the per-row key/value store surfaced by the agentic
         table's row-metadata UI and forwarded onto knowledge-base content at
         add-to-library time. The backend endpoint addresses rows by their id, not
-        their order, so the id is resolved from column ``0`` of the row first
-        (mirrors ``get_row_metadata`` read helpers).
+        their order, so unless ``row_id`` is given the id is resolved from column
+        ``0`` of the row first (mirrors ``get_row_metadata`` read helpers).
 
         NOTE: not to be confused with ``set_cell_metadata`` (selection /
         agreement status) or ``create_sheet_metadata`` (sheet-level metadata).
@@ -818,9 +821,10 @@ class AgenticTableService:
             tableId=self.table_id,
             rowId=row_id,
             entries=[
-                cast(
-                    Any,
-                    entry.model_dump(by_alias=True, exclude_none=True),
+                MagicTableMetadataEntry(
+                    key=entry.key,
+                    value=entry.value,
+                    exactFilter=entry.exact_filter,
                 )
                 for entry in entries
             ],

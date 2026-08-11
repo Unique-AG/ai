@@ -149,6 +149,27 @@ async def test_create_sheet_metadata_posts_entries(mock_request):
     )
 
 
+async def test_create_row_metadata_posts_entries_to_row_url(mock_request):
+    mock_request.return_value = {"status": True}
+
+    await AgenticTable.create_row_metadata(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        rowId="row_1",
+        entries=[{"key": "client", "value": "UBP", "exactFilter": True}],
+    )
+
+    # Both tableId and rowId address the resource and must not survive into the body.
+    mock_request.assert_awaited_once_with(
+        "post",
+        f"/magic-table/{TABLE_ID}/row/row_1/metadata",
+        USER_ID,
+        COMPANY_ID,
+        {"entries": [{"key": "client", "value": "UBP", "exactFilter": True}]},
+    )
+
+
 async def test_delete_sheet_metadata_deletes_by_id(mock_request):
     mock_request.return_value = {"status": True}
 
