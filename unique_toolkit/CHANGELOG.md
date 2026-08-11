@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.32.3](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.32.2...unique-toolkit-v2026.32.3) (2026-08-11)
+
+
+### Bug Fixes
+
+* **unique-toolkit:** Claude Sonnet 5 Token Counting Correction ([#2236](https://github.com/Unique-AG/ai/issues/2236)) ([5926b6d](https://github.com/Unique-AG/ai/commit/5926b6d88fa54d7554bb63bf50ef590d2d1cb91b))
+
 ## [2026.32.2](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.32.1...unique-toolkit-v2026.32.2) (2026-08-04)
 
 

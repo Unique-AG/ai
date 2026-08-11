@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.32.3](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.32.2...unique-search-proxy-sdk-v2026.32.3) (2026-08-11)
+
+
+### Miscellaneous
+
+* **unique-search-proxy-sdk:** Synchronize ai versions
+
 ## [2026.32.2](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.32.1...unique-search-proxy-sdk-v2026.32.2) (2026-08-04)
 
 
