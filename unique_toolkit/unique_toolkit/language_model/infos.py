@@ -1786,8 +1786,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-opus-4-7",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
-                        token_limit_output=128_000,
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 4, 16),
@@ -1810,8 +1811,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-opus-4-8",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
-                        token_limit_output=128_000,
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 5, 28),
@@ -1834,8 +1836,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-opus-5",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
-                        token_limit_output=128_000,
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
                     ),
                     info_cutoff_at=date(2026, 5, 1),
                     published_at=date(2026, 7, 24),
@@ -1858,8 +1861,9 @@ class LanguageModelInfo(BaseModel):
                     version="claude-fable-5",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
-                        token_limit_output=128_000,
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 7, 1),
