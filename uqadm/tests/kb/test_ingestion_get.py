@@ -18,10 +18,32 @@ def _cfg() -> MagicMock:
 
 
 def _ingestion_config() -> dict[str, Any]:
+    """A config with the nested sections the platform returns verbatim.
+
+    ``get`` must emit them unchanged so that piping it into ``set`` cannot drop
+    a setting: the write replaces top-level keys rather than merging them.
+    """
     return {
         "uniqueIngestionMode": "STANDARD",
         "chunkMaxTokens": 1000,
         "vttConfig": {"languageModel": "AZURE_GPT_4o_2024_0806"},
+        "pdfConfig": {
+            "usePageBasedChunking": True,
+            "imageContentExtraction": {
+                "enabled": True,
+                "languageModel": "AZURE_GPT_4o_2024_1120",
+                "settings": {"maxImages": 20},
+            },
+        },
+        "metadataExtractionConfig": {
+            "enabled": True,
+            "metadataSchema": {"counterparty": {"type": "string", "required": False}},
+            "maxInputTokens": 20000,
+        },
+        "chunkingConfiguration": {"model": "AZURE_GPT_4o_2024_1120", "tokens": 800},
+        "excelConfig": {"tableFormat": "MARKDOWN", "headerRows": [1]},
+        "metadata": {"client": "acme"},
+        "reportTemplates": ["cont_abc"],
     }
 
 

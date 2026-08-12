@@ -41,8 +41,10 @@ def verify_replacements(
 ) -> list[str]:
     """Check that every rewritten path landed in the re-read ``config``.
 
-    The public API write DTO validates only a subset of ingestion-config model
-    keys, so rewritten keys can be rejected or silently dropped on PATCH.
+    Current platforms accept and return the full ingestion config, but older
+    ones validated the write against a restricted DTO and stripped the rest on
+    read, so a rewritten key could vanish without an error. Verifying the
+    re-read keeps that failure visible instead of silent.
     Returns a failure description per reference that did not land.
     """
     failures: list[str] = []

@@ -572,8 +572,11 @@ uqadm kb access grant --scope-id scope_abc --group grp_1 --group grp_2 --permiss
 ### `kb ingestion get`
 
 Print the ingestion config currently set on a folder scope (``Folder.get_info``).
-The emitted mapping is exactly what ``kb ingestion set`` consumes, so the two
-commands round-trip. Requires exactly one of ``--folder-path`` or ``--scope-id``.
+The platform returns the stored config verbatim — including nested settings such
+as ``pdfConfig.imageContentExtraction``, ``metadataExtractionConfig`` and
+``chunkingConfiguration`` — and the emitted mapping is exactly what
+``kb ingestion set`` consumes, so the two commands round-trip losslessly.
+Requires exactly one of ``--folder-path`` or ``--scope-id``.
 
 Without ``-o`` the config goes to **stdout as JSON** and all messages go to
 stderr, so the output pipes cleanly (e.g. into ``jq``); with ``-o`` the format
@@ -604,6 +607,11 @@ uqadm kb ingestion set /tmp/hr.json --folder-path /Dept/Legal --no-subfolders
 
 Apply **folder** ingestion settings from a JSON/YAML file (mapping root) using ``Folder.update_ingestion_config``. Default applies to **subfolders**; use ``--no-subfolders`` for this folder only.
 
+The file **replaces** the stored config rather than merging into it: a top-level
+key missing from the file is deleted from the folder, and the same applies key
+by key to ``metadata``. To change one value, start from ``kb ingestion get``
+output instead of writing a partial file.
+
 ```bash
 uqadm kb ingestion set ./folder-ingest.json --folder-path /Dept/HR
 uqadm kb ingestion set ./ingest.yaml --scope-id scope_abc --slot qa
@@ -619,9 +627,8 @@ model-bearing key whose value equals ``--from-model``
 ``chunkingConfiguration.model``), and writes it back via
 ``Folder.update_ingestion_config``.
 
-After each write the config is **re-read and verified**: the public API
-validates only a subset of ingestion-config model keys, so a key that the API
-rejected or dropped fails loudly with a non-zero exit instead of passing
+After each write the config is **re-read and verified**, so a key the platform
+rejected or did not store fails loudly with a non-zero exit instead of passing
 silently.
 
 ``--to-model`` accepts either a **model name** or a **path to a JSON/YAML file**

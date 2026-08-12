@@ -667,8 +667,8 @@ def kb_ingestion_model_replace(
     ``metadataExtractionConfig.languageModel``, ``pdfConfig``/``htmlConfig``
     ``imageContentExtraction.languageModel``, ``chunkingConfiguration.model``),
     and writes it back via ``Folder.update_ingestion_config``. After each write
-    the config is re-read and verified: the public API validates only a subset
-    of model keys, so a dropped/rejected key fails loudly with a non-zero exit.
+    the config is re-read and verified, so a key the platform rejected or did
+    not store fails loudly with a non-zero exit instead of passing silently.
 
     ``--to-model`` takes a model name, or a path to a .json/.yaml/.yml file
     holding language-model info: a name is written as a plain string, a file is
