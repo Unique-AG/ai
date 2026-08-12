@@ -302,6 +302,11 @@ Organize content into folder structures with:
 
     Update ingestion configuration for a folder and optionally its subfolders.
 
+    The config **replaces** the stored one: a top-level key you omit is removed
+    from the folder, and the same applies key by key to `metadata`. Read the
+    current config with `Folder.get_info()` and send it back with your edits
+    applied rather than sending only the keys you want to change.
+
     **Parameters:**
 
     - `scopeId` (str, optional) - Folder scope ID (required if `folderPath` not provided)
@@ -597,10 +602,13 @@ Organize content into folder structures with:
 
 ??? note "The `Folder.IngestionConfig` type defines ingestion configuration for a folder"
 
+    Every field is optional. A config read from `Folder.get_info()` can be
+    written back unchanged, so read-modify-write is lossless.
+
     **Fields:**
 
-    - `uniqueIngestionMode` (str, required) - Ingestion mode (e.g., "standard")
-    - `chunkStrategy` (str, optional) - Chunking strategy (e.g., "default")
+    - `uniqueIngestionMode` (str, optional) - Ingestion mode (e.g., "INGESTION")
+    - `chunkStrategy` (str, optional) - Chunking strategy (e.g., "UNIQUE_DEFAULT_CHUNKING")
     - `chunkMaxTokens` (int, optional) - Maximum tokens per chunk
     - `chunkMaxTokensOnePager` (int, optional) - Maximum tokens for one-page documents
     - `chunkMinTokens` (int, optional) - Minimum tokens per chunk
@@ -612,6 +620,22 @@ Organize content into folder structures with:
     - `wordReadMode` (str, optional) - Word document reading mode
     - `customApiOptions` (List[CustomApiOptions], optional) - Custom API options
     - `vttConfig` (VttConfig, optional) - VTT configuration
+    - `pdfConfig` (PdfConfig, optional) - `usePageBasedChunking`, `imageContentExtraction`
+    - `htmlConfig` (HtmlConfig, optional) - `imageContentExtraction`
+    - `pptConfig` (PptConfig, optional) - `usePageBasedChunking`
+    - `excelConfig` (ExcelConfig, optional) - Table parsing limits and format
+    - `csvConfig` (CsvConfig, optional) - `maxRows`, `maxCols`
+    - `metadataExtractionConfig` (MetadataExtractionConfig, optional) - LLM metadata extraction
+    - `chunkingConfiguration` (ChunkingConfiguration, optional) - `systemPrompt`, `model`, `tokens`
+    - `metadata` (Dict[str, str], optional) - Folder-level metadata applied to ingested content
+    - `reportTemplates` (List[str], optional) - Content ids of JSON report template files
+    - `hideInChat` (bool, optional) - Hide folder content in chat
+    - `versioningDefault` (bool, optional) - Default versioning behavior for uploads
+    - `shouldApplyToSubScopes` (bool, optional) - Stored Knowledge Base UI preference. Propagation is driven by the `applyToSubScopes` parameter, not by this field.
+
+    `imageContentExtraction` (used by `pdfConfig` and `htmlConfig`) takes
+    `enabled` (bool, required), `languageModel` (str, optional) and `settings`
+    (dict, optional).
 
     **Used in:** `Folder.update_ingestion_config()`
 
@@ -649,7 +673,7 @@ Organize content into folder structures with:
 
     - `id` (str) - Unique folder identifier
     - `name` (str) - Folder name
-    - `ingestionConfig` (IngestionConfig) - Ingestion configuration. See [`Folder.IngestionConfig`](#folderingestionconfig) for structure.
+    - `ingestionConfig` (Dict[str, Any] | None) - The stored ingestion configuration, returned verbatim so no setting is dropped on read. Its keys are the ones [`Folder.IngestionConfig`](#folderingestionconfig) accepts back.
     - `createdAt` (str | None) - Creation timestamp (ISO 8601)
     - `updatedAt` (str | None) - Last update timestamp (ISO 8601)
     - `parentId` (str | None) - Parent folder ID
