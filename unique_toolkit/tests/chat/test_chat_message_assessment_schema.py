@@ -35,3 +35,32 @@ def test_chat_message_validates_assessment_without_object():
 
     assert parsed.assessment is not None
     assert parsed.assessment[0].object == "message-assessment"
+
+
+def test_chat_message_accepts_unexpected_assessment_object_value():
+    """``object`` is a cosmetic discriminator no caller branches on, so an
+    unexpected value must not abort history parsing — the field is typed
+    ``str`` rather than ``Literal`` precisely to avoid re-introducing the
+    UN-24145 failure mode for a value nothing reads.
+    """
+    raw_message = {
+        "id": "message1",
+        "chatId": "chat1",
+        "text": "Some content",
+        "role": "assistant",
+        "assessment": [
+            {
+                "id": "assessment1",
+                "object": "some_unexpected_value",
+                "messageId": "message1",
+                "status": "DONE",
+                "type": "HALLUCINATION",
+                "isVisible": True,
+            }
+        ],
+    }
+
+    parsed = ChatMessage.model_validate(raw_message)
+
+    assert parsed.assessment is not None
+    assert parsed.assessment[0].object == "some_unexpected_value"
