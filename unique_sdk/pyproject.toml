@@ -82,7 +82,9 @@ reportUnusedParameter = "none"
 reportImportCycles = "none"
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --import-mode=importlib"
+# Exclude live API integration tests from the default suite (CI / poe test).
+# Run them explicitly with: uv run poe test-integration
+addopts = "--strict-markers --import-mode=importlib -m 'not integration'"
 asyncio_mode = "auto"
 markers = [
     "ai: AI-authored or AI-generated tests",
@@ -102,6 +104,7 @@ lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."
 test = "pytest"
+test-integration = "pytest -m integration"
 typecheck = "basedpyright"
 depcheck = "deptry ."
 coverage = "pytest --cov=unique_sdk --cov-report=term-missing"

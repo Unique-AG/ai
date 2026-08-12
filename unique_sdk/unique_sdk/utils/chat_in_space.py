@@ -38,6 +38,7 @@ async def send_message_and_wait_for_completion(
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
     correlation: Space.Correlation | None = None,
     auto_approve_elicitation: bool | None = None,
+    language_model: str | None = None,
     on_message_update: Callable[[Space.Message], Awaitable[None]] | None = None,
     wait_for_invocations: bool = False,
 ) -> Space.Message:
@@ -67,6 +68,8 @@ async def send_message_and_wait_for_completion(
             Should contain: parentMessageId, parentChatId, parentAssistantId.
         auto_approve_elicitation: When True, automatically approves elicitation requests during
             the assistant run. Use for non-interactive automation where no user is present.
+        language_model: Optional language model group name for this single message
+            (e.g. ``"AZURE_GPT_4o_2024_1120"``). Requires manage access on the space.
         on_message_update: Optional async callback called whenever the latest assistant
             message changes while waiting for completion.
         wait_for_invocations: When True, briefly wait for the orchestrator's final
@@ -87,6 +90,8 @@ async def send_message_and_wait_for_completion(
         create_message_params["chatId"] = chat_id
     if auto_approve_elicitation is not None:
         create_message_params["autoApproveElicitation"] = auto_approve_elicitation
+    if language_model is not None:
+        create_message_params["languageModel"] = language_model
 
     response = await Space.create_message_async(
         user_id=user_id,
