@@ -28,7 +28,7 @@ class UserMemoryConfig(BaseModel):
             "'Use Orchestrator Language Model' is false."
         ),
     )
-    max_tokens: int = Field(
+    max_tokens: Annotated[str, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default=2000,
         ge=500,
         le=8000,
