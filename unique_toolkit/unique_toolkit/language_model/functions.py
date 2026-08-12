@@ -19,6 +19,7 @@ from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
+    ModelCapabilities,
 )
 from unique_toolkit.language_model.reference import (
     add_references_to_message,
@@ -32,6 +33,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelTool,
     LanguageModelToolDescription,
 )
+from unique_toolkit.language_model.settings import ModelFamily
 
 from .constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
@@ -388,6 +390,29 @@ def _prepare_other_options(
     return options
 
 
+def _translate_max_tokens_option(
+    options: dict[str, Any],
+    model_info: LanguageModelInfo,
+) -> dict[str, Any]:
+    """Rename `max_tokens` to `max_completion_tokens` for OpenAI reasoning models.
+
+    OpenAI reasoning models (GPT-5, o-series) reject the deprecated `max_tokens`
+    parameter on the Chat Completions API. A caller-supplied
+    `max_completion_tokens` always wins; `max_tokens` is dropped in that case.
+    """
+    if "max_tokens" not in options:
+        return options
+    if model_info.family != ModelFamily.OPENAI:
+        return options
+    if ModelCapabilities.REASONING not in model_info.capabilities:
+        return options
+
+    max_tokens = options.pop("max_tokens")
+    if "max_completion_tokens" not in options:
+        options["max_completion_tokens"] = max_tokens
+    return options
+
+
 def _prepare_all_completions_params_util(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
@@ -453,6 +478,7 @@ def _prepare_all_completions_params_util(
             options["reasoning_effort"] = resolved_effort
         elif reasoning_effort is not None:
             options.pop("reasoning_effort", None)
+        options = _translate_max_tokens_option(options, model_info)
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",

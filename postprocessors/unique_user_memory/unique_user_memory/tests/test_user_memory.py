@@ -13,7 +13,7 @@ from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.default_language_model import (
     DEFAULT_LANGUAGE_MODEL,
 )
-from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -25,6 +25,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
     UserMemoryState,
+    _gate_max_tokens,
     _sanitize_for_xml_context,
     condense_user_memory,
     consolidate_user_memory,
@@ -618,6 +619,47 @@ async def test_should_consolidate_memory_returns_false_on_noop(
     assert result is False
     assert (
         llm_service.complete_async.call_args.kwargs["other_options"]["max_tokens"] == 4
+    )
+
+
+def test_gate_max_tokens_depends_on_reasoning_capability() -> None:
+    reasoning_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_5_2025_0807
+    )
+
+    assert _gate_max_tokens(language_model=_TEST_LANGUAGE_MODEL) == 4
+    assert _gate_max_tokens(language_model=reasoning_model) == 64
+
+
+@pytest.mark.asyncio
+async def test_should_consolidate_memory_uses_reasoning_safe_gate_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.choices[0].message.content = "NOOP"
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    reasoning_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_5_2025_0807
+    )
+
+    result = await should_consolidate_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="hello",
+        assistant_message="hi",
+        language_model=reasoning_model,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is False
+    assert (
+        llm_service.complete_async.call_args.kwargs["other_options"]["max_tokens"] == 64
     )
 
 

@@ -20,7 +20,10 @@ from unique_toolkit.language_model import (
     TypeDecoder,
     TypeEncoder,
 )
-from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+    ModelCapabilities,
+)
 from unique_toolkit.language_model.invocation_stats import (
     LanguageModelInvocationStats,
 )
@@ -54,6 +57,11 @@ async def noop_update_callback() -> None:
 # The gate only ever replies with the single word UPDATE or NOOP; a tiny
 # output budget keeps the common (NOOP) path cheap and fast.
 _GATE_MAX_TOKENS = 4
+# Reasoning models spend `max_completion_tokens` on internal reasoning before
+# emitting the answer; a 4-token budget truncates the reply to empty and the
+# gate silently degrades to always-UPDATE. Give them enough room to reason and
+# still emit the single-word answer.
+_GATE_MAX_TOKENS_REASONING = 64
 # When condensing an oversized profile, aim below the hard cap so the LLM
 # output leaves headroom and the hard-cut safety net rarely has to fire.
 _CONDENSE_TARGET_RATIO = 0.9
@@ -108,6 +116,12 @@ class UserMemoryState:
     scope_id: str
     text: str
     load_invocation_stats: tuple[LanguageModelInvocationStats, ...] = ()
+
+
+def _gate_max_tokens(*, language_model: LanguageModelInfo) -> int:
+    if ModelCapabilities.REASONING in language_model.capabilities:
+        return _GATE_MAX_TOKENS_REASONING
+    return _GATE_MAX_TOKENS
 
 
 def _get_model_tokenizer(
@@ -684,7 +698,9 @@ async def should_consolidate_memory(
         response = await llm_service.complete_async(
             messages=messages,
             model_name=language_model.name,
-            other_options={"max_tokens": _GATE_MAX_TOKENS},
+            other_options={
+                "max_tokens": _gate_max_tokens(language_model=language_model)
+            },
         )
     except Exception as exc:
         logger.warning(
