@@ -108,7 +108,8 @@ class ChatMessageAssessment(BaseModel):
     model_config = model_config
 
     id: str
-    object: str
+    # str not Literal: unknown values must not abort history parsing (UN-24145)
+    object: str = "message-assessment"
     message_id: str
     status: ChatMessageAssessmentStatus
     type: ChatMessageAssessmentType
