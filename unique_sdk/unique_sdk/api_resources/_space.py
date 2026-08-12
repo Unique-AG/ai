@@ -115,6 +115,15 @@ class Space(APIResource["Space"]):
         parentChatId: str
         parentAssistantId: str
 
+    class SkillChoice(TypedDict):
+        """
+        Skill selection for a space message (skillChoices / availableSkills).
+        """
+
+        scopeId: NotRequired[str]
+        contentId: NotRequired[str]
+        name: NotRequired[str]
+
     class CreateMessageParams(RequestOptions):
         """
         Parameters for querying the assistant for a message.
@@ -122,10 +131,13 @@ class Space(APIResource["Space"]):
 
         chatId: NotRequired[str | None]
         assistantId: str
+        languageModel: NotRequired[str | None]
         text: NotRequired[str | None]
         toolChoices: NotRequired[list[str] | None]
-        skillChoices: NotRequired[list[dict[str, Any]]]
+        skillChoices: NotRequired[list["Space.SkillChoice"] | None]
+        availableSkills: NotRequired[list["Space.SkillChoice"] | None]
         scopeRules: NotRequired[dict[str, Any] | None]
+        selectedUploadedFileIds: NotRequired[list[str] | None]
         correlation: NotRequired["Space.Correlation | None"]
         autoApproveElicitation: NotRequired[bool | None]
 
