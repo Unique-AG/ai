@@ -7,6 +7,7 @@ import unique_sdk
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.functions import (
     _add_tools_to_options,
+    _prepare_all_completions_params_util,
     _prepare_completion_params_util,
     _to_search_context,
     complete,
@@ -539,3 +540,68 @@ def test_resolve_unknown_model_respects_declared_bounds():
 
     temp, effort = model.resolve_temp_and_reasoning(1.0, None)
     assert temp == 1.0
+
+
+def _prepare_options_for_model(
+    model_name: LanguageModelName | str,
+    other_options: dict,
+) -> dict:
+    options, _, _, _ = _prepare_all_completions_params_util(
+        messages=LanguageModelMessages([]),
+        model_name=model_name,
+        temperature=0.5,
+        other_options=other_options,
+    )
+    return options
+
+
+def test_max_tokens_translated_for_openai_reasoning_model():
+    """GPT-5 rejects `max_tokens` on the Chat Completions API; the toolkit must
+    rename it to `max_completion_tokens`."""
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_5_2025_0807,
+        {"max_tokens": 100},
+    )
+
+    assert "max_tokens" not in options
+    assert options["max_completion_tokens"] == 100
+
+
+def test_max_tokens_untouched_for_openai_non_reasoning_model():
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_4o_2024_1120,
+        {"max_tokens": 100},
+    )
+
+    assert options["max_tokens"] == 100
+    assert "max_completion_tokens" not in options
+
+
+def test_max_tokens_untouched_for_non_openai_reasoning_model():
+    options = _prepare_options_for_model(
+        LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING,
+        {"max_tokens": 100},
+    )
+
+    assert options["max_tokens"] == 100
+    assert "max_completion_tokens" not in options
+
+
+def test_max_tokens_untouched_for_unknown_string_model():
+    options = _prepare_options_for_model(
+        "custom_model",
+        {"max_tokens": 100},
+    )
+
+    assert options["max_tokens"] == 100
+    assert "max_completion_tokens" not in options
+
+
+def test_caller_supplied_max_completion_tokens_wins_over_max_tokens():
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_5_2025_0807,
+        {"max_tokens": 100, "max_completion_tokens": 200},
+    )
+
+    assert "max_tokens" not in options
+    assert options["max_completion_tokens"] == 200
