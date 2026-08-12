@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "2026.34.0.dev3"
+version = "2026.34.0.dev5"
 description = "Shared FastMCP platform helpers for Unique: auth injectors, pino-json logging, and ops/metrics routes"
 readme = "README.md"
 authors = [
@@ -24,7 +24,7 @@ dependencies = [
     # 4.6.0 is the floor: 4.4.0/4.5.0 fail to import on Python 3.12 (a
     # TypeVar subclassing incompatibility, fixed in 4.6.0), verified locally.
     "typing-extensions>=4.6.0",
-    "unique-toolkit[monitoring,otel]>=2026.34.0.dev5,<2026.34.0rc0",
+    "unique-toolkit[monitoring,otel]>=2026.34.0.dev18,<2026.34.0rc0",
 ]
 
 [build-system]
