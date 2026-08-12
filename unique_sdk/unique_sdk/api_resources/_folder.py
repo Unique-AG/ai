@@ -45,18 +45,83 @@ class Folder(APIResource["Folder"]):
     class VttConfig(TypedDict):
         languageModel: str | None
 
+    class ImageContentExtractionConfig(TypedDict):
+        enabled: bool
+        languageModel: NotRequired[str | None]
+        settings: NotRequired[dict[str, Any] | None]
+
+    class PdfConfig(TypedDict):
+        usePageBasedChunking: NotRequired[bool | None]
+        imageContentExtraction: NotRequired[
+            "Folder.ImageContentExtractionConfig | None"
+        ]
+
+    class HtmlConfig(TypedDict):
+        imageContentExtraction: NotRequired[
+            "Folder.ImageContentExtractionConfig | None"
+        ]
+
+    class PptConfig(TypedDict):
+        usePageBasedChunking: NotRequired[bool | None]
+
+    class ExcelConfig(TypedDict):
+        rowsPerChunk: NotRequired[int | None]
+        tableFormat: NotRequired[str | None]
+        headerRows: NotRequired[list[int] | None]
+        headerColumns: NotRequired[list[int] | None]
+        maxEmptyTableRows: NotRequired[int | None]
+        maxEmptyTableCols: NotRequired[int | None]
+        tableChunkTokenLimit: NotRequired[int | None]
+        maxRows: NotRequired[int | None]
+        maxCols: NotRequired[int | None]
+        deduplicateMergedCells: NotRequired[bool | None]
+
+    class CsvConfig(TypedDict):
+        maxRows: NotRequired[int | None]
+        maxCols: NotRequired[int | None]
+
+    class MetadataExtractionConfig(TypedDict):
+        enabled: bool
+        metadataSchema: dict[str, Any]
+        maxInputTokens: int
+        languageModel: NotRequired[str | None]
+
+    class ChunkingConfiguration(TypedDict):
+        systemPrompt: NotRequired[str | None]
+        model: NotRequired[str | None]
+        tokens: NotRequired[int | None]
+
     class IngestionConfig(TypedDict):
+        """Folder ingestion settings accepted by ``update_ingestion_config``.
+
+        Mirrors the public API's write DTO. Reads return the stored JSON
+        verbatim (see :class:`Folder.FolderInfo`), so a config read from a
+        folder can be written back unchanged.
+        """
+
         chunkMaxTokens: NotRequired[int | None]
         chunkMaxTokensOnePager: NotRequired[int | None]
         chunkMinTokens: NotRequired[int | None]
         chunkStrategy: NotRequired[str | None]
+        chunkingConfiguration: NotRequired["Folder.ChunkingConfiguration | None"]
+        csvConfig: NotRequired["Folder.CsvConfig | None"]
         customApiOptions: NotRequired[list["Folder.CustomApiOptions"] | None]
         documentMinTokens: NotRequired[int | None]
+        excelConfig: NotRequired["Folder.ExcelConfig | None"]
         excelReadMode: NotRequired[str | None]
+        hideInChat: NotRequired[bool | None]
+        htmlConfig: NotRequired["Folder.HtmlConfig | None"]
         jpgReadMode: NotRequired[str | None]
+        metadata: NotRequired[dict[str, str] | None]
+        metadataExtractionConfig: NotRequired["Folder.MetadataExtractionConfig | None"]
+        pdfConfig: NotRequired["Folder.PdfConfig | None"]
         pdfReadMode: NotRequired[str | None]
+        pptConfig: NotRequired["Folder.PptConfig | None"]
         pptReadMode: NotRequired[str | None]
-        uniqueIngestionMode: str
+        reportTemplates: NotRequired[list[str] | None]
+        shouldApplyToSubScopes: NotRequired[bool | None]
+        uniqueIngestionMode: NotRequired[str]
+        versioningDefault: NotRequired[bool | None]
         vttConfig: NotRequired["Folder.VttConfig | None"]
         wordReadMode: NotRequired[str | None]
 
@@ -82,7 +147,10 @@ class Folder(APIResource["Folder"]):
 
         id: str
         name: str
-        ingestionConfig: "Folder.IngestionConfig"
+        # Returned verbatim from storage rather than through a typed DTO, so a
+        # newly added ingestion option is never dropped on read. The keys of
+        # `Folder.IngestionConfig` are what the write endpoint accepts back.
+        ingestionConfig: dict[str, Any] | None
         createdAt: str | None
         updatedAt: str | None
         parentId: str | None
