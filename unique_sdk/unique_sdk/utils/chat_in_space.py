@@ -30,7 +30,7 @@ async def send_message_and_wait_for_completion(
     assistant_id: str,
     text: str,
     tool_choices: list[str] | None = None,
-    skill_choices: Sequence[dict[str, Any]] = (),
+    skill_choices: Sequence[Space.SkillChoice] = (),
     scope_rules: dict[str, Any] | None = None,
     chat_id: str | None = None,
     poll_interval: float = 1.0,

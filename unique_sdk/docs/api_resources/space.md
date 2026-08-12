@@ -393,8 +393,12 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `assistantId` (str, required) - Space/assistant ID
     - `text` (str, optional) - Message text
     - `chatId` (str, optional) - Continue existing chat or start new
+    - `languageModel` (str, optional) - Language model group name for this single message (e.g. `"AZURE_GPT_4o_2024_1120"` or `"litellm:gemini-2-5-pro"`). Requires manage access on the space.
     - `toolChoices` (List[str], optional) - List of tools to use (e.g., `["WebSearch", "InternalSearch"]`)
+    - `skillChoices` (List[`Space.SkillChoice`](#spaceskillchoice), optional) - Selected skills to use for this message
+    - `availableSkills` (List[`Space.SkillChoice`](#spaceskillchoice), optional) - Skills available for the assistant to choose from
     - `scopeRules` (Dict[str, Any], optional) - UniqueQL filter for document scope
+    - `selectedUploadedFileIds` (List[str], optional) - Content IDs of uploaded documents the assistant may read via UploadedSearch. Overrides documents otherwise derived from the chat. An empty list blocks all uploaded documents.
     - `correlation` ([`Space.Correlation`](#spacecorrelation), optional) - Correlation data to link this message to a parent message in another chat
     - `autoApproveElicitation` (bool, optional) - When `true`, automatically approves elicitation requests during the assistant run. Use for non-interactive SDK/automation flows where no user is present to respond. Requires `unique_sdk.api_version = "2026-03-01"`.
 
@@ -1012,6 +1016,18 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `parentAssistantId` (str, required) - The ID of the parent assistant
 
     **Used in:** `Space.create_message()`
+
+#### Space.SkillChoice {#spaceskillchoice}
+
+??? note "The `Space.SkillChoice` type defines a skill reference for message create"
+
+    **Fields:**
+
+    - `scopeId` (str, optional) - Knowledge base scope ID that contains the skill file
+    - `contentId` (str, optional) - Knowledge base content ID of the skill file
+    - `name` (str, optional) - Skill name
+
+    **Used in:** `Space.create_message()` (`skillChoices`, `availableSkills`)
 
 #### ChatResult {#chatresult}
 
