@@ -12,6 +12,7 @@ class IntegrationTestConfig:
     base_url: str
     root_scope_id: str
     root_folder_path: str
+    assistant_id: str
 
     @classmethod
     def from_env(cls, env_vars: dict[str, str | None]) -> "IntegrationTestConfig":
@@ -34,6 +35,7 @@ class IntegrationTestConfig:
         base_url = env_vars["UNIQUE_TEST_BASE_URL"]
         root_scope_id = env_vars["UNIQUE_TEST_ROOT_SCOPE_ID"]
         root_folder_path = env_vars["UNIQUE_TEST_ROOT_FOLDER_PATH"]
+        assistant_id = env_vars.get("UNIQUE_TEST_ASSISTANT_ID", "")
 
         if not api_key:
             raise ValueError("UNIQUE_TEST_API_KEY is required")
@@ -49,7 +51,8 @@ class IntegrationTestConfig:
             raise ValueError("UNIQUE_TEST_ROOT_SCOPE_ID is required")
         if not root_folder_path:
             raise ValueError("UNIQUE_TEST_ROOT_FOLDER_PATH is required")
-
+        if not assistant_id:
+            raise ValueError("UNIQUE_TEST_ASSISTANT_ID is required")
         return cls(
             api_key=api_key,
             app_id=app_id,
@@ -58,4 +61,5 @@ class IntegrationTestConfig:
             base_url=base_url,
             root_scope_id=root_scope_id,
             root_folder_path=root_folder_path,
+            assistant_id=assistant_id,
         )
