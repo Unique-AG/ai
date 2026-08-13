@@ -182,8 +182,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
             if not hasattr(self.config, field_name):
                 continue
             value = getattr(self.config, field_name)
-            # Empty values fall through to the SDK/server defaults (e.g. an unset
-            # ``agent_id`` triggers server-side auto-provisioning).
+            # Empty values fall through to the SDK/server defaults.
             if value is None or value == "":
                 continue
             invocation[field_name] = value

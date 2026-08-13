@@ -29,13 +29,6 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         le=50,
         description="Maximum number of Bing grounding results per query",
     )
-    agent_id: str | None = Field(
-        default=None,
-        description=(
-            "Foundry agent name/id. Resolved from deployment env when not set. "
-            "When empty, the service auto-provisions or looks up a grounding agent."
-        ),
-    )
 
 
 BingAgentSearchRequest = BingAgentConfig.request_model()

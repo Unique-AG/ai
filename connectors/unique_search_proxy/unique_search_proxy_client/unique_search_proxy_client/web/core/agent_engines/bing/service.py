@@ -57,7 +57,6 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
     ) -> AsyncIterator[AgentSearchStreamEvent]:
         bing_agent_credentials.check_credentials()
         creds = bing_agent_credentials
-        resolved_agent_name = request.agent_id or creds.agent_id or None
 
         answer_parts: list[str] = []
         raw_chunks: list[dict] = []
@@ -79,7 +78,6 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                         model=read_secret(creds.bing_agent_model),
                         fetch_size=request.fetch_size,
                         instructions=instructions,
-                        agent_name=resolved_agent_name,
                     ):
                         if delta:
                             answer_parts.append(delta)

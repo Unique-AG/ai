@@ -43,10 +43,6 @@ library extension hooks (base.externalService.*.ext).
 {{- fail "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." }}
 {{- end }}
 {{ include "base.valueSource.env" (dict "name" "BING_AGENT_BING_RESOURCE_CONNECTION_STRING" "src" .Values.bingAgent.connection.bingResourceConnectionString "ctx" .) }}
-{{- if .Values.bingAgent.connection.agentId }}
-- name: BING_AGENT_AGENT_ID
-  value: {{ .Values.bingAgent.connection.agentId | quote }}
-{{- end }}
 {{- if not .Values.bingAgent.connection.bingAgentModel }}
 {{- fail "bingAgent.connection.bingAgentModel is required when bingAgent.enabled is true. Set it in your environment overlay." }}
 {{- end }}
@@ -189,10 +185,6 @@ library extension hooks (base.externalService.*.ext).
 {{- fail "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." }}
 {{- end }}
 {{ include "base.valueSource.env" (dict "name" "BING_AGENT_BING_RESOURCE_CONNECTION_STRING" "src" .ctx.Values.bingAgent.connection.bingResourceConnectionString "ctx" .ctx) }}
-{{- if .ctx.Values.bingAgent.connection.agentId }}
-- name: BING_AGENT_AGENT_ID
-  value: {{ .ctx.Values.bingAgent.connection.agentId | quote }}
-{{- end }}
 {{- if not .ctx.Values.bingAgent.connection.bingAgentModel }}
 {{- fail "bingAgent.connection.bingAgentModel is required when bingAgent.enabled is true. Set it in your environment overlay." }}
 {{- end }}

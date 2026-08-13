@@ -483,24 +483,24 @@ class TestConfigHashAndAgentName:
         assert base != other_model
 
     @pytest.mark.ai
-    @patch(
-        "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
-    )
-    def test_resolve__prefers_preconfigured_name(self, mock_env: MagicMock) -> None:
+    def test_resolve__returns_hash_based_name(self) -> None:
         """
-        Purpose: Verify explicit agent_name wins over hash derivation.
-        Why this matters: Admins can pin a known Foundry agent.
-        Setup summary: Pass agent_name; assert returned unchanged.
+        Purpose: Verify resolve_bing_agent_name always derives a hash-based name.
+        Why this matters: Agent names are auto-provisioned; no pinned override remains.
+        Setup summary: Call resolve with model/fetch_size/instructions; assert hash name.
         """
-        mock_env.azure_ai_assistant_id = None
+        expected = _agent_name_for_config(
+            model="gpt-5.1",
+            fetch_size=5,
+            instructions="Be helpful.",
+        )
         assert (
             resolve_bing_agent_name(
                 model="gpt-5.1",
                 fetch_size=5,
                 instructions="Be helpful.",
-                agent_name="my-agent",
             )
-            == "my-agent"
+            == expected
         )
 
 
@@ -520,7 +520,6 @@ class TestCreateBingAgent:
         Why this matters: Foundry rejects instructions on responses.create with agent_reference.
         Setup summary: Mock create_version; assert instructions land on PromptAgentDefinition.
         """
-        mock_env.azure_ai_assistant_id = None
         mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         mock_env.azure_ai_bing_resource_connection_string = (
             "/subscriptions/x/connections/bing"
@@ -554,20 +553,24 @@ class TestCreateBingAgent:
     @patch(
         "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
     )
-    async def test_get_or_create__env_assistant_id_set__returns_env_id_directly(
+    async def test_get_or_create__returns_hash_based_name(
         self, mock_env: MagicMock, mock_agent_client: MagicMock
     ) -> None:
         """
-        Purpose: Verify env-set assistant_id is returned immediately without agent lookup.
-        Why this matters: IT admins setting the assistant_id in .env expect it to be used
-            directly, bypassing auto-provisioning entirely.
-        Setup summary: Set azure_ai_assistant_id on env; assert returned without create_version.
+        Purpose: Verify get_or_create_agent_id returns the hash-derived agent name.
+        Why this matters: Compatibility wrapper must stay aligned with auto-provisioning.
+        Setup summary: Call get_or_create_agent_id; assert hash name and no create_version.
         """
-        mock_env.azure_ai_assistant_id = "env-preconfigured-agent-id"
+        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
+        expected = resolve_bing_agent_name(
+            model="gpt-5.1",
+            fetch_size=5,
+            instructions=RESPONSE_RULE,
+        )
 
         agent_name = await get_or_create_agent_id(mock_agent_client)
 
-        assert agent_name == "env-preconfigured-agent-id"
+        assert agent_name == expected
         mock_agent_client.agents.create_version.assert_not_called()
 
 
@@ -752,17 +755,16 @@ class TestCreateAndProcessRun:
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch(f"{_RUNNER_MODULE}.env_settings")
-    async def test_run__successful_without_agent_id__returns_parsed_results(
+    async def test_run__successful__returns_parsed_results(
         self,
         mock_env: MagicMock,
     ) -> None:
         """
-        Purpose: Verify successful run returns parsed search results when no agent_id is provided.
+        Purpose: Verify successful run returns parsed search results with hash-based agent.
         Why this matters: Core happy-path for Bing grounding with hash-based agent reuse.
         Setup summary: Mock Responses stream (agent already exists); assert parser is invoked
             and create_version is not called.
         """
-        mock_env.azure_ai_assistant_id = None
         mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         mock_env.azure_ai_bing_resource_connection_string = (
             "/subscriptions/x/connections/bing"
@@ -780,7 +782,6 @@ class TestCreateAndProcessRun:
         ):
             results = await create_and_process_run(
                 agent_client=mock_agent_client,
-                agent_id="",
                 query="test query",
                 fetch_size=5,
                 response_parsers_strategies=[mock_parser],
@@ -803,7 +804,6 @@ class TestCreateAndProcessRun:
         Why this matters: Mid-stream errors or normal completion must release the HTTP connection.
         Setup summary: Capture the mock stream and assert ``closed`` after a successful run.
         """
-        mock_env.azure_ai_assistant_id = None
         mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         mock_env.azure_ai_bing_resource_connection_string = (
             "/subscriptions/x/connections/bing"
@@ -827,7 +827,6 @@ class TestCreateAndProcessRun:
         ):
             await create_and_process_run(
                 agent_client=mock_agent_client,
-                agent_id="",
                 query="test query",
                 fetch_size=5,
                 response_parsers_strategies=[mock_parser],
@@ -848,7 +847,6 @@ class TestCreateAndProcessRun:
         Why this matters: Replaces Threads ``thread.usage`` recording after the SDK migration.
         Setup summary: Stream a completed response with ResponseUsage inside invocation_stats_scope.
         """
-        mock_env.azure_ai_assistant_id = None
         mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         mock_env.azure_ai_bing_resource_connection_string = (
             "/subscriptions/x/connections/bing"
@@ -879,7 +877,6 @@ class TestCreateAndProcessRun:
         ):
             await create_and_process_run(
                 agent_client=mock_agent_client,
-                agent_id="",
                 query="test query",
                 fetch_size=5,
                 response_parsers_strategies=[mock_parser],
@@ -896,51 +893,6 @@ class TestCreateAndProcessRun:
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch(f"{_RUNNER_MODULE}.env_settings")
-    async def test_run__with_agent_id__uses_existing_agent(
-        self,
-        mock_env: MagicMock,
-    ) -> None:
-        """
-        Purpose: Verify that providing an agent_id skips auto-create and uses the given name.
-        Why this matters: Allows using pre-configured agents from config without auto-provisioning.
-        Setup summary: Provide non-empty agent_id; assert Responses uses it and create is skipped.
-        """
-        mock_env.azure_ai_assistant_id = None
-        mock_agent_client = MagicMock()
-        mock_agent_client.agents.create_version = AsyncMock()
-        expected_results = [
-            WebSearchResult(
-                url="https://existing.com", title="E", snippet="s", content="c"
-            )
-        ]
-        mock_parser = AsyncMock(return_value=expected_results)
-        mock_openai = _mock_openai_client()
-
-        with patch(
-            f"{_RUNNER_MODULE}.get_openai_client",
-            return_value=mock_openai,
-        ):
-            results = await create_and_process_run(
-                agent_client=mock_agent_client,
-                agent_id="pre-configured-agent-id",
-                query="test query",
-                fetch_size=5,
-                response_parsers_strategies=[mock_parser],
-                generation_instructions="Test instructions",
-            )
-
-        assert results == expected_results
-        mock_agent_client.agents.create_version.assert_not_called()
-        create_kwargs = mock_openai.responses.create.await_args.kwargs
-        assert (
-            create_kwargs["extra_body"]["agent_reference"]["name"]
-            == "pre-configured-agent-id"
-        )
-        mock_parser.assert_called_once()
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch(f"{_RUNNER_MODULE}.env_settings")
     async def test_run__missing_hashed_agent__creates_then_retries(
         self,
         mock_env: MagicMock,
@@ -950,7 +902,6 @@ class TestCreateAndProcessRun:
         Why this matters: Optimistic Responses-first flow must provision only on miss.
         Setup summary: First Responses raises NotFoundError; second succeeds; assert one create.
         """
-        mock_env.azure_ai_assistant_id = None
         mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         mock_env.azure_ai_bing_resource_connection_string = (
             "/subscriptions/x/connections/bing"
@@ -984,7 +935,6 @@ class TestCreateAndProcessRun:
         ):
             results = await create_and_process_run(
                 agent_client=mock_agent_client,
-                agent_id="",
                 query="test query",
                 fetch_size=5,
                 response_parsers_strategies=[mock_parser],
@@ -998,103 +948,6 @@ class TestCreateAndProcessRun:
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch(f"{_RUNNER_MODULE}.env_settings")
-    async def test_run__missing_preconfigured_agent__does_not_create(
-        self,
-        mock_env: MagicMock,
-    ) -> None:
-        """
-        Purpose: Verify preconfigured agent miss is not auto-created.
-        Why this matters: Explicit agent names must fail loudly, not silently provision.
-        Setup summary: agent_id set; Responses raises NotFoundError; assert no create_version.
-        """
-        mock_env.azure_ai_assistant_id = None
-        missing = NotFoundError(
-            message="Agent my-preconfigured-agent not found",
-            response=MagicMock(status_code=404, headers={}),
-            body=None,
-        )
-        mock_openai = MagicMock()
-        mock_openai.responses.create = AsyncMock(side_effect=missing)
-        mock_agent_client = MagicMock()
-        mock_agent_client.agents.create_version = AsyncMock()
-
-        with (
-            patch(
-                f"{_RUNNER_MODULE}.get_openai_client",
-                return_value=mock_openai,
-            ),
-            pytest.raises(NotFoundError),
-        ):
-            await create_and_process_run(
-                agent_client=mock_agent_client,
-                agent_id="my-preconfigured-agent",
-                query="test query",
-                fetch_size=5,
-                response_parsers_strategies=[AsyncMock()],
-                generation_instructions="Test instructions",
-            )
-
-        mock_agent_client.agents.create_version.assert_not_called()
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch(f"{_RUNNER_MODULE}.env_settings")
-    async def test_run__empty_agent_id__allows_create_on_miss(
-        self,
-        mock_env: MagicMock,
-    ) -> None:
-        """
-        Purpose: Verify empty agent_id is treated as unset and still auto-provisions.
-        Why this matters: Schema says empty id auto-provisions; "" must not block create.
-        Setup summary: agent_id=""; first Responses misses; assert create_version once.
-        """
-        mock_env.azure_ai_assistant_id = None
-        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
-        mock_env.azure_ai_bing_resource_connection_string = (
-            "/subscriptions/x/connections/bing"
-        )
-        instructions = f"Test instructions\n{RESPONSE_RULE}"
-        expected_name = _agent_name_for_config(
-            model="gpt-5.1", fetch_size=5, instructions=instructions
-        )
-        missing = NotFoundError(
-            message=f"Agent {expected_name} not found",
-            response=MagicMock(status_code=404, headers={}),
-            body=None,
-        )
-        mock_openai = MagicMock()
-        mock_openai.responses.create = AsyncMock(
-            side_effect=[missing, _fake_response_stream()],
-        )
-        created = MagicMock()
-        created.name = expected_name
-        created.id = "created-id"
-        mock_agent_client = MagicMock()
-        mock_agent_client.agents.create_version = AsyncMock(return_value=created)
-        expected_results = [
-            WebSearchResult(url="https://a.com", title="A", snippet="s", content="c")
-        ]
-        mock_parser = AsyncMock(return_value=expected_results)
-
-        with patch(
-            f"{_RUNNER_MODULE}.get_openai_client",
-            return_value=mock_openai,
-        ):
-            results = await create_and_process_run(
-                agent_client=mock_agent_client,
-                agent_id="",
-                query="test query",
-                fetch_size=5,
-                response_parsers_strategies=[mock_parser],
-                generation_instructions="Test instructions",
-            )
-
-        assert results == expected_results
-        mock_agent_client.agents.create_version.assert_awaited_once()
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch(f"{_RUNNER_MODULE}.env_settings")
     async def test_run__all_parsers_fail__raises_value_error(
         self,
         mock_env: MagicMock,
@@ -1104,7 +957,6 @@ class TestCreateAndProcessRun:
         Why this matters: Callers need a definitive signal that parsing failed.
         Setup summary: Mock Responses stream succeeds but all parsers raise; assert ValueError.
         """
-        mock_env.azure_ai_assistant_id = None
         mock_agent_client = MagicMock()
         failing_parser = AsyncMock(side_effect=ValueError("cannot parse"))
 
@@ -1115,7 +967,6 @@ class TestCreateAndProcessRun:
             with pytest.raises(ValueError) as exc_info:
                 await create_and_process_run(
                     agent_client=mock_agent_client,
-                    agent_id="",
                     query="test",
                     fetch_size=5,
                     response_parsers_strategies=[failing_parser],
@@ -1135,7 +986,6 @@ class TestCreateAndProcessRun:
         Why this matters: Validates the full strategy chain within create_and_process_run.
         Setup summary: First parser raises; second returns results; assert success.
         """
-        mock_env.azure_ai_assistant_id = None
         mock_agent_client = MagicMock()
         expected = [
             WebSearchResult(url="https://fb.com", title="FB", snippet="s", content="c")
@@ -1149,7 +999,6 @@ class TestCreateAndProcessRun:
         ):
             results = await create_and_process_run(
                 agent_client=mock_agent_client,
-                agent_id="",
                 query="query",
                 fetch_size=3,
                 response_parsers_strategies=[parser_1, parser_2],
@@ -1207,109 +1056,37 @@ class TestBingSearchConfig:
         assert config.generation_instructions == custom
 
     @pytest.mark.ai
-    def test_config__agent_id_and_endpoint__default_to_unset(self) -> None:
+    def test_config__agent_id_and_endpoint__not_on_schema(self) -> None:
         """
-        Purpose: Verify agent_id and endpoint default to unset values.
-        Why this matters: Empty defaults enable auto-provisioning fallback path.
-        Setup summary: Create config with no overrides; assert agent_id and endpoint are empty.
+        Purpose: Verify BingSearchConfig no longer exposes agent_id or endpoint.
+        Why this matters: Those knobs are decommissioned in favor of auto-provisioning.
+        Setup summary: Inspect model_fields; assert both fields are absent.
         """
         from unique_web_search.services.search_engine.bing import BingSearchConfig
 
-        # Act
-        config = BingSearchConfig()
-
-        # Assert
-        assert config.agent_id == ""
-        assert config.endpoint == ""
+        assert "agent_id" not in BingSearchConfig.model_fields
+        assert "endpoint" not in BingSearchConfig.model_fields
 
     @pytest.mark.ai
-    def test_config__agent_id_and_endpoint_null__are_accepted(self) -> None:
+    def test_config__legacy_agent_id_and_endpoint__are_ignored(self) -> None:
         """
-        Purpose: Verify stored ``agentId``/``endpoint`` nulls validate against the config schema.
-        Why this matters: Migrated space configurations persist null for an unset agent or
-            endpoint, and rejecting it breaks the admin configuration form.
-        Setup summary: Validate a payload with both fields set to None; assert they are
-            coerced to the empty string that marks an unset value.
+        Purpose: Verify stored agent_id/endpoint keys are ignored on validation.
+        Why this matters: Migrated space configs may still contain the retired fields.
+        Setup summary: Validate a payload with both legacy keys; assert config builds.
         """
         from unique_web_search.services.search_engine.bing import BingSearchConfig
 
-        # Act
-        config = BingSearchConfig.model_validate({"agent_id": None, "endpoint": None})
-
-        # Assert
-        assert config.agent_id == ""
-        assert config.endpoint == ""
-
-    @pytest.mark.ai
-    def test_config__custom_agent_id_and_endpoint__stored_correctly(self) -> None:
-        """
-        Purpose: Verify agent_id and endpoint can be overridden with custom values.
-        Why this matters: Allows pre-configured agent usage from deployment config.
-        Setup summary: Provide custom agent_id and endpoint; assert stored correctly.
-        """
-        from unique_web_search.services.search_engine.bing import BingSearchConfig
-
-        # Act
-        config = BingSearchConfig(
-            agent_id="my-agent-id-123",
-            endpoint="https://my-project.azure.com",
+        config = BingSearchConfig.model_validate(
+            {
+                "agent_id": "legacy-agent",
+                "endpoint": "https://legacy.azure.com",
+                "fetch_size": 7,
+            }
         )
 
-        # Assert
-        assert config.agent_id == "my-agent-id-123"
-        assert config.endpoint == "https://my-project.azure.com"
-
-    @pytest.mark.ai
-    @patch("unique_web_search.services.search_engine.bing.env_settings")
-    def test_config__agent_id_defaults_from_env__when_env_set(
-        self, mock_env: MagicMock
-    ) -> None:
-        """
-        Purpose: Verify agent_id defaults to env_settings.azure_ai_assistant_id when set.
-        Why this matters: IT admins setting the assistant_id in .env expect BingSearchConfig
-            to pick it up automatically without explicit config.
-        Setup summary: Patch env_settings with assistant_id; create config without override; assert match.
-        """
-        from unique_web_search.services.search_engine.bing import BingSearchConfig
-
-        # Arrange
-        mock_env.azure_ai_assistant_id = "env-agent-abc"
-        mock_env.azure_ai_project_endpoint = None
-
-        # Act
-        config = BingSearchConfig(
-            agent_id=mock_env.azure_ai_assistant_id,
-            endpoint=mock_env.azure_ai_project_endpoint,
-        )
-
-        # Assert
-        assert config.agent_id == "env-agent-abc"
-
-    @pytest.mark.ai
-    @patch("unique_web_search.services.search_engine.bing.env_settings")
-    def test_config__endpoint_defaults_from_env__when_env_set(
-        self, mock_env: MagicMock
-    ) -> None:
-        """
-        Purpose: Verify endpoint defaults to env_settings.azure_ai_project_endpoint when set.
-        Why this matters: IT admins setting the endpoint in .env expect BingSearchConfig
-            to pick it up automatically without explicit config.
-        Setup summary: Patch env_settings with endpoint; create config without override; assert match.
-        """
-        from unique_web_search.services.search_engine.bing import BingSearchConfig
-
-        # Arrange
-        mock_env.azure_ai_assistant_id = None
-        mock_env.azure_ai_project_endpoint = "https://env-endpoint.azure.com"
-
-        # Act
-        config = BingSearchConfig(
-            agent_id=mock_env.azure_ai_assistant_id,
-            endpoint=mock_env.azure_ai_project_endpoint,
-        )
-
-        # Assert
-        assert config.endpoint == "https://env-endpoint.azure.com"
+        assert config.fetch_size == 7
+        assert not hasattr(config, "agent_id")
+        assert not hasattr(config, "endpoint")
 
 
 # ---------------------------------------------------------------------------

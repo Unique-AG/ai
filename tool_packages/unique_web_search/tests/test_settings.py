@@ -196,17 +196,24 @@ class TestAzureAISettings:
     """Test cases for Azure AI project settings fields."""
 
     @pytest.mark.ai
-    def test_azure_ai_assistant_id__defaults_to_none(self) -> None:
+    def test_azure_ai_assistant_id__not_on_settings(self) -> None:
         """
-        Purpose: Verify azure_ai_assistant_id defaults to None.
-        Why this matters: None default enables auto-provisioning fallback in Bing runner.
+        Purpose: Verify azure_ai_assistant_id was removed from settings.
+        Why this matters: Assistant IDs are no longer configurable; agents are auto-provisioned.
+        Setup summary: Inspect Base model fields; assert assistant id is absent.
+        """
+        assert "azure_ai_assistant_id" not in Base.model_fields
+
+    @pytest.mark.ai
+    def test_azure_ai_project_endpoint__defaults_to_none(self) -> None:
+        """
+        Purpose: Verify azure_ai_project_endpoint defaults to None.
+        Why this matters: Endpoint remains env-only for the legacy direct Azure path.
         Setup summary: Create default settings; assert field is None.
         """
-        # Act
         settings = Base()
 
-        # Assert
-        assert settings.azure_ai_assistant_id is None
+        assert settings.azure_ai_project_endpoint is None
 
     @pytest.mark.ai
     def test_azure_ai_bing_agent_model__defaults_to_gpt4o_deployment(self) -> None:
