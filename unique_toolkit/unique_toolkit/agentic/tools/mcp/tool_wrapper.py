@@ -4,9 +4,10 @@ import json
 import logging
 import mimetypes
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 import unique_sdk
+from pydantic import ValidationError
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import FeatureFlagNames
@@ -21,6 +22,7 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.functions import upload_content_from_bytes
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
@@ -29,6 +31,8 @@ from unique_toolkit.language_model.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+REFERENCE_META_KEY = "unique.app/reference"
 
 
 class MCPToolWrapper(Tool[MCPToolConfig]):
@@ -72,7 +76,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             parameters=self._mcp_tool.input_schema,
         )
 
-    def _json_schema_to_python_type(self, schema: Dict[str, Any]) -> type:
+    def _json_schema_to_python_type(self, schema: dict[str, Any]) -> type:
         """Convert JSON schema type to Python type"""
         json_type = schema.get("type", "string")
 
@@ -152,9 +156,14 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             # Use SDK to call the public API
             result = await self._call_mcp_tool_via_sdk(arguments)
 
+            content_chunks, references = self._extract_structured_references(result)
             content_str, image_data_urls = await asyncio.to_thread(
                 self._process_mcp_result, result
             )
+            if content_chunks:
+                # Structured references already carry the text; keep any
+                # extracted images but drop the redundant flat text.
+                content_str = ""
 
             # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
             tool_response = ToolCallResponse(
@@ -167,6 +176,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 },
                 error_message="",
                 content=content_str,
+                content_chunks=content_chunks or None,
                 image_data_urls=image_data_urls,
             )
 
@@ -187,6 +197,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 progress_message="_Completed MCP tool_",
                 status=MessageLogStatus.COMPLETED,
                 active_message_log=active_message_log,
+                references=references,
             )
 
             return tool_response
@@ -230,17 +241,19 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         progress_message: str | None = None,
         status: MessageLogStatus = MessageLogStatus.RUNNING,
         active_message_log: MessageLog | None = None,
+        references: list[ContentReference] | None = None,
     ) -> MessageLog | None:
         return self._message_step_logger.create_or_update_message_log(
             active_message_log=active_message_log,
             header=self.display_name(),
             progress_message=progress_message,
             status=status,
+            references=references or [],
         )
 
     def _extract_and_validate_arguments(
         self, tool_call: LanguageModelFunction
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Extract and validate arguments from tool call, handling various formats robustly.
 
@@ -287,7 +300,39 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             f"Unexpected arguments type for MCP tool {self.name}: {type(raw_arguments)}"
         )
 
-    def _process_mcp_result(self, result: Dict[str, Any]) -> tuple[str, list[str]]:
+    def _extract_structured_references(
+        self, result: dict[str, Any]
+    ) -> tuple[list[ContentChunk], list[ContentReference]]:
+        """Opt-in: content items with valid ``unique.app/reference`` + chunk ``_meta``."""
+        chunks: list[ContentChunk] = []
+        references: list[ContentReference] = []
+        content_items = self._extract_content_items(result)
+        for item in content_items:
+            if not isinstance(item, dict) or item.get("type") != "text":
+                continue
+            meta = item.get("_meta")
+            if not isinstance(meta, dict):
+                continue
+            ref_payload = meta.get(REFERENCE_META_KEY)
+            if not isinstance(ref_payload, dict):
+                continue
+            try:
+                reference = ContentReference.model_validate(ref_payload)
+                chunk = ContentChunk.model_validate(
+                    {k: v for k, v in meta.items() if k != REFERENCE_META_KEY}
+                )
+            except ValidationError:
+                self.logger.warning(
+                    "MCP tool %s: ignoring invalid %s metadata",
+                    self.name,
+                    REFERENCE_META_KEY,
+                )
+                continue
+            references.append(reference)
+            chunks.append(chunk)
+        return chunks, references
+
+    def _process_mcp_result(self, result: dict[str, Any]) -> tuple[str, list[str]]:
         """Parse MCP result content array, upload images, return content string and data URLs."""
         content_items = self._extract_content_items(result)
         if not content_items:
@@ -327,7 +372,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             content_str = json.dumps(result)
         return content_str, image_data_urls
 
-    def _extract_content_items(self, result: Dict[str, Any]) -> list[Any]:
+    def _extract_content_items(self, result: dict[str, Any]) -> list[Any]:
         """Extract content array from MCP result (handles various response shapes)."""
         if "content" in result and isinstance(result["content"], list):
             return result["content"]
@@ -378,7 +423,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
         return data_url, content_id
 
-    async def _call_mcp_tool_via_sdk(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    async def _call_mcp_tool_via_sdk(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """Call MCP tool via SDK to public API"""
         try:
             self.logger.info(
