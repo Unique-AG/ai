@@ -108,7 +108,6 @@ class Base(BaseSettings):
 
     # Azure AI Project settings
     azure_ai_bing_agent_model: str = "gpt-4o-deployment"
-    azure_ai_assistant_id: str | None = None
     azure_ai_project_endpoint: str | None = None
     azure_ai_bing_resource_connection_string: str | None = None
 

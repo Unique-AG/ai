@@ -49,13 +49,13 @@ async def credentials_are_valid(credentials: AsyncTokenCredential) -> bool:
 
 
 def get_project_client(
-    credentials: AsyncTokenCredential, endpoint: str
+    credentials: AsyncTokenCredential,
 ) -> AIProjectClient:
-    endpoint = env_settings.azure_ai_project_endpoint or endpoint
+    endpoint = env_settings.azure_ai_project_endpoint
 
     if not endpoint:
         raise ValueError(
-            "Azure AI project endpoint is not set from environment variables or configuration"
+            "Azure AI project endpoint is not set from environment variables"
         )
 
     if env_settings.use_unique_private_endpoint_transport:

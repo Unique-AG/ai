@@ -91,9 +91,9 @@ class TestGetProjectClient:
         self, mock_env: MagicMock
     ) -> None:
         """
-        Purpose: Verify env endpoint takes precedence over the parameter endpoint.
-        Why this matters: Environment-level config must override per-call values.
-        Setup summary: Set both env and param endpoints; assert env endpoint is used.
+        Purpose: Verify the project client uses the env-configured endpoint.
+        Why this matters: Endpoint is env-only after config overrides were removed.
+        Setup summary: Set env endpoint; assert AIProjectClient receives it.
         """
         # Arrange
         mock_env.azure_ai_project_endpoint = "https://env-endpoint.azure.com"
@@ -102,7 +102,7 @@ class TestGetProjectClient:
 
         # Act
         with patch(f"{_CLIENT_MODULE}.AIProjectClient") as mock_client_cls:
-            get_project_client(mock_credentials, "https://param-endpoint.azure.com")
+            get_project_client(mock_credentials)
 
         # Assert
         call_kwargs = mock_client_cls.call_args[1]
@@ -110,36 +110,13 @@ class TestGetProjectClient:
 
     @pytest.mark.ai
     @patch(f"{_CLIENT_MODULE}.env_settings")
-    def test_get_client__env_endpoint_none__uses_param_endpoint(
+    def test_get_client__env_endpoint_none__raises_value_error(
         self, mock_env: MagicMock
     ) -> None:
         """
-        Purpose: Verify param endpoint is used when env endpoint is not set.
-        Why this matters: Enables per-config endpoint specification as fallback.
-        Setup summary: Set env endpoint to None, provide param endpoint; assert param used.
-        """
-        # Arrange
-        mock_env.azure_ai_project_endpoint = None
-        mock_env.use_unique_private_endpoint_transport = False
-        mock_credentials = MagicMock()
-
-        # Act
-        with patch(f"{_CLIENT_MODULE}.AIProjectClient") as mock_client_cls:
-            get_project_client(mock_credentials, "https://param-endpoint.azure.com")
-
-        # Assert
-        call_kwargs = mock_client_cls.call_args[1]
-        assert call_kwargs["endpoint"] == "https://param-endpoint.azure.com"
-
-    @pytest.mark.ai
-    @patch(f"{_CLIENT_MODULE}.env_settings")
-    def test_get_client__no_endpoint_at_all__raises_value_error(
-        self, mock_env: MagicMock
-    ) -> None:
-        """
-        Purpose: Verify ValueError when neither env nor param endpoint is set.
+        Purpose: Verify ValueError when the env endpoint is not set.
         Why this matters: Clear error prevents silent misconfiguration.
-        Setup summary: Set env endpoint to None and param to empty; assert ValueError.
+        Setup summary: Set env endpoint to None; assert ValueError.
         """
         # Arrange
         mock_env.azure_ai_project_endpoint = None
@@ -147,7 +124,7 @@ class TestGetProjectClient:
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
-            get_project_client(mock_credentials, "")
+            get_project_client(mock_credentials)
         assert "not set" in str(exc_info.value)
 
     @pytest.mark.ai
@@ -167,7 +144,7 @@ class TestGetProjectClient:
 
         # Act
         with patch(f"{_CLIENT_MODULE}.AIProjectClient") as mock_client_cls:
-            get_project_client(mock_credentials, "")
+            get_project_client(mock_credentials)
 
         # Assert
         call_kwargs = mock_client_cls.call_args[1]
@@ -192,7 +169,7 @@ class TestGetProjectClient:
 
         # Act
         with patch(f"{_CLIENT_MODULE}.AIProjectClient") as mock_client_cls:
-            get_project_client(mock_credentials, "")
+            get_project_client(mock_credentials)
 
         # Assert
         call_kwargs = mock_client_cls.call_args[1]

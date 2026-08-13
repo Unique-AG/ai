@@ -22,7 +22,6 @@ def bing_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "BING_AGENT_BING_RESOURCE_CONNECTION_STRING",
         "/subscriptions/test/resourceGroups/r/providers/...",
     )
-    monkeypatch.setenv("BING_AGENT_AGENT_ID", "agent-123")
 
 
 def _agent_search_body(**fields: Any) -> dict[str, Any]:

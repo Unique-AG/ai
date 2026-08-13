@@ -183,10 +183,6 @@
               "description": "Maps to env var BING_AGENT_BING_RESOURCE_CONNECTION_STRING.",
               "$ref": "#/$defs/valueSourceSensitive"
             },
-            "agentId": {
-              "description": "Maps to env var BING_AGENT_AGENT_ID.",
-              "$ref": "#/$defs/valueSourceString"
-            },
             "bingAgentModel": {
               "description": "Maps to env var BING_AGENT_BING_AGENT_MODEL.",
               "$ref": "#/$defs/valueSourceSensitive"

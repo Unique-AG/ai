@@ -69,16 +69,11 @@ def resolve_bing_agent_name(
     model: str,
     fetch_size: int,
     instructions: str,
-    agent_name: str | None = None,
 ) -> str:
-    """Return the agent name to use for Responses (no Foundry round-trip).
+    """Return the hash-based agent name to use for Responses (no Foundry round-trip).
 
-    Prefers an explicit / env-preconfigured name; otherwise derives a stable
-    hash-based name from ``model`` + ``fetch_size`` + ``instructions``.
+    Derives a stable name from ``model`` + ``fetch_size`` + ``instructions``.
     """
-    resolved = agent_name or env_settings.azure_ai_assistant_id or None
-    if resolved:
-        return resolved
     return _agent_name_for_config(
         model=model, fetch_size=fetch_size, instructions=instructions
     )
@@ -188,7 +183,6 @@ def _is_missing_agent_error(exc: BaseException, *, agent_name: str) -> bool:
 
 async def create_and_process_run(
     agent_client: AIProjectClient,
-    agent_id: str,
     query: str,
     fetch_size: int,
     response_parsers_strategies: list[ResponseParser],
@@ -196,13 +190,11 @@ async def create_and_process_run(
 ) -> list[WebSearchResult]:
     """Execute a Bing-grounded agent run and return parsed search results.
 
-    Optimistically calls Responses with a hashed (or preconfigured) agent name.
-    If the agent is missing and the name was auto-derived, creates the agent once
-    and retries. Preconfigured agent names are never auto-created.
+    Optimistically calls Responses with a hash-derived agent name. If the agent
+    is missing, creates it once and retries.
 
     Args:
         agent_client: Azure AI project client used to manage agents.
-        agent_id: Optional Foundry agent name; empty triggers hash-based naming.
         query: The search query to send to the agent.
         fetch_size: Maximum number of Bing results the agent should retrieve.
         response_parsers_strategies: Ordered list of parsing strategies to try
@@ -215,14 +207,12 @@ async def create_and_process_run(
     """
     instructions = f"{generation_instructions}\n{RESPONSE_RULE}"
     model = env_settings.azure_ai_bing_agent_model
-    preconfigured = agent_id or env_settings.azure_ai_assistant_id or None
     answer = await _run_responses_agent(
         agent_client,
         query=query,
         model=model,
         fetch_size=fetch_size,
         instructions=instructions,
-        agent_name=preconfigured,
     )
 
     return await convert_response_to_search_results(answer, response_parsers_strategies)
@@ -235,23 +225,18 @@ async def _run_responses_agent(
     model: str,
     fetch_size: int,
     instructions: str,
-    agent_name: str | None = None,
 ) -> str:
     """Invoke the agent via Responses API and return the full output text.
 
     Instructions must already be baked into the agent version — Foundry returns
     ``invalid_payload`` if ``instructions`` is passed alongside ``agent_reference``.
+    Missing agents are auto-provisioned on first miss.
     """
-    # Treat empty string like unset so auto-provisioning still works.
-    # Env assistant id is also preconfigured (same as resolve_bing_agent_name).
-    preconfigured = agent_name or env_settings.azure_ai_assistant_id or None
     resolved_name = resolve_bing_agent_name(
         model=model,
         fetch_size=fetch_size,
         instructions=instructions,
-        agent_name=preconfigured,
     )
-    allow_create = preconfigured is None
     openai_client = get_openai_client(agent_client)
 
     try:
@@ -261,9 +246,7 @@ async def _run_responses_agent(
             query=query,
         )
     except Exception as exc:
-        if not allow_create or not _is_missing_agent_error(
-            exc, agent_name=resolved_name
-        ):
+        if not _is_missing_agent_error(exc, agent_name=resolved_name):
             raise
         _LOGGER.info(
             "Responses failed for missing Bing agent %s; creating then retrying: %s",

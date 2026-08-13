@@ -55,11 +55,8 @@ def resolve_bing_agent_name(
     model: str,
     fetch_size: int,
     instructions: str,
-    agent_name: str | None = None,
 ) -> str:
-    """Return the agent name to use for Responses (no Foundry round-trip)."""
-    if agent_name:
-        return agent_name
+    """Return the hash-based agent name to use for Responses (no Foundry round-trip)."""
     return _agent_name_for_config(
         model=model, fetch_size=fetch_size, instructions=instructions
     )
@@ -146,26 +143,20 @@ async def stream_bing_grounding_agent(
     model: str,
     fetch_size: int,
     instructions: str,
-    agent_name: str | None = None,
 ) -> AsyncIterator[tuple[str, dict]]:
     """Stream Bing-grounded Responses events as ``(delta_text, raw_event)`` pairs.
 
-    Optimistically calls Responses with a hashed (or preconfigured) agent name.
-    If the agent is missing and the name was auto-derived, creates the agent once
-    and retries. Preconfigured agent names are never auto-created.
+    Optimistically calls Responses with a hash-derived agent name. If the agent
+    is missing, creates it once and retries.
 
     Instructions must already be baked into the agent version — Foundry returns
     ``invalid_payload`` if ``instructions`` is passed alongside ``agent_reference``.
     """
-    # Treat empty string like unset so auto-provisioning still works.
-    preconfigured = agent_name or None
     resolved_name = resolve_bing_agent_name(
         model=model,
         fetch_size=fetch_size,
         instructions=instructions,
-        agent_name=preconfigured,
     )
-    allow_create = preconfigured is None
     openai_client = get_openai_client(project_client)
 
     try:
@@ -175,9 +166,7 @@ async def stream_bing_grounding_agent(
             query=query,
         )
     except Exception as exc:
-        if not allow_create or not _is_missing_agent_error(
-            exc, agent_name=resolved_name
-        ):
+        if not _is_missing_agent_error(exc, agent_name=resolved_name):
             raise
         _LOGGER.info(
             "Responses failed for missing Bing agent %s; creating then retrying: %s",
