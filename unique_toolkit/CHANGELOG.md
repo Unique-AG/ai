@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.32.0...unique-toolkit-v2026.34.0) (2026-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** `AgenticTable.get_sheet_data` no longer accepts `scopeToAssignedRows`; `AgenticTableService.get_sheet` no longer accepts `scope_to_assigned_rows`. Default behavior was already unscoped at the client; gateway-side scoping remains automatic.
+
+### Features
+
+* **agentic-table:** add row-metadata write to SDK and toolkit ([#2245](https://github.com/Unique-AG/ai/issues/2245)) ([eafb152](https://github.com/Unique-AG/ai/commit/eafb152c222ed3648d137707cdc1154f77c61734))
+* **toolkit:** add opt-in OpenTelemetry tracing ([#2182](https://github.com/Unique-AG/ai/issues/2182)) ([1af41b9](https://github.com/Unique-AG/ai/commit/1af41b99c925b72c822134f7fed679f7c7668c55))
+* **unique-toolkit:** adding grok 4.5 and gemini 3.6 flash to toolkit ([#2194](https://github.com/Unique-AG/ai/issues/2194)) ([b27e90f](https://github.com/Unique-AG/ai/commit/b27e90fb8592c75fffded2b2b6fc7de47ef515c6))
+* **unique-toolkit:** use remote FeatureFlagClient with FeatureFlags settings fallback ([#1970](https://github.com/Unique-AG/ai/issues/1970)) ([2ddf869](https://github.com/Unique-AG/ai/commit/2ddf869a2f42f108547d6a3088f7fe7e316333fa))
+* **web-search:** add elicitation outcomes in analytics ([#2225](https://github.com/Unique-AG/ai/issues/2225)) ([aadc5c8](https://github.com/Unique-AG/ai/commit/aadc5c8117d7184914b95ceca1748b5ce02060c3))
+
+
+### Bug Fixes
+
+* **agentic-table:** wait_for_artifacts must not pin on stale duplicate artifact records [UN-23742] ([#2192](https://github.com/Unique-AG/ai/issues/2192)) ([355c18d](https://github.com/Unique-AG/ai/commit/355c18d1523cf62707017607e9a6c8d3a569ee4f))
+* claude tokenizer offset ([#2243](https://github.com/Unique-AG/ai/issues/2243)) ([80c4b49](https://github.com/Unique-AG/ai/commit/80c4b4943a6a85f3b649a98d72076c7127d3e7e0))
+* **history_manager:** shrink tool content before dropping turns ([#2128](https://github.com/Unique-AG/ai/issues/2128)) ([47100bd](https://github.com/Unique-AG/ai/commit/47100bd9c5b7d0c79e2db31d764fef05607dc91b))
+* **language-model:** translate max_tokens to max_completion_tokens for reasoning models ([#2252](https://github.com/Unique-AG/ai/issues/2252)) ([f5d2893](https://github.com/Unique-AG/ai/commit/f5d2893cc90c9f512c9c5013970ea57a985635de))
+* **toolkit:** attribute secondary LLM usage [UN-20749] ([#2235](https://github.com/Unique-AG/ai/issues/2235)) ([e807508](https://github.com/Unique-AG/ai/commit/e80750874d6379b67ffefdb28e7857a923209ad1))
+* **toolkit:** default ChatMessageAssessment.object to "message-assessment" (UN-24145) ([#2251](https://github.com/Unique-AG/ai/issues/2251)) ([1377656](https://github.com/Unique-AG/ai/commit/13776568ecd920ccf848bf9cf1de73f1a4d4f8e4))
+* **toolkit:** skip /public prefix for unique-api base URLs ([#2233](https://github.com/Unique-AG/ai/issues/2233)) ([308fa6a](https://github.com/Unique-AG/ai/commit/308fa6ae7952df197ea13ef6e3cc42f859705783))
+* **unique-toolkit:** Claude Sonnet 5 Token Counting Correction ([#2236](https://github.com/Unique-AG/ai/issues/2236)) ([9118b7a](https://github.com/Unique-AG/ai/commit/9118b7a2425b78205662a3711ee5e97895af2315))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+* **sdk:** remove unused scopeToAssignedRows from sheet reads ([#2241](https://github.com/Unique-AG/ai/issues/2241)) ([08f1fb2](https://github.com/Unique-AG/ai/commit/08f1fb2ef2d55e12728bb829a4bd5b0112b18403))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.30.0...unique-toolkit-v2026.32.0) (2026-07-31)
 
 

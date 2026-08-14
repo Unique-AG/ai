@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.32.0...unique-search-proxy-core-v2026.34.0) (2026-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **web-search:** Deployments that pinned `BING_AGENT_AGENT_ID`, request `agentId`, BingSearchConfig `agent_id`/`endpoint`, or `AZURE_AI_ASSISTANT_ID` will silently switch to hash-based auto-provisioning. Project endpoint for the legacy Azure path must come from env (`azure_ai_project_endpoint` / `BING_AGENT_ENDPOINT` on the proxy).
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+* **web-search:** decommission Bing agent_id for auto-provisioning ([#2263](https://github.com/Unique-AG/ai/issues/2263)) ([1166358](https://github.com/Unique-AG/ai/commit/1166358f5064bb63f86a96c9e408abb404ec6f35))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.30.0...unique-search-proxy-core-v2026.32.0) (2026-07-31)
 
 
