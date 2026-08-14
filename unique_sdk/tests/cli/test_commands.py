@@ -160,20 +160,46 @@ class TestNavigation:
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_root(self, mock_folders: MagicMock, mock_files: MagicMock) -> None:
+        # Nothing lives at the knowledge-base root: every content row is owned
+        # by a folder. A root ls lists folders only and never queries content --
+        # querying without a parentId returns company-wide files framed as root
+        # contents. See UN-24304.
         mock_folders.return_value = {
             "folderInfos": [_folder_info()],
-            "totalCount": 1,
-        }
-        mock_files.return_value = {
-            "contentInfos": [_content_info()],
             "totalCount": 1,
         }
         result = cmd_ls(_state())
         assert "DIR" in result
         assert "Reports/" in result
-        assert "FILE" in result
-        assert "report.pdf" in result
-        assert "1 folder(s), 1 file(s)" in result
+        assert "1 folder(s), 0 file(s)" in result
+        mock_files.assert_not_called()
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_root_never_lists_company_wide_files(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """The regression: a root ls once sent /content/infos with no parentId,
+        which returns every file the user can read across the company (framed as
+        root-level files) plus a company-wide totalCount. Root now lists folders
+        only and does not touch the content endpoint at all. See UN-24304.
+        """
+        mock_folders.return_value = {
+            "folderInfos": _page(3, "folder"),
+            "totalCount": 3,
+        }
+        # Would be returned if the query still fired; it must not.
+        mock_files.return_value = {
+            "contentInfos": _page(50, "file"),
+            "totalCount": 11653,
+        }
+        result = cmd_ls(_state())
+        mock_files.assert_not_called()
+        assert "3 folder(s), 0 file(s)" in result
+        assert "file0.pdf" not in result
+        assert "11653" not in result
 
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
@@ -468,7 +494,9 @@ class TestLsPagination:
         """
         mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
         mock_files.return_value = {"contentInfos": [], "totalCount": 0}
-        cmd_ls(_state(), None, 50)
+        # Inside a folder so both listings fire: root skips the content query.
+        with _path_resolves():
+            cmd_ls(_state(), "/Reports", 50)
         for mock in (mock_folders, mock_files):
             assert mock.call_args.kwargs["skip"] == 50
             assert "take" not in mock.call_args.kwargs
@@ -488,10 +516,12 @@ class TestLsPagination:
         mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
         # Deliberately not 50 or 100: no page size is baked in anywhere.
         mock_files.return_value = {"contentInfos": _page(37, "file"), "totalCount": 212}
-        result = cmd_ls(_state())
+        # Inside a folder: files only ever list under a parent, never at root.
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports")
         assert "37 of 212 file(s)" in result
         assert "Showing files 1-37 of 212." in result
-        assert "Next page: unique-cli ls --skip 37" in result
+        assert "Next page: unique-cli ls /Reports --skip 37" in result
 
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
@@ -506,7 +536,8 @@ class TestLsPagination:
             "totalCount": 3,
         }
         mock_files.return_value = {"contentInfos": _page(12, "file"), "totalCount": 12}
-        result = cmd_ls(_state())
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports")
         assert "3 folder(s), 12 file(s)" in result
         assert "Showing" not in result
         assert "Next page" not in result
@@ -657,7 +688,9 @@ class TestLsPagination:
             "contentInfos": _page(50, "file"),
             "totalCount": 212,
         }
-        result = cmd_ls(_state())
+        # Listing the cwd (target=None) inside a folder: the next-page command
+        # omits the path. Root would list folders only, so use a scoped cwd.
+        result = cmd_ls(_state("/Reports", "scope_r"))
         assert "Next page: unique-cli ls --skip 50" in result
 
     @patch("unique_sdk.Content.get_infos")

@@ -253,15 +253,27 @@ def cmd_ls(
         )
         folders = folder_result.get("folderInfos", [])
 
-        content_result = unique_sdk.Content.get_infos(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            **content_params,
-        )
-        files = content_result.get("contentInfos", [])
+        # Every content row is ``ownerType: Scope`` owned by a folder, so nothing
+        # lives at the knowledge-base root: the correct root listing is folders
+        # only. Unlike ``/folder/infos``, ``/content/infos`` applies no owner
+        # filter when ``parentId`` is absent and returns every content row the
+        # user can read across the company, framed as root files. Skip the query
+        # entirely at unrestricted root rather than send an unscoped one. The two
+        # scope-restricted root branches above already return by construction.
+        # See UN-24304.
+        if scope_id:
+            content_result = unique_sdk.Content.get_infos(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                **content_params,
+            )
+            files = content_result.get("contentInfos", [])
+            total_files = content_result.get("totalCount", len(files))
+        else:
+            files = []
+            total_files = 0
 
         total_folders = folder_result.get("totalCount", len(folders))
-        total_files = content_result.get("totalCount", len(files))
 
         # Page lengths as returned, captured before the per-message filter
         # narrows ``files``: pagination is a property of the API page, so the
