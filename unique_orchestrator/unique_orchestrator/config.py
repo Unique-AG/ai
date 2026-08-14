@@ -114,13 +114,14 @@ class SwitchableLanguageModelConfig(BaseToolConfig):
     )
     additional_llm_options: dict[str, Any] | None = Field(
         default=None,
-        # The node backend forwards this key as `additionalLLMOptions` (LLM
-        # uppercase), which the `to_camel` alias generator would not match.
+        # Explicit aliases skip `to_camel`; keep the schema camelCase while also
+        # accepting the node key `additionalLLMOptions` (LLM uppercase).
         validation_alias=AliasChoices(
-            "additional_llm_options",
             "additionalLlmOptions",
             "additionalLLMOptions",
+            "additional_llm_options",
         ),
+        serialization_alias="additionalLlmOptions",
         description=(
             "Optional per-model provider-specific request options (e.g. "
             "`reasoning_effort`) shallow-merged into "

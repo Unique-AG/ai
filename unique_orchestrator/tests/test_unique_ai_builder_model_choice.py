@@ -30,7 +30,11 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
-from unique_orchestrator.config import UniqueAIConfig, UniqueAISpaceConfig
+from unique_orchestrator.config import (
+    SwitchableLanguageModelConfig,
+    UniqueAIConfig,
+    UniqueAISpaceConfig,
+)
 from unique_orchestrator.unique_ai_builder import (
     _apply_model_choice_override,
     _record_language_model_debug_info,
@@ -377,6 +381,21 @@ def test_model_choice_keeps_experimental_additional_llm_options_when_switchable_
     assert config.agent.experimental.additional_llm_options == {
         "reasoning_effort": "low"
     }
+
+
+@pytest.mark.ai
+def test_switchable_additional_llm_options_schema_is_camel_case() -> None:
+    """
+    Purpose: Lock the JSON-schema key for additional_llm_options to camelCase.
+    Why this matters: An explicit alias skips the to_camel generator, so the
+    schema (and generated TS types) must not regress to snake_case.
+    Setup summary: Read the validation-mode schema and assert the property name.
+    """
+    props = SwitchableLanguageModelConfig.model_json_schema(mode="validation")[
+        "properties"
+    ]
+    assert "additionalLlmOptions" in props
+    assert "additional_llm_options" not in props
 
 
 @pytest.mark.ai
