@@ -250,6 +250,15 @@ def _apply_model_choice_override(
             switchable_entry.temperature
         )
 
+    if switchable_entry is not None and switchable_entry.additional_llm_options:
+        config_data.setdefault("agent", {})
+        config_data["agent"].setdefault("experimental", {})
+        experimental = config_data["agent"]["experimental"]
+        experimental["additional_llm_options"] = {
+            **experimental.get("additional_llm_options", {}),
+            **switchable_entry.additional_llm_options,
+        }
+
     validated_config = UniqueAIConfig.model_validate(config_data)
 
     logger.info(

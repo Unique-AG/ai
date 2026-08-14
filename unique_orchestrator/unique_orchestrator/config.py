@@ -2,7 +2,13 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
@@ -104,6 +110,22 @@ class SwitchableLanguageModelConfig(BaseToolConfig):
             "Optional per-model temperature override applied when chat users "
             "select this model. Bounds mirror agent.experimental.temperature so "
             "the value validates when copied on model choice."
+        ),
+    )
+    additional_llm_options: dict[str, Any] | None = Field(
+        default=None,
+        # The node backend forwards this key as `additionalLLMOptions` (LLM
+        # uppercase), which the `to_camel` alias generator would not match.
+        validation_alias=AliasChoices(
+            "additional_llm_options",
+            "additionalLlmOptions",
+            "additionalLLMOptions",
+        ),
+        description=(
+            "Optional per-model provider-specific request options (e.g. "
+            "`reasoning_effort`) shallow-merged into "
+            "agent.experimental.additional_llm_options when chat users select "
+            "this model. Per-model keys win over the space-level options."
         ),
     )
 
