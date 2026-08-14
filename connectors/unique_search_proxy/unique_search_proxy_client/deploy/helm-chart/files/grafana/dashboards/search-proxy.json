@@ -52,7 +52,7 @@
         "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
         "query": {
           "qryType": 1,
-          "query": "label_values(unique_search_proxy_search_duration_seconds_bucket, job)",
+          "query": "label_values({__name__=~\"unique_search_proxy_.*\"}, job)",
           "refId": "job"
         },
         "refresh": 2,
