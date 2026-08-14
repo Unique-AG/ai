@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -431,6 +433,311 @@ class TestNavigation:
         # (from the API totalCount) is preserved as "(of N in folder)" rather
         # than being overwritten by the filtered page length. See UN-21780.
         assert "1 file(s) in task scope (of 2 in folder)" in result
+
+
+# --- ls pagination (UN-24303) ---
+
+
+def _page(n: int, kind: str) -> list[dict[str, Any]]:
+    """A page of *n* folder or file infos with distinct names/ids."""
+    if kind == "folder":
+        return [_folder_info(f"Folder{i}", f"scope_{i}") for i in range(n)]
+    return [_content_info(f"file{i}.pdf", f"cont_{i}") for i in range(n)]
+
+
+@contextmanager
+def _path_resolves(scope_id: str = "scope_r") -> Iterator[None]:
+    """Let ``ls <path>`` resolve its target without reaching the API."""
+    with patch("unique_sdk.Folder.get_info", return_value={"id": scope_id}):
+        yield
+
+
+class TestLsPagination:
+    """`ls` must never imply it listed more than it did. See UN-24303."""
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_passes_skip_and_sends_no_take(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """Both listings receive the caller's skip and leave the page size to
+        the server -- pinning a `take` would risk sending a value a future API
+        could refuse, for no gain the notice logic depends on.
+        """
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        cmd_ls(_state(), None, 50)
+        for mock in (mock_folders, mock_files):
+            assert mock.call_args.kwargs["skip"] == 50
+            assert "take" not in mock.call_args.kwargs
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_notice_follows_the_response_not_an_assumed_page_size(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """Ranges and the next --skip are computed from how many items came
+        back, so a change to the server's page size shifts how many pages there
+        are without ever producing a wrong footer. This is what makes leaving
+        `take` to the server safe.
+        """
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        # Deliberately not 50 or 100: no page size is baked in anywhere.
+        mock_files.return_value = {"contentInfos": _page(37, "file"), "totalCount": 212}
+        result = cmd_ls(_state())
+        assert "37 of 212 file(s)" in result
+        assert "Showing files 1-37 of 212." in result
+        assert "Next page: unique-cli ls --skip 37" in result
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_nothing_truncated_has_no_notice(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """A folder that fits in one page gets no extra output at all."""
+        mock_folders.return_value = {
+            "folderInfos": _page(3, "folder"),
+            "totalCount": 3,
+        }
+        mock_files.return_value = {"contentInfos": _page(12, "file"), "totalCount": 12}
+        result = cmd_ls(_state())
+        assert "3 folder(s), 12 file(s)" in result
+        assert "Showing" not in result
+        assert "Next page" not in result
+        assert " of " not in result.rsplit("\n", 1)[-1]
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_files_truncated(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """The ticket's worked example (3 folders, 212 files), at the page size
+        the API currently serves.
+        """
+        mock_folders.return_value = {
+            "folderInfos": _page(3, "folder"),
+            "totalCount": 3,
+        }
+        mock_files.return_value = {
+            "contentInfos": _page(50, "file"),
+            "totalCount": 212,
+        }
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports/Q1")
+        assert "3 folder(s), 50 of 212 file(s)" in result
+        assert "Showing files 1-50 of 212." in result
+        assert "Next page: unique-cli ls /Reports/Q1 --skip 50" in result
+        # The untruncated kind is not mentioned -- no noise about the folders.
+        assert "folders 1-3" not in result
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_folders_truncated(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        mock_folders.return_value = {
+            "folderInfos": _page(50, "folder"),
+            "totalCount": 140,
+        }
+        mock_files.return_value = {"contentInfos": _page(2, "file"), "totalCount": 2}
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports")
+        assert "50 of 140 folder(s), 2 file(s)" in result
+        assert "Showing folders 1-50 of 140." in result
+        assert "Next page: unique-cli ls /Reports --skip 50" in result
+        assert "files 1-2" not in result
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_both_truncated_report_per_kind_with_one_next_command(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """Folders and files paginate independently, but --skip drives both, so
+        both ranges are reported under a single next-page command.
+        """
+        mock_folders.return_value = {
+            "folderInfos": _page(50, "folder"),
+            "totalCount": 140,
+        }
+        mock_files.return_value = {
+            "contentInfos": _page(50, "file"),
+            "totalCount": 212,
+        }
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports")
+        assert "50 of 140 folder(s), 50 of 212 file(s)" in result
+        assert "Showing folders 1-50 of 140, files 1-50 of 212." in result
+        assert result.count("Next page:") == 1
+        assert "Next page: unique-cli ls /Reports --skip 50" in result
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_second_page_ranges_are_offset(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 3}
+        mock_files.return_value = {
+            "contentInfos": _page(50, "file"),
+            "totalCount": 212,
+        }
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports", 50)
+        assert "0 of 3 folder(s), 50 of 212 file(s)" in result
+        assert "Showing files 51-100 of 212." in result
+        assert "Next page: unique-cli ls /Reports --skip 100" in result
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_last_page_offers_no_next_page(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """The final page is exhaustive, so there is nothing to page to -- but
+        the counts still show it was a partial view of the folder.
+        """
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 3}
+        mock_files.return_value = {"contentInfos": _page(12, "file"), "totalCount": 212}
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports", 200)
+        assert "0 of 3 folder(s), 12 of 212 file(s)" in result
+        assert "Next page" not in result
+        assert "Showing" not in result
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_skip_past_the_end_is_not_mistaken_for_an_empty_folder(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """An out-of-range offset returns an empty page with the real
+        totalCount, which would otherwise read exactly like an empty folder.
+        """
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 3}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 10}
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports", 100)
+        assert "(empty)" in result
+        assert "Nothing at --skip 100" in result
+        assert "3 folder(s) and 10 file(s)" in result
+        assert "--skip 0" in result
+        assert "Next page" not in result
+
+    def test_negative_skip_rejected_without_an_api_call(self) -> None:
+        """The API rejects skip < 0 (@Min(0)); fail before the round trip."""
+        with patch("unique_sdk.Folder.get_infos") as mock_folders:
+            result = cmd_ls(_state(), None, -1)
+        assert result == "ls: --skip must be 0 or greater."
+        mock_folders.assert_not_called()
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_next_command_omits_path_when_listing_cwd(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {
+            "contentInfos": _page(50, "file"),
+            "totalCount": 212,
+        }
+        result = cmd_ls(_state())
+        assert "Next page: unique-cli ls --skip 50" in result
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_command_prefix_is_configurable_for_the_repl(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {
+            "contentInfos": _page(50, "file"),
+            "totalCount": 212,
+        }
+        with _path_resolves():
+            result = cmd_ls(_state(), "/Reports", command_prefix="")
+        assert "Next page: ls /Reports --skip 50" in result
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_truncation_uses_page_length_not_in_scope_count(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """With a per-message filter, files are narrowed client-side. Truncation
+        is a property of the API page, so the notice must be computed from the
+        page length -- otherwise a heavily filtered page looks like the end of
+        the folder and the remaining pages are never fetched.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_fund_a": {"folderPath": "/Funds/Fund A"},
+                "scope_owner": {"folderPath": "/Funds/Fund A"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_owner"}]}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        # A full page of 100, of which the contentId allowlist keeps only one.
+        mock_files.return_value = {
+            "contentInfos": _page(50, "file"),
+            "totalCount": 212,
+        }
+        state = _state("/Funds/Fund A", "scope_fund_a")
+        state._chat_file_content_ids_cache = set()
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {"path": ["contentId"], "operator": "in", "value": ["cont_0"]},
+            ]
+        }
+        result = cmd_ls(state)
+        assert "1 file(s) in task scope (of 212 in folder)" in result
+        assert "Showing files 1-50 of 212." in result
+        assert "Next page: unique-cli ls --skip 50" in result
+
+    @patch("unique_sdk.Folder.get_info")
+    def test_workspace_scoped_root_pages_locally(self, mock_info: MagicMock) -> None:
+        """The scoped-root branch lists explicit ids rather than a paginated
+        query, so --skip must still mean something there.
+        """
+        mock_info.return_value = _folder_info("Reports", "scope_ws")
+        state = _state()
+        state.workspace_scope_ids = ["scope_a", "scope_b", "scope_c"]
+        result = cmd_ls(state, None, 2)
+        assert "1 of 3 folder(s), 0 file(s)" in result
+        # Skipped ids are not fetched.
+        assert mock_info.call_count == 1
+        assert mock_info.call_args.kwargs["scopeId"] == "scope_c"
 
 
 # --- Folders ---

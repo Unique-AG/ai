@@ -173,6 +173,29 @@ class TestClickCLI:
         result = runner.invoke(main, ["ls"])
         assert result.exit_code == 0
 
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_skip_passed_through(self, mock_ls: MagicMock) -> None:
+        mock_ls.return_value = "(empty)\n0 folder(s), 0 file(s)"
+        runner = CliRunner()
+        result = runner.invoke(main, ["ls", "/Reports", "--skip", "100"])
+        assert result.exit_code == 0
+        assert mock_ls.call_args.args[1:] == ("/Reports", 100)
+
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_skip_defaults_to_zero(self, mock_ls: MagicMock) -> None:
+        mock_ls.return_value = "(empty)\n0 folder(s), 0 file(s)"
+        runner = CliRunner()
+        runner.invoke(main, ["ls"])
+        assert mock_ls.call_args.args[1:] == (None, 0)
+
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_negative_skip_rejected_by_click(self, mock_ls: MagicMock) -> None:
+        """The API rejects skip < 0 (@Min(0)), so Click refuses it up front."""
+        runner = CliRunner()
+        result = runner.invoke(main, ["ls", "--skip", "-1"])
+        assert result.exit_code != 0
+        mock_ls.assert_not_called()
+
     @patch("unique_sdk.cli.cli.cmd_versions")
     def test_versions_permission_denied_exits_nonzero(
         self, mock_versions: MagicMock

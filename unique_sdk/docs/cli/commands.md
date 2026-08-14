@@ -82,7 +82,7 @@ List folders and files in the current (or specified) directory.
 **Synopsis:**
 
 ```
-ls [target]
+ls [target] [--skip N]
 ```
 
 **Arguments:**
@@ -90,6 +90,12 @@ ls [target]
 | Argument | Description |
 |----------|-------------|
 | `target` | Optional. Folder name, absolute path, or scope ID to list. Defaults to current directory. |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--skip`, `-s` | Skip this many folders and files. Defaults to `0`. |
 
 **Output format:**
 
@@ -112,7 +118,45 @@ Each line shows:
 | Size | File size (human-readable). Empty for folders. |
 | Updated | Last modification date |
 
-The summary line at the bottom shows total counts.
+The summary line at the bottom shows how many folders and files were listed.
+
+**Paging:**
+
+A listing returns one page of folders and one page of files (the Public API
+currently serves 50 of each). When a folder holds more, the summary line
+distinguishes what was listed from what exists, and the output names the command
+for the next page:
+
+```
+/Reports> ls
+DIR   Q1/                scope_jkl012               2025-01-15 08:00
+FILE  ... (50 rows)
+3 folder(s), 50 of 212 file(s)
+Showing files 1-50 of 212.
+Next page: unique-cli ls /Reports --skip 50
+```
+
+Read the range from the notice rather than assuming a page size: the counts and
+the next-page command are derived from what the API actually returned, so they
+stay correct if the server's page size changes.
+
+Folders and files are paged independently, so only the kind that was actually
+truncated is reported — a folder with 3 subfolders and 212 files mentions just
+the files. `--skip` applies to both listings, so one next-page command covers
+both. A listing that fits in a single page prints no notice.
+
+`--skip` past the end says so rather than looking like an empty folder:
+
+```
+/Reports> ls --skip 500
+(empty)
+0 of 3 folder(s), 0 of 212 file(s)
+Nothing at --skip 500: this listing has 3 folder(s) and 212 file(s). Use --skip 0 to start from the beginning.
+```
+
+There is no `--take`: the page size is the server's. Choosing one would require
+knowing the folder's size, which is what `ls` was run to discover. To glance at
+the first few entries, pipe the output: `unique-cli ls /Reports | head -20`.
 
 **One-shot examples:**
 
@@ -125,6 +169,9 @@ unique-cli ls /Reports/Q1
 
 # List by scope ID
 unique-cli ls scope_abc123
+
+# List the second page of a large folder
+unique-cli ls /Reports/Q1 --skip 50
 ```
 
 ---

@@ -126,6 +126,57 @@ class TestShellNavigation:
         assert "0 folder(s), 0 file(s)" in out
 
 
+class TestShellLsPagination:
+    """REPL `ls` flag parsing. See UN-24303."""
+
+    @patch("unique_sdk.cli.shell.cmd_ls", return_value="")
+    def test_skip_parsed_and_prefix_dropped(self, mock_ls: MagicMock) -> None:
+        """The REPL's next-page hint must be runnable as typed, so it gets no
+        ``unique-cli`` prefix.
+        """
+        _capture(_shell(), "ls /Reports --skip 100")
+        assert mock_ls.call_args.args[1:] == ("/Reports", 100)
+        assert mock_ls.call_args.kwargs["command_prefix"] == ""
+
+    @patch("unique_sdk.cli.shell.cmd_ls", return_value="")
+    def test_skip_short_flag(self, mock_ls: MagicMock) -> None:
+        _capture(_shell(), "ls -s 50")
+        assert mock_ls.call_args.args[1:] == (None, 50)
+
+    @patch("unique_sdk.cli.shell.cmd_ls", return_value="")
+    def test_no_args_still_lists_cwd(self, mock_ls: MagicMock) -> None:
+        _capture(_shell(), "ls")
+        assert mock_ls.call_args.args[1:] == (None, 0)
+
+    @patch("unique_sdk.cli.shell.cmd_ls", return_value="")
+    def test_unquoted_folder_name_with_spaces_survives_flag_parsing(
+        self,
+        mock_ls: MagicMock,
+    ) -> None:
+        """Regression guard for the switch to shlex: `ls My Reports` used to be
+        passed through whole and must stay that way.
+        """
+        _capture(_shell(), "ls My Reports --skip 10")
+        assert mock_ls.call_args.args[1:] == ("My Reports", 10)
+
+    @patch("unique_sdk.cli.shell.cmd_ls", return_value="")
+    def test_quoted_folder_name(self, mock_ls: MagicMock) -> None:
+        _capture(_shell(), 'ls "/A B/C"')
+        assert mock_ls.call_args.args[1:] == ("/A B/C", 0)
+
+    @patch("unique_sdk.cli.shell.cmd_ls")
+    def test_non_numeric_skip_reported(self, mock_ls: MagicMock) -> None:
+        out = _capture(_shell(), "ls --skip abc")
+        assert "Invalid skip: abc" in out
+        mock_ls.assert_not_called()
+
+    @patch("unique_sdk.cli.shell.cmd_ls")
+    def test_unbalanced_quotes_reported(self, mock_ls: MagicMock) -> None:
+        out = _capture(_shell(), 'ls "/Unclosed')
+        assert out.startswith("ls: ")
+        mock_ls.assert_not_called()
+
+
 class TestShellFolderOps:
     @patch("unique_sdk.Folder.create_paths")
     def test_mkdir(self, mock: MagicMock) -> None:
