@@ -82,7 +82,7 @@ List folders and files in the current (or specified) directory.
 **Synopsis:**
 
 ```
-ls [target]
+ls [target] [--skip N]
 ```
 
 **Arguments:**
@@ -90,6 +90,12 @@ ls [target]
 | Argument | Description |
 |----------|-------------|
 | `target` | Optional. Folder name, absolute path, or scope ID to list. Defaults to current directory. |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--skip`, `-s` | Skip this many folders and files. Defaults to `0`. |
 
 **Output format:**
 
@@ -112,7 +118,30 @@ Each line shows:
 | Size | File size (human-readable). Empty for folders. |
 | Updated | Last modification date |
 
-The summary line at the bottom shows total counts.
+The summary line at the bottom shows how many folders and files were listed.
+
+**Paging:**
+
+A listing returns one page of folders and one page of files (the API currently
+serves 50 of each). When a folder holds more, the summary distinguishes what was
+listed from what exists and the output names the next command:
+
+```
+/Reports> ls
+FILE  ... (50 rows)
+3 folder(s), 50 of 212 file(s)
+Showing files 1-50 of 212.
+Next page: unique-cli ls /Reports --skip 50
+```
+
+Take the range and offset from the notice rather than assuming a page size —
+both are derived from what the API returned. Folders and files page
+independently, so only the truncated kind is reported; `--skip` drives both. A
+listing that fits in one page prints no notice, and `--skip` past the end reports
+the real totals instead of looking like an empty folder.
+
+There is no `--take`. To glance at the first few entries, pipe the output:
+`unique-cli ls /Reports | head -20`.
 
 **One-shot examples:**
 
@@ -125,6 +154,9 @@ unique-cli ls /Reports/Q1
 
 # List by scope ID
 unique-cli ls scope_abc123
+
+# List the second page of a large folder
+unique-cli ls /Reports/Q1 --skip 50
 ```
 
 ---
