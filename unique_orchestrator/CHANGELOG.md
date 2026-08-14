@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.32.0...unique-orchestrator-v2026.34.0) (2026-08-14)
+
+
+### Features
+
+* **orchestrator:** apply per-model additionalLLMOptions on model choice ([#2269](https://github.com/Unique-AG/ai/issues/2269)) ([3c092d8](https://github.com/Unique-AG/ai/commit/3c092d8d096287f75facba4faea8dfeeb28b9e0c))
+
+
+### Bug Fixes
+
+* **unique_orchestrator:** await get_selected_uploaded_content_ids before constructing UniqueAI ([#2218](https://github.com/Unique-AG/ai/issues/2218)) ([6610196](https://github.com/Unique-AG/ai/commit/66101969175296b50251f02f6b6155f15b6493df))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.30.0...unique-orchestrator-v2026.32.0) (2026-07-31)
 
 

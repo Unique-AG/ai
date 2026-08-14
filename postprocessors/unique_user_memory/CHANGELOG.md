@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.32.0...unique-user-memory-v2026.34.0) (2026-08-14)
+
+
+### Features
+
+* **user-memory:** hide max tokens parameter in config ([#2253](https://github.com/Unique-AG/ai/issues/2253)) ([1f64867](https://github.com/Unique-AG/ai/commit/1f648672f745ca01651329e7f11a4843620cc51c))
+
+
+### Bug Fixes
+
+* **language-model:** translate max_tokens to max_completion_tokens for reasoning models ([#2252](https://github.com/Unique-AG/ai/issues/2252)) ([f5d2893](https://github.com/Unique-AG/ai/commit/f5d2893cc90c9f512c9c5013970ea57a985635de))
+* **toolkit:** attribute secondary LLM usage [UN-20749] ([#2235](https://github.com/Unique-AG/ai/issues/2235)) ([e807508](https://github.com/Unique-AG/ai/commit/e80750874d6379b67ffefdb28e7857a923209ad1))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.30.0...unique-user-memory-v2026.32.0) (2026-07-31)
 
 

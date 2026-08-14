@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.32.0...unique-sdk-v2026.34.0) (2026-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** `AgenticTable.get_sheet_data` no longer accepts `scopeToAssignedRows`; `AgenticTableService.get_sheet` no longer accepts `scope_to_assigned_rows`. Default behavior was already unscoped at the client; gateway-side scoping remains automatic.
+
+### Features
+
+* **agentic-table:** add row-metadata write to SDK and toolkit ([#2245](https://github.com/Unique-AG/ai/issues/2245)) ([eafb152](https://github.com/Unique-AG/ai/commit/eafb152c222ed3648d137707cdc1154f77c61734))
+* **sdk:** align Space.create_message params with OpenAPI ([#2257](https://github.com/Unique-AG/ai/issues/2257)) ([01b0039](https://github.com/Unique-AG/ai/commit/01b003971c586a661d6171e7c266dc56886ff28e))
+* **sdk:** type the full folder ingestion config [UN-24141] ([#2256](https://github.com/Unique-AG/ai/issues/2256)) ([8026114](https://github.com/Unique-AG/ai/commit/8026114e6ca69606606c909b651c09eb29b65d46))
+
+
+### Bug Fixes
+
+* **sdk:** bound and validate direct-to-blob transfers in file_io [UN-23833] ([#2228](https://github.com/Unique-AG/ai/issues/2228)) ([1cb0f42](https://github.com/Unique-AG/ai/commit/1cb0f42da7725d89c249601383096f073cccd9ff))
+* **toolkit:** attribute secondary LLM usage [UN-20749] ([#2235](https://github.com/Unique-AG/ai/issues/2235)) ([e807508](https://github.com/Unique-AG/ai/commit/e80750874d6379b67ffefdb28e7857a923209ad1))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+* **sdk:** remove unused scopeToAssignedRows from sheet reads ([#2241](https://github.com/Unique-AG/ai/issues/2241)) ([08f1fb2](https://github.com/Unique-AG/ai/commit/08f1fb2ef2d55e12728bb829a4bd5b0112b18403))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.30.0...unique-sdk-v2026.32.0) (2026-07-31)
 
 

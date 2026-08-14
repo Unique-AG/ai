@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.32.0...unique-web-search-v2026.34.0) (2026-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **web-search:** Deployments that pinned `BING_AGENT_AGENT_ID`, request `agentId`, BingSearchConfig `agent_id`/`endpoint`, or `AZURE_AI_ASSISTANT_ID` will silently switch to hash-based auto-provisioning. Project endpoint for the legacy Azure path must come from env (`azure_ai_project_endpoint` / `BING_AGENT_ENDPOINT` on the proxy).
+
+### Features
+
+* **web-search:** add elicitation outcomes in analytics ([#2225](https://github.com/Unique-AG/ai/issues/2225)) ([aadc5c8](https://github.com/Unique-AG/ai/commit/aadc5c8117d7184914b95ceca1748b5ce02060c3))
+
+
+### Bug Fixes
+
+* config validation error bing grounding ([#2209](https://github.com/Unique-AG/ai/issues/2209)) ([af3654e](https://github.com/Unique-AG/ai/commit/af3654ebdc9ec5bd60ef1feece372afb8da17385))
+* fix validation error web search ([#2206](https://github.com/Unique-AG/ai/issues/2206)) ([92b9d2e](https://github.com/Unique-AG/ai/commit/92b9d2e8be1e64ca39774d2ae3cf156e7219f3c5))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+* **web-search:** decommission Bing agent_id for auto-provisioning ([#2263](https://github.com/Unique-AG/ai/issues/2263)) ([1166358](https://github.com/Unique-AG/ai/commit/1166358f5064bb63f86a96c9e408abb404ec6f35))
+
 ## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.30.0...unique-web-search-v2026.32.0) (2026-07-31)
 
 
