@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo data editor — Account Review</title>
+  <style>
+    :root {
+      --ink: #142033;
+      --muted: #5c6b7f;
+      --line: #d8dee8;
+      --bg: #eef1f5;
+      --surface: #fff;
+      --accent: #1f4b99;
+      --accent-soft: #e8eef8;
+      --danger: #b42318;
+      --danger-bg: #fef3f2;
+      --ok: #067647;
+      --ok-bg: #ecfdf3;
+      --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --sidebar: 300px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 14px 22px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+    header .meta { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+    header a { color: var(--accent); }
+    .lead { margin-top: 2px; color: var(--muted); font-size: 0.9rem; }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    details.advanced { color: var(--muted); font-size: 0.85rem; }
+    details.advanced summary { cursor: pointer; color: var(--accent); }
+    main { padding: 16px 22px 40px; max-width: 1480px; margin: 0 auto; }
+    .mode-bar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin-bottom: 14px;
+    }
+    .mode-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+    .mode-toggle button {
+      appearance: none; border: 0; background: transparent; color: var(--ink);
+      padding: 8px 14px; font: inherit; font-size: 0.9rem; cursor: pointer;
+    }
+    .mode-toggle button.active { background: var(--accent); color: #fff; font-weight: 600; }
+    .btn, button.tab {
+      appearance: none; border: 1px solid var(--line); background: var(--surface);
+      color: var(--ink); border-radius: 8px; padding: 7px 12px; font: inherit;
+      font-size: 0.9rem; cursor: pointer;
+    }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-danger { background: var(--danger-bg); border-color: #fecdca; color: var(--danger); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .flash {
+      display: none; margin-bottom: 12px; padding: 10px 12px; border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .flash.show { display: block; }
+    .flash.ok { background: var(--ok-bg); color: var(--ok); }
+    .flash.err { background: var(--danger-bg); color: var(--danger); }
+
+    /* —— By-client layout —— */
+    .client-layout {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      gap: 14px;
+      min-height: calc(100vh - 180px);
+    }
+    @media (max-width: 860px) {
+      .client-layout { grid-template-columns: 1fr; }
+    }
+    .sidebar, .detail, .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .sidebar { display: flex; flex-direction: column; min-height: 420px; overflow: hidden; }
+    .sidebar-head { padding: 12px; border-bottom: 1px solid var(--line); }
+    .sidebar-head input[type="search"] {
+      width: 100%; border: 1px solid var(--line); border-radius: 8px;
+      padding: 8px 10px; font: inherit; font-size: 0.9rem;
+    }
+    .client-list { overflow: auto; flex: 1; }
+    .client-item {
+      width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line);
+      background: transparent; padding: 10px 12px; cursor: pointer; font: inherit;
+    }
+    .client-item:hover { background: #f5f7fb; }
+    .client-item.active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+    .client-item .name { font-weight: 600; font-size: 0.92rem; }
+    .client-item .sub { color: var(--muted); font-size: 0.78rem; margin-top: 2px; font-family: var(--mono); }
+    .client-item .status {
+      display: inline-block; margin-top: 4px; font-size: 0.72rem; font-weight: 600;
+      padding: 2px 7px; border-radius: 999px; background: #eef2f7; color: var(--muted);
+    }
+    .detail { padding: 0; overflow: auto; max-height: calc(100vh - 180px); }
+    .detail-empty { padding: 40px 24px; color: var(--muted); }
+    .detail-head {
+      position: sticky; top: 0; z-index: 2; background: var(--surface);
+      border-bottom: 1px solid var(--line); padding: 14px 18px;
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline;
+      justify-content: space-between;
+    }
+    .detail-head h2 { margin: 0; font-size: 1.1rem; }
+    .detail-head .ref { color: var(--muted); font-family: var(--mono); font-size: 0.85rem; }
+    .sections { padding: 12px 16px 24px; display: grid; gap: 10px; }
+    details.section {
+      border: 1px solid var(--line); border-radius: 10px; background: #fafbfd;
+      overflow: hidden;
+    }
+    details.section[open] { background: var(--surface); }
+    details.section summary {
+      cursor: pointer; padding: 11px 14px; font-weight: 600; font-size: 0.92rem;
+      list-style: none; display: flex; justify-content: space-between; align-items: center;
+      gap: 10px;
+    }
+    details.section summary::-webkit-details-marker { display: none; }
+    details.section summary::after { content: "▸"; color: var(--muted); font-size: 0.85rem; }
+    details.section[open] summary::after { content: "▾"; }
+    .section-body { padding: 0 14px 14px; }
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px 12px;
+    }
+    .field.wide { grid-column: 1 / -1; }
+    .field label {
+      display: block; font-weight: 600; font-size: 0.78rem; margin-bottom: 4px; color: var(--muted);
+    }
+    .field input, .field textarea, .field select {
+      width: 100%; border: 1px solid var(--line); border-radius: 8px;
+      padding: 7px 10px; font: inherit; font-size: 0.9rem; background: #fff;
+    }
+    .field textarea { min-height: 72px; resize: vertical; }
+    .field input.dirty, .field textarea.dirty, .field select.dirty {
+      border-color: var(--accent); background: #f0f5ff;
+    }
+    .field .pk {
+      font-family: var(--mono); color: var(--muted); font-size: 0.85rem;
+      padding: 7px 0;
+    }
+    .section-actions {
+      display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;
+    }
+    .figures-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .figures-table th, .figures-table td {
+      border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top;
+    }
+    .figures-table th { color: var(--muted); font-weight: 600; font-size: 0.75rem; }
+    .figures-table input {
+      width: 100%; min-width: 70px; border: 1px solid var(--line); border-radius: 6px;
+      padding: 4px 6px; font: inherit; font-size: 0.82rem;
+    }
+    .figures-table input.dirty { border-color: var(--accent); background: #f0f5ff; }
+    .required { color: var(--danger); font-weight: 700; }
+
+    /* —— Raw tables mode —— */
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin-bottom: 14px;
+    }
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+    .tab.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    input[type="search"].tool-search, input.cell {
+      border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+      font: inherit; font-size: 0.9rem; background: var(--surface);
+    }
+    input.tool-search { min-width: 200px; }
+    .panel { overflow: auto; max-height: calc(100vh - 230px); }
+    table.raw { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 0.82rem; }
+    table.raw th, table.raw td {
+      border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top;
+    }
+    table.raw th {
+      position: sticky; top: 0; background: #f7f9fc; z-index: 1;
+      font-weight: 600; white-space: nowrap;
+    }
+    td.pk { font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+    td.actions { white-space: nowrap; position: sticky; right: 0; background: var(--surface); }
+    input.cell { width: 100%; min-width: 110px; padding: 4px 6px; border-radius: 6px; }
+    input.cell.dirty { border-color: var(--accent); background: #f0f5ff; }
+    .pager { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--muted); font-size: 0.85rem; }
+    .empty { padding: 28px; color: var(--muted); }
+    .hint { color: var(--muted); font-size: 0.85rem; margin: 0 0 12px; }
+    .form-grid { display: grid; gap: 10px; max-height: 55vh; overflow: auto; padding-right: 4px; }
+    dialog {
+      border: 1px solid var(--line); border-radius: 12px; padding: 20px;
+      max-width: 560px; width: calc(100% - 32px);
+    }
+    dialog::backdrop { background: rgba(20, 32, 51, 0.35); }
+    dialog h2 { margin: 0 0 8px; font-size: 1.05rem; }
+    dialog p { margin: 0 0 16px; color: var(--muted); font-size: 0.92rem; }
+    dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Demo data editor</h1>
+      <div class="lead">Pick a client, edit each domain section, save. Reset restores the Excel seed.</div>
+      <div class="meta" id="statusMeta">Loading…</div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-danger" id="resetBtn">Reset from Excel…</button>
+      <details class="advanced">
+        <summary>Advanced</summary>
+        MCP: <a href="/mcp" id="mcpLink">/mcp</a>
+        · <a href="/api/status">/api/status</a>
+        · <a href="/api/clients">/api/clients</a>
+      </details>
+    </div>
+  </header>
+  <main>
+    <div class="flash" id="flash"></div>
+    <div class="mode-bar">
+      <div class="mode-toggle" role="group" aria-label="Editor mode">
+        <button type="button" class="active" data-mode="client" id="modeClient">By client</button>
+        <button type="button" data-mode="tables" id="modeTables">Raw tables</button>
+      </div>
+    </div>
+
+    <section id="clientMode">
+      <div class="client-layout">
+        <aside class="sidebar">
+          <div class="sidebar-head">
+            <input type="search" id="clientSearch" placeholder="Search name, reference, status…" />
+          </div>
+          <div class="client-list" id="clientList"><div class="empty">Loading clients…</div></div>
+        </aside>
+        <div class="detail" id="clientDetail">
+          <div class="detail-empty">Select a client on the left to edit identity, contact, compliance, case action, and figures.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tablesMode" class="hidden">
+      <div class="toolbar">
+        <div class="tabs" id="tabs"></div>
+        <input type="search" class="tool-search" id="search" placeholder="Search…" />
+        <button type="button" class="btn" id="addBtn">Add row…</button>
+        <button type="button" class="btn" id="reloadBtn">Reload</button>
+      </div>
+      <div class="panel" id="panel"><div class="empty">Select a table.</div></div>
+      <div class="pager">
+        <button type="button" class="btn" id="prevBtn">Previous</button>
+        <span id="pageInfo"></span>
+        <button type="button" class="btn" id="nextBtn">Next</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="resetDialog">
+    <h2>Reset demo data?</h2>
+    <p>This wipes all current edits and rebuilds the database from the original Excel seed. The dashboard will show the clean data again after the next poll, usually within 15 seconds.</p>
+    <div class="row">
+      <button type="button" class="btn" id="resetCancel">Cancel</button>
+      <button type="button" class="btn btn-danger" id="resetConfirm">Reset to Excel seed</button>
+    </div>
+  </dialog>
+
+  <dialog id="addDialog">
+    <h2 id="addTitle">Add row</h2>
+    <p class="hint">Fill the fields needed for this demo row. Required fields are marked with <span class="required">*</span>.</p>
+    <form id="addForm" method="dialog">
+      <div class="form-grid" id="addFields"></div>
+      <div class="row" style="margin-top: 16px;">
+        <button type="button" class="btn" id="addCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create row</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const SECTIONS = [
+      { table: "clients", title: "Identity", open: true },
+      { table: "contacts", title: "Contact" },
+      { table: "portfolios", title: "Portfolio" },
+      { table: "compliance", title: "Compliance" },
+      { table: "review_schedules", title: "Review schedule" },
+      { table: "suitability", title: "Suitability" },
+      { table: "case_actions", title: "Case action", open: true },
+    ];
+    const LONG_FIELDS = new Set([
+      "residential_address", "open_issue", "recommended_action",
+      "explanation", "documents_on_file", "verification_source", "title",
+    ]);
+
+    const state = {
+      mode: "client",
+      schemas: {},
+      tables: [],
+      table: null,
+      limit: 40,
+      offset: 0,
+      total: 0,
+      search: "",
+      dirty: new Map(),
+      clients: [],
+      selectedClientId: null,
+      bundle: null,
+      sectionDirty: {},
+      figureDirty: new Map(),
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const flashEl = $("flash");
+    const tableOrder = [
+      "clients", "contacts", "portfolios", "compliance",
+      "review_schedules", "suitability", "case_actions", "figure_metrics",
+    ];
+    const tableLabels = {
+      clients: "Clients",
+      contacts: "Contacts",
+      portfolios: "Portfolios",
+      compliance: "Compliance",
+      review_schedules: "Review schedules",
+      suitability: "Suitability",
+      case_actions: "Case actions",
+      figure_metrics: "Figure metrics",
+    };
+    const columnLabels = {
+      id: "ID", client_id: "Client ID", name: "Client name", reference: "Reference",
+      crd_number: "CRD number", type: "Client type", segment: "Segment",
+      date_of_birth: "Date of birth", occupation: "Occupation",
+      marital_status: "Marital status", nationality: "Nationality",
+      residence: "Residence", domicile: "Domicile", incorporation: "Incorporation",
+      residential_address: "Residential address", email: "Email", phone: "Phone",
+      onboarded: "Onboarded", currency: "Currency", value: "Portfolio value",
+      risk_level: "Risk level", risk_profile: "Risk profile",
+      risk_tolerance: "Risk tolerance", criticality: "Criticality", pep: "PEP",
+      adverse_media: "Adverse media", sanctions: "Sanctions",
+      fatca_us_person: "FATCA US person", verification_source: "Verification source",
+      documents_on_file: "Documents on file", mandate_type: "Mandate type",
+      client_categorization: "Client categorization",
+      category_required: "Category required",
+      category_review_status: "Category review status",
+      last_reviewed: "Last reviewed", next_review_due: "Next review due",
+      kyc_refresh_due: "KYC refresh due", investment_horizon: "Investment horizon",
+      knowledge_experience: "Knowledge and experience",
+      last_suitability_test: "Last suitability test",
+      suitability_outcome: "Suitability outcome", status: "Status",
+      rule_code: "Rule code", open_issue: "Open issue",
+      recommended_action: "Recommended action", due_date: "Due date",
+      title: "Card title", explanation: "Card explanation",
+      button_label: "Button label", button_target: "Button target", owner: "Owner",
+      sof_transaction_amount: "SoF transaction amount", sof_folder_id: "SoF folder ID",
+      group_name: "Figure group", position: "Position", label: "Label",
+      pct: "Percent",
+    };
+
+    function flash(msg, kind = "ok") {
+      flashEl.textContent = msg;
+      flashEl.className = `flash show ${kind}`;
+      clearTimeout(flashEl._t);
+      flashEl._t = setTimeout(() => { flashEl.className = "flash"; }, 4000);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(path, {
+        headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+        ...opts,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText || `HTTP ${res.status}`);
+      return data;
+    }
+
+    function pkFor(table) {
+      return state.schemas[table]?.primary_key || "id";
+    }
+    function columnsFor(table) {
+      return state.schemas[table]?.columns || [];
+    }
+    function labelFor(name) {
+      return columnLabels[name] || name.replaceAll("_", " ");
+    }
+    function tableLabel(name) {
+      return tableLabels[name] || name.replaceAll("_", " ");
+    }
+    function escapeHtml(v) {
+      return String(v ?? "")
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+    }
+    function escapeAttr(v) {
+      return String(v ?? "")
+        .replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
+    }
+    function cssEscape(v) {
+      return String(v).replaceAll(/\\/g, "\\\\").replaceAll(/"/g, '\\"');
+    }
+
+    async function loadStatus() {
+      const s = await api("/api/status");
+      $("statusMeta").textContent =
+        `${s.dataset} · db ${s.db_path} · auth ${s.auth_disabled ? "disabled" : "on"}`;
+    }
+
+    async function loadSchema() {
+      const schema = await api("/api/schema");
+      const discovered = schema.tables.map((t) => t.name);
+      state.tables = [
+        ...tableOrder.filter((name) => discovered.includes(name)),
+        ...discovered.filter((name) => !tableOrder.includes(name)),
+      ];
+      state.schemas = Object.fromEntries(schema.tables.map((t) => [t.name, t]));
+      renderTableTabs();
+      if (!state.table && state.tables.length) {
+        state.table = state.tables.includes("clients") ? "clients" : state.tables[0];
+      }
+      renderTableTabs();
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      $("modeClient").classList.toggle("active", mode === "client");
+      $("modeTables").classList.toggle("active", mode === "tables");
+      $("clientMode").classList.toggle("hidden", mode !== "client");
+      $("tablesMode").classList.toggle("hidden", mode !== "tables");
+      if (mode === "tables") loadRows().catch((e) => flash(e.message, "err"));
+      if (mode === "client") loadClientList().catch((e) => flash(e.message, "err"));
+    }
+
+    /* —— By-client —— */
+    async function loadClientList() {
+      const q = new URLSearchParams({ limit: "200", offset: "0" });
+      if (state.clientSearch) q.set("search", state.clientSearch);
+      const data = await api(`/api/clients?${q}`);
+      state.clients = data.rows || [];
+      renderClientList();
+      if (state.selectedClientId != null) {
+        const still = state.clients.some((c) => c.id === state.selectedClientId);
+        if (!still && state.clients.length) {
+          await selectClient(state.clients[0].id);
+        } else if (still) {
+          highlightSelectedClient();
+        }
+      } else if (state.clients.length) {
+        await selectClient(state.clients[0].id);
+      } else {
+        $("clientDetail").innerHTML =
+          `<div class="detail-empty">No clients match.</div>`;
+      }
+    }
+
+    function renderClientList() {
+      const root = $("clientList");
+      if (!state.clients.length) {
+        root.innerHTML = `<div class="empty">No clients.</div>`;
+        return;
+      }
+      root.innerHTML = state.clients.map((c) => `
+        <button type="button" class="client-item${c.id === state.selectedClientId ? " active" : ""}" data-id="${escapeAttr(c.id)}">
+          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="sub">${escapeHtml(c.reference)} · ${escapeHtml(c.segment || "—")}</div>
+          <span class="status">${escapeHtml(c.status || "—")}</span>
+        </button>
+      `).join("");
+      for (const btn of root.querySelectorAll(".client-item")) {
+        btn.addEventListener("click", () => selectClient(Number(btn.dataset.id)));
+      }
+    }
+
+    function highlightSelectedClient() {
+      for (const btn of $("clientList").querySelectorAll(".client-item")) {
+        btn.classList.toggle("active", Number(btn.dataset.id) === state.selectedClientId);
+      }
+    }
+
+    async function selectClient(id) {
+      state.selectedClientId = id;
+      state.sectionDirty = {};
+      state.figureDirty = new Map();
+      highlightSelectedClient();
+      const bundle = await api(`/api/clients/${encodeURIComponent(id)}`);
+      state.bundle = bundle;
+      renderClientDetail();
+    }
+
+    function renderClientDetail() {
+      const b = state.bundle;
+      if (!b) return;
+      const sectionsHtml = SECTIONS.map((sec) => {
+        const row = b.sections[sec.table] || {};
+        const cols = columnsFor(sec.table);
+        const fields = cols.map((c) => {
+          const isPk = c.primary_key || c.name === "id" || c.name === "client_id";
+          const val = row[c.name] ?? "";
+          if (isPk) {
+            return `<div class="field">
+              <label>${escapeHtml(labelFor(c.name))}</label>
+              <div class="pk">${escapeHtml(val)}</div>
+            </div>`;
+          }
+          const wide = LONG_FIELDS.has(c.name) ? " wide" : "";
+          const req = !c.nullable ? ' <span class="required">*</span>' : "";
+          if (LONG_FIELDS.has(c.name)) {
+            return `<div class="field${wide}">
+              <label for="f-${escapeAttr(sec.table)}-${escapeAttr(c.name)}">${escapeHtml(labelFor(c.name))}${req}</label>
+              <textarea id="f-${escapeAttr(sec.table)}-${escapeAttr(c.name)}"
+                data-section="${escapeAttr(sec.table)}" data-col="${escapeAttr(c.name)}">${escapeHtml(val)}</textarea>
+            </div>`;
+          }
+          return `<div class="field${wide}">
+            <label for="f-${escapeAttr(sec.table)}-${escapeAttr(c.name)}">${escapeHtml(labelFor(c.name))}${req}</label>
+            <input id="f-${escapeAttr(sec.table)}-${escapeAttr(c.name)}"
+              data-section="${escapeAttr(sec.table)}" data-col="${escapeAttr(c.name)}"
+              value="${escapeAttr(val)}" />
+          </div>`;
+        }).join("");
+        return `<details class="section" data-section="${escapeAttr(sec.table)}"${sec.open ? " open" : ""}>
+          <summary><span>${escapeHtml(sec.title)}</span></summary>
+          <div class="section-body">
+            <div class="field-grid">${fields}</div>
+            <div class="section-actions">
+              <button type="button" class="btn btn-primary save-section" data-section="${escapeAttr(sec.table)}" disabled>Save ${escapeHtml(sec.title.toLowerCase())}</button>
+            </div>
+          </div>
+        </details>`;
+      }).join("");
+
+      const figCols = ["group_name", "position", "label", "value", "pct", "status"];
+      const figRows = (b.figure_metrics || []).map((row) => {
+        const id = row.id;
+        const cells = figCols.map((col) => {
+          if (col === "group_name" || col === "position") {
+            return `<td class="pk">${escapeHtml(row[col])}</td>`;
+          }
+          return `<td><input data-fig-id="${escapeAttr(id)}" data-col="${escapeAttr(col)}" value="${escapeAttr(row[col] ?? "")}" /></td>`;
+        }).join("");
+        return `<tr>
+          ${cells}
+          <td><button type="button" class="btn btn-primary save-fig" data-fig-id="${escapeAttr(id)}" disabled>Save</button></td>
+        </tr>`;
+      }).join("");
+
+      $("clientDetail").innerHTML = `
+        <div class="detail-head">
+          <div>
+            <h2>${escapeHtml(b.label)}</h2>
+            <div class="ref">${escapeHtml(b.reference || "")} · id ${escapeHtml(b.id)} · ${escapeHtml(b.status || "—")}</div>
+          </div>
+          <button type="button" class="btn btn-danger" id="deleteClientBtn">Delete client</button>
+        </div>
+        <div class="sections">
+          ${sectionsHtml}
+          <details class="section" data-section="figure_metrics">
+            <summary><span>Figure metrics</span><span style="font-weight:400;color:var(--muted);font-size:0.8rem">${(b.figure_metrics || []).length} rows</span></summary>
+            <div class="section-body">
+              ${(b.figure_metrics || []).length ? `
+              <table class="figures-table">
+                <thead><tr>
+                  ${figCols.map((c) => `<th>${escapeHtml(labelFor(c))}</th>`).join("")}
+                  <th></th>
+                </tr></thead>
+                <tbody>${figRows}</tbody>
+              </table>` : `<div class="empty">No figure rows.</div>`}
+            </div>
+          </details>
+        </div>
+      `;
+
+      for (const input of $("clientDetail").querySelectorAll("[data-section][data-col]")) {
+        input.addEventListener("input", () => markSectionDirty(input));
+      }
+      for (const btn of $("clientDetail").querySelectorAll("button.save-section")) {
+        btn.addEventListener("click", () => saveSection(btn.dataset.section));
+      }
+      for (const input of $("clientDetail").querySelectorAll("input[data-fig-id]")) {
+        input.addEventListener("input", () => markFigureDirty(input));
+      }
+      for (const btn of $("clientDetail").querySelectorAll("button.save-fig")) {
+        btn.addEventListener("click", () => saveFigure(btn.dataset.figId));
+      }
+      $("deleteClientBtn").addEventListener("click", deleteSelectedClient);
+    }
+
+    function markSectionDirty(input) {
+      const section = input.dataset.section;
+      const col = input.dataset.col;
+      if (!state.sectionDirty[section]) state.sectionDirty[section] = {};
+      state.sectionDirty[section][col] = input.value;
+      input.classList.add("dirty");
+      const save = $("clientDetail").querySelector(`button.save-section[data-section="${cssEscape(section)}"]`);
+      if (save) save.disabled = false;
+    }
+
+    async function saveSection(section) {
+      const fields = state.sectionDirty[section];
+      if (!fields || !Object.keys(fields).length) return;
+      try {
+        await api(
+          `/api/clients/${encodeURIComponent(state.selectedClientId)}/sections/${encodeURIComponent(section)}`,
+          { method: "PATCH", body: JSON.stringify({ fields }) },
+        );
+        delete state.sectionDirty[section];
+        flash(`Saved ${tableLabel(section).toLowerCase()}`);
+        await selectClient(state.selectedClientId);
+        await loadClientList();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    }
+
+    function markFigureDirty(input) {
+      const id = String(input.dataset.figId);
+      if (!state.figureDirty.has(id)) state.figureDirty.set(id, {});
+      state.figureDirty.get(id)[input.dataset.col] = input.value;
+      input.classList.add("dirty");
+      const save = $("clientDetail").querySelector(`button.save-fig[data-fig-id="${cssEscape(id)}"]`);
+      if (save) save.disabled = false;
+    }
+
+    async function saveFigure(id) {
+      const fields = state.figureDirty.get(String(id));
+      if (!fields || !Object.keys(fields).length) return;
+      try {
+        await api(`/api/tables/figure_metrics/rows/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ fields }),
+        });
+        state.figureDirty.delete(String(id));
+        flash(`Saved figure row ${id}`);
+        await selectClient(state.selectedClientId);
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    }
+
+    async function deleteSelectedClient() {
+      const id = state.selectedClientId;
+      if (id == null) return;
+      if (!confirm(`Delete client ${id} and all related rows (cascade)?`)) return;
+      try {
+        await api(`/api/tables/clients/rows/${encodeURIComponent(id)}`, { method: "DELETE" });
+        flash(`Deleted client ${id}`);
+        state.selectedClientId = null;
+        state.bundle = null;
+        await loadClientList();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    }
+
+    /* —— Raw tables (kept for bulk / advanced edits) —— */
+    function renderTableTabs() {
+      const tabs = $("tabs");
+      tabs.innerHTML = "";
+      for (const name of state.tables) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "tab" + (name === state.table ? " active" : "");
+        btn.dataset.table = name;
+        btn.textContent = tableLabel(name);
+        btn.addEventListener("click", () => {
+          state.table = name;
+          state.offset = 0;
+          state.dirty.clear();
+          renderTableTabs();
+          loadRows();
+        });
+        tabs.appendChild(btn);
+      }
+    }
+
+    async function loadRows() {
+      if (!state.table) return;
+      const q = new URLSearchParams({
+        limit: String(state.limit),
+        offset: String(state.offset),
+      });
+      if (state.search) q.set("search", state.search);
+      const data = await api(`/api/tables/${encodeURIComponent(state.table)}/rows?${q}`);
+      state.total = data.total_matching;
+      renderTable(data.rows);
+      $("pageInfo").textContent =
+        data.count
+          ? `${data.offset + 1}–${data.offset + data.count} of ${data.total_matching}`
+          : `0 of ${data.total_matching}`;
+      $("prevBtn").disabled = state.offset <= 0;
+      $("nextBtn").disabled = state.offset + data.count >= data.total_matching;
+    }
+
+    function renderTable(rows) {
+      const cols = columnsFor(state.table);
+      const pk = pkFor(state.table);
+      if (!rows.length) {
+        $("panel").innerHTML = `<div class="empty">No rows.</div>`;
+        return;
+      }
+      const thead = cols.map((c) => {
+        const required = !c.nullable && !c.primary_key ? " *" : "";
+        return `<th title="${escapeAttr(c.name)}">${escapeHtml(labelFor(c.name))}${required}</th>`;
+      }).join("") + "<th></th>";
+      const body = rows.map((row) => {
+        const id = row[pk];
+        const cells = cols.map((c) => {
+          if (c.name === pk || c.primary_key) {
+            return `<td class="pk">${escapeHtml(row[c.name])}</td>`;
+          }
+          return `<td><input class="cell" data-id="${escapeAttr(id)}" data-col="${escapeAttr(c.name)}" value="${escapeAttr(row[c.name] ?? "")}" /></td>`;
+        }).join("");
+        return `<tr>${cells}<td class="actions">
+          <button type="button" class="btn btn-primary save" data-id="${escapeAttr(id)}" disabled>Save</button>
+          <button type="button" class="btn btn-danger del" data-id="${escapeAttr(id)}">Delete</button>
+        </td></tr>`;
+      }).join("");
+      $("panel").innerHTML = `<table class="raw"><thead><tr>${thead}</tr></thead><tbody>${body}</tbody></table>`;
+      for (const input of $("panel").querySelectorAll("input.cell")) {
+        input.addEventListener("input", () => markDirty(input));
+      }
+      for (const btn of $("panel").querySelectorAll("button.save")) {
+        btn.addEventListener("click", () => saveRow(btn.dataset.id));
+      }
+      for (const btn of $("panel").querySelectorAll("button.del")) {
+        btn.addEventListener("click", () => deleteRow(btn.dataset.id));
+      }
+    }
+
+    function markDirty(input) {
+      const id = input.dataset.id;
+      if (!state.dirty.has(id)) state.dirty.set(id, {});
+      state.dirty.get(id)[input.dataset.col] = input.value;
+      input.classList.add("dirty");
+      const save = $("panel").querySelector(`button.save[data-id="${cssEscape(id)}"]`);
+      if (save) save.disabled = false;
+    }
+
+    async function saveRow(id) {
+      const fields = state.dirty.get(String(id)) || state.dirty.get(id);
+      if (!fields || !Object.keys(fields).length) return;
+      try {
+        await api(`/api/tables/${encodeURIComponent(state.table)}/rows/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ fields }),
+        });
+        state.dirty.delete(String(id));
+        state.dirty.delete(id);
+        flash(`Saved row ${id}`);
+        await loadRows();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    }
+
+    function openAddDialog() {
+      if (!state.table) return;
+      $("addTitle").textContent = `Add ${tableLabel(state.table).toLowerCase()} row`;
+      const fields = columnsFor(state.table).filter((c) => !c.primary_key || c.name === "client_id");
+      $("addFields").innerHTML = fields.filter((c) => !c.autoincrement).map((c) => `
+        <div class="field">
+          <label for="add-${escapeAttr(c.name)}">
+            ${escapeHtml(labelFor(c.name))}${!c.nullable ? ' <span class="required">*</span>' : ""}
+          </label>
+          <input id="add-${escapeAttr(c.name)}" name="${escapeAttr(c.name)}" />
+        </div>
+      `).join("");
+      $("addDialog").showModal();
+    }
+
+    async function createRow(form) {
+      const fields = {};
+      for (const [key, value] of new FormData(form).entries()) {
+        if (String(value).trim() !== "") fields[key] = value;
+      }
+      try {
+        await api(`/api/tables/${encodeURIComponent(state.table)}/rows`, {
+          method: "POST",
+          body: JSON.stringify({ fields }),
+        });
+        flash(`Created ${tableLabel(state.table).toLowerCase()} row`);
+        state.offset = 0;
+        state.dirty.clear();
+        form.reset();
+        $("addDialog").close();
+        await loadRows();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    }
+
+    async function deleteRow(id) {
+      if (!confirm(`Delete row ${id} from ${state.table}?`)) return;
+      try {
+        await api(`/api/tables/${encodeURIComponent(state.table)}/rows/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        flash(`Deleted row ${id}`);
+        await loadRows();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    }
+
+    $("modeClient").addEventListener("click", () => setMode("client"));
+    $("modeTables").addEventListener("click", () => setMode("tables"));
+    $("reloadBtn").addEventListener("click", () => loadRows().catch((e) => flash(e.message, "err")));
+    $("addBtn").addEventListener("click", openAddDialog);
+    $("addCancel").addEventListener("click", () => $("addDialog").close());
+    $("addForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      createRow(e.currentTarget);
+    });
+    $("prevBtn").addEventListener("click", () => {
+      state.offset = Math.max(0, state.offset - state.limit);
+      loadRows().catch((e) => flash(e.message, "err"));
+    });
+    $("nextBtn").addEventListener("click", () => {
+      state.offset += state.limit;
+      loadRows().catch((e) => flash(e.message, "err"));
+    });
+
+    let searchTimer;
+    $("search").addEventListener("input", (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        state.search = e.target.value.trim();
+        state.offset = 0;
+        loadRows().catch((err) => flash(err.message, "err"));
+      }, 250);
+    });
+    let clientSearchTimer;
+    $("clientSearch").addEventListener("input", (e) => {
+      clearTimeout(clientSearchTimer);
+      clientSearchTimer = setTimeout(() => {
+        state.clientSearch = e.target.value.trim();
+        loadClientList().catch((err) => flash(err.message, "err"));
+      }, 250);
+    });
+
+    const dialog = $("resetDialog");
+    $("resetBtn").addEventListener("click", () => dialog.showModal());
+    $("resetCancel").addEventListener("click", () => dialog.close());
+    $("resetConfirm").addEventListener("click", async () => {
+      dialog.close();
+      try {
+        const summary = await api("/api/reset", { method: "POST", body: "{}" });
+        const n = (summary.tables || []).reduce((a, t) => a + (t.row_count || 0), 0);
+        flash(`Reset complete — ${n} rows reloaded from Excel`);
+        state.offset = 0;
+        state.dirty.clear();
+        state.selectedClientId = null;
+        await loadStatus();
+        await loadSchema();
+        if (state.mode === "client") await loadClientList();
+        else await loadRows();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    });
+
+    (async () => {
+      try {
+        await loadStatus();
+        await loadSchema();
+        await loadClientList();
+      } catch (err) {
+        flash(String(err.message || err), "err");
+      }
+    })();
+  </script>
+</body>
+</html>
