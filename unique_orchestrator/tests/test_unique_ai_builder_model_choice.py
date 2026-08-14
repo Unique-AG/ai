@@ -259,6 +259,127 @@ def test_model_choice_keeps_experimental_temperature_when_switchable_has_none() 
 
 
 @pytest.mark.ai
+def test_model_choice_applies_switchable_additional_llm_options_when_defined() -> None:
+    """
+    Purpose: Verify per-model additional_llm_options from switchable_language_models is applied.
+    Why this matters: Admins attach provider options (e.g. reasoning_effort) to a selectable model.
+    Setup summary: Configure an allowlisted model with the node `additionalLLMOptions` key;
+    assert the experimental options are populated via the camelCase alias.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                    "additionalLLMOptions": {"reasoning_effort": "high"},
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model == selected_model
+    assert config.agent.experimental.additional_llm_options == {
+        "reasoning_effort": "high"
+    }
+
+
+@pytest.mark.ai
+def test_model_choice_merges_switchable_additional_llm_options_over_experimental() -> (
+    None
+):
+    """
+    Purpose: Verify per-model options shallow-merge over space-level options, per-model winning.
+    Why this matters: Space-level options must survive except where the chosen model overrides.
+    Setup summary: Space-level sets two keys; the model overrides one; assert the merged result.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                    "additionalLLMOptions": {"reasoning_effort": "high"},
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={
+            "experimental": {
+                "additional_llm_options": {
+                    "reasoning_effort": "low",
+                    "top_p": 0.9,
+                }
+            }
+        },
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.agent.experimental.additional_llm_options == {
+        "reasoning_effort": "high",
+        "top_p": 0.9,
+    }
+
+
+@pytest.mark.ai
+def test_model_choice_keeps_experimental_additional_llm_options_when_switchable_has_none() -> (
+    None
+):
+    """
+    Purpose: Verify space-level options remain when the chosen model has no override.
+    Why this matters: Fallback must preserve existing spaces without per-model options.
+    Setup summary: Allowlisted model without options; assert experimental options unchanged.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={"experimental": {"additional_llm_options": {"reasoning_effort": "low"}}},
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model == selected_model
+    assert config.agent.experimental.additional_llm_options == {
+        "reasoning_effort": "low"
+    }
+
+
+@pytest.mark.ai
 def test_record_language_model_debug_info_uses_effective_model() -> None:
     """
     Purpose: Verify debug info records the active language model.
