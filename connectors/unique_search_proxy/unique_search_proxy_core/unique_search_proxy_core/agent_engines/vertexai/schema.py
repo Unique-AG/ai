@@ -29,7 +29,10 @@ class VertexAIAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.VERTEXAI
     )
     enable_enterprise_search: bool = Field(
         default=False,
-        description="Use enterprise web search grounding tool instead of Google Search",
+        description=(
+            "When true, ground answers with Vertex AI Enterprise Web Search "
+            "(Agent Platform Search, SEC4-compliant)"
+        ),
     )
 
 
