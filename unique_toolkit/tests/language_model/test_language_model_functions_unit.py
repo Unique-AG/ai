@@ -268,11 +268,13 @@ def test_complete_with_references__forwards_attribution_ids(mock_create) -> None
         model_name=LanguageModelName.AZURE_GPT_4_0613,
         chat_id="chat_1",
         assistant_id="assistant_1",
+        assistant_message_id="message_1",
     )
 
     assert mock_create.call_args.kwargs["headers"] == {
         "x-chat-id": "chat_1",
         "x-assistant-id": "assistant_1",
+        "x-assistant-message-id": "message_1",
     }
 
 
@@ -303,11 +305,13 @@ async def test_complete_with_references_async__forwards_attribution_ids(
         model_name=LanguageModelName.AZURE_GPT_4_0613,
         chat_id="chat_1",
         assistant_id="assistant_1",
+        assistant_message_id="message_1",
     )
 
     assert mock_create.call_args.kwargs["headers"] == {
         "x-chat-id": "chat_1",
         "x-assistant-id": "assistant_1",
+        "x-assistant-message-id": "message_1",
     }
 
 
