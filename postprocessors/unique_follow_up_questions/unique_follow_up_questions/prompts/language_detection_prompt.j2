@@ -1,0 +1,12 @@
+Determine the intended language for the response to the user request below.
+If the user explicitly requests a response language, use that language.
+Otherwise, use the language in which the request is written.
+Return the language as a full English language name, such as "English", "German", or "Japanese".
+Never return a language code or abbreviation.
+
+<user-request>
+{{user_message}}
+</user-request>
+
+Return only JSON matching this schema:
+{{output_schema}}

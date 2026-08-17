@@ -1,4 +1,5 @@
 import re
+from typing import Protocol, cast
 
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
@@ -11,17 +12,29 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    LanguageModelTokenUsage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.language_model.utils import convert_string_to_json
 
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_follow_up_questions.prompts.params import (
+    LANGUAGE_DETECTION_PROMPT_TEMPLATE,
     FollowUpQuestionResponseParams,
     FollowUpQuestionSystemPromptParams,
     FollowUpQuestionUserPromptParams,
+    LanguageDetectionPromptParams,
 )
-from unique_follow_up_questions.schema import FollowUpQuestionsOutput
+from unique_follow_up_questions.schema import (
+    FollowUpQuestionsOutput,
+    LanguageDetectionOutput,
+)
+
+FALLBACK_LANGUAGE = "English"
+
+
+class _ResponseWithUsage(Protocol):
+    usage: LanguageModelTokenUsage | None
 
 
 class FollowUpPostprocessor(Postprocessor):
@@ -42,7 +55,7 @@ class FollowUpPostprocessor(Postprocessor):
         super().__init__(name="FollowUpQuestionPostprocessor")
         self._logger = logger
         self._config = config
-        self._language = event.payload.user_message.language
+        self._user_message_text = event.payload.user_message.text
         self._historyManager = historyManager
         self._llm_service = llm_service
         self._invocation_stats: list[LanguageModelInvocationStats] = []
@@ -50,6 +63,17 @@ class FollowUpPostprocessor(Postprocessor):
     @property
     def invocation_stats(self) -> list[LanguageModelInvocationStats]:
         return list(self._invocation_stats)
+
+    def _record_invocation_usage(self, response: object, source: str) -> None:
+        usage = cast(_ResponseWithUsage, response).usage
+        if usage is not None:
+            self._invocation_stats.append(
+                LanguageModelInvocationStats.from_usage(
+                    self._config.language_model.name,
+                    usage,
+                    source=source,
+                )
+            )
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
         # Reset so a re-run reports one entry per actual LLM call of this run.
@@ -62,8 +86,9 @@ class FollowUpPostprocessor(Postprocessor):
         # TODO: Include history as separate messages and not as part of the user message. This allows to include images again for follow-up questions.
         self._remove_image_urls_from_history(history)
 
+        language = await self._resolve_language()
         self._text = await self._get_follow_up_question_suggestion(
-            language=self._language,
+            language=language,
             language_model_service=self._llm_service,
             history=history.root,
         )
@@ -106,9 +131,55 @@ class FollowUpPostprocessor(Postprocessor):
                         )
                     ]
 
+    async def _resolve_language(self) -> str | None:
+        if not self._config.adapt_to_language:
+            return None
+
+        return await self._detect_language()
+
+    async def _detect_language(self) -> str:
+        prompt = LanguageDetectionPromptParams(
+            user_message=self._user_message_text
+        ).render_template(LANGUAGE_DETECTION_PROMPT_TEMPLATE)
+        messages = MessagesBuilder().user_message_append(prompt).build()
+
+        try:
+            if self._config.use_structured_output:
+                response = await self._llm_service.complete_async(
+                    messages=messages,
+                    model_name=self._config.language_model.name,
+                    structured_output_model=LanguageDetectionOutput,
+                )
+            else:
+                response = await self._llm_service.complete_async(
+                    messages=messages,
+                    model_name=self._config.language_model.name,
+                )
+
+            self._record_invocation_usage(
+                response,
+                source="follow_up_questions_language_detection",
+            )
+
+            if self._config.use_structured_output:
+                parsed_content = response.choices[0].message.parsed
+            else:
+                content = response.choices[0].message.content
+                if not isinstance(content, str):
+                    raise ValueError("Language detection response must be a string")
+                parsed_content = convert_string_to_json(content)
+
+            return LanguageDetectionOutput.model_validate(parsed_content).language
+        except Exception as e:
+            self._logger.error(
+                f"Failed to detect follow-up question language: {str(e)}",
+                exc_info=True,
+            )
+            return FALLBACK_LANGUAGE
+
     async def _get_follow_up_question_suggestion(
         self,
-        language: str,
+        language: str | None,
         language_model_service: LanguageModelService,
         history: list[LanguageModelMessage],
         additional_context: str | None = None,
@@ -196,14 +267,7 @@ class FollowUpPostprocessor(Postprocessor):
             # before any parsing/validation below that could raise -- an
             # already-billed call must not be dropped just because the
             # response content failed to parse.
-            if response.usage is not None:
-                self._invocation_stats.append(
-                    LanguageModelInvocationStats.from_usage(
-                        self._config.language_model.name,
-                        response.usage,
-                        source="follow_up_questions",
-                    )
-                )
+            self._record_invocation_usage(response, source="follow_up_questions")
 
             if self._config.use_structured_output:
                 parsed_content = response.choices[0].message.parsed
