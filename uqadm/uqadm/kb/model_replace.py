@@ -34,26 +34,50 @@ def _echo_refs(refs: list[ModelRef], *, err: bool = False) -> None:
         typer.echo(f"  {ref.path}", err=err)
 
 
+def _holds_replacement(value: Any, expected: Any) -> bool:
+    """Return True when ``value`` carries the replacement written at this site.
+
+    A mapping replacement is compared key by key rather than for equality, so a
+    default the platform fills in next to the fields we sent does not read as a
+    failed write.
+    """
+    if isinstance(expected, dict):
+        return isinstance(value, dict) and all(
+            value.get(key) == item for key, item in expected.items()
+        )
+    return value == expected
+
+
 def verify_replacements(
     config: dict[str, Any],
     refs: list[ModelRef],
-    from_model: str,
+    expected: str | dict[str, Any],
 ) -> list[str]:
-    """Check that every rewritten path landed in the re-read ``config``.
+    """Check that every rewritten path holds ``expected`` in the re-read ``config``.
 
     Current platforms accept and return the full ingestion config, but older
     ones validated the write against a restricted DTO and stripped the rest on
     read, so a rewritten key could vanish without an error. Verifying the
     re-read keeps that failure visible instead of silent.
+
+    The check is against the replacement rather than against the absence of the
+    old name, because ``--to-model FILE`` may carry model info whose ``name``
+    is the one being replaced: rewriting a bare name into that object is a real
+    change that the old-name test would have reported as a failed write.
     Returns a failure description per reference that did not land.
     """
     failures: list[str] = []
+    expected_value = to_plain(expected)
     for ref in refs:
         value = get_at_path(config, ref.path)
         if value is MISSING:
             failures.append(f"{ref.path}: key missing after update (dropped by API)")
-        elif value_matches(value, from_model):
-            failures.append(f"{ref.path}: still set to {from_model!r}")
+        elif _holds_replacement(value, expected_value):
+            continue
+        elif value_matches(value, ref.value):
+            failures.append(f"{ref.path}: still set to {ref.value!r}")
+        else:
+            failures.append(f"{ref.path}: expected {expected_value!r}, got {value!r}")
     return failures
 
 
@@ -94,7 +118,7 @@ def _update_and_verify(
     scope_id: str,
     new_config: dict[str, Any],
     refs: list[ModelRef],
-    from_model: str,
+    expected: str | dict[str, Any],
     *,
     apply_to_subfolders: bool,
 ) -> list[str]:
@@ -125,7 +149,7 @@ def _update_and_verify(
     except Exception as exc:
         return [f"could not re-read folder for verification: {exc}"]
     return verify_replacements(
-        to_plain(reread.get("ingestionConfig") or {}), refs, from_model
+        to_plain(reread.get("ingestionConfig") or {}), refs, expected
     )
 
 
@@ -224,7 +248,7 @@ def _run_single(
         info["id"],
         new_config,
         refs,
-        from_model,
+        target.value,
         apply_to_subfolders=apply_to_subfolders,
     )
     if failures:
@@ -278,7 +302,7 @@ def _run_sweep(
                 info["id"],
                 new_config,
                 refs,
-                from_model,
+                target.value,
                 apply_to_subfolders=False,
             )
             if failures:

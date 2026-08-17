@@ -17,7 +17,7 @@ OLD = "AZURE_GPT_4o_2024_0806"
 NEW = "AZURE_GPT_5_2025_0807"
 
 
-def _ingestion_config(model: str = OLD) -> dict[str, Any]:
+def _ingestion_config(model: str | dict[str, Any] = OLD) -> dict[str, Any]:
     return {
         "uniqueIngestionMode": "STANDARD",
         "chunkMaxTokens": 1000,
@@ -33,7 +33,9 @@ def _ingestion_config(model: str = OLD) -> dict[str, Any]:
     }
 
 
-def _folder_info(scope_id: str = "scope_1", model: str = OLD) -> dict[str, Any]:
+def _folder_info(
+    scope_id: str = "scope_1", model: str | dict[str, Any] = OLD
+) -> dict[str, Any]:
     return {
         "id": scope_id,
         "name": "HR",
@@ -52,12 +54,12 @@ class _Cfg:
 
 def test_verify_replacements_passes_when_change_landed() -> None:
     refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
-    assert verify_replacements(_ingestion_config(NEW), refs, OLD) == []
+    assert verify_replacements(_ingestion_config(NEW), refs, NEW) == []
 
 
 def test_verify_replacements_flags_still_old_value() -> None:
     refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
-    failures = verify_replacements(_ingestion_config(OLD), refs, OLD)
+    failures = verify_replacements(_ingestion_config(OLD), refs, NEW)
     assert failures == [f"vttConfig.languageModel: still set to {OLD!r}"]
 
 
@@ -65,10 +67,42 @@ def test_verify_replacements_flags_dropped_key() -> None:
     refs = [ModelRef(path="metadataExtractionConfig.languageModel", value=OLD)]
     config = _ingestion_config(NEW)
     del config["metadataExtractionConfig"]
-    failures = verify_replacements(config, refs, OLD)
+    failures = verify_replacements(config, refs, NEW)
     assert failures == [
         "metadataExtractionConfig.languageModel: key missing after update "
         "(dropped by API)"
+    ]
+
+
+def test_verify_replacements_accepts_model_info_keeping_the_old_name() -> None:
+    """Rewriting a bare name into model info of that same name is a real change."""
+    expected = {"name": OLD, "provider": "CUSTOM"}
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    config = _ingestion_config()
+    config["vttConfig"]["languageModel"] = dict(expected)
+    assert verify_replacements(config, refs, expected) == []
+
+
+def test_verify_replacements_ignores_extra_keys_on_a_model_info_object() -> None:
+    expected = {"name": NEW, "provider": "CUSTOM"}
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    config = _ingestion_config()
+    config["vttConfig"]["languageModel"] = {**expected, "region": "westeurope"}
+    assert verify_replacements(config, refs, expected) == []
+
+
+def test_verify_replacements_flags_model_info_write_that_was_ignored() -> None:
+    expected = {"name": OLD, "provider": "CUSTOM"}
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    failures = verify_replacements(_ingestion_config(OLD), refs, expected)
+    assert failures == [f"vttConfig.languageModel: still set to {OLD!r}"]
+
+
+def test_verify_replacements_reports_an_unexpected_value() -> None:
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    failures = verify_replacements(_ingestion_config("SOMETHING_ELSE"), refs, NEW)
+    assert failures == [
+        f"vttConfig.languageModel: expected {NEW!r}, got 'SOMETHING_ELSE'"
     ]
 
 
@@ -208,6 +242,24 @@ def test_single_folder_subfolders_flag_sets_apply_to_sub_scopes() -> None:
         )
     kwargs = folder_mock.update_ingestion_config.call_args.kwargs
     assert kwargs["applyToSubScopes"] is True
+
+
+def test_single_folder_accepts_model_info_keeping_the_old_name(tmp_path: Path) -> None:
+    """`--to-model FILE` may carry the replaced name; only the shape changes."""
+    info = {"name": OLD, "provider": "CUSTOM"}
+    model_file = tmp_path / "model.json"
+    model_file.write_text(json.dumps(info), encoding="utf-8")
+    with patch("uqadm.kb.model_replace.Folder") as folder_mock:
+        folder_mock.get_info.side_effect = [
+            _folder_info(),
+            _folder_info(model=info),
+        ]
+        folder_mock.get_folder_path.return_value = {"folderPath": "/Dept/HR"}
+        cmd_model_replace(
+            _Cfg(), **_base_kwargs(folder_path="/Dept/HR", to_model=str(model_file))
+        )
+    kwargs = folder_mock.update_ingestion_config.call_args.kwargs
+    assert kwargs["ingestionConfig"]["vttConfig"]["languageModel"] == info
 
 
 def test_single_folder_verification_failure_exits_1() -> None:
