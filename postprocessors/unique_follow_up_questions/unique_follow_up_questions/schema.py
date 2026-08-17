@@ -3,6 +3,13 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 
+class LanguageDetectionOutput(BaseModel):
+    language: str = Field(
+        min_length=1,
+        description="The intended response language as a full English language name.",
+    )
+
+
 class FollowUpCategory(StrEnum):
     CLARIFICATION = "clarification"
     ELABORATION = "elaboration"
