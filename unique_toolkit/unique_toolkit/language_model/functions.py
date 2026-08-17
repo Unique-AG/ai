@@ -46,12 +46,15 @@ logger = logging.getLogger(f"toolkit.language_model.{__name__}")
 def _completion_headers(
     chat_id: str | None,
     assistant_id: str | None,
+    assistant_message_id: str | None = None,
 ) -> dict[str, str] | None:
     headers: dict[str, str] = {}
     if chat_id:
         headers["x-chat-id"] = chat_id
     if assistant_id:
         headers["x-assistant-id"] = assistant_id
+    if assistant_message_id:
+        headers["x-assistant-message-id"] = assistant_message_id
     return headers or None
 
 
@@ -68,6 +71,7 @@ def complete(
     user_id: str | None = None,
     chat_id: str | None = None,
     assistant_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> LanguageModelResponse:
     """Call the completion endpoint synchronously without streaming the response.
 
@@ -103,7 +107,7 @@ def complete(
         )
 
     try:
-        headers = _completion_headers(chat_id, assistant_id)
+        headers = _completion_headers(chat_id, assistant_id, assistant_message_id)
         if headers is None:
             response = unique_sdk.ChatCompletion.create(
                 company_id=company_id,
@@ -142,6 +146,7 @@ async def complete_async(
     structured_output_enforce_schema: bool = False,
     chat_id: str | None = None,
     assistant_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> LanguageModelResponse:
     """Call the completion endpoint asynchronously without streaming the response.
 
@@ -186,7 +191,7 @@ async def complete_async(
     )
 
     try:
-        headers = _completion_headers(chat_id, assistant_id)
+        headers = _completion_headers(chat_id, assistant_id, assistant_message_id)
         if headers is None:
             response = await unique_sdk.ChatCompletion.create_async(
                 company_id=company_id,
@@ -502,6 +507,7 @@ def complete_with_references(
     other_options: dict[str, Any] | None = None,
     chat_id: str | None = None,
     assistant_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
 
@@ -516,6 +522,7 @@ def complete_with_references(
         other_options=other_options,
         chat_id=chat_id,
         assistant_id=assistant_id,
+        assistant_message_id=assistant_message_id,
     )
 
     return _create_language_model_stream_response_with_references(
@@ -539,6 +546,7 @@ async def complete_with_references_async(
     other_options: dict[str, Any] | None = None,
     chat_id: str | None = None,
     assistant_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
     response = await complete_async(
@@ -552,6 +560,7 @@ async def complete_with_references_async(
         other_options=other_options,
         chat_id=chat_id,
         assistant_id=assistant_id,
+        assistant_message_id=assistant_message_id,
     )
 
     return _create_language_model_stream_response_with_references(
