@@ -620,11 +620,6 @@ class TestRunExecutionTimingIntegration:
         tool_took_control: bool = False,
         include_tool_calls: bool = False,
     ):
-        mock_feature_flags = MagicMock()
-        monkeypatch.setattr(
-            "unique_orchestrator.unique_ai.feature_flags", mock_feature_flags
-        )
-
         mock_cancellation = MagicMock()
         mock_cancellation.is_cancelled = False
         mock_cancellation.on_cancellation.subscribe = MagicMock(

@@ -22,7 +22,6 @@ from unique_toolkit._common.referencing import (
 )
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -39,10 +38,7 @@ from unique_toolkit.agentic.tools.a2a.tool.config import (
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ProgressState,
-    ToolProgressReporter,
-)
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app import ChatEvent
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
@@ -53,7 +49,6 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import ContentChunk, ContentReference
-from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelService,
@@ -196,12 +191,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             timestamp = datetime.now()
 
             if self._lock.locked():
-                await self._notify_progress(
-                    tool_call=tool_call,
-                    message=f"Waiting for another run of `{self.display_name()}` to finish",
-                    state=ProgressState.STARTED,
-                )
-
                 active_message_log = self._create_or_update_message_log(
                     progress_message="_Waiting for another run of this sub agent to finish_",
                     active_message_log=active_message_log,
@@ -214,12 +203,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             async with context:
                 sequence_number = self._sequence_number
                 self._sequence_number += 1
-
-                await self._notify_progress(
-                    tool_call=tool_call,
-                    message=tool_input,
-                    state=ProgressState.RUNNING,
-                )
 
                 active_message_log = self._create_or_update_message_log(
                     progress_message=f"<em>Executing sub agent with input: {tool_input}</em>",
@@ -285,12 +268,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                         has_refs=has_refs,
                     )
 
-                await self._notify_progress(
-                    tool_call=tool_call,
-                    message=tool_input,
-                    state=ProgressState.FINISHED,
-                )
-
                 # Update message log entry to completed
                 active_message_log = self._create_or_update_message_log(
                     progress_message=f"<em>Completed sub agent with input: {tool_input}</em>",
@@ -329,11 +306,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         except TimeoutError as e:
             raise e
         except Exception as e:
-            await self._notify_progress(
-                tool_call=tool_call,
-                message="Error while running sub agent",
-                state=ProgressState.FAILED,
-            )
             active_message_log = self._create_or_update_message_log(
                 progress_message="_Error while running sub agent_",
                 status=MessageLogStatus.FAILED,
@@ -426,23 +398,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             SubAgentShortTermMemorySchema(chat_id=chat_id)
         )
 
-    async def _notify_progress(
-        self,
-        tool_call: LanguageModelFunction,
-        message: str,
-        state: ProgressState,
-    ) -> None:
-        if self._tool_progress_reporter is not None and not await is_flag_enabled(
-            FeatureFlagNames.enable_new_answers_ui_un_14411,
-            company_id=self._company_id or "",
-        ):
-            await self._tool_progress_reporter.notify_from_tool_call(
-                tool_call=tool_call,
-                name=self._display_name,
-                message=message,
-                state=state,
-            )
-
     def _create_or_update_message_log(
         self,
         *,
@@ -511,11 +466,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 wait_for_invocations=True,
             )
         except TimeoutError as e:
-            await self._notify_progress(
-                tool_call=tool_call,
-                message="Timeout while waiting for response from sub agent.",
-                state=ProgressState.FAILED,
-            )
             active_message_log = self._create_or_update_message_log(
                 progress_message="_Timeout while waiting for response from sub agent_",
                 status=MessageLogStatus.FAILED,

@@ -13,7 +13,6 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
@@ -249,13 +248,6 @@ class UniqueAI:
         processes tool calls if any are returned.
         """
         self._logger.info("Start LoopAgent...")
-
-        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-            self._event.company_id
-        ):
-            await self._chat_service.modify_assistant_message_async(
-                content="Starting agentic loop..."  # TODO: this must be more informative
-            )
 
         self._execution_times = []
         self._loop_debug_params = []

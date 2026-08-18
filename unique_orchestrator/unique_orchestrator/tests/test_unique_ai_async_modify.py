@@ -10,15 +10,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
 from unique_orchestrator.unique_ai import UniqueAI
 
 
-def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
-    mock_feature_flags = MagicMock()
-    mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = (
-        feature_flag_enabled
-    )
-    monkeypatch.setattr(
-        "unique_orchestrator.unique_ai.feature_flags", mock_feature_flags
-    )
-
+def _make_ua():
     mock_cancellation = MagicMock()
     mock_cancellation.is_cancelled = False
     mock_cancellation.on_cancellation.subscribe = MagicMock(return_value=MagicMock())
@@ -101,32 +93,9 @@ def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_run_calls_modify_async_when_feature_flag_disabled(monkeypatch):
-    """Line 198: modify_assistant_message_async is called when new answers UI is disabled."""
-    ua = _make_ua(monkeypatch, feature_flag_enabled=False)
-
-    empty_response = MagicMock()
-    empty_response.message.original_text = None
-    empty_response.message.text = ""
-    empty_response.message.references = []
-    empty_response.tool_calls = None
-    empty_response.is_empty.return_value = True
-    empty_response.usage = None
-
-    ua._plan_or_execute = AsyncMock(return_value=empty_response)
-
-    await ua.run()
-
-    ua._chat_service.modify_assistant_message_async.assert_any_call(
-        content="Starting agentic loop..."
-    )
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_process_plan_calls_modify_async_on_empty_response(monkeypatch):
+async def test_process_plan_calls_modify_async_on_empty_response():
     """Line 361: modify_assistant_message_async is called with EMPTY_MESSAGE_WARNING."""
-    ua = _make_ua(monkeypatch)
+    ua = _make_ua()
 
     empty_response = MagicMock()
     empty_response.is_empty.return_value = True
@@ -139,10 +108,8 @@ async def test_process_plan_calls_modify_async_on_empty_response(monkeypatch):
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics(
-    monkeypatch,
-):
-    ua = _make_ua(monkeypatch)
+async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics():
+    ua = _make_ua()
     artifacts = {"count": 1, "filetypes": ["csv"], "output_size": 0.25}
     ua._postprocessor_manager.run_postprocessors.return_value = {
         DisplayCodeInterpreterFilesPostProcessor.__name__: artifacts
