@@ -136,13 +136,10 @@ async def convert_office_bytes_to_preview_pdf(
         return None
     except subprocess.CalledProcessError:
         return None
-    except Exception as exc:
-        logger.warning(
-            "office_preview: unexpected error for '%s': [%s] %s — "
-            "uploading original only",
+    except Exception:
+        logger.exception(
+            "office_preview: unexpected error for '%s' — uploading original only",
             safe_filename,
-            type(exc).__name__,
-            exc,
         )
         return None
 

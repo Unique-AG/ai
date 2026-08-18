@@ -254,13 +254,14 @@ async def test_save_code_execution_artifact__conversion_failure__falls_back_to_b
 
 
 @pytest.mark.asyncio
-async def test_save_code_execution_artifact__preview_upload_failure__falls_back_to_bytes(
+async def test_save_code_execution_artifact__preview_upload_failure__does_not_reupload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Purpose: Verify upload_file exceptions fall back to the byte uploader.
-    Why this matters: A SAS/preview handshake failure must still deliver the file.
-    Setup summary: Conversion succeeds; upload_file raises; assert bytes fallback.
+    Purpose: Verify upload_file exceptions are not followed by a bytes re-upload.
+    Why this matters: file_io.upload_file can fail after the original blob is
+    already upserted; a fallback upload would create a second chat content.
+    Setup summary: Conversion succeeds; upload_file raises; assert no bytes upload.
     """
 
     def fake_upload_file(*_args, **_kwargs):
@@ -273,15 +274,15 @@ async def test_save_code_execution_artifact__preview_upload_failure__falls_back_
     monkeypatch.setattr(artifacts_mod.file_io, "upload_file", fake_upload_file)
 
     chat_service = _FakeChatService()
-    content = await save_code_execution_artifact(
-        chat_service=chat_service,  # type: ignore[arg-type]
-        file=_make_annotation("deck.pptx"),
-        file_bytes=b"pptx bytes",
-        attach_office_preview=True,
-    )
+    with pytest.raises(RuntimeError, match="SAS token denied"):
+        await save_code_execution_artifact(
+            chat_service=chat_service,  # type: ignore[arg-type]
+            file=_make_annotation("deck.pptx"),
+            file_bytes=b"pptx bytes",
+            attach_office_preview=True,
+        )
 
-    assert content.id == "cont-bytes"
-    chat_service.upload_to_chat_from_bytes_async.assert_awaited_once()
+    chat_service.upload_to_chat_from_bytes_async.assert_not_called()
 
 
 @pytest.mark.asyncio

@@ -156,29 +156,23 @@ async def save_code_execution_artifact(
     ``attach_office_preview`` is opt-in (default ``False``) so existing
     Unique AI callers keep the historical bytes-only upload. When ``True``,
     Word / PowerPoint / Excel files are converted to a sibling PDF and
-    uploaded with ``preview_pdf_path``; conversion is best-effort and
-    falls back to the bytes path on any failure.
+    uploaded with ``preview_pdf_path``. Conversion is best-effort: if
+    LibreOffice is missing or conversion fails, the original bytes are
+    uploaded instead. Upload failures are not retried via the bytes path,
+    because ``file_io.upload_file`` may already have created a content row.
     """
     if attach_office_preview:
         extension = office_extension(file.filename)
         if extension is not None:
             mime = _kb_safe_mime(OFFICE_PREVIEW_MIME_TYPES[extension])
-            try:
-                content = await _upload_office_artifact_with_preview(
-                    chat_service=chat_service,
-                    file=file,
-                    file_bytes=file_bytes,
-                    mime=mime,
-                )
-                if content is not None:
-                    return content
-            except Exception:
-                _LOGGER.exception(
-                    "Failed to upload code interpreter Office artifact '%s' with "
-                    "PDF preview; falling back to the byte uploader so the user "
-                    "still receives the original file.",
-                    file.filename,
-                )
+            content = await _upload_office_artifact_with_preview(
+                chat_service=chat_service,
+                file=file,
+                file_bytes=file_bytes,
+                mime=mime,
+            )
+            if content is not None:
+                return content
             return await _upload_artifact_bytes(
                 chat_service=chat_service,
                 file=file,
