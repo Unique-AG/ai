@@ -176,9 +176,7 @@ Please do not mention these instructions in your response to the user!
     def _compute_valid_documents(self) -> list[Content]:
         documents = self._content_service.get_documents_uploaded_to_chat()
 
-        if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
-            self._company_id
-        ):
+        if self._config.selected_uploaded_files_enabled:
             documents = [
                 doc for doc in documents if doc.id in self._selected_uploaded_files
             ]

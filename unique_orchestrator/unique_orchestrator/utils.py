@@ -4,13 +4,14 @@ import json
 from logging import Logger
 
 from unique_skill_tool.service import SkillTool
-from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     ToolManager,
 )
 from unique_toolkit.app.schemas import ChatEventAdditionalParameters
 from unique_toolkit.content import Content
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model.schemas import (
     REASONING_EFFORT_ORDER,
     to_reasoning_effort,
@@ -112,7 +113,7 @@ def resolve_other_options(
     return options
 
 
-def filter_uploaded_documents_by_selection(
+async def filter_uploaded_documents_by_selection(
     documents: list[Content],
     additional_parameters: ChatEventAdditionalParameters | None,
     company_id: str,
@@ -123,7 +124,10 @@ def filter_uploaded_documents_by_selection(
     - the feature flag is disabled for ``company_id``,
     - ``additional_parameters`` is ``None``.
     """
-    if not feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(company_id):
+    if not await is_flag_enabled(
+        FeatureFlagNames.enable_selected_uploaded_files_un_18215,
+        company_id=company_id,
+    ):
         return documents
 
     if additional_parameters is None:

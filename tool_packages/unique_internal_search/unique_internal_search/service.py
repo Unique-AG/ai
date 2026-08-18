@@ -13,7 +13,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames, feature_flags
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -29,6 +29,10 @@ from unique_toolkit.content.utils import (
     merge_content_chunks,
     pick_content_chunks_for_token_window,
     sort_content_chunks,
+)
+from unique_toolkit.experimental.resources.feature_flags import (
+    COMPANY_ID_PLACEHOLDER,
+    is_flag_enabled,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -107,8 +111,9 @@ class InternalSearchService:
         if self.config.chat_only:
             return True
         if self.config.scope_to_chat_on_upload:
-            if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
-                self.company_id
+            if await is_flag_enabled(
+                FeatureFlagNames.enable_selected_uploaded_files_un_18215,
+                company_id=self.company_id or COMPANY_ID_PLACEHOLDER,
             ):
                 return len(self.selected_uploaded_file_ids) > 0
             chat_files = await self.get_uploaded_files()
@@ -167,8 +172,9 @@ class InternalSearchService:
             metadata_filter = None
 
         if (
-            feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
-                self.company_id
+            await is_flag_enabled(
+                FeatureFlagNames.enable_selected_uploaded_files_un_18215,
+                company_id=self.company_id or COMPANY_ID_PLACEHOLDER,
             )
             and chat_only
         ):

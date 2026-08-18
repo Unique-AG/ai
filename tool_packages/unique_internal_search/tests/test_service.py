@@ -234,11 +234,10 @@ class TestInternalSearchService:
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
         # Act
-        mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = (
-            True
-        )
-        with patch("unique_internal_search.service.feature_flags", mock_flags):
+        with patch(
+            "unique_internal_search.service.is_flag_enabled",
+            AsyncMock(return_value=True),
+        ):
             result = await service.is_chat_only()
 
         # Assert
@@ -274,11 +273,10 @@ class TestInternalSearchService:
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
         # Act
-        mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = (
-            False
-        )
-        with patch("unique_internal_search.service.feature_flags", mock_flags):
+        with patch(
+            "unique_internal_search.service.is_flag_enabled",
+            AsyncMock(return_value=False),
+        ):
             result = await service.is_chat_only()
 
         # Assert
@@ -318,11 +316,10 @@ class TestInternalSearchService:
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
         # Act
-        mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = (
-            True
-        )
-        with patch("unique_internal_search.service.feature_flags", mock_flags):
+        with patch(
+            "unique_internal_search.service.is_flag_enabled",
+            AsyncMock(return_value=True),
+        ):
             await service.search(search_string="test query")
 
         # Assert
@@ -360,11 +357,10 @@ class TestInternalSearchService:
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
         # Act
-        mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = (
-            False
-        )
-        with patch("unique_internal_search.service.feature_flags", mock_flags):
+        with patch(
+            "unique_internal_search.service.is_flag_enabled",
+            AsyncMock(return_value=False),
+        ):
             await service.search(search_string="test query")
 
         # Assert
@@ -1654,6 +1650,10 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
             patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
+            patch(
+                "unique_internal_search.service.is_flag_enabled",
+                AsyncMock(return_value=False),
+            ),
         ):
             mock_content_service = Mock(spec=ContentService)
             mock_content_service._metadata_filter = None
@@ -1662,7 +1662,6 @@ class TestInternalSearchTool:
             )
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
-            mock_feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
             mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
 
             def setup_tool(self, configuration, event, *args, **kwargs):
