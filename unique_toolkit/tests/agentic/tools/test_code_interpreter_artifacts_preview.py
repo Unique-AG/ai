@@ -117,6 +117,7 @@ async def test_save_code_execution_artifact__office_file__uploads_with_preview(
         chat_service=chat_service,  # type: ignore[arg-type]
         file=_make_annotation("random_document.docx"),
         file_bytes=b"docx bytes",
+        attach_office_preview=True,
     )
 
     assert content.id == "cont-preview"
@@ -177,6 +178,7 @@ async def test_save_code_execution_artifact__xlsx__uploads_with_preview(
         chat_service=_FakeChatService(),  # type: ignore[arg-type]
         file=_make_annotation("forecast.xlsx"),
         file_bytes=b"xlsx bytes",
+        attach_office_preview=True,
     )
 
     assert content.id == "cont-xlsx-preview"
@@ -207,6 +209,7 @@ async def test_save_code_execution_artifact__soffice_absent__falls_back_to_bytes
         chat_service=chat_service,  # type: ignore[arg-type]
         file=_make_annotation("report.docx"),
         file_bytes=b"docx bytes",
+        attach_office_preview=True,
     )
 
     assert content.id == "cont-bytes"
@@ -243,6 +246,7 @@ async def test_save_code_execution_artifact__conversion_failure__falls_back_to_b
         chat_service=chat_service,  # type: ignore[arg-type]
         file=_make_annotation("deck.pptx"),
         file_bytes=b"pptx bytes",
+        attach_office_preview=True,
     )
 
     assert content.id == "cont-bytes"
@@ -273,9 +277,41 @@ async def test_save_code_execution_artifact__preview_upload_failure__falls_back_
         chat_service=chat_service,  # type: ignore[arg-type]
         file=_make_annotation("deck.pptx"),
         file_bytes=b"pptx bytes",
+        attach_office_preview=True,
     )
 
     assert content.id == "cont-bytes"
+    chat_service.upload_to_chat_from_bytes_async.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_save_code_execution_artifact__office_file_default__skips_preview(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify Office artifacts keep the historical bytes upload when
+    attach_office_preview is left at its default (False).
+    Why this matters: Unique AI must not change behaviour until a caller opts in.
+    Setup summary: Mock soffice as present; do not pass the flag; assert bytes path.
+    """
+    upload_file = MagicMock(
+        side_effect=AssertionError("upload_file must not be called")
+    )
+    monkeypatch.setattr(
+        preview_mod, "_resolve_soffice_binary", lambda: "/usr/bin/soffice"
+    )
+    monkeypatch.setattr(preview_mod, "_run_soffice", _fake_run_soffice_writes_pdf)
+    monkeypatch.setattr(artifacts_mod.file_io, "upload_file", upload_file)
+
+    chat_service = _FakeChatService()
+    content = await save_code_execution_artifact(
+        chat_service=chat_service,  # type: ignore[arg-type]
+        file=_make_annotation("random_document.docx"),
+        file_bytes=b"docx bytes",
+    )
+
+    assert content.id == "cont-bytes"
+    upload_file.assert_not_called()
     chat_service.upload_to_chat_from_bytes_async.assert_awaited_once()
 
 

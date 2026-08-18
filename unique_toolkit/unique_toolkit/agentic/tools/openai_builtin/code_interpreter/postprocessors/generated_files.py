@@ -117,6 +117,15 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
         "Applies per SDK attempt. The OpenAI SDK default of 600s is too generous "
         "for small generated files; a shorter timeout lets us retry sooner.",
     )
+    attach_office_preview: SkipJsonSchema[bool] = Field(
+        default=False,
+        description=(
+            "When True, convert Word/PowerPoint/Excel artifacts to a sibling "
+            "PDF and attach it as the chat side-panel preview. Default False "
+            "keeps the historical bytes-only upload. Conversion is best-effort "
+            "and falls back to the original file."
+        ),
+    )
 
 
 class _ContentInfo(NamedTuple):
@@ -762,6 +771,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 chat_service=self._chat_service,
                 file=container_file,
                 file_bytes=file_bytes,
+                attach_office_preview=self._config.attach_office_preview,
             )
             upload_ms = (time.monotonic() - upload_t0) * 1000
             if upload_ms > 2000:

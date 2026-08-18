@@ -109,6 +109,7 @@ def test_display_code_interpreter_files_config__has_defaults__when_constructed_w
     assert config.progress_update_interval == 3.0
     assert config.download_chunk_size == 8192
     assert config.download_read_timeout == 120.0
+    assert config.attach_office_preview is False
 
 
 @pytest.mark.ai

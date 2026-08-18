@@ -148,32 +148,43 @@ async def save_code_execution_artifact(
     chat_service: ChatService,
     file: AnnotationContainerFileCitation,
     file_bytes: bytes,
+    *,
+    attach_office_preview: bool = False,
 ) -> Content:
-    extension = office_extension(file.filename)
-    if extension is not None:
-        mime = _kb_safe_mime(OFFICE_PREVIEW_MIME_TYPES[extension])
-        try:
-            content = await _upload_office_artifact_with_preview(
+    """Upload a code-interpreter artifact to the chat knowledge base.
+
+    ``attach_office_preview`` is opt-in (default ``False``) so existing
+    Unique AI callers keep the historical bytes-only upload. When ``True``,
+    Word / PowerPoint / Excel files are converted to a sibling PDF and
+    uploaded with ``preview_pdf_path``; conversion is best-effort and
+    falls back to the bytes path on any failure.
+    """
+    if attach_office_preview:
+        extension = office_extension(file.filename)
+        if extension is not None:
+            mime = _kb_safe_mime(OFFICE_PREVIEW_MIME_TYPES[extension])
+            try:
+                content = await _upload_office_artifact_with_preview(
+                    chat_service=chat_service,
+                    file=file,
+                    file_bytes=file_bytes,
+                    mime=mime,
+                )
+                if content is not None:
+                    return content
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to upload code interpreter Office artifact '%s' with "
+                    "PDF preview; falling back to the byte uploader so the user "
+                    "still receives the original file.",
+                    file.filename,
+                )
+            return await _upload_artifact_bytes(
                 chat_service=chat_service,
                 file=file,
                 file_bytes=file_bytes,
                 mime=mime,
             )
-            if content is not None:
-                return content
-        except Exception:
-            _LOGGER.exception(
-                "Failed to upload code interpreter Office artifact '%s' with "
-                "PDF preview; falling back to the byte uploader so the user "
-                "still receives the original file.",
-                file.filename,
-            )
-        return await _upload_artifact_bytes(
-            chat_service=chat_service,
-            file=file,
-            file_bytes=file_bytes,
-            mime=mime,
-        )
 
     raw_mime = guess_type(file.filename)[0] or "text/plain"
     mime = _kb_safe_mime(raw_mime)
