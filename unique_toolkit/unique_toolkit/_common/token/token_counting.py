@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
 import tiktoken
@@ -23,6 +24,16 @@ if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
 
 DEFAULT_ENCODING = os.getenv("UNIQUE_DEFAULT_TOKENIZER_ENCODING", "cl100k_base")
+
+
+def _serialize_provider_neutral_json(value: object) -> str:
+    """Serialize request structures without provider-specific token constants."""
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 class SpecialToolCallingTokens(BaseModel):
@@ -72,7 +83,7 @@ def get_special_token(model: LanguageModelName) -> SpecialToolCallingTokens:
 
 
 def num_tokens_per_messages(
-    messages: list[dict[str, str]], encode: Callable[[str], list[int]]
+    messages: list[dict[str, Any]], encode: Callable[[str], list[int]]
 ) -> list[int]:
     """Return the number of tokens used by a list of messages."""
 
@@ -96,7 +107,9 @@ def num_tokens_per_messages(
                     num_tokens += handle_message_with_images(value, encode)
                 else:
                     num_tokens += len(encode(value))
-            elif isinstance(value, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            elif key == "tool_calls":
+                num_tokens += len(encode(_serialize_provider_neutral_json(value)))
+            elif isinstance(value, str):
                 num_tokens += len(encode(value))
 
             if key == "name":
@@ -108,7 +121,7 @@ def num_tokens_per_messages(
 
 
 def num_tokens_from_messages(
-    messages: list[dict[str, str]], encode: Callable[[str], list[int]]
+    messages: list[dict[str, Any]], encode: Callable[[str], list[int]]
 ) -> int:
     """Return the number of tokens used by a list of messages."""
 
@@ -178,6 +191,8 @@ def handle_message_with_images(
                 token_count += calculate_image_tokens_from_base64(image_url)
         elif item.get("type") == "text":
             token_count += len(encode(item.get("text", "")))
+        else:
+            token_count += len(encode(_serialize_provider_neutral_json(item)))
     return token_count
 
 
@@ -191,9 +206,7 @@ def messages_to_openai_messages(
         {
             k: v
             for k, v in m.items()
-            if (
-                k in ["content", "role", "name"] and v is not None
-            )  # Ignore tool_calls for now
+            if (k in ["content", "role", "name", "tool_calls"] and v is not None)
         }
         for m in messages.model_dump(mode="json")
     ]
@@ -213,6 +226,19 @@ def num_token_for_language_model_messages(
     encode: Callable[[str], list[int]],
 ) -> int:
     return num_tokens_from_messages(messages_to_openai_messages(messages), encode)
+
+
+def num_tokens_for_tool_definitions(
+    tool_definitions: Sequence[Mapping[str, object]],
+    language_model: LanguageModelInfo,
+) -> int:
+    """Count provider-neutral JSON tokens for the exact outgoing tool definitions."""
+    if not tool_definitions:
+        return 0
+
+    return len(
+        language_model.get_encoder()(_serialize_provider_neutral_json(tool_definitions))
+    )
 
 
 def count_tokens(text: str, model: LanguageModelInfo | None = None) -> int:

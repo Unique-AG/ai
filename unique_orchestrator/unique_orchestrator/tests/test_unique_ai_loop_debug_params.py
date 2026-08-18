@@ -71,7 +71,15 @@ def _build_unique_ai(**overrides):
         loop_iteration_runner=MagicMock(),
     )
     defaults.update(overrides)
-    return UniqueAI(**defaults)
+    ua = UniqueAI(**defaults)
+    ua._preflight_model_input = MagicMock(  # type: ignore[method-assign]
+        side_effect=lambda *, messages, tool_definitions, tool_choices: (
+            messages,
+            tool_definitions,
+            tool_choices,
+        )
+    )
+    return ua
 
 
 def _make_loop_response() -> MagicMock:
@@ -344,6 +352,13 @@ class TestRunLoopDebugParams:
         )
         ua._render_user_prompt = AsyncMock(return_value="user")  # type: ignore[method-assign]
         ua._render_system_prompt = AsyncMock(return_value="system")  # type: ignore[method-assign]
+        ua._preflight_model_input = MagicMock(  # type: ignore[method-assign]
+            side_effect=lambda *, messages, tool_definitions, tool_choices: (
+                messages,
+                tool_definitions,
+                tool_choices,
+            )
+        )
         ua._thinking_manager.thinking_is_displayed = MagicMock(return_value=True)
         return ua
 

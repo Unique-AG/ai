@@ -15,6 +15,9 @@ import pytest
 if TYPE_CHECKING:
     from unittest.mock import Mock
 
+from unique_toolkit.agentic.history_manager.exceptions import (
+    InputTokenBudgetExceededError,
+)
 from unique_toolkit.agentic.history_manager.loop_token_reducer import (
     MAX_INPUT_TOKENS_SAFETY_PERCENTAGE,
     MIN_PLAIN_TEXT_CHARS_TO_KEEP,
@@ -22,6 +25,7 @@ from unique_toolkit.agentic.history_manager.loop_token_reducer import (
     LoopTokenReducer,
     SourceReductionResult,
     _truncate_plain_text,
+    calculate_input_token_budget,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app import (
@@ -253,6 +257,72 @@ def test_effective_token_limit__returns_correct_value__with_safety_margin_AI(
 
     # Assert
     assert result == expected_max
+
+
+@pytest.mark.ai
+def test_input_budget__retains_anthropic_multiplier_and_safety_margin_AI() -> None:
+    """
+    Purpose: Verify reservations are applied after Anthropic correction and safety.
+    Why this matters: New reserves must not restore the provider capacity already removed.
+    Setup summary: Compare advertised and corrected Claude limits, then reserve 123 tokens.
+    """
+    model_name = LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6
+    advertised_model = LanguageModelInfo._construct_from_name(model_name)
+    corrected_model = LanguageModelInfo.from_name(model_name)
+    reserve = 123
+
+    assert corrected_model.token_limits.token_limit_input == int(
+        advertised_model.token_limits.token_limit_input * 0.75
+    )
+    assert calculate_input_token_budget(
+        corrected_model,
+        reserved_input_tokens=reserve,
+    ) == (
+        int(
+            corrected_model.token_limits.token_limit_input
+            * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
+        )
+        - reserve
+    )
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_async"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens", return_value=100)
+async def test_get_history_for_model_call__raises_typed_error__when_reserve_leaves_no_reducible_budget_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify an irreducible oversized payload is never returned.
+    Why this matters: Returning it would merely defer failure to the model provider.
+    Setup summary: Reserve all but 50 tokens, count 100, and assert the typed error.
+    """
+    mock_get_history.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="irreducible")]
+    )
+    reserve = loop_token_reducer._effective_token_limit - 50
+
+    async def noop(text: str) -> str:
+        return text
+
+    with pytest.raises(InputTokenBudgetExceededError) as exc_info:
+        await loop_token_reducer.get_history_for_model_call(
+            original_user_message="irreducible",
+            rendered_user_message_string="irreducible",
+            rendered_system_message_string="system",
+            loop_history=[],
+            remove_from_text=noop,
+            reserved_input_tokens=reserve,
+        )
+
+    assert exc_info.value.token_count == 100
+    assert exc_info.value.token_budget == 50
+    assert exc_info.value.reserved_input_tokens == reserve
+    assert mock_count_tokens.call_count >= 1
 
 
 @pytest.mark.ai

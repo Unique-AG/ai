@@ -117,6 +117,13 @@ def _build_run_ua(loop_responses: list[MagicMock], max_iterations: int):
     )
     ua._render_user_prompt = AsyncMock(return_value="user")  # type: ignore[method-assign]
     ua._render_system_prompt = AsyncMock(return_value="system")  # type: ignore[method-assign]
+    ua._preflight_model_input = MagicMock(  # type: ignore[method-assign]
+        side_effect=lambda *, messages, tool_definitions, tool_choices: (
+            messages,
+            tool_definitions,
+            tool_choices,
+        )
+    )
     ua._thinking_manager.thinking_is_displayed = MagicMock(return_value=True)
     ua._thinking_manager.update_start_text = MagicMock(return_value="")
     return ua

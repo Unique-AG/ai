@@ -7,6 +7,11 @@ from typing import Any, cast, overload
 import jinja2
 from typing_extensions import deprecated
 from unique_skill_tool.service import SkillTool
+from unique_toolkit._common.token import (
+    count_tokens,
+    num_token_for_language_model_messages,
+    num_tokens_for_tool_definitions,
+)
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     AnalyticsLanguageModel,
     DebugInfoManager,
@@ -14,7 +19,13 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.history_manager.exceptions import (
+    InputTokenBudgetExceededError,
+)
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.history_manager.loop_token_reducer import (
+    calculate_input_token_budget,
+)
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
@@ -630,7 +641,16 @@ class UniqueAI:
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
         self._logger.info("Planning or executing the loop.")
-        messages = await self._compose_message_plan_execution()
+        tool_definitions = self._tool_manager.get_tool_definitions()
+        tool_reminders = self._get_tool_reminders()
+        reserved_input_tokens = self._count_reserved_input_tokens(
+            tool_definitions=tool_definitions,
+            tool_reminders=tool_reminders,
+        )
+        messages = await self._compose_message_plan_execution(
+            reserved_input_tokens=reserved_input_tokens,
+            tool_reminders=tool_reminders,
+        )
 
         self._logger.info("Done composing message plan execution.")
 
@@ -644,13 +664,23 @@ class UniqueAI:
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
             model=self._config.space.language_model,
-            tools=self._tool_manager.get_tool_definitions(),  # type: ignore (as above)
+            tools=tool_definitions,
             content_chunks=self._history_manager.get_content_chunks_for_backend(),
             start_text=self.start_text,
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=other_options,
+        )
+
+        (
+            kwargs["messages"],
+            kwargs["tools"],
+            kwargs["tool_choices"],
+        ) = self._preflight_model_input(
+            messages=kwargs["messages"],
+            tool_definitions=kwargs["tools"],
+            tool_choices=kwargs["tool_choices"],
         )
 
         # Experimental Feature UN-17905
@@ -666,10 +696,19 @@ class UniqueAI:
                 )
                 self._file_fallback_occurred = True
                 kwargs["messages"] = self._open_file_runtime.prepare_retry_messages(
-                    messages=messages
+                    messages=kwargs["messages"]
                 )
                 kwargs["tools"] = self._tool_manager.get_tool_definitions()  # type: ignore (as above)
                 kwargs["tool_choices"] = self._tool_manager.get_forced_tools()  # type: ignore (as above)
+                (
+                    kwargs["messages"],
+                    kwargs["tools"],
+                    kwargs["tool_choices"],
+                ) = self._preflight_model_input(
+                    messages=kwargs["messages"],
+                    tool_definitions=kwargs["tools"],
+                    tool_choices=kwargs["tool_choices"],
+                )
                 return await self._loop_iteration_runner(**kwargs)
 
         return await self._loop_iteration_runner(**kwargs)
@@ -701,7 +740,12 @@ class UniqueAI:
 
         return await self._handle_no_tool_calls(loop_response)
 
-    async def _compose_message_plan_execution(self) -> LanguageModelMessages:
+    async def _compose_message_plan_execution(
+        self,
+        *,
+        reserved_input_tokens: int = 0,
+        tool_reminders: list[str] | None = None,
+    ) -> LanguageModelMessages:
         original_user_message = self._event.payload.user_message.text
         rendered_user_message_string = await self._render_user_prompt()
         rendered_system_message_string = await self._render_system_prompt()
@@ -711,6 +755,7 @@ class UniqueAI:
             rendered_user_message_string,
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
+            reserved_input_tokens=reserved_input_tokens,
         )
 
         if self._config.agent.experimental.open_file_tool_config.enabled:
@@ -721,12 +766,114 @@ class UniqueAI:
                     )
                 )
 
-        tool_reminders: list[str] = []
-        for prompts in self._tool_manager.get_tool_prompts():
-            if prompts.tool_system_reminder_for_user_prompt:
-                tool_reminders.append(prompts.tool_system_reminder_for_user_prompt)
-        messages = inject_tool_reminders_into_user_message(messages, tool_reminders)
+        messages = inject_tool_reminders_into_user_message(
+            messages,
+            tool_reminders
+            if tool_reminders is not None
+            else self._get_tool_reminders(),
+        )
         return messages
+
+    def _get_tool_reminders(self) -> list[str]:
+        return [
+            prompts.tool_system_reminder_for_user_prompt
+            for prompts in self._tool_manager.get_tool_prompts()
+            if prompts.tool_system_reminder_for_user_prompt
+        ]
+
+    def _count_reserved_input_tokens(
+        self,
+        *,
+        tool_definitions: list[Any],
+        tool_reminders: list[str],
+    ) -> int:
+        language_model = self._config.space.language_model
+        tool_definition_tokens = num_tokens_for_tool_definitions(
+            tool_definitions,
+            language_model,
+        )
+        tool_reminder_tokens = sum(
+            count_tokens(reminder, language_model) for reminder in tool_reminders
+        )
+        reserved_input_tokens = tool_definition_tokens + tool_reminder_tokens
+        self._logger.info(
+            "Reserved model input tokens: "
+            f"tools={tool_definition_tokens}, reminders={tool_reminder_tokens}, "
+            f"total={reserved_input_tokens}"
+        )
+        return reserved_input_tokens
+
+    def _preflight_model_input(
+        self,
+        *,
+        messages: LanguageModelMessages,
+        tool_definitions: list[Any],
+        tool_choices: list[Any],
+    ) -> tuple[LanguageModelMessages, list[Any], list[Any]]:
+        """Validate the exact outgoing payload before any provider invocation."""
+        language_model = self._config.space.language_model
+        token_budget = calculate_input_token_budget(language_model)
+        message_tokens = num_token_for_language_model_messages(
+            messages,
+            language_model.get_encoder(),
+        )
+        tool_definition_tokens = num_tokens_for_tool_definitions(
+            tool_definitions, language_model
+        )
+        token_count = message_tokens + tool_definition_tokens
+        self._logger.info(
+            "Model input token preflight: "
+            f"messages={message_tokens}, tools={tool_definition_tokens}, "
+            f"total={token_count}, budget={token_budget}"
+        )
+
+        if token_count <= token_budget:
+            return messages, tool_definitions, tool_choices
+
+        if (
+            self._config.agent.experimental.open_file_tool_config.enabled
+            and self._messages_have_file_parts(messages)
+        ):
+            self._logger.warning(
+                "Final model input exceeds its token budget. "
+                "Removing OpenFile attachments before provider invocation."
+            )
+            messages = self._open_file_runtime.prepare_retry_messages(messages)
+            self._file_fallback_occurred = True
+            tool_definitions = self._tool_manager.get_tool_definitions()
+            tool_choices = self._tool_manager.get_forced_tools()
+            message_tokens = num_token_for_language_model_messages(
+                messages,
+                language_model.get_encoder(),
+            )
+            tool_definition_tokens = num_tokens_for_tool_definitions(
+                tool_definitions, language_model
+            )
+            token_count = message_tokens + tool_definition_tokens
+            self._logger.info(
+                "Model input token preflight after removing files: "
+                f"messages={message_tokens}, tools={tool_definition_tokens}, "
+                f"total={token_count}, budget={token_budget}"
+            )
+            if token_count <= token_budget:
+                return messages, tool_definitions, tool_choices
+
+        raise InputTokenBudgetExceededError(
+            token_count=token_count,
+            token_budget=token_budget,
+            reserved_input_tokens=tool_definition_tokens,
+        )
+
+    @staticmethod
+    def _messages_have_file_parts(messages: LanguageModelMessages) -> bool:
+        return any(
+            isinstance(message.content, list)
+            and any(
+                isinstance(part, dict) and part.get("type") == "file"
+                for part in message.content
+            )
+            for message in messages.root
+        )
 
     async def _render_user_prompt(self) -> str:
         user_message_template = jinja2.Template(
