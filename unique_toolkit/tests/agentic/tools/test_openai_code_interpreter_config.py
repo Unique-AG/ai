@@ -34,6 +34,7 @@ def test_code_interpreter_extended_config__has_defaults__when_constructed_with_n
     )
     assert config.generated_files_config.upload_to_chat is True
     assert config.generated_files_config.max_concurrent_file_downloads == 10
+    assert config.generated_files_config.attach_office_preview is False
     assert isinstance(
         config.executed_code_display_config,
         ShowExecutedCodePostprocessorConfig,
