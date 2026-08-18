@@ -1,11 +1,21 @@
+import asyncio
 import logging
+import tempfile
 from mimetypes import guess_type
+from pathlib import Path
+from typing import Any
 
+import unique_sdk.utils.file_io as file_io
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.utils.files import FileMimeType, ImageMimeType
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.office_preview import (
+    OFFICE_PREVIEW_MIME_TYPES,
+    convert_office_bytes_to_preview_pdf,
+    office_extension,
+)
 from unique_toolkit.content.schemas import Content
 
 _CODE_EXECUTION_ARTIFACT_METADATA_KEY: str = "codeExecutionArtifactMetadata"
@@ -50,22 +60,24 @@ def _kb_safe_mime(mime: str) -> str:
     return "text/plain"
 
 
-async def save_code_execution_artifact(
+def _artifact_metadata(
+    file: AnnotationContainerFileCitation,
+) -> dict[str, Any]:
+    return {
+        _CODE_EXECUTION_ARTIFACT_METADATA_KEY: CodeExecutionArtifactMetadata(
+            container_id=file.container_id,
+            file_id=file.file_id,
+            filepath=f"/mnt/data/{file.filename}",
+        ).model_dump()
+    }
+
+
+async def _upload_artifact_bytes(
     chat_service: ChatService,
     file: AnnotationContainerFileCitation,
     file_bytes: bytes,
+    mime: str,
 ) -> Content:
-    raw_mime = guess_type(file.filename)[0] or "text/plain"
-    mime = _kb_safe_mime(raw_mime)
-
-    if mime != raw_mime:
-        _LOGGER.info(
-            "MIME type '%s' is not supported by the Unique KB; "
-            "uploading '%s' as 'text/plain' so the file can be stored and downloaded.",
-            raw_mime,
-            file.filename,
-        )
-
     _LOGGER.info(
         "Uploading '%s' to knowledge base (%d bytes, mime type %s)",
         file.filename,
@@ -79,13 +91,106 @@ async def save_code_execution_artifact(
         mime_type=mime,
         skip_ingestion=True,
         hide_in_chat=True,
-        metadata={
-            _CODE_EXECUTION_ARTIFACT_METADATA_KEY: CodeExecutionArtifactMetadata(
-                container_id=file.container_id,
-                file_id=file.file_id,
-                filepath=f"/mnt/data/{file.filename}",
-            ).model_dump()
-        },
+        metadata=_artifact_metadata(file),
+    )
+
+
+async def _upload_office_artifact_with_preview(
+    chat_service: ChatService,
+    file: AnnotationContainerFileCitation,
+    file_bytes: bytes,
+    mime: str,
+) -> Content | None:
+    """Upload an Office artifact with a PDF preview, or ``None`` to fall back."""
+    with tempfile.TemporaryDirectory(prefix="code-interpreter-preview-") as tmp:
+        output_dir = Path(tmp)
+        preview_path = await convert_office_bytes_to_preview_pdf(
+            filename=file.filename,
+            file_bytes=file_bytes,
+            tmp_dir=output_dir,
+            logger=_LOGGER,
+        )
+        if preview_path is None:
+            _LOGGER.warning(
+                "Code interpreter Office artifact '%s' could not be converted "
+                "to PDF; uploading without preview.",
+                file.filename,
+            )
+            return None
+
+        source_path = output_dir / Path(file.filename).name
+        _LOGGER.info(
+            "Uploading code interpreter Office artifact '%s' with PDF preview '%s'",
+            file.filename,
+            preview_path.name,
+        )
+
+        uploaded = await asyncio.to_thread(
+            file_io.upload_file,
+            chat_service._user_id,
+            chat_service._company_id,
+            str(source_path),
+            file.filename,
+            mime,
+            chat_id=chat_service._chat_id,
+            ingestion_config={
+                "uniqueIngestionMode": "SKIP_INGESTION",
+                "hideInChat": True,
+            },
+            metadata=_artifact_metadata(file),
+            preview_pdf_path=str(preview_path),
+        )
+
+    return Content.model_validate(uploaded, by_alias=True, by_name=True)
+
+
+async def save_code_execution_artifact(
+    chat_service: ChatService,
+    file: AnnotationContainerFileCitation,
+    file_bytes: bytes,
+) -> Content:
+    extension = office_extension(file.filename)
+    if extension is not None:
+        mime = _kb_safe_mime(OFFICE_PREVIEW_MIME_TYPES[extension])
+        try:
+            content = await _upload_office_artifact_with_preview(
+                chat_service=chat_service,
+                file=file,
+                file_bytes=file_bytes,
+                mime=mime,
+            )
+            if content is not None:
+                return content
+        except Exception:
+            _LOGGER.exception(
+                "Failed to upload code interpreter Office artifact '%s' with "
+                "PDF preview; falling back to the byte uploader so the user "
+                "still receives the original file.",
+                file.filename,
+            )
+        return await _upload_artifact_bytes(
+            chat_service=chat_service,
+            file=file,
+            file_bytes=file_bytes,
+            mime=mime,
+        )
+
+    raw_mime = guess_type(file.filename)[0] or "text/plain"
+    mime = _kb_safe_mime(raw_mime)
+
+    if mime != raw_mime:
+        _LOGGER.info(
+            "MIME type '%s' is not supported by the Unique KB; "
+            "uploading '%s' as 'text/plain' so the file can be stored and downloaded.",
+            raw_mime,
+            file.filename,
+        )
+
+    return await _upload_artifact_bytes(
+        chat_service=chat_service,
+        file=file,
+        file_bytes=file_bytes,
+        mime=mime,
     )
 
 
