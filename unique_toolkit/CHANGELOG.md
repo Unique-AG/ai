@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.34.2](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.34.1...unique-toolkit-v2026.34.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* **docs:** correct copy/paste wording in orchestrator doc ([a52bd5d](https://github.com/Unique-AG/ai/commit/a52bd5dc61562005c3b89c364fc4f4c0a6cb85f5))
+
 ## [2026.34.1](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.34.0...unique-toolkit-v2026.34.1) (2026-08-17)
 
 
