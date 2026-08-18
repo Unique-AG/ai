@@ -10,7 +10,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
 from unique_orchestrator.unique_ai import UniqueAI
 
 
-def _make_ua(monkeypatch):
+def _make_ua():
     mock_cancellation = MagicMock()
     mock_cancellation.is_cancelled = False
     mock_cancellation.on_cancellation.subscribe = MagicMock(return_value=MagicMock())
@@ -93,9 +93,9 @@ def _make_ua(monkeypatch):
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_process_plan_calls_modify_async_on_empty_response(monkeypatch):
+async def test_process_plan_calls_modify_async_on_empty_response():
     """Line 361: modify_assistant_message_async is called with EMPTY_MESSAGE_WARNING."""
-    ua = _make_ua(monkeypatch)
+    ua = _make_ua()
 
     empty_response = MagicMock()
     empty_response.is_empty.return_value = True
@@ -108,10 +108,8 @@ async def test_process_plan_calls_modify_async_on_empty_response(monkeypatch):
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics(
-    monkeypatch,
-):
-    ua = _make_ua(monkeypatch)
+async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics():
+    ua = _make_ua()
     artifacts = {"count": 1, "filetypes": ["csv"], "output_size": 0.25}
     ua._postprocessor_manager.run_postprocessors.return_value = {
         DisplayCodeInterpreterFilesPostProcessor.__name__: artifacts

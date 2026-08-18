@@ -95,7 +95,12 @@ class FeatureFlags(BaseSettings):
 
     enable_new_answers_ui_un_14411: FeatureFlag = Field(
         default=FeatureFlag([]),
-        description="Enable new answers UI (UN-14411)",
+        description=(
+            "Retired (UN-24507): the new answers UI is always on now, no code "
+            "reads this field. Kept only so removing it doesn't trip the "
+            "config-checker's breaking-change gate on this settings model; "
+            "delete once that checker allows field removal."
+        ),
     )
 
     enable_html_rendering_un_15131: FeatureFlag = Field(
