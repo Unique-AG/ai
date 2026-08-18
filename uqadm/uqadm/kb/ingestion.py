@@ -14,7 +14,7 @@ from unique_sdk.cli.config import Config
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.config_output import write_config_document
-from uqadm.core.model_refs import to_plain
+from uqadm.core.model_refs import to_plain_object
 from uqadm.core.payload_files import load_json_or_yaml_mapping
 
 
@@ -47,7 +47,7 @@ def cmd_ingestion_get(
         echo_credential_debug_if_auth_failure(cfg, exc, label="kb ingestion get")
         sys.exit(1)
 
-    ingestion_config = to_plain(info.get("ingestionConfig") or {})
+    ingestion_config = to_plain_object(info.get("ingestionConfig"))
     if not ingestion_config:
         typer.echo(
             "Folder has no ingestion config set; emitting an empty mapping.",

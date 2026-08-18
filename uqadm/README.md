@@ -357,6 +357,16 @@ paths before anything is written.
 minimal payload (only the changed top-level fields and changed module
 configurations are sent).
 
+Every live update is **verified**: the space is read back and each rewritten
+path checked against the value that was sent, so a write the API accepts but
+does not store fails the command instead of reporting success.
+
+``update_space`` writes a module through its ``configuration`` only, and a
+handful of top-level fields. A match anywhere else — say under a module's
+``toolDefinition`` — therefore cannot be sent, and the command **refuses the
+update** and exits non-zero rather than applying a partial rewrite. Use ``-o``
+to export the fully rewritten snapshot in that case.
+
 ```bash
 # Preview which paths would change
 uqadm space model-replace asst_abc --from-model AZURE_GPT_4o_2024_0806 \
@@ -386,7 +396,7 @@ uqadm space model-replace --all --slot prod --from-model OLD --to-model NEW
 | `--from-model NAME` | Model name currently in the configuration to replace. Required. |
 | `--to-model NAME\|FILE` | Replacement model: a model name, or a path to a `.json`/`.yaml`/`.yml` file with language-model info (must include `name`). Required. |
 | `-o`, `--output PATH` | Write the rewritten snapshot to a file instead of updating the platform. |
-| `--dry-run` | Print matched paths and planned updates without writing anything. |
+| `--dry-run` | Print matched paths and planned updates without writing anything — no API call and no output file, even with `-o`. |
 | `-y`, `--yes` | With `--all`: apply without prompting. |
 | `--slot SLOT` | Credential slot (default: configured default). |
 
@@ -674,7 +684,7 @@ uqadm kb ingestion model-replace --all --slot prod --from-model OLD --to-model N
 | `--to-model NAME\|FILE` | Replacement model: a model name, or a path to a `.json`/`.yaml`/`.yml` file with language-model info (must include `name`). Required. |
 | `-o`, `--output PATH` | Write the rewritten config to a file instead of updating the platform. |
 | `--subfolders` | Push the rewritten config to descendant folders too (`applyToSubScopes`). Default: this folder only. |
-| `--dry-run` | Print matched paths and planned updates without writing anything. |
+| `--dry-run` | Print matched paths and planned updates without writing anything — no API call and no output file, even with `-o`. |
 | `-y`, `--yes` | With `--all`: apply without prompting. |
 | `--slot SLOT` | Credential slot (default: configured default). |
 

@@ -8,15 +8,20 @@ from pathlib import Path
 from typing import Any
 
 import typer
-import yaml
 from unique_sdk import Space
 from unique_sdk.cli.config import Config
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.interactive import confirm_each
-from uqadm.core.model_refs import ModelRef, replace_model_refs
+from uqadm.core.json_types import JsonObject
+from uqadm.core.model_refs import (
+    ModelRef,
+    replace_model_refs,
+    to_plain_object,
+    verify_replacements,
+)
+from uqadm.core.model_replace_flow import echo_refs, run_file_replacement
 from uqadm.core.model_target import ModelTarget, ModelTargetError, resolve_model_target
-from uqadm.core.payload_files import load_json_or_yaml_mapping
 from uqadm.space.export import export_format_for_output_path
 from uqadm.space.export_yaml import dump_space_snapshot_yaml
 from uqadm.space.list import fetch_all_spaces
@@ -31,15 +36,19 @@ _UPDATABLE_TOP_LEVEL_KEYS = (
 
 
 def build_model_update_kwargs(
-    old_space: dict[str, Any],
-    new_space: dict[str, Any],
+    old_space: JsonObject,
+    new_space: JsonObject,
 ) -> tuple[dict[str, Any], list[str]]:
     """Build a minimal ``update_space`` payload from the rewritten space.
 
     Only fields that actually changed are included: supported top-level keys
-    plus per-module ``{"moduleId", "configuration"}`` entries. Changed fields
-    that ``update_space`` cannot write are returned separately so callers can
-    warn about them.
+    plus per-module ``{"moduleId", "configuration"}`` entries.
+
+    Every other changed field is returned as an unsupported path instead of
+    being dropped in silence. ``update_space`` writes a module through its
+    ``configuration`` only, so a rewrite landing in a sibling field such as
+    ``toolDefinition`` cannot be sent, and callers refuse the update rather
+    than report a success that left those references behind.
     """
     kwargs: dict[str, Any] = {}
     unsupported: list[str] = []
@@ -54,9 +63,14 @@ def build_model_update_kwargs(
             unsupported.append(key)
 
     module_updates: list[dict[str, Any]] = []
-    old_modules = list(old_space.get("modules") or [])
-    new_modules = list(new_space.get("modules") or [])
+    old_modules = _modules_of(old_space)
+    new_modules = _modules_of(new_space)
     for index, (old_module, new_module) in enumerate(zip(old_modules, new_modules)):
+        unsupported.extend(
+            f"modules[{index}].{key}"
+            for key in new_module
+            if key != "configuration" and old_module.get(key) != new_module.get(key)
+        )
         if old_module.get("configuration") == new_module.get("configuration"):
             continue
         module_id = new_module.get("id")
@@ -71,22 +85,27 @@ def build_model_update_kwargs(
     return kwargs, unsupported
 
 
-def _echo_refs(refs: list[ModelRef], *, err: bool = False) -> None:
-    for ref in refs:
-        typer.echo(f"  {ref.path}", err=err)
+def _modules_of(space: JsonObject) -> list[JsonObject]:
+    """Return the module list, keeping positions so ``modules[i]`` paths line up."""
+    modules = space.get("modules")
+    if not isinstance(modules, list):
+        return []
+    return [module if isinstance(module, dict) else {} for module in modules]
 
 
-def _warn_unsupported(unsupported: list[str]) -> None:
-    if unsupported:
-        typer.echo(
-            "Warning: matches under field(s) not writable via Space.update_space "
-            "were NOT applied: " + ", ".join(sorted(unsupported)),
-            err=True,
-        )
+def _echo_unsupported(unsupported: list[str]) -> None:
+    typer.echo(
+        "Refusing to update: matches under field(s) not writable via "
+        "Space.update_space would be left behind: " + ", ".join(sorted(unsupported)),
+        err=True,
+    )
+    typer.echo(
+        "Re-run with -o to export the fully rewritten snapshot instead.", err=True
+    )
 
 
-def _write_snapshot(snapshot: dict[str, Any], output: Path | None) -> None:
-    normalized: dict[str, Any] = json.loads(
+def _write_snapshot(snapshot: JsonObject, output: Path | None) -> None:
+    normalized: JsonObject = json.loads(
         json.dumps(snapshot, sort_keys=True, default=str)
     )
     if output is None:
@@ -105,9 +124,9 @@ def _write_snapshot(snapshot: dict[str, Any], output: Path | None) -> None:
     output.write_text(text + "\n", encoding="utf-8")
 
 
-def _fetch_space(cfg: Config, space_id: str) -> dict[str, Any]:
+def _fetch_space(cfg: Config, space_id: str) -> JsonObject:
     try:
-        return Space.get_space(cfg.user_id, cfg.company_id, space_id)
+        return to_plain_object(Space.get_space(cfg.user_id, cfg.company_id, space_id))
     except Exception as exc:
         typer.echo(f"Error fetching space {space_id!r}: {exc}", err=True)
         echo_credential_debug_if_auth_failure(
@@ -116,52 +135,33 @@ def _fetch_space(cfg: Config, space_id: str) -> dict[str, Any]:
         sys.exit(1)
 
 
-def _apply_update(cfg: Config, space_id: str, kwargs: dict[str, Any]) -> bool:
+def _apply_and_verify(
+    cfg: Config,
+    space_id: str,
+    kwargs: dict[str, Any],
+    refs: list[ModelRef],
+    expected: str | JsonObject,
+) -> list[str]:
+    """Send the update, re-read the space, and return verification failures."""
     try:
         Space.update_space(cfg.user_id, cfg.company_id, space_id, **kwargs)
     except Exception as exc:
-        typer.echo(f"update_space failed for {space_id!r}: {exc}", err=True)
         echo_credential_debug_if_auth_failure(
             cfg, exc, label="space model-replace update_space"
         )
-        return False
-    return True
+        return [f"update_space failed: {exc}"]
 
-
-def _run_file_mode(
-    file_path: Path,
-    *,
-    from_model: str,
-    target: ModelTarget,
-    output: Path | None,
-    dry_run: bool,
-) -> None:
     try:
-        snapshot = load_json_or_yaml_mapping(file_path)
-    except json.JSONDecodeError as exc:
-        typer.echo(f"Invalid JSON in snapshot: {exc}", err=True)
-        sys.exit(2)
-    except yaml.YAMLError as exc:
-        typer.echo(f"Invalid YAML in snapshot: {exc}", err=True)
-        sys.exit(2)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        sys.exit(2)
+        reread = to_plain_object(Space.get_space(cfg.user_id, cfg.company_id, space_id))
+    except Exception as exc:
+        return [f"could not re-read space for verification: {exc}"]
+    return verify_replacements(reread, refs, expected)
 
-    new_snapshot, refs = replace_model_refs(snapshot, from_model, target.value)
-    if not refs:
-        typer.echo(f"No occurrences of {from_model!r} found in {file_path}.", err=True)
-    else:
-        typer.echo(
-            f"{len(refs)} replacement(s) of {from_model!r} in {file_path}:", err=True
-        )
-        _echo_refs(refs, err=True)
-    if dry_run:
-        typer.echo("Dry-run: no output written.", err=True)
-        return
-    _write_snapshot(new_snapshot, output)
-    if output is not None:
-        typer.echo(f"Wrote rewritten snapshot to {output}.", err=True)
+
+def _echo_failures(label: str, failures: list[str]) -> None:
+    typer.echo(f"Verification FAILED for space {label}:", err=True)
+    for failure in failures:
+        typer.echo(f"  {failure}", err=True)
 
 
 def _run_single(
@@ -180,15 +180,20 @@ def _run_single(
         typer.echo(f"No occurrences of {from_model!r} in space {label}; nothing to do.")
         return
     typer.echo(f"Space {label}: {len(refs)} match(es) for {from_model!r}:")
-    _echo_refs(refs)
+    echo_refs(refs)
 
     if output is not None:
+        if dry_run:
+            typer.echo(f"Dry-run: would write rewritten snapshot to {output}.")
+            return
         _write_snapshot(new_space, output)
         typer.echo(f"Wrote rewritten snapshot to {output} (no API changes made).")
         return
 
     kwargs, unsupported = build_model_update_kwargs(space, new_space)
-    _warn_unsupported(unsupported)
+    if unsupported:
+        _echo_unsupported(unsupported)
+        sys.exit(1)
     if not kwargs:
         typer.echo("No updatable fields changed; nothing to send.", err=True)
         return
@@ -198,9 +203,13 @@ def _run_single(
             f"{sorted(kwargs.keys())!r}."
         )
         return
-    if not _apply_update(cfg, space_id, kwargs):
+    failures = _apply_and_verify(cfg, space_id, kwargs, refs, target.value)
+    if failures:
+        _echo_failures(label, failures)
         sys.exit(1)
-    typer.echo(f"Updated space {space_id} ({len(refs)} model reference(s) replaced).")
+    typer.echo(
+        f"Updated space {space_id} ({len(refs)} model reference(s) replaced, verified)."
+    )
 
 
 def _run_sweep(
@@ -231,7 +240,9 @@ def _run_sweep(
         if not space_id:
             continue
         try:
-            space = Space.get_space(cfg.user_id, cfg.company_id, space_id)
+            space = to_plain_object(
+                Space.get_space(cfg.user_id, cfg.company_id, space_id)
+            )
         except Exception as exc:
             typer.echo(f"Warning: skipping space {space_id!r}: {exc}", err=True)
             failed += 1
@@ -245,9 +256,12 @@ def _run_sweep(
             f"\nSpace {space_id} ({space.get('name', '')!r}): "
             f"{len(refs)} match(es) for {from_model!r}:"
         )
-        _echo_refs(refs)
+        echo_refs(refs)
         kwargs, unsupported = build_model_update_kwargs(space, new_space)
-        _warn_unsupported(unsupported)
+        if unsupported:
+            _echo_unsupported(unsupported)
+            failed += 1
+            continue
         if not kwargs:
             typer.echo("No updatable fields changed; skipping.", err=True)
             continue
@@ -266,11 +280,13 @@ def _run_sweep(
                 continue
             if decision == "all":
                 apply_all = True
-        if _apply_update(cfg, space_id, kwargs):
-            updated += 1
-            typer.echo(f"Updated space {space_id}")
-        else:
+        failures = _apply_and_verify(cfg, space_id, kwargs, refs, target.value)
+        if failures:
+            _echo_failures(space_id, failures)
             failed += 1
+        else:
+            updated += 1
+            typer.echo(f"Updated space {space_id} (verified)")
 
     typer.echo(
         f"\nScanned {scanned} space(s): {matched} with matches, {updated} updated."
@@ -317,12 +333,14 @@ def cmd_model_replace(
         )
 
     if file_path is not None:
-        _run_file_mode(
+        run_file_replacement(
             file_path,
             from_model=from_model,
-            target=target,
+            to_value=target.value,
             output=output,
             dry_run=dry_run,
+            label="snapshot",
+            write=_write_snapshot,
         )
         return
 

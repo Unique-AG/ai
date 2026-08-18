@@ -679,7 +679,8 @@ def kb_ingestion_model_replace(
     folder in the slot, prompting y/n/a/q per matching folder). With ``-o`` the
     rewritten config is written to a file and no API write happens. Only
     ``--all`` prompts: a single folder applies immediately, so use ``--dry-run``
-    first to preview. Unlike ``uqadm kb ingestion set``, the update applies
+    first to preview; it writes nothing at all, ``-o`` included.
+    Unlike ``uqadm kb ingestion set``, the update applies
     to this folder only unless ``--subfolders`` is passed, because pushing one
     folder's config down would clobber subfolder-specific settings.
 

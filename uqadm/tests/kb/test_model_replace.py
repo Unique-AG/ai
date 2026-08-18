@@ -10,8 +10,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from uqadm.core.model_refs import ModelRef
-from uqadm.kb.model_replace import cmd_model_replace, verify_replacements
+from uqadm.kb.model_replace import cmd_model_replace
 
 OLD = "AZURE_GPT_4o_2024_0806"
 NEW = "AZURE_GPT_5_2025_0807"
@@ -47,63 +46,6 @@ def _folder_info(
 class _Cfg:
     user_id = "user_1"
     company_id = "company_1"
-
-
-# --- verify_replacements ---
-
-
-def test_verify_replacements_passes_when_change_landed() -> None:
-    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
-    assert verify_replacements(_ingestion_config(NEW), refs, NEW) == []
-
-
-def test_verify_replacements_flags_still_old_value() -> None:
-    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
-    failures = verify_replacements(_ingestion_config(OLD), refs, NEW)
-    assert failures == [f"vttConfig.languageModel: still set to {OLD!r}"]
-
-
-def test_verify_replacements_flags_dropped_key() -> None:
-    refs = [ModelRef(path="metadataExtractionConfig.languageModel", value=OLD)]
-    config = _ingestion_config(NEW)
-    del config["metadataExtractionConfig"]
-    failures = verify_replacements(config, refs, NEW)
-    assert failures == [
-        "metadataExtractionConfig.languageModel: key missing after update "
-        "(dropped by API)"
-    ]
-
-
-def test_verify_replacements_accepts_model_info_keeping_the_old_name() -> None:
-    """Rewriting a bare name into model info of that same name is a real change."""
-    expected = {"name": OLD, "provider": "CUSTOM"}
-    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
-    config = _ingestion_config()
-    config["vttConfig"]["languageModel"] = dict(expected)
-    assert verify_replacements(config, refs, expected) == []
-
-
-def test_verify_replacements_ignores_extra_keys_on_a_model_info_object() -> None:
-    expected = {"name": NEW, "provider": "CUSTOM"}
-    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
-    config = _ingestion_config()
-    config["vttConfig"]["languageModel"] = {**expected, "region": "westeurope"}
-    assert verify_replacements(config, refs, expected) == []
-
-
-def test_verify_replacements_flags_model_info_write_that_was_ignored() -> None:
-    expected = {"name": OLD, "provider": "CUSTOM"}
-    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
-    failures = verify_replacements(_ingestion_config(OLD), refs, expected)
-    assert failures == [f"vttConfig.languageModel: still set to {OLD!r}"]
-
-
-def test_verify_replacements_reports_an_unexpected_value() -> None:
-    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
-    failures = verify_replacements(_ingestion_config("SOMETHING_ELSE"), refs, NEW)
-    assert failures == [
-        f"vttConfig.languageModel: expected {NEW!r}, got 'SOMETHING_ELSE'"
-    ]
 
 
 # --- mode validation ---
@@ -287,6 +229,18 @@ def test_single_folder_no_matches_does_not_update() -> None:
         folder_mock.get_folder_path.return_value = {"folderPath": "/Dept/HR"}
         cmd_model_replace(_Cfg(), **_base_kwargs(folder_path="/Dept/HR"))
     folder_mock.update_ingestion_config.assert_not_called()
+
+
+def test_single_folder_dry_run_with_output_writes_nothing(tmp_path: Path) -> None:
+    out = tmp_path / "config.json"
+    with patch("uqadm.kb.model_replace.Folder") as folder_mock:
+        folder_mock.get_info.return_value = _folder_info()
+        folder_mock.get_folder_path.return_value = {"folderPath": "/Dept/HR"}
+        cmd_model_replace(
+            _Cfg(), **_base_kwargs(folder_path="/Dept/HR", output=out, dry_run=True)
+        )
+    folder_mock.update_ingestion_config.assert_not_called()
+    assert not out.exists()
 
 
 def test_single_folder_output_writes_file_without_update(tmp_path: Path) -> None:

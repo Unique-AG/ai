@@ -21,7 +21,10 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from enum import Enum, auto
+from typing import Final, cast
+
+from uqadm.core.json_types import JsonObject, JsonValue
 
 #: Keys that contain "model" but must never be rewritten (normalized form).
 DENIED_MODEL_KEYS = frozenset(
@@ -37,6 +40,16 @@ _CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _MODEL_KEY_RE = re.compile(r"(?:^|_)model(?:_name)?$")
 
 
+class MissingType(Enum):
+    """Type of :data:`MISSING`, an enum so that ``is MISSING`` narrows."""
+
+    MISSING = auto()
+
+
+#: Returned by :func:`get_at_path` when the path does not resolve.
+MISSING: Final = MissingType.MISSING
+
+
 @dataclass(frozen=True)
 class ModelRef:
     """One matched model reference: dotted ``path`` and the old model name."""
@@ -45,7 +58,7 @@ class ModelRef:
     value: str
 
 
-def to_plain(node: Any) -> Any:
+def to_plain(node: object) -> JsonValue:
     """Return ``node`` rebuilt from plain ``dict`` / ``list`` containers.
 
     SDK payloads are ``unique_sdk`` ``UniqueObject`` instances — ``dict``
@@ -61,7 +74,21 @@ def to_plain(node: Any) -> Any:
         isinstance(node, Sequence) and not isinstance(node, (str, bytes))
     ):
         return [to_plain(item) for item in node]
-    return node
+    if node is None or isinstance(node, (str, int, float, bool)):
+        return node
+    # Scalars outside JSON (timestamps, enums) are passed through untouched;
+    # the document writers stringify them via `json.dumps(default=str)`.
+    return cast(JsonValue, node)
+
+
+def to_plain_object(node: object) -> JsonObject:
+    """Rebuild ``node`` as a plain JSON object, or ``{}`` when it is not one.
+
+    The API returns a config as ``None`` on a folder that has never had one,
+    which callers treat the same as an empty document.
+    """
+    plain = to_plain(node)
+    return plain if isinstance(plain, dict) else {}
 
 
 def _normalize_key(key: str) -> str:
@@ -76,7 +103,7 @@ def is_model_key(key: str) -> bool:
     return _MODEL_KEY_RE.search(normalized) is not None
 
 
-def value_matches(value: Any, model_name: str) -> bool:
+def value_matches(value: JsonValue, model_name: str) -> bool:
     """Return True when ``value`` references ``model_name``.
 
     Accepts the plain-string form (``"AZURE_GPT_4o_2024_0806"``) and the
@@ -94,18 +121,18 @@ def _child_path(path: str, key: str) -> str:
 
 
 def _walk(
-    node: Any,
+    node: JsonValue,
     from_model: str,
     path: str,
     matches: list[ModelRef],
     *,
-    to_value: str | dict[str, Any] | None,
+    to_value: str | JsonObject | None,
     replace: bool,
 ) -> None:
     if isinstance(node, dict):
         for key, value in node.items():
-            child = _child_path(path, str(key))
-            if is_model_key(str(key)) and value_matches(value, from_model):
+            child = _child_path(path, key)
+            if is_model_key(key) and value_matches(value, from_model):
                 matches.append(ModelRef(path=child, value=from_model))
                 if replace:
                     node[key] = to_plain(to_value)
@@ -130,7 +157,7 @@ def _walk(
             )
 
 
-def find_model_refs(node: Any, from_model: str) -> list[ModelRef]:
+def find_model_refs(node: JsonValue, from_model: str) -> list[ModelRef]:
     """Collect every model reference to ``from_model`` without modifying ``node``."""
     matches: list[ModelRef] = []
     _walk(node, from_model, "", matches, to_value=None, replace=False)
@@ -138,10 +165,10 @@ def find_model_refs(node: Any, from_model: str) -> list[ModelRef]:
 
 
 def replace_model_refs(
-    node: Any,
+    node: JsonObject,
     from_model: str,
-    to_value: str | dict[str, Any],
-) -> tuple[Any, list[ModelRef]]:
+    to_value: str | JsonObject,
+) -> tuple[JsonObject, list[ModelRef]]:
     """Return a rewritten copy of ``node`` with ``from_model`` references replaced.
 
     ``to_value`` is written at each matched site: a model name string, or a
@@ -151,7 +178,7 @@ def replace_model_refs(
     ``list`` containers (see :func:`to_plain`), so live SDK payloads are safe to
     pass in and the result is safe to send back to the API.
     """
-    new_node = to_plain(node)
+    new_node: JsonObject = {str(key): to_plain(value) for key, value in node.items()}
     matches: list[ModelRef] = []
     _walk(new_node, from_model, "", matches, to_value=to_value, replace=True)
     return new_node, matches
@@ -160,13 +187,10 @@ def replace_model_refs(
 _PATH_PART_RE = re.compile(r"^([^\[\]]+)((?:\[\d+\])*)$")
 _PATH_INDEX_RE = re.compile(r"\[(\d+)\]")
 
-#: Sentinel returned by :func:`get_at_path` when the path does not resolve.
-MISSING: Any = object()
 
-
-def get_at_path(node: Any, path: str) -> Any:
+def get_at_path(node: JsonValue, path: str) -> JsonValue | MissingType:
     """Resolve a dotted ``ModelRef.path`` in ``node``; ``MISSING`` if absent."""
-    current = node
+    current: JsonValue = node
     for part in path.split("."):
         match = _PATH_PART_RE.match(part)
         if match is None:
@@ -181,3 +205,49 @@ def get_at_path(node: Any, path: str) -> Any:
                 return MISSING
             current = current[index]
     return current
+
+
+def _holds_replacement(value: JsonValue, expected: JsonValue) -> bool:
+    """Return True when ``value`` carries the replacement written at this site.
+
+    A mapping replacement is compared key by key rather than for equality, so a
+    default the platform fills in next to the fields we sent does not read as a
+    failed write.
+    """
+    if isinstance(expected, dict):
+        return isinstance(value, dict) and all(
+            value.get(key) == item for key, item in expected.items()
+        )
+    return value == expected
+
+
+def verify_replacements(
+    document: JsonObject,
+    refs: list[ModelRef],
+    expected: str | JsonObject,
+) -> list[str]:
+    """Check that every rewritten path holds ``expected`` in the re-read document.
+
+    An API can accept a write and still not store every field, so both the
+    folder and the space command re-read what they just wrote and pass it here
+    rather than trusting a 200 response.
+
+    The check is against the replacement rather than against the absence of the
+    old name, because ``--to-model FILE`` may carry model info whose ``name``
+    is the one being replaced: rewriting a bare name into that object is a real
+    change that the old-name test would have reported as a failed write.
+    Returns a failure description per reference that did not land.
+    """
+    failures: list[str] = []
+    expected_value = to_plain(expected)
+    for ref in refs:
+        value = get_at_path(document, ref.path)
+        if value is MISSING:
+            failures.append(f"{ref.path}: key missing after update (dropped by API)")
+        elif _holds_replacement(value, expected_value):
+            continue
+        elif value_matches(value, ref.value):
+            failures.append(f"{ref.path}: still set to {ref.value!r}")
+        else:
+            failures.append(f"{ref.path}: expected {expected_value!r}, got {value!r}")
+    return failures

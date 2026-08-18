@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from typing import Any, Iterator, cast
 
 import typer
-import yaml
 from unique_sdk import Folder
 from unique_sdk.cli.config import Config
 
@@ -16,69 +14,15 @@ from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.config_output import write_config_document
 from uqadm.core.interactive import confirm_each
 from uqadm.core.model_refs import (
-    MISSING,
     ModelRef,
-    get_at_path,
     replace_model_refs,
-    to_plain,
-    value_matches,
+    to_plain_object,
+    verify_replacements,
 )
+from uqadm.core.model_replace_flow import echo_refs, run_file_replacement
 from uqadm.core.model_target import ModelTarget, ModelTargetError, resolve_model_target
-from uqadm.core.payload_files import load_json_or_yaml_mapping
 
 _PAGE_SIZE = 100
-
-
-def _echo_refs(refs: list[ModelRef], *, err: bool = False) -> None:
-    for ref in refs:
-        typer.echo(f"  {ref.path}", err=err)
-
-
-def _holds_replacement(value: Any, expected: Any) -> bool:
-    """Return True when ``value`` carries the replacement written at this site.
-
-    A mapping replacement is compared key by key rather than for equality, so a
-    default the platform fills in next to the fields we sent does not read as a
-    failed write.
-    """
-    if isinstance(expected, dict):
-        return isinstance(value, dict) and all(
-            value.get(key) == item for key, item in expected.items()
-        )
-    return value == expected
-
-
-def verify_replacements(
-    config: dict[str, Any],
-    refs: list[ModelRef],
-    expected: str | dict[str, Any],
-) -> list[str]:
-    """Check that every rewritten path holds ``expected`` in the re-read ``config``.
-
-    Current platforms accept and return the full ingestion config, but older
-    ones validated the write against a restricted DTO and stripped the rest on
-    read, so a rewritten key could vanish without an error. Verifying the
-    re-read keeps that failure visible instead of silent.
-
-    The check is against the replacement rather than against the absence of the
-    old name, because ``--to-model FILE`` may carry model info whose ``name``
-    is the one being replaced: rewriting a bare name into that object is a real
-    change that the old-name test would have reported as a failed write.
-    Returns a failure description per reference that did not land.
-    """
-    failures: list[str] = []
-    expected_value = to_plain(expected)
-    for ref in refs:
-        value = get_at_path(config, ref.path)
-        if value is MISSING:
-            failures.append(f"{ref.path}: key missing after update (dropped by API)")
-        elif _holds_replacement(value, expected_value):
-            continue
-        elif value_matches(value, ref.value):
-            failures.append(f"{ref.path}: still set to {ref.value!r}")
-        else:
-            failures.append(f"{ref.path}: expected {expected_value!r}, got {value!r}")
-    return failures
 
 
 def _get_folder_info(
@@ -149,7 +93,7 @@ def _update_and_verify(
     except Exception as exc:
         return [f"could not re-read folder for verification: {exc}"]
     return verify_replacements(
-        to_plain(reread.get("ingestionConfig") or {}), refs, expected
+        to_plain_object(reread.get("ingestionConfig")), refs, expected
     )
 
 
@@ -173,42 +117,6 @@ def _iter_folders(cfg: Config) -> Iterator[Folder.FolderInfo]:
             skip += _PAGE_SIZE
 
 
-def _run_file_mode(
-    file_path: Path,
-    *,
-    from_model: str,
-    target: ModelTarget,
-    output: Path | None,
-    dry_run: bool,
-) -> None:
-    try:
-        config = load_json_or_yaml_mapping(file_path)
-    except json.JSONDecodeError as exc:
-        typer.echo(f"Invalid JSON in config file: {exc}", err=True)
-        sys.exit(2)
-    except yaml.YAMLError as exc:
-        typer.echo(f"Invalid YAML in config file: {exc}", err=True)
-        sys.exit(2)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        sys.exit(2)
-
-    new_config, refs = replace_model_refs(config, from_model, target.value)
-    if not refs:
-        typer.echo(f"No occurrences of {from_model!r} found in {file_path}.", err=True)
-    else:
-        typer.echo(
-            f"{len(refs)} replacement(s) of {from_model!r} in {file_path}:", err=True
-        )
-        _echo_refs(refs, err=True)
-    if dry_run:
-        typer.echo("Dry-run: no output written.", err=True)
-        return
-    write_config_document(new_config, output)
-    if output is not None:
-        typer.echo(f"Wrote rewritten ingestion config to {output}.", err=True)
-
-
 def _run_single(
     cfg: Config,
     *,
@@ -221,7 +129,7 @@ def _run_single(
     dry_run: bool,
 ) -> None:
     info = _get_folder_info(cfg, folder_path=folder_path, scope_id=scope_id)
-    config = to_plain(info.get("ingestionConfig") or {})
+    config = to_plain_object(info.get("ingestionConfig"))
     new_config, refs = replace_model_refs(config, from_model, target.value)
     label = _folder_label(cfg, info)
     if not refs:
@@ -230,9 +138,12 @@ def _run_single(
         )
         return
     typer.echo(f"Folder {label}: {len(refs)} match(es) for {from_model!r}:")
-    _echo_refs(refs)
+    echo_refs(refs)
 
     if output is not None:
+        if dry_run:
+            typer.echo(f"Dry-run: would write rewritten ingestion config to {output}.")
+            return
         write_config_document(new_config, output)
         typer.echo(f"Wrote rewritten ingestion config to {output} (no API changes).")
         return
@@ -277,14 +188,14 @@ def _run_sweep(
     try:
         for info in _iter_folders(cfg):
             scanned += 1
-            config = to_plain(info.get("ingestionConfig") or {})
+            config = to_plain_object(info.get("ingestionConfig"))
             new_config, refs = replace_model_refs(config, from_model, target.value)
             if not refs:
                 continue
             matched += 1
             label = _folder_label(cfg, info)
             typer.echo(f"\nFolder {label}: {len(refs)} match(es) for {from_model!r}:")
-            _echo_refs(refs)
+            echo_refs(refs)
             if dry_run:
                 typer.echo(f"Dry-run: would update ingestion config of {label}.")
                 continue
@@ -374,12 +285,14 @@ def cmd_model_replace(
         )
 
     if file_path is not None:
-        _run_file_mode(
+        run_file_replacement(
             file_path,
             from_model=from_model,
-            target=target,
+            to_value=target.value,
             output=output,
             dry_run=dry_run,
+            label="ingestion config",
+            write=write_config_document,
         )
         return
 

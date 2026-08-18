@@ -5,24 +5,22 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 import typer
 import yaml
 
+from uqadm.core.json_types import JsonObject
 from uqadm.core.payload_files import snapshot_format_for_path
 
 
-def write_config_document(config: dict[str, Any], output: Path | None) -> None:
+def write_config_document(config: JsonObject, output: Path | None) -> None:
     """Write ``config`` to ``output``, or print it as JSON on stdout.
 
     Keys are sorted and non-serializable values stringified so that repeated
     dumps of the same folder diff cleanly and always round-trip back through
     ``uqadm kb ingestion set``. The format follows the ``output`` suffix.
     """
-    normalized: dict[str, Any] = json.loads(
-        json.dumps(config, sort_keys=True, default=str)
-    )
+    normalized: JsonObject = json.loads(json.dumps(config, sort_keys=True, default=str))
     if output is None:
         typer.echo(json.dumps(normalized, indent=2, sort_keys=True))
         return

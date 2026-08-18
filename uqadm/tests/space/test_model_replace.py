@@ -47,6 +47,43 @@ def _cfg() -> MagicMock:
     return cfg
 
 
+class _SpaceApi:
+    """Stand-in for ``Space`` that stores what ``update_space`` writes.
+
+    The command re-reads every space it updates, so the double has to answer
+    the second read with the result of the write rather than the original
+    payload. ``apply_updates=False`` models an API that accepts a write and
+    keeps none of it.
+    """
+
+    def __init__(
+        self, spaces: list[dict[str, Any]], *, apply_updates: bool = True
+    ) -> None:
+        self._spaces = {space["id"]: space for space in spaces}
+        self._apply_updates = apply_updates
+        self.get_space = MagicMock(side_effect=self._get_space)
+        self.update_space = MagicMock(side_effect=self._update_space)
+
+    def _get_space(self, _user: str, _company: str, space_id: str) -> dict[str, Any]:
+        return json.loads(json.dumps(self._spaces[space_id]))
+
+    def _update_space(
+        self, _user: str, _company: str, space_id: str, **kwargs: Any
+    ) -> None:
+        if not self._apply_updates:
+            return
+        space = self._spaces[space_id]
+        for key, value in kwargs.items():
+            if key != "modules":
+                space[key] = value
+                continue
+            by_id = {update["moduleId"]: update for update in value}
+            for module in space["modules"]:
+                update = by_id.get(module["id"])
+                if update is not None:
+                    module["configuration"] = update["configuration"]
+
+
 # --- build_model_update_kwargs ---
 
 
@@ -72,6 +109,23 @@ def test_build_model_update_kwargs_reports_unsupported_fields() -> None:
     kwargs, unsupported = build_model_update_kwargs(old, new)
     assert kwargs == {}
     assert unsupported == ["scopeRules"]
+
+
+def test_build_model_update_kwargs_reports_module_field_outside_configuration() -> None:
+    """update_space writes modules through `configuration` and nothing else."""
+    old = {
+        "modules": [
+            {"id": "mod_1", "toolDefinition": {"model": OLD}, "configuration": {}}
+        ]
+    }
+    new = {
+        "modules": [
+            {"id": "mod_1", "toolDefinition": {"model": NEW}, "configuration": {}}
+        ]
+    }
+    kwargs, unsupported = build_model_update_kwargs(old, new)
+    assert kwargs == {}
+    assert unsupported == ["modules[0].toolDefinition"]
 
 
 def test_build_model_update_kwargs_reports_module_without_id() -> None:
@@ -241,11 +295,11 @@ def _run_single(
 
 
 def test_single_space_sends_minimal_update() -> None:
-    with patch("uqadm.space.model_replace.Space") as space_mock:
-        space_mock.get_space.return_value = _space()
+    api = _SpaceApi([_space()])
+    with patch("uqadm.space.model_replace.Space", api):
         _run_single()
-    space_mock.update_space.assert_called_once()
-    kwargs = space_mock.update_space.call_args.kwargs
+    api.update_space.assert_called_once()
+    kwargs = api.update_space.call_args.kwargs
     assert kwargs["languageModel"] == NEW
     assert kwargs["modules"] == [
         {"moduleId": "mod_1", "configuration": {"languageModel": NEW}}
@@ -254,11 +308,55 @@ def test_single_space_sends_minimal_update() -> None:
     assert "name" not in kwargs
 
 
+def test_single_space_verifies_the_update_by_re_reading() -> None:
+    api = _SpaceApi([_space()])
+    with patch("uqadm.space.model_replace.Space", api):
+        _run_single()
+    assert api.get_space.call_count == 2
+
+
+def test_single_space_ignored_write_fails_verification() -> None:
+    api = _SpaceApi([_space()], apply_updates=False)
+    with patch("uqadm.space.model_replace.Space", api):
+        with pytest.raises(SystemExit) as exc_info:
+            _run_single()
+    assert exc_info.value.code == 1
+
+
+def test_single_space_partially_ignored_write_fails_verification(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A module the API silently left alone must not report as updated."""
+    api = _SpaceApi([_space()])
+    original_update = api.update_space.side_effect
+
+    def drop_modules(*args: Any, **kwargs: Any) -> None:
+        kwargs.pop("modules", None)
+        original_update(*args, **kwargs)
+
+    api.update_space.side_effect = drop_modules
+    with patch("uqadm.space.model_replace.Space", api):
+        with pytest.raises(SystemExit) as exc_info:
+            _run_single()
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert f"modules[0].configuration.languageModel: still set to {OLD!r}" in err
+
+
 def test_single_space_dry_run_does_not_update() -> None:
-    with patch("uqadm.space.model_replace.Space") as space_mock:
-        space_mock.get_space.return_value = _space()
+    api = _SpaceApi([_space()])
+    with patch("uqadm.space.model_replace.Space", api):
         _run_single(dry_run=True)
-    space_mock.update_space.assert_not_called()
+    api.update_space.assert_not_called()
+
+
+def test_single_space_dry_run_with_output_writes_nothing(tmp_path: Path) -> None:
+    out = tmp_path / "snapshot.json"
+    api = _SpaceApi([_space()])
+    with patch("uqadm.space.model_replace.Space", api):
+        _run_single(output=out, dry_run=True)
+    api.update_space.assert_not_called()
+    assert not out.exists()
 
 
 def test_single_space_no_matches_does_not_update() -> None:
@@ -266,26 +364,41 @@ def test_single_space_no_matches_does_not_update() -> None:
     payload["languageModel"] = "OTHER_MODEL"
     payload["switchableLanguageModels"][0]["languageModel"] = "OTHER_MODEL"
     payload["modules"][0]["configuration"]["languageModel"] = "OTHER_MODEL"
-    with patch("uqadm.space.model_replace.Space") as space_mock:
-        space_mock.get_space.return_value = payload
+    api = _SpaceApi([payload])
+    with patch("uqadm.space.model_replace.Space", api):
         _run_single()
-    space_mock.update_space.assert_not_called()
+    api.update_space.assert_not_called()
 
 
 def test_single_space_output_writes_file_without_update(tmp_path: Path) -> None:
     out = tmp_path / "snapshot.json"
-    with patch("uqadm.space.model_replace.Space") as space_mock:
-        space_mock.get_space.return_value = _space()
+    api = _SpaceApi([_space()])
+    with patch("uqadm.space.model_replace.Space", api):
         _run_single(output=out)
-    space_mock.update_space.assert_not_called()
+    api.update_space.assert_not_called()
     rewritten = json.loads(out.read_text(encoding="utf-8"))
     assert rewritten["languageModel"] == NEW
 
 
+def test_single_space_refuses_update_with_unwritable_match(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A match update_space cannot carry must fail, not warn and half-apply."""
+    payload = _space()
+    payload["modules"][0]["toolDefinition"] = {"languageModel": OLD}
+    api = _SpaceApi([payload])
+    with patch("uqadm.space.model_replace.Space", api):
+        with pytest.raises(SystemExit) as exc_info:
+            _run_single()
+    assert exc_info.value.code == 1
+    api.update_space.assert_not_called()
+    assert "modules[0].toolDefinition" in capsys.readouterr().err
+
+
 def test_single_space_update_failure_exits_1() -> None:
-    with patch("uqadm.space.model_replace.Space") as space_mock:
-        space_mock.get_space.return_value = _space()
-        space_mock.update_space.side_effect = RuntimeError("boom")
+    api = _SpaceApi([_space()])
+    api.update_space.side_effect = RuntimeError("boom")
+    with patch("uqadm.space.model_replace.Space", api):
         with pytest.raises(SystemExit) as exc_info:
             _run_single()
     assert exc_info.value.code == 1
@@ -319,90 +432,109 @@ def _sweep_spaces() -> list[dict[str, Any]]:
     return [matching_a, matching_b, non_matching]
 
 
-def test_sweep_prompts_and_respects_no() -> None:
-    spaces = {s["id"]: s for s in _sweep_spaces()}
-    with (
-        patch("uqadm.space.model_replace.Space") as space_mock,
+def _sweep_api(spaces: list[dict[str, Any]] | None = None, **kwargs: Any) -> _SpaceApi:
+    return _SpaceApi(spaces if spaces is not None else _sweep_spaces(), **kwargs)
+
+
+def _patch_sweep(api: _SpaceApi, ids: list[str]) -> Any:
+    return (
+        patch("uqadm.space.model_replace.Space", api),
         patch(
             "uqadm.space.model_replace.fetch_all_spaces",
-            return_value=[{"id": sid} for sid in spaces],
+            return_value=[{"id": space_id} for space_id in ids],
         ),
+    )
+
+
+_SWEEP_IDS = ["asst_a", "asst_b", "asst_c"]
+
+
+def test_sweep_prompts_and_respects_no() -> None:
+    api = _sweep_api()
+    space_patch, list_patch = _patch_sweep(api, _SWEEP_IDS)
+    with (
+        space_patch,
+        list_patch,
         patch(
             "uqadm.space.model_replace.confirm_each",
             side_effect=["yes", "no"],
         ) as confirm_mock,
     ):
-        space_mock.get_space.side_effect = lambda _u, _c, sid: spaces[sid]
         _run_sweep()
     assert confirm_mock.call_count == 2  # non-matching space never prompts
-    space_mock.update_space.assert_called_once()
-    assert space_mock.update_space.call_args.args[2] == "asst_a"
+    api.update_space.assert_called_once()
+    assert api.update_space.call_args.args[2] == "asst_a"
 
 
 def test_sweep_all_answer_stops_prompting() -> None:
-    spaces = {s["id"]: s for s in _sweep_spaces()}
+    api = _sweep_api()
+    space_patch, list_patch = _patch_sweep(api, _SWEEP_IDS)
     with (
-        patch("uqadm.space.model_replace.Space") as space_mock,
-        patch(
-            "uqadm.space.model_replace.fetch_all_spaces",
-            return_value=[{"id": sid} for sid in spaces],
-        ),
+        space_patch,
+        list_patch,
         patch(
             "uqadm.space.model_replace.confirm_each",
             side_effect=["all"],
         ) as confirm_mock,
     ):
-        space_mock.get_space.side_effect = lambda _u, _c, sid: spaces[sid]
         _run_sweep()
     assert confirm_mock.call_count == 1
-    assert space_mock.update_space.call_count == 2
+    assert api.update_space.call_count == 2
 
 
 def test_sweep_quit_aborts() -> None:
-    spaces = {s["id"]: s for s in _sweep_spaces()}
+    api = _sweep_api()
+    space_patch, list_patch = _patch_sweep(api, _SWEEP_IDS)
     with (
-        patch("uqadm.space.model_replace.Space") as space_mock,
-        patch(
-            "uqadm.space.model_replace.fetch_all_spaces",
-            return_value=[{"id": sid} for sid in spaces],
-        ),
-        patch(
-            "uqadm.space.model_replace.confirm_each",
-            side_effect=["quit"],
-        ),
+        space_patch,
+        list_patch,
+        patch("uqadm.space.model_replace.confirm_each", side_effect=["quit"]),
     ):
-        space_mock.get_space.side_effect = lambda _u, _c, sid: spaces[sid]
         _run_sweep()
-    space_mock.update_space.assert_not_called()
+    api.update_space.assert_not_called()
 
 
 def test_sweep_yes_flag_skips_prompts() -> None:
-    spaces = {s["id"]: s for s in _sweep_spaces()}
+    api = _sweep_api()
+    space_patch, list_patch = _patch_sweep(api, _SWEEP_IDS)
     with (
-        patch("uqadm.space.model_replace.Space") as space_mock,
-        patch(
-            "uqadm.space.model_replace.fetch_all_spaces",
-            return_value=[{"id": sid} for sid in spaces],
-        ),
+        space_patch,
+        list_patch,
         patch("uqadm.space.model_replace.confirm_each") as confirm_mock,
     ):
-        space_mock.get_space.side_effect = lambda _u, _c, sid: spaces[sid]
         _run_sweep(assume_yes=True)
     confirm_mock.assert_not_called()
-    assert space_mock.update_space.call_count == 2
+    assert api.update_space.call_count == 2
+
+
+def test_sweep_ignored_write_counts_as_failed() -> None:
+    api = _sweep_api(apply_updates=False)
+    space_patch, list_patch = _patch_sweep(api, _SWEEP_IDS)
+    with space_patch, list_patch, pytest.raises(SystemExit) as exc_info:
+        _run_sweep(assume_yes=True)
+    assert exc_info.value.code == 1
+
+
+def test_sweep_unwritable_match_fails_without_updating() -> None:
+    spaces = _sweep_spaces()
+    spaces[0]["modules"][0]["toolDefinition"] = {"languageModel": OLD}
+    api = _sweep_api(spaces)
+    space_patch, list_patch = _patch_sweep(api, _SWEEP_IDS)
+    with space_patch, list_patch, pytest.raises(SystemExit) as exc_info:
+        _run_sweep(assume_yes=True)
+    assert exc_info.value.code == 1
+    assert api.update_space.call_count == 1  # only the untouched second space
+    assert api.update_space.call_args.args[2] == "asst_b"
 
 
 def test_sweep_dry_run_never_updates_or_prompts() -> None:
-    spaces = {s["id"]: s for s in _sweep_spaces()}
+    api = _sweep_api()
+    space_patch, list_patch = _patch_sweep(api, _SWEEP_IDS)
     with (
-        patch("uqadm.space.model_replace.Space") as space_mock,
-        patch(
-            "uqadm.space.model_replace.fetch_all_spaces",
-            return_value=[{"id": sid} for sid in spaces],
-        ),
+        space_patch,
+        list_patch,
         patch("uqadm.space.model_replace.confirm_each") as confirm_mock,
     ):
-        space_mock.get_space.side_effect = lambda _u, _c, sid: spaces[sid]
         _run_sweep(dry_run=True)
     confirm_mock.assert_not_called()
-    space_mock.update_space.assert_not_called()
+    api.update_space.assert_not_called()

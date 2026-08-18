@@ -7,12 +7,14 @@ from typing import Any
 
 from uqadm.core.model_refs import (
     MISSING,
+    ModelRef,
     find_model_refs,
     get_at_path,
     is_model_key,
     replace_model_refs,
     to_plain,
     value_matches,
+    verify_replacements,
 )
 
 OLD = "AZURE_GPT_4o_2024_0806"
@@ -311,3 +313,68 @@ def test_get_at_path_returns_missing_for_absent_paths() -> None:
     assert get_at_path(payload, "vttConfig.languageModel") is MISSING
     assert get_at_path(payload, "modules[5].configuration") is MISSING
     assert get_at_path(payload, "languageModel.name") is MISSING
+
+
+# --- verify_replacements ---
+
+
+def _config(model: str | dict[str, Any] = OLD) -> dict[str, Any]:
+    return {
+        "chunkMaxTokens": 1000,
+        "vttConfig": {"languageModel": model},
+        "metadataExtractionConfig": {"enabled": True, "languageModel": model},
+    }
+
+
+def test_verify_replacements_passes_when_change_landed() -> None:
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    assert verify_replacements(_config(NEW), refs, NEW) == []
+
+
+def test_verify_replacements_flags_still_old_value() -> None:
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    failures = verify_replacements(_config(OLD), refs, NEW)
+    assert failures == [f"vttConfig.languageModel: still set to {OLD!r}"]
+
+
+def test_verify_replacements_flags_dropped_key() -> None:
+    refs = [ModelRef(path="metadataExtractionConfig.languageModel", value=OLD)]
+    config = _config(NEW)
+    del config["metadataExtractionConfig"]
+    failures = verify_replacements(config, refs, NEW)
+    assert failures == [
+        "metadataExtractionConfig.languageModel: key missing after update "
+        "(dropped by API)"
+    ]
+
+
+def test_verify_replacements_accepts_model_info_keeping_the_old_name() -> None:
+    """Rewriting a bare name into model info of that same name is a real change."""
+    expected = {"name": OLD, "provider": "CUSTOM"}
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    config = _config()
+    config["vttConfig"]["languageModel"] = dict(expected)
+    assert verify_replacements(config, refs, expected) == []
+
+
+def test_verify_replacements_ignores_extra_keys_on_a_model_info_object() -> None:
+    expected = {"name": NEW, "provider": "CUSTOM"}
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    config = _config()
+    config["vttConfig"]["languageModel"] = {**expected, "region": "westeurope"}
+    assert verify_replacements(config, refs, expected) == []
+
+
+def test_verify_replacements_flags_model_info_write_that_was_ignored() -> None:
+    expected = {"name": OLD, "provider": "CUSTOM"}
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    failures = verify_replacements(_config(OLD), refs, expected)
+    assert failures == [f"vttConfig.languageModel: still set to {OLD!r}"]
+
+
+def test_verify_replacements_reports_an_unexpected_value() -> None:
+    refs = [ModelRef(path="vttConfig.languageModel", value=OLD)]
+    failures = verify_replacements(_config("SOMETHING_ELSE"), refs, NEW)
+    assert failures == [
+        f"vttConfig.languageModel: expected {NEW!r}, got 'SOMETHING_ELSE'"
+    ]
