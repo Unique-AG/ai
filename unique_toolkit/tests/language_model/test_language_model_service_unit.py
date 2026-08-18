@@ -1,9 +1,12 @@
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from unique_toolkit.app.schemas import (
+    AssistantWebhookEvent,
     BaseEvent,
+    BaseEventPayload,
     ChatEvent,
     ChatEventAssistantMessage,
     ChatEventPayload,
@@ -76,6 +79,32 @@ class TestLanguageModelServiceUnit:
         assert service.user_id == "test_user"
         assert service.chat_id == "test_chat"
         assert service.assistant_id == "test_assistant"
+        assert service._assistant_message_id == "assistant_message_id"
+
+    @pytest.mark.ai
+    def test_from_event_with_non_chat_assistant_payload(self):
+        """Purpose: Verify non-chat assistant events leave the message id unset.
+        Why this matters: ``assistant_message`` exists only on ``ChatEventPayload``.
+        Setup summary: Build the service from an event carrying a bare base payload.
+        """
+        event = AssistantWebhookEvent[Any, BaseEventPayload](
+            id="test-id",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="test_user",
+            company_id="test_company",
+            payload=BaseEventPayload(
+                name="module",
+                chat_id="test_chat",
+                assistant_id="test_assistant",
+                configuration={},
+            ),
+        )
+
+        service = LanguageModelService.from_event(event)
+
+        assert service.chat_id == "test_chat"
+        assert service.assistant_id == "test_assistant"
+        assert service._assistant_message_id is None
 
     def test_init_with_base_event(self):
         """Test initialization with BaseEvent"""
@@ -135,6 +164,7 @@ class TestLanguageModelServiceUnit:
             structured_output_model=None,
             chat_id="test_chat",
             assistant_id="test_assistant",
+            assistant_message_id="assistant_message_id",
         )
 
     @pytest.mark.asyncio
@@ -160,6 +190,7 @@ class TestLanguageModelServiceUnit:
             structured_output_model=None,
             chat_id="test_chat",
             assistant_id="test_assistant",
+            assistant_message_id="assistant_message_id",
         )
 
     @pytest.mark.ai
@@ -230,6 +261,7 @@ class TestLanguageModelServiceUnit:
             start_text=None,
             chat_id="test_chat",
             assistant_id="test_assistant",
+            assistant_message_id="assistant_message_id",
         )
 
     @pytest.mark.ai
@@ -263,4 +295,5 @@ class TestLanguageModelServiceUnit:
             start_text=None,
             chat_id="test_chat",
             assistant_id="test_assistant",
+            assistant_message_id="assistant_message_id",
         )

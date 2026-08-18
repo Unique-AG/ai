@@ -86,6 +86,7 @@ class TestLanguageModelServiceUnit:
             headers={
                 "x-chat-id": "test_chat",
                 "x-assistant-id": "test_assistant",
+                "x-assistant-message-id": "assistant_message_id",
             },
             model=model_name.name,
             messages=[],
@@ -122,6 +123,7 @@ class TestLanguageModelServiceUnit:
             headers={
                 "x-chat-id": "test_chat",
                 "x-assistant-id": "test_assistant",
+                "x-assistant-message-id": "assistant_message_id",
             },
             model=model_name,
             messages=[],
@@ -207,6 +209,7 @@ class TestLanguageModelServiceUnit:
             headers={
                 "x-chat-id": "test_chat",
                 "x-assistant-id": "test_assistant",
+                "x-assistant-message-id": "assistant_message_id",
             },
             model=model_name.name,
             messages=[],
@@ -244,6 +247,7 @@ class TestLanguageModelServiceUnit:
             headers={
                 "x-chat-id": "test_chat",
                 "x-assistant-id": "test_assistant",
+                "x-assistant-message-id": "assistant_message_id",
             },
             model=model_name,
             messages=[],
@@ -385,6 +389,7 @@ class TestLanguageModelServiceUnit:
             headers={
                 "x-chat-id": "test_chat",
                 "x-assistant-id": "test_assistant",
+                "x-assistant-message-id": "assistant_message_id",
             },
             model=model_name.name,
             messages=[],
@@ -427,6 +432,7 @@ class TestLanguageModelServiceUnit:
             headers={
                 "x-chat-id": "test_chat",
                 "x-assistant-id": "test_assistant",
+                "x-assistant-message-id": "assistant_message_id",
             },
             model=model_name.name,
             messages=[],

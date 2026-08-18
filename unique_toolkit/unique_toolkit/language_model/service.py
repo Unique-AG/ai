@@ -5,7 +5,11 @@ from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import AssistantWebhookEvent, BaseEvent
+from unique_toolkit.app.schemas import (
+    AssistantWebhookEvent,
+    BaseEvent,
+    ChatEventPayload,
+)
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
@@ -67,10 +71,13 @@ class LanguageModelService:
             self._event = event
             self._chat_id = None
             self._assistant_id = None
+            self._assistant_message_id = None
             if isinstance(event, AssistantWebhookEvent):
                 payload = event.payload
                 self._chat_id = payload.chat_id
                 self._assistant_id = payload.assistant_id
+                if isinstance(payload, ChatEventPayload):
+                    self._assistant_message_id = payload.assistant_message.id
             return
 
         [company_id, user_id] = validate_required_values([company_id, user_id])
@@ -79,6 +86,7 @@ class LanguageModelService:
         self._user_id: str = user_id
         self._chat_id: str | None = None
         self._assistant_id: str | None = None
+        self._assistant_message_id: str | None = None
 
     @classmethod
     def from_event(cls, event: BaseEvent[Any]):
@@ -89,6 +97,8 @@ class LanguageModelService:
         if isinstance(event, AssistantWebhookEvent):
             service._chat_id = event.payload.chat_id
             service._assistant_id = event.payload.assistant_id
+            if isinstance(event.payload, ChatEventPayload):
+                service._assistant_message_id = event.payload.assistant_message.id
         return service
 
     @classmethod
@@ -251,6 +261,7 @@ class LanguageModelService:
             structured_output_enforce_schema=structured_output_enforce_schema,
             chat_id=self._chat_id,
             assistant_id=self._assistant_id,
+            assistant_message_id=self._assistant_message_id,
         )
 
     async def complete_async(
@@ -281,6 +292,7 @@ class LanguageModelService:
             structured_output_enforce_schema=structured_output_enforce_schema,
             chat_id=self._chat_id,
             assistant_id=self._assistant_id,
+            assistant_message_id=self._assistant_message_id,
         )
 
     @classmethod
@@ -344,6 +356,7 @@ class LanguageModelService:
             start_text=start_text,
             chat_id=self._chat_id,
             assistant_id=self._assistant_id,
+            assistant_message_id=self._assistant_message_id,
         )
 
     async def complete_with_references_async(
@@ -371,4 +384,5 @@ class LanguageModelService:
             start_text=start_text,
             chat_id=self._chat_id,
             assistant_id=self._assistant_id,
+            assistant_message_id=self._assistant_message_id,
         )
