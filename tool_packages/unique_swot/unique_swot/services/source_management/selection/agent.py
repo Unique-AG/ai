@@ -50,6 +50,7 @@ class SourceSelectionAgent:
             llm=self._llm,
             llm_service=self._llm_service,
             output_model=SourceSelectionResult,
+            source="swot.source_selection",
         )
 
         if response is None:
