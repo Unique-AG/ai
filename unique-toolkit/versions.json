@@ -1,5 +1,6 @@
 [
-  {"version": "2026.34.0.dev5", "title": "2026.34.0.dev5", "aliases": ["latest"]},
+  {"version": "2026.34.0.dev5", "title": "2026.34.0.dev5", "aliases": []},
+  {"version": "2026.34.0", "title": "2026.34.0", "aliases": ["latest"]},
   {"version": "2026.30.0", "title": "2026.30.0", "aliases": []},
   {"version": "2026.28.0.dev12", "title": "2026.28.0.dev12", "aliases": []},
   {"version": "2026.28.0.dev2", "title": "2026.28.0.dev2", "aliases": []},
