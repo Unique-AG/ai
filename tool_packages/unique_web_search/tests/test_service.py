@@ -642,6 +642,81 @@ class TestWebSearchToolRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__does_not_notify_progress_reporter__when_executor_succeeds(
+        self,
+        mock_web_search_config_v1: Mock,
+        mock_tool_progress_reporter: Mock,
+        sample_web_search_tool_parameters: WebSearchToolParameters,
+        sample_content_chunks: list,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify run never notifies the legacy progress reporter, even when one is set.
+        Why this matters: Progress is reported via the message log now, not tool_progress_reporter.
+        Setup summary: Mock WebSearchTool with a progress reporter and a successful executor.
+        """
+        mock_executor = AsyncMock()
+        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
+        mock_executor.notify_name = "test-name"
+        mock_executor.notify_message = "test-message"
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
+
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
+        tool.tool_parameter_calls = WebSearchToolParameters
+        tool.logger = Mock()
+        tool._message_step_logger = Mock()
+        tool._tool_progress_reporter = mock_tool_progress_reporter
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
+        tool.debug = False
+        tool.name = "WebSearch"
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
+            return_value=None
+        )
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = {"query": "test"}
+
+        result = await tool.run(tool_call)
+
+        assert result.content_chunks == sample_content_chunks
+        mock_tool_progress_reporter.notify_from_tool_call.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("blank_format", ["", "   ", "\t"])
     async def test_run__sets_empty_system_reminder__when_format_info_blank(
         self,
@@ -889,94 +964,6 @@ class TestWebSearchToolRun:
             or result.content_chunks is None
             or len(result.content_chunks) == 0
         )
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_run__notifies_progress_reporter__when_progress_reporter_exists(
-        self,
-        mock_web_search_config_v1: Mock,
-        mock_tool_progress_reporter: Mock,
-        sample_web_search_tool_parameters: WebSearchToolParameters,
-        sample_content_chunks: list,
-        mocker: Any,
-    ) -> None:
-        """
-        Purpose: Verify run notifies progress reporter when it exists.
-        Why this matters: Ensures progress reporting works for monitoring tool execution.
-        Setup summary: Mock WebSearchTool with progress reporter and successful executor.
-        """
-        mock_executor = AsyncMock()
-        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
-        mock_executor.notify_name = "test-name"
-        mock_executor.notify_message = "test-message"
-
-        mocker.patch("unique_web_search.service.get_search_engine_service")
-        mocker.patch("unique_web_search.service.get_crawler_service")
-        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
-        mocker.patch("unique_web_search.service.ContentProcessor")
-
-        # Mock WebSearchDebugInfo to return a proper dict from model_dump
-        mock_debug_info_class = Mock()
-        mock_debug_info_instance = Mock()
-        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
-        mock_debug_info_instance.num_chunks_in_final_prompts = None
-        mock_debug_info_instance.execution_time = None
-        mock_debug_info_class.return_value = mock_debug_info_instance
-        mocker.patch(
-            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
-        )
-
-        # Mock WebSearchMessageLogger
-        mock_message_logger = Mock()
-        mock_message_logger.finished = AsyncMock()
-        mock_message_logger.failed = AsyncMock()
-        mocker.patch(
-            "unique_web_search.service.WebSearchMessageLogger",
-            return_value=mock_message_logger,
-        )
-
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
-        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
-
-        tool = WebSearchTool.__new__(WebSearchTool)
-        tool.config = mock_web_search_config_v1
-        tool.exposed_params_cls = None
-        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
-        tool.tool_parameter_calls = WebSearchToolParameters
-        tool.logger = Mock()
-        tool._message_step_logger = Mock()
-        tool._tool_progress_reporter = mock_tool_progress_reporter
-        tool._display_name = "WebSearch"
-        tool.company_id = "test-company"
-        tool.debug = False
-        tool.name = "WebSearch"
-        tool.settings = Mock()
-        tool.settings.display_name = "WebSearch"
-        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
-            return_value=None
-        )
-
-        # Mock feature_flags to ensure the progress reporter code path is taken
-        mock_feature_flags = mocker.patch("unique_web_search.service.feature_flags")
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = (
-            False
-        )
-
-        tool_call = Mock()
-        tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test"}
-
-        await tool.run(tool_call)
-
-        assert mock_tool_progress_reporter.notify_from_tool_call.called
-        call_args = mock_tool_progress_reporter.notify_from_tool_call.call_args
-        # The call_args are (args, kwargs), and arguments are passed as positional
-        args, kwargs = call_args
-        assert len(args) == 4  # tool_call, name, message, state
-        assert args[1] == "test-name"  # name argument
-        assert args[2] == "test-message"  # message argument
 
     @pytest.mark.ai
     @pytest.mark.asyncio

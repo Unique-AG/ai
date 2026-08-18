@@ -9,10 +9,7 @@ from unique_toolkit.agentic.tools.a2a.tool.config import (
 from unique_toolkit.agentic.tools.a2a.tool.service import SubAgentTool
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ProgressState,
-    ToolProgressReporter,
-)
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -222,180 +219,6 @@ class TestSubAgentToolDescription:
         assert format_info == "Format info for user prompt"
 
 
-class TestSubAgentToolProgressNotifications:
-    """Test suite for progress notification behavior based on feature flag."""
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_notify_progress__sends_notification__when_new_ui_disabled_AI(
-        self,
-        mock_sub_agent_config: SubAgentToolConfig,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify progress notifications are sent when new UI is disabled.
-        Why this matters: Legacy UI relies on progress notifications for user feedback.
-        Setup summary: Create tool with mock reporter, mock feature flag to return False, verify notifications.
-        """
-        # Arrange
-        mock_progress_reporter = Mock(spec=ToolProgressReporter)
-        mock_progress_reporter.notify_from_tool_call = AsyncMock()
-
-        tool = SubAgentTool(
-            configuration=mock_sub_agent_config,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
-            name="TestSubAgent",
-            display_name="Test Sub Agent",
-        )
-
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="TestSubAgent",
-            arguments={"user_message": "test message"},
-        )
-
-        # Mock the FeatureFlag's is_enabled method to return False
-        with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-            new=AsyncMock(return_value=False),
-        ):
-            # Act
-            await tool._notify_progress(
-                tool_call=tool_call,
-                message="Test progress message",
-                state=ProgressState.RUNNING,
-            )
-
-            # Assert
-            mock_progress_reporter.notify_from_tool_call.assert_called_once_with(
-                tool_call=tool_call,
-                name="Test Sub Agent",
-                message="Test progress message",
-                state=ProgressState.RUNNING,
-            )
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_notify_progress__skips_notification__when_new_ui_enabled_AI(
-        self,
-        mock_sub_agent_config: SubAgentToolConfig,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify progress notifications are NOT sent when new UI is enabled.
-        Why this matters: New UI has different progress tracking mechanism.
-        Setup summary: Create tool with mock reporter, mock feature flag to return True, verify no notifications.
-        """
-        # Arrange
-        mock_progress_reporter = Mock(spec=ToolProgressReporter)
-        mock_progress_reporter.notify_from_tool_call = AsyncMock()
-
-        tool = SubAgentTool(
-            configuration=mock_sub_agent_config,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
-            name="TestSubAgent",
-            display_name="Test Sub Agent",
-        )
-
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="TestSubAgent",
-            arguments={"user_message": "test message"},
-        )
-
-        # Mock the FeatureFlag's is_enabled method to return True
-        with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-            new=AsyncMock(return_value=True),
-        ):
-            # Act
-            await tool._notify_progress(
-                tool_call=tool_call,
-                message="Test progress message",
-                state=ProgressState.RUNNING,
-            )
-
-            # Assert - progress reporter should NOT be called
-            mock_progress_reporter.notify_from_tool_call.assert_not_called()
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_notify_progress__skips_when_no_reporter__AI(
-        self,
-        sub_agent_tool: SubAgentTool,
-    ) -> None:
-        """
-        Purpose: Verify no error when progress reporter is not set.
-        Why this matters: Progress reporter is optional functionality.
-        Setup summary: Create tool without reporter, call _notify_progress, verify no error.
-        """
-        # Arrange
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="TestSubAgent",
-            arguments={"user_message": "test message"},
-        )
-
-        # Act - should not raise any exception
-        await sub_agent_tool._notify_progress(
-            tool_call=tool_call,
-            message="Test progress message",
-            state=ProgressState.RUNNING,
-        )
-
-        # Assert - no exception was raised
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_notify_progress__checks_feature_flag_with_company_id__AI(
-        self,
-        mock_sub_agent_config: SubAgentToolConfig,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify feature flag is checked with the correct company_id from the event.
-        Why this matters: Feature flags are company-specific.
-        Setup summary: Create tool, call _notify_progress, verify feature flag is called with correct company_id.
-        """
-        # Arrange
-        mock_progress_reporter = Mock(spec=ToolProgressReporter)
-        mock_progress_reporter.notify_from_tool_call = AsyncMock()
-
-        tool = SubAgentTool(
-            configuration=mock_sub_agent_config,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
-            name="TestSubAgent",
-            display_name="Test Sub Agent",
-        )
-
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="TestSubAgent",
-            arguments={"user_message": "test message"},
-        )
-
-        mock_is_flag = AsyncMock(return_value=False)
-        with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-            mock_is_flag,
-        ):
-            # Act
-            await tool._notify_progress(
-                tool_call=tool_call,
-                message="Test progress message",
-                state=ProgressState.RUNNING,
-            )
-
-            # Assert - feature flag should be called with the company_id from the event
-            mock_is_flag.assert_awaited_once_with(
-                "FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411",
-                company_id="company_456",
-            )
-
-
 class TestSubAgentToolMessageLog:
     """Test suite for message log behavior using create_or_update pattern."""
 
@@ -488,128 +311,14 @@ class TestSubAgentToolRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__sends_progress_notifications__when_new_ui_disabled_AI(
+    async def test_run__does_not_notify_progress_reporter__AI(
         self,
         mock_sub_agent_config: SubAgentToolConfig,
         mock_chat_event: ChatEvent,
     ) -> None:
         """
-        Purpose: Verify run() sends progress notifications when new UI is disabled.
-        Why this matters: Full integration test of progress reporting in the run method.
-        Setup summary: Mock all dependencies, execute run, verify progress notifications were sent.
-        """
-        # Arrange
-        mock_progress_reporter = Mock(spec=ToolProgressReporter)
-        mock_progress_reporter.notify_from_tool_call = AsyncMock()
-
-        mock_response_watcher = Mock()
-        mock_response_watcher.notify_response = Mock()
-
-        tool = SubAgentTool(
-            configuration=mock_sub_agent_config,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
-            name="TestSubAgent",
-            display_name="Test Sub Agent",
-            response_watcher=mock_response_watcher,
-        )
-
-        # Mock the message step logger
-        mock_message_log = Mock()
-        tool._message_step_logger = Mock()
-        tool._message_step_logger.create_or_update_message_log = Mock(
-            return_value=mock_message_log
-        )
-
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="TestSubAgent",
-            arguments={"user_message": "test message"},
-        )
-
-        mock_response = {
-            "id": "sub-agent-assistant-message",
-            "text": "Sub agent response",
-            "assessment": None,
-            "chatId": "new_chat_id",
-            "references": None,
-            "triggeringUserMessageId": "sub-agent-user-message",
-            "debugInfo": {
-                "llm_invocations": [
-                    {
-                        "modelName": "model-a",
-                        "tokenUsage": {
-                            "promptTokens": 10,
-                            "completionTokens": 2,
-                            "totalTokens": 12,
-                        },
-                        "source": "main_loop[1]",
-                    }
-                ]
-            },
-        }
-
-        with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-                new=AsyncMock(return_value=False),
-            ),
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
-                new_callable=AsyncMock,
-                return_value=mock_response,
-            ),
-            patch.object(
-                tool, "_get_chat_id", new_callable=AsyncMock, return_value=None
-            ),
-            patch.object(
-                tool, "_save_chat_id", new_callable=AsyncMock, return_value=None
-            ),
-        ):
-            # Act
-            result = await tool.run(tool_call)
-
-            # Assert - progress reporter should have been called at least twice (RUNNING and FINISHED)
-            assert mock_progress_reporter.notify_from_tool_call.call_count >= 2
-
-            # Check for RUNNING state
-            running_calls = [
-                call
-                for call in mock_progress_reporter.notify_from_tool_call.call_args_list
-                if call.kwargs.get("state") == ProgressState.RUNNING
-            ]
-            assert len(running_calls) >= 1
-
-            # Check for FINISHED state
-            finished_calls = [
-                call
-                for call in mock_progress_reporter.notify_from_tool_call.call_args_list
-                if call.kwargs.get("state") == ProgressState.FINISHED
-            ]
-            assert len(finished_calls) == 1
-            assert result.debug_info == {
-                "chat_id": "new_chat_id",
-                "user_message_id": "sub-agent-user-message",
-                "assistant_message_id": "sub-agent-assistant-message",
-                "assistant_id": mock_sub_agent_config.assistant_id,
-                "display_name": "Test Sub Agent",
-            }
-            assert len(result.invocation_stats) == 1
-            assert (
-                result.invocation_stats[0].source
-                == "subagent.TestSubAgent.call_123.main_loop[1]"
-            )
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_run__skips_progress_notifications__when_new_ui_enabled_AI(
-        self,
-        mock_sub_agent_config: SubAgentToolConfig,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify run() skips progress notifications when new UI is enabled.
-        Why this matters: New UI has different progress tracking mechanism.
+        Purpose: Verify run() never notifies the legacy progress reporter.
+        Why this matters: Progress is reported via the message log now, not tool_progress_reporter.
         Setup summary: Mock all dependencies, execute run, verify no progress notifications were sent.
         """
         # Arrange
@@ -650,10 +359,6 @@ class TestSubAgentToolRun:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-                new=AsyncMock(return_value=True),
-            ),
-            patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
                 new_callable=AsyncMock,
                 return_value=mock_response,
@@ -674,6 +379,93 @@ class TestSubAgentToolRun:
 
             # But progress reporter should NOT be called
             mock_progress_reporter.notify_from_tool_call.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__prefixes_invocation_stats_sources__from_sub_agent_debug_info_AI(
+        self,
+        mock_sub_agent_config: SubAgentToolConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify run() lifts the sub agent's LLM invocation stats and namespaces their source.
+        Why this matters: Tokens spent inside the sub agent must be attributed back to the calling tool call.
+        Setup summary: Return a response carrying debugInfo.llm_invocations, run the tool, assert the prefixed source.
+        """
+        # Arrange
+        mock_response_watcher = Mock()
+        mock_response_watcher.notify_response = Mock()
+
+        tool = SubAgentTool(
+            configuration=mock_sub_agent_config,
+            event=mock_chat_event,
+            name="TestSubAgent",
+            display_name="Test Sub Agent",
+            response_watcher=mock_response_watcher,
+        )
+
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=Mock()
+        )
+
+        tool_call = LanguageModelFunction(
+            id="call_123",
+            name="TestSubAgent",
+            arguments={"user_message": "test message"},
+        )
+
+        mock_response = {
+            "id": "sub-agent-assistant-message",
+            "text": "Sub agent response",
+            "assessment": None,
+            "chatId": "new_chat_id",
+            "references": None,
+            "triggeringUserMessageId": "sub-agent-user-message",
+            "debugInfo": {
+                "llm_invocations": [
+                    {
+                        "modelName": "model-a",
+                        "tokenUsage": {
+                            "promptTokens": 10,
+                            "completionTokens": 2,
+                            "totalTokens": 12,
+                        },
+                        "source": "main_loop[1]",
+                    }
+                ]
+            },
+        }
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
+                new_callable=AsyncMock,
+                return_value=mock_response,
+            ),
+            patch.object(
+                tool, "_get_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+            patch.object(
+                tool, "_save_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+        ):
+            # Act
+            result = await tool.run(tool_call)
+
+            # Assert
+            assert result.debug_info == {
+                "chat_id": "new_chat_id",
+                "user_message_id": "sub-agent-user-message",
+                "assistant_message_id": "sub-agent-assistant-message",
+                "assistant_id": mock_sub_agent_config.assistant_id,
+                "display_name": "Test Sub Agent",
+            }
+            assert len(result.invocation_stats) == 1
+            assert (
+                result.invocation_stats[0].source
+                == "subagent.TestSubAgent.call_123.main_loop[1]"
+            )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -721,10 +513,6 @@ class TestSubAgentToolRun:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-                new=AsyncMock(return_value=True),
-            ),
-            patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
                 new_callable=AsyncMock,
                 return_value=mock_response,
@@ -751,14 +539,14 @@ class TestSubAgentToolRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__skips_progress_on_timeout__when_new_ui_enabled_AI(
+    async def test_run__does_not_notify_progress_reporter__on_timeout_AI(
         self,
         mock_sub_agent_config: SubAgentToolConfig,
         mock_chat_event: ChatEvent,
     ) -> None:
         """
-        Purpose: Verify run() skips progress notifications on timeout when new UI is enabled.
-        Why this matters: Error states should also respect the feature flag.
+        Purpose: Verify run() never notifies the legacy progress reporter on timeout.
+        Why this matters: Error states must not resurrect the old progress-reporting path.
         Setup summary: Mock SDK to raise TimeoutError, verify no progress notifications were sent.
         """
         # Arrange
@@ -787,10 +575,6 @@ class TestSubAgentToolRun:
         )
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-                new=AsyncMock(return_value=True),
-            ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
                 new_callable=AsyncMock,
@@ -841,10 +625,6 @@ class TestSubAgentToolRun:
         )
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-                new=AsyncMock(return_value=True),
-            ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
                 new_callable=AsyncMock,
@@ -908,10 +688,6 @@ class TestSubAgentToolRun:
         }
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-                new=AsyncMock(return_value=True),
-            ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
                 new_callable=AsyncMock,
@@ -981,10 +757,6 @@ class TestSubAgentToolDebugInfo:
         }
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-                new=AsyncMock(return_value=True),
-            ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
                 new_callable=AsyncMock,
@@ -1060,10 +832,6 @@ class TestSubAgentToolDebugInfo:
         }
 
         with (
-            patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
-                new=AsyncMock(return_value=True),
-            ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
                 new_callable=AsyncMock,

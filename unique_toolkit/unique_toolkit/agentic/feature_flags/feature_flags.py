@@ -30,7 +30,6 @@ class FeatureFlagNames(StrEnum):
     enable_web_search_argument_screening_un_18741 = (
         "FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741"
     )
-    enable_new_answers_ui_un_14411 = "FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411"
 
 
 @deprecated(
@@ -83,20 +82,25 @@ class FeatureFlags(BaseSettings):
     """Feature flags loaded from environment variables.
 
     Environment variables are automatically loaded based on field names.
-    For example, `enable_new_answers_ui_un_14411` will be loaded from
-    `FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411` (with the env_prefix).
+    For example, `enable_html_rendering_un_15131` will be loaded from
+    `FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131` (with the env_prefix).
 
     Usage:
         >>> flags = FeatureFlags()
         >>> # Check if feature is enabled for a company
-        >>> flags.enable_new_answers_ui_un_14411.is_enabled("company123")
+        >>> flags.enable_html_rendering_un_15131.is_enabled("company123")
         >>> # Check global enablement
         >>> bool(flags.enable_elicitation_un_15809)
     """
 
     enable_new_answers_ui_un_14411: FeatureFlag = Field(
         default=FeatureFlag([]),
-        description="Enable new answers UI (UN-14411)",
+        description=(
+            "Retired (UN-24507): the new answers UI is always on now, no code "
+            "reads this field. Kept only so removing it doesn't trip the "
+            "config-checker's breaking-change gate on this settings model; "
+            "delete once that checker allows field removal."
+        ),
     )
 
     enable_html_rendering_un_15131: FeatureFlag = Field(

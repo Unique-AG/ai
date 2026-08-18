@@ -16,7 +16,6 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
-from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -197,7 +196,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call, parameters, debug_info, web_search_message_logger
         )
 
-        notify_from_tool_call = self._ff_tool_progress_reporter_callback()
         executor_version = self.config.web_search_mode_config.mode.value
 
         try:
@@ -236,13 +234,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
             await web_search_message_logger.finished()
 
-            await notify_from_tool_call(
-                tool_call=tool_call,
-                name=executor.notify_name,
-                message=executor.notify_message,
-                state=ProgressState.FINISHED,
-            )
-
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
@@ -255,13 +246,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")
 
             await web_search_message_logger.failed()
-
-            await notify_from_tool_call(
-                tool_call=tool_call,
-                name=executor.notify_name,
-                message=executor.notify_message,
-                state=ProgressState.FAILED,
-            )
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -302,7 +286,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             message_log_callback=web_search_message_logger,
             content_reducer=self.content_reducer,
             query_elicitation=elicitation_service,
-            tool_progress_reporter=self._ff_tool_progress_reporter(),
         )
 
         return self._mode_strategy.build_executor(
@@ -341,30 +324,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             language_model=argument_screening_config.language_model,
             config=argument_screening_config,
         )
-
-    def _ff_tool_progress_reporter(self):
-        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
-            return self.tool_progress_reporter
-        return None
-
-    def _ff_tool_progress_reporter_callback(self):
-        async def notify_from_tool_call(
-            tool_call: LanguageModelFunction,
-            name: str,
-            message: str,
-            state: ProgressState,
-        ):
-            if (
-                not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.company_id
-                )
-                and self.tool_progress_reporter is not None
-            ):
-                await self.tool_progress_reporter.notify_from_tool_call(
-                    tool_call, name, message, state
-                )
-
-        return notify_from_tool_call
 
     def _build_display_name(
         self,
