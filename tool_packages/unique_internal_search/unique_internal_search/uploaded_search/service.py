@@ -10,10 +10,7 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import UPLOADED_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ProgressState,
-    ToolProgressReporter,
-)
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content import Content
@@ -113,10 +110,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         return evaluation_check_list
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        search_string_data = ""
         if isinstance(tool_call.arguments, dict):
-            search_string_data = tool_call.arguments.get("search_string", "") or ""
-
             # Verify no content_id outside valid ones, as tool may not be strict
 
             if "content_ids" in tool_call.arguments:
@@ -137,18 +131,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
                     tool_call.arguments["content_ids"] = filtered
 
         tool_response = await self._internal_search_tool.run(tool_call)
-        if (
-            self._tool_progress_reporter
-            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self._company_id
-            )
-        ):
-            await self._tool_progress_reporter.notify_from_tool_call(
-                tool_call=tool_call,
-                name="**Search Uploaded Document**",
-                message=f"{search_string_data}",
-                state=ProgressState.FINISHED,
-            )
         tool_response.name = self.name
         if self._config.enable_tool_call_system_reminder:
             tool_response.system_reminder = (

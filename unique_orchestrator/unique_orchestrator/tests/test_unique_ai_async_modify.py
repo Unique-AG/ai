@@ -10,15 +10,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
 from unique_orchestrator.unique_ai import UniqueAI
 
 
-def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
-    mock_feature_flags = MagicMock()
-    mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = (
-        feature_flag_enabled
-    )
-    monkeypatch.setattr(
-        "unique_orchestrator.unique_ai.feature_flags", mock_feature_flags
-    )
-
+def _make_ua(monkeypatch):
     mock_cancellation = MagicMock()
     mock_cancellation.is_cancelled = False
     mock_cancellation.on_cancellation.subscribe = MagicMock(return_value=MagicMock())
@@ -97,29 +89,6 @@ def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
     ua._loop_iteration_runner = MagicMock()
 
     return ua
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_run_calls_modify_async_when_feature_flag_disabled(monkeypatch):
-    """Line 198: modify_assistant_message_async is called when new answers UI is disabled."""
-    ua = _make_ua(monkeypatch, feature_flag_enabled=False)
-
-    empty_response = MagicMock()
-    empty_response.message.original_text = None
-    empty_response.message.text = ""
-    empty_response.message.references = []
-    empty_response.tool_calls = None
-    empty_response.is_empty.return_value = True
-    empty_response.usage = None
-
-    ua._plan_or_execute = AsyncMock(return_value=empty_response)
-
-    await ua.run()
-
-    ua._chat_service.modify_assistant_message_async.assert_any_call(
-        content="Starting agentic loop..."
-    )
 
 
 @pytest.mark.ai

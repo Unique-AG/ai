@@ -172,65 +172,6 @@ def test_feature_flag__repr_shows_value__string_representation() -> None:
 # ============================================================================
 # parse_feature_flag Validator Tests
 # ============================================================================
-@pytest.mark.ai
-def test_parse_feature_flag__handles_list_type__directly() -> None:
-    """
-    Purpose: Verify parse_feature_flag handles Python list type directly.
-    Why this matters: Programmatic creation with list should work.
-    Setup summary: Parse list value, verify FeatureFlag created with list.
-    """
-    # Arrange
-    # Test by directly calling the validator logic (through model creation)
-    from unique_toolkit.agentic.feature_flags.feature_flags import FeatureFlags
-
-    # Act
-    # Default for enable_new_answers_ui_un_14411 is FeatureFlag([])
-    with patch.dict(os.environ, {}, clear=True):
-        flags = FeatureFlags()
-
-    # Assert
-    assert isinstance(flags.enable_new_answers_ui_un_14411, FeatureFlag)
-    assert flags.enable_new_answers_ui_un_14411.value == []
-
-
-# ============================================================================
-# New Feature Flag Fields Tests
-# ============================================================================
-
-
-@pytest.mark.ai
-def test_enable_new_answers_ui_flag__uses_featureflag_type__field_definition() -> None:
-    """
-    Purpose: Verify enable_new_answers_ui_un_14411 uses FeatureFlag type.
-    Why this matters: New pattern should use FeatureFlag class.
-    Setup summary: Create flags, verify field is FeatureFlag instance.
-    """
-    # Arrange & Act
-    with patch.dict(os.environ, {}, clear=True):
-        flags = FeatureFlags()
-
-    # Assert
-    assert isinstance(flags.enable_new_answers_ui_un_14411, FeatureFlag)
-    assert flags.enable_new_answers_ui_un_14411.value == []
-
-
-@pytest.mark.ai
-def test_new_answers_ui_flag__has_empty_list_default__field_definition() -> None:
-    """
-    Purpose: Verify enable_new_answers_ui_un_14411 defaults to empty list.
-    Why this matters: No companies should be enabled by default.
-    Setup summary: Create flags without env var, verify empty list default.
-    """
-    # Arrange & Act
-    with patch.dict(os.environ, {}, clear=True):
-        flags = FeatureFlags()
-
-    # Assert
-    assert flags.enable_new_answers_ui_un_14411.value == []
-    assert flags.enable_new_answers_ui_un_14411.is_enabled() is False
-    assert flags.enable_new_answers_ui_un_14411.is_enabled("any_company") is False
-
-
 # ============================================================================
 # enable_web_search_argument_screening_un_18741 Tests
 # ============================================================================
