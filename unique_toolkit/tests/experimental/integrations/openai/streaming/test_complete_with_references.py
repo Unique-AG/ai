@@ -478,3 +478,150 @@ async def test_AI_chat_completions__close__cancels_event_handler_bus_subscriptio
 
     event_handlers_after = list(orchestrator._router.text_bus._handlers)
     assert not any(h == orchestrator._on_text_flushed for h in event_handlers_after)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "AZURE_GPT_5_2025_0807",
+        "litellm:openai-gpt-5",
+    ],
+)
+async def test_AI_chat_completions__gpt5_temperature_out_of_bounds__is_clamped(
+    model_name: str,
+) -> None:
+    """
+    Purpose: GPT-5 temperature bounds from LanguageModelInfo are applied
+      before the Chat Completions stream request.
+    Why this matters: GPT-5 only accepts temperature 1.0. The old node-chat
+      path clamped space temperature 0.5; experimental Python streaming must
+      do the same or the API rejects the request (UN-23221).
+    Setup summary: Stream with a GPT-5 model name and temperature 0.5; assert
+      the OpenAI client is called with temperature 1.0.
+    """
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=_FakeStream([]))
+    orchestrator = _build_orchestrator(client=fake_client)
+
+    await orchestrator.complete_with_references_async(
+        messages=[{"role": "user", "content": "hi"}],
+        model_name=model_name,
+        temperature=0.5,
+    )
+
+    assert fake_client.chat.completions.create.await_args.kwargs["temperature"] == 1.0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_chat_completions__other_options_temperature__does_not_bypass_clamp() -> (
+    None
+):
+    """
+    Purpose: A temperature in ``other_options`` cannot override LanguageModelInfo
+      bounds.
+    Why this matters: UniqueAI may pass additional LLM options alongside the
+      space temperature. If that dict is merged after clamping, GPT-5 would
+      still receive 0.5 and fail.
+    Setup summary: Call with GPT-5, temperature 0.5, and other_options
+      temperature 0.5; assert the client still receives 1.0.
+    """
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=_FakeStream([]))
+    orchestrator = _build_orchestrator(client=fake_client)
+
+    await orchestrator.complete_with_references_async(
+        messages=[{"role": "user", "content": "hi"}],
+        model_name="AZURE_GPT_5_2025_0807",
+        temperature=0.5,
+        other_options={"temperature": 0.5},
+    )
+
+    assert fake_client.chat.completions.create.await_args.kwargs["temperature"] == 1.0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_chat_completions__custom_model_temperature__is_not_forced_to_one() -> (
+    None
+):
+    """
+    Purpose: Models without declared temperature bounds keep the requested
+      temperature (non-negative).
+    Why this matters: Clamping must be model-specific; a global force to 1.0
+      would change sampling for models that accept 0.5.
+    Setup summary: Stream with a custom model name and temperature 0.5; assert
+      the client is called with 0.5.
+    """
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=_FakeStream([]))
+    orchestrator = _build_orchestrator(client=fake_client)
+
+    await orchestrator.complete_with_references_async(
+        messages=[{"role": "user", "content": "hi"}],
+        model_name="test-model",
+        temperature=0.5,
+    )
+
+    assert fake_client.chat.completions.create.await_args.kwargs["temperature"] == 0.5
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "AZURE_GPT_5_2025_0807",
+        "litellm:openai-gpt-5",
+    ],
+)
+async def test_AI_responses__gpt5_temperature_out_of_bounds__is_clamped(
+    model_name: str,
+) -> None:
+    """
+    Purpose: GPT-5 temperature bounds from LanguageModelInfo are applied
+      before the Responses API stream request.
+    Why this matters: UniqueAI's experimental Python streaming uses
+      ResponsesCompleteWithReferences for GPT-5. Unclamped temperature 0.5
+      is rejected by the API (UN-23221).
+    Setup summary: Stream with a GPT-5 model name and temperature 0.5; assert
+      the OpenAI client is called with temperature 1.0.
+    """
+    fake_client = MagicMock()
+    fake_client.responses.create = AsyncMock(return_value=_FakeStream([]))
+    orchestrator = _build_responses_orchestrator(client=fake_client)
+
+    await orchestrator.complete_with_references_async(
+        messages="hi",
+        model_name=model_name,
+        temperature=0.5,
+    )
+
+    assert fake_client.responses.create.await_args.kwargs["temperature"] == 1.0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_responses__other_options_temperature__does_not_bypass_clamp() -> None:
+    """
+    Purpose: Responses streaming drops ``other_options['temperature']`` so
+      the clamped value wins.
+    Why this matters: UniqueAI merges additional LLM options into the
+      request. That merge must not restore an out-of-bounds temperature.
+    Setup summary: Call Responses streaming with GPT-5, temperature 0.5, and
+      other_options temperature 0.5; assert the client receives 1.0.
+    """
+    fake_client = MagicMock()
+    fake_client.responses.create = AsyncMock(return_value=_FakeStream([]))
+    orchestrator = _build_responses_orchestrator(client=fake_client)
+
+    await orchestrator.complete_with_references_async(
+        messages="hi",
+        model_name="AZURE_GPT_5_2025_0807",
+        temperature=0.5,
+        other_options={"temperature": 0.5},
+    )
+
+    assert fake_client.responses.create.await_args.kwargs["temperature"] == 1.0
