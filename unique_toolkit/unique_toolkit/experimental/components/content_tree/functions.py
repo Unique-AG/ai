@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from pathlib import PurePosixPath
 from typing import Any
@@ -38,6 +39,8 @@ __all__ = [
     "serialize_filter",
     "walk_visible_paths_via_folders_async",
 ]
+
+_LOGGER = logging.getLogger(f"toolkit.experimental.components.content_tree.{__name__}")
 
 
 def serialize_filter(metadata_filter: dict[str, Any] | None) -> str:
@@ -64,6 +67,12 @@ def _parse_content_infos_payload(payload: Any) -> tuple[list[ContentInfo], int]:
     ]
     total = int(payload.get("totalCount", len(files)))
     return files, total
+
+
+def _propagate_wait_interrupt(result: object) -> None:
+    """Re-raise timeout/cancellation so callers can return a partial snapshot."""
+    if isinstance(result, (asyncio.CancelledError, TimeoutError)):
+        raise result
 
 
 async def _paginate_parent_listing[T](
@@ -97,8 +106,15 @@ async def _paginate_parent_listing[T](
                 on_page(page_items)
             return page_items
 
-    extra = await asyncio.gather(*[_fetch(skip) for skip in remaining_skips])
+    extra = await asyncio.gather(
+        *[_fetch(skip) for skip in remaining_skips],
+        return_exceptions=True,
+    )
     for page in extra:
+        _propagate_wait_interrupt(page)
+        if isinstance(page, BaseException):
+            _LOGGER.warning("Skipping listing page after fetch error: %s", page)
+            continue
         items.extend(page)
     return items
 
@@ -155,7 +171,7 @@ async def _list_direct_children_async(
             **params,
         )
 
-    folders, _files = await asyncio.gather(
+    folder_result, file_result = await asyncio.gather(
         folders_task,
         _paginate_parent_listing(
             _content_page,
@@ -164,8 +180,20 @@ async def _list_direct_children_async(
             max_concurrent_requests=max_concurrent_page_fetches,
             on_page=on_files,
         ),
+        return_exceptions=True,
     )
-    return folders
+    _propagate_wait_interrupt(folder_result)
+    _propagate_wait_interrupt(file_result)
+    if isinstance(folder_result, BaseException):
+        _LOGGER.warning(
+            "Skipping folder listing for parent %s: %s", scope_id, folder_result
+        )
+        return []
+    if isinstance(file_result, BaseException):
+        _LOGGER.warning(
+            "Skipping content listing for parent %s: %s", scope_id, file_result
+        )
+    return folder_result
 
 
 async def walk_visible_paths_via_folders_async(
@@ -253,12 +281,22 @@ async def walk_visible_paths_via_folders_async(
             folders = await asyncio.shield(_list_and_record(scope_id, path))
         recurse = max_depth is None or depth + 1 < max_depth
         if recurse and folders:
-            await asyncio.gather(
+            child_results = await asyncio.gather(
                 *[
                     _visit(folder.id, path / folder.name, depth + 1)
                     for folder in folders
-                ]
+                ],
+                return_exceptions=True,
             )
+            for folder, result in zip(folders, child_results, strict=True):
+                _propagate_wait_interrupt(result)
+                if isinstance(result, BaseException):
+                    _LOGGER.warning(
+                        "Skipping subtree %s (%s): %s",
+                        folder.name,
+                        folder.id,
+                        result,
+                    )
 
     try:
         if timeout is None:

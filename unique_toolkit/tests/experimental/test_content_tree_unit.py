@@ -1108,6 +1108,96 @@ async def test_AI_walk_timeout_keeps_extra_pages_already_fetched() -> None:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_AI_walk_skips_failed_sibling_directory() -> None:
+    """
+    Purpose: One directory listing error does not drop the rest of the tree.
+    Why this matters: An ACL miss or 5xx on one folder used to abort tree/list/search.
+    Setup summary: Root has Legal (raises) and Finance (has a file); assert Finance remains.
+    """
+    empty_folders, empty_files = _empty_listing()
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None},
+                    {"id": "scope_finance", "name": "Finance", "parentId": None},
+                ],
+                "totalCount": 2,
+            }
+        if parent == "scope_legal":
+            raise RuntimeError("acl denied")
+        if parent == "scope_finance":
+            return empty_folders
+        raise AssertionError(f"unexpected parentId {parent!r}")
+
+    async def fake_content(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent == "scope_legal":
+            raise RuntimeError("acl denied")
+        if parent == "scope_finance":
+            return {
+                "contentInfos": [_walk_file_payload(key="q1.pdf")],
+                "totalCount": 1,
+            }
+        return empty_files
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(side_effect=fake_content),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c"
+        )
+
+    paths = [path.as_posix() for _info, path in snapshot.files]
+    assert paths == ["Finance/q1.pdf"]
+    assert snapshot.complete is True
+    assert _p("Finance") in snapshot.folder_paths
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_skips_failed_extra_listing_page() -> None:
+    """
+    Purpose: A later listing page error keeps earlier pages.
+    Why this matters: One 5xx page must not erase the directory already listed.
+    Setup summary: First root folder page succeeds; skip=1 raises; assert first folder remains.
+    """
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        skip = int(kwargs.get("skip") or 0)
+        if parent is not None:
+            return {"folderInfos": [], "totalCount": 0}
+        if skip == 0:
+            return {
+                "folderInfos": [{"id": "scope_a", "name": "A", "parentId": None}],
+                "totalCount": 2,
+            }
+        raise RuntimeError("page unavailable")
+
+    with patch(
+        f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+        AsyncMock(side_effect=fake_folders),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", max_depth=1, step_size=1
+        )
+
+    assert snapshot.complete is True
+    assert snapshot.folder_paths == [_p("A")]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_AI_service_timeout_returns_partial_and_fills_cache() -> None:
     """
     Purpose: Service timeout returns a partial copy while the cached walk continues.
