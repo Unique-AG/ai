@@ -63,14 +63,16 @@ _(empty)_
 ## Skills & Expertise
 _(empty)_
 
-## Recent Topics
+## Follow-ups
 _(empty)_
 
-## Follow-ups
+## Recent Topics
 _(empty)_
 ```
 
 The consolidation prompt preserves the schema, keeps bullets short, and returns `NOOP` when a turn has no durable user facts.
+
+Each fact lives in exactly one section. **Recent Topics** is a dated log reserved for discussion topics whose substance is not already captured as a fact elsewhere in the profile. **Follow-ups** only holds tasks the user explicitly committed to or asked to be reminded about — never the assistant's own offers or open questions — and entries are removed once completed or stale.
 
 ## Configuration
 

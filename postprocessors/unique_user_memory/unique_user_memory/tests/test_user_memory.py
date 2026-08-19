@@ -97,6 +97,18 @@ def test_memory_profile_keeps_follow_up_tasks_but_excludes_open_questions() -> N
     assert "## Follow-ups" in profile
     assert "concrete tasks the user intends to complete" in consolidation_prompt
     assert "Concrete future tasks the user intends to complete" in gate_prompt
+    assert "NEVER record the assistant's offers" in consolidation_prompt
+    assert 'Never write "awaiting user input"' in consolidation_prompt
+
+
+def test_recent_topics_is_last_section_and_deduplicated() -> None:
+    profile = empty_profile("user_1")
+    consolidation_prompt = consolidation_system_prompt(2000)
+
+    assert profile.index("## Follow-ups") < profile.index("## Recent Topics")
+    assert profile.rstrip().endswith("## Recent Topics\n_(empty)_")
+    assert "one home per fact" in consolidation_prompt
+    assert "do NOT also log that same information" in consolidation_prompt
 
 
 def test_profile_body_strips_frontmatter() -> None:
