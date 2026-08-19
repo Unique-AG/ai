@@ -7,8 +7,8 @@ SECTION_HEADINGS: tuple[str, ...] = (
     "Communication Preferences",
     "Work Context",
     "Skills & Expertise",
-    "Recent Topics",
     "Follow-ups",
+    "Recent Topics",
 )
 
 _EMPTY_PROFILE_TEMPLATE = """\
@@ -68,6 +68,37 @@ when a section is empty (use the literal string `_(empty)_` as a placeholder):
 
 {{ section_list }}
 
+# Section purposes - one home per fact
+
+Every piece of information lives in EXACTLY ONE section. Never record
+the same fact, in any wording, in two sections:
+
+- Identity - stable personal attributes: name, location, role, employer,
+  team, timezone, language.
+- Communication Preferences - how the user wants responses shaped:
+  style, formatting, depth, tone, language, expertise level.
+- Work Context - current focus areas, active projects, durable goals and
+  deadlines stated by the user.
+- Skills & Expertise - what the user knows and can do.
+- Follow-ups - concrete tasks the USER explicitly said they will do, or
+  explicitly asked to be reminded about. Nothing else belongs here.
+- Recent Topics - a short, dated log of what was discussed. ONLY for
+  topics whose substance is NOT already captured as a fact in another
+  section. When you ADD or UPDATE a fact in another section for this
+  turn, do NOT also log that same information as a Recent Topics entry;
+  a Recent Topics entry is only justified when the turn discussed
+  something worth remembering that fits no other section.
+
+# Follow-ups - user-stated tasks only
+
+- Record ONLY tasks the user explicitly committed to or explicitly asked
+  to be reminded about.
+- NEVER record the assistant's offers, suggestions, or open questions
+  (e.g. "user was offered X", "user was asked whether to do Y"). The
+  user answers those within the ongoing conversation, so they carry no
+  value in long-term memory. Never write "awaiting user input".
+- DELETE a follow-up as soon as it is completed, declined, or stale.
+
 # Operations
 
 For each candidate fact in `<new_turn>`, decide one of:
@@ -109,6 +140,11 @@ similar (same meaning, different wording) into a single clear bullet.
 A section must never accumulate redundant or near-duplicate statements.
 Consolidate on every turn, not only when approaching the word budget.
 
+Also deduplicate ACROSS sections: delete any Recent Topics entry whose
+substance is already captured as a fact in another section, and any
+Follow-ups entry that records an assistant offer or question rather
+than a user-stated task.
+
 # What to extract
 
 ADD/UPDATE for facts that are:
@@ -120,7 +156,8 @@ ADD/UPDATE for facts that are:
 - Contextual but durable - current focus areas, active projects,
   multi-week goals, deadlines mentioned by the user.
 - Follow-ups - concrete tasks the user intends to complete in the future,
-  or tasks they explicitly ask to be reminded about.
+  or tasks they explicitly ask to be reminded about - never the
+  assistant's own offers or questions.
 
 NEVER extract:
 
@@ -192,6 +229,10 @@ fact about the user. This is lossy compression, not deletion of meaning.
 2. Delete outdated, stale, resolved, or superseded entries: old
    "Recent Topics", completed or cancelled "Follow-ups", and facts a later
    bullet already contradicts or refines.
+   - Also delete "Recent Topics" entries whose substance is already
+     captured as a fact in another section, and "Follow-ups" entries that
+     record an assistant offer or question ("awaiting user input") rather
+     than a task the user explicitly stated.
 3. Tighten verbose, flowery, or repetitive prose into short factual
    bullets. Remove hedging and filler.
 4. Fold low-signal "Work Context" and "Skills & Expertise" bullets into
