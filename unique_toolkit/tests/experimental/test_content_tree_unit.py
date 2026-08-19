@@ -1165,6 +1165,56 @@ async def test_AI_walk_skips_failed_sibling_directory() -> None:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_AI_walk_skip_logs_use_opaque_ids_not_folder_names(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Skip warnings log folder ids and stack traces, not customer folder names.
+    Why this matters: Folder labels and exception text must not leak into logs.
+    Setup summary: Legal listing fails; assert log records omit the name and use exc_info.
+    """
+    from unique_toolkit.experimental.components.content_tree.functions import (
+        _LOGGER as walk_logger,
+    )
+
+    empty_folders, empty_files = _empty_listing()
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None},
+                    {"id": "scope_ok", "name": "Ok", "parentId": None},
+                ],
+                "totalCount": 2,
+            }
+        if parent == "scope_legal":
+            raise RuntimeError("secret-folder-error")
+        return empty_folders
+
+    with (
+        caplog.at_level("WARNING", logger=walk_logger.name),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(return_value=empty_files),
+        ),
+    ):
+        await walk_visible_paths_via_folders_async(user_id="u", company_id="c")
+
+    joined = " ".join(record.getMessage() for record in caplog.records)
+    assert "scope_legal" in joined
+    assert "Legal" not in joined
+    assert "secret-folder-error" not in joined
+    assert any(record.exc_info is not None for record in caplog.records)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_AI_walk_skips_failed_extra_listing_page() -> None:
     """
     Purpose: A later listing page error keeps earlier pages.

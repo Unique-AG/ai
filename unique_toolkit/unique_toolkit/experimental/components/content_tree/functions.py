@@ -75,6 +75,11 @@ def _propagate_wait_interrupt(result: object) -> None:
         raise result
 
 
+def _log_skipped_listing(message: str, err: BaseException, *args: object) -> None:
+    """Log a skipped listing with stack info, without interpolating the error."""
+    _LOGGER.warning(message, *args, exc_info=err)
+
+
 async def _paginate_parent_listing[T](
     fetch_page: Callable[[int], Awaitable[Any]],
     parse_page: Callable[[Any], tuple[list[T], int]],
@@ -113,7 +118,7 @@ async def _paginate_parent_listing[T](
     for page in extra:
         _propagate_wait_interrupt(page)
         if isinstance(page, BaseException):
-            _LOGGER.warning("Skipping listing page after fetch error: %s", page)
+            _log_skipped_listing("Skipping listing page after fetch error", page)
             continue
         items.extend(page)
     return items
@@ -185,13 +190,13 @@ async def _list_direct_children_async(
     _propagate_wait_interrupt(folder_result)
     _propagate_wait_interrupt(file_result)
     if isinstance(folder_result, BaseException):
-        _LOGGER.warning(
-            "Skipping folder listing for parent %s: %s", scope_id, folder_result
+        _log_skipped_listing(
+            "Skipping folder listing for parent %s", folder_result, scope_id
         )
         return []
     if isinstance(file_result, BaseException):
-        _LOGGER.warning(
-            "Skipping content listing for parent %s: %s", scope_id, file_result
+        _log_skipped_listing(
+            "Skipping content listing for parent %s", file_result, scope_id
         )
     return folder_result
 
@@ -291,12 +296,7 @@ async def walk_visible_paths_via_folders_async(
             for folder, result in zip(folders, child_results, strict=True):
                 _propagate_wait_interrupt(result)
                 if isinstance(result, BaseException):
-                    _LOGGER.warning(
-                        "Skipping subtree %s (%s): %s",
-                        folder.name,
-                        folder.id,
-                        result,
-                    )
+                    _log_skipped_listing("Skipping subtree %s", result, folder.id)
 
     try:
         if timeout is None:
