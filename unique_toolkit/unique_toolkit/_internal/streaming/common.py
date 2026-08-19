@@ -5,7 +5,7 @@ toolkit's domain-layer ``protocols`` package so alternative framework
 adapters (future providers beyond OpenAI) can realize the same event handler
 shape without pulling in OpenAI-specific imports. Concrete, OpenAI-typed
 event handler protocols live next to their implementations under
-``unique_toolkit.experimental.integrations.openai.streaming.event_routing.protocols``.
+``unique_toolkit.integrations.openai.streaming.event_routing.protocols``.
 
 This module declares:
 

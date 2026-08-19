@@ -14,8 +14,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from unique_toolkit._common.event_bus import TypedEventBus
-from unique_toolkit.experimental._internal.streaming import TextFlushed, TextState
-from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
+from unique_toolkit._internal.streaming import TextFlushed, TextState
+from unique_toolkit._internal.streaming.pattern_replacer import (
     StreamingReplacerProtocol,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage

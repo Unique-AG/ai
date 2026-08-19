@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from unique_toolkit.experimental._internal.streaming import (
+from unique_toolkit._internal.streaming import (
     StreamTextEventHandlerProtocol,
     StreamToolCallEventHandlerProtocol,
     UsageProducer,
