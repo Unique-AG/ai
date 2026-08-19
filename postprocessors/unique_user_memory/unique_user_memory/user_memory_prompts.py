@@ -19,8 +19,6 @@ last_updated: {{ timestamp }}
 turn_count: 0
 ---
 
-# User Memory
-
 {% for heading in section_headings -%}
 ## {{ heading }}
 _(empty)_
@@ -60,8 +58,9 @@ You receive two XML blocks:
 # Output
 
 Return the complete, rewritten Markdown profile body, starting with
-`# User Memory`. Do NOT emit a diff. Do NOT wrap the output in
-``` fences. Do NOT add commentary before or after the body.
+`## Identity`. Do NOT add a document-level `# User Memory` title. Do NOT
+emit a diff. Do NOT wrap the output in ``` fences. Do NOT add commentary
+before or after the body.
 
 The body MUST contain exactly these section headings, in this order, even
 when a section is empty (use the literal string `_(empty)_` as a placeholder):
@@ -256,8 +255,8 @@ fact about the user. This is lossy compression, not deletion of meaning.
 # Output
 
 Return the complete rewritten profile body, starting with
-`# User Memory`. Do NOT emit a diff, or commentary,
-and do NOT wrap the output in ``` fences.
+`## Identity`. Do NOT add a document-level `# User Memory` title. Do NOT
+emit a diff or commentary, and do NOT wrap the output in ``` fences.
 """
 
 

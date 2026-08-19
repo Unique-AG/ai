@@ -26,6 +26,7 @@ from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
     UserMemoryState,
     _gate_max_tokens,
+    _is_well_formed_profile,
     _sanitize_for_xml_context,
     condense_user_memory,
     consolidate_user_memory,
@@ -41,12 +42,30 @@ from unique_user_memory.user_memory import (
 from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 from unique_user_memory.user_memory_prompts import (
+    condensation_system_prompt,
     consolidation_system_prompt,
     empty_profile,
     memory_gate_system_prompt,
 )
 
 _TEST_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL)
+
+
+def _complete_profile_body(
+    identity: str = "- Prefers concise answers",
+    *,
+    legacy_title: bool = False,
+) -> str:
+    sections = (
+        f"## Identity\n{identity}",
+        "## Communication Preferences\n_(empty)_",
+        "## Work Context\n_(empty)_",
+        "## Skills & Expertise\n_(empty)_",
+        "## Follow-ups\n_(empty)_",
+        "## Recent Topics\n_(empty)_",
+    )
+    body = "\n\n".join(sections)
+    return f"# User Memory\n\n{body}" if legacy_title else body
 
 
 def _chat_event() -> ChatEvent:
@@ -109,6 +128,59 @@ def test_recent_topics_is_last_section_and_deduplicated() -> None:
     assert profile.rstrip().endswith("## Recent Topics\n_(empty)_")
     assert "one home per fact" in consolidation_prompt
     assert "do NOT also log that same information" in consolidation_prompt
+
+
+@pytest.mark.ai
+def test_generated_profile_templates_start_with_identity_without_document_title() -> (
+    None
+):
+    """Purpose: Verify new profile output omits the obsolete document-level title.
+    Why this matters: Persistent memory should expose only its meaningful H2 sections.
+    Setup summary: Render empty and LLM prompts, then assert the required start format.
+    """
+    profile = empty_profile("user_1")
+    prompts = (
+        consolidation_system_prompt(2000),
+        condensation_system_prompt(
+            max_tokens=2000,
+            current_tokens=2200,
+            target_tokens=1800,
+        ),
+    )
+
+    assert profile_body(profile).startswith("## Identity")
+    assert "# User Memory" not in profile
+    assert all("starting with\n`## Identity`" in prompt for prompt in prompts)
+    assert all(
+        "Do NOT add a document-level `# User Memory` title" in prompt
+        for prompt in prompts
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("legacy_title", [False, True])
+def test_well_formed_profile_accepts_current_and_legacy_complete_profiles(
+    legacy_title: bool,
+) -> None:
+    """Purpose: Verify validation supports titleless output and stored legacy profiles.
+    Why this matters: New rewrites must migrate format without breaking old memories.
+    Setup summary: Validate complete profiles with and without the former H1 title.
+    """
+    assert _is_well_formed_profile(_complete_profile_body(legacy_title=legacy_title))
+
+
+@pytest.mark.ai
+def test_well_formed_profile_rejects_missing_required_section() -> None:
+    """Purpose: Verify rewritten profiles retain every required H2 section.
+    Why this matters: A rewrite must not silently erase a category of user memory.
+    Setup summary: Remove Work Context from a complete profile and validate rejection.
+    """
+    profile = _complete_profile_body().replace(
+        "## Work Context\n_(empty)_\n\n",
+        "",
+    )
+
+    assert not _is_well_formed_profile(profile)
 
 
 def test_profile_body_strips_frontmatter() -> None:
@@ -190,7 +262,7 @@ async def test_fit_user_memory_condenses_before_hard_cut(
         f"- fact number {index} that is fairly wordy about the user"
         for index in range(400)
     )
-    condensed = "# User Memory\n\n## Identity\n- concise summary of the user"
+    condensed = _complete_profile_body("- concise summary of the user")
     condense = AsyncMock(return_value=condensed)
     monkeypatch.setattr(
         "unique_user_memory.user_memory.condense_user_memory",
@@ -264,10 +336,11 @@ async def test_condense_user_memory_accepts_frontmatter_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Accept legacy LLM output while returning only the condensed profile body."""
-    condensed = "# User Memory\n\n## Identity\n- concise summary"
+    condensed = _complete_profile_body("- concise summary")
     response = MagicMock()
     response.choices[0].message.content = (
-        "---\nuser_id: stale-user\nturn_count: 99\n---\n\n" + condensed
+        "---\nuser_id: stale-user\nturn_count: 99\n---\n\n"
+        + _complete_profile_body("- concise summary", legacy_title=True)
     )
     llm_service = MagicMock()
     llm_service.complete_async = AsyncMock(return_value=response)
@@ -296,8 +369,8 @@ async def test_user_memory_llm_paths_forward_event_attribution(
     Why this matters: Every user-memory ModelUsage row must link to its chat.
     Setup summary: Exercise all shared service paths and inspect toolkit calls.
     """
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
-    condensed = "# User Memory\n\n## Identity\n- Concise"
+    rewritten = _complete_profile_body()
+    condensed = _complete_profile_body("- Concise")
     complete_async = AsyncMock(
         side_effect=[
             _completion_response("UPDATE"),
@@ -462,7 +535,7 @@ async def test_consolidate_user_memory_runs_full_rewrite_when_gate_update(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     current = empty_profile("user_1")
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    rewritten = _complete_profile_body()
     response = MagicMock()
     response.choices[0].message.content = rewritten
     llm_service = MagicMock()
@@ -498,7 +571,7 @@ async def test_consolidate_user_memory_runs_full_rewrite_when_gate_update(
 async def test_consolidate_user_memory_adds_frontmatter_to_llm_body(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    rewritten = _complete_profile_body()
     response = MagicMock()
     response.choices[0].message.content = rewritten
     llm_service = MagicMock()
@@ -534,10 +607,11 @@ async def test_consolidate_user_memory_replaces_llm_frontmatter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Strip untrusted legacy metadata before assembling the updated profile."""
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    rewritten = _complete_profile_body()
     response = MagicMock()
     response.choices[0].message.content = (
-        "---\nuser_id: stale-user\nturn_count: 99\n---\n\n" + rewritten
+        "---\nuser_id: stale-user\nturn_count: 99\n---\n\n"
+        + _complete_profile_body(legacy_title=True)
     )
     llm_service = MagicMock()
     llm_service.complete_async = AsyncMock(return_value=response)
@@ -572,7 +646,7 @@ async def test_consolidate_user_memory_skips_gate_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     current = empty_profile("user_1")
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    rewritten = _complete_profile_body()
     response = MagicMock()
     response.choices[0].message.content = rewritten
     llm_service = MagicMock()
@@ -729,7 +803,7 @@ async def test_should_consolidate_memory_falls_back_to_true_on_error(
 async def test_consolidate_user_memory_invokes_update_callbacks_on_rewrite(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    rewritten = _complete_profile_body()
     response = MagicMock()
     response.choices[0].message.content = rewritten
     llm_service = MagicMock()

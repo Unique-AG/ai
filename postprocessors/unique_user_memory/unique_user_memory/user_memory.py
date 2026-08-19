@@ -69,6 +69,8 @@ _TRUNCATION_MARKER = "\n\n<!-- truncated to fit memory budget -->"
 _DEFAULT_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
 _TURN_COUNT_RE = re.compile(r"^turn_count:\s*(\d+)\s*$", re.MULTILINE)
+_LEGACY_PROFILE_TITLE_RE = re.compile(r"^# User Memory[ \t]*(?:\n+|$)")
+_H2_HEADING_RE = re.compile(r"^## (.+?)[ \t]*$", re.MULTILINE)
 
 
 def profile_body(content: str) -> str:
@@ -286,7 +288,7 @@ async def condense_user_memory(
         )
         return None
 
-    candidate = profile_body(_strip_code_fences(raw))
+    candidate = _without_legacy_profile_title(profile_body(_strip_code_fences(raw)))
     if not _is_well_formed_profile(candidate):
         logger.warning(
             "[user-memory] condense output did not look like a profile (%d chars)",
@@ -906,7 +908,9 @@ async def _rewrite_user_memory(
         logger.info("[user-memory] consolidation NOOP - keeping existing memory")
         return safe_current
 
-    candidate_body = profile_body(_strip_code_fences(raw))
+    candidate_body = _without_legacy_profile_title(
+        profile_body(_strip_code_fences(raw))
+    )
     if not _is_well_formed_profile(candidate_body):
         logger.warning(
             "[user-memory] LLM output did not look like a profile (%d chars)",
@@ -947,7 +951,14 @@ def _sanitize_for_xml_context(text: str) -> str:
 def _is_well_formed_profile(content: str) -> bool:
     if not content or len(content.strip()) < 20:
         return False
-    return content.startswith("# User Memory") and "## Identity" in content
+    body = _without_legacy_profile_title(content.strip())
+    headings = tuple(_H2_HEADING_RE.findall(body))
+    return body.startswith("## Identity") and headings == SECTION_HEADINGS
+
+
+def _without_legacy_profile_title(content: str) -> str:
+    """Remove the former document title while preserving the H2 profile body."""
+    return _LEGACY_PROFILE_TITLE_RE.sub("", content.strip(), count=1).lstrip()
 
 
 def _strip_code_fences(text: str) -> str:
