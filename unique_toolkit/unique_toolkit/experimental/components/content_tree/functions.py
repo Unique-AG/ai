@@ -93,12 +93,12 @@ async def _paginate_parent_listing[T](
         async with semaphore:
             payload = await fetch_page(skip)
             page_items, _total = parse_page(payload)
+            if on_page:
+                on_page(page_items)
             return page_items
 
     extra = await asyncio.gather(*[_fetch(skip) for skip in remaining_skips])
     for page in extra:
-        if on_page:
-            on_page(page)
         items.extend(page)
     return items
 

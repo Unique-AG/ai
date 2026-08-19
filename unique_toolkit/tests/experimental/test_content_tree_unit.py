@@ -1064,6 +1064,50 @@ async def test_AI_walk_timeout_keeps_first_folder_page() -> None:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_AI_walk_timeout_keeps_extra_pages_already_fetched() -> None:
+    """
+    Purpose: Extra listing pages are published as they arrive, not after gather.
+    Why this matters: A timeout must keep pages that already completed.
+    Setup summary: Three root folder pages; skip=1 is instant, skip=2 sleeps.
+    """
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        skip = int(kwargs.get("skip") or 0)
+        if parent is not None:
+            return {"folderInfos": [], "totalCount": 0}
+        if skip == 0:
+            return {
+                "folderInfos": [{"id": "scope_a", "name": "A", "parentId": None}],
+                "totalCount": 3,
+            }
+        if skip == 1:
+            return {
+                "folderInfos": [{"id": "scope_b", "name": "B", "parentId": None}],
+                "totalCount": 3,
+            }
+        await asyncio.sleep(0.5)
+        return {
+            "folderInfos": [{"id": "scope_c", "name": "C", "parentId": None}],
+            "totalCount": 3,
+        }
+
+    with patch(
+        f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+        AsyncMock(side_effect=fake_folders),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", max_depth=1, step_size=1, timeout=0.1
+        )
+
+    assert snapshot.complete is False
+    assert _p("A") in snapshot.folder_paths
+    assert _p("B") in snapshot.folder_paths
+    assert _p("C") not in snapshot.folder_paths
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_AI_service_timeout_returns_partial_and_fills_cache() -> None:
     """
     Purpose: Service timeout returns a partial copy while the cached walk continues.
