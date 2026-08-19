@@ -173,6 +173,21 @@ class TestClickCLI:
         result = runner.invoke(main, ["ls"])
         assert result.exit_code == 0
 
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_skip(self, mock_ls: MagicMock) -> None:
+        """--skip reaches cmd_ls, defaults to 0, and rejects negatives up front
+        (the API enforces @Min(0)).
+        """
+        mock_ls.return_value = "(empty)\n0 folder(s), 0 file(s)"
+        runner = CliRunner()
+        assert runner.invoke(main, ["ls", "/Reports", "--skip", "100"]).exit_code == 0
+        assert mock_ls.call_args.args[1:] == ("/Reports", 100)
+        runner.invoke(main, ["ls"])
+        assert mock_ls.call_args.args[1:] == (None, 0)
+        mock_ls.reset_mock()
+        assert runner.invoke(main, ["ls", "--skip", "-1"]).exit_code != 0
+        mock_ls.assert_not_called()
+
     @patch("unique_sdk.cli.cli.cmd_versions")
     def test_versions_permission_denied_exits_nonzero(
         self, mock_versions: MagicMock

@@ -9,6 +9,11 @@ from unique_sdk.cli.formatting import format_ls
 from unique_sdk.cli.metadata_filter import _collect_filter_targets
 from unique_sdk.cli.state import ShellState
 
+# For the root-scoped branches, which list explicit ids and so have no server
+# page to inherit. The paginated branch sends no ``take``: page size is the
+# server's, and counts come from response lengths, never from a constant.
+LS_LOCAL_PAGE_SIZE = 50
+
 
 def cmd_pwd(state: ShellState) -> str:
     return state.cwd
@@ -23,8 +28,71 @@ def cmd_cd(state: ShellState, target: str) -> str:
         return f"cd: {e}"
 
 
-def cmd_ls(state: ShellState, target: str | None = None) -> str:
-    """List folders and files at the given (or current) path."""
+def _count(shown: int, total: int, noun: str) -> str:
+    """``N noun(s)``, or ``N of M noun(s)`` when the listing was partial."""
+    return f"{shown} {noun}(s)" if shown == total else f"{shown} of {total} {noun}(s)"
+
+
+def _footer(
+    skip: int,
+    target: str | None,
+    command_prefix: str,
+    folders: tuple[int, int],
+    files: tuple[int, int],
+    *,
+    summary: str | None = None,
+    suffix: str = "",
+) -> str:
+    """Summary line, plus a truncation notice when a listing was cut short.
+
+    *folders* and *files* are ``(shown, total)`` pairs. *summary* overrides the
+    default line for callers whose shown-count differs from the page length.
+    """
+    kinds = (("folder", folders), ("file", files))
+    if summary is None:
+        summary = ", ".join(_count(*counts, noun) for noun, counts in kinds)
+    summary = f"\n{summary}{suffix}"
+
+    if skip and not folders[0] and not files[0]:
+        # An out-of-range offset returns an empty page, which would otherwise
+        # read exactly like an empty folder.
+        return (
+            f"{summary}\nNothing at --skip {skip}: this listing has "
+            f"{folders[1]} folder(s) and {files[1]} file(s). Use --skip 0 to "
+            "start from the beginning."
+        )
+
+    ranges: list[str] = []
+    next_skip = 0
+    for noun, (shown, total) in kinds:
+        if shown and skip + shown < total:
+            ranges.append(f"{noun}s {skip + 1}-{skip + shown} of {total}")
+            next_skip = max(next_skip, skip + shown)
+    if not ranges:
+        return summary
+
+    path = f" {target}" if target else ""
+    return (
+        f"{summary}\nShowing {', '.join(ranges)}."
+        f"\nNext page: {command_prefix}ls{path} --skip {next_skip}"
+    )
+
+
+def cmd_ls(
+    state: ShellState,
+    target: str | None = None,
+    skip: int = 0,
+    *,
+    command_prefix: str = "unique-cli ",
+) -> str:
+    """List folders and files at the given (or current) path.
+
+    *skip* offsets both the folder and the file listing. *command_prefix* is
+    prepended to the next-page command; the REPL passes ``""``.
+    """
+    if skip < 0:
+        # The API rejects it (@Min(0) on both request DTOs).
+        return "ls: --skip must be 0 or greater."
     try:
         if target is not None:
             _, scope_id = state.resolve_path(target)
@@ -56,7 +124,8 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
             # UN-21780.
             folder_ids = state.navigable_folder_ids()
             scoped_folders: list[Any] = []
-            for sid in folder_ids:
+            # Sliced before the fetch loop, so skipped ids cost no API calls.
+            for sid in folder_ids[skip : skip + LS_LOCAL_PAGE_SIZE]:
                 try:
                     scoped_folders.append(
                         unique_sdk.Folder.get_info(
@@ -67,16 +136,17 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                     )
                 except unique_sdk.UniqueError:
                     pass
+            # A contentId mentioned in the filter is not necessarily in scope on
+            # its own: an AND branch (e.g. contentId IN [x] AND folderIdPath A)
+            # can exclude it. Verify against the full filter so root ls never
+            # shows a title that read/cite and in-folder ls deny. Cached, so no
+            # extra API cost. Filtered before the slice so --skip counts only
+            # listable files. See UN-21780.
+            in_scope_ids = [
+                cid for cid in content_ids if state.is_content_within_workspace(cid)
+            ]
             scoped_files: list[Any] = []
-            for cid in content_ids:
-                # A contentId mentioned in the filter is not necessarily in
-                # scope on its own: an AND branch (e.g. contentId IN [x] AND
-                # folderIdPath A) can exclude it. Verify against the full
-                # filter so root ls never shows a title that read/cite and
-                # in-folder ls deny. Cached, so no extra API cost. See
-                # UN-21780.
-                if not state.is_content_within_workspace(cid):
-                    continue
+            for cid in in_scope_ids[skip : skip + LS_LOCAL_PAGE_SIZE]:
                 try:
                     info = unique_sdk.Content.get_info(
                         user_id=state.config.user_id,
@@ -88,18 +158,20 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                         scoped_files.append(items[0])
                 except unique_sdk.UniqueError:
                     pass
-            output = format_ls(scoped_folders, scoped_files)
-            summary = (
-                f"\n{len(scoped_folders)} folder(s), {len(scoped_files)} "
-                "file(s) in task scope"
+            return format_ls(scoped_folders, scoped_files) + _footer(
+                skip,
+                target,
+                command_prefix,
+                (len(scoped_folders), len(folder_ids)),
+                (len(scoped_files), len(in_scope_ids)),
+                suffix=" in task scope",
             )
-            return output + summary
 
         # When at root with a workspace restriction, show only the allowed scope
         # folders — the agent must not see the full company folder tree.
         if scope_id is None and state.workspace_scope_ids:
             folders: list[Any] = []
-            for ws_id in state.workspace_scope_ids:
+            for ws_id in state.workspace_scope_ids[skip : skip + LS_LOCAL_PAGE_SIZE]:
                 try:
                     info = unique_sdk.Folder.get_info(
                         user_id=state.config.user_id,
@@ -109,12 +181,13 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                     folders.append(info)
                 except unique_sdk.UniqueError:
                     pass
-            output = format_ls(folders, [])
-            summary = f"\n{len(folders)} folder(s), 0 file(s)"
-            return output + summary
+            total_ws = len(state.workspace_scope_ids)
+            return format_ls(folders, []) + _footer(
+                skip, target, command_prefix, (len(folders), total_ws), (0, 0)
+            )
 
-        folder_params: dict[str, Any] = {}
-        content_params: dict[str, Any] = {}
+        folder_params: dict[str, Any] = {"skip": skip}
+        content_params: dict[str, Any] = {"skip": skip}
         if scope_id:
             folder_params["parentId"] = scope_id
             content_params["parentId"] = scope_id
@@ -136,6 +209,11 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         total_folders = folder_result.get("totalCount", len(folders))
         total_files = content_result.get("totalCount", len(files))
 
+        # Captured before the per-message filter narrows ``files``: truncation
+        # is a property of the API page, not of the post-filter count.
+        page_folders = len(folders)
+        page_files = len(files)
+
         # With a per-message filter, listing inside an allowed folder must not
         # reveal files the filter excludes (e.g. a combined folder + contentId
         # allowlist): read/cite would deny them, so ls must hide them too.
@@ -150,16 +228,26 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
             # count and keep the API ``totalCount`` as the folder's real size,
             # rather than overwriting total_files with the page length (which
             # would silently undercount paginated folders). See UN-21780.
-            output = format_ls(folders, files)
-            summary = (
-                f"\n{total_folders} folder(s), {len(files)} file(s) in task scope "
-                f"(of {total_files} in folder)"
+            return format_ls(folders, files) + _footer(
+                skip,
+                target,
+                command_prefix,
+                (page_folders, total_folders),
+                (page_files, total_files),
+                summary=(
+                    f"{_count(page_folders, total_folders, 'folder')}, "
+                    f"{len(files)} file(s) in task scope "
+                    f"(of {total_files} in folder)"
+                ),
             )
-            return output + summary
 
-        output = format_ls(folders, files)
-        summary = f"\n{total_folders} folder(s), {total_files} file(s)"
-        return output + summary
+        return format_ls(folders, files) + _footer(
+            skip,
+            target,
+            command_prefix,
+            (page_folders, total_folders),
+            (page_files, total_files),
+        )
 
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"ls: {e}"

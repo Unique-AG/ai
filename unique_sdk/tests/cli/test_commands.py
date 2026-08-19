@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -431,6 +433,216 @@ class TestNavigation:
         # (from the API totalCount) is preserved as "(of N in folder)" rather
         # than being overwritten by the filtered page length. See UN-21780.
         assert "1 file(s) in task scope (of 2 in folder)" in result
+
+
+# --- ls pagination (UN-24303) ---
+
+
+def _page(n: int, kind: str) -> list[dict[str, Any]]:
+    """A page of *n* folder or file infos with distinct names/ids."""
+    if kind == "folder":
+        return [_folder_info(f"Folder{i}", f"scope_{i}") for i in range(n)]
+    return [_content_info(f"file{i}.pdf", f"cont_{i}") for i in range(n)]
+
+
+@contextmanager
+def _listing(
+    folders: tuple[int, int],
+    files: tuple[int, int],
+) -> Iterator[None]:
+    """Serve one page per kind, each as a ``(shown, total)`` pair."""
+    with (
+        patch(
+            "unique_sdk.Folder.get_infos",
+            return_value={
+                "folderInfos": _page(folders[0], "folder"),
+                "totalCount": folders[1],
+            },
+        ),
+        patch(
+            "unique_sdk.Content.get_infos",
+            return_value={
+                "contentInfos": _page(files[0], "file"),
+                "totalCount": files[1],
+            },
+        ),
+        patch("unique_sdk.Folder.get_info", return_value={"id": "scope_r"}),
+    ):
+        yield
+
+
+class TestLsPagination:
+    """`ls` must never imply it listed more than it did. See UN-24303."""
+
+    @pytest.mark.parametrize(
+        ("case", "folders", "files", "skip", "footer"),
+        [
+            # Fits in one page: no notice, and no "of" implying a partial view.
+            ("complete", (3, 3), (12, 12), 0, "3 folder(s), 12 file(s)"),
+            # Only the truncated kind is reported.
+            (
+                "files cut",
+                (3, 3),
+                (50, 212),
+                0,
+                "3 folder(s), 50 of 212 file(s)\n"
+                "Showing files 1-50 of 212.\n"
+                "Next page: unique-cli ls /Reports --skip 50",
+            ),
+            (
+                "folders cut",
+                (50, 140),
+                (2, 2),
+                0,
+                "50 of 140 folder(s), 2 file(s)\n"
+                "Showing folders 1-50 of 140.\n"
+                "Next page: unique-cli ls /Reports --skip 50",
+            ),
+            # Both cut: two ranges, still one next-page command.
+            (
+                "both cut",
+                (50, 140),
+                (50, 212),
+                0,
+                "50 of 140 folder(s), 50 of 212 file(s)\n"
+                "Showing folders 1-50 of 140, files 1-50 of 212.\n"
+                "Next page: unique-cli ls /Reports --skip 50",
+            ),
+            (
+                "second page",
+                (0, 3),
+                (50, 212),
+                50,
+                "0 of 3 folder(s), 50 of 212 file(s)\n"
+                "Showing files 51-100 of 212.\n"
+                "Next page: unique-cli ls /Reports --skip 100",
+            ),
+            # Last page is exhaustive, so nothing to page to -- but the counts
+            # still show it was a partial view of the folder.
+            (
+                "last page",
+                (0, 3),
+                (12, 212),
+                200,
+                "0 of 3 folder(s), 12 of 212 file(s)",
+            ),
+            # An out-of-range offset returns an empty page with the real
+            # totalCount, which would otherwise read like an empty folder.
+            (
+                "past the end",
+                (0, 3),
+                (0, 10),
+                100,
+                "0 of 3 folder(s), 0 of 10 file(s)\n"
+                "Nothing at --skip 100: this listing has 3 folder(s) and "
+                "10 file(s). Use --skip 0 to start from the beginning.",
+            ),
+            # Ranges and the next --skip come from the response length, so no
+            # page size is baked in anywhere -- what makes leaving `take` to the
+            # server safe.
+            (
+                "odd page size",
+                (0, 0),
+                (37, 212),
+                0,
+                "0 folder(s), 37 of 212 file(s)\n"
+                "Showing files 1-37 of 212.\n"
+                "Next page: unique-cli ls /Reports --skip 37",
+            ),
+        ],
+    )
+    def test_footer(
+        self,
+        case: str,
+        folders: tuple[int, int],
+        files: tuple[int, int],
+        skip: int,
+        footer: str,
+    ) -> None:
+        """Matched in full, so an unwanted extra notice line fails the case."""
+        with _listing(folders, files):
+            result = cmd_ls(_state(), "/Reports", skip)
+        assert result.endswith(f"\n{footer}"), f"{case}: got {result!r}"
+
+    def test_passes_skip_and_sends_no_take(self) -> None:
+        """Page size is left to the server, so no `take` a future API could
+        refuse is ever sent.
+        """
+        with _listing((0, 0), (0, 0)):
+            cmd_ls(_state(), None, 50)
+            for mock in (unique_sdk.Folder.get_infos, unique_sdk.Content.get_infos):
+                assert mock.call_args.kwargs["skip"] == 50  # type: ignore[attr-defined]
+                assert "take" not in mock.call_args.kwargs  # type: ignore[attr-defined]
+
+    def test_negative_skip_rejected_without_an_api_call(self) -> None:
+        """The API rejects skip < 0 (@Min(0)); fail before the round trip."""
+        with patch("unique_sdk.Folder.get_infos") as mock_folders:
+            result = cmd_ls(_state(), None, -1)
+        assert result == "ls: --skip must be 0 or greater."
+        mock_folders.assert_not_called()
+
+    def test_next_command_targets_cwd_and_honours_prefix(self) -> None:
+        """The hint names the listed path, and drops the `unique-cli` prefix for
+        the REPL so it is runnable as typed.
+        """
+        with _listing((0, 0), (50, 212)):
+            assert "Next page: unique-cli ls --skip 50" in cmd_ls(_state())
+            assert "Next page: ls /Reports --skip 50" in cmd_ls(
+                _state(), "/Reports", command_prefix=""
+            )
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_info")
+    def test_truncation_uses_page_length_not_in_scope_count(
+        self,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """With a per-message filter, files are narrowed client-side. Truncation
+        is a property of the API page, so computing it from the filtered count
+        would make a heavily filtered page look like the end of the folder.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_fund_a": {"folderPath": "/Funds/Fund A"},
+                "scope_owner": {"folderPath": "/Funds/Fund A"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_owner"}]}
+        state = _state("/Funds/Fund A", "scope_fund_a")
+        state._chat_file_content_ids_cache = set()
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {"path": ["contentId"], "operator": "in", "value": ["cont_0"]},
+            ]
+        }
+        # A full page of 50, of which the contentId allowlist keeps only one.
+        with _listing((0, 0), (50, 212)):
+            result = cmd_ls(state)
+        assert "1 file(s) in task scope (of 212 in folder)" in result
+        assert "Showing files 1-50 of 212." in result
+
+    @patch("unique_sdk.Folder.get_info")
+    def test_workspace_scoped_root_pages_locally(self, mock_info: MagicMock) -> None:
+        """The scoped-root branch lists explicit ids rather than a paginated
+        query, so --skip must still mean something there.
+        """
+        mock_info.return_value = _folder_info("Reports", "scope_ws")
+        state = _state()
+        state.workspace_scope_ids = ["scope_a", "scope_b", "scope_c"]
+        result = cmd_ls(state, None, 2)
+        assert "1 of 3 folder(s), 0 file(s)" in result
+        # Skipped ids are not fetched.
+        assert mock_info.call_count == 1
+        assert mock_info.call_args.kwargs["scopeId"] == "scope_c"
 
 
 # --- Folders ---

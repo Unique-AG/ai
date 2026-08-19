@@ -260,8 +260,15 @@ def cd(ctx: click.Context, target: str) -> None:
 
 @main.command()
 @click.argument("target", required=False, default=None)
+@click.option(
+    "--skip",
+    "-s",
+    type=click.IntRange(min=0),
+    default=0,
+    help="Skip this many folders and files (page offset).",
+)
 @click.pass_context
-def ls(ctx: click.Context, target: str | None) -> None:
+def ls(ctx: click.Context, target: str | None, skip: int) -> None:
     """List folders and files in a directory.
 
     \b
@@ -274,12 +281,21 @@ def ls(ctx: click.Context, target: str | None) -> None:
       FILE  readme.txt   cont_ghi789     1.2 KB    2025-03-10 09:00
 
     \b
+    A listing returns one page of folders and one page of files. When a
+    folder holds more, the output ends with the range shown and the command
+    for the next page -- there is no hidden truncation:
+      Showing files 1-50 of 212.
+      Next page: unique-cli ls /Reports --skip 50
+
+    \b
     Examples:
-      unique-cli ls              List root folders
-      unique-cli ls /Reports     List a specific path
-      unique-cli ls scope_abc    List by scope ID
+      unique-cli ls                     List root folders
+      unique-cli ls /Reports            List a specific path
+      unique-cli ls scope_abc           List by scope ID
+      unique-cli ls /Reports --skip 50  List the second page
+      unique-cli ls /Reports | head -20 Peek without paging
     """
-    output = cmd_ls(LazyState.get(ctx), target)
+    output = cmd_ls(LazyState.get(ctx), target, skip)
     emit(output)
 
 
