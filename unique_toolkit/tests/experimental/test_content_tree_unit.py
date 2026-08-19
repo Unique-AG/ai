@@ -1230,3 +1230,39 @@ async def test_AI_service_timeout_returns_partial_and_fills_cache() -> None:
     assert full.folder_paths == [_p("Legal"), _p("Legal", "Q1")]
     assert mock_walk.await_count == 1
     assert partial.folder_paths == [_p("Legal")]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_cancelled_waiter_keeps_in_flight_cached_walk() -> None:
+    """
+    Purpose: Cancelling a waiter does not drop the shielded in-flight walk.
+    Why this matters: A later resolve must reuse the same walk instead of starting another.
+    Setup summary: Cancel the first awaiter mid-walk; second call waits on the same task.
+    """
+    svc = _tree()
+    released = asyncio.Event()
+
+    async def slow_walk(
+        *_args: object,
+        progress: FolderWalkSnapshot | None = None,
+        **_kwargs: object,
+    ) -> FolderWalkSnapshot:
+        acc = progress or FolderWalkSnapshot(files=[], folder_paths=[], complete=False)
+        acc.folder_paths.append(_p("Legal"))
+        await released.wait()
+        acc.complete = True
+        return acc.copy(complete=True)
+
+    with patch(_WALK_PATCH, side_effect=slow_walk) as mock_walk:
+        waiter = asyncio.create_task(svc.resolve_visible_file_paths_via_folders_async())
+        await asyncio.sleep(0.05)
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        released.set()
+        snapshot = await svc.resolve_visible_file_paths_via_folders_async()
+
+    assert snapshot.complete is True
+    assert snapshot.folder_paths == [_p("Legal")]
+    assert mock_walk.await_count == 1

@@ -278,15 +278,18 @@ class ContentTree:
 
         ``asyncio.shield`` keeps the cached task running so a later call
         without ``timeout`` (or with a longer budget) receives the full tree.
+        Waiter cancellation does not clear the cache; only a failed walk does.
         """
         try:
             if timeout is None:
-                return await task
+                return await asyncio.shield(task)
             async with asyncio.timeout(timeout):
                 return await asyncio.shield(task)
         except TimeoutError:
             return progress.copy(complete=False)
-        except BaseException:
+        except asyncio.CancelledError:
+            raise
+        except Exception:
             self.invalidate_cache()
             raise
 
