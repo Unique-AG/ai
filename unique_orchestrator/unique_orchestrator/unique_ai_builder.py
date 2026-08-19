@@ -539,6 +539,7 @@ async def _build_responses(
             "x-company-id": event.company_id,
             "x-assistant-id": event.payload.assistant_id,
             "x-chat-id": event.payload.chat_id,
+            "x-assistant-message-id": event.payload.assistant_message.id,
         }
     )
 
@@ -657,6 +658,7 @@ async def _build_responses(
                 "x-company-id": event.company_id,
                 "x-assistant-id": event.payload.assistant_id,
                 "x-chat-id": event.payload.chat_id,
+                "x-assistant-message-id": event.payload.assistant_message.id,
             },
         )
     else:

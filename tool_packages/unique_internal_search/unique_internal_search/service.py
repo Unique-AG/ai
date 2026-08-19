@@ -13,7 +13,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import FeatureFlagNames, feature_flags
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -555,22 +555,13 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         search_strings_list = list(dict.fromkeys(search_strings_list))
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
-        new_answers_ui = feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-            self.company_id
-        )
-
         message_logger = self._get_message_logger(
-            new_answers_ui=new_answers_ui, message_step_logger=self._message_step_logger
+            message_step_logger=self._message_step_logger
         )
 
         await message_logger.log_queries(search_strings_list)
 
         await message_logger.log_progress("_Retrieving search results_")
-
-        if not new_answers_ui:
-            await self.post_progress_message(
-                f"{'; '.join(search_strings_list)}", tool_call
-            )
 
         selected_chunks = await self.search(
             **tool_call.arguments,
@@ -594,19 +585,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             debug_info=self.debug_info,
             system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
         )
-
-        if (
-            self.tool_progress_reporter
-            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self.company_id
-            )
-        ):
-            await self.tool_progress_reporter.notify_from_tool_call(
-                tool_call=tool_call,
-                name=f"**{self.tool_execution_message_name}**",
-                message=f"{'; '.join(search_strings_list)}",
-                state=ProgressState.FINISHED,
-            )
 
         return tool_response
 
@@ -647,14 +625,14 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         )
 
     def _get_message_logger(
-        self, new_answers_ui: bool, message_step_logger: MessageStepLogger | None
+        self, message_step_logger: MessageStepLogger | None
     ) -> InternalSearchMessageLogger | InternalSearchMessageLoggerNoop:
         return (
             InternalSearchMessageLogger(
                 message_step_logger=message_step_logger,
                 tool_display_name=self._display_name,
             )
-            if message_step_logger is not None and new_answers_ui
+            if message_step_logger is not None
             else InternalSearchMessageLoggerNoop()
         )
 

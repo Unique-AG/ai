@@ -57,6 +57,7 @@ def _make_event(tool_choices):
     event.company_id = "company_1"
     event.payload.assistant_id = "assistant_1"
     event.payload.chat_id = "chat_1"
+    event.payload.assistant_message.id = "assistant_message_1"
     event.payload.tool_choices = tool_choices
     event.payload.mcp_servers = []
     return event
@@ -365,6 +366,130 @@ def test_configure_file_payload_registers_open_file_tool() -> None:
     registered_tool = tool_manager.add_tool.call_args.args[0]
     assert isinstance(registered_tool, OpenFileTool)
     assert registry == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_responses_forwards_attribution_headers_to_openai_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify the Responses client carries per-message cost attribution.
+    Why this matters: These headers are built by hand here, bypassing the
+    toolkit's ``_completion_headers``, so they can silently drift from it.
+    Setup summary: Build the Responses orchestrator and inspect the client copy.
+    """
+    event = _make_event(tool_choices=[])
+    common_components = _make_common_components([])
+
+    fake_client = MagicMock()
+    fake_client.copy.return_value = fake_client
+
+    _FakeResponsesApiToolManager.instances.clear()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.get_async_openai_client",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.OpenAIBuiltInToolManager.build_manager",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesApiToolManager",
+        _FakeResponsesApiToolManager,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.build_loop_iteration_runner",
+        lambda **kwargs: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueAI",
+        lambda **kwargs: kwargs,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.is_flag_enabled",
+        AsyncMock(return_value=False),
+    )
+
+    await _build_responses(
+        event=event,
+        logger=MagicMock(),
+        config=UniqueAIConfig(),
+        common_components=common_components,
+        debug_info_manager=MagicMock(),
+    )
+
+    headers = fake_client.copy.call_args.kwargs["default_headers"]
+    assert headers["x-chat-id"] == "chat_1"
+    assert headers["x-assistant-id"] == "assistant_1"
+    assert headers["x-assistant-message-id"] == "assistant_message_1"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_responses_forwards_attribution_headers_to_python_streaming(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify the experimental python-streaming path carries attribution.
+    Why this matters: This second hand-built header dict sits behind a feature
+    flag, so it is the easiest of the two to leave behind when headers change.
+    Setup summary: Enable the flag and inspect the ResponsesCompleteWithReferences kwargs.
+    """
+    event = _make_event(tool_choices=[])
+    common_components = _make_common_components([])
+
+    config = UniqueAIConfig()
+    config.agent.experimental.use_experimental_python_streaming = True
+
+    fake_client = MagicMock()
+    fake_client.copy.return_value = fake_client
+    fake_responses_complete = MagicMock(return_value=MagicMock())
+
+    _FakeResponsesApiToolManager.instances.clear()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.get_async_openai_client",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.OpenAIBuiltInToolManager.build_manager",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesApiToolManager",
+        _FakeResponsesApiToolManager,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.build_loop_iteration_runner",
+        lambda **kwargs: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueAI",
+        lambda **kwargs: kwargs,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueSettings.from_chat_event",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesCompleteWithReferences",
+        fake_responses_complete,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.is_flag_enabled",
+        AsyncMock(return_value=False),
+    )
+
+    await _build_responses(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+        common_components=common_components,
+        debug_info_manager=MagicMock(),
+    )
+
+    headers = fake_responses_complete.call_args.kwargs["additional_headers"]
+    assert headers["x-chat-id"] == "chat_1"
+    assert headers["x-assistant-id"] == "assistant_1"
+    assert headers["x-assistant-message-id"] == "assistant_message_1"
 
 
 @pytest.mark.asyncio

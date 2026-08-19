@@ -167,6 +167,32 @@ def test_complete__forwards_non_empty_attribution_ids_as_headers(mock_create) ->
     }
 
 
+@pytest.mark.ai
+@patch.object(unique_sdk.ChatCompletion, "create")
+def test_complete__forwards_assistant_message_id_as_header(mock_create) -> None:
+    """Purpose: Verify sync completion forwards the message id as an HTTP header.
+    Why this matters: Model usage must be attributable to the individual message.
+    Setup summary: Complete with all three IDs and inspect the SDK call arguments.
+    """
+    mock_create.return_value = {"choices": []}
+
+    complete(
+        company_id="test_company",
+        user_id="test_user",
+        messages=LanguageModelMessages([]),
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+        assistant_message_id="message_1",
+    )
+
+    assert mock_create.call_args.kwargs["headers"] == {
+        "x-chat-id": "chat_1",
+        "x-assistant-id": "assistant_1",
+        "x-assistant-message-id": "message_1",
+    }
+
+
 @pytest.mark.asyncio
 @patch.object(unique_sdk.ChatCompletion, "create_async")
 async def test_complete_async_basic(mock_create):
@@ -242,11 +268,13 @@ def test_complete_with_references__forwards_attribution_ids(mock_create) -> None
         model_name=LanguageModelName.AZURE_GPT_4_0613,
         chat_id="chat_1",
         assistant_id="assistant_1",
+        assistant_message_id="message_1",
     )
 
     assert mock_create.call_args.kwargs["headers"] == {
         "x-chat-id": "chat_1",
         "x-assistant-id": "assistant_1",
+        "x-assistant-message-id": "message_1",
     }
 
 
@@ -277,11 +305,13 @@ async def test_complete_with_references_async__forwards_attribution_ids(
         model_name=LanguageModelName.AZURE_GPT_4_0613,
         chat_id="chat_1",
         assistant_id="assistant_1",
+        assistant_message_id="message_1",
     )
 
     assert mock_create.call_args.kwargs["headers"] == {
         "x-chat-id": "chat_1",
         "x-assistant-id": "assistant_1",
+        "x-assistant-message-id": "message_1",
     }
 
 

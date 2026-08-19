@@ -1649,7 +1649,6 @@ class TestInternalSearchTool:
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
-            patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
             patch(
                 "unique_internal_search.service.is_flag_enabled",
                 AsyncMock(return_value=False),
@@ -1662,7 +1661,6 @@ class TestInternalSearchTool:
             )
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 setattr(self, "_event", event)
@@ -2177,7 +2175,6 @@ class TestInternalSearchTool:
             assert len(result.content_chunks) == 2
             assert result.id == "tool_call_123"
             mock_content_service.search_content_chunks_async.assert_called_once()
-            mock_tool_progress_reporter.notify_from_tool_call.assert_called()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2313,7 +2310,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__notifies_finished__when_search_completes(
+    async def test_run__does_not_notify_progress_reporter__when_search_completes(
         self,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
@@ -2323,9 +2320,9 @@ class TestInternalSearchTool:
         mock_tool_progress_reporter: Any,
     ) -> None:
         """
-        Purpose: Verify run notifies progress reporter with FINISHED state when search completes.
-        Why this matters: Ensures users receive completion notifications for search operations.
-        Setup summary: Mock dependencies, call run, verify FINISHED notification sent with correct message.
+        Purpose: Verify run never notifies the legacy progress reporter when the search completes.
+        Why this matters: Progress is reported via the message log now, not tool_progress_reporter.
+        Setup summary: Mock dependencies, call run, verify no notification was sent.
         """
         # Arrange
         with (
@@ -2370,24 +2367,16 @@ class TestInternalSearchTool:
                 )
 
                 # Act
-                await tool.run(mock_language_model_function)
+                result = await tool.run(mock_language_model_function)
 
-            # Assert
-            # Check that FINISHED notification was called
-            assert mock_tool_progress_reporter.notify_from_tool_call.call_count > 1
-            # Verify at least one call has FINISHED state
-            calls_with_finished = [
-                call
-                for call in mock_tool_progress_reporter.notify_from_tool_call.call_args_list
-                if len(call[1]) > 0
-                and ("state" in str(call[1]) or "FINISHED" in str(call))
-            ]
-            assert len(calls_with_finished) >= 1
+            # Assert - the search really ran to completion ...
+            mock_content_service.search_content_chunks_async.assert_called_once()
+            assert result.name == "InternalSearch"
+            assert result.content_chunks is not None
+            assert len(result.content_chunks) == 2
 
-            # The run method should call notify_from_tool_call multiple times, including with FINISHED
-            # Since we can't easily check the exact state value due to ProgressState enum,
-            # verify that multiple calls were made (at least one should be FINISHED)
-            assert mock_tool_progress_reporter.notify_from_tool_call.call_count >= 2
+            # ... and still nothing went to the legacy progress reporter
+            mock_tool_progress_reporter.notify_from_tool_call.assert_not_called()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
