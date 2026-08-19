@@ -12,7 +12,7 @@ from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.monitoring import metric_scope
 
-from unique_web_search.invocation_stats import record_language_model_response
+from unique_web_search.invocation_stats import collector
 from unique_web_search.metrics import (
     crawl_duration,
     crawl_errors,
@@ -125,7 +125,7 @@ async def query_generation_agent(
         structured_output_model=structured_output_model,
         structured_output_enforce_schema=True,
     )
-    record_language_model_response(
+    collector.record_language_model_response(
         model_name=language_model.name,
         response=response,
         source="web_search.query_refinement",

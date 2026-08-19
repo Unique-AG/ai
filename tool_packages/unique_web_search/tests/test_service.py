@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from unique_web_search.invocation_stats import record_token_usage
+from unique_web_search.invocation_stats import collector
 from unique_web_search.service import WebSearchTool
 from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
@@ -988,7 +988,7 @@ class TestWebSearchToolRun:
         tool.logger = Mock()
 
         async def _run_records_usage_then_fails(*_args, **_kwargs):
-            record_token_usage(
+            collector.record_token_usage(
                 model_name="gpt-4",
                 usage={"total_tokens": 11},
                 source="web_search.relevancy",

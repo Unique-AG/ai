@@ -50,9 +50,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
-from unique_web_search.invocation_stats import (
-    invocation_stats_scope as web_search_invocation_stats_scope,
-)
+from unique_web_search.invocation_stats import collector as web_search_collector
 
 from unique_deep_research.unique_custom.tools import crawl_url, get_today_str
 
@@ -63,12 +61,7 @@ from .config import (
     DeepResearchToolConfig,
     UniqueEngine,
 )
-from .invocation_stats import (
-    invocation_stats_scope,
-    record_invocation_stats,
-    record_language_model_response,
-    record_token_usage,
-)
+from .invocation_stats import collector
 from .markdown_utils import (
     export_report_to_docx,
     postprocess_research_result_with_chunks,
@@ -270,7 +263,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        with invocation_stats_scope() as invocation_stats:
+        with collector.scope() as invocation_stats:
             sub = self.chat_service.cancellation.on_cancellation.subscribe(
                 self._on_cancellation
             )
@@ -555,7 +548,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             },
         }
 
-        with web_search_invocation_stats_scope() as web_search_invocation_stats:
+        with web_search_collector.scope() as web_search_invocation_stats:
             try:
                 result = await self.chat_service.cancellation.run_with_cancellation(
                     custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
@@ -566,7 +559,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 # calls happen during ainvoke(); merge it into the outer Deep Research
                 # scope even if the graph raises, so tokens already spent before the
                 # failure aren't dropped from the failure ToolCallResponse.
-                record_invocation_stats(web_search_invocation_stats)
+                collector.record_invocation_stats(web_search_invocation_stats)
 
         research_result = result.get("final_report", "")
 
@@ -691,7 +684,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                             _LOGGER.info(
                                 f"OpenAI research token usage: {event.response.usage}"
                             )
-                            record_token_usage(
+                            collector.record_token_usage(
                                 model_name=self.config.engine.research_model.name,
                                 usage=event.response.usage,
                                 source="deep_research.openai_research",
@@ -872,7 +865,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             temperature=0.1,
             max_tokens=5000,
         )
-        record_language_model_response(
+        collector.record_language_model_response(
             model_name=self.config.engine.large_model.name,
             response=response,
             source="deep_research.report_cleanup",
@@ -937,7 +930,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             model_name=self.config.engine.small_model.name,
             content_chunks=None,
         )
-        record_language_model_response(
+        collector.record_language_model_response(
             model_name=self.config.engine.small_model.name,
             response=response,
             source="deep_research.clarification",
@@ -969,7 +962,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             model=self.config.engine.large_model.name,
             messages=chat_messages,
         )
-        record_language_model_response(
+        collector.record_language_model_response(
             model_name=self.config.engine.large_model.name,
             response=research_response,
             source="deep_research.research_brief",

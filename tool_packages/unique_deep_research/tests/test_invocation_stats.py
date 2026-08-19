@@ -5,11 +5,7 @@ import pytest
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
-from unique_deep_research.invocation_stats import (
-    invocation_stats_scope,
-    record_invocation_stats,
-    record_language_model_response,
-)
+from unique_deep_research.invocation_stats import collector
 
 
 @pytest.mark.ai
@@ -33,8 +29,8 @@ def test_record_language_model_response__uses_response_metadata__when_usage_meta
     )
 
     # Act
-    with invocation_stats_scope() as invocation_stats:
-        record_language_model_response(
+    with collector.scope() as invocation_stats:
+        collector.record_language_model_response(
             model_name="gpt-test",
             response=response,
             source="deep_research.supervisor",
@@ -61,12 +57,12 @@ async def test_invocation_stats_scope__isolates_parallel_deep_research_runs() ->
 
     async def collect_usage(prompt_tokens: int):
         nonlocal started_runs
-        with invocation_stats_scope() as invocation_stats:
+        with collector.scope() as invocation_stats:
             started_runs += 1
             if started_runs == 2:
                 both_runs_started.set()
             await both_runs_started.wait()
-            record_language_model_response(
+            collector.record_language_model_response(
                 model_name=f"model-{prompt_tokens}",
                 response=SimpleNamespace(
                     usage_metadata={
@@ -110,8 +106,8 @@ def test_record_invocation_stats__merges_nested_dependency_usage__inside_scope()
     )
 
     # Act
-    with invocation_stats_scope() as invocation_stats:
-        record_invocation_stats([nested_invocation])
+    with collector.scope() as invocation_stats:
+        collector.record_invocation_stats([nested_invocation])
 
     # Assert
     assert invocation_stats == [nested_invocation]

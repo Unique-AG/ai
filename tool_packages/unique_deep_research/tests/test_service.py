@@ -12,9 +12,7 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.chat.schemas import MessageExecutionUpdateStatus
 
 from unique_deep_research.config import DeepResearchToolConfig
-from unique_deep_research.invocation_stats import (
-    invocation_stats_scope as deep_research_invocation_stats_scope,
-)
+from unique_deep_research.invocation_stats import collector as deep_research_collector
 from unique_deep_research.service import (
     DeepResearchTool,
     DeepResearchToolInput,
@@ -1058,7 +1056,7 @@ async def test_deep_research_tool__run__returns_stats__when_failure_handler_itse
         get_debug_info_async also raise, and assert run() still returns a
         response carrying the stats.
     """
-    from unique_deep_research.invocation_stats import record_token_usage
+    from unique_deep_research.invocation_stats import collector
 
     config = DeepResearchToolConfig()
     mock_event = Mock()
@@ -1076,7 +1074,7 @@ async def test_deep_research_tool__run__returns_stats__when_failure_handler_itse
     mock_progress_reporter = Mock()
 
     async def _run_records_usage_then_fails(*_args, **_kwargs):
-        record_token_usage(
+        collector.record_token_usage(
             model_name="gpt-4",
             usage={"total_tokens": 13},
             source="deep_research.pre_failure",
@@ -1424,9 +1422,9 @@ async def test_deep_research_tool__custom_research__records_web_search_stats__on
     mock_progress_reporter = Mock()
 
     async def _ainvoke_records_usage_then_fails(*_args, **_kwargs):
-        from unique_web_search.invocation_stats import record_token_usage
+        from unique_web_search.invocation_stats import collector as web_search_collector
 
-        record_token_usage(
+        web_search_collector.record_token_usage(
             model_name="gpt-4",
             usage={"total_tokens": 7},
             source="web_search.grounding",
@@ -1452,7 +1450,7 @@ async def test_deep_research_tool__custom_research__records_web_search_stats__on
                         mock_citation_manager.return_value = mock_citation_instance
 
                         # Act
-                        with deep_research_invocation_stats_scope() as outer_stats:
+                        with deep_research_collector.scope() as outer_stats:
                             with pytest.raises(
                                 Exception, match="Custom research failed"
                             ):

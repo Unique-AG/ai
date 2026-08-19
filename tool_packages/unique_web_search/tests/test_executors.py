@@ -354,7 +354,7 @@ class TestWebSearchExecutorSelectRelevantSources:
         )
         from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
-        from unique_web_search.invocation_stats import invocation_stats_scope
+        from unique_web_search.invocation_stats import collector
 
         stat = LanguageModelInvocationStats.from_usage(
             model_name="gpt-4",
@@ -389,7 +389,7 @@ class TestWebSearchExecutorSelectRelevantSources:
             refine_query_language_model=mock_executor_dependencies["language_model"],
         )
 
-        with invocation_stats_scope() as invocation_stats:
+        with collector.scope() as invocation_stats:
             await executor._select_relevant_sources(objective="obj", web_page_chunks=[])
 
         assert len(invocation_stats) == 1

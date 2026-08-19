@@ -24,7 +24,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.config import WebSearchConfig
-from unique_web_search.invocation_stats import invocation_stats_scope
+from unique_web_search.invocation_stats import collector
 from unique_web_search.metrics import tool_duration, tool_empty_results, tool_errors
 from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.argument_screening import (
@@ -152,7 +152,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        with invocation_stats_scope() as invocation_stats:
+        with collector.scope() as invocation_stats:
             try:
                 response = await self._run(tool_call)
             except Exception as e:

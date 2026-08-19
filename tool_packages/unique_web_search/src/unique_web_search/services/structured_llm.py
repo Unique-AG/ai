@@ -7,7 +7,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
-from unique_web_search.invocation_stats import record_language_model_response
+from unique_web_search.invocation_stats import collector
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -40,7 +40,7 @@ async def complete_structured_llm(
         structured_output_model=response_model,
         structured_output_enforce_schema=structured_output_enforce_schema,
     )
-    record_language_model_response(
+    collector.record_language_model_response(
         model_name=language_model.name,
         response=response,
         source=invocation_source,

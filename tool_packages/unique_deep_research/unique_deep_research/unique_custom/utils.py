@@ -29,7 +29,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from ..config import UniqueEngine
-from ..invocation_stats import record_language_model_response
+from ..invocation_stats import collector
 from .citation import GlobalCitationManager
 from .state import AgentState, ResearcherState, SupervisorState
 
@@ -586,7 +586,7 @@ async def ainvoke_with_token_handling(
                 )
                 raise e
         else:
-            record_language_model_response(
+            collector.record_language_model_response(
                 model_name=model_info.name,
                 response=response,
                 source=source,
