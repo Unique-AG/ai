@@ -1,13 +1,14 @@
 """The :class:`ContentTree` service.
 
-Builds a filesystem-style view of knowledge-base content visible to the acting
-user (via ``folderIdPath`` metadata) and exposes it through three lenses:
+Builds a filesystem-style view of knowledge-base folders and files the acting
+user can see.
 
-- **Tree rendering** — :meth:`ContentTree.render_visible_tree_async` (``tree(1)``-style string).
-- **Flat iteration / filtering** — :meth:`ContentTree.list_visible_files_async`,
-  :meth:`ContentTree.filter_visible_files_async`.
-- **Fuzzy file search** — :meth:`ContentTree.search_visible_files_fuzzy_async`
-  over basenames and/or resolved folder paths.
+- **Folder-walk methods** — :meth:`ContentTree.resolve_visible_file_paths_via_folders_async`
+  and :meth:`ContentTree.render_visible_tree_via_folders_async` expose
+  ``max_depth``, ``timeout``, and :class:`FolderWalkSnapshot`.
+- **Deprecated methods** — :meth:`ContentTree.resolve_visible_file_paths_async`
+  and :meth:`ContentTree.render_visible_tree_async` keep the original
+  signatures and still work; they call the folder-walk methods.
 
 The service is intentionally **decoupled** from
 :class:`~unique_toolkit.services.knowledge_base.KnowledgeBaseService`: it talks
@@ -23,20 +24,22 @@ import functools
 import json
 import re
 from collections.abc import Callable
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, Protocol, Self, overload
 
 from rapidfuzz import fuzz
+from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentInfo
 from unique_toolkit.experimental.components.content_tree.functions import (
     build_trie_from_resolved_paths,
-    format_path_trie,
-    resolve_visible_file_paths_core,
     serialize_filter,
+    walk_visible_paths_via_folders_async,
 )
 from unique_toolkit.experimental.components.content_tree.schemas import (
+    FolderWalkSnapshot,
     FuzzyMatch,
     MatchTarget,
     PathTrieNode,
@@ -72,21 +75,15 @@ def _tokenize_for_fuzzy_scoring(
     return _NON_ALNUM_RE.sub(" ", value).strip()
 
 
-class _CachedResolveTaskFactory(Protocol):
-    """Structural type for :func:`functools.cache`-wrapped resolve-task factory.
-
-    :func:`functools.cache` returns a ``_lru_cache_wrapper`` that exposes
-    ``cache_clear`` / ``cache_info`` in addition to being callable. Static
-    checkers see the return annotation as a plain ``Callable`` and reject the
-    attribute access; this Protocol captures the real runtime shape so we can
-    type ``cache_clear`` without a per-call ``type: ignore``.
-    """
+class _CachedFolderWalkTaskFactory(Protocol):
+    """``functools.cache`` wrapper around the folder-walk snapshot factory."""
 
     def __call__(
         self,
         filter_key: str,
-        max_concurrent_scope_lookups: int,
-    ) -> asyncio.Task[list[tuple[ContentInfo, list[str]]]]: ...
+        max_depth_key: int,
+        max_concurrent_directory_listings: int,
+    ) -> asyncio.Task[FolderWalkSnapshot]: ...
 
     def cache_clear(self) -> None: ...
 
@@ -104,8 +101,9 @@ class ContentTree:
     (:attr:`company_id`, :attr:`user_id`, :attr:`metadata_filter`), so the
     public shape of the service is frozen by the language itself — trying to
     assign ``tree.company_id = ...`` raises :class:`AttributeError`. Because
-    identity is stable, :meth:`resolve_visible_file_paths_async` memoizes its
-    result per-instance via :func:`functools.cache`. The cache stores the
+    identity is stable, :meth:`resolve_visible_file_paths_via_folders_async`
+    memoizes the folder walk (keyed by filter, depth, and listing concurrency).
+    The cache stores the
     :class:`asyncio.Task` so that concurrent cache-miss callers await the
     same in-flight fetch (single-flight) and subsequent callers reuse the
     already-resolved value. Call :meth:`invalidate_cache` after a known
@@ -132,9 +130,10 @@ class ContentTree:
         # task cache (class-level binding would leak across instances). The
         # cached factory returns an :class:`asyncio.Task`: concurrent misses
         # hit the same task → single-flight for free, stdlib-only.
-        self._resolve_task: _CachedResolveTaskFactory = functools.cache(
-            self._create_resolve_task
+        self._folder_walk_task: _CachedFolderWalkTaskFactory = functools.cache(
+            self._create_folder_walk_task
         )
+        self._folder_walk_progress: dict[tuple[str, int, int], FolderWalkSnapshot] = {}
 
     # ── Read-only identity (frozen via the property mechanic) ────────────
 
@@ -214,73 +213,209 @@ class ContentTree:
 
     @staticmethod
     def build_trie_from_resolved_paths(
-        resolved: list[tuple[ContentInfo, list[str]]],
+        resolved: list[tuple[ContentInfo, PurePosixPath]],
+        *,
+        extra_folder_paths: list[PurePosixPath] | None = None,
     ) -> PathTrieNode:
-        """Insert each ``(content, [dir, ..., filename])`` into a trie."""
-        return build_trie_from_resolved_paths(resolved)
+        """Insert each ``(content, path)`` into a trie."""
+        return build_trie_from_resolved_paths(
+            resolved, extra_folder_paths=extra_folder_paths
+        )
 
     # ── Cache management ─────────────────────────────────────────────────
 
     def invalidate_cache(self) -> None:
-        """Clear the memoized resolved-paths cache.
+        """Clear the memoized folder-walk cache.
 
         Identity is frozen, so the cache never auto-invalidates during the
         instance's lifetime. Call this after an external mutation to the
         knowledge base (upload, delete, folder rename, …) when the next read
         must reflect that change.
         """
-        self._resolve_task.cache_clear()
+        self._folder_walk_task.cache_clear()
+        self._folder_walk_progress.clear()
 
-    def _create_resolve_task(
+    def _create_folder_walk_task(
         self,
         filter_key: str,
-        max_concurrent_scope_lookups: int,
-    ) -> asyncio.Task[list[tuple[ContentInfo, list[str]]]]:
-        """Build the :class:`asyncio.Task` cached per ``(filter, concurrency)``.
+        max_depth_key: int,
+        max_concurrent_directory_listings: int,
+    ) -> asyncio.Task[FolderWalkSnapshot]:
+        """Build the cached folder-walk task.
 
-        ``filter_key`` is the :func:`serialize_filter` output of the effective
-        metadata filter. We reconstitute the dict here so the hot-path caller
-        does not need to re-parse on every hit.
+        ``max_depth_key`` is ``-1`` when ``max_depth`` is ``None`` so the
+        cache key stays hashable. The walk itself is never given a timeout:
+        callers bound only their wait, so a timed-out evaluate can still let
+        this task fill the cache.
         """
         effective_filter: dict[str, Any] | None = (
             None if filter_key == "null" else json.loads(filter_key)
         )
+        max_depth = None if max_depth_key < 0 else max_depth_key
+        progress = FolderWalkSnapshot(files=[], folder_paths=[], complete=False)
+        self._folder_walk_progress[
+            (filter_key, max_depth_key, max_concurrent_directory_listings)
+        ] = progress
         return asyncio.ensure_future(
-            resolve_visible_file_paths_core(
+            walk_visible_paths_via_folders_async(
                 user_id=self._user_id,
                 company_id=self._company_id,
                 metadata_filter=effective_filter,
-                max_concurrent_scope_lookups=max_concurrent_scope_lookups,
+                max_depth=max_depth,
+                max_concurrent_directory_listings=max_concurrent_directory_listings,
+                progress=progress,
             )
         )
 
-    # ── Public async API ─────────────────────────────────────────────────
+    async def _await_folder_walk_task(
+        self,
+        task: asyncio.Task[FolderWalkSnapshot],
+        progress: FolderWalkSnapshot,
+        *,
+        timeout: float | None,
+    ) -> FolderWalkSnapshot:
+        """Wait for a cached walk, returning a partial copy on timeout.
 
+        ``asyncio.shield`` keeps the cached task running so a later call
+        without ``timeout`` (or with a longer budget) receives the full tree.
+        """
+        try:
+            if timeout is None:
+                return await task
+            async with asyncio.timeout(timeout):
+                return await asyncio.shield(task)
+        except TimeoutError:
+            return progress.copy(complete=False)
+        except BaseException:
+            self.invalidate_cache()
+            raise
+
+    # ── Folder-walk API (snapshot, depth, timeout) ───────────────────────
+
+    async def resolve_visible_file_paths_via_folders_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        max_depth: int | None = None,
+        timeout: float | None = None,
+        max_concurrent_directory_listings: int = 25,
+    ) -> FolderWalkSnapshot:
+        """Walk ``Folder.get_infos`` and return files plus empty-folder prefixes.
+
+        Cached per ``(metadata_filter, max_depth, concurrency)``. ``timeout``
+        bounds only this wait; the cached walk keeps running.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): UniqueQL filter for
+                per-folder content listings. Falls back to the filter
+                provided at construction time.
+            max_depth (int | None): Stop recursion below this depth
+                (``None`` = full walk).
+            timeout (float | None): Seconds to wait before returning the
+                rows collected so far. ``None`` waits until the walk
+                finishes.
+            max_concurrent_directory_listings (int): Bound on concurrent
+                directory visits.
+
+        Returns:
+            FolderWalkSnapshot: File rows and visited folder prefixes.
+            ``complete`` is ``False`` when ``timeout`` elapsed first.
+        """
+        effective_filter = (
+            metadata_filter if metadata_filter is not None else self._metadata_filter
+        )
+        filter_key = serialize_filter(effective_filter)
+        max_depth_key = -1 if max_depth is None else max_depth
+        cache_key = (filter_key, max_depth_key, max_concurrent_directory_listings)
+        task = self._folder_walk_task(*cache_key)
+        progress = self._folder_walk_progress[cache_key]
+        return await self._await_folder_walk_task(task, progress, timeout=timeout)
+
+    async def render_visible_tree_via_folders_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        max_depth: int | None = None,
+        timeout: float | None = None,
+        max_concurrent_directory_listings: int = 25,
+        show_files: bool = True,
+    ) -> str:
+        """Render a ``tree``-style string by walking folder listings.
+
+        ``max_depth`` stops the walk (not only the printer). Empty directories
+        appear. ``timeout`` returns whatever has been listed so far
+        (``complete=False`` on the underlying snapshot) while the cached walk
+        continues.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): UniqueQL filter for
+                per-folder content listings. Falls back to the filter
+                provided at construction time.
+            max_depth (int | None): Maximum directory depth under the
+                synthetic root (``None`` = unlimited). Depth ``1`` lists only
+                top-level folders and files. Mirrors ``tree -L``.
+            timeout (float | None): Seconds to wait before rendering a
+                partial tree. ``None`` waits until the walk finishes.
+            max_concurrent_directory_listings (int): Bound on concurrent
+                directory visits.
+            show_files (bool): If ``False``, print directories only
+                (``tree -d``).
+
+        Returns:
+            str: Multi-line ``tree(1)``-style rendering from
+            :meth:`FolderWalkSnapshot.render`.
+        """
+        snapshot = await self.resolve_visible_file_paths_via_folders_async(
+            metadata_filter=metadata_filter,
+            max_depth=max_depth,
+            timeout=timeout,
+            max_concurrent_directory_listings=max_concurrent_directory_listings,
+        )
+        return snapshot.render(max_depth=max_depth, show_files=show_files)
+
+    # ── Deprecated original API (still valid) ────────────────────────────
+
+    @deprecated(
+        "Use resolve_visible_file_paths_via_folders_async; it returns "
+        "FolderWalkSnapshot with PurePosixPath rows, max_depth, and timeout."
+    )
     async def resolve_visible_file_paths_async(
         self,
         *,
         metadata_filter: dict[str, Any] | None = None,
         max_concurrent_scope_lookups: int = 25,
     ) -> list[tuple[ContentInfo, list[str]]]:
-        """Map each visible content item to path segments ``[folder, ..., filename]``.
+        """Return each visible file with path segments as a list of strings.
 
-        Results are memoized with :func:`functools.cache` keyed by the
-        effective ``(metadata_filter, max_concurrent_scope_lookups)`` pair.
-        Concurrent cache-miss calls await the same :class:`asyncio.Task` —
-        the expensive fetch runs exactly once per key. On failure the whole
-        task cache is dropped so the next call retries cleanly.
+        Deprecated wrapper around
+        :meth:`resolve_visible_file_paths_via_folders_async`. Callers that
+        unpack ``(content_info, segments)`` and ``"/".join(segments)`` keep
+        working.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): UniqueQL filter for
+                per-folder content listings. Falls back to the filter
+                provided at construction time.
+            max_concurrent_scope_lookups (int): Bound on concurrent directory
+                visits.
+
+        Returns:
+            list[tuple[ContentInfo, list[str]]]: Each file paired with POSIX
+            path segments (``["Legal", "Contracts", "nda.pdf"]``).
         """
-        effective_filter = (
-            metadata_filter if metadata_filter is not None else self._metadata_filter
+        snapshot = await self.resolve_visible_file_paths_via_folders_async(
+            metadata_filter=metadata_filter,
+            max_concurrent_directory_listings=max_concurrent_scope_lookups,
         )
-        filter_key = serialize_filter(effective_filter)
-        task = self._resolve_task(filter_key, max_concurrent_scope_lookups)
-        try:
-            return await task
-        except BaseException:
-            self.invalidate_cache()
-            raise
+        return [
+            (content_info, [part for part in path.parts if part != "."])
+            for content_info, path in snapshot.files
+        ]
 
+    @deprecated(
+        "Use render_visible_tree_via_folders_async; it adds timeout and "
+        "show_files, and max_depth stops the folder walk."
+    )
     async def render_visible_tree_async(
         self,
         *,
@@ -288,23 +423,29 @@ class ContentTree:
         max_depth: int | None = None,
         max_concurrent_scope_lookups: int = 25,
     ) -> str:
-        """Fetch visible paths and return a multi-line ``tree``-style string.
+        """Render a ``tree``-style string of visible folders and files.
+
+        Deprecated wrapper around
+        :meth:`render_visible_tree_via_folders_async`. ``max_depth`` stops the
+        folder walk (``tree -L``), not only the printer.
 
         Args:
-            metadata_filter: Optional filter passed through to content listing.
-                Falls back to the filter provided at construction time.
-            max_depth: Maximum directory depth under the synthetic root
-                (``None`` = unlimited). Depth ``1`` lists only top-level
-                folders/files. Mirrors ``tree -L``.
-            max_concurrent_scope_lookups: Concurrency when resolving scope ids
-                to names.
+            metadata_filter (dict[str, Any] | None): UniqueQL filter for
+                per-folder content listings. Falls back to the filter
+                provided at construction time.
+            max_depth (int | None): Maximum directory depth under the
+                synthetic root (``None`` = unlimited).
+            max_concurrent_scope_lookups (int): Bound on concurrent directory
+                visits.
+
+        Returns:
+            str: Multi-line ``tree(1)``-style rendering.
         """
-        rows = await self.resolve_visible_file_paths_async(
+        return await self.render_visible_tree_via_folders_async(
             metadata_filter=metadata_filter,
-            max_concurrent_scope_lookups=max_concurrent_scope_lookups,
+            max_depth=max_depth,
+            max_concurrent_directory_listings=max_concurrent_scope_lookups,
         )
-        trie = build_trie_from_resolved_paths(rows)
-        return format_path_trie(trie, max_depth=max_depth)
 
     # ── Flat queries over the cached snapshot ────────────────────────────
 
@@ -317,14 +458,14 @@ class ContentTree:
         """Return every visible file as a flat list of :class:`ContentInfo`.
 
         Reuses the cached snapshot from
-        :meth:`resolve_visible_file_paths_async`, so this is essentially free
-        after the first call for a given ``metadata_filter``.
+        :meth:`resolve_visible_file_paths_via_folders_async`, so this is
+        essentially free after the first call for a given key.
         """
-        rows = await self.resolve_visible_file_paths_async(
+        snapshot = await self.resolve_visible_file_paths_via_folders_async(
             metadata_filter=metadata_filter,
-            max_concurrent_scope_lookups=max_concurrent_scope_lookups,
+            max_concurrent_directory_listings=max_concurrent_scope_lookups,
         )
-        return [content_info for content_info, _segments in rows]
+        return [content_info for content_info, _path in snapshot]
 
     async def filter_visible_files_async(
         self,
@@ -343,7 +484,7 @@ class ContentTree:
         Args:
             predicate: A callable returning ``True`` for files to keep.
             metadata_filter: Server-side filter forwarded to the listing call.
-            max_concurrent_scope_lookups: Concurrency for scope-id resolution.
+            max_concurrent_scope_lookups: Bound on concurrent directory visits.
 
         Returns:
             Every visible :class:`ContentInfo` for which ``predicate`` is truthy,
@@ -391,7 +532,7 @@ class ContentTree:
             case_sensitive: If ``False`` (default) both sides are lowercased
                 before scoring.
             metadata_filter: Server-side filter forwarded to the listing call.
-            max_concurrent_scope_lookups: Concurrency for scope-id resolution.
+            max_concurrent_scope_lookups: Bound on concurrent directory visits.
 
         Returns:
             :class:`FuzzyMatch` records sorted by descending score, capped at
@@ -401,19 +542,19 @@ class ContentTree:
         if not query:
             return []
 
-        rows = await self.resolve_visible_file_paths_async(
+        snapshot = await self.resolve_visible_file_paths_via_folders_async(
             metadata_filter=metadata_filter,
-            max_concurrent_scope_lookups=max_concurrent_scope_lookups,
+            max_concurrent_directory_listings=max_concurrent_scope_lookups,
         )
         normalized_query = _tokenize_for_fuzzy_scoring(query, case_sensitive)
 
         matches: list[FuzzyMatch] = []
-        for content_info, segments in rows:
+        for content_info, file_path in snapshot:
             key_candidate = _tokenize_for_fuzzy_scoring(
                 content_info.key, case_sensitive, strip_extension=True
             )
             path_candidate = _tokenize_for_fuzzy_scoring(
-                "/".join(segments), case_sensitive
+                file_path.as_posix(), case_sensitive
             )
 
             score_key = match_on in ("key", "both")
@@ -439,7 +580,7 @@ class ContentTree:
                     FuzzyMatch(
                         content_info=content_info,
                         score=score,
-                        path_segments=list(segments),
+                        path_segments=[part for part in file_path.parts if part != "."],
                         matched_on=matched_on,
                     )
                 )

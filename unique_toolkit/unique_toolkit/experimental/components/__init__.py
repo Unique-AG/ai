@@ -21,9 +21,13 @@ Planned contents (current home → new home):
 * ``docx_generator``         ← :mod:`unique_toolkit._common.docx_generator`
 * ``tokenization``           ← :mod:`unique_toolkit._common.token`
 * ``content_tree``           ← :mod:`unique_toolkit.experimental.components.content_tree`
-  (re-export: :mod:`unique_toolkit.experimental.content_tree`); a derived
-  tree/fuzzy-search view over the ``content`` resource; does not wrap an SDK
-  endpoint of its own
+  (re-export: :mod:`unique_toolkit.experimental.content_tree`); tree rendering
+  walks ``Folder.get_infos`` (depth + timeout); legacy full-catalog listing lives in
+  ``content_tree.deprecated``
+* ``content_navigation``     ← :mod:`unique_toolkit.experimental.components.content_navigation`
+  (re-export: :mod:`unique_toolkit.experimental.content_navigation`); one-level
+  ``ls`` over ``Folder.get_infos`` + ``Content.get_infos``; cwd is injected
+  per call (stateless, MCP-safe)
 * ``internal_search``        ← :mod:`unique_toolkit.experimental.components.internal_search`
   (UN-19039 / UN-20075); pure-retrieval KB and chat search services plus an
   optional post-processing pipeline (:class:`InternalSearchPostProcessor`)
