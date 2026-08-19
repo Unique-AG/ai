@@ -6,7 +6,7 @@ from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
-from unique_web_search.invocation_stats import record_language_model_response
+from unique_web_search.invocation_stats import collector
 from unique_web_search.services.content_processing.processing_strategies.base import (
     ProcessingStrategyKwargs,
     WebSearchResult,
@@ -317,7 +317,7 @@ class LLMGuardJudge:
                 "web_search.content_processing.guard_judge_and_sanitize"
             ),
         }
-        record_language_model_response(
+        collector.record_language_model_response(
             model_name=self._config.language_model.name,
             response=response,
             source=source_by_response_model[response_model],

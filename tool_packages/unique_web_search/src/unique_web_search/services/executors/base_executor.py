@@ -12,7 +12,7 @@ from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
 
-from unique_web_search.invocation_stats import record_invocation_stats
+from unique_web_search.invocation_stats import collector
 from unique_web_search.metrics import llm_duration, llm_errors
 from unique_web_search.schema import (
     StepDebugInfo,
@@ -165,7 +165,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
             # usage to each ChunkRelevancy.relevancy.invocation_stats; merge it
             # into the active WebSearch stats scope so it isn't dropped from
             # token analytics (Internal Search does the same after its sort).
-            record_invocation_stats(
+            collector.record_invocation_stats(
                 invocation
                 for relevancy in sorted_chunks.relevancies
                 if relevancy.relevancy is not None

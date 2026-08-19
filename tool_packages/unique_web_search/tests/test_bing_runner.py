@@ -15,7 +15,7 @@ from openai.types.responses.response_text_delta_event import ResponseTextDeltaEv
 from openai.types.responses.response_usage import ResponseUsage
 from pydantic import ValidationError
 
-from unique_web_search.invocation_stats import invocation_stats_scope
+from unique_web_search.invocation_stats import collector
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -873,7 +873,7 @@ class TestCreateAndProcessRun:
                 f"{_RUNNER_MODULE}.get_openai_client",
                 return_value=_mock_openai_client(usage=usage),
             ),
-            invocation_stats_scope() as invocation_stats,
+            collector.scope() as invocation_stats,
         ):
             await create_and_process_run(
                 agent_client=mock_agent_client,

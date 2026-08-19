@@ -9,7 +9,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelTokenUsage,
 )
 
-from unique_internal_search.invocation_stats import record_invocation_stats
+from unique_internal_search.invocation_stats import collector
 from unique_internal_search.service import InternalSearchTool
 
 
@@ -33,7 +33,7 @@ async def test_run__isolates_invocation_stats__across_concurrent_calls(
         del self
         nonlocal started_runs
         prompt_tokens = int(tool_call.arguments["prompt_tokens"])  # type: ignore[index]
-        record_invocation_stats(
+        collector.record_invocation_stats(
             [
                 LanguageModelInvocationStats.from_usage(
                     model_name=f"model-{prompt_tokens}",

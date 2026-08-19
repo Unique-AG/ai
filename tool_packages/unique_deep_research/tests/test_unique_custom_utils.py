@@ -12,7 +12,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_deep_research.config import UniqueEngine
-from unique_deep_research.invocation_stats import invocation_stats_scope
+from unique_deep_research.invocation_stats import collector
 from unique_deep_research.unique_custom.utils import (
     ainvoke_with_token_handling,
     cleanup_request_counter,
@@ -656,7 +656,7 @@ async def test_ainvoke_with_token_handling__records_langchain_usage__on_success(
     messages = cast(List[Any], [HumanMessage(content="test")])
 
     # Act
-    with invocation_stats_scope() as invocation_stats:
+    with collector.scope() as invocation_stats:
         result = await ainvoke_with_token_handling(
             mock_model,
             messages,

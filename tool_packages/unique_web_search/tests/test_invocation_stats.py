@@ -8,9 +8,7 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_web_search.invocation_stats import (
-    invocation_stats_scope,
-    record_language_model_response,
-    record_token_usage,
+    collector,
     record_vertex_response,
 )
 from unique_web_search.service import WebSearchTool
@@ -25,8 +23,8 @@ def test_record_token_usage__skips_invalid_provider_usage(
     Why this matters: Optional billing metadata must not abort an in-flight Web Search.
     Setup summary: Record invalid token counts and assert the usage is skipped and logged.
     """
-    with invocation_stats_scope() as invocation_stats:
-        record_token_usage(
+    with collector.scope() as invocation_stats:
+        collector.record_token_usage(
             model_name="provider-model",
             usage={"prompt_tokens": "not-a-token-count"},
             source="web_search.grounding.provider",
@@ -34,7 +32,7 @@ def test_record_token_usage__skips_invalid_provider_usage(
 
     assert invocation_stats == []
     assert (
-        "Unable to parse Web Search token usage for web_search.grounding.provider"
+        "Unable to parse web_search token usage for web_search.grounding.provider"
         in caplog.text
     )
 
@@ -59,7 +57,7 @@ def test_record_vertex_response__normalizes_google_usage_metadata() -> None:
         )
     )
 
-    with invocation_stats_scope() as invocation_stats:
+    with collector.scope() as invocation_stats:
         record_vertex_response(
             model_name="gemini-test",
             response=response,
@@ -96,7 +94,7 @@ async def test_run__isolates_invocation_stats__across_concurrent_calls(
         del self
         nonlocal started_runs
         prompt_tokens = int(tool_call.arguments["prompt_tokens"])  # type: ignore[index]
-        record_language_model_response(
+        collector.record_language_model_response(
             model_name=f"model-{prompt_tokens}",
             response=SimpleNamespace(
                 usage={

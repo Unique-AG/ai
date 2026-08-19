@@ -37,10 +37,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
-from unique_internal_search.invocation_stats import (
-    invocation_stats_scope,
-    record_invocation_stats,
-)
+from unique_internal_search.invocation_stats import collector
 from unique_internal_search.services.message_log import (
     InternalSearchMessageLogger,
     InternalSearchMessageLoggerNoop,
@@ -322,7 +319,7 @@ class InternalSearchService:
                 config=self.config.chunk_relevancy_sort_config,
             )
             if isinstance(chunk_relevancy_sorter_result.relevancies, list):
-                record_invocation_stats(
+                collector.record_invocation_stats(
                     invocation
                     for relevancy in chunk_relevancy_sorter_result.relevancies
                     if relevancy.relevancy is not None
@@ -493,7 +490,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     # TODO: find a solution for tracking
     # @track(name="internal_search_tool_run")
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        with invocation_stats_scope() as invocation_stats:
+        with collector.scope() as invocation_stats:
             try:
                 response = await self._run(tool_call)
             except Exception as e:

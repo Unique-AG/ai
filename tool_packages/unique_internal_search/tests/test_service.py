@@ -2007,7 +2007,7 @@ class TestInternalSearchTool:
         Setup summary: Mock _run() to record token usage into the active scope
             then raise, and assert run()'s own error response still carries it.
         """
-        from unique_internal_search.invocation_stats import record_invocation_stats
+        from unique_internal_search.invocation_stats import collector
 
         with (
             patch(
@@ -2034,7 +2034,7 @@ class TestInternalSearchTool:
                 )
 
             async def _run_records_usage_then_fails(*_args, **_kwargs):
-                record_invocation_stats(
+                collector.record_invocation_stats(
                     [
                         LanguageModelInvocationStats.from_usage(
                             model_name="gpt-4",
