@@ -44,6 +44,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.protocols.support import SupportCompleteWithReferences
 
 from .._async_bridge import run_async_from_sync
+from .._model_params import prepare_chat_completions_model_params
 from ..events import (
     StreamEnded,
     StreamEventBus,
@@ -378,6 +379,10 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         message_id = chat.last_assistant_message_id
         chat_id = chat.chat_id
 
+        other_options = prepare_chat_completions_model_params(
+            model_name, temperature, other_options
+        )
+
         gpt_messages = (
             messages.to_openai(mode="completions")
             if isinstance(messages, LanguageModelMessages)
@@ -389,9 +394,8 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
             optional_create_kwargs["tools"] = converted_tools
         if tool_choice is not None:
             optional_create_kwargs["tool_choice"] = tool_choice
-        if other_options:
-            for k, v in other_options.items():
-                optional_create_kwargs.setdefault(k, v)
+        for k, v in other_options.items():
+            optional_create_kwargs.setdefault(k, v)
 
         gpt_request: list[dict[str, Any]] = [
             dict(cast("Mapping[str, Any]", message)) for message in gpt_messages
@@ -444,7 +448,6 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                     messages=gpt_messages,
                     stream=True,
                     stream_options=stream_options,
-                    temperature=temperature,
                     **optional_create_kwargs,
                 )
 
