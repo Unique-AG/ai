@@ -89,7 +89,10 @@ class LanguageModelInvocationStats(BaseModel):
 
 
 class InvocationStatsCollector:
-    """Run-scoped collector with a namespaced ContextVar so nested tools don't mix."""
+    """Run-scoped collector with a namespaced ContextVar so nested tools don't mix.
+
+    Instantiate once per namespace and share that instance.
+    """
 
     def __init__(self, namespace: str) -> None:
         self._namespace = namespace
