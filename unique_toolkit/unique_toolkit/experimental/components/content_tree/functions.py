@@ -12,9 +12,6 @@ so that other callers (scripts, notebooks, ad-hoc tooling) can compose the same
   ``list[tuple[ContentInfo, list[str]]]`` from that walk.
 - :func:`format_path_trie` — render a :class:`PathTrieNode` as a ``tree(1)``-style
   multi-line string (prefer :meth:`FolderWalkSnapshot.render`).
-
-Full-catalog ``ContentInfo`` listing lives in
-:mod:`unique_toolkit.experimental.components.content_tree.deprecated`.
 """
 
 from __future__ import annotations
@@ -29,16 +26,6 @@ import unique_sdk
 from typing_extensions import deprecated
 
 from unique_toolkit.content.schemas import BaseFolderInfo, ContentInfo
-from unique_toolkit.experimental.components.content_tree.deprecated import (
-    extract_leaf_scope_ids_from_content_infos,
-    extract_scope_ids_from_content_infos,
-    get_all_content_infos_async,
-    translate_folder_path_async,
-    translate_folder_paths_async,
-    translate_scope_id_async,
-    translate_scope_ids_async,
-    translate_scope_ids_batch,
-)
 from unique_toolkit.experimental.components.content_tree.schemas import (
     FolderWalkSnapshot,
     PathTrieNode,
@@ -46,17 +33,9 @@ from unique_toolkit.experimental.components.content_tree.schemas import (
 
 __all__ = [
     "build_trie_from_resolved_paths",
-    "extract_leaf_scope_ids_from_content_infos",
-    "extract_scope_ids_from_content_infos",
     "format_path_trie",
-    "get_all_content_infos_async",
     "resolve_visible_file_paths_core",
     "serialize_filter",
-    "translate_folder_path_async",
-    "translate_folder_paths_async",
-    "translate_scope_id_async",
-    "translate_scope_ids_async",
-    "translate_scope_ids_batch",
     "walk_visible_paths_via_folders_async",
 ]
 

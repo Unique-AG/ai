@@ -22,8 +22,7 @@ Planned contents (current home → new home):
 * ``tokenization``           ← :mod:`unique_toolkit._common.token`
 * ``content_tree``           ← :mod:`unique_toolkit.experimental.components.content_tree`
   (re-export: :mod:`unique_toolkit.experimental.content_tree`); tree rendering
-  walks ``Folder.get_infos`` (depth + timeout); legacy full-catalog listing lives in
-  ``content_tree.deprecated``
+  walks ``Folder.get_infos`` (depth + timeout)
 * ``content_navigation``     ← :mod:`unique_toolkit.experimental.components.content_navigation`
   (re-export: :mod:`unique_toolkit.experimental.content_navigation`); one-level
   ``ls`` over ``Folder.get_infos`` + ``Content.get_infos``; cwd is injected

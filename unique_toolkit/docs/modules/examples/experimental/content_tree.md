@@ -16,9 +16,6 @@ The :class:`~unique_toolkit.experimental.components.content_tree.service.Content
 
 Rendering follows **GNU/Linux ``tree(1)``** conventions: sorted directories and files, UTF-8 box-drawing characters.
 
-Full-catalog ``ContentInfo`` listing that paginates every file lives in
-:mod:`unique_toolkit.experimental.components.content_tree.deprecated`.
-
 !!! note "Environment"
 
     Use the same SDK / :class:`~unique_toolkit.app.unique_settings.UniqueSettings` setup as other toolkit examples (`UNIQUE_API_KEY`, `UNIQUE_APP_ID`, user and company context). The sample script uses :meth:`~unique_toolkit.experimental.components.content_tree.service.ContentTree.from_settings`.

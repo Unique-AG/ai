@@ -23,22 +23,10 @@ The subpackage is split into:
   file locations are :class:`~pathlib.PurePosixPath`).
 - :mod:`unique_toolkit.experimental.components.content_tree.functions` — folder-walk
   helpers and ``tree(1)``-style formatting.
-- :mod:`unique_toolkit.experimental.components.content_tree.deprecated` — legacy
-  full-catalog ``ContentInfo`` listing.
 - :mod:`unique_toolkit.experimental.components.content_tree.service` —
   :class:`ContentTree`, the orchestrating service with per-instance caching.
 """
 
-from unique_toolkit.experimental.components.content_tree.deprecated import (
-    extract_leaf_scope_ids_from_content_infos,
-    extract_scope_ids_from_content_infos,
-    get_all_content_infos_async,
-    translate_folder_path_async,
-    translate_folder_paths_async,
-    translate_scope_id_async,
-    translate_scope_ids_async,
-    translate_scope_ids_batch,
-)
 from unique_toolkit.experimental.components.content_tree.functions import (
     build_trie_from_resolved_paths,
     format_path_trie,
@@ -59,16 +47,8 @@ __all__ = [
     "MatchTarget",
     "PathTrieNode",
     "build_trie_from_resolved_paths",
-    "extract_leaf_scope_ids_from_content_infos",
-    "extract_scope_ids_from_content_infos",
     "format_path_trie",
     "FolderWalkSnapshot",
-    "get_all_content_infos_async",
     "resolve_visible_file_paths_core",
-    "translate_folder_path_async",
-    "translate_folder_paths_async",
-    "translate_scope_id_async",
-    "translate_scope_ids_async",
-    "translate_scope_ids_batch",
     "walk_visible_paths_via_folders_async",
 ]

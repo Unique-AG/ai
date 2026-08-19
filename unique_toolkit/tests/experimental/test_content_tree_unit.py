@@ -9,13 +9,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from unique_toolkit.content.schemas import ContentInfo, PaginatedContentInfos
+from unique_toolkit.content.schemas import ContentInfo
 from unique_toolkit.experimental.content_tree import (
     ContentTree,
     FolderWalkSnapshot,
     FuzzyMatch,
-    extract_leaf_scope_ids_from_content_infos,
-    extract_scope_ids_from_content_infos,
     format_path_trie,
     walk_visible_paths_via_folders_async,
 )
@@ -237,60 +235,6 @@ def test_AI_snapshot_render_truncates_at_max_depth() -> None:
     out = snapshot.render(max_depth=1)
     assert "deep.pdf" not in out
     assert "…" in out
-
-
-def test_AI_extract_scope_ids_matches_folder_id_path() -> None:
-    """Scope id extraction strips the ``uniquepathid://`` prefix."""
-    infos = [
-        _minimal_content_info(
-            key="x",
-            metadata={"folderIdPath": "uniquepathid://aa/bb"},
-        ),
-    ]
-    assert extract_scope_ids_from_content_infos(infos) == {"aa", "bb"}
-
-
-@pytest.mark.ai
-def test_AI_extract_leaf_scope_ids_keeps_only_last_segment() -> None:
-    """
-    Purpose: Leaf extraction returns only the last folderIdPath segment.
-    Why this matters: Path resolution now does one API call per parent folder, not per ancestor.
-    Setup summary: Two files sharing an ancestor but different leaves; assert only the two leaves.
-    """
-    infos = [
-        _minimal_content_info(
-            key="a.pdf",
-            metadata={"folderIdPath": "uniquepathid://root/legal/contracts"},
-        ),
-        _minimal_content_info(
-            key="b.pdf",
-            metadata={"folderIdPath": "uniquepathid://root/legal/invoices"},
-        ),
-    ]
-    assert extract_leaf_scope_ids_from_content_infos(infos) == {
-        "contracts",
-        "invoices",
-    }
-
-
-@pytest.mark.ai
-def test_AI_extract_leaf_scope_ids_deduplicates_shared_parent() -> None:
-    """
-    Purpose: Files in the same folder produce a single leaf id.
-    Why this matters: Duplicate leaves would re-fetch the same folder path.
-    Setup summary: Two files with identical folderIdPath; assert one leaf.
-    """
-    infos = [
-        _minimal_content_info(
-            key="a.pdf",
-            metadata={"folderIdPath": "uniquepathid://root/leaf"},
-        ),
-        _minimal_content_info(
-            key="b.pdf",
-            metadata={"folderIdPath": "uniquepathid://root/leaf"},
-        ),
-    ]
-    assert extract_leaf_scope_ids_from_content_infos(infos) == {"leaf"}
 
 
 # ── Freeze + cache behavior ─────────────────────────────────────────────────
@@ -675,244 +619,7 @@ async def test_AI_search_visible_files_fuzzy_reuses_cached_snapshot() -> None:
     assert mock_core.await_count == 1
 
 
-@pytest.mark.ai
-async def test_translate_scope_id_async__returns_none__when_folder_lookup_fails() -> (
-    None
-):
-    """A single failing folder lookup logs at debug and yields None so batch
-    resolution keeps going (callers fall back to the raw scope_id)."""
-    from unique_toolkit.experimental.components.content_tree.functions import (
-        translate_scope_id_async,
-    )
-
-    with patch(
-        "unique_toolkit.experimental.components.content_tree.deprecated.get_folder_info_async",
-        new=AsyncMock(side_effect=RuntimeError("folder service unavailable")),
-    ):
-        resolved = await translate_scope_id_async(
-            user_id="u", company_id="c", scope_id="scope_x"
-        )
-
-    assert resolved is None
-
-
 _FUNCTIONS = "unique_toolkit.experimental.components.content_tree.functions"
-_DEPRECATED = "unique_toolkit.experimental.components.content_tree.deprecated"
-
-
-def _paginated_page(
-    infos: list[ContentInfo], *, total_count: int
-) -> PaginatedContentInfos:
-    return PaginatedContentInfos.model_construct(
-        object="list",
-        content_infos=infos,
-        total_count=total_count,
-    )
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_AI_get_all_content_infos_reuses_first_page_without_count_probe() -> None:
-    """
-    Purpose: Listing uses the first full page's totalCount instead of a take=1 probe.
-    Why this matters: The old probe discarded a round-trip and re-fetched skip=0.
-    Setup summary: Two pages; assert skip=0 is requested once at step_size and skip=2 is fetched.
-    """
-    from unique_toolkit.experimental.components.content_tree.functions import (
-        get_all_content_infos_async,
-    )
-
-    page0 = [
-        _minimal_content_info(key="a.pdf", metadata=None),
-        _minimal_content_info(key="b.pdf", metadata=None),
-    ]
-    page1 = [_minimal_content_info(key="c.pdf", metadata=None)]
-    calls: list[dict[str, object]] = []
-
-    async def fake_get_content_info(**kwargs: object) -> PaginatedContentInfos:
-        calls.append(dict(kwargs))
-        skip = kwargs.get("skip")
-        if skip in (0, None):
-            return _paginated_page(page0, total_count=3)
-        return _paginated_page(page1, total_count=3)
-
-    with patch(
-        f"{_DEPRECATED}.get_content_info_async", side_effect=fake_get_content_info
-    ):
-        infos = await get_all_content_infos_async(
-            user_id="u", company_id="c", step_size=2
-        )
-
-    assert [info.key for info in infos] == ["a.pdf", "b.pdf", "c.pdf"]
-    assert len(calls) == 2
-    assert calls[0]["skip"] == 0
-    assert calls[0]["take"] == 2
-    assert calls[1]["skip"] == 2
-    assert calls[1]["take"] == 2
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_AI_get_all_content_infos_skips_further_fetches_when_one_page() -> None:
-    """
-    Purpose: A single page that covers totalCount does not issue extra requests.
-    Why this matters: Small KBs must not pay for empty remaining-page gathers.
-    Setup summary: First page reports total_count equal to step_size; assert one call.
-    """
-    from unique_toolkit.experimental.components.content_tree.functions import (
-        get_all_content_infos_async,
-    )
-
-    page = [_minimal_content_info(key="only.pdf", metadata=None)]
-    mock_get = AsyncMock(return_value=_paginated_page(page, total_count=1))
-
-    with patch(f"{_DEPRECATED}.get_content_info_async", mock_get):
-        infos = await get_all_content_infos_async(
-            user_id="u", company_id="c", step_size=100
-        )
-
-    assert [info.key for info in infos] == ["only.pdf"]
-    assert mock_get.await_count == 1
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_AI_resolve_visible_file_paths_core_looks_up_each_leaf_once() -> None:
-    """
-    Purpose: Path resolution calls get_folder_path once per unique leaf folder.
-    Why this matters: Shared ancestors used to cost extra get_info calls.
-    Setup summary: Two files under the same parent, one in a sibling; assert two path lookups.
-    """
-    from unique_toolkit.experimental.components.content_tree.deprecated import (
-        resolve_visible_file_paths_core,
-    )
-
-    a = _minimal_content_info(
-        key="a.pdf",
-        metadata={"folderIdPath": "uniquepathid://root/legal"},
-    )
-    b = _minimal_content_info(
-        key="b.pdf",
-        metadata={"folderIdPath": "uniquepathid://root/legal"},
-    )
-    c = _minimal_content_info(
-        key="c.pdf",
-        metadata={"folderIdPath": "uniquepathid://root/finance"},
-    )
-
-    async def fake_path(*, scope_id: str, **_kwargs: object) -> str:
-        return {
-            "legal": "/Company/Legal",
-            "finance": "/Company/Finance",
-        }[scope_id]
-
-    with (
-        patch(
-            f"{_DEPRECATED}.get_all_content_infos_async",
-            AsyncMock(return_value=[a, b, c]),
-        ),
-        patch(
-            f"{_DEPRECATED}.get_folder_path_async", side_effect=fake_path
-        ) as mock_path,
-    ):
-        rows = await resolve_visible_file_paths_core(
-            user_id="u", company_id="c", metadata_filter=None
-        )
-
-    assert mock_path.await_count == 2
-    assert rows[0][1] == _p("Company", "Legal", "a.pdf")
-    assert rows[1][1] == _p("Company", "Legal", "b.pdf")
-    assert rows[2][1] == _p("Company", "Finance", "c.pdf")
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_AI_resolve_visible_file_paths_core_falls_back_to_raw_ids_on_path_failure() -> (
-    None
-):
-    """
-    Purpose: A failed leaf path lookup keeps raw folderIdPath segments.
-    Why this matters: Partial backend failures must not drop files from the tree.
-    Setup summary: get_folder_path_async raises; assert segments are the raw scope ids.
-    """
-    from unique_toolkit.experimental.components.content_tree.deprecated import (
-        resolve_visible_file_paths_core,
-    )
-
-    info = _minimal_content_info(
-        key="x.pdf",
-        metadata={"folderIdPath": "uniquepathid://scope_a/scope_b"},
-    )
-
-    with (
-        patch(
-            f"{_DEPRECATED}.get_all_content_infos_async",
-            AsyncMock(return_value=[info]),
-        ),
-        patch(
-            f"{_DEPRECATED}.get_folder_path_async",
-            AsyncMock(side_effect=RuntimeError("path unavailable")),
-        ),
-    ):
-        rows = await resolve_visible_file_paths_core(
-            user_id="u", company_id="c", metadata_filter=None
-        )
-
-    assert rows[0][1] == _p("scope_a", "scope_b", "x.pdf")
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_AI_resolve_visible_file_paths_core_uses_sentinel_without_folder_id_path() -> (
-    None
-):
-    """
-    Purpose: Content without folderIdPath still appears under the sentinel folder.
-    Why this matters: Chat uploads and loose files must not be dropped.
-    Setup summary: Content with empty metadata; assert _no_folder_path plus filename.
-    """
-    from unique_toolkit.experimental.components.content_tree.deprecated import (
-        resolve_visible_file_paths_core,
-    )
-
-    info = _minimal_content_info(key="loose.txt", metadata={})
-
-    with (
-        patch(
-            f"{_DEPRECATED}.get_all_content_infos_async",
-            AsyncMock(return_value=[info]),
-        ),
-        patch(f"{_DEPRECATED}.get_folder_path_async", AsyncMock()) as mock_path,
-    ):
-        rows = await resolve_visible_file_paths_core(
-            user_id="u", company_id="c", metadata_filter=None
-        )
-
-    assert rows[0][1] == _p("_no_folder_path", "loose.txt")
-    assert mock_path.await_count == 0
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_AI_translate_folder_path_async_returns_none_when_lookup_fails() -> None:
-    """
-    Purpose: A failing folder-path lookup logs at debug and yields None.
-    Why this matters: Batch resolution must continue; callers fall back to raw ids.
-    Setup summary: Patch get_folder_path_async to raise; assert None.
-    """
-    from unique_toolkit.experimental.components.content_tree.functions import (
-        translate_folder_path_async,
-    )
-
-    with patch(
-        f"{_DEPRECATED}.get_folder_path_async",
-        AsyncMock(side_effect=RuntimeError("path unavailable")),
-    ):
-        resolved = await translate_folder_path_async(
-            user_id="u", company_id="c", scope_id="scope_x"
-        )
-
-    assert resolved is None
 
 
 # ── Folder-walk tree (Folder.get_infos + Content.get_infos) ─────────────────
@@ -994,7 +701,6 @@ async def test_AI_walk_resolves_nested_paths_from_folder_names() -> None:
             f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
             AsyncMock(side_effect=fake_content),
         ),
-        patch(f"{_DEPRECATED}.get_folder_path_async", AsyncMock()) as mock_path,
     ):
         snapshot = await walk_visible_paths_via_folders_async(
             user_id="u", company_id="c"
@@ -1009,7 +715,6 @@ async def test_AI_walk_resolves_nested_paths_from_folder_names() -> None:
     assert by_name["a.pdf"].parent == _p("Legal")
     assert by_name["b.pdf"].parent == _p("Legal", "Q1")
     assert snapshot.complete is True
-    assert mock_path.await_count == 0
 
 
 @pytest.mark.ai
