@@ -51,17 +51,16 @@ def resolve_other_options(
         or config.agent.experimental.use_responses_api
     )
 
+    reasoning_dict: dict = {}
     if use_responses_api:
         reasoning_raw = options.get("reasoning")
         if isinstance(reasoning_raw, str):
             try:
-                reasoning_dict: dict = json.loads(reasoning_raw)
+                reasoning_dict = json.loads(reasoning_raw)
             except (json.JSONDecodeError, ValueError):
                 reasoning_dict = {}
         elif isinstance(reasoning_raw, dict):
             reasoning_dict = reasoning_raw
-        else:
-            reasoning_dict = {}
         config_effort: str | None = reasoning_dict.get("effort")
     else:
         config_effort = options.get("reasoning_effort")
