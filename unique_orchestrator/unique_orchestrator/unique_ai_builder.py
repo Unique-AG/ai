@@ -21,6 +21,7 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.history_manager.utils import (
     get_selected_uploaded_content_ids,
@@ -70,6 +71,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.experimental.integrations.openai.streaming.event_routing import (
     ResponsesCompleteWithReferences,
 )
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 from unique_user_memory.user_memory import load_user_memory, profile_body
@@ -322,13 +324,13 @@ async def _build_common(
         uploaded_documents,
     ) = await chat_service.download_chat_images_and_documents_async()
 
-    uploaded_documents = filter_uploaded_documents_by_selection(
+    uploaded_documents = await filter_uploaded_documents_by_selection(
         documents=uploaded_documents,
         additional_parameters=event.payload.additional_parameters,
         company_id=event.company_id,
     )
 
-    uploaded_images = filter_uploaded_documents_by_selection(
+    uploaded_images = await filter_uploaded_documents_by_selection(
         documents=uploaded_images,
         additional_parameters=event.payload.additional_parameters,
         company_id=event.company_id,
@@ -573,6 +575,10 @@ async def _build_responses(
             logger=logger,
             common_components=common_components,
             config=config.agent.experimental.uploaded_search_tool_config,
+            selected_uploaded_files_enabled=await is_flag_enabled(
+                FeatureFlagNames.enable_selected_uploaded_files_un_18215,
+                company_id=event.company_id,
+            ),
         )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
@@ -722,6 +728,10 @@ async def _build_completions(
         logger=logger,
         common_components=common_components,
         config=config.agent.experimental.uploaded_search_tool_config,
+        selected_uploaded_files_enabled=await is_flag_enabled(
+            FeatureFlagNames.enable_selected_uploaded_files_un_18215,
+            company_id=event.company_id,
+        ),
     )
 
     tool_manager = ToolManager(
@@ -812,8 +822,11 @@ def _configure_uploaded_search_tool(
     logger: Logger,
     common_components: _CommonComponents,
     config: UploadedSearchToolConfig,
+    selected_uploaded_files_enabled: bool = False,
 ) -> bool:
     """Add the uploaded search tool when documents are present and return whether it should be forced."""
+    config.tool_config.selected_uploaded_files_enabled = selected_uploaded_files_enabled
+
     valid_uploaded_documents: list[Content] = []
     expired_uploaded_documents: list[Content] = []
     for doc in common_components.uploaded_documents:

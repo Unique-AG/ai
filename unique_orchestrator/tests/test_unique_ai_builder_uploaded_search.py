@@ -132,6 +132,10 @@ def _patch_build_common_user_memory(
         "unique_orchestrator.unique_ai_builder.load_user_memory",
         load_user_memory,
     )
+    monkeypatch.setattr(
+        "unique_orchestrator.utils.is_flag_enabled",
+        AsyncMock(return_value=False),
+    )
 
     return event, load_user_memory, memory_message_step_logger
 
@@ -401,6 +405,10 @@ async def test_build_responses_forwards_attribution_headers_to_openai_client(
         "unique_orchestrator.unique_ai_builder.UniqueAI",
         lambda **kwargs: kwargs,
     )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.is_flag_enabled",
+        AsyncMock(return_value=False),
+    )
 
     await _build_responses(
         event=event,
@@ -465,6 +473,10 @@ async def test_build_responses_forwards_attribution_headers_to_python_streaming(
         "unique_orchestrator.unique_ai_builder.ResponsesCompleteWithReferences",
         fake_responses_complete,
     )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.is_flag_enabled",
+        AsyncMock(return_value=False),
+    )
 
     await _build_responses(
         event=event,
@@ -515,6 +527,10 @@ async def test_build_responses_adds_and_forces_uploaded_search_without_tool_choi
         "unique_orchestrator.unique_ai_builder.UniqueAI",
         lambda **kwargs: kwargs,
     )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.is_flag_enabled",
+        AsyncMock(return_value=False),
+    )
 
     result = await _build_responses(
         event=event,
@@ -535,6 +551,81 @@ async def test_build_responses_adds_and_forces_uploaded_search_without_tool_choi
         UploadedSearchTool.name
     ]
     assert result["tool_manager"] is _FakeResponsesApiToolManager.instances[0]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_responses_threads_selected_uploaded_files_flag_onto_tool_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Regression test for the async-flag-resolved-then-threaded-into-config
+    pattern: verify that when is_flag_enabled resolves True, the ToolBuildConfig
+    that _build_responses actually stores on tool_manager_config.tools carries
+    selected_uploaded_files_enabled=True through to the resulting tool config.
+    Why this matters: _configure_uploaded_search_tool mutates config.tool_config
+    in place *before* wrapping it in ToolBuildConfig; nothing in the type system
+    enforces that ordering. A refactor that reorders those steps, or that swaps
+    in a freshly-constructed UploadedSearchConfig instead of mutating the
+    existing one, would silently revert the flag to its False default with no
+    error — this test exercises the real _build_responses call path (through
+    ToolBuildConfig's own model_validator) rather than calling
+    _configure_uploaded_search_tool directly, so it would catch that class of
+    regression where a unit test on the helper alone would not.
+    Setup summary: Mock is_flag_enabled to return True, run _build_responses,
+    and read the flag back off the stored ToolBuildConfig.configuration.
+    """
+    event = _make_event(tool_choices=[])
+    uploaded_document = MagicMock()
+    uploaded_document.is_expired.return_value = False
+    common_components = _make_common_components([uploaded_document])
+    config = UniqueAIConfig()
+    logger = MagicMock()
+
+    fake_client = MagicMock()
+    fake_client.copy.return_value = fake_client
+
+    _FakeResponsesApiToolManager.instances.clear()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.get_async_openai_client",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.OpenAIBuiltInToolManager.build_manager",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesApiToolManager",
+        _FakeResponsesApiToolManager,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.build_loop_iteration_runner",
+        lambda **kwargs: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueAI",
+        lambda **kwargs: kwargs,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.is_flag_enabled",
+        AsyncMock(return_value=True),
+    )
+
+    await _build_responses(
+        event=event,
+        logger=logger,
+        config=config,
+        common_components=common_components,
+        debug_info_manager=MagicMock(),
+    )
+
+    uploaded_search_tool_config = next(
+        tool
+        for tool in common_components.tool_manager_config.tools
+        if tool.name == UploadedSearchTool.name
+    ).configuration
+
+    assert uploaded_search_tool_config.selected_uploaded_files_enabled is True
 
 
 @pytest.mark.asyncio
@@ -570,6 +661,10 @@ async def test_build_responses_appends_uploaded_search_to_existing_tool_choices(
     monkeypatch.setattr(
         "unique_orchestrator.unique_ai_builder.UniqueAI",
         lambda **kwargs: kwargs,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.is_flag_enabled",
+        AsyncMock(return_value=False),
     )
 
     await _build_responses(
@@ -627,6 +722,10 @@ async def test_build_responses_keeps_uploaded_search_when_code_interpreter_is_au
     monkeypatch.setattr(
         "unique_orchestrator.unique_ai_builder.UniqueAI",
         lambda **kwargs: kwargs,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.is_flag_enabled",
+        AsyncMock(return_value=False),
     )
 
     await _build_responses(
@@ -837,3 +936,50 @@ class TestConfigureUploadedSearchToolForcing:
     def test_tool_not_appended_to_empty_tool_choices(self):
         _, _, event = self._run([self._make_doc()], tool_choices=[], force=True)
         assert event.payload.tool_choices == []
+
+
+@pytest.mark.ai
+class TestConfigureUploadedSearchToolSelectedFilesFlag:
+    """Tests for threading selected_uploaded_files_enabled onto the tool config.
+
+    FEATURE_FLAG_ENABLE_SELECTED_UPLOADED_FILES_UN_18215 is resolved
+    asynchronously by the caller (_build_responses/_build_completions) and
+    passed in as a plain bool, since _configure_uploaded_search_tool itself
+    stays synchronous. This only tests that the value lands on the config.
+    """
+
+    def _make_doc(self):
+        doc = MagicMock()
+        doc.is_expired.return_value = False
+        return doc
+
+    @pytest.mark.ai
+    def test_sets_flag_true_on_tool_config_when_enabled(self):
+        common_components = _make_common_components([self._make_doc()])
+        event = _make_event([])
+        config = UploadedSearchToolConfig()
+
+        _configure_uploaded_search_tool(
+            event=event,
+            logger=MagicMock(),
+            common_components=common_components,
+            config=config,
+            selected_uploaded_files_enabled=True,
+        )
+
+        assert config.tool_config.selected_uploaded_files_enabled is True
+
+    @pytest.mark.ai
+    def test_defaults_flag_false_on_tool_config_when_omitted(self):
+        common_components = _make_common_components([self._make_doc()])
+        event = _make_event([])
+        config = UploadedSearchToolConfig()
+
+        _configure_uploaded_search_tool(
+            event=event,
+            logger=MagicMock(),
+            common_components=common_components,
+            config=config,
+        )
+
+        assert config.tool_config.selected_uploaded_files_enabled is False
