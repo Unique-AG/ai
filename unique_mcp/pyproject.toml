@@ -24,7 +24,7 @@ dependencies = [
     # 4.6.0 is the floor: 4.4.0/4.5.0 fail to import on Python 3.12 (a
     # TypeVar subclassing incompatibility, fixed in 4.6.0), verified locally.
     "typing-extensions>=4.6.0",
-    "unique-toolkit[monitoring,otel]>=2026.34.2",
+    "unique-toolkit[monitoring,otel]>=2026.34.3",
 ]
 
 [build-system]
