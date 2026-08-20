@@ -62,7 +62,6 @@ az postgres flexible-server firewall-rule create \
   2>/dev/null || echo "  Rule exists."
 
 PG_FQDN=$(az postgres flexible-server show -n "$PG_SERVER" -g "$RG" --query fullyQualifiedDomainName -o tsv)
-PG_URL="postgresql://${PG_ADMIN_USER}:${PG_ADMIN_PASSWORD}@${PG_FQDN}:5432/${PG_DB}?sslmode=require"
 
 echo "[5/9] ACR..."
 az acr create -n "$ACR" -g "$RG" --sku Basic --admin-enabled true 2>/dev/null || echo "ACR exists"
@@ -89,12 +88,13 @@ az webapp config appsettings set -n "$APP" -g "$RG" --settings \
   PGDATABASE="$PG_DB" \
   PGUSER="$PG_ADMIN_USER" \
   PGPASSWORD="$PG_ADMIN_PASSWORD" \
-  PG_CLIENT_STORAGE_URL="$PG_URL" \
   BASE_URL_ENV="https://${APP}.azurewebsites.net" \
   ZITADEL_URL="${ZITADEL_URL:-https://id.unique.app}" \
   UPSTREAM_CLIENT_ID="${UPSTREAM_CLIENT_ID:-}" \
   UPSTREAM_CLIENT_SECRET="${UPSTREAM_CLIENT_SECRET:-}" \
   PG_SSLMODE=require
+az webapp config appsettings delete -n "$APP" -g "$RG" \
+  --setting-names PG_CLIENT_STORAGE_URL >/dev/null
 
 echo "[9/9] Done."
 

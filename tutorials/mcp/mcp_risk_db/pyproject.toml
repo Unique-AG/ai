@@ -5,7 +5,7 @@ description = "MCP server that exposes read-only query tools over a bundled Exce
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fastmcp>=3.0,<4",
+    "fastmcp>=3.2.0,<4",
     "pandas>=2.0",
     "openpyxl>=3.1",
     "python-dotenv>=1.0",

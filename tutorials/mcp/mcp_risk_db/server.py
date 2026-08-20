@@ -62,9 +62,6 @@ def _sanitize_table_name(name: str) -> str:
 
 
 def _build_postgresql_store_url() -> str | None:
-    url = os.getenv("PG_CLIENT_STORAGE_URL")
-    if url:
-        return url
     if not os.getenv("PGHOST"):
         return None
     user = os.getenv("PGUSER", "postgres")
@@ -98,7 +95,7 @@ def sync_excel_to_postgres() -> None:
     """Recreate all sheet tables in Postgres from in-memory SHEETS (mirrors Excel)."""
     url = _build_sqlalchemy_sync_url()
     if not url:
-        logger.info("Postgres not configured (PGHOST / PG_CLIENT_STORAGE_URL); skipping mirror sync.")
+        logger.info("Postgres not configured (PGHOST); skipping mirror sync.")
         return
     try:
         engine = create_engine(url)
@@ -174,7 +171,7 @@ def _apply_filter(df: pd.DataFrame, col: str, val: object) -> pd.DataFrame:
         op, v = val["op"], val["value"]
         s = df[col]
         if op == "contains":
-            mask = s.astype(str).str.contains(str(v), case=False, na=False)
+            mask = s.astype(str).str.contains(str(v), case=False, na=False, regex=False)
         elif op in ("gt", "gte", "lt", "lte"):
             num_s = pd.to_numeric(s, errors="coerce")
             num_v = float(v) if isinstance(v, str) else v

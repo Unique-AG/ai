@@ -76,8 +76,6 @@ az webapp config appsettings set \
 
 Then **Save** and restart the app if prompted.
 
-**Note:** If the Postgres admin password contains characters that break URLs (`@`, `&`, `#`, etc.), prefer setting discrete `PGHOST` / `PGUSER` / `PGPASSWORD` in Configuration instead of a single `PG_CLIENT_STORAGE_URL`, or URL-encode the password in the connection string.
-
 ## PostgreSQL mirror (showcase only)
 
 - On startup, after loading Excel into pandas, the server **drops and recreates** mirror tables in Postgres (one table per sheet; names sanitized, e.g. lowercase, spaces → `_`).
@@ -108,7 +106,7 @@ cp .env.example .env
 uv run server.py
 ```
 
-Default: `http://127.0.0.1:8002/mcp` (no Postgres unless you configure `PG*` / `PG_CLIENT_STORAGE_URL`).
+Default: `http://127.0.0.1:8002/mcp` (no Postgres unless you configure the `PG*` variables).
 
 ## Deploy to Azure
 
