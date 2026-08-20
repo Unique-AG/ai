@@ -574,6 +574,15 @@ class LanguageModelInfo(BaseModel):
 
     @classmethod
     def _construct_from_name(cls, model_name: LanguageModelName | str) -> Self:
+        requested_model_name = (
+            model_name.value
+            if isinstance(model_name, LanguageModelName)
+            else model_name
+        )
+
+        if model_name in LanguageModelName.__members__:
+            model_name = LanguageModelName[model_name]
+
         if model_name in [name.value for name in LanguageModelName]:
             model_name = LanguageModelName(model_name)
 
@@ -584,12 +593,17 @@ class LanguageModelInfo(BaseModel):
             if isinstance(model_name, LanguageModelName)
             else model_name
         )
-        if model_name_str in env_model_infos.keys():
+        env_model_name = (
+            requested_model_name
+            if requested_model_name in env_model_infos
+            else model_name_str
+        )
+        if env_model_name in env_model_infos:
             try:
-                return cls.model_validate(env_model_infos[model_name_str])
+                return cls.model_validate(env_model_infos[env_model_name])
             except Exception:
                 _LOGGER.warning(
-                    f"Failed to parse model info for '{model_name_str}' from "
+                    f"Failed to parse model info for '{env_model_name}' from "
                     f"{cls._ENV_VAR}. Falling back to default definition.",
                     exc_info=True,
                 )

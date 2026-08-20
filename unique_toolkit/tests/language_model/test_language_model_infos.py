@@ -158,6 +158,26 @@ class TestLanguageModelInfos:
             provider=LanguageModelProvider.CUSTOM,
         )
 
+    @pytest.mark.parametrize(
+        "model_name",
+        list(LanguageModelName),
+        ids=[model_name.name for model_name in LanguageModelName],
+    )
+    def test_from_name_resolves_enum_member_name_to_same_model(
+        self, model_name: LanguageModelName
+    ):
+        assert LanguageModelInfo.from_name(
+            model_name.name
+        ) == LanguageModelInfo.from_name(model_name)
+
+    def test_from_name_keeps_unknown_enum_shaped_name_custom(self):
+        name = "LITELLM_CUSTOM_CUSTOMER_MODEL"
+
+        model = LanguageModelInfo.from_name(name)
+
+        assert model.name == name
+        assert model.provider == LanguageModelProvider.CUSTOM
+
     # New tests for LanguageModelTokenLimits
     def test_language_model_token_limits_with_input_output(self):
         test_cases = [
@@ -384,6 +404,23 @@ class TestLanguageModelInfoFromEnv:
             assert model.version == "overridden"
             assert model.token_limits.token_limit_input == 1000
             assert model.token_limits.token_limit_output == 100
+
+    def test_from_name_preserves_symbolic_env_override(self):
+        symbolic_name = "LITELLM_OPENAI_GPT_56_LUNA"
+        model_infos = {
+            symbolic_name: {
+                "name": "customer-luna",
+                "provider": "CUSTOM",
+                "version": "customer-version",
+            }
+        }
+        with patch.dict(
+            os.environ, {LanguageModelInfo._ENV_VAR: json.dumps(model_infos)}
+        ):
+            model = LanguageModelInfo.from_name(symbolic_name)
+
+        assert model.name == "customer-luna"
+        assert model.version == "customer-version"
 
     def test_from_name_falls_back_to_default_when_key_not_in_env(self):
         """Test that from_name falls back to default when model not in env."""
