@@ -8,10 +8,12 @@ import unique_sdk
 from unique_toolkit.chat.responses_api import (
     _attempt_extract_reasoning_from_options,
     _attempt_extract_verbosity_from_options,
+    _prepare_responses_params_util,
     _responses_stream_with_rate_limit_retry,
     convert_messages_to_openai,
     rate_limit_retry_config,
 )
+from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelSystemMessage,
@@ -432,3 +434,58 @@ def test_convert_messages__passes_through_openai_dicts() -> None:
     result = convert_messages_to_openai(messages)
     assert isinstance(result, list)
     assert result[0] == {"role": "user", "content": "Hello"}
+
+
+# ============================================================================
+# Tests for _prepare_responses_params_util
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "model_name",
+    list(LanguageModelName),
+    ids=[model_name.name for model_name in LanguageModelName],
+)
+def test_prepare_responses_params__sends_enum_value_not_member_name(
+    model_name: LanguageModelName,
+) -> None:
+    """
+    Purpose: Verify the outgoing model identifier is the enum value, never the member name.
+    Why this matters: LiteLLM members have a member name (LITELLM_OPENAI_GPT_56_LUNA) that
+    differs from their value (litellm:openai-gpt-5-6-luna). Sending the member name made the
+    backend reject the request as not available on the cluster (UN-24591). Azure members have
+    name == value, which is why this stayed invisible until a LiteLLM model was used.
+    Setup summary: Prepare params for every known model, assert the value form is emitted.
+    """
+    params = _prepare_responses_params_util(
+        model_name=model_name,
+        content_chunks=None,
+        temperature=0.0,
+        tools=None,
+        messages="Hello",
+        reasoning=None,
+        text=None,
+    )
+
+    assert params.model_name == model_name.value
+
+
+@pytest.mark.ai
+def test_prepare_responses_params__passes_custom_model_string_through() -> None:
+    """
+    Purpose: Verify a plain string model name is forwarded unchanged.
+    Why this matters: Custom models are not enum members and must not be rewritten.
+    Setup summary: Pass a custom model string, assert it survives verbatim.
+    """
+    params = _prepare_responses_params_util(
+        model_name="litellm:customer-private-model",
+        content_chunks=None,
+        temperature=0.0,
+        tools=None,
+        messages="Hello",
+        reasoning=None,
+        text=None,
+    )
+
+    assert params.model_name == "litellm:customer-private-model"
