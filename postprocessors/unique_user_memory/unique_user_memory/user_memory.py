@@ -12,7 +12,7 @@ from unique_toolkit.content.functions import (
     upload_content_from_bytes_async,
 )
 from unique_toolkit.language_model import (
-    DEFAULT_GPT_4o,
+    DEFAULT_GPT_51,
     LanguageModelMessages,
     LanguageModelService,
     LanguageModelSystemMessage,
@@ -66,7 +66,7 @@ _GATE_MAX_TOKENS_REASONING = 64
 # output leaves headroom and the hard-cut safety net rarely has to fire.
 _CONDENSE_TARGET_RATIO = 0.9
 _TRUNCATION_MARKER = "\n\n<!-- truncated to fit memory budget -->"
-_DEFAULT_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
+_DEFAULT_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_51)
 _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
 _TURN_COUNT_RE = re.compile(r"^turn_count:\s*(\d+)\s*$", re.MULTILINE)
 _LEGACY_PROFILE_TITLE_RE = re.compile(r"^# User Memory[ \t]*(?:\n+|$)")

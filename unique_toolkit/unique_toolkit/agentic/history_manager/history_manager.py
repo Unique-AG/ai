@@ -24,7 +24,7 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import ChatMessageTool, ChatMessageToolResponse
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_51
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -67,7 +67,7 @@ class HistoryManagerConfig(BaseModel):
         description="The fraction of the max input tokens that will be reserved for the history.",
     )
 
-    language_model: LMI = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
+    language_model: LMI = LanguageModelInfo.from_name(DEFAULT_GPT_51)
 
     @property
     def max_history_tokens(self) -> int:
