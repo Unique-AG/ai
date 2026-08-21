@@ -61,6 +61,10 @@ depcheck = "deptry ."
 [tool.pytest.ini_options]
 addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "unit: unit tests",
+]
 
 [tool.uv.sources]
 unique-toolkit = { workspace = true }

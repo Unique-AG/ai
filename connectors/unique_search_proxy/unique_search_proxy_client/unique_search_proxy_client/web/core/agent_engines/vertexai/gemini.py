@@ -6,6 +6,9 @@ from typing import Any
 from google.genai import types
 from google.genai.client import AsyncClient
 from pydantic import BaseModel
+from unique_search_proxy_core.agent_engines.vertexai.settings import (
+    resolve_enable_enterprise_search,
+)
 
 
 def _get_grounding_tool(*, use_enterprise_search: bool = False) -> types.Tool:
@@ -21,7 +24,13 @@ def build_generate_content_config(
     enable_enterprise_search: bool = False,
 ) -> types.GenerateContentConfig:
     return types.GenerateContentConfig(
-        tools=[_get_grounding_tool(use_enterprise_search=enable_enterprise_search)],
+        tools=[
+            _get_grounding_tool(
+                use_enterprise_search=resolve_enable_enterprise_search(
+                    enable_enterprise_search
+                )
+            )
+        ],
         system_instruction=generation_instructions,
         response_mime_type="application/json",
         response_schema=output_schema,
