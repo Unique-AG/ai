@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.34.0...unique-toolkit-v2026.36.0) (2026-08-21)
+
+
+### Features
+
+* **agentic:** promote MCP unique.app/reference into content_chunks [UN-24212] ([#2265](https://github.com/Unique-AG/ai/issues/2265)) ([a8d19ff](https://github.com/Unique-AG/ai/commit/a8d19ff5cf64e8f128f552abd9f2c3dedfc9a00e))
+* **toolkit:** add InvocationStatsCollector [UN-24486] ([#2302](https://github.com/Unique-AG/ai/issues/2302)) ([c6fbcb4](https://github.com/Unique-AG/ai/commit/c6fbcb46d12fe6a95887ca9b0b85c47f548f80af))
+* **toolkit:** forward x-assistant-message-id on attributed completions [UN-24452] ([#2286](https://github.com/Unique-AG/ai/issues/2286)) ([f85fbd3](https://github.com/Unique-AG/ai/commit/f85fbd3cb1c953e25e3cf019208aaeb559d15fe5))
+* **unique-toolkit:** office PDF previews for code-interpreter artifacts [UN-23808] ([#2295](https://github.com/Unique-AG/ai/issues/2295)) ([f946460](https://github.com/Unique-AG/ai/commit/f9464600ed6e731cf8d8930ccd0bfae53ef39783))
+
+
+### Bug Fixes
+
+* **toolkit:** clamp LLM temperature in Python streaming [UN-23221] ([#2268](https://github.com/Unique-AG/ai/issues/2268)) ([cf97423](https://github.com/Unique-AG/ai/commit/cf974234a85f312f2a62a966f608fdf5cb736c0b))
+* **toolkit:** send model value not enum name on responses API ([#2314](https://github.com/Unique-AG/ai/issues/2314)) ([fcee007](https://github.com/Unique-AG/ai/commit/fcee0075303deb60ee711e0bcdb9919468892f61))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
 ## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.32.0...unique-toolkit-v2026.34.0) (2026-08-14)
 
 
