@@ -1,0 +1,9 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+.build/
+.local/
+PRESENTATION_NOTES.md
