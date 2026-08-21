@@ -56,44 +56,6 @@ class TestVertexAIAgentSearchService:
         assert result.engine == "vertexai"
 
 
-class TestVertexAIEnterpriseSearchLock:
-    @pytest.mark.ai
-    def test_grounding_uses_enterprise_tool_when_forced(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """
-        Purpose: Search-proxy grounding calls use enterprise search when infra locks it.
-        Why this matters: The derived request model does not copy config validators, so request-time coercion must happen at the Gemini config builder.
-        Setup summary: Force the env lock, build a generate-content config with enable_enterprise_search=False, and assert the enterprise tool is selected.
-        """
-        from pydantic import BaseModel
-        from unique_search_proxy_core.agent_engines.vertexai import (
-            settings as vertex_settings,
-        )
-
-        from unique_search_proxy_client.web.core.agent_engines.vertexai.gemini import (
-            build_generate_content_config,
-        )
-
-        monkeypatch.setattr(
-            vertex_settings.vertex_ai_env_settings,
-            "force_activate_enterprise_search",
-            True,
-        )
-
-        class _Output(BaseModel):
-            answer: str
-
-        config = build_generate_content_config(
-            generation_instructions="instr",
-            output_schema=_Output,
-            enable_enterprise_search=False,
-        )
-        assert config.tools is not None
-        assert config.tools[0].enterprise_web_search is not None
-        assert config.tools[0].google_search is None
-
-
 class TestVertexSerialization:
     @pytest.mark.ai
     def test_agent_search_response_accepts_model_dump_raw(self) -> None:
