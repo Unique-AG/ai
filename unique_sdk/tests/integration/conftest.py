@@ -1,7 +1,7 @@
 """
 SDK setup for live integration tests under ``tests/integration``.
 
-Loads credentials from ``.env.qa`` in this directory (see ``.env.qa.example``)
+Loads credentials from ``.testenv`` in this directory (see ``.testenv.example``)
 and configures ``unique_sdk`` the same way as unique-cli.
 
 Each test can write inspectable JSON under ``artifacts/<test>/<run_id>/``
@@ -27,7 +27,7 @@ from dotenv import dotenv_values
 import unique_sdk
 from unique_sdk.api_resources._space import Space
 
-_ENV_FILE = Path(__file__).parent / ".env.qa"
+_ENV_FILE = Path(__file__).parent / ".testenv"
 _ARTIFACTS_ROOT = Path(__file__).parent / "artifacts"
 _ARTIFACT_MAX_AGE = timedelta(days=2)
 _ARTIFACT_MAX_PER_TEST = 20
@@ -156,11 +156,11 @@ def _prepare_artifact_run_dir(test_dirname: str, run_id: str) -> Path:
 
 @pytest.fixture(scope="session")
 def qa_config() -> QaIntegrationConfig:
-    """Load QA credentials from ``tests/integration/.env.qa``."""
+    """Load QA credentials from ``tests/integration/.testenv``."""
     if not _ENV_FILE.exists():
         pytest.skip(
             f"QA env file not found at {_ENV_FILE}. "
-            "Copy .env.qa.example to .env.qa and fill in credentials."
+            "Copy .testenv.example to .testenv and fill in credentials."
         )
 
     try:
@@ -170,8 +170,13 @@ def qa_config() -> QaIntegrationConfig:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def setup_unique_sdk(qa_config: QaIntegrationConfig) -> None:
-    """Configure unique_sdk globals from ``.env.qa`` (same pattern as unique-cli)."""
+def setup_qa_unique_sdk(qa_config: QaIntegrationConfig) -> None:
+    """Configure unique_sdk globals from ``.testenv`` (same pattern as unique-cli).
+
+    Named distinctly from ``tests.conftest.setup_unique_sdk`` so the two
+    integration suites do not share a fixture identity if collected together.
+    Prefer ``poe test-integration``, which only collects ``tests/integration``.
+    """
     unique_sdk.api_key = qa_config.api_key
     unique_sdk.app_id = qa_config.app_id
     unique_sdk.api_base = qa_config.api_base

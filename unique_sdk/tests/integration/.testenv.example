@@ -1,4 +1,4 @@
-# Template for tests/integration/.env.qa (copy and fill in; .env.qa is gitignored).
+# Template for tests/integration/.testenv (copy and fill in; .testenv is gitignored).
 #
 # Required — SDK auth (same names as unique-cli)
 UNIQUE_API_KEY=

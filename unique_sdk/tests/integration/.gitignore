@@ -1,4 +1,7 @@
+# Local secrets — do not commit
+.testenv
 .env
 .env.*
 !.env*.example
+!.testenv.example
 artifacts/

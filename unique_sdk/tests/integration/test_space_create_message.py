@@ -2,7 +2,7 @@
 Integration tests for ``Space.create_message`` request fields.
 
 These tests call the QA (or other) public API configured via
-``tests/integration/.env.qa`` (see ``.env.qa.example``).
+``tests/integration/.testenv`` (see ``.testenv.example``).
 
 Inspectable JSON artifacts are written under
 ``tests/integration/artifacts/<test>/<run_id>/``.
