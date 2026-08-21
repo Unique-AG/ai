@@ -1,176 +1,219 @@
 # Risk Database MCP Server
 
-Read-only MCP server over a bundled Excel risk database. Tools (`get_schema`, `query_data`) use **pandas / Excel** in memory. When **PostgreSQL** is configured, the same data is **mirrored into tables** on startup for demos (e.g. TablePlus). **Zitadel OAuth** protects the MCP HTTP endpoint.
+Demo MCP server that exposes a bundled Excel risk database as read-only tools. The server keeps Excel as the source of truth, loads it with pandas, and protects remote access with Zitadel OAuth.
 
-## Endpoints
+## Business goal
+
+This demo mocks a real risk database in Excel, making the data simple for Sales to inspect and update while AI assistants gain structured access through MCP.
+
+Users can ask natural-language questions across the workbook, while the assistant discovers the available sheets and calls deterministic query tools.
+
+## Data
+
+The workbook simulates risk management for a multi-strategy hedge fund. Risk and compliance teams use this type of data to identify limit breaches, warning levels, concentrated positions, liquidity concerns, and performance changes.
+
+Important sheets include:
+
+- `positions`: holdings, exposure, P&L, liquidity, analyst, and strategy.
+- `risk_limits`: utilization, warning thresholds, and breach flags.
+- `var_stress`: potential losses under risk scenarios.
+- `liquidity` and `crowding`: positions that may be difficult to exit.
+- `pnl_daily`: daily and year-to-date performance.
+- `schema`: metadata describing the available tables.
+
+The source file is `data/risk_database.xlsx`.
+
+## How it works
+
+1. At startup, `server.py` loads every Excel sheet into a pandas `DataFrame`.
+2. FastMCP exposes two read-only tools over the in-memory data.
+3. When PostgreSQL is configured, the sheets are also mirrored into database tables for demonstration and inspection. MCP tools continue to query pandas.
+4. FastMCP `OAuthProxy` delegates authentication to Zitadel and verifies access tokens through introspection.
+5. Dynamic MCP client registrations use a local file store during development and PostgreSQL in Azure.
+6. The server exposes Streamable HTTP at `/mcp` and a health endpoint at `/`.
+
+### Main files
+
+- `server.py`: data loading, PostgreSQL mirroring, OAuth, tools, and HTTP server.
+- `data/risk_database.xlsx`: source workbook.
+- `.env.example`: local and deployment configuration.
+- `pyproject.toml` and `uv.lock`: Python dependencies and resolved versions.
+- `Dockerfile`: Azure App Service container.
+- `deploy.sh`: Azure resource provisioning and deployment.
+- `.cursor/skills/update-excel/SKILL.md`: workbook update workflow.
+
+### Endpoints
 
 | URL | Purpose |
 |-----|---------|
-| `https://<host>/mcp` | MCP (streamable HTTP) — use this in Unique AI MCP Hub |
+| `https://<host>/mcp` | MCP Streamable HTTP endpoint |
 | `https://<host>/` | Health JSON |
 
-**Azure example:** `https://risk-db-mcp-app.azurewebsites.net/mcp`
-
-## Tools
+### Tools
 
 | Tool | Description |
 |------|-------------|
-| `get_schema` | List sheets with columns, row counts, sample rows |
-| `query_data` | Query a sheet with optional filters, column selection, limit |
+| `get_schema` | Lists sheets, columns, row counts, primary keys, and samples |
+| `query_data` | Queries a sheet with filters, column selection, and a row limit |
 
-## Authentication (Zitadel)
+## Run locally and test with MCP Inspector
 
-The server uses **FastMCP `OAuthProxy`** with **Zitadel** as the identity provider:
+1. Create `.env` from the example and configure the Zitadel client:
 
-1. JWT verification via Zitadel JWKS (`{ZITADEL_URL}/oauth/v2/keys`)
-2. OAuth2 authorization code flow with PKCE
-3. **OAuth client registrations** for MCP clients are stored in **PostgreSQL** (`py-key-value-aio` `PostgreSQLStore`) when Postgres is configured, so client IDs survive app restarts and redeploys. Without Postgres, an in-memory store is used (local dev only).
+   ```bash
+   cp .env.example .env
+   ```
 
-### Required OAuth scopes
+2. Install the locked dependencies and start the server:
 
-Configure these on the Zitadel application (or ensure they can be requested):
+   ```bash
+   uv sync
+   uv run server.py
+   ```
 
-- `mcp:tools`, `mcp:prompts`, `mcp:resources`, `mcp:resource-templates`
-- `email`, `openid`, `profile`
+3. In another terminal, start MCP Inspector:
 
-### Zitadel application setup (step by step)
+   ```bash
+   npx @modelcontextprotocol/inspector
+   ```
 
-Use the **same Zitadel organization/project** as the MCP SQL demo, but create a **new application** (separate client ID and secret).
+4. Connect with:
+   - Transport: **Streamable HTTP**
+   - URL: `http://127.0.0.1:8002/mcp`
 
-1. Open **Zitadel Console**: [https://id.unique.app](https://id.unique.app) and sign in with an admin account.
-2. Open **Projects** and select the project used for **MCP SQL demo** (or your team’s MCP demos project).
-3. Under **Applications**, click **New**.
-4. Choose **Web** application (or **User Agent** flow compatible with web redirect — same pattern as MCP SQL demo).
-5. Set a name, e.g. `risk-database-mcp`.
-6. **Authentication method** for the token endpoint: **Post** (`client_secret_post`).
-7. **Redirect URIs** — add exactly (production):
+5. Call `get_schema`, then test `query_data`:
 
-   `https://risk-db-mcp-app.azurewebsites.net/auth/callback`
+   ```json
+   {
+     "sheet_name": "positions",
+     "filters": {
+       "sector": "Technology"
+     },
+     "limit": 10
+   }
+   ```
 
-   For local testing with a public URL (e.g. ngrok), add:
+Local OAuth client registrations are persisted under `.local/oauth-client-store`, so they survive server restarts. PostgreSQL is not needed locally unless the database mirror is part of the demonstration.
 
-   `https://<your-subdomain>.ngrok-free.app/auth/callback`
+## Authentication with Zitadel
 
-8. **Access token type**: **JWT** (not opaque).
-9. Save the application. Copy:
-   - **Client ID**
-   - **Client secret** (shown at creation; store it securely — it may not be shown again).
+The server uses FastMCP `OAuthProxy` with Zitadel:
 
-### Set client ID and secret in Azure App Service
+- Authorization code flow with PKCE protects the browser authorization exchange.
+- `IntrospectionTokenVerifier` calls `{ZITADEL_URL}/oauth/v2/introspect` to validate access tokens.
+- The proxy forwards authorization, token, and revocation operations to Zitadel.
+- Scopes limit the capabilities that clients can request.
+- The Zitadel application client ID and secret identify this MCP to Zitadel.
+- Dynamic client registrations identify MCP clients such as Unique AI. They are separate from the Zitadel application client ID.
 
-After `./deploy.sh`, set the OAuth credentials as **application settings** (slot settings if you use slots):
+### Create the Zitadel application
 
-```bash
-az webapp config appsettings set \
-  -n risk-db-mcp-app \
-  -g rg-lab-demo-001-risk-db-mcp \
-  --settings \
-    UPSTREAM_CLIENT_ID='<paste-client-id>' \
-    UPSTREAM_CLIENT_SECRET='<paste-client-secret>'
-```
+1. Open the Zitadel Console and select the organization and project used for MCP applications.
+2. Create a **Web** application named, for example, `risk-database-mcp`.
+3. Set token endpoint authentication to **Post** (`client_secret_post`).
+4. Set the access token type to **JWT**.
+5. Add each server callback URL:
+   - Local tunnel: `https://<public-host>/auth/callback`
+   - Azure: `https://<app-name>.azurewebsites.net/auth/callback`
+6. Save the application and copy its client ID and secret into `.env`:
 
-**Azure Portal:** App Service → **Configuration** → **Application settings** → **New application setting**:
+   ```env
+   ZITADEL_URL=https://id.unique.app
+   UPSTREAM_CLIENT_ID=<client-id>
+   UPSTREAM_CLIENT_SECRET=<client-secret>
+   ```
 
-- Name: `UPSTREAM_CLIENT_ID`, Value: (client ID)
-- Name: `UPSTREAM_CLIENT_SECRET`, Value: (client secret) — mark as **Deployment slot setting** if needed
+## Expose the local server and connect it to Unique AI
 
-Then **Save** and restart the app if prompted.
+1. Start the server with its public origin:
 
-## PostgreSQL mirror (showcase only)
+   ```bash
+   uv run server.py https://<public-host>
+   ```
 
-- On startup, after loading Excel into pandas, the server **drops and recreates** mirror tables in Postgres (one table per sheet; names sanitized, e.g. lowercase, spaces → `_`).
-- **MCP tools do not query Postgres**; they keep using Excel/pandas.
-- Sync runs on every process start (including after deploy), so the mirror matches the bundled workbook.
+2. Expose port `8002`:
 
-## TablePlus / SQL client (read-only browsing)
+   ```bash
+   ngrok http 8002 --url https://<public-host>
+   ```
 
-Use the Flexible Server created by `deploy.sh`:
+3. Add `https://<public-host>/auth/callback` to the Zitadel application.
+4. Add the MCP in Unique AI:
+   - URL: `https://<public-host>/mcp`
+5. Authorize the connection and attach the MCP to a space.
 
-| Field | Value |
-|-------|--------|
-| Host | `risk-db-mcp-pg-db.postgres.database.azure.com` (FQDN from Azure Portal → PostgreSQL server → **Overview**) |
-| Port | `5432` |
-| Database | `riskdb` |
-| User | `pgadmin` (or `PG_ADMIN_USER` if you changed it) |
-| Password | The same `PG_ADMIN_PASSWORD` you used when running `deploy.sh` |
-| SSL | **Required** |
+Example questions:
 
-Example sheet-backed tables (after first app start): `positions`, `exposures`, `pnl_daily`, `factor_risk`, `var_stress`, `liquidity`, `risk_limits`, `drawdowns`, `counterparty`, `performance`, `events_calendar`, `crowding`, `correlations`, `greeks`, `redemption_liquidity`, `schema` (exact names depend on sanitization of Excel sheet names).
-
-## Local run
-
-```bash
-uv sync
-cp .env.example .env
-# Edit .env: BASE_URL_ENV, ZITADEL_URL, UPSTREAM_CLIENT_ID, UPSTREAM_CLIENT_SECRET
-uv run server.py
-```
-
-Default: `http://127.0.0.1:8002/mcp` (no Postgres unless you configure the `PG*` variables).
+- `Identify all hard risk-limit breaches and warnings across every fund.`
+- `Which positions have critical crowding or are flagged as illiquid?`
+- `Summarize the latest P&L and main risk exposures for each fund.`
 
 ## Deploy to Azure
 
 ### Prerequisites
 
-1. **Azure subscription and resource group** — Request a lab environment through an infrastructure PR by adding an entry to `providers/azure/unique-ag/lab/demo/001/config/environments.yaml`. See the [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs) for the process.
-
-   This demo uses subscription `698f3b43-ccb0-4f97-9e10-2ca89a7782cf` and resource group `rg-lab-demo-001-risk-db-mcp`.
-2. **Azure CLI** installed and authenticated with `az login`.
-3. **Zitadel application** configured as described above, including redirect URI `https://risk-db-mcp-app.azurewebsites.net/auth/callback`.
+1. Request a lab subscription and resource group through an infrastructure PR. Add the environment to `providers/azure/unique-ag/lab/demo/001/config/environments.yaml`; see the [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs).
+2. Install Azure CLI and authenticate with `az login`.
+3. Configure the production callback URL in Zitadel.
+4. Set `PG_ADMIN_PASSWORD`, `UPSTREAM_CLIENT_ID`, and `UPSTREAM_CLIENT_SECRET` in `.env`.
 
 ### What `deploy.sh` does
 
-- Selects the Azure subscription.
-- Creates the PostgreSQL Flexible Server and database on the first run.
-- Builds the container image in Azure Container Registry.
+- Selects the configured Azure subscription.
+- Creates PostgreSQL Flexible Server and the database on the first run.
+- Builds the container in Azure Container Registry.
 - Creates or updates the App Service plan and Web App.
-- Configures the Postgres, OAuth, port, and public base URL application settings.
+- Configures PostgreSQL, OAuth, port, and public URL application settings.
+- Removes the legacy `PG_CLIENT_STORAGE_URL` setting; the server safely builds its connection from the discrete `PG*` settings.
 
-### Deploy
+### Deploy or redeploy
 
-1. Export or enter the Postgres admin password:
+```bash
+./deploy.sh
+az webapp restart -n risk-db-mcp-app -g rg-lab-demo-001-risk-db-mcp
+```
 
-   ```bash
-   export PG_ADMIN_PASSWORD='your-secure-password'
-   ```
+The PostgreSQL server is created only once. Later runs rebuild the image and update the Web App.
 
-2. From this directory:
-
-   ```bash
-   chmod +x deploy.sh
-   ./deploy.sh
-   ```
-
-3. Set Zitadel secrets (see above).
-
-4. Restart the Web App after deployment so it starts with the latest container image and settings:
-
-   ```bash
-   az webapp restart -n risk-db-mcp-app -g rg-lab-demo-001-risk-db-mcp
-   ```
-
-The script creates the Postgres server **once** (idempotent); later runs rebuild the container and update settings.
-
-### Deployed instance
+Current demo endpoints:
 
 - Health: `https://risk-db-mcp-app.azurewebsites.net/`
 - MCP: `https://risk-db-mcp-app.azurewebsites.net/mcp`
 
-Connect it to Unique AI in the same way as the ngrok deployment, using the deployed MCP URL.
+Connect the deployed endpoint to Unique AI using the same process as the ngrok endpoint.
 
 ### Logs
 
 For live output, open the Web App in Azure Portal and select **Monitoring → Log stream**.
 
-The Web App also has a diagnostic setting named `risk-db-mcp-logs`, configured separately from `deploy.sh`. It forwards **HTTP**, **console**, and **platform** logs to the shared Log Analytics workspace `law-lab-demo-001-shared`.
+The `risk-db-mcp-logs` diagnostic setting forwards HTTP, console, and platform logs to `law-lab-demo-001-shared`. In that Log Analytics workspace, run:
 
-## Example prompts (Unique AI)
+```kusto
+AppServiceConsoleLogs
+| where _ResourceId endswith "/risk-db-mcp-app"
+| where TimeGenerated > ago(1h)
+| project TimeGenerated, Level, Message=ResultDescription
+| order by TimeGenerated desc
+```
 
-- What sheets are in the risk database? Show the schema.
-- Show long positions in the Technology sector.
-- Which tickers have CRITICAL crowding tier?
-- Show risk limits that are breached.
+### PostgreSQL mirror
 
-## Data
+On startup, the server replaces one PostgreSQL table per workbook sheet. This mirror is for database inspection only; MCP queries continue to use pandas.
 
-Workbook: `data/risk_database.xlsx`. Replace the file and redeploy to refresh; Postgres mirror updates on next startup.
+To showcase the mirrored data after deployment, create a **PostgreSQL** connection in TablePlus with:
+
+| Field | Value |
+|-------|-------|
+| Name | `risk-db-azure` |
+| Host | `risk-db-mcp-pg-db.postgres.database.azure.com` |
+| Port | `5432` |
+| User | `pgadmin` |
+| Password | `PG_ADMIN_PASSWORD` from `.env` |
+| Database | `riskdb` |
+| SSL mode | Required |
+
+Test the connection, connect, and open the mirrored sheet tables.
+
+## Update data in Excel
+
+Use `.cursor/skills/update-excel/SKILL.md` to replace the workbook, review schema changes, redeploy, and verify the updated data.

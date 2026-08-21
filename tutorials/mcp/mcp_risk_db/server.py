@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
 from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
-from key_value.aio.stores.memory import MemoryStore
+from key_value.aio.stores.filetree import FileTreeStore
 from key_value.aio.stores.postgresql import PostgreSQLStore
 from sqlalchemy import create_engine
 from starlette.middleware import Middleware
@@ -113,8 +113,13 @@ _pg_store_url = _build_postgresql_store_url()
 if _pg_store_url:
     _client_storage = PostgreSQLStore(url=_pg_store_url)
 else:
-    # In-memory OAuth client storage for local dev (no Postgres). Azure uses Postgres.
-    _client_storage = MemoryStore()
+    local_storage_path = Path(
+        os.getenv(
+            "LOCAL_OAUTH_STORAGE_PATH",
+            str(Path(__file__).resolve().parent / ".local" / "oauth-client-store"),
+        )
+    )
+    _client_storage = FileTreeStore(data_directory=local_storage_path)
 
 token_verifier = IntrospectionTokenVerifier(
     introspection_url=f"{ZITADEL_URL}/oauth/v2/introspect",
