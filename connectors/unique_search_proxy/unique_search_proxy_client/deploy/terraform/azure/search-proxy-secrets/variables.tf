@@ -10,7 +10,11 @@ variable "secrets_placeholders" {
     expiration_date = optional(string, "2099-12-31T23:59:59Z")
   }))
   default = {
-    perplexity-search-api-key = { create = true, expiration_date = "2099-12-31T23:59:59Z" }
+    google-search-api-key     = { create = true, expiration_date = "2099-12-31T23:59:59Z" }
     brave-search-api-key      = { create = true, expiration_date = "2099-12-31T23:59:59Z" }
+    perplexity-search-api-key = { create = true, expiration_date = "2099-12-31T23:59:59Z" }
+    tavily-api-key            = { create = true, expiration_date = "2099-12-31T23:59:59Z" }
+    jina-api-key              = { create = true, expiration_date = "2099-12-31T23:59:59Z" }
+    firecrawl-api-key         = { create = true, expiration_date = "2099-12-31T23:59:59Z" }
   }
 }
