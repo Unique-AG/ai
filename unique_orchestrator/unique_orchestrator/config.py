@@ -382,7 +382,7 @@ class HistoryConfig(BaseToolConfig):
     )
 
     serialize_uploaded_files_in_user_message: bool = Field(
-        default=False,
+        default=True,
         description="Include an indication of each uploaded file in the user message.",
     )
 
