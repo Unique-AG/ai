@@ -7,6 +7,7 @@
 
 import logging
 from collections.abc import Sequence
+from pathlib import PurePath
 from typing import Annotated, Literal
 
 from fastmcp.dependencies import Depends
@@ -97,34 +98,43 @@ _tree_cache: AsyncTTLCache | None = None
 _NO_FOLDER_PATH_SENTINEL = "_no_folder_path"
 
 
+def _path_parts(path: PurePath | Sequence[str]) -> Sequence[str]:
+    """Accept a POSIX path or the list-of-segments form used in tests."""
+    if isinstance(path, PurePath):
+        return tuple(part for part in path.parts if part != ".")
+    return path
+
+
 def _normalize_path_segment(segment: str) -> str:
     """Strip ``[`` / ``]`` so display labels and folder_path filters stay aligned."""
     return segment.replace("[", "").replace("]", "")
 
 
-def _display_path_segments(segments: Sequence[str]) -> list[str]:
+def _display_path_segments(path: PurePath | Sequence[str]) -> list[str]:
     """Path segments for display and filtering (sentinel dropped, brackets stripped)."""
     return [
-        _normalize_path_segment(s) for s in segments if s != _NO_FOLDER_PATH_SENTINEL
+        _normalize_path_segment(s)
+        for s in _path_parts(path)
+        if s != _NO_FOLDER_PATH_SENTINEL
     ]
 
 
-def _display_path(segments: Sequence[str]) -> str:
+def _display_path(path: PurePath | Sequence[str]) -> str:
     """Join path segments for display labels.
 
     Drops the orphan-folder sentinel and strips ``[`` / ``]`` so folder names
     like ``[SM]`` cannot break the outer ``[label](url)`` markdown wrapper.
     """
-    return "/".join(_display_path_segments(segments))
+    return "/".join(_display_path_segments(path))
 
 
 def _file_link(
     content_info: ContentInfo,
-    segments: Sequence[str],
+    path: PurePath | Sequence[str],
     frontend_base_url: str | None,
 ) -> str:
     """Render a file row as a markdown citation (sentinel/brackets stripped)."""
-    display = _display_path(segments)
+    display = _display_path(path)
     url = file_reference_url(
         content_info.id,
         metadata=content_info.metadata,

@@ -826,3 +826,43 @@ def test_download_content_to_file_by_id_utf8_filename(mock_get, tmp_path):
     assert result.exists()
     assert result.name == "ИКТ УРЕЂАЈИ.pptx"
     assert result.read_bytes() == b"file bytes"
+
+
+@pytest.mark.ai
+def test_get_folder_path__returns_path_string(mock_sdk: Mock) -> None:
+    """
+    Purpose: Verify get_folder_path unwraps the SDK FolderPathResponse.
+    Why this matters: Content-tree resolution depends on this string.
+    Setup summary: Mock SDK returns folderPath; assert the string is returned.
+    """
+    from unique_toolkit.content.functions import get_folder_path
+
+    mock_sdk.Folder.get_folder_path.return_value = {"folderPath": "/Docs/Q1"}
+
+    result = get_folder_path(user_id="user123", company_id="company123", scope_id="s1")
+
+    assert result == "/Docs/Q1"
+    mock_sdk.Folder.get_folder_path.assert_called_once_with(
+        user_id="user123", company_id="company123", scope_id="s1"
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_folder_path_async__returns_path_string(mock_sdk: Mock) -> None:
+    """
+    Purpose: Verify the async folder-path wrapper unwraps folderPath.
+    Why this matters: The content tree uses the async variant on the hot path.
+    Setup summary: Mock get_folder_path_async; assert the string is returned.
+    """
+    from unique_toolkit.content.functions import get_folder_path_async
+
+    mock_sdk.Folder.get_folder_path_async = AsyncMock(
+        return_value={"folderPath": "/Docs/Q1"}
+    )
+
+    result = await get_folder_path_async(
+        user_id="user123", company_id="company123", scope_id="s1"
+    )
+
+    assert result == "/Docs/Q1"

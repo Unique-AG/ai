@@ -973,6 +973,40 @@ async def get_folder_info_async(
     return FolderInfo.model_validate(await info, by_alias=True, by_name=True)
 
 
+def get_folder_path(user_id: str, company_id: str, *, scope_id: str) -> str:
+    """Return the named folder path for ``scope_id`` (e.g. ``/Company/Reports``).
+
+    Args:
+        user_id (str): Confidential user id of the caller.
+        company_id (str): Confidential company id of the caller.
+        scope_id (str): Folder scope id to resolve.
+
+    Returns:
+        str: Absolute folder path as returned by ``GET /folder/{id}/path``.
+    """
+    info = unique_sdk.Folder.get_folder_path(
+        user_id=user_id, company_id=company_id, scope_id=scope_id
+    )
+    return info["folderPath"]
+
+
+async def get_folder_path_async(user_id: str, company_id: str, *, scope_id: str) -> str:
+    """Async variant of :func:`get_folder_path`.
+
+    Args:
+        user_id (str): Confidential user id of the caller.
+        company_id (str): Confidential company id of the caller.
+        scope_id (str): Folder scope id to resolve.
+
+    Returns:
+        str: Absolute folder path as returned by ``GET /folder/{id}/path``.
+    """
+    info = await unique_sdk.Folder.get_folder_path_async(
+        user_id=user_id, company_id=company_id, scope_id=scope_id
+    )
+    return info["folderPath"]
+
+
 def update_content(
     user_id: str,
     company_id: str,

@@ -4,15 +4,12 @@ from __future__ import annotations
 
 from unique_toolkit.experimental.components.content_tree.functions import (
     build_trie_from_resolved_paths,
-    extract_scope_ids_from_content_infos,
     format_path_trie,
-    get_all_content_infos_async,
     resolve_visible_file_paths_core,
-    translate_scope_id_async,
-    translate_scope_ids_async,
-    translate_scope_ids_batch,
+    walk_visible_paths_via_folders_async,
 )
 from unique_toolkit.experimental.components.content_tree.schemas import (
+    FolderWalkSnapshot,
     FuzzyMatch,
     MatchTarget,
     PathTrieNode,
@@ -25,11 +22,8 @@ __all__ = [
     "MatchTarget",
     "PathTrieNode",
     "build_trie_from_resolved_paths",
-    "extract_scope_ids_from_content_infos",
     "format_path_trie",
-    "get_all_content_infos_async",
+    "FolderWalkSnapshot",
     "resolve_visible_file_paths_core",
-    "translate_scope_id_async",
-    "translate_scope_ids_async",
-    "translate_scope_ids_batch",
+    "walk_visible_paths_via_folders_async",
 ]
