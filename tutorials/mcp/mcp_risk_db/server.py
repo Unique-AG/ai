@@ -18,7 +18,11 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
 from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
-from key_value.aio.stores.filetree import FileTreeStore
+from key_value.aio.stores.filetree import (
+    FileTreeStore,
+    FileTreeV1CollectionSanitizationStrategy,
+    FileTreeV1KeySanitizationStrategy,
+)
 from key_value.aio.stores.postgresql import PostgreSQLStore
 from sqlalchemy import create_engine
 from starlette.middleware import Middleware
@@ -119,7 +123,14 @@ else:
             str(Path(__file__).resolve().parent / ".local" / "oauth-client-store"),
         )
     )
-    _client_storage = FileTreeStore(data_directory=local_storage_path)
+    local_storage_path.mkdir(parents=True, exist_ok=True)
+    _client_storage = FileTreeStore(
+        data_directory=local_storage_path,
+        key_sanitization_strategy=FileTreeV1KeySanitizationStrategy(local_storage_path),
+        collection_sanitization_strategy=FileTreeV1CollectionSanitizationStrategy(
+            local_storage_path
+        ),
+    )
 
 token_verifier = IntrospectionTokenVerifier(
     introspection_url=f"{ZITADEL_URL}/oauth/v2/introspect",
