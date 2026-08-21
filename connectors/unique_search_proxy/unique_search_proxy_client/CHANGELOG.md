@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.34.0...unique-search-proxy-v2026.36.0) (2026-08-21)
+
+
+### Features
+
+* **search-proxy:** add count tables and scope HTTP panels to proxy ([#2277](https://github.com/Unique-AG/ai/issues/2277)) ([9eb4776](https://github.com/Unique-AG/ai/commit/9eb4776e74499dd6213ed329382fd6745f99049a))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
 ## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.32.0...unique-search-proxy-v2026.34.0) (2026-08-14)
 
 
