@@ -400,7 +400,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `scopeRules` (Dict[str, Any], optional) - UniqueQL filter for document scope
     - `selectedUploadedFileIds` (List[str], optional) - Content IDs of uploaded documents the assistant may read via UploadedSearch. Overrides documents otherwise derived from the chat. An empty list blocks all uploaded documents.
     - `correlation` ([`Space.Correlation`](#spacecorrelation), optional) - Correlation data to link this message to a parent message in another chat
-    - `autoApproveElicitation` (bool, optional) - When `true`, automatically approves elicitation requests during the assistant run. Use for non-interactive SDK/automation flows where no user is present to respond. Requires `unique_sdk.api_version = "2026-03-01"`.
+    - `autoApproveElicitation` (bool, optional) - When `true`, automatically approves elicitation requests during the assistant run. Use for non-interactive SDK/automation flows where no user is present to respond.
 
     **Returns:**
 
@@ -472,8 +472,6 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     **Example - Non-interactive automation (auto-approve elicitations):**
 
     ```python
-    unique_sdk.api_version = "2026-03-01"
-
     message = unique_sdk.Space.create_message(
         user_id=user_id,
         company_id=company_id,

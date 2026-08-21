@@ -29,7 +29,8 @@ The Chat in Space utilities provide:
     - `max_wait` (optional) - Maximum seconds to wait (default: 60.0)
     - `stop_condition` (optional) - When to stop: `"stoppedStreamingAt"` or `"completedAt"` (default: `"stoppedStreamingAt"`)
     - `correlation` (optional) - Correlation data to link this message to a parent message in another chat. Should contain: `parentMessageId`, `parentChatId`, `parentAssistantId`
-    - `auto_approve_elicitation` (optional) - When `True`, automatically approves elicitation requests during the assistant run. Use for non-interactive automation where no user is present. Requires `unique_sdk.api_version = "2026-03-01"`.
+    - `auto_approve_elicitation` (optional) - When `True`, automatically approves elicitation requests during the assistant run. Use for non-interactive automation where no user is present.
+    - `language_model` (optional) - Language model group name for this single message (e.g. `"AZURE_GPT_54_2026_0305"`). Requires manage access / model switching configuration on the space.
 
     **Returns:**
 
