@@ -13,7 +13,6 @@ from typing import Any
 import pytest
 
 from tests.integration.conftest import IntegrationArtifacts, QaIntegrationConfig
-from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.chat_in_space import (
     get_message_invocations,
     send_message_and_wait_for_completion,
