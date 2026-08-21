@@ -17,12 +17,21 @@ Values are officiated manually after apply. Terraform ignores subsequent value c
 
 The `manual-` prefix is added by this module.
 
+During migration, tenants may still create `google` / `tavily` / `jina` / `firecrawl`
+via the legacy secrets bundle / `common_secret_placeholders` for assistants-core.
+In that case, pass `secrets_placeholders` with only the new keys (e.g. Brave + Perplexity)
+so Terraform does not try to create the same Key Vault secret twice.
+
 ## Usage
 
 ```hcl
 module "search_proxy" {
   source       = "github.com/unique-ag/ai.git//connectors/unique_search_proxy/unique_search_proxy_client/deploy/terraform/azure/search-proxy-secrets?ref=<sha>"
   key_vault_id = data.azurerm_key_vault.core.id
-  # secrets_placeholders defaults cover all search-proxy provider API keys
+  # While assistants-core still uses the legacy path for google/tavily/jina/firecrawl:
+  secrets_placeholders = {
+    perplexity-search-api-key = { create = true }
+    brave-search-api-key      = { create = true }
+  }
 }
 ```
