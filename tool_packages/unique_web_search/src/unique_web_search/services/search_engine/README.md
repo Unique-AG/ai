@@ -161,6 +161,12 @@ AZURE_IDENTITY_CREDENTIAL_TYPE=workload  # or default
 
 Requires GCP ADC / workload identity. Fields include `vertexai_model_name`, `generation_instructions`, `enable_entreprise_search`, `enable_redirect_resolution`, `requires_scraping`.
 
+```bash
+VERTEXAI_AGENT_DEFAULT_VERTEX_AI_MODEL_NAME=gemini-3-flash-preview
+# ZDR tenants: pin "Enable Enterprise Search" on and disable the checkbox
+VERTEXAI_AGENT_FORCE_ACTIVATE_ENTERPRISE_SEARCH=false
+```
+
 ---
 
 ## Factory
