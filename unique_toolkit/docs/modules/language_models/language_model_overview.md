@@ -2,6 +2,8 @@
 
 This page provides a comprehensive overview of all supported language models in the unique_toolkit.
 
+For tenant-specific model availability — API-backed narrowing, default selection, and JSON schema helpers for configuration UIs — see [Tenant-Scoped Dynamic Language Models](dynamic_language_models.md).
+
 ## Model Properties
 
 The following properties are documented for each model:

@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any
+# pyright: reportImportCycles=false
+from typing import TYPE_CHECKING, cast
 
 from .constants import DOMAIN_NAME
 from .default_language_model import DEFAULT_LANGUAGE_MODEL, DEFAULT_GPT_4o
@@ -45,14 +46,47 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable as _Callable
+
+    from .dynamic import (
+        ActiveLanguageModelConfigurationError as ActiveLanguageModelConfigurationError,
+    )
+    from .dynamic import (
+        ensure_company_id as ensure_company_id,
+    )
+    from .dynamic import (
+        ensure_sdk_initialized as ensure_sdk_initialized,
+    )
+    from .dynamic import (
+        get_active_language_models_async as get_active_language_models_async,
+    )
+    from .dynamic import (
+        get_default_active_language_model_async as get_default_active_language_model_async,
+    )
     from .service import LanguageModelService as LanguageModelService
 
+    get_schema_with_available_language_models: _Callable[..., dict[str, object]]
 
-def __getattr__(name: str) -> Any:
+_DYNAMIC_EXPORTS = {
+    "ActiveLanguageModelConfigurationError",
+    "ensure_company_id",
+    "ensure_sdk_initialized",
+    "get_active_language_models_async",
+    "get_default_active_language_model_async",
+    "get_schema_with_available_language_models",
+}
+
+
+def __getattr__(name: str) -> object:
     if name == "LanguageModelService":
         from .service import LanguageModelService
 
         return LanguageModelService
+
+    if name in _DYNAMIC_EXPORTS:
+        from . import dynamic
+
+        return cast(object, getattr(dynamic, name))
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
@@ -60,6 +94,12 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     "LanguageModel",
     "LanguageModelName",
+    "ActiveLanguageModelConfigurationError",
+    "ensure_company_id",
+    "ensure_sdk_initialized",
+    "get_active_language_models_async",
+    "get_default_active_language_model_async",
+    "get_schema_with_available_language_models",
     "Prompt",
     "LanguageModelAssistantMessage",
     "LanguageModelCompletionChoice",
