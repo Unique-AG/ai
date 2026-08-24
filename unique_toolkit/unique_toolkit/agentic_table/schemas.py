@@ -44,6 +44,7 @@ class MagicTableEventTypes(StrEnum):
     LIBRARY_SHEET_ROW_VERIFIED = "unique.magic-table.library-sheet-row.verified"
     SHEET_CREATED = "unique.magic-table.sheet-created"
     RERUN_ROW = "unique.magic-table.rerun-row"
+    RERUN_ROWS = "unique.magic-table.rerun-rows"
 
 
 class BaseMetadata(BaseModel):
@@ -248,6 +249,51 @@ class MagicTableRerunRowPayload(
 ): ...
 
 
+########## Rerun Rows Payload ##########
+
+
+class RerunRowsMetadata(BaseMetadata):
+    """Metadata of a bulk re-run: one event carrying N rows of the same sheet."""
+
+    model_config = get_configuration_dict()
+    source_file_ids: list[str] = Field(
+        description="The IDs of the source files to be used for this rerun"
+    )
+    row_orders: list[int] = Field(
+        description=(
+            "The row indices to rerun, in selection order. Duplicates are dropped "
+            "while preserving first-seen order. Non-positive values are kept so "
+            "the agent can skip them without aborting the rest. An empty list "
+            "means the request carries no work."
+        )
+    )
+    context: str = Field(default="", description="The context text for the rerun.")
+
+    @field_validator("row_orders", mode="before")
+    @classmethod
+    def normalize_row_orders(cls, v):
+        if v is None:
+            return []
+        return v
+
+    @field_validator("row_orders", mode="after")
+    @classmethod
+    def dedupe_row_orders(cls, v: list[int]) -> list[int]:
+        return list(dict.fromkeys(v))
+
+    @field_validator("context", mode="before")
+    @classmethod
+    def normalize_context(cls, v):
+        if v is None:
+            return ""
+        return v
+
+
+class MagicTableRerunRowsPayload(
+    MagicTableBasePayload[Literal[MagicTableAction.RERUN_ROWS], RerunRowsMetadata]
+): ...
+
+
 ########### Magic Table Event definition ###########
 
 
@@ -259,6 +305,7 @@ PayloadTypes = (
     | MagicTableLibrarySheetRowVerifiedPayload
     | MagicTableSheetCreatedPayload
     | MagicTableRerunRowPayload
+    | MagicTableRerunRowsPayload
 )
 
 MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]

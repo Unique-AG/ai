@@ -591,7 +591,7 @@ These mirror the public magic-table REST contract (`2023-12-06` / `node-chat`).
 
 ??? note "Workflow actions for `set_activity`"
 
-    String values include: `DeleteRow`, `DeleteColumn`, `InsertRow`, `UpdateCell`, `AddQuestionText`, `AddMetaData`, `GenerateArtifact`, `SheetCompleted`, `LibrarySheetRowVerified`, `SheetCreated`, `GenerateOverview`, `RerunRow`.
+    String values include: `DeleteRow`, `DeleteColumn`, `InsertRow`, `UpdateCell`, `AddQuestionText`, `AddMetaData`, `GenerateArtifact`, `SheetCompleted`, `LibrarySheetRowVerified`, `SheetCreated`, `GenerateOverview`, `RerunRow`, `RerunRows`.
 
 #### ActivityStatus {#activitystatus}
 

@@ -49,7 +49,11 @@ class CellRendererTypes(StrEnum):
 
 
 class MagicTableAction(StrEnum):
-    """Workflow action strings for `POST /magic-table/{tableId}/activity` (matches `MagicTableAgenticWorkflowAction`)."""
+    """Webhook payload ``action`` values and optional ``POST .../activity`` strings.
+
+    Adding a member is additive: existing events and activity calls are unchanged
+    until a caller actually sends the new value.
+    """
 
     DELETE_ROW = "DeleteRow"
     DELETE_COLUMN = "DeleteColumn"
@@ -63,6 +67,7 @@ class MagicTableAction(StrEnum):
     SHEET_CREATED = "SheetCreated"
     GENERATE_OVERVIEW = "GenerateOverview"
     RERUN_ROW = "RerunRow"
+    RERUN_ROWS = "RerunRows"
 
 
 class ActivityStatus(StrEnum):
