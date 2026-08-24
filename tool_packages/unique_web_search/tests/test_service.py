@@ -2,6 +2,7 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 
 from unique_web_search.invocation_stats import collector
 from unique_web_search.service import WebSearchTool
@@ -1007,3 +1008,75 @@ class TestWebSearchToolRun:
         assert result.error_message == "escaped _run's own error handling"
         assert len(result.invocation_stats) == 1
         assert result.invocation_stats[0].source == "web_search.relevancy"
+
+
+class TestWebSearchToolArgumentScreeningFeatureFlag:
+    """Test the UN-18741 feature-flag gating of the argument screening service."""
+
+    @staticmethod
+    def _make_tool(config: Any) -> WebSearchTool:
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = config
+        tool.company_id = "test-company"
+        tool._language_model_service = Mock()
+        return tool
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_get_argument_screening_service__returns_none__when_flag_disabled(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify no screening service is built when UN-18741 is off.
+        Why this matters: The flag is the only guard against running argument
+        screening for companies that have not opted in.
+        Setup summary: Patch is_flag_enabled to resolve False.
+        """
+        is_flag_enabled = mocker.patch(
+            "unique_web_search.service.is_flag_enabled",
+            new=AsyncMock(return_value=False),
+        )
+        tool = self._make_tool(mock_web_search_config_v1)
+
+        assert await tool._get_argument_screening_service_if_ff_enabled() is None
+        is_flag_enabled.assert_awaited_once_with(
+            FeatureFlagNames.enable_web_search_argument_screening_un_18741,
+            company_id="test-company",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_get_argument_screening_service__returns_service__when_flag_enabled(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify the screening service is built when UN-18741 is on.
+        Why this matters: Ensures the migration to the FeatureFlagClient still
+        wires the configured screening service through on the enabled path.
+        Setup summary: Patch is_flag_enabled to resolve True and stub out the
+        ArgumentScreeningService constructor.
+        """
+        mocker.patch(
+            "unique_web_search.service.is_flag_enabled",
+            new=AsyncMock(return_value=True),
+        )
+        screening_service = mocker.patch(
+            "unique_web_search.service.ArgumentScreeningService"
+        )
+        tool = self._make_tool(mock_web_search_config_v1)
+
+        result = await tool._get_argument_screening_service_if_ff_enabled()
+
+        assert result is screening_service.return_value
+        screening_config = (
+            mock_web_search_config_v1.experimental_features.argument_screening_config
+        )
+        screening_service.assert_called_once_with(
+            language_model_service=tool.language_model_service,
+            language_model=screening_config.language_model,
+            config=screening_config,
+        )
