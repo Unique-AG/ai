@@ -196,7 +196,9 @@ async def download_encoded_images_async(
                 image_string = f"data:{mime_type};base64," + encoded_string
                 base64_encoded_images.append(image_string)
             except Exception as e:
-                _LOGGER.exception("Failed to download image %s: %s", im.key, e)
+                _LOGGER.warning(
+                    "Failed to download image %s: %s", im.key, e, exc_info=True
+                )
     return base64_encoded_images
 
 
