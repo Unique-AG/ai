@@ -2918,6 +2918,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
                 )
+            # Phoeniqs publishes one combined context-window figure (max tokens per API call), not separate input/output limits, so token_limit_input==token_limit_output below — note the deprecated `LanguageModelTokenLimits.token_limit` sums these to 2x Phoeniqs' real per-call cap. https://documentation.phoeniqs.com/maas/active-models/
             case LanguageModelName.LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH:
                 return cls(
                     name=model_name,
@@ -2932,9 +2933,8 @@ class LanguageModelInfo(BaseModel):
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_000_000, token_limit_output=1_000_000
-                    ),  # Phoeniqs publishes a single combined "context window: maximum tokens
-                    # per API call" figure (1_000_000), not separate input/output limits.
-                    # https://documentation.phoeniqs.com/maas/active-models/
+                    ),
+                    published_at=date(2026, 7, 31),  # HF repo creation date
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_PHOENIQS_GEMMA_4_31B:
@@ -2950,9 +2950,8 @@ class LanguageModelInfo(BaseModel):
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=131_072, token_limit_output=131_072
-                    ),  # Phoeniqs publishes a single combined "context window: maximum tokens
-                    # per API call" figure (131_072), not separate input/output limits.
-                    # https://documentation.phoeniqs.com/maas/active-models/
+                    ),
+                    published_at=date(2026, 4, 3),  # HF repo creation date
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_PHOENIQS_GLM_5_2:
@@ -2970,11 +2969,11 @@ class LanguageModelInfo(BaseModel):
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=131_072, token_limit_output=131_072
-                    ),  # Phoeniqs publishes a single combined "context window: maximum tokens
-                    # per API call" figure (131_072), not separate input/output limits,
-                    # unlike the Together AI-hosted glm-5.2 entry above.
-                    # https://documentation.phoeniqs.com/maas/active-models/
-                    published_at=date(2026, 1, 1),
+                    ),
+                    published_at=date(
+                        2026, 6, 16
+                    ),  # HF repo creation date — unlike the
+                    # Together AI entry above, not an unsourced placeholder.
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_KIMI_K2_6:
