@@ -121,6 +121,17 @@ class ExposableParam(BaseModel, Generic[T]):
         return schema
 
 
+def resolve_exposable_value(value: Any) -> Any:
+    """Plain value behind a config attribute that may be an ``ExposableParam``.
+
+    Lets consumers read a deployment default without caring whether the field is
+    an exposable knob or a plain value.
+    """
+    if isinstance(value, ExposableParam):
+        return value.value
+    return value
+
+
 def _exposable_field_keys(field_name: str, field_info: FieldInfo) -> list[str]:
     keys = [field_name]
     if field_info.alias is not None:
