@@ -4,14 +4,14 @@ import logging
 
 from azure.ai.projects.aio import AIProjectClient
 from azure.core.exceptions import ResourceNotFoundError
+from unique_search_proxy_core.agent_engines.bing.grounding import (
+    is_auto_provisioned_bing_agent_name,
+)
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_credentials,
     get_project_client,
-)
-from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
-    BING_AUTO_AGENT_NAME_PREFIX,
 )
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
     bing_agent_credentials,
@@ -20,10 +20,6 @@ from unique_search_proxy_client.web.settings.secret_str import read_secret
 
 _LOGGER = logging.getLogger(__name__)
 _LIST_PAGE_SIZE = 100
-
-
-def _is_auto_provisioned_agent_name(name: str) -> bool:
-    return name.startswith(f"{BING_AUTO_AGENT_NAME_PREFIX}-")
 
 
 async def cleanup_auto_provisioned_bing_agents(project_client: AIProjectClient) -> int:
@@ -37,7 +33,7 @@ async def cleanup_auto_provisioned_bing_agents(project_client: AIProjectClient) 
     pager = project_client.agents.list(kind="prompt", limit=_LIST_PAGE_SIZE)
     async for agent in pager:
         name = getattr(agent, "name", None) or ""
-        if not _is_auto_provisioned_agent_name(name):
+        if not is_auto_provisioned_bing_agent_name(name):
             continue
         try:
             await project_client.agents.delete(name)
