@@ -139,6 +139,9 @@ class LanguageModelName(StrEnum):
     LITELLM_DEEPSEEK_V4_PRO = "litellm:deepseek-v4-pro"
     LITELLM_GLM_5_1 = "litellm:glm-5.1"
     LITELLM_GLM_5_2 = "litellm:glm-5.2"
+    LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH = "litellm:phoeniqs-deepseek-v4-flash"
+    LITELLM_PHOENIQS_GEMMA_4_31B = "litellm:phoeniqs-gemma-4-31b"
+    LITELLM_PHOENIQS_GLM_5_2 = "litellm:phoeniqs-glm-5.2"
     LITELLM_KIMI_K2_6 = "litellm:kimi-k2.6"
     LITELLM_KIMI_K3 = "litellm:kimi-k3"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
@@ -2912,6 +2915,65 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=256_000, token_limit_output=128_000
                     ),  # GLM-5.2 supports up to a 1_000_000 token context window. Together AI is supporting however only up to 256_000 tokens.
+                    published_at=date(2026, 1, 1),
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.DEEPSEEK,
+                    version="deepseek-v4-flash-0731",
+                    encoder_name=EncoderName.DEEPSEEK,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000, token_limit_output=1_000_000
+                    ),  # Phoeniqs publishes a single combined "context window: maximum tokens
+                    # per API call" figure (1_000_000), not separate input/output limits.
+                    # https://documentation.phoeniqs.com/maas/active-models/
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_GEMMA_4_31B:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemma-4-31b-it-fp8-block",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=131_072, token_limit_output=131_072
+                    ),  # Phoeniqs publishes a single combined "context window: maximum tokens
+                    # per API call" figure (131_072), not separate input/output limits.
+                    # https://documentation.phoeniqs.com/maas/active-models/
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_GLM_5_2:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ZAI,
+                    version="glm-5.2",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=131_072, token_limit_output=131_072
+                    ),  # Phoeniqs publishes a single combined "context window: maximum tokens
+                    # per API call" figure (131_072), not separate input/output limits,
+                    # unlike the Together AI-hosted glm-5.2 entry above.
+                    # https://documentation.phoeniqs.com/maas/active-models/
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
                 )
