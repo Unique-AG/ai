@@ -8,14 +8,13 @@ from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import BaseSearchEngineConfig
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags.feature_flags import (
-    feature_flags,
-)
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -311,8 +310,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
     async def _get_argument_screening_service_if_ff_enabled(
         self,
     ) -> ArgumentScreeningService | None:
-        if not feature_flags.enable_web_search_argument_screening_un_18741.is_enabled(
-            self.company_id
+        if not await is_flag_enabled(
+            FeatureFlagNames.enable_web_search_argument_screening_un_18741,
+            company_id=self.company_id,
         ):
             return None
 
