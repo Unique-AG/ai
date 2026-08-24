@@ -591,7 +591,9 @@ These mirror the public magic-table REST contract (`2023-12-06` / `node-chat`).
 
 ??? note "Workflow actions for `set_activity`"
 
-    String values include: `DeleteRow`, `DeleteColumn`, `InsertRow`, `UpdateCell`, `AddQuestionText`, `AddMetaData`, `GenerateArtifact`, `SheetCompleted`, `LibrarySheetRowVerified`, `SheetCreated`, `GenerateOverview`, `RerunRow`, `RerunRows`.
+    String values include: `DeleteRow`, `DeleteColumn`, `InsertRow`, `UpdateCell`, `AddQuestionText`, `AddMetaData`, `GenerateArtifact`, `SheetCompleted`, `LibrarySheetRowVerified`, `SheetCreated`, `GenerateOverview`, `RerunRow`.
+
+    `RerunRows` is a webhook payload action only until `MagicTableAgenticWorkflowAction` includes it; do not send it via `set_activity` yet.
 
 #### ActivityStatus {#activitystatus}
 

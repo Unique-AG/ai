@@ -22,7 +22,10 @@ from unique_sdk.api_resources._agentic_table import (
 )
 
 from unique_toolkit._common.exception import ConfigurationException
-from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit._common.pydantic_helpers import (
+    NoneToDefault,
+    get_configuration_dict,
+)
 from unique_toolkit.app.schemas import (
     AssistantWebhookEvent,
     BaseEventPayload,
@@ -256,30 +259,27 @@ class RerunRowsMetadata(BaseMetadata):
     """Metadata of a bulk re-run: one event carrying N rows of the same sheet."""
 
     model_config = get_configuration_dict()
-    source_file_ids: list[str] = Field(
-        description="The IDs of the source files to be used for this rerun"
-    )
-    row_orders: list[int] = Field(
+    source_file_ids: Annotated[list[str], NoneToDefault] = Field(
+        default_factory=list,
         description=(
-            "The row indices to rerun, in selection order. Duplicates are dropped "
-            "while preserving first-seen order. Non-positive values are kept so "
-            "the agent can skip them without aborting the rest. An empty list "
-            "means the request carries no work."
-        )
+            "Source file IDs for this rerun. Optional: a user-triggered bulk "
+            "rerun may omit sources when none changed. Null and omitted become []."
+        ),
+    )
+    row_orders: Annotated[list[int], NoneToDefault] = Field(
+        default_factory=list,
+        description=(
+            "1-based content row indices to rerun, in first-seen selection order. "
+            "Duplicates are dropped. Row 0 is the header and negatives address "
+            "nothing, so non-positive values are discarded. Empty means no work."
+        ),
     )
     context: str = Field(default="", description="The context text for the rerun.")
 
-    @field_validator("row_orders", mode="before")
-    @classmethod
-    def normalize_row_orders(cls, v):
-        if v is None:
-            return []
-        return v
-
     @field_validator("row_orders", mode="after")
     @classmethod
-    def dedupe_row_orders(cls, v: list[int]) -> list[int]:
-        return list(dict.fromkeys(v))
+    def normalize_row_orders(cls, v: list[int]) -> list[int]:
+        return list(dict.fromkeys(row for row in v if row > 0))
 
     @field_validator("context", mode="before")
     @classmethod

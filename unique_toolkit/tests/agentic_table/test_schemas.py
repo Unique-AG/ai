@@ -463,14 +463,14 @@ class TestRerunRowsMetadata:
         )
         assert metadata.row_orders == [9, 2, 7]
 
-    def test_rerun_rows_metadata_dedupes_and_keeps_non_positive_rows(self):
-        """Duplicates are dropped in first-seen order; non-positive rows stay for skip handling."""
+    def test_rerun_rows_metadata_dedupes_and_drops_non_positive_rows(self):
+        """Duplicates and non-positive rows (header row 0 / negatives) are dropped."""
         metadata = RerunRowsMetadata(
             source_file_ids=["file-1"],
-            row_orders=[4, 4, 0, -1, 4],
+            row_orders=[4, 4, 0, -1, 4, 2],
             sheet_type=SheetType.DEFAULT,
         )
-        assert metadata.row_orders == [4, 0, -1]
+        assert metadata.row_orders == [4, 2]
 
     def test_rerun_rows_metadata_accepts_empty_selection(self):
         """An empty selection parses; the agent fails the run and releases the lock."""
@@ -481,13 +481,20 @@ class TestRerunRowsMetadata:
         )
         assert metadata.row_orders == []
 
-    def test_rerun_rows_metadata_row_orders_none_normalized(self):
-        """Test that None row_orders is normalized to an empty list."""
+    def test_rerun_rows_metadata_omitted_lists_default_to_empty(self):
+        """Missing sourceFileIds / rowOrders still parse so the agent can fail and unlock."""
+        metadata = RerunRowsMetadata(sheet_type=SheetType.DEFAULT)
+        assert metadata.source_file_ids == []
+        assert metadata.row_orders == []
+
+    def test_rerun_rows_metadata_null_lists_normalized(self):
+        """Null sourceFileIds / rowOrders become empty lists, same as omitted."""
         metadata = RerunRowsMetadata(
-            source_file_ids=["file-1"],
+            source_file_ids=None,
             row_orders=None,
             sheet_type=SheetType.DEFAULT,
         )
+        assert metadata.source_file_ids == []
         assert metadata.row_orders == []
 
     def test_rerun_rows_metadata_context_none_normalized(self):
@@ -524,6 +531,16 @@ class TestRerunRowsMetadata:
         assert metadata.row_orders == [7, 11]
         assert metadata.sheet_type == SheetType.DEFAULT
         assert metadata.context == "Rerun for correction"
+
+    def test_rerun_rows_metadata_json_drops_duplicates_and_non_positive(self):
+        """Wire camelCase lists are normalized the same way as constructor input."""
+        json_data = """{
+            "sourceFileIds": null,
+            "rowOrders": [4, 0, 4, -1, 2]
+        }"""
+        metadata = RerunRowsMetadata.model_validate_json(json_data)
+        assert metadata.source_file_ids == []
+        assert metadata.row_orders == [4, 2]
 
 
 class TestMagicTableRerunRowsPayload:
@@ -571,6 +588,24 @@ class TestMagicTableRerunRowsPayload:
         assert serialized["action"] == "RerunRows"
         assert serialized["metadata"]["source_file_ids"] == ["file-1"]
         assert serialized["metadata"]["row_orders"] == [1, 2, 3]
+
+    def test_rerun_rows_payload_deserialization_omits_optional_lists(self):
+        """User-triggered bulk rerun may omit sourceFileIds and send null rowOrders."""
+        json_data = """{
+            "name": "rfp_agent",
+            "sheetName": "Test Sheet",
+            "action": "RerunRows",
+            "chatId": "chat-456",
+            "assistantId": "asst-456",
+            "tableId": "table-456",
+            "metadata": {
+                "rowOrders": null,
+                "sheetType": "DEFAULT"
+            }
+        }"""
+        payload = MagicTableRerunRowsPayload.model_validate_json(json_data)
+        assert payload.metadata.source_file_ids == []
+        assert payload.metadata.row_orders == []
 
     def test_rerun_rows_payload_deserialization_from_json(self):
         """Test payload deserialization from JSON (simulating API request)."""
@@ -634,6 +669,19 @@ class TestRerunEventDiscrimination:
         assert event.event == MagicTableEventTypes.RERUN_ROWS
         assert isinstance(event.payload, MagicTableRerunRowsPayload)
         assert event.payload.metadata.row_orders == [2, 4]
+
+    def test_rerun_rows_event_parses_when_metadata_lists_are_omitted(self):
+        """A user-triggered bulk rerun with no source or row lists still parses."""
+        event = MagicTableEvent.model_validate_json(
+            self._event_json(
+                event=MagicTableEventTypes.RERUN_ROWS,
+                action=MagicTableAction.RERUN_ROWS,
+                metadata="{}",
+            )
+        )
+        assert isinstance(event.payload, MagicTableRerunRowsPayload)
+        assert event.payload.metadata.source_file_ids == []
+        assert event.payload.metadata.row_orders == []
 
     def test_rerun_row_event_still_resolves_to_single_row_payload(self):
         """The existing single-row event is unaffected by the new union member."""

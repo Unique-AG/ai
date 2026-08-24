@@ -49,10 +49,12 @@ class CellRendererTypes(StrEnum):
 
 
 class MagicTableAction(StrEnum):
-    """Webhook payload ``action`` values and optional ``POST .../activity`` strings.
+    """Workflow action strings for `POST /magic-table/{tableId}/activity` (matches `MagicTableAgenticWorkflowAction`).
 
-    Adding a member is additive: existing events and activity calls are unchanged
-    until a caller actually sends the new value.
+    Also used as the webhook payload ``action`` discriminator. Adding a member is
+    additive: existing events and activity calls are unchanged until a caller
+    sends the new value. ``RERUN_ROWS`` is webhook-only until the backend
+    workflow-action enum includes it; do not pass it to ``set_activity`` yet.
     """
 
     DELETE_ROW = "DeleteRow"
