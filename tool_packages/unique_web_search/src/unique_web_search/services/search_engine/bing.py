@@ -3,8 +3,14 @@ from typing import override
 
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
+from unique_search_proxy_core.agent_engines.bing.grounding import (
+    BingGroundingConfiguration,
+)
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
+from unique_search_proxy_core.param_policy.exposable_param import (
+    resolve_exposable_value,
+)
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
@@ -82,20 +88,38 @@ class BingSearch(SearchEngine[BingSearchConfig]):
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
+    def _grounding_configuration(
+        self,
+        params: ExposedParams | None,
+    ) -> BingGroundingConfiguration:
+        """Resolve the Bing tool knobs from deployment defaults + LLM overrides."""
+        overrides = params.model_dump(exclude_none=True) if params else {}
+
+        def knob(field_name: str) -> str | None:
+            if field_name in overrides:
+                return overrides[field_name]
+            return resolve_exposable_value(getattr(self.config, field_name))
+
+        return BingGroundingConfiguration(
+            fetch_size=self.config.fetch_size,
+            market=knob("market"),
+            set_lang=knob("set_lang"),
+            freshness=knob("freshness"),
+        )
+
     @override
     async def _legacy_search(
         self,
         query: str,
         params: ExposedParams | None,
     ) -> list[WebSearchResult]:
-        del params
         agent_client = get_project_client(self.credentials)
 
         async with agent_client:
             search_results = await create_and_process_run(
                 agent_client,
                 query=query,
-                fetch_size=self.config.fetch_size,
+                grounding=self._grounding_configuration(params),
                 response_parsers_strategies=self.response_parsers,
                 generation_instructions=self.config.generation_instructions,
             )

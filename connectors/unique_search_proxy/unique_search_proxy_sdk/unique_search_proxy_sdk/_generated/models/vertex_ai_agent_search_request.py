@@ -34,8 +34,7 @@ class VertexAiAgentSearchRequest:
             information, it MUST appear in your output. When in doubt, include it.\n'.
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         vertexai_model_name (str | Unset): Gemini model name for grounded generation Default: 'gemini-3-flash-preview'.
-        enable_enterprise_search (bool | Unset): Use enterprise web search grounding tool instead of Google Search
-            Default: False.
+        enable_enterprise_search (bool | Unset):  Default: False.
     """
 
     query: str

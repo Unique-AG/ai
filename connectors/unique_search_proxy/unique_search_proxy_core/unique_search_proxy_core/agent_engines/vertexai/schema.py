@@ -40,6 +40,7 @@ class VertexAIAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.VERTEXAI
     """Deployment + request defaults for Vertex AI grounding (Google GenAI)."""
 
     _request_model_name: ClassVar[str] = "VertexAIAgentSearchRequest"
+    _exposed_params_model_name: ClassVar[str] = "VertexAIAgentExposedParams"
 
     engine: Annotated[
         Literal[AgentEngineType.VERTEXAI], RJSFMetaTag.SpecialWidget.hidden()

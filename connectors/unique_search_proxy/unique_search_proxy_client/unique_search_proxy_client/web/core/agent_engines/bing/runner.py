@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -24,6 +23,10 @@ from openai.types.responses.response_output_text import (
     ResponseOutputText,
 )
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
+from unique_search_proxy_core.agent_engines.bing.grounding import (
+    BingGroundingConfiguration,
+    bing_agent_name,
+)
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client,
@@ -32,37 +35,33 @@ from unique_search_proxy_client.web.settings.providers import bing_agent as sett
 from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, read_secret
 
 _LOGGER = logging.getLogger(__name__)
-BING_AUTO_AGENT_NAME_PREFIX = "unique-grounding-with-bing"
-_CONFIG_HASH_LENGTH = 12
 
-
-def _config_hash(*, model: str, fetch_size: int, instructions: str) -> str:
-    """Return a short hex digest of model + fetch_size + instructions for agent naming."""
-    payload = f"{model}\0{fetch_size}\0{instructions}".encode()
-    return hashlib.sha256(payload).hexdigest()[:_CONFIG_HASH_LENGTH]
-
-
-def _agent_name_for_config(*, model: str, fetch_size: int, instructions: str) -> str:
-    """Build a Foundry-safe agent name unique to this config."""
-    return (
-        f"{BING_AUTO_AGENT_NAME_PREFIX}-"
-        f"{_config_hash(model=model, fetch_size=fetch_size, instructions=instructions)}"
-    )
+__all__ = [
+    "create_bing_agent",
+    "get_bing_grounding_tool",
+    "resolve_bing_agent_name",
+    "stream_bing_grounding_agent",
+]
 
 
 def resolve_bing_agent_name(
     *,
     model: str,
-    fetch_size: int,
     instructions: str,
+    grounding: BingGroundingConfiguration,
 ) -> str:
     """Return the hash-based agent name to use for Responses (no Foundry round-trip)."""
-    return _agent_name_for_config(
-        model=model, fetch_size=fetch_size, instructions=instructions
+    return bing_agent_name(
+        model=model,
+        instructions=instructions,
+        grounding=grounding,
     )
 
 
-def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
+def get_bing_grounding_tool(
+    grounding: BingGroundingConfiguration,
+) -> BingGroundingTool:
+    """Build the grounding tool, letting Bing default the knobs left unset."""
     connection_id = read_secret(
         settings.bing_agent_credentials.bing_resource_connection_string,
     )
@@ -74,7 +73,10 @@ def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
             search_configurations=[
                 BingGroundingSearchConfiguration(
                     project_connection_id=connection_id,
-                    count=fetch_size,
+                    count=grounding.fetch_size,
+                    market=grounding.market,
+                    set_lang=grounding.set_lang,
+                    freshness=grounding.freshness,
                 )
             ]
         )
@@ -86,8 +88,8 @@ async def create_bing_agent(
     *,
     agent_name: str,
     model: str,
-    fetch_size: int,
     instructions: str,
+    grounding: BingGroundingConfiguration,
 ) -> str:
     """Create a Foundry agent version and return its name."""
     started = time.perf_counter()
@@ -96,7 +98,7 @@ async def create_bing_agent(
         definition=PromptAgentDefinition(
             model=model,
             instructions=instructions,
-            tools=[get_bing_grounding_tool(fetch_size)],
+            tools=[get_bing_grounding_tool(grounding)],
             tool_choice="required",
         ),
         description="Unique Bing grounding agent",
@@ -141,8 +143,8 @@ async def stream_bing_grounding_agent(
     *,
     query: str,
     model: str,
-    fetch_size: int,
     instructions: str,
+    grounding: BingGroundingConfiguration,
 ) -> AsyncIterator[tuple[str, dict]]:
     """Stream Bing-grounded Responses events as ``(delta_text, raw_event)`` pairs.
 
@@ -154,8 +156,8 @@ async def stream_bing_grounding_agent(
     """
     resolved_name = resolve_bing_agent_name(
         model=model,
-        fetch_size=fetch_size,
         instructions=instructions,
+        grounding=grounding,
     )
     openai_client = get_openai_client(project_client)
 
@@ -177,8 +179,8 @@ async def stream_bing_grounding_agent(
             project_client,
             agent_name=resolved_name,
             model=model,
-            fetch_size=fetch_size,
             instructions=instructions,
+            grounding=grounding,
         )
         stream = await _create_responses_stream(
             openai_client,

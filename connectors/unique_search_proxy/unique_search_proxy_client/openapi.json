@@ -866,6 +866,50 @@
             "title": "Fetch Size",
             "description": "Maximum number of Bing grounding results per query",
             "default": 5
+          },
+          "market": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market",
+            "description": "Market the results come from (Bing `mkt`), e.g. `en-US`, `fr-CH`. Bing infers it from the caller when unset."
+          },
+          "setLang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interface language",
+            "description": "Language for Bing user-interface strings (Bing `setLang`), e.g. `en`."
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Day",
+                  "Week",
+                  "Month"
+                ]
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness",
+            "description": "Recency filter (Bing `freshness`): `Day`, `Week`, `Month`, or a `YYYY-MM-DD..YYYY-MM-DD` range. [Accepted values](https://learn.microsoft.com/bing/search-apis/bing-web-search/reference/query-parameters)"
           }
         },
         "type": "object",
@@ -2328,7 +2372,6 @@
           "enableEnterpriseSearch": {
             "type": "boolean",
             "title": "Enable Enterprise Search",
-            "description": "Use enterprise web search grounding tool instead of Google Search",
             "default": false
           }
         },

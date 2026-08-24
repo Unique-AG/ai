@@ -11,6 +11,12 @@ from openai.types.responses.response_completed_event import ResponseCompletedEve
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import ResponseOutputText
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
+from unique_search_proxy_core.agent_engines.bing.grounding import (
+    BING_AUTO_AGENT_NAME_PREFIX,
+    BingGroundingConfiguration,
+    bing_agent_config_hash,
+    bing_agent_name,
+)
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 
@@ -25,9 +31,6 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client as get_openai_client_from_client_module,
 )
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
-    BING_AUTO_AGENT_NAME_PREFIX,
-    _agent_name_for_config,
-    _config_hash,
     _is_missing_agent_error,
     create_bing_agent,
     get_bing_grounding_tool,
@@ -48,6 +51,10 @@ def _bing_request(**fields: Any) -> BingAgentSearchRequest:
             **fields,
         },
     )
+
+
+def _grounding(**overrides: Any) -> BingGroundingConfiguration:
+    return BingGroundingConfiguration(**{"fetch_size": 5, **overrides})
 
 
 async def _fake_stream(
@@ -180,6 +187,57 @@ class TestBingAgentSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_request_knobs_reach_the_grounding_configuration(
+        self, bing_env: None
+    ) -> None:
+        """
+        Purpose: Verify request-level Bing knobs are forwarded to the runner.
+        Why this matters: They are baked into the agent version, so dropping them
+            silently serves results from the wrong market/language/recency.
+        Setup summary: Patch the runner, run a request carrying all three knobs.
+        """
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+        recorded: dict[str, Any] = {}
+
+        async def _recording_stream(
+            *_args: Any,
+            **kwargs: Any,
+        ) -> AsyncIterator[tuple[str, Any]]:
+            recorded.update(kwargs)
+            yield "agent answer text", {}
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=_recording_stream,
+            ),
+        ):
+            await BingAgentSearchService().search(
+                _bing_request(market="fr-CH", set_lang="fr", freshness="Week"),
+            )
+
+        assert recorded["grounding"] == BingGroundingConfiguration(
+            fetch_size=5,
+            market="fr-CH",
+            set_lang="fr",
+            freshness="Week",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_missing_credentials_raises(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -198,7 +256,7 @@ class TestBingAgentSearchService:
 class TestGetBingGroundingTool:
     @pytest.mark.ai
     def test_builds_nested_search_configuration(self, bing_env: None) -> None:
-        tool = get_bing_grounding_tool(fetch_size=7)
+        tool = get_bing_grounding_tool(_grounding(fetch_size=7))
         configs = tool.bing_grounding.search_configurations
         assert len(configs) == 1
         assert (
@@ -207,31 +265,60 @@ class TestGetBingGroundingTool:
         )
         assert configs[0].count == 7
 
+    @pytest.mark.ai
+    def test_forwards_market_set_lang_and_freshness(self, bing_env: None) -> None:
+        tool = get_bing_grounding_tool(
+            _grounding(market="fr-CH", set_lang="fr", freshness="Week"),
+        )
+        config = tool.bing_grounding.search_configurations[0]
+        assert config.market == "fr-CH"
+        assert config.set_lang == "fr"
+        assert config.freshness == "Week"
+
+    @pytest.mark.ai
+    def test_omits_unset_knobs_so_bing_defaults_apply(self, bing_env: None) -> None:
+        """
+        Purpose: Verify unset knobs are not sent to Bing.
+        Why this matters: A deployment that configures nothing must keep today's behaviour.
+        Setup summary: Build the tool from a fetch-size-only configuration; assert nulls.
+        """
+        tool = get_bing_grounding_tool(_grounding())
+        config = tool.bing_grounding.search_configurations[0]
+        assert config.market is None
+        assert config.set_lang is None
+        assert config.freshness is None
+
 
 class TestConfigHashAndAgentName:
     @pytest.mark.ai
     def test_same_inputs_produce_same_hash_and_name(self) -> None:
-        a = _config_hash(model="gpt-5.1", fetch_size=5, instructions="Be helpful.")
-        b = _config_hash(model="gpt-5.1", fetch_size=5, instructions="Be helpful.")
+        a = bing_agent_config_hash(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
+        b = bing_agent_config_hash(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
         assert a == b
         assert len(a) == 12
         assert (
-            _agent_name_for_config(
-                model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+            bing_agent_name(
+                model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
             )
-            == f"unique-grounding-with-bing-{a}"
+            == f"{BING_AUTO_AGENT_NAME_PREFIX}-{a}"
         )
 
     @pytest.mark.ai
     def test_different_fetch_size_or_instructions_change_name(self) -> None:
-        base = _agent_name_for_config(
-            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        base = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
         )
-        other_size = _agent_name_for_config(
-            model="gpt-5.1", fetch_size=10, instructions="Be helpful."
+        other_size = bing_agent_name(
+            model="gpt-5.1",
+            instructions="Be helpful.",
+            grounding=_grounding(fetch_size=10),
         )
-        other_instructions = _agent_name_for_config(
-            model="gpt-5.1", fetch_size=5, instructions="Be concise."
+        other_instructions = bing_agent_name(
+            model="gpt-5.1", instructions="Be concise.", grounding=_grounding()
         )
         assert base != other_size
         assert base != other_instructions
@@ -239,26 +326,54 @@ class TestConfigHashAndAgentName:
 
     @pytest.mark.ai
     def test_different_model_changes_name(self) -> None:
-        base = _agent_name_for_config(
-            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        base = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
         )
-        other_model = _agent_name_for_config(
-            model="gpt-4o", fetch_size=5, instructions="Be helpful."
+        other_model = bing_agent_name(
+            model="gpt-4o", instructions="Be helpful.", grounding=_grounding()
         )
         assert base != other_model
 
     @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "knob",
+        [
+            {"market": "fr-CH"},
+            {"set_lang": "fr"},
+            {"freshness": "Week"},
+        ],
+    )
+    def test_each_grounding_knob_changes_name(self, knob: dict[str, str]) -> None:
+        """
+        Purpose: Verify every tool knob participates in the agent name hash.
+        Why this matters: Knobs are baked into the agent version, so a shared name
+            would serve an agent configured for the wrong market/language/recency.
+        Setup summary: Hash a baseline configuration against one knob at a time.
+        """
+        base = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
+        assert (
+            bing_agent_name(
+                model="gpt-5.1",
+                instructions="Be helpful.",
+                grounding=_grounding(**knob),
+            )
+            != base
+        )
+
+    @pytest.mark.ai
     def test_resolve_returns_hash_based_name(self) -> None:
-        expected = _agent_name_for_config(
+        expected = bing_agent_name(
             model="gpt-5.1",
-            fetch_size=5,
             instructions="Be helpful.",
+            grounding=_grounding(),
         )
         assert (
             resolve_bing_agent_name(
                 model="gpt-5.1",
-                fetch_size=5,
                 instructions="Be helpful.",
+                grounding=_grounding(),
             )
             == expected
         )
@@ -279,8 +394,9 @@ class TestCreateAndStreamOptimistic:
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_create_bing_agent_calls_create_version(self, bing_env: None) -> None:
-        expected_name = _agent_name_for_config(
-            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        grounding = _grounding(market="fr-CH", freshness="Week")
+        expected_name = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=grounding
         )
         created = MagicMock()
         created.name = expected_name
@@ -292,22 +408,25 @@ class TestCreateAndStreamOptimistic:
             mock_client,
             agent_name=expected_name,
             model="gpt-5.1",
-            fetch_size=5,
             instructions="Be helpful.",
+            grounding=grounding,
         )
 
         assert name == expected_name
         call_kwargs = mock_client.agents.create_version.await_args.kwargs
         assert call_kwargs["agent_name"] == expected_name
         assert call_kwargs["definition"].instructions == "Be helpful."
+        search_config = call_kwargs["definition"].tools[0].bing_grounding
+        assert search_config.search_configurations[0].market == "fr-CH"
+        assert search_config.search_configurations[0].freshness == "Week"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_stream_creates_agent_when_responses_reports_missing(
         self, bing_env: None
     ) -> None:
-        expected_name = _agent_name_for_config(
-            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        expected_name = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
         )
         missing = NotFoundError(
             message=f"Agent {expected_name} not found",
@@ -335,8 +454,8 @@ class TestCreateAndStreamOptimistic:
                     mock_client,
                     query="hello",
                     model="gpt-5.1",
-                    fetch_size=5,
                     instructions="Be helpful.",
+                    grounding=_grounding(),
                 )
             ]
 
@@ -367,8 +486,8 @@ class TestCreateAndStreamOptimistic:
                     mock_client,
                     query="hello",
                     model="gpt-5.1",
-                    fetch_size=5,
                     instructions="Be helpful.",
+                    grounding=_grounding(),
                 )
             ]
 

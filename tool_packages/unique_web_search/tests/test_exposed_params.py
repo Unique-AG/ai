@@ -23,6 +23,7 @@ from unique_web_search.services.executors.v3.schema import (
     SearchPayload,
     WebSearchV3ToolParameters,
 )
+from unique_web_search.services.search_engine.bing import BingSearchConfig
 
 
 class _StubExecutor(BaseWebSearchExecutor[Any]):
@@ -149,6 +150,31 @@ class TestV3FlatExposedParams:
         hint = WebSearchV3ToolParameters.schema_hint(exposed)
         assert "dateRestrict" in hint
         assert "date_restrict" not in hint
+
+
+class TestAgentEngineExposedParams:
+    @pytest.mark.ai
+    def test_bing_knobs_reach_the_v3_tool_schema(self) -> None:
+        """
+        Purpose: Verify agent-engine knobs surface on the LLM tool schema.
+        Why this matters: Bing is configured through the same admin mechanism as
+            standard engines, so an exposed knob must be selectable per call.
+        Setup summary: Expose Bing market, build the V3 tool model, inspect props.
+        """
+        config = BingSearchConfig.model_validate(
+            {"market": {"expose": True, "value": "en-US"}},
+        )
+        exposed = config.exposed_params_model()
+        tool_model = WebSearchV3ToolParameters.with_exposed_params(exposed)
+        payload_props = tool_model.model_json_schema()["$defs"]["SearchPayload"][
+            "properties"
+        ]
+        assert "market" in payload_props
+        assert "setLang" not in payload_props
+
+    @pytest.mark.ai
+    def test_tool_schema_unchanged_when_nothing_exposed(self) -> None:
+        assert BingSearchConfig().exposed_params_model() is None
 
 
 class TestExtractSearchParams:
