@@ -24,6 +24,11 @@ from unique_sdk.utils import file_io
 def _fake_response(status_code: int = 200, **extra: Any) -> MagicMock:
     response = MagicMock()
     response.status_code = status_code
+    # Downloads stream the body: support context-manager use + iter_content.
+    body = extra.get("content", b"")
+    response.iter_content.side_effect = lambda chunk_size: iter([body])
+    response.__enter__.return_value = response
+    response.__exit__.return_value = False
     for key, value in extra.items():
         setattr(response, key, value)
     return response
