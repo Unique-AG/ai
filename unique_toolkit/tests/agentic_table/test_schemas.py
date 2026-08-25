@@ -443,14 +443,18 @@ class TestMagicTableRerunRowPayload:
 
 
 class TestLibrarySheetRowVerifiedMetadata:
-    def test_scalar_fields_remain_required_with_optional_rows(self):
-        metadata = LibrarySheetRowVerifiedMetadata(
-            row_order=3,
-            row_id="row-3",
-        )
+    def test_legacy_payload_without_row_id_still_parses(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate({"rowOrder": 3})
 
         assert metadata.row_order == 3
-        assert metadata.row_id == "row-3"
+        assert metadata.row_id is None
+        assert metadata.rows == []
+
+    def test_optional_row_id_and_rows_default_when_omitted(self):
+        metadata = LibrarySheetRowVerifiedMetadata(row_order=3)
+
+        assert metadata.row_order == 3
+        assert metadata.row_id is None
         assert metadata.rows == []
 
     def test_bulk_rows_parse_from_camel_case(self):
@@ -475,6 +479,7 @@ class TestLibrarySheetRowVerifiedMetadata:
             {"rowOrder": 3, "rowId": "row-3", "rows": None}
         )
 
+        assert metadata.row_id == "row-3"
         assert metadata.rows == []
 
 
@@ -500,7 +505,26 @@ class TestMagicTableLibrarySheetRowVerifiedPayload:
         )
 
         assert payload.action == MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED
+        assert payload.metadata.row_order == 3
+        assert payload.metadata.row_id == "row-3"
         assert [row.row_order for row in payload.metadata.rows] == [3, 8]
+
+    def test_legacy_payload_without_row_id_still_parses(self):
+        payload = MagicTableLibrarySheetRowVerifiedPayload.model_validate(
+            {
+                "name": "rfp_agent",
+                "sheetName": "Library",
+                "action": "LibrarySheetRowVerified",
+                "chatId": "chat-1",
+                "assistantId": "assistant-1",
+                "tableId": "table-1",
+                "metadata": {"rowOrder": 3},
+            }
+        )
+
+        assert payload.metadata.row_order == 3
+        assert payload.metadata.row_id is None
+        assert payload.metadata.rows == []
 
 
 class TestRerunRowsMetadata:

@@ -100,7 +100,8 @@ Used by `MagicTableLibrarySheetRowVerifiedPayload`.
 **Additional attributes:**
 
 - `row_order: int` - The row index of the first (or only) verified row
-- `row_id: str` - The ID of the first (or only) verified row
+- `row_id: str | None` - Optional pairing id for the first verified row
+  (defaults to `None`; ingest keys off `row_order`)
 - `rows: list[LibrarySheetRowVerifiedRow]` - The optional full verified batch;
   each entry contains `row_order` and `row_id`
 

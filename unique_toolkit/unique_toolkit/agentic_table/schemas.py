@@ -226,7 +226,14 @@ class LibrarySheetRowVerifiedMetadata(BaseMetadata):
     row_order: int = Field(
         description="The row index of the first (or only) verified row."
     )
-    row_id: str = Field(description="The ID of the first (or only) verified row.")
+    row_id: str | None = Field(
+        default=None,
+        description=(
+            "Optional pairing id for the first verified row. Ingest keys off "
+            "row_order (or rows[].row_order). Omitted or null stays None so "
+            "legacy payloads that only send rowOrder still parse."
+        ),
+    )
     rows: Annotated[list[LibrarySheetRowVerifiedRow], NoneToDefault] = Field(
         default_factory=list,
         description="The full batch of verified rows, including the first row.",
