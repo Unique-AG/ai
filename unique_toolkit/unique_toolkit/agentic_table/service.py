@@ -455,8 +455,11 @@ class AgenticTableService:
             include_log_history (bool): Whether to include the log history.
             include_cell_meta_data (bool): Whether to include the cell metadata (renderer, selection, agreement status).
             include_row_metadata (bool): Whether to include the row metadata (key value pairs).
-            row_orders (list[int] | None): Sparse row indices to fetch. This cannot
-                be combined with a non-default start_row or with end_row.
+            row_orders (list[int] | None): Sparse, 1-based content row indices to
+                fetch, using the same numbering as get_cell and rerun events. Row 0
+                is the header; non-positive values are discarded. An empty list
+                returns a header-only sheet. This cannot be combined with a
+                non-default start_row or with end_row.
         Returns:
             MagicTableSheet: The sheet data.
         """
@@ -485,7 +488,9 @@ class AgenticTableService:
         cells = []
         batch_params: list[AgenticTable.GetSheetData] = []
         if row_orders is not None:
-            normalized_row_orders = list(dict.fromkeys(row_orders))
+            normalized_row_orders = list(
+                dict.fromkeys(row_order for row_order in row_orders if row_order > 0)
+            )
             for offset in range(0, len(normalized_row_orders), batch_size):
                 batch_params.append(
                     {
@@ -529,6 +534,26 @@ class AgenticTableService:
             )
             if "magicTableCells" in sheet_partial:
                 batch_cells = sheet_partial["magicTableCells"]
+                requested_row_orders = request_params.get("rowOrders")
+                if requested_row_orders is not None:
+                    requested = set(requested_row_orders)
+                    returned = {cell["rowOrder"] for cell in batch_cells}
+                    unexpected = returned - requested
+                    missing = requested - returned
+                    if unexpected or missing:
+                        self.logger.warning(
+                            "Sparse magic-table sheet response did not match the "
+                            "requested rows; filtering response. requested=%s "
+                            "unexpected=%s missing=%s",
+                            sorted(requested),
+                            sorted(unexpected),
+                            sorted(missing),
+                        )
+                    batch_cells = [
+                        cell
+                        for cell in batch_cells
+                        if cell.get("rowOrder") in requested
+                    ]
                 if (
                     include_row_metadata
                     and not _sheet_batch_cells_include_row_metadata_from_api(

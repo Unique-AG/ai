@@ -103,7 +103,11 @@ Used by `MagicTableLibrarySheetRowVerifiedPayload`.
 - `row_id: str | None` - Optional pairing id for the first verified row
   (defaults to `None`; ingest keys off `row_order`)
 - `rows: list[LibrarySheetRowVerifiedRow]` - The optional full verified batch;
-  each entry contains `row_order` and `row_id`
+  each entry contains `row_order` and an optional `row_id`. When present,
+  the first entry must match the top-level scalar fields.
+- `verified_rows: list[LibrarySheetRowVerifiedRow]` - Normalized property for
+  consumers: returns `rows` for a bulk payload or builds one entry from the
+  legacy scalar fields
 
 ### SheetCreatedMetadata
 

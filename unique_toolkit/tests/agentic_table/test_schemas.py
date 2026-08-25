@@ -1,3 +1,4 @@
+import pytest
 from unique_sdk.api_resources._agentic_table import MagicTableAction
 
 from unique_toolkit.agentic_table.schemas import (
@@ -449,6 +450,9 @@ class TestLibrarySheetRowVerifiedMetadata:
         assert metadata.row_order == 3
         assert metadata.row_id is None
         assert metadata.rows == []
+        assert metadata.verified_rows == [
+            LibrarySheetRowVerifiedRow(row_order=3, row_id=None)
+        ]
 
     def test_optional_row_id_and_rows_default_when_omitted(self):
         metadata = LibrarySheetRowVerifiedMetadata(row_order=3)
@@ -465,6 +469,7 @@ class TestLibrarySheetRowVerifiedMetadata:
                 "rows": [
                     {"rowOrder": 3, "rowId": "row-3"},
                     {"rowOrder": 8, "rowId": "row-8"},
+                    {"rowOrder": 9},
                 ],
             }
         )
@@ -472,7 +477,34 @@ class TestLibrarySheetRowVerifiedMetadata:
         assert metadata.rows == [
             LibrarySheetRowVerifiedRow(row_order=3, row_id="row-3"),
             LibrarySheetRowVerifiedRow(row_order=8, row_id="row-8"),
+            LibrarySheetRowVerifiedRow(row_order=9, row_id=None),
         ]
+        assert metadata.verified_rows is metadata.rows
+
+    def test_bulk_first_row_order_must_match_scalar(self):
+        with pytest.raises(
+            ValueError,
+            match=r"rows\[0\]\.row_order must match row_order",
+        ):
+            LibrarySheetRowVerifiedMetadata.model_validate(
+                {
+                    "rowOrder": 3,
+                    "rows": [{"rowOrder": 8, "rowId": "row-8"}],
+                }
+            )
+
+    def test_bulk_first_row_id_must_match_scalar_when_both_are_present(self):
+        with pytest.raises(
+            ValueError,
+            match=r"rows\[0\]\.row_id must match row_id",
+        ):
+            LibrarySheetRowVerifiedMetadata.model_validate(
+                {
+                    "rowOrder": 3,
+                    "rowId": "row-3",
+                    "rows": [{"rowOrder": 3, "rowId": "different-row"}],
+                }
+            )
 
     def test_null_rows_normalize_to_empty(self):
         metadata = LibrarySheetRowVerifiedMetadata.model_validate(

@@ -1,6 +1,6 @@
 """Tests for ``AgenticTableService.get_sheet`` row metadata (UN-19885, SDK PR #1467)."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -223,14 +223,66 @@ async def test_get_sheet_batches_and_deduplicates_sparse_row_orders() -> None:
         new_callable=AsyncMock,
         side_effect=fake_get_sheet_data,
     ) as gsm:
-        await svc.get_sheet(row_orders=[*range(150), 3], batch_size=100)
+        await svc.get_sheet(
+            row_orders=[-1, 0, *range(1, 151), 3],
+            batch_size=100,
+        )
 
     batches = [
         call.kwargs["rowOrders"]
         for call in gsm.await_args_list
         if call.kwargs.get("includeCells") is True
     ]
-    assert batches == [list(range(100)), list(range(100, 150))]
+    assert batches == [list(range(1, 101)), list(range(101, 151))]
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_empty_row_orders_returns_header_only_sheet() -> None:
+    header = _minimal_sheet_header(row_count=10)
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        return_value=header,
+    ) as gsm:
+        sheet = await svc.get_sheet(row_orders=[])
+
+    gsm.assert_awaited_once()
+    assert gsm.await_args.kwargs["includeCells"] is False
+    assert sheet.magic_table_cells == []
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_filters_and_logs_unexpected_sparse_rows() -> None:
+    header = _minimal_sheet_header(row_count=10)
+
+    async def fake_get_sheet_data(*_args: object, **kwargs: object) -> dict:
+        if kwargs.get("includeCells") is False:
+            return header
+        return {
+            **header,
+            "magicTableCells": [_cell(0, 0), _cell(5, 0), _cell(6, 0)],
+        }
+
+    logger = Mock()
+    svc = AgenticTableService(
+        "user-1",
+        "company-1",
+        "table-1",
+        logger=logger,
+    )
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        side_effect=fake_get_sheet_data,
+    ):
+        sheet = await svc.get_sheet(row_orders=[5, 7])
+
+    assert [cell.row_order for cell in sheet.magic_table_cells] == [5]
+    logger.warning.assert_called_once()
+    warning_args = logger.warning.call_args.args
+    assert warning_args[1:] == ([5, 7], [0, 6], [7])
 
 
 @pytest.mark.asyncio

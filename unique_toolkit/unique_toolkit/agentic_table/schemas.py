@@ -6,6 +6,7 @@ from pydantic import (
     BaseModel,
     Field,
     field_validator,
+    model_validator,
 )
 from unique_sdk import (
     AgenticTableSheetState,
@@ -218,7 +219,10 @@ class MagicTableSheetCreatedPayload(
 class LibrarySheetRowVerifiedRow(BaseModel):
     model_config = get_configuration_dict()
     row_order: int = Field(description="The row index of a verified row.")
-    row_id: str = Field(description="The ID of a verified row.")
+    row_id: str | None = Field(
+        default=None,
+        description="Optional pairing ID for a verified row.",
+    )
 
 
 class LibrarySheetRowVerifiedMetadata(BaseMetadata):
@@ -238,6 +242,35 @@ class LibrarySheetRowVerifiedMetadata(BaseMetadata):
         default_factory=list,
         description="The full batch of verified rows, including the first row.",
     )
+
+    @model_validator(mode="after")
+    def validate_first_row_matches_scalars(self) -> "LibrarySheetRowVerifiedMetadata":
+        """Keep old scalar consumers and new batch consumers on the same first row."""
+        if not self.rows:
+            return self
+
+        first_row = self.rows[0]
+        if first_row.row_order != self.row_order:
+            raise ValueError("rows[0].row_order must match row_order")
+        if (
+            self.row_id is not None
+            and first_row.row_id is not None
+            and first_row.row_id != self.row_id
+        ):
+            raise ValueError("rows[0].row_id must match row_id")
+        return self
+
+    @property
+    def verified_rows(self) -> list[LibrarySheetRowVerifiedRow]:
+        """Return one normalized row list for both legacy and bulk payloads."""
+        if self.rows:
+            return self.rows
+        return [
+            LibrarySheetRowVerifiedRow(
+                row_order=self.row_order,
+                row_id=self.row_id,
+            )
+        ]
 
 
 class MagicTableLibrarySheetRowVerifiedPayload(
