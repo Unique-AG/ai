@@ -215,9 +215,22 @@ class MagicTableSheetCreatedPayload(
 ########## Library Sheet Row Verified Payload ##########
 
 
+class LibrarySheetRowVerifiedRow(BaseModel):
+    model_config = get_configuration_dict()
+    row_order: int = Field(description="The row index of a verified row.")
+    row_id: str = Field(description="The ID of a verified row.")
+
+
 class LibrarySheetRowVerifiedMetadata(BaseMetadata):
     model_config = get_configuration_dict()
-    row_order: int = Field(description="The row index of the row that was verified.")
+    row_order: int = Field(
+        description="The row index of the first (or only) verified row."
+    )
+    row_id: str = Field(description="The ID of the first (or only) verified row.")
+    rows: Annotated[list[LibrarySheetRowVerifiedRow], NoneToDefault] = Field(
+        default_factory=list,
+        description="The full batch of verified rows, including the first row.",
+    )
 
 
 class MagicTableLibrarySheetRowVerifiedPayload(

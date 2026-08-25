@@ -5,9 +5,12 @@ from unique_toolkit.agentic_table.schemas import (
     ArtifactType,
     BaseMetadata,
     DDMetadata,
+    LibrarySheetRowVerifiedMetadata,
+    LibrarySheetRowVerifiedRow,
     MagicTableEvent,
     MagicTableEventTypes,
     MagicTableGenerateArtifactPayload,
+    MagicTableLibrarySheetRowVerifiedPayload,
     MagicTableRerunRowPayload,
     MagicTableRerunRowsPayload,
     RerunRowMetadata,
@@ -437,6 +440,67 @@ class TestMagicTableRerunRowPayload:
     def test_rerun_row_action_enum_value(self):
         """Test that RERUN_ROW action is correctly recognized."""
         assert MagicTableAction.RERUN_ROW == "RerunRow"
+
+
+class TestLibrarySheetRowVerifiedMetadata:
+    def test_scalar_fields_remain_required_with_optional_rows(self):
+        metadata = LibrarySheetRowVerifiedMetadata(
+            row_order=3,
+            row_id="row-3",
+        )
+
+        assert metadata.row_order == 3
+        assert metadata.row_id == "row-3"
+        assert metadata.rows == []
+
+    def test_bulk_rows_parse_from_camel_case(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate(
+            {
+                "rowOrder": 3,
+                "rowId": "row-3",
+                "rows": [
+                    {"rowOrder": 3, "rowId": "row-3"},
+                    {"rowOrder": 8, "rowId": "row-8"},
+                ],
+            }
+        )
+
+        assert metadata.rows == [
+            LibrarySheetRowVerifiedRow(row_order=3, row_id="row-3"),
+            LibrarySheetRowVerifiedRow(row_order=8, row_id="row-8"),
+        ]
+
+    def test_null_rows_normalize_to_empty(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate(
+            {"rowOrder": 3, "rowId": "row-3", "rows": None}
+        )
+
+        assert metadata.rows == []
+
+
+class TestMagicTableLibrarySheetRowVerifiedPayload:
+    def test_bulk_verified_payload_parses_from_wire_format(self):
+        payload = MagicTableLibrarySheetRowVerifiedPayload.model_validate(
+            {
+                "name": "rfp_agent",
+                "sheetName": "Library",
+                "action": "LibrarySheetRowVerified",
+                "chatId": "chat-1",
+                "assistantId": "assistant-1",
+                "tableId": "table-1",
+                "metadata": {
+                    "rowOrder": 3,
+                    "rowId": "row-3",
+                    "rows": [
+                        {"rowOrder": 3, "rowId": "row-3"},
+                        {"rowOrder": 8, "rowId": "row-8"},
+                    ],
+                },
+            }
+        )
+
+        assert payload.action == MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED
+        assert [row.row_order for row in payload.metadata.rows] == [3, 8]
 
 
 class TestRerunRowsMetadata:

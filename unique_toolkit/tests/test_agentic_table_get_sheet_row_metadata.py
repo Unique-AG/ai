@@ -172,3 +172,79 @@ async def test_get_sheet_does_not_forward_include_row_metadata_when_disabled() -
     assert len(batch_kwargs) == 1
     assert "includeRowMetadata" not in batch_kwargs[0]
     get_cell.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_forwards_sparse_row_orders_without_range() -> None:
+    header = _minimal_sheet_header(row_count=10)
+
+    async def fake_get_sheet_data(*_args: object, **kwargs: object) -> dict:
+        if kwargs.get("includeCells") is False:
+            return header
+        row_orders = kwargs["rowOrders"]
+        assert isinstance(row_orders, list)
+        return {
+            **header,
+            "magicTableCells": [_cell(row, 0) for row in row_orders],
+        }
+
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        side_effect=fake_get_sheet_data,
+    ) as gsm:
+        sheet = await svc.get_sheet(row_orders=[1, 3, 7])
+
+    batch_kwargs = [
+        call.kwargs
+        for call in gsm.await_args_list
+        if call.kwargs.get("includeCells") is True
+    ]
+    assert len(batch_kwargs) == 1
+    assert batch_kwargs[0]["rowOrders"] == [1, 3, 7]
+    assert "startRow" not in batch_kwargs[0]
+    assert "endRow" not in batch_kwargs[0]
+    assert [cell.row_order for cell in sheet.magic_table_cells] == [1, 3, 7]
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_batches_and_deduplicates_sparse_row_orders() -> None:
+    header = _minimal_sheet_header(row_count=250)
+
+    async def fake_get_sheet_data(*_args: object, **kwargs: object) -> dict:
+        if kwargs.get("includeCells") is False:
+            return header
+        return {**header, "magicTableCells": []}
+
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        side_effect=fake_get_sheet_data,
+    ) as gsm:
+        await svc.get_sheet(row_orders=[*range(150), 3], batch_size=100)
+
+    batches = [
+        call.kwargs["rowOrders"]
+        for call in gsm.await_args_list
+        if call.kwargs.get("includeCells") is True
+    ]
+    assert batches == [list(range(100)), list(range(100, 150))]
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_rejects_sparse_rows_mixed_with_range() -> None:
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+    ) as gsm:
+        with pytest.raises(
+            ValueError,
+            match="row_orders cannot be combined with start_row or end_row",
+        ):
+            await svc.get_sheet(start_row=1, row_orders=[1, 3])
+
+    gsm.assert_not_awaited()
