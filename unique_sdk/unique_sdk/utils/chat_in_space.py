@@ -68,8 +68,11 @@ async def send_message_and_wait_for_completion(
             Should contain: parentMessageId, parentChatId, parentAssistantId.
         auto_approve_elicitation: When True, automatically approves elicitation requests during
             the assistant run. Use for non-interactive automation where no user is present.
-        language_model: Optional language model group name for this single message
-            (e.g. ``"AZURE_GPT_4o_2024_1120"``). Requires manage access on the space.
+        language_model: Optional language model group name to answer this single message
+            with (e.g. ``"AZURE_GPT_4o_2024_1120"`` or ``"litellm:gemini-2-5-pro"``).
+            Forwarded to Unique API as ``languageModel``. Requires access to use the space,
+            ``allowModelSwitching`` enabled on it, and a model from its
+            ``switchableLanguageModels``. When omitted, the space default is used.
         on_message_update: Optional async callback called whenever the latest assistant
             message changes while waiting for completion.
         wait_for_invocations: When True, briefly wait for the orchestrator's final

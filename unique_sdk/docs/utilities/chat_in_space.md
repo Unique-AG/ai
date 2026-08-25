@@ -30,7 +30,7 @@ The Chat in Space utilities provide:
     - `stop_condition` (optional) - When to stop: `"stoppedStreamingAt"` or `"completedAt"` (default: `"stoppedStreamingAt"`)
     - `correlation` (optional) - Correlation data to link this message to a parent message in another chat. Should contain: `parentMessageId`, `parentChatId`, `parentAssistantId`
     - `auto_approve_elicitation` (optional) - When `True`, automatically approves elicitation requests during the assistant run. Use for non-interactive automation where no user is present.
-    - `language_model` (optional) - Language model group name for this single message (e.g. `"AZURE_GPT_54_2026_0305"`). Requires manage access / model switching configuration on the space.
+    - `language_model` (optional) - Language model group name to answer **this single message** with (e.g. `"AZURE_GPT_54_2026_0305"`), forwarded to Unique API as `languageModel` on `POST /space/message`. Requires access to use the space, `allowModelSwitching` enabled on it, and a model taken from its `switchableLanguageModels`; the helper forwards the value as-is and does not bypass any Unique API gate. Omitting it leaves the space default in place. Not to be confused with the space-level `languageModel` on `Space.create_space` / `Space.update_space`, which sets the default for every message.
 
     **Returns:**
 
@@ -106,6 +106,22 @@ The Chat in Space utilities provide:
         }
     )
     ```
+
+    **Example - With a Specific Model for One Message:**
+
+    ```python
+    message = await send_message_and_wait_for_completion(
+        user_id=user_id,
+        company_id=company_id,
+        assistant_id="assistant_abc123",
+        text="Hello",
+        language_model="AZURE_GPT_55_2026_0424",
+    )
+    ```
+
+    The request fails with the existing Unique API errors when per-message model selection is
+    disabled for the company, when the space has `allowModelSwitching` off, or when the model
+    is not in the space's `switchableLanguageModels`.
 
 ??? example "`unique_sdk.utils.chat_in_space.chat_against_file` - Upload file and chat"
 

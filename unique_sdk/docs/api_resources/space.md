@@ -393,7 +393,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `assistantId` (str, required) - Space/assistant ID
     - `text` (str, optional) - Message text
     - `chatId` (str, optional) - Continue existing chat or start new
-    - `languageModel` (str, optional) - Language model group name for this single message (e.g. `"AZURE_GPT_4o_2024_1120"` or `"litellm:gemini-2-5-pro"`). Requires manage access on the space.
+    - `languageModel` (str, optional) - Language model group name to answer **this single message** with (e.g. `"AZURE_GPT_4o_2024_1120"` or `"litellm:gemini-2-5-pro"`). Requires access to use the space, `allowModelSwitching` enabled on it, and a model taken from its `switchableLanguageModels`. Omitting it uses the space default. This is not the same field as the space-level `languageModel` on `Space.create_space` / `Space.update_space`, which changes the space default for every message.
     - `toolChoices` (List[str], optional) - List of tools to use (e.g., `["WebSearch", "InternalSearch"]`)
     - `skillChoices` (List[`Space.SkillChoice`](#spaceskillchoice), optional) - Selected skills to use for this message
     - `availableSkills` (List[`Space.SkillChoice`](#spaceskillchoice), optional) - Skills available for the assistant to choose from
@@ -468,6 +468,43 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
         }
     )
     ```
+
+    **Example - With a Specific Model for One Message:**
+
+    ```python
+    message = unique_sdk.Space.create_message(
+        user_id=user_id,
+        company_id=company_id,
+        assistantId="assistant_abc123",
+        text="Hello",
+        languageModel="AZURE_GPT_55_2026_0424",
+    )
+    ```
+
+    To discover which models a space accepts, read its allowlist first:
+
+    ```python
+    space = unique_sdk.Space.get_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_abc123",
+    )
+    allowed = [entry["languageModel"] for entry in space["switchableLanguageModels"] or []]
+
+    message = unique_sdk.Space.create_message(
+        user_id=user_id,
+        company_id=company_id,
+        assistantId="assistant_abc123",
+        text="Hello",
+        languageModel=allowed[0],
+    )
+    ```
+
+    The SDK forwards `languageModel` as-is and does not bypass any Unique API gate. The
+    request fails with the existing Unique API errors when per-message model selection is
+    disabled for the company, when the space has `allowModelSwitching` off, or when the
+    requested model is not in `switchableLanguageModels`. The space default is untouched:
+    the next message without `languageModel` runs on the space's configured model again.
 
     **Example - Non-interactive automation (auto-approve elicitations):**
 
