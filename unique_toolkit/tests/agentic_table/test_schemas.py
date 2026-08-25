@@ -5,9 +5,13 @@ from unique_toolkit.agentic_table.schemas import (
     ArtifactType,
     BaseMetadata,
     DDMetadata,
+    MagicTableEvent,
+    MagicTableEventTypes,
     MagicTableGenerateArtifactPayload,
     MagicTableRerunRowPayload,
+    MagicTableRerunRowsPayload,
     RerunRowMetadata,
+    RerunRowsMetadata,
     SheetType,
 )
 
@@ -433,3 +437,264 @@ class TestMagicTableRerunRowPayload:
     def test_rerun_row_action_enum_value(self):
         """Test that RERUN_ROW action is correctly recognized."""
         assert MagicTableAction.RERUN_ROW == "RerunRow"
+
+
+class TestRerunRowsMetadata:
+    """Test suite for RerunRowsMetadata model (bulk re-run of a row selection)."""
+
+    def test_rerun_rows_metadata_creation(self):
+        """Test RerunRowsMetadata creation with required fields."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1", "file-2"],
+            row_orders=[3, 5, 8],
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.source_file_ids == ["file-1", "file-2"]
+        assert metadata.row_orders == [3, 5, 8]
+        assert metadata.sheet_type == SheetType.DEFAULT
+        assert metadata.context == ""  # Default value
+
+    def test_rerun_rows_metadata_preserves_selection_order(self):
+        """Selection order is part of the contract: rows run in the order sent."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[9, 2, 7],
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.row_orders == [9, 2, 7]
+
+    def test_rerun_rows_metadata_dedupes_and_drops_non_positive_rows(self):
+        """Duplicates and non-positive rows (header row 0 / negatives) are dropped."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[4, 4, 0, -1, 4, 2],
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.row_orders == [4, 2]
+
+    def test_rerun_rows_metadata_accepts_empty_selection(self):
+        """An empty selection parses; the agent fails the run and releases the lock."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[],
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.row_orders == []
+
+    def test_rerun_rows_metadata_omitted_lists_default_to_empty(self):
+        """Missing sourceFileIds / rowOrders still parse so the agent can fail and unlock."""
+        metadata = RerunRowsMetadata(sheet_type=SheetType.DEFAULT)
+        assert metadata.source_file_ids == []
+        assert metadata.row_orders == []
+
+    def test_rerun_rows_metadata_null_lists_normalized(self):
+        """Null sourceFileIds / rowOrders become empty lists, same as omitted."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=None,
+            row_orders=None,
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.source_file_ids == []
+        assert metadata.row_orders == []
+
+    def test_rerun_rows_metadata_context_none_normalized(self):
+        """Test that None context is normalized to empty string."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[1],
+            sheet_type=SheetType.DEFAULT,
+            context=None,
+        )
+        assert metadata.context == ""
+
+    def test_rerun_rows_metadata_with_additional_sheet_information(self):
+        """Test RerunRowsMetadata with inherited additional_sheet_information."""
+        additional_info = {"clientId": "123", "category": "DDQ"}
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[1, 2],
+            sheet_type=SheetType.DEFAULT,
+            additional_sheet_information=additional_info,
+        )
+        assert metadata.additional_sheet_information == additional_info
+
+    def test_rerun_rows_metadata_deserialization_from_json(self):
+        """Test RerunRowsMetadata deserialization from JSON with camelCase."""
+        json_data = """{
+            "sourceFileIds": ["file-abc", "file-xyz"],
+            "rowOrders": [7, 11],
+            "sheetType": "DEFAULT",
+            "context": "Rerun for correction"
+        }"""
+        metadata = RerunRowsMetadata.model_validate_json(json_data)
+        assert metadata.source_file_ids == ["file-abc", "file-xyz"]
+        assert metadata.row_orders == [7, 11]
+        assert metadata.sheet_type == SheetType.DEFAULT
+        assert metadata.context == "Rerun for correction"
+
+    def test_rerun_rows_metadata_json_drops_duplicates_and_non_positive(self):
+        """Wire camelCase lists are normalized the same way as constructor input."""
+        json_data = """{
+            "sourceFileIds": null,
+            "rowOrders": [4, 0, 4, -1, 2]
+        }"""
+        metadata = RerunRowsMetadata.model_validate_json(json_data)
+        assert metadata.source_file_ids == []
+        assert metadata.row_orders == [4, 2]
+
+
+class TestMagicTableRerunRowsPayload:
+    """Test suite for MagicTableRerunRowsPayload - the bulk sibling of
+    MagicTableRerunRowPayload, dispatched by the same action discriminator."""
+
+    def test_rerun_rows_payload_creation(self):
+        """Test MagicTableRerunRowsPayload creation."""
+        payload = MagicTableRerunRowsPayload(
+            name="rfp_agent",
+            sheet_name="Test Sheet",
+            action=MagicTableAction.RERUN_ROWS,
+            chat_id="chat-123",
+            assistant_id="asst-123",
+            table_id="table-123",
+            metadata=RerunRowsMetadata(
+                source_file_ids=["file-1", "file-2"],
+                row_orders=[5, 6],
+                sheet_type=SheetType.DEFAULT,
+                context="Rerun context",
+            ),
+        )
+        assert payload.name == "rfp_agent"
+        assert payload.action == MagicTableAction.RERUN_ROWS
+        assert payload.metadata.source_file_ids == ["file-1", "file-2"]
+        assert payload.metadata.row_orders == [5, 6]
+        assert payload.metadata.context == "Rerun context"
+
+    def test_rerun_rows_payload_serialization(self):
+        """Test payload serialization maintains structure."""
+        payload = MagicTableRerunRowsPayload(
+            name="rfp_agent",
+            sheet_name="Test Sheet",
+            action=MagicTableAction.RERUN_ROWS,
+            chat_id="chat-123",
+            assistant_id="asst-123",
+            table_id="table-123",
+            metadata=RerunRowsMetadata(
+                source_file_ids=["file-1"],
+                row_orders=[1, 2, 3],
+                sheet_type=SheetType.DEFAULT,
+            ),
+        )
+        serialized = payload.model_dump()
+        assert serialized["action"] == "RerunRows"
+        assert serialized["metadata"]["source_file_ids"] == ["file-1"]
+        assert serialized["metadata"]["row_orders"] == [1, 2, 3]
+
+    def test_rerun_rows_payload_deserialization_omits_optional_lists(self):
+        """User-triggered bulk rerun may omit sourceFileIds and send null rowOrders."""
+        json_data = """{
+            "name": "rfp_agent",
+            "sheetName": "Test Sheet",
+            "action": "RerunRows",
+            "chatId": "chat-456",
+            "assistantId": "asst-456",
+            "tableId": "table-456",
+            "metadata": {
+                "rowOrders": null,
+                "sheetType": "DEFAULT"
+            }
+        }"""
+        payload = MagicTableRerunRowsPayload.model_validate_json(json_data)
+        assert payload.metadata.source_file_ids == []
+        assert payload.metadata.row_orders == []
+
+    def test_rerun_rows_payload_deserialization_from_json(self):
+        """Test payload deserialization from JSON (simulating API request)."""
+        json_data = """{
+            "name": "rfp_agent",
+            "sheetName": "Test Sheet",
+            "action": "RerunRows",
+            "chatId": "chat-456",
+            "assistantId": "asst-456",
+            "tableId": "table-456",
+            "metadata": {
+                "sourceFileIds": ["file-a", "file-b"],
+                "rowOrders": [10, 12],
+                "sheetType": "DEFAULT",
+                "context": "Retry with new sources"
+            }
+        }"""
+        payload = MagicTableRerunRowsPayload.model_validate_json(json_data)
+        assert payload.name == "rfp_agent"
+        assert payload.action == MagicTableAction.RERUN_ROWS
+        assert payload.chat_id == "chat-456"
+        assert payload.metadata.source_file_ids == ["file-a", "file-b"]
+        assert payload.metadata.row_orders == [10, 12]
+        assert payload.metadata.context == "Retry with new sources"
+
+    def test_rerun_rows_action_enum_value(self):
+        """Test that RERUN_ROWS action is correctly recognized."""
+        assert MagicTableAction.RERUN_ROWS == "RerunRows"
+
+
+class TestRerunEventDiscrimination:
+    """The two rerun actions must route to distinct payload models, so that adding
+    the bulk variant cannot silently swallow a single-row event or vice versa."""
+
+    def _event_json(self, *, event: str, action: str, metadata: str) -> str:
+        return f"""{{
+            "id": "evt-1",
+            "event": "{event}",
+            "userId": "user-1",
+            "companyId": "company-1",
+            "payload": {{
+                "name": "rfp_agent",
+                "sheetName": "Test Sheet",
+                "action": "{action}",
+                "chatId": "chat-1",
+                "assistantId": "asst-1",
+                "tableId": "table-1",
+                "metadata": {metadata}
+            }}
+        }}"""
+
+    def test_rerun_rows_event_resolves_to_bulk_payload(self):
+        """A rerun-rows event parses into MagicTableRerunRowsPayload."""
+        event = MagicTableEvent.model_validate_json(
+            self._event_json(
+                event=MagicTableEventTypes.RERUN_ROWS,
+                action=MagicTableAction.RERUN_ROWS,
+                metadata='{"sourceFileIds": ["file-1"], "rowOrders": [2, 4]}',
+            )
+        )
+        assert event.event == MagicTableEventTypes.RERUN_ROWS
+        assert isinstance(event.payload, MagicTableRerunRowsPayload)
+        assert event.payload.metadata.row_orders == [2, 4]
+
+    def test_rerun_rows_event_parses_when_metadata_lists_are_omitted(self):
+        """A user-triggered bulk rerun with no source or row lists still parses."""
+        event = MagicTableEvent.model_validate_json(
+            self._event_json(
+                event=MagicTableEventTypes.RERUN_ROWS,
+                action=MagicTableAction.RERUN_ROWS,
+                metadata="{}",
+            )
+        )
+        assert isinstance(event.payload, MagicTableRerunRowsPayload)
+        assert event.payload.metadata.source_file_ids == []
+        assert event.payload.metadata.row_orders == []
+
+    def test_rerun_row_event_still_resolves_to_single_row_payload(self):
+        """The existing single-row event is unaffected by the new union member."""
+        event = MagicTableEvent.model_validate_json(
+            self._event_json(
+                event=MagicTableEventTypes.RERUN_ROW,
+                action=MagicTableAction.RERUN_ROW,
+                metadata='{"sourceFileIds": ["file-1"], "rowOrder": 2}',
+            )
+        )
+        assert isinstance(event.payload, MagicTableRerunRowPayload)
+        assert event.payload.metadata.row_order == 2
+
+    def test_rerun_rows_event_type_wire_value(self):
+        """Test that the bulk event name matches the platform contract."""
+        assert MagicTableEventTypes.RERUN_ROWS == "unique.magic-table.rerun-rows"

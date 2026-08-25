@@ -22,7 +22,10 @@ from unique_sdk.api_resources._agentic_table import (
 )
 
 from unique_toolkit._common.exception import ConfigurationException
-from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit._common.pydantic_helpers import (
+    NoneToDefault,
+    get_configuration_dict,
+)
 from unique_toolkit.app.schemas import (
     AssistantWebhookEvent,
     BaseEventPayload,
@@ -44,6 +47,7 @@ class MagicTableEventTypes(StrEnum):
     LIBRARY_SHEET_ROW_VERIFIED = "unique.magic-table.library-sheet-row.verified"
     SHEET_CREATED = "unique.magic-table.sheet-created"
     RERUN_ROW = "unique.magic-table.rerun-row"
+    RERUN_ROWS = "unique.magic-table.rerun-rows"
 
 
 class BaseMetadata(BaseModel):
@@ -248,6 +252,48 @@ class MagicTableRerunRowPayload(
 ): ...
 
 
+########## Rerun Rows Payload ##########
+
+
+class RerunRowsMetadata(BaseMetadata):
+    """Metadata of a bulk re-run: one event carrying N rows of the same sheet."""
+
+    model_config = get_configuration_dict()
+    source_file_ids: Annotated[list[str], NoneToDefault] = Field(
+        default_factory=list,
+        description=(
+            "Source file IDs for this rerun. Optional: a user-triggered bulk "
+            "rerun may omit sources when none changed. Null and omitted become []."
+        ),
+    )
+    row_orders: Annotated[list[int], NoneToDefault] = Field(
+        default_factory=list,
+        description=(
+            "1-based content row indices to rerun, in first-seen selection order. "
+            "Duplicates are dropped. Row 0 is the header and negatives address "
+            "nothing, so non-positive values are discarded. Empty means no work."
+        ),
+    )
+    context: str = Field(default="", description="The context text for the rerun.")
+
+    @field_validator("row_orders", mode="after")
+    @classmethod
+    def normalize_row_orders(cls, v: list[int]) -> list[int]:
+        return list(dict.fromkeys(row for row in v if row > 0))
+
+    @field_validator("context", mode="before")
+    @classmethod
+    def normalize_context(cls, v):
+        if v is None:
+            return ""
+        return v
+
+
+class MagicTableRerunRowsPayload(
+    MagicTableBasePayload[Literal[MagicTableAction.RERUN_ROWS], RerunRowsMetadata]
+): ...
+
+
 ########### Magic Table Event definition ###########
 
 
@@ -259,6 +305,7 @@ PayloadTypes = (
     | MagicTableLibrarySheetRowVerifiedPayload
     | MagicTableSheetCreatedPayload
     | MagicTableRerunRowPayload
+    | MagicTableRerunRowsPayload
 )
 
 MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]
