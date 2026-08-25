@@ -86,8 +86,9 @@ that test):
 - Use the default SDK API version (`2023-12-06`). node-chat public space routes
   are registered for that version only; sending `x-api-version: 2026-03-01`
   yields `404 Cannot POST /public/space/message`.
-- `languageModel` on create-message may require manage access and a space with
-  model switching configured for the requested model.
+- `languageModel` on create-message requires per-message model selection enabled for
+  the company, `allowModelSwitching` on the space, and the requested model listed in
+  its `switchableLanguageModels`.
 - Temporary spaces created when `UNIQUE_ASSISTANT_ID` is unset are deleted after
   the module finishes; prefer a stable assistant id if you want to open chats
   in the UI after the run.
