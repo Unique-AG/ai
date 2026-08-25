@@ -1,3 +1,4 @@
+import pytest
 from unique_sdk.api_resources._agentic_table import MagicTableAction
 
 from unique_toolkit.agentic_table.schemas import (
@@ -5,9 +6,12 @@ from unique_toolkit.agentic_table.schemas import (
     ArtifactType,
     BaseMetadata,
     DDMetadata,
+    LibrarySheetRowVerifiedMetadata,
+    LibrarySheetRowVerifiedRow,
     MagicTableEvent,
     MagicTableEventTypes,
     MagicTableGenerateArtifactPayload,
+    MagicTableLibrarySheetRowVerifiedPayload,
     MagicTableRerunRowPayload,
     MagicTableRerunRowsPayload,
     RerunRowMetadata,
@@ -437,6 +441,122 @@ class TestMagicTableRerunRowPayload:
     def test_rerun_row_action_enum_value(self):
         """Test that RERUN_ROW action is correctly recognized."""
         assert MagicTableAction.RERUN_ROW == "RerunRow"
+
+
+class TestLibrarySheetRowVerifiedMetadata:
+    def test_legacy_payload_without_row_id_still_parses(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate({"rowOrder": 3})
+
+        assert metadata.row_order == 3
+        assert metadata.row_id is None
+        assert metadata.rows == []
+        assert metadata.verified_rows == [
+            LibrarySheetRowVerifiedRow(row_order=3, row_id=None)
+        ]
+
+    def test_optional_row_id_and_rows_default_when_omitted(self):
+        metadata = LibrarySheetRowVerifiedMetadata(row_order=3)
+
+        assert metadata.row_order == 3
+        assert metadata.row_id is None
+        assert metadata.rows == []
+
+    def test_bulk_rows_parse_from_camel_case(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate(
+            {
+                "rowOrder": 3,
+                "rowId": "row-3",
+                "rows": [
+                    {"rowOrder": 3, "rowId": "row-3"},
+                    {"rowOrder": 8, "rowId": "row-8"},
+                    {"rowOrder": 9},
+                ],
+            }
+        )
+
+        assert metadata.rows == [
+            LibrarySheetRowVerifiedRow(row_order=3, row_id="row-3"),
+            LibrarySheetRowVerifiedRow(row_order=8, row_id="row-8"),
+            LibrarySheetRowVerifiedRow(row_order=9, row_id=None),
+        ]
+        assert metadata.verified_rows is metadata.rows
+
+    def test_bulk_first_row_order_must_match_scalar(self):
+        with pytest.raises(
+            ValueError,
+            match=r"rows\[0\]\.row_order must match row_order",
+        ):
+            LibrarySheetRowVerifiedMetadata.model_validate(
+                {
+                    "rowOrder": 3,
+                    "rows": [{"rowOrder": 8, "rowId": "row-8"}],
+                }
+            )
+
+    def test_bulk_first_row_id_must_match_scalar_when_both_are_present(self):
+        with pytest.raises(
+            ValueError,
+            match=r"rows\[0\]\.row_id must match row_id",
+        ):
+            LibrarySheetRowVerifiedMetadata.model_validate(
+                {
+                    "rowOrder": 3,
+                    "rowId": "row-3",
+                    "rows": [{"rowOrder": 3, "rowId": "different-row"}],
+                }
+            )
+
+    def test_null_rows_normalize_to_empty(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate(
+            {"rowOrder": 3, "rowId": "row-3", "rows": None}
+        )
+
+        assert metadata.row_id == "row-3"
+        assert metadata.rows == []
+
+
+class TestMagicTableLibrarySheetRowVerifiedPayload:
+    def test_bulk_verified_payload_parses_from_wire_format(self):
+        payload = MagicTableLibrarySheetRowVerifiedPayload.model_validate(
+            {
+                "name": "rfp_agent",
+                "sheetName": "Library",
+                "action": "LibrarySheetRowVerified",
+                "chatId": "chat-1",
+                "assistantId": "assistant-1",
+                "tableId": "table-1",
+                "metadata": {
+                    "rowOrder": 3,
+                    "rowId": "row-3",
+                    "rows": [
+                        {"rowOrder": 3, "rowId": "row-3"},
+                        {"rowOrder": 8, "rowId": "row-8"},
+                    ],
+                },
+            }
+        )
+
+        assert payload.action == MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED
+        assert payload.metadata.row_order == 3
+        assert payload.metadata.row_id == "row-3"
+        assert [row.row_order for row in payload.metadata.rows] == [3, 8]
+
+    def test_legacy_payload_without_row_id_still_parses(self):
+        payload = MagicTableLibrarySheetRowVerifiedPayload.model_validate(
+            {
+                "name": "rfp_agent",
+                "sheetName": "Library",
+                "action": "LibrarySheetRowVerified",
+                "chatId": "chat-1",
+                "assistantId": "assistant-1",
+                "tableId": "table-1",
+                "metadata": {"rowOrder": 3},
+            }
+        )
+
+        assert payload.metadata.row_order == 3
+        assert payload.metadata.row_id is None
+        assert payload.metadata.rows == []
 
 
 class TestRerunRowsMetadata:
