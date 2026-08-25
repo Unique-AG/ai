@@ -47,8 +47,12 @@ def _stream_response_to_file(response: requests.Response, file_path: Path) -> No
     Removes the partially written file when the transfer fails mid-stream so
     callers never observe a truncated download at the destination path.
     """
+    # open() outside the cleanup scope: if it fails (permissions, EMFILE) the
+    # destination was never truncated, and a pre-existing complete file there
+    # must not be deleted.
+    file = open(file_path, "wb")
     try:
-        with open(file_path, "wb") as file:
+        with file:
             for chunk in response.iter_content(chunk_size=_DOWNLOAD_CHUNK_BYTES):
                 file.write(chunk)
     except BaseException:

@@ -398,3 +398,41 @@ class TestDownloadContentStreaming:
             )
 
         assert not target.exists()
+
+    def test_open_failure_keeps_preexisting_destination_file(
+        self, tmp_path: Path
+    ) -> None:
+        """
+        Purpose: When ``open()`` on the destination fails, a complete
+            file already sitting at ``target_path`` must survive.
+        Why this matters: The mid-stream cleanup unlinks the partial
+            file — but it must only ever delete bytes *this* transfer
+            wrote. If the destination could not even be opened
+            (permissions, fd exhaustion), the previous download at that
+            path was never touched and deleting it would destroy good
+            data on a failed retry.
+        Setup summary: Pre-create the destination with known content
+            and make it read-only so ``open(..., "wb")`` raises; assert
+            the exception propagates and the original bytes remain.
+        """
+        get_mock = MagicMock(return_value=_fake_response(content=b"new"))
+        target = tmp_path / "existing.bin"
+        target.write_bytes(b"previous complete download")
+        target.chmod(0o444)
+
+        try:
+            with (
+                patch.object(file_io.requests, "get", get_mock),
+                pytest.raises(PermissionError),
+            ):
+                file_io.download_content(
+                    companyId="company-1",
+                    userId="user-1",
+                    content_id="cont_test",
+                    filename="ignored.bin",
+                    target_path=target,
+                )
+
+            assert target.read_bytes() == b"previous complete download"
+        finally:
+            target.chmod(0o644)
