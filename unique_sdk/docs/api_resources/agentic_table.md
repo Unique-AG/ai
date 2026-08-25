@@ -144,6 +144,7 @@ Work with intelligent tables that support:
     - `includeRowMetadata` (bool, optional) - When supported by the gateway, include per-row metadata on each cell in `magicTableCells` (same query shape as `includeCellMetaData`; wire-up on `GET /magic-table/{tableId}` may still be rolling out)
     - `startRow` (int, optional) - Start row index for range (0-based)
     - `endRow` (int, optional) - End row index for range (0-based)
+    - `rowOrders` (list[int], optional) - Sparse row indices to fetch (`rowOrder IN …`). Do not combine with `startRow`/`endRow`; the API returns 400 if both modes are sent. Omit this field to keep existing range behavior.
 
     **Returns:**
 
