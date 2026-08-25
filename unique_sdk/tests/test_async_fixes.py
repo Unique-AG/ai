@@ -182,3 +182,56 @@ async def test_space_create_message_async_passes_auto_approve_elicitation():
         mock_req.assert_awaited_once()
         params = mock_req.await_args.kwargs["params"]
         assert params["autoApproveElicitation"] is True
+
+
+def test_space_create_message_passes_language_model():
+    with patch.object(Space, "_static_request") as mock_req:
+        mock_req.return_value = {"id": "m1", "chatId": "c1"}
+
+        Space.create_message(
+            user_id="u1",
+            company_id="c1",
+            assistantId="a1",
+            text="hello",
+            languageModel="AZURE_GPT_55_2026_0424",
+        )
+
+        mock_req.assert_called_once()
+        params = mock_req.call_args.kwargs["params"]
+        assert params["languageModel"] == "AZURE_GPT_55_2026_0424"
+
+
+@pytest.mark.asyncio
+async def test_space_create_message_async_passes_language_model():
+    with patch.object(
+        Space, "_static_request_async", new_callable=AsyncMock
+    ) as mock_req:
+        mock_req.return_value = {"id": "m1", "chatId": "c1"}
+
+        await Space.create_message_async(
+            user_id="u1",
+            company_id="c1",
+            assistantId="a1",
+            text="hello",
+            languageModel="AZURE_GPT_55_2026_0424",
+        )
+
+        mock_req.assert_awaited_once()
+        params = mock_req.await_args.kwargs["params"]
+        assert params["languageModel"] == "AZURE_GPT_55_2026_0424"
+
+
+def test_space_create_message_omits_language_model_when_not_set():
+    with patch.object(Space, "_static_request") as mock_req:
+        mock_req.return_value = {"id": "m1", "chatId": "c1"}
+
+        Space.create_message(
+            user_id="u1",
+            company_id="c1",
+            assistantId="a1",
+            text="hello",
+        )
+
+        mock_req.assert_called_once()
+        params = mock_req.call_args.kwargs["params"]
+        assert "languageModel" not in params
