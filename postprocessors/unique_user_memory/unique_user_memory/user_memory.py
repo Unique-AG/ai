@@ -43,6 +43,11 @@ from unique_user_memory.user_memory_prompts import (
 MEMORY_FILENAME = "memory.md"
 MIME_TYPE = "text/markdown"
 _LLM_OUTPUT_HEADROOM_TOKENS = 200
+# Mirrors node-ingestion's scope.utils USER_HOME_SCOPE_PREFIX (UN-24823): the
+# shared, company-writable `/user-memory` root was retired in favour of a
+# per-user root-level home folder. See conduct/runner/user_memory.py in the
+# monorepo for the reference implementation this mirrors (UN-24896).
+USER_HOME_FOLDER_PREFIX = "home-"
 
 
 async def noop_update_callback() -> None:
@@ -416,6 +421,121 @@ async def load_user_memory(
     )
 
 
+def _home_memory_folder_path(*, user_id: str, root_folder: str) -> str:
+    """Canonical memory location post-UN-24823: `/home-<userId>/<root_folder>`."""
+    return f"/{USER_HOME_FOLDER_PREFIX}{user_id}/{root_folder.strip('/')}"
+
+
+def _legacy_memory_folder_path(*, user_id: str, root_folder: str) -> str:
+    """Pre-UN-24823 location (`/<root_folder>/<userId>`), read during rollout."""
+    return f"/{root_folder.strip('/')}/{user_id}"
+
+
+def _is_folder_not_found(exc: Exception) -> bool:
+    """True only for a genuine 404 from the folder-info endpoint."""
+    status = getattr(exc, "http_status", None)
+    code = getattr(exc, "code", None)
+    return status == 404 or code == 404 or code == "404"
+
+
+async def _resolve_existing_memory_folder(
+    *,
+    user_id: str,
+    company_id: str,
+    root_folder: str,
+    logger: Logger,
+) -> tuple[str | None, bool]:
+    """Look up the user's memory folder: canonical home first, legacy second.
+
+    Mirrors conduct/runner/user_memory.py::_resolve_existing_memory_folder in
+    the monorepo (UN-24896/UN-24823). Returns ``(scope_id, lookup_failed)``:
+    a resolved folder always wins; when neither location resolves,
+    ``lookup_failed`` distinguishes a verified absence (both lookups 404 -
+    safe to provision the home) from an unverified one (some other error -
+    the caller must not provision, or it risks creating an empty home that
+    orphans a real, still-legacy ``memory.md``).
+    """
+    lookup_failed = False
+    for folder_path in (
+        _home_memory_folder_path(user_id=user_id, root_folder=root_folder),
+        _legacy_memory_folder_path(user_id=user_id, root_folder=root_folder),
+    ):
+        try:
+            info = await unique_sdk.Folder.get_info_async(
+                user_id=user_id,
+                company_id=company_id,
+                folderPath=folder_path,
+            )
+        except Exception as exc:
+            if _is_folder_not_found(exc):
+                continue
+            logger.warning(
+                "[user-memory] memory folder lookup failed for %s: [%s] %s",
+                folder_path,
+                type(exc).__name__,
+                exc,
+            )
+            lookup_failed = True
+            continue
+        # A missing id (e.g. a 200 with an empty body) falls through to the
+        # next location the same way a 404 does.
+        scope_id = (info or {}).get("id")
+        if scope_id:
+            logger.debug(
+                "[user-memory] resolved existing memory folder %s", folder_path
+            )
+            return scope_id, False
+
+    if lookup_failed:
+        logger.warning(
+            "[user-memory] no memory folder resolved and at least one lookup "
+            "failed - running without memory instead of provisioning"
+        )
+    return None, lookup_failed
+
+
+async def _create_home_memory_folder(
+    *,
+    user_id: str,
+    company_id: str,
+    root_folder: str,
+    logger: Logger,
+) -> str | None:
+    """Provision `/home-<userId>/<root_folder>` with one idempotent call.
+
+    node-ingestion creates the caller's root-level home with an exclusive
+    owner ACL and repairs the ACL to owner-only on every pass (UN-24823).
+    There is no shared parent folder, so - unlike the retired shared-root
+    model - no separate access grant is needed here.
+    """
+    folder_path = _home_memory_folder_path(user_id=user_id, root_folder=root_folder)
+    try:
+        created = await unique_sdk.Folder.create_paths_async(
+            user_id=user_id,
+            company_id=company_id,
+            paths=[folder_path],
+            inheritAccess=False,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] failed to ensure memory folder %s: [%s] %s",
+            folder_path,
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    created_folders = (created or {}).get("createdFolders", []) or []
+    scope_id = created_folders[0].get("id") if created_folders else None
+    if not scope_id:
+        logger.warning(
+            "[user-memory] create_paths returned no folder id for %s",
+            folder_path,
+        )
+        return None
+    return scope_id
+
+
 async def ensure_user_memory_folder(
     *,
     user_id: str,
@@ -423,125 +543,29 @@ async def ensure_user_memory_folder(
     root_folder: str,
     logger: Logger,
 ) -> str | None:
-    root_scope_id = await _resolve_root_folder(
+    """Resolve the user's memory folder, creating the home if needed (UN-24823).
+
+    Read-before-provision, mirroring node-chat/conduct: an existing folder
+    (canonical home, falling back to the legacy shared-root leaf for
+    not-yet-migrated users) always wins, and the home is only provisioned
+    when both locations are genuinely absent.
+    """
+    scope_id, lookup_failed = await _resolve_existing_memory_folder(
         user_id=user_id,
         company_id=company_id,
         root_folder=root_folder,
         logger=logger,
     )
-    if root_scope_id is None:
+    if scope_id is not None:
+        return scope_id
+    if lookup_failed:
         return None
-
-    user_folder_path = f"/{root_folder.strip('/')}/{user_id}"
-    scope_id: str | None = None
-    try:
-        info = await unique_sdk.Folder.get_info_async(
-            user_id=user_id,
-            company_id=company_id,
-            folderPath=user_folder_path,
-        )
-        return info.get("id")
-    except Exception:
-        logger.warning("[user-memory] user memory folder not found - creating new one")
-
-    try:
-        created = await unique_sdk.Folder.create_paths_async(
-            user_id=user_id,
-            company_id=company_id,
-            parentScopeId=root_scope_id,
-            relativePaths=[user_id],
-            inheritAccess=False,
-        )
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to create user folder %s: [%s] %s",
-            user_folder_path,
-            type(exc).__name__,
-            exc,
-        )
-        return None
-
-    created_folders = (created or {}).get("createdFolders", []) or []
-    if len(created_folders) > 1:
-        logger.warning(
-            "[user-memory] create_paths returned %d folders for %s, "
-            "expected exactly 1; using the first one",
-            len(created_folders),
-            user_folder_path,
-        )
-    scope_id = created_folders[0].get("id") if created_folders else None
-    if not scope_id:
-        logger.warning(
-            "[user-memory] create_paths returned no folder id for %s",
-            user_folder_path,
-        )
-        return None
-
-    try:
-        await unique_sdk.Folder.add_access_async(
-            user_id=user_id,
-            company_id=company_id,
-            scopeId=scope_id,
-            scopeAccesses=[
-                {
-                    "entityId": user_id,
-                    "type": "READ",
-                    "entityType": "USER",
-                },
-                {
-                    "entityId": user_id,
-                    "type": "WRITE",
-                    "entityType": "USER",
-                },
-            ],
-            applyToSubScopes=True,
-        )
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to grant read/write access on scope %s "
-            "for user %s: [%s] %s",
-            scope_id,
-            user_id,
-            type(exc).__name__,
-            exc,
-        )
-        return None
-
-    return scope_id
-
-
-async def _resolve_root_folder(
-    *,
-    user_id: str,
-    company_id: str,
-    root_folder: str,
-    logger: Logger,
-) -> str | None:
-    root_path = f"/{root_folder.strip('/')}"
-    try:
-        root_info = await unique_sdk.Folder.get_info_async(
-            user_id=user_id,
-            company_id=company_id,
-            folderPath=root_path,
-        )
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to resolve pre-provisioned root folder %s: [%s] %s",
-            root_path,
-            type(exc).__name__,
-            exc,
-        )
-        return None
-
-    root_scope_id = root_info.get("id")
-    if not root_scope_id:
-        logger.warning(
-            "[user-memory] root folder lookup returned no id for %s",
-            root_path,
-        )
-        return None
-
-    return root_scope_id
+    return await _create_home_memory_folder(
+        user_id=user_id,
+        company_id=company_id,
+        root_folder=root_folder,
+        logger=logger,
+    )
 
 
 async def download_user_memory(
