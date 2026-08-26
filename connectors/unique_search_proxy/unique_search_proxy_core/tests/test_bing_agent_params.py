@@ -48,7 +48,9 @@ class TestBingAgentEnvSettings:
         """
         market_schema = BingAgentConfig.model_json_schema()["properties"]["market"]
 
-        assert market_schema["default"] == BingAgentConfig().market.model_dump(mode="json")
+        assert market_schema["default"] == BingAgentConfig().market.model_dump(
+            mode="json"
+        )
 
 
 class TestBingAgentRequestModel:
