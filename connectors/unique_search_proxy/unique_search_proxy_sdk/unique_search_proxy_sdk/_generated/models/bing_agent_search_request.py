@@ -11,6 +11,15 @@ from typing import (
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
+from ..models.bing_agent_search_request_freshness_type_0 import (
+    BingAgentSearchRequestFreshnessType0,
+)
+from ..models.bing_agent_search_request_market_type_0 import (
+    BingAgentSearchRequestMarketType0,
+)
+from ..models.bing_agent_search_request_set_lang_type_0 import (
+    BingAgentSearchRequestSetLangType0,
+)
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="BingAgentSearchRequest")
@@ -33,6 +42,23 @@ class BingAgentSearchRequest:
             information, it MUST appear in your output. When in doubt, include it.\n'.
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         fetch_size (int | Unset): Maximum number of Bing grounding results per query Default: 5.
+        market (BingAgentSearchRequestMarketType0 | None | Unset): Country/region **and** language the results come from
+            (Bing `mkt`), as `<language>-<country>`: `de-CH` returns German-language Swiss results, `fr-CH` French-language
+            Swiss ones, `en-GB` UK English. Set it when the question is about a specific country or expects an answer in
+            that country's language. Left unset, Bing guesses the market from the caller and may answer from another
+            country. [Market codes](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-
+            search/reference/market-codes)
+        set_lang (BingAgentSearchRequestSetLangType0 | None | Unset): Language of Bing's own interface strings in the
+            response (Bing `setLang`), e.g. `de`, `fr`, `pt-br`. It changes neither which results come back nor the language
+            they are written in — use the market for that. Bing falls back to English for codes it does not support.
+            [Supported languages](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-
+            search/reference/market-codes#bing-supported-language-codes)
+        freshness (BingAgentSearchRequestFreshnessType0 | None | str | Unset): Keep only pages Bing discovered recently
+            (Bing `freshness`): `Day` (last 24 hours), `Week` (last 7 days), `Month` (last 30 days), a single `YYYY-MM-DD`
+            day, or an inclusive `YYYY-MM-DD..YYYY-MM-DD` range. Use it for news and fast-moving topics; leave it unset for
+            background or reference questions, where it would hide older pages that are still correct. [Accepted
+            values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-
+            parameters#freshness)
     """
 
     query: str
@@ -42,6 +68,9 @@ class BingAgentSearchRequest:
     )
     timeout: int | Unset = 120
     fetch_size: int | Unset = 5
+    market: BingAgentSearchRequestMarketType0 | None | Unset = UNSET
+    set_lang: BingAgentSearchRequestSetLangType0 | None | Unset = UNSET
+    freshness: BingAgentSearchRequestFreshnessType0 | None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -54,6 +83,30 @@ class BingAgentSearchRequest:
         timeout = self.timeout
 
         fetch_size = self.fetch_size
+
+        market: None | str | Unset
+        if isinstance(self.market, Unset):
+            market = UNSET
+        elif isinstance(self.market, BingAgentSearchRequestMarketType0):
+            market = self.market.value
+        else:
+            market = self.market
+
+        set_lang: None | str | Unset
+        if isinstance(self.set_lang, Unset):
+            set_lang = UNSET
+        elif isinstance(self.set_lang, BingAgentSearchRequestSetLangType0):
+            set_lang = self.set_lang.value
+        else:
+            set_lang = self.set_lang
+
+        freshness: None | str | Unset
+        if isinstance(self.freshness, Unset):
+            freshness = UNSET
+        elif isinstance(self.freshness, BingAgentSearchRequestFreshnessType0):
+            freshness = self.freshness.value
+        else:
+            freshness = self.freshness
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -70,6 +123,12 @@ class BingAgentSearchRequest:
             field_dict["timeout"] = timeout
         if fetch_size is not UNSET:
             field_dict["fetchSize"] = fetch_size
+        if market is not UNSET:
+            field_dict["market"] = market
+        if set_lang is not UNSET:
+            field_dict["setLang"] = set_lang
+        if freshness is not UNSET:
+            field_dict["freshness"] = freshness
 
         return field_dict
 
@@ -88,12 +147,72 @@ class BingAgentSearchRequest:
 
         fetch_size = d.pop("fetchSize", UNSET)
 
+        def _parse_market(
+            data: object,
+        ) -> BingAgentSearchRequestMarketType0 | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                market_type_0 = BingAgentSearchRequestMarketType0(data)
+
+                return market_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(BingAgentSearchRequestMarketType0 | None | Unset, data)
+
+        market = _parse_market(d.pop("market", UNSET))
+
+        def _parse_set_lang(
+            data: object,
+        ) -> BingAgentSearchRequestSetLangType0 | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                set_lang_type_0 = BingAgentSearchRequestSetLangType0(data)
+
+                return set_lang_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(BingAgentSearchRequestSetLangType0 | None | Unset, data)
+
+        set_lang = _parse_set_lang(d.pop("setLang", UNSET))
+
+        def _parse_freshness(
+            data: object,
+        ) -> BingAgentSearchRequestFreshnessType0 | None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                freshness_type_0 = BingAgentSearchRequestFreshnessType0(data)
+
+                return freshness_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(BingAgentSearchRequestFreshnessType0 | None | str | Unset, data)
+
+        freshness = _parse_freshness(d.pop("freshness", UNSET))
+
         bing_agent_search_request = cls(
             query=query,
             engine=engine,
             generation_instructions=generation_instructions,
             timeout=timeout,
             fetch_size=fetch_size,
+            market=market,
+            set_lang=set_lang,
+            freshness=freshness,
         )
 
         bing_agent_search_request.additional_properties = d
