@@ -6,6 +6,9 @@ from unique_search_proxy_core.agent_engines import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
 )
+from unique_search_proxy_core.agent_engines.bing.settings import (
+    bing_agent_env_settings,
+)
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
@@ -210,6 +213,32 @@ class TestBingLegacySearch:
             set_lang="de",
         )
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__environment_market_default_reaches_bing(
+        self,
+        mocker,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify the environment market default reaches the legacy Bing runner.
+        Why this matters: Direct Bing searches must honor the client-level default.
+        Setup summary: Set the environment default, run legacy search, and inspect grounding.
+        """
+        monkeypatch.setattr(bing_agent_env_settings, "default_market", "fr-CH")
+        config = BingSearchConfig()
+        _, create_and_process_run = self._patch_bing_runtime(mocker, [])
+        search = BingSearch(config, Mock())
+
+        await search._legacy_search("test query", params=None)
+
+        assert create_and_process_run.call_args.kwargs[
+            "grounding"
+        ] == BingGroundingConfiguration(
+            fetch_size=config.fetch_size,
+            market="fr-CH",
+        )
+
 
 class TestAgentProxyInvocation:
     """Tests for the config-to-kwargs mapping used by the agent proxy path."""
@@ -250,6 +279,24 @@ class TestAgentProxyInvocation:
 
         # Assert
         assert invocation["market"] == "de-CH"
+
+    @pytest.mark.ai
+    def test_agent_proxy_invocation__forwards_environment_market_default(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify the environment market default reaches the search proxy call.
+        Why this matters: Proxy-routed Bing searches must match the legacy path.
+        Setup summary: Set the environment default, build an invocation, and inspect it.
+        """
+        monkeypatch.setattr(bing_agent_env_settings, "default_market", "fr-CH")
+        config = BingSearchConfig()
+        search = BingSearch(config, Mock())
+
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
+
+        assert invocation["market"] == "fr-CH"
 
     @pytest.mark.ai
     def test_agent_proxy_invocation__llm_params_override_defaults(self) -> None:

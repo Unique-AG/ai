@@ -10,6 +10,9 @@ from unique_search_proxy_core.agent_engines.base import (
     AgentEngineType,
     BaseAgentEngineConfig,
 )
+from unique_search_proxy_core.agent_engines.bing.settings import (
+    bing_agent_env_settings,
+)
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.schema import DeactivatedNone
 
@@ -156,6 +159,13 @@ ExposableSetLang = ExposableParam[SetLangOrNone]
 ExposableFreshness = ExposableParam[FreshnessOrNone]
 
 
+def _default_market() -> ExposableMarket:
+    return ExposableMarket(
+        expose=False,
+        value=bing_agent_env_settings.default_market,
+    )
+
+
 class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     """Deployment + request defaults for Bing grounding via Azure AI Projects."""
 
@@ -176,7 +186,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         description="Maximum number of Bing grounding results per query",
     )
     market: ExposableMarket = Field(
-        default=ExposableMarket(expose=False, value=None),
+        default_factory=_default_market,
         title="Market",
         description=(
             "Country/region **and** language the results come from (Bing `mkt`), "
