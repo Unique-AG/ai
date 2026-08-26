@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from fastmcp.server.auth.oidc_proxy import OIDCProxy
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from unique_mcp.auth.zitadel.scopes import ZITADEL_DEFAULT_MCP_SCOPES
@@ -21,8 +22,8 @@ class ZitadelOIDCProxySettings(BaseSettings):
 
     base_url: str
     client_id: str
-    client_secret: str | None = None
-    jwt_signing_key: str | None = None
+    client_secret: SecretStr | None = None
+    jwt_signing_key: SecretStr | None = None
 
     @property
     def config_url(self) -> str:
@@ -75,16 +76,27 @@ def create_zitadel_oidc_proxy(
     # Advertised for DCR and /authorize only — see required_scopes in the docstring.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
 
+    client_secret = (
+        settings.client_secret.get_secret_value()
+        if settings.client_secret is not None
+        else None
+    )
     token_endpoint_auth_method = kwargs.pop(
         "token_endpoint_auth_method",
-        "none" if settings.client_secret is None else "client_secret_post",
+        "none" if client_secret is None else "client_secret_post",
     )
-    jwt_signing_key = kwargs.pop("jwt_signing_key", settings.jwt_signing_key)
+    # settings value is SecretStr; a caller override via kwargs is a raw str/bytes.
+    jwt_signing_key_kwarg = kwargs.pop("jwt_signing_key", settings.jwt_signing_key)
+    jwt_signing_key = (
+        jwt_signing_key_kwarg.get_secret_value()
+        if isinstance(jwt_signing_key_kwarg, SecretStr)
+        else jwt_signing_key_kwarg
+    )
 
     proxy = OIDCProxy(
         config_url=settings.config_url,
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=client_secret,
         base_url=mcp_server_base_url,
         token_endpoint_auth_method=token_endpoint_auth_method,
         client_storage=client_storage,
