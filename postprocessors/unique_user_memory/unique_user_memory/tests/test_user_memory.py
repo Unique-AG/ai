@@ -1167,19 +1167,34 @@ async def test_download_user_memory_downloads_existing_file_to_memory(
     )
 
 
+class _FakeSdkError(Exception):
+    """Stands in for unique_sdk's HTTP error hierarchy in folder-lookup tests.
+
+    Only the ``http_status`` attribute that ``_is_folder_not_found`` inspects
+    matters here; using the real ``unique_sdk`` error classes would tie these
+    tests to their exact constructor signatures for no benefit.
+    """
+
+    def __init__(self, *, http_status: int) -> None:
+        super().__init__(f"http_status={http_status}")
+        self.http_status = http_status
+
+
+def _not_found_error() -> Exception:
+    return _FakeSdkError(http_status=404)
+
+
+def _server_error() -> Exception:
+    return _FakeSdkError(http_status=500)
+
+
 @pytest.mark.asyncio
-async def test_ensure_user_memory_folder_returns_existing_user_folder(
+async def test_ensure_user_memory_folder_returns_existing_home_folder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    get_info = AsyncMock(
-        side_effect=[
-            {"id": "scope_root"},
-            {"id": "scope_user"},
-        ]
-    )
+    """A fresh user with an already-provisioned home resolves without creating."""
+    get_info = AsyncMock(return_value={"id": "scope_home"})
     create_paths = AsyncMock()
-    add_access = AsyncMock()
-    get_groups = AsyncMock()
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
         get_info,
@@ -1187,14 +1202,6 @@ async def test_ensure_user_memory_folder_returns_existing_user_folder(
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
         create_paths,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
-        add_access,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory.unique_sdk.Group.get_groups_async",
-        get_groups,
     )
 
     result = await ensure_user_memory_folder(
@@ -1204,11 +1211,48 @@ async def test_ensure_user_memory_folder_returns_existing_user_folder(
         logger=MagicMock(),
     )
 
-    assert result == "scope_user"
+    assert result == "scope_home"
+    get_info.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        folderPath="/home-user_1/user-memory",
+    )
+    create_paths.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_memory_folder_falls_back_to_legacy_leaf_when_not_migrated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A user whose memory still lives at the legacy shared-root leaf stays readable."""
+    get_info = AsyncMock(
+        side_effect=[
+            _not_found_error(),
+            {"id": "scope_legacy"},
+        ]
+    )
+    create_paths = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+
+    result = await ensure_user_memory_folder(
+        user_id="user_1",
+        company_id="company_1",
+        root_folder="user-memory",
+        logger=MagicMock(),
+    )
+
+    assert result == "scope_legacy"
     get_info.assert_any_await(
         user_id="user_1",
         company_id="company_1",
-        folderPath="/user-memory",
+        folderPath="/home-user_1/user-memory",
     )
     get_info.assert_any_await(
         user_id="user_1",
@@ -1216,22 +1260,28 @@ async def test_ensure_user_memory_folder_returns_existing_user_folder(
         folderPath="/user-memory/user_1",
     )
     create_paths.assert_not_awaited()
-    get_groups.assert_not_awaited()
-    add_access.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
+async def test_ensure_user_memory_folder_creates_home_when_neither_location_exists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    get_info = AsyncMock(
-        side_effect=[
-            {"id": "scope_root"},
-            RuntimeError("missing user folder"),
-        ]
+    """A brand-new user with no folder yet gets a home folder provisioned.
+
+    create_paths creates every missing segment of a nested path and returns
+    them parent-first (regression guard for the bug where the parent
+    `/home-<userId>` folder's id was returned instead of the leaf
+    `/home-<userId>/user-memory` folder's id).
+    """
+    get_info = AsyncMock(side_effect=[_not_found_error(), _not_found_error()])
+    create_paths = AsyncMock(
+        return_value={
+            "createdFolders": [
+                {"id": "scope_home_parent"},
+                {"id": "scope_new_home_leaf"},
+            ]
+        }
     )
-    create_paths = AsyncMock(return_value={"createdFolders": [{"id": "scope_user"}]})
-    add_access = AsyncMock()
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
         get_info,
@@ -1239,10 +1289,6 @@ async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
         create_paths,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
-        add_access,
     )
 
     result = await ensure_user_memory_folder(
@@ -1252,39 +1298,53 @@ async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
         logger=MagicMock(),
     )
 
-    assert result == "scope_user"
+    assert result == "scope_new_home_leaf"
     create_paths.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",
-        parentScopeId="scope_root",
-        relativePaths=["user_1"],
+        paths=["/home-user_1/user-memory"],
         inheritAccess=False,
-    )
-    add_access.assert_awaited_once_with(
-        user_id="user_1",
-        company_id="company_1",
-        scopeId="scope_user",
-        scopeAccesses=[
-            {"entityId": "user_1", "type": "READ", "entityType": "USER"},
-            {"entityId": "user_1", "type": "WRITE", "entityType": "USER"},
-        ],
-        applyToSubScopes=True,
     )
 
 
 @pytest.mark.asyncio
-async def test_ensure_user_memory_folder_returns_none_when_access_grant_fails_after_create(
+async def test_ensure_user_memory_folder_returns_none_when_home_creation_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    get_info = AsyncMock(
-        side_effect=[
-            {"id": "scope_root"},
-            RuntimeError("missing user folder"),
-        ]
+    get_info = AsyncMock(side_effect=[_not_found_error(), _not_found_error()])
+    create_paths = AsyncMock(side_effect=RuntimeError("create failed"))
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
     )
-    create_paths = AsyncMock(return_value={"createdFolders": [{"id": "scope_user"}]})
-    grant_error = RuntimeError("grant failed")
-    add_access = AsyncMock(side_effect=grant_error)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+
+    result = await ensure_user_memory_folder(
+        user_id="user_1",
+        company_id="company_1",
+        root_folder="user-memory",
+        logger=MagicMock(),
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_memory_folder_does_not_provision_on_unverified_lookup_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-404 lookup error must never be treated as 'absent, safe to create'.
+
+    Regression guard for the UN-24896 defect shape: silently treating any
+    lookup failure as "not found" and provisioning a new home would risk
+    creating an empty home that shadows a real, still-readable memory.md
+    once the transient error clears.
+    """
+    get_info = AsyncMock(side_effect=[_server_error(), _not_found_error()])
+    create_paths = AsyncMock()
     logger = MagicMock()
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
@@ -1293,10 +1353,6 @@ async def test_ensure_user_memory_folder_returns_none_when_access_grant_fails_af
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
         create_paths,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
-        add_access,
     )
 
     result = await ensure_user_memory_folder(
@@ -1307,31 +1363,42 @@ async def test_ensure_user_memory_folder_returns_none_when_access_grant_fails_af
     )
 
     assert result is None
-    create_paths.assert_awaited_once_with(
+    create_paths.assert_not_awaited()
+    logger.warning.assert_any_call(
+        "[user-memory] no memory folder resolved and at least one lookup "
+        "failed - running without memory instead of provisioning"
+    )
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_memory_folder_never_resolves_shared_root_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression guard: the retired shared `/user-memory` root (UN-24764/UN-24823)
+    must never be looked up or (re-)created by this function."""
+    get_info = AsyncMock(side_effect=[_not_found_error(), _not_found_error()])
+    create_paths = AsyncMock(
+        return_value={"createdFolders": [{"id": "scope_new_home"}]}
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+
+    await ensure_user_memory_folder(
         user_id="user_1",
         company_id="company_1",
-        parentScopeId="scope_root",
-        relativePaths=["user_1"],
-        inheritAccess=False,
+        root_folder="user-memory",
+        logger=MagicMock(),
     )
-    add_access.assert_awaited_once_with(
-        user_id="user_1",
-        company_id="company_1",
-        scopeId="scope_user",
-        scopeAccesses=[
-            {"entityId": "user_1", "type": "READ", "entityType": "USER"},
-            {"entityId": "user_1", "type": "WRITE", "entityType": "USER"},
-        ],
-        applyToSubScopes=True,
-    )
-    logger.warning.assert_called_with(
-        "[user-memory] failed to grant read/write access on scope %s "
-        "for user %s: [%s] %s",
-        "scope_user",
-        "user_1",
-        "RuntimeError",
-        grant_error,
-    )
+
+    looked_up_paths = {call.kwargs["folderPath"] for call in get_info.await_args_list}
+    assert "/user-memory" not in looked_up_paths
+    assert create_paths.await_args.kwargs["paths"] == ["/home-user_1/user-memory"]
 
 
 @pytest.mark.asyncio

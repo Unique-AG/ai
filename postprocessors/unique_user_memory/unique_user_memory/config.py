@@ -16,34 +16,28 @@ class UserMemoryConfig(BaseModel):
     use_orchestrator_language_model: bool = Field(
         default=True,
         description=(
-            "When true, post-turn memory consolidation uses the orchestrator's "
-            "language model and the configured 'language_model' is ignored. "
-            "When false, the configured 'language_model' is used."
+            "Use the orchestrator's language model to update memory. "
+            "Turn off to use the language model configured below instead."
         ),
     )
     language_model: LMI = Field(
         default=LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL),
-        description=(
-            "The language model used for post-turn memory consolidation when "
-            "'Use Orchestrator Language Model' is false."
-        ),
+        description="Language model used to update memory when the orchestrator's model is not used.",
     )
     max_tokens: Annotated[int, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default=2000,
         ge=500,
         le=8000,
-        description="Maximum size of the memory profile in tokens.",
+        description="Maximum size of the memory profile, in tokens.",
     )
     consolidation_gate_enabled: bool = Field(
         default=True,
-        description=(
-            "When true, a cheap single-word LLM 'gate' decides whether the turn "
-            "warrants a full memory rewrite before the expensive consolidation "
-            "runs."
-        ),
+        description="Skip memory updates for turns that add no new information, to save cost.",
     )
     root_folder: Annotated[str, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default="user-memory",
         min_length=1,
-        description="Root KB folder used to store per-user memory profiles.",
+        # Name used under the user's own home folder (UN-24823); also read
+        # as a legacy fallback for users not yet migrated (UN-24896).
+        description="Folder used to store the user's memory profile.",
     )

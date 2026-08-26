@@ -19,7 +19,7 @@ The memory file is intentionally small and structured. It is rewritten as a full
 ## Lifecycle
 
 1. The orchestrator enables memory when `space.allow_user_memory` is true.
-2. The orchestrator emits a **Loading context memory** Step, then `load_user_memory(...)` resolves the pre-provisioned root folder, ensures a private child folder for the current user, and downloads `/user-memory/<user_id>/memory.md` if it exists.
+2. The orchestrator emits a **Loading context memory** Step, then `load_user_memory(...)` resolves the user's private memory folder — canonical `/home-<user_id>/<root_folder>`, falling back to the legacy `/<root_folder>/<user_id>` leaf for not-yet-migrated users, provisioning the home folder if neither exists — and downloads `memory.md` from it if present.
 3. When load returns a `UserMemoryState`, that Step is completed with a **Context memory** detail entry (`type: UserMemory`) that the chat frontend renders as a badge opening Settings → Context Memory. A successful `None` return (soft skip) completes the Step without the entry; a raised exception marks the Step failed.
 4. If memory was loaded, `profile_body(...)` of its text is passed into the agent context for the current turn — the prompt only gets the Markdown body, while the postprocessor keeps the full file because it needs the frontmatter to carry `turn_count` forward.
 5. `UserMemoryPostprocessor` runs after the assistant response.
@@ -29,13 +29,18 @@ The memory file is intentionally small and structured. It is rewritten as a full
 
 ## Storage Model
 
-Memory is stored in Unique content as Markdown:
+Memory is stored in Unique content as Markdown, under each user's own
+root-level home folder (UN-24823):
 
 ```text
-/<root_folder>/<user_id>/memory.md
+/home-<user_id>/<root_folder>/memory.md
 ```
 
-By default, `root_folder` is `user-memory`. The root folder must already exist. The package creates the per-user child folder when needed.
+By default, `root_folder` is `user-memory`. There is no shared root folder —
+each user's home is created by node-ingestion (or, if missing, by this
+package) with an exclusive owner ACL, so memory is never company-writable
+(UN-24764). Users whose memory has not yet been migrated to their home
+folder are still read from the legacy location, `/<root_folder>/<user_id>/memory.md`.
 
 ## Profile Format
 
@@ -92,7 +97,7 @@ config = UserMemoryConfig(
 | `use_orchestrator_language_model` | `True` | When true, consolidation and load-time token capping use the model the orchestrator passes in and `language_model` is ignored. Set to `False` to use the configured `language_model` for both. |
 | `language_model` | `DEFAULT_GPT_4o` | Model used to consolidate the latest turn and to tokenize `memory.md` at load time when `use_orchestrator_language_model` is `False`. |
 | `max_tokens` | `2000` | Maximum profile size. Must be between 500 and 8000 tokens. |
-| `root_folder` | `user-memory` | Root KB folder that contains per-user memory folders. |
+| `root_folder` | `user-memory` | Subfolder name under each user's home folder (`/home-<user_id>/<root_folder>`) that holds the memory profile; also read as a legacy fallback at `/<root_folder>/<user_id>`. |
 
 ## Integration
 
