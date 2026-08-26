@@ -526,7 +526,10 @@ async def _create_home_memory_folder(
         return None
 
     created_folders = (created or {}).get("createdFolders", []) or []
-    scope_id = created_folders[0].get("id") if created_folders else None
+    # create_paths returns every newly-created segment, parent first (e.g. the
+    # home folder itself, then the memory subfolder if both were missing) -
+    # the leaf we actually want is always the last entry, never the first.
+    scope_id = created_folders[-1].get("id") if created_folders else None
     if not scope_id:
         logger.warning(
             "[user-memory] create_paths returned no folder id for %s",

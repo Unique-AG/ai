@@ -1266,10 +1266,21 @@ async def test_ensure_user_memory_folder_falls_back_to_legacy_leaf_when_not_migr
 async def test_ensure_user_memory_folder_creates_home_when_neither_location_exists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A brand-new user with no folder yet gets a home folder provisioned."""
+    """A brand-new user with no folder yet gets a home folder provisioned.
+
+    create_paths creates every missing segment of a nested path and returns
+    them parent-first (regression guard for the bug where the parent
+    `/home-<userId>` folder's id was returned instead of the leaf
+    `/home-<userId>/user-memory` folder's id).
+    """
     get_info = AsyncMock(side_effect=[_not_found_error(), _not_found_error()])
     create_paths = AsyncMock(
-        return_value={"createdFolders": [{"id": "scope_new_home"}]}
+        return_value={
+            "createdFolders": [
+                {"id": "scope_home_parent"},
+                {"id": "scope_new_home_leaf"},
+            ]
+        }
     )
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
@@ -1287,7 +1298,7 @@ async def test_ensure_user_memory_folder_creates_home_when_neither_location_exis
         logger=MagicMock(),
     )
 
-    assert result == "scope_new_home"
+    assert result == "scope_new_home_leaf"
     create_paths.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",
