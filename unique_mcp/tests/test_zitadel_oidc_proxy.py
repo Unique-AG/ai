@@ -123,3 +123,36 @@ def test_create_zitadel_oidc_proxy__sets_authorize_scope__by_default(
     # Assert
     scope = mock_oidc.call_args.kwargs["extra_authorize_params"]["scope"]
     assert scope == " ".join(ZITADEL_DEFAULT_MCP_SCOPES)
+
+
+@pytest.mark.ai
+def test_create_zitadel_oidc_proxy__uses_none_auth_method__when_client_secret_omitted(
+    sample_mcp_server_url: str,
+) -> None:
+    """
+    Purpose: Verify a secretless PKCE client reaches OIDCProxy correctly configured.
+    Why this matters: kb-mcp needs a PKCE Zitadel client with no real secret; the
+    proxy must forward client_secret=None, the signing key for its own session
+    JWTs, and token_endpoint_auth_method="none" rather than forcing a secret.
+    Setup summary: Construct settings without a client_secret but with a
+    jwt_signing_key, inspect what reaches OIDCProxy.
+    """
+    # Arrange
+    settings = ZitadelOIDCProxySettings(
+        base_url="http://localhost:10116",
+        client_id="test_client",
+        jwt_signing_key="test_signing_key",
+    )
+
+    # Act
+    with patch("unique_mcp.auth.zitadel.oidc_proxy.OIDCProxy") as mock_oidc:
+        create_zitadel_oidc_proxy(
+            client_storage=MemoryStore(),
+            mcp_server_base_url=sample_mcp_server_url,
+            zitadel_oidc_proxy_settings=settings,
+        )
+
+    # Assert
+    assert mock_oidc.call_args.kwargs["client_secret"] is None
+    assert mock_oidc.call_args.kwargs["jwt_signing_key"] == "test_signing_key"
+    assert mock_oidc.call_args.kwargs["token_endpoint_auth_method"] == "none"

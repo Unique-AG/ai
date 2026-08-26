@@ -21,7 +21,8 @@ class ZitadelOIDCProxySettings(BaseSettings):
 
     base_url: str
     client_id: str
-    client_secret: str
+    client_secret: str | None = None
+    jwt_signing_key: str | None = None
 
     @property
     def config_url(self) -> str:
@@ -74,14 +75,21 @@ def create_zitadel_oidc_proxy(
     # Advertised for DCR and /authorize only — see required_scopes in the docstring.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
 
+    token_endpoint_auth_method = kwargs.pop(
+        "token_endpoint_auth_method",
+        "none" if settings.client_secret is None else "client_secret_post",
+    )
+    jwt_signing_key = kwargs.pop("jwt_signing_key", settings.jwt_signing_key)
+
     proxy = OIDCProxy(
         config_url=settings.config_url,
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         base_url=mcp_server_base_url,
-        token_endpoint_auth_method="client_secret_post",
+        token_endpoint_auth_method=token_endpoint_auth_method,
         client_storage=client_storage,
         extra_authorize_params=extra_authorize_params,
+        jwt_signing_key=jwt_signing_key,
         **kwargs,
     )
     # OIDCProxy does not forward ``valid_scopes`` to OAuthProxy; set them after init
