@@ -51,7 +51,7 @@ System overview → [../README.md](../README.md)
 
 **The config class owns its entire parameter lifecycle.** Every derived surface is a method on the deployment config — there are no standalone projection or resolver modules.
 
-### 3.1 Config-owned API (search engines)
+### 3.1 Config-owned API (search + agent engines)
 
 ```
 Admin JSON → GoogleConfig {expose, value}
@@ -64,15 +64,15 @@ Admin JSON → GoogleConfig {expose, value}
 | Method | Kind | Returns |
 |--------|------|---------|
 | `request_model()` (classmethod, cached) | search / agent / crawl | `SearchRequestBase` (required `query`) or `CrawlRequestBase` (required `urls`) + config fields; `ExposableParam` knobs unwrapped to optional plain types |
-| `exposed_params_model()` (instance) | search only | `ExposedParams` subclass with exactly the `expose=True` knobs (camelCase aliases, description-only schema), or `None` |
-| `merge(overrides, *, query)` (instance) | search only | deployment defaults + LLM overrides + query → validated `request_model()` instance |
+| `exposed_params_model()` (instance) | search / agent | `ExposedParams` subclass with exactly the `expose=True` knobs (camelCase aliases, description-only schema), or `None` |
+| `merge(overrides, *, query)` (instance) | search / agent | deployment defaults + LLM overrides + query → validated `request_model()` instance |
 | `provider_query_params(request)` (classmethod) | search only | request serialized for the upstream provider, minus `_provider_param_exclude_fields` (Google adds `search_engine_id`) |
 
-Agent engines (`BingAgentConfig`, …) and crawlers (`BasicConfig`, …) only implement `request_model()`. Crawlers have no exposable params and no `merge` — a crawl request is simply the deployment config fields plus `urls`.
+`ExposableParamsConfig` (in `param_policy/exposable_config.py`) implements the exposable-parameter lifecycle once; `BaseSearchEngineConfig` and `BaseAgentEngineConfig` both extend it. Crawlers (`BasicConfig`, …) only implement `request_model()`: they have no exposable params and no `merge` — a crawl request is simply the deployment config fields plus `urls`.
 
-### 3.2 ExposableParam — search-engine only
+### 3.2 ExposableParam
 
-Optional **search** parameters use `ExposableParam[T]`:
+Optional **search** and **agent** parameters use `ExposableParam[T]`:
 
 - **`value`** — admin default merged into every request (`null` = deactivated)
 - **`expose`** — when `true`, the parameter appears on the LLM-facing exposed-params model
@@ -139,13 +139,14 @@ flowchart TB
 | `schema.py` | Shared API models: `SearchResponse`, `AgentSearchResponse`, `CrawlResponse`, `WebSearchResult`, `ErrorResponse`, SSE events |
 | `errors.py` | `ProxyError` hierarchy and stable `ProxyErrorCode` enum |
 | `param_policy/exposable_param.py` | `ExposableParam` value object, factory-default merge, type introspection, OpenAPI naming |
+| `param_policy/exposable_config.py` | `ExposableParamsConfig` — the `exposed_params_model()` / `merge()` lifecycle shared by search and agent config bases |
 | `param_policy/exposed_params.py` | `ExposedParams` base for LLM-facing parameter models (schema noise stripping) |
 | `param_policy/request_base.py` | `SearchRequestBase` / `AgentRequestBase` / `CrawlRequestBase` (required leading fields) |
 | `param_policy/annotations.py` | Annotation unwrapping helpers (private, used by `derive`) |
 | `param_policy/derive.py` | `derive_request_model` / `derive_exposed_params_model` factories called by the config base classes |
 | `providers/schema.py` | JSON Schema + defaults for deployment UIs (`provider_config_json_schema`, …) |
 | `search_engines/` | Config models with the config-owned API (`request_model` / `exposed_params_model` / `merge` / `provider_query_params`), request union |
-| `agent_engines/` | Agent config/request models (`request_model`), output schema |
+| `agent_engines/` | Agent config/request models (`request_model`, `exposed_params_model`, `merge`), output schema |
 | `crawlers/` | `*Config` deployment models + derived `*CrawlRequest` bodies (`request_model()`) |
 
 ---
@@ -209,7 +210,7 @@ from unique_search_proxy_core import (
 ## 7. Features summary
 
 - Discriminated provider configs (`engine`, `crawler` Literal discriminators)
-- **Search-only:** `ExposableParam` policy; config-owned `request_model` / `exposed_params_model` / `merge` / `provider_query_params`
+- **Search & agent:** `ExposableParam` policy; config-owned `request_model` / `exposed_params_model` / `merge` (`provider_query_params` is search-only)
 - **Agent:** `BingAgentConfig.request_model()` (injects `query`; excludes `output_schema`)
 - **Crawl:** `BasicConfig.request_model()` (injects `urls`); no exposable params / no merge
 - CamelCase JSON aliases on all models
