@@ -189,6 +189,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     )
     market: ExposableMarket = Field(
         default_factory=_default_market,
+        json_schema_extra={"default": _default_market().model_dump(mode="json")},
         title="Market",
         description=(
             "Country/region **and** language the results come from (Bing `mkt`), "

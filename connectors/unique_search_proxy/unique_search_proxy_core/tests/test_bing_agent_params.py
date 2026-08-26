@@ -39,6 +39,17 @@ class TestBingAgentEnvSettings:
 
         assert _get_settings().default_market == "fr-CH"
 
+    @pytest.mark.ai
+    def test_schema_default_matches_environment_config_default(self) -> None:
+        """
+        Purpose: Verify the admin schema retains the environment-backed market default.
+        Why this matters: Configuration UIs must initialize new spaces consistently.
+        Setup summary: Compare the market schema default with a default config instance.
+        """
+        market_schema = BingAgentConfig.model_json_schema()["properties"]["market"]
+
+        assert market_schema["default"] == BingAgentConfig().market.model_dump(mode="json")
+
 
 class TestBingAgentRequestModel:
     @pytest.mark.ai
