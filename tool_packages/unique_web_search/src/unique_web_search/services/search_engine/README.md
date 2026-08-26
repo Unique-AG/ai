@@ -28,12 +28,12 @@ Deployment configs for Google / Brave / Perplexity (and agent base fields) live 
 |--|----------|-------------------|
 | Proxy route | `POST /v1/search` | `POST /v1/agent-search` |
 | Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text → parsed locally |
-| LLM knobs | `ExposableParam` + `config.merge()` | No exposable params |
+| LLM knobs | `ExposableParam` + `config.merge()` | `ExposableParam` (Bing only) |
 | Typical scrape | Often yes (Google) | Often no (`requires_scraping=false`) |
 
 ---
 
-## Exposable parameters (standard search only)
+## Exposable parameters
 
 Optional provider knobs use `ExposableParam[T]` from `unique_search_proxy_core.param_policy.exposable_param`:
 
@@ -54,7 +54,7 @@ ExposableParam(expose=False, value=None)  # deactivated (not merged into the req
 - `config.exposed_params_model()` — LLM-facing subset
 - `config.merge(llm_overrides, query=...)` — flat HTTP body for the proxy (no nested config+invocation)
 
-Crawlers and agent engines do **not** use this pattern.
+All standard engines and the Bing agent engine use this pattern; crawlers do not.
 
 ```python
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
@@ -148,6 +148,15 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 ### Bing (Grounding with Bing)
 
 **Provider:** Azure AI Foundry Agent with Bing grounding · Config extends `BingAgentConfig` with `requires_scraping`, `language_model`, etc.
+
+| Field | Notes |
+|-------|-------|
+| `fetch_size` | Bing result count |
+| `market`, `set_lang`, `freshness` | `ExposableParam`; `market` / `set_lang` restricted to Bing's documented codes; forwarded to `BingGroundingSearchConfiguration` |
+
+Bing bakes the tool configuration into the *agent version*, so these knobs take
+part in the hashed agent name (`unique-grounding-with-bing-<hash>`): changing one
+provisions a new agent version instead of reusing a mismatched one.
 
 ```bash
 AZURE_AI_PROJECT_ENDPOINT=...
