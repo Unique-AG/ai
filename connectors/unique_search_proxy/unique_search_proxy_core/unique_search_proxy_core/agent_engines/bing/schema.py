@@ -160,9 +160,11 @@ ExposableFreshness = ExposableParam[FreshnessOrNone]
 
 
 def _default_market() -> ExposableMarket:
-    return ExposableMarket(
-        expose=False,
-        value=bing_agent_env_settings.default_market,
+    return ExposableMarket.model_validate(
+        {
+            "expose": False,
+            "value": bing_agent_env_settings.default_market,
+        },
     )
 
 
