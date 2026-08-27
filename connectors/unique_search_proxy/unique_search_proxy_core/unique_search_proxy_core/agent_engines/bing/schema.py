@@ -82,7 +82,10 @@ EnforcedExposableMarket = Annotated[
     ExposableMarket,
     dynamic_enforced_by_infra(
         _market_is_enforced,
-        help="Market is pinned by `BING_AGENT_MARKET_ENFORCE` for this deployment.",
+        help=(
+            "Market is pinned for this deployment by "
+            '`BING_AGENT_MARKET={"default": "<mkt>", "enforce": true}`.'
+        ),
     ),
 ]
 

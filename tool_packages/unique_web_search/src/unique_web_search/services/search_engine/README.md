@@ -162,7 +162,7 @@ provisions a new agent version instead of reusing a mismatched one.
 AZURE_AI_PROJECT_ENDPOINT=...
 AZURE_AI_AGENT_ID=...          # optional; empty → auto-provision
 AZURE_IDENTITY_CREDENTIAL_TYPE=workload  # or default
-BING_AGENT_DEFAULT_MARKET=fr-CH          # optional environment default
+BING_AGENT_MARKET={"default": "fr-CH", "enforce": false}  # optional environment default
 ```
 
 ### VertexAI (Grounding with VertexAI)

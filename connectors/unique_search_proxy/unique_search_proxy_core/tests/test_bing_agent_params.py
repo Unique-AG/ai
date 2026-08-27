@@ -111,7 +111,11 @@ class TestBingAgentMarketUiSchema:
 
         market_ui = ui_schema_for_model(BingAgentConfig)["market"]
         assert market_ui["ui:disabled"] is True
-        assert "BING_AGENT_MARKET_ENFORCE" in market_ui["ui:help"]
+        # The lock is set through the nested JSON var; naming a flat
+        # `BING_AGENT_MARKET_*` var here would send admins to a variable
+        # `_BingAgentEnvSettings` never reads.
+        assert "BING_AGENT_MARKET_ENFORCE" not in market_ui["ui:help"]
+        assert "BING_AGENT_MARKET" in market_ui["ui:help"]
         assert "expose" in market_ui
         assert "value" in market_ui
 
