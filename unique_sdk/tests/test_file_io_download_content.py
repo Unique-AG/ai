@@ -27,9 +27,14 @@ from unique_sdk.utils import file_io
 
 
 def _fake_response(status_code: int = 200, content: bytes = b"hello") -> MagicMock:
+    """Mimic a streaming ``requests.Response``: usable as a context manager
+    and yielding the body through ``iter_content`` (the download helpers
+    must never touch ``response.content``, which buffers everything in RAM)."""
     response = MagicMock()
     response.status_code = status_code
-    response.content = content
+    response.iter_content.side_effect = lambda chunk_size: iter([content])
+    response.__enter__.return_value = response
+    response.__exit__.return_value = False
     return response
 
 
@@ -327,3 +332,107 @@ class TestDownloadContentRequestShape:
         assert headers["x-company-id"] == "company-1"
         assert headers["x-api-version"] == "2023-12-06"
         assert headers["Authorization"] == "Bearer ukey_test"
+
+
+@pytest.mark.ai
+@pytest.mark.unit
+class TestDownloadContentStreaming:
+    def test_get_is_called_with_stream_true(self, tmp_path: Path) -> None:
+        """
+        Purpose: Pin that the GET is issued with ``stream=True`` so the
+            body is written to disk chunk by chunk.
+        Why this matters: Without streaming, ``requests`` buffers the
+            entire blob in RAM (peaking near 2x the file size while
+            joining chunks). Sixteen concurrent chat-file downloads of
+            large documents exhausted the 4 GiB sandbox VM and got the
+            pod liveness-killed mid-turn (UN-24862).
+        Setup summary: Capture the kwargs passed to ``requests.get``
+            and assert ``stream=True``.
+        """
+        get_mock = MagicMock(return_value=_fake_response())
+
+        with patch.object(file_io.requests, "get", get_mock):
+            file_io.download_content(
+                companyId="company-1",
+                userId="user-1",
+                content_id="cont_test",
+                filename="x.bin",
+                target_path=tmp_path / "x.bin",
+            )
+
+        assert get_mock.call_args.kwargs["stream"] is True
+
+    def test_mid_stream_failure_removes_partial_file(self, tmp_path: Path) -> None:
+        """
+        Purpose: A transfer that dies mid-stream must not leave a
+            truncated file at the destination.
+        Why this matters: With streaming, bytes hit the disk before the
+            body is complete. A caller retrying after a network error
+            must never mistake a half-written file for a finished
+            download (the buffered implementation could not truncate,
+            so this is a new failure mode the fix has to close).
+        Setup summary: Make ``iter_content`` yield one chunk and then
+            raise; assert the exception propagates and the target file
+            is gone.
+        """
+        response = _fake_response()
+
+        def _broken_iter(chunk_size: int) -> Any:
+            yield b"partial"
+            raise ConnectionError("connection reset mid-stream")
+
+        response.iter_content.side_effect = _broken_iter
+        get_mock = MagicMock(return_value=response)
+        target = tmp_path / "out.bin"
+
+        with (
+            patch.object(file_io.requests, "get", get_mock),
+            pytest.raises(ConnectionError, match="mid-stream"),
+        ):
+            file_io.download_content(
+                companyId="company-1",
+                userId="user-1",
+                content_id="cont_test",
+                filename="ignored.bin",
+                target_path=target,
+            )
+
+        assert not target.exists()
+
+    def test_open_failure_keeps_preexisting_destination_file(
+        self, tmp_path: Path
+    ) -> None:
+        """
+        Purpose: When ``open()`` on the destination fails, a complete
+            file already sitting at ``target_path`` must survive.
+        Why this matters: The mid-stream cleanup unlinks the partial
+            file — but it must only ever delete bytes *this* transfer
+            wrote. If the destination could not even be opened
+            (permissions, fd exhaustion), the previous download at that
+            path was never touched and deleting it would destroy good
+            data on a failed retry.
+        Setup summary: Pre-create the destination with known content
+            and make it read-only so ``open(..., "wb")`` raises; assert
+            the exception propagates and the original bytes remain.
+        """
+        get_mock = MagicMock(return_value=_fake_response(content=b"new"))
+        target = tmp_path / "existing.bin"
+        target.write_bytes(b"previous complete download")
+        target.chmod(0o444)
+
+        try:
+            with (
+                patch.object(file_io.requests, "get", get_mock),
+                pytest.raises(PermissionError),
+            ):
+                file_io.download_content(
+                    companyId="company-1",
+                    userId="user-1",
+                    content_id="cont_test",
+                    filename="ignored.bin",
+                    target_path=target,
+                )
+
+            assert target.read_bytes() == b"previous complete download"
+        finally:
+            target.chmod(0o644)
