@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated, Any, ClassVar, Literal, TypeAlias
 
-from pydantic import Field, GetCoreSchemaHandler
+from pydantic import Field, GetCoreSchemaHandler, ValidationError
 from pydantic_core import CoreSchema, core_schema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
@@ -15,6 +16,8 @@ from unique_search_proxy_core.agent_engines.bing.settings import (
 )
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.schema import DeactivatedNone
+
+_LOGGER = logging.getLogger(__name__)
 
 _BING_DOCS_BASE_URL = (
     "https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/"
@@ -159,6 +162,19 @@ ExposableSetLang = ExposableParam[SetLangOrNone]
 ExposableFreshness = ExposableParam[FreshnessOrNone]
 
 
+def _default_market() -> ExposableMarket:
+    try:
+        return ExposableMarket.model_validate(
+            {"expose": False, "value": bing_agent_env_settings.default_market},
+        )
+    except ValidationError:
+        _LOGGER.warning(
+            "Ignoring invalid BING_AGENT_DEFAULT_MARKET=%r",
+            bing_agent_env_settings.default_market,
+        )
+        return ExposableMarket(expose=False, value=None)
+
+
 class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     """Deployment + request defaults for Bing grounding via Azure AI Projects."""
 
@@ -179,9 +195,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         description="Maximum number of Bing grounding results per query",
     )
     market: ExposableMarket = Field(
-        default=ExposableMarket.model_validate(
-            {"expose": False, "value": bing_agent_env_settings.default_market},
-        ),
+        default=_default_market(),
         title="Market",
         description=(
             "Country/region **and** language the results come from (Bing `mkt`), "

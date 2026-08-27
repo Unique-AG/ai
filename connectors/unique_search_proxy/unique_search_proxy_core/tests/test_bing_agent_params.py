@@ -16,8 +16,12 @@ from unique_search_proxy_core.agent_engines.bing.schema import (
     ExposableFreshness,
     ExposableMarket,
     ExposableSetLang,
+    _default_market,
 )
-from unique_search_proxy_core.agent_engines.bing.settings import _get_settings
+from unique_search_proxy_core.agent_engines.bing.settings import (
+    _get_settings,
+    bing_agent_env_settings,
+)
 from unique_search_proxy_core.param_policy import ExposedParams
 
 
@@ -35,6 +39,24 @@ class TestBingAgentEnvSettings:
         monkeypatch.setenv("BING_AGENT_DEFAULT_MARKET", "fr-CH")
 
         assert _get_settings().default_market == "fr-CH"
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize("value", ["", "fr-XX"])
+    def test_invalid_default_market_is_ignored(
+        self,
+        value: str,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """
+        Purpose: Verify invalid environment defaults do not prevent module import.
+        Why this matters: A Bing setting must not take down the whole web-search tool.
+        Setup summary: Set an invalid market and assert the default is deactivated.
+        """
+        monkeypatch.setattr(bing_agent_env_settings, "default_market", value)
+
+        assert _default_market() == ExposableMarket(expose=False, value=None)
+        assert "Ignoring invalid BING_AGENT_DEFAULT_MARKET" in caplog.text
 
 
 class TestBingAgentRequestModel:
