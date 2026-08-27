@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import logging
 from typing import Annotated, Any, ClassVar, Literal, TypeAlias
 
-from pydantic import Field, GetCoreSchemaHandler, ValidationError
+from pydantic import Field, GetCoreSchemaHandler, field_validator
 from pydantic_core import CoreSchema, core_schema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
@@ -11,13 +10,17 @@ from unique_search_proxy_core.agent_engines.base import (
     AgentEngineType,
     BaseAgentEngineConfig,
 )
+from unique_search_proxy_core.agent_engines.bing.enums import (
+    BingFreshnessPreset,
+    BingMarket,
+    BingSetLang,
+)
 from unique_search_proxy_core.agent_engines.bing.settings import (
     bing_agent_env_settings,
 )
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
+from unique_search_proxy_core.param_policy.ui_tags import dynamic_enforced_by_infra
 from unique_search_proxy_core.schema import DeactivatedNone
-
-_LOGGER = logging.getLogger(__name__)
 
 _BING_DOCS_BASE_URL = (
     "https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/"
@@ -26,104 +29,6 @@ _BING_DOCS_BASE_URL = (
 _BING_QUERY_PARAMS_DOCS_URL = f"{_BING_DOCS_BASE_URL}/query-parameters"
 _BING_MARKET_CODES_DOCS_URL = f"{_BING_DOCS_BASE_URL}/market-codes"
 
-#: Markets Bing serves content for (``mkt``), in the documented order.
-BingMarket: TypeAlias = Literal[
-    "es-AR",
-    "en-AU",
-    "de-AT",
-    "nl-BE",
-    "fr-BE",
-    "pt-BR",
-    "en-CA",
-    "fr-CA",
-    "es-CL",
-    "da-DK",
-    "fi-FI",
-    "fr-FR",
-    "de-DE",
-    "zh-HK",
-    "en-IN",
-    "en-ID",
-    "it-IT",
-    "ja-JP",
-    "ko-KR",
-    "en-MY",
-    "es-MX",
-    "nl-NL",
-    "en-NZ",
-    "no-NO",
-    "zh-CN",
-    "pl-PL",
-    "en-PH",
-    "ru-RU",
-    "en-ZA",
-    "es-ES",
-    "sv-SE",
-    "fr-CH",
-    "de-CH",
-    "zh-TW",
-    "tr-TR",
-    "en-GB",
-    "en-US",
-    "es-US",
-]
-
-#: Languages Bing localizes its interface strings into (``setLang``).
-BingSetLang: TypeAlias = Literal[
-    "ar",
-    "eu",
-    "bn",
-    "bg",
-    "ca",
-    "zh-hans",
-    "zh-hant",
-    "hr",
-    "cs",
-    "da",
-    "nl",
-    "en",
-    "en-gb",
-    "et",
-    "fi",
-    "fr",
-    "gl",
-    "de",
-    "gu",
-    "he",
-    "hi",
-    "hu",
-    "is",
-    "it",
-    "jp",
-    "kn",
-    "ko",
-    "lv",
-    "lt",
-    "ms",
-    "ml",
-    "mr",
-    "nb",
-    "pl",
-    "pt-br",
-    "pt-pt",
-    "pa",
-    "ro",
-    "ru",
-    "sr",
-    "sk",
-    "sl",
-    "es",
-    "sv",
-    "ta",
-    "te",
-    "th",
-    "tr",
-    "uk",
-    "vi",
-]
-
-#: Named recency windows accepted by the Bing ``freshness`` knob.
-BingFreshnessPreset: TypeAlias = Literal["Day", "Week", "Month"]
 
 _FRESHNESS_DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}(?:\.\.\d{4}-\d{2}-\d{2})?$"
 
@@ -163,16 +68,23 @@ ExposableFreshness = ExposableParam[FreshnessOrNone]
 
 
 def _default_market() -> ExposableMarket:
-    try:
-        return ExposableMarket.model_validate(
-            {"expose": False, "value": bing_agent_env_settings.default_market},
-        )
-    except ValidationError:
-        _LOGGER.warning(
-            "Ignoring invalid BING_AGENT_DEFAULT_MARKET=%r",
-            bing_agent_env_settings.default_market,
-        )
-        return ExposableMarket(expose=False, value=None)
+    return ExposableMarket(
+        expose=False,
+        value=bing_agent_env_settings.default_market,
+    )
+
+
+def _market_is_enforced() -> bool:
+    return bing_agent_env_settings.default_market is not None
+
+
+EnforcedExposableMarket = Annotated[
+    ExposableMarket,
+    dynamic_enforced_by_infra(
+        _market_is_enforced,
+        help="Market is pinned by `BING_AGENT_DEFAULT_MARKET` for this deployment.",
+    ),
+]
 
 
 class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
@@ -194,7 +106,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         le=50,
         description="Maximum number of Bing grounding results per query",
     )
-    market: ExposableMarket = Field(
+    market: EnforcedExposableMarket = Field(
         default=_default_market(),
         title="Market",
         description=(
@@ -232,6 +144,15 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             f"[Accepted values]({_BING_QUERY_PARAMS_DOCS_URL}#freshness)"
         ),
     )
+
+    @field_validator("market", mode="before")
+    @classmethod
+    def validate_market(cls, v: ExposableMarket) -> ExposableMarket:
+        if bing_agent_env_settings.default_market is not None:
+            return ExposableMarket(
+                expose=False, value=bing_agent_env_settings.default_market
+            )
+        return v
 
 
 BingAgentSearchRequest = BingAgentConfig.request_model()

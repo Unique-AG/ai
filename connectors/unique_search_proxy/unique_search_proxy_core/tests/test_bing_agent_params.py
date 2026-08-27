@@ -2,6 +2,7 @@
 
 import pytest
 from pydantic import ValidationError
+from unique_toolkit._common.pydantic.rjsf_tags import ui_schema_for_model
 
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.grounding import (
@@ -16,7 +17,6 @@ from unique_search_proxy_core.agent_engines.bing.schema import (
     ExposableFreshness,
     ExposableMarket,
     ExposableSetLang,
-    _default_market,
 )
 from unique_search_proxy_core.agent_engines.bing.settings import (
     _get_settings,
@@ -42,21 +42,69 @@ class TestBingAgentEnvSettings:
 
     @pytest.mark.ai
     @pytest.mark.parametrize("value", ["", "fr-XX"])
-    def test_invalid_default_market_is_ignored(
+    def test_invalid_default_market_rejects_at_settings_load(
         self,
         value: str,
         monkeypatch: pytest.MonkeyPatch,
-        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """
-        Purpose: Verify invalid environment defaults do not prevent module import.
-        Why this matters: A Bing setting must not take down the whole web-search tool.
-        Setup summary: Set an invalid market and assert the default is deactivated.
+        Purpose: Verify unknown market codes fail when loading deployment settings.
+        Why this matters: ``default_market`` is typed as ``BingMarket``; a typo must
+            surface at startup instead of being silently ignored.
+        Setup summary: Set an invalid market and expect settings construction to fail.
         """
-        monkeypatch.setattr(bing_agent_env_settings, "default_market", value)
+        monkeypatch.setenv("BING_AGENT_DEFAULT_MARKET", value)
 
-        assert _default_market() == ExposableMarket(expose=False, value=None)
-        assert "Ignoring invalid BING_AGENT_DEFAULT_MARKET" in caplog.text
+        with pytest.raises(ValidationError):
+            _get_settings()
+
+
+class TestBingAgentMarketUiSchema:
+    @pytest.mark.ai
+    def test_market_ui_schema_editable_when_env_unset(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(bing_agent_env_settings, "default_market", None)
+
+        market_ui = ui_schema_for_model(BingAgentConfig)["market"]
+        assert market_ui["ui:disabled"] is False
+        assert "expose" in market_ui
+        assert "value" in market_ui
+
+    @pytest.mark.ai
+    def test_market_ui_schema_disabled_when_env_pins_market(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(bing_agent_env_settings, "default_market", "de-CH")
+
+        market_ui = ui_schema_for_model(BingAgentConfig)["market"]
+        assert market_ui["ui:disabled"] is True
+        assert "BING_AGENT_DEFAULT_MARKET" in market_ui["ui:help"]
+        assert "expose" in market_ui
+        assert "value" in market_ui
+
+
+class TestBingAgentMarketEnforcement:
+    @pytest.mark.ai
+    def test_validate_market_pins_env_default(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(bing_agent_env_settings, "default_market", "de-CH")
+
+        config = BingAgentConfig.model_validate(
+            {"market": {"expose": True, "value": "fr-CH"}},
+        )
+        assert config.market == ExposableMarket(expose=False, value="de-CH")
+
+    @pytest.mark.ai
+    def test_validate_market_leaves_unpinned_deployments_alone(self) -> None:
+        config = BingAgentConfig.model_validate(
+            {"market": {"expose": True, "value": "fr-CH"}},
+        )
+        assert config.market == ExposableMarket(expose=True, value="fr-CH")
 
 
 class TestBingAgentRequestModel:

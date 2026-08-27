@@ -5,11 +5,13 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from unique_search_proxy_core.agent_engines.bing.enums import BingMarket
+
 _ENV_PREFIX = "BING_AGENT_"
 
 
 class _BingAgentEnvSettings(BaseSettings):
-    default_market: str | None = Field(
+    default_market: BingMarket | None = Field(
         default=None,
         description="Default Bing market for grounded searches",
     )
