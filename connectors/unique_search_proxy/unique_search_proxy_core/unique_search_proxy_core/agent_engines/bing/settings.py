@@ -10,10 +10,21 @@ from unique_search_proxy_core.agent_engines.bing.enums import BingMarket
 _ENV_PREFIX = "BING_AGENT_"
 
 
-class _BingAgentEnvSettings(BaseSettings):
-    default_market: BingMarket | None = Field(
+class MarketSettings(BaseSettings):
+    default: BingMarket | None = Field(
         default=None,
         description="Default Bing market for grounded searches",
+    )
+    enforce: bool = Field(
+        default=False,
+        description="Enforce the default market for grounded searches",
+    )
+
+
+class _BingAgentEnvSettings(BaseSettings):
+    market: MarketSettings = Field(
+        default=MarketSettings(),
+        description="Bing market settings",
     )
 
 

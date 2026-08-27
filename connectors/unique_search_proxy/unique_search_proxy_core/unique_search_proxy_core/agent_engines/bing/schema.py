@@ -70,19 +70,19 @@ ExposableFreshness = ExposableParam[FreshnessOrNone]
 def _default_market() -> ExposableMarket:
     return ExposableMarket(
         expose=False,
-        value=bing_agent_env_settings.default_market,
+        value=bing_agent_env_settings.market.default,
     )
 
 
 def _market_is_enforced() -> bool:
-    return bing_agent_env_settings.default_market is not None
+    return bing_agent_env_settings.market.enforce
 
 
 EnforcedExposableMarket = Annotated[
     ExposableMarket,
     dynamic_enforced_by_infra(
         _market_is_enforced,
-        help="Market is pinned by `BING_AGENT_DEFAULT_MARKET` for this deployment.",
+        help="Market is pinned by `BING_AGENT_MARKET_ENFORCE` for this deployment.",
     ),
 ]
 
@@ -148,9 +148,9 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     @field_validator("market", mode="before")
     @classmethod
     def validate_market(cls, v: ExposableMarket) -> ExposableMarket:
-        if bing_agent_env_settings.default_market is not None:
+        if bing_agent_env_settings.market.enforce:
             return ExposableMarket(
-                expose=False, value=bing_agent_env_settings.default_market
+                expose=False, value=bing_agent_env_settings.market.default
             )
         return v
 
