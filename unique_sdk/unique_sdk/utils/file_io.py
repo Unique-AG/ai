@@ -34,24 +34,48 @@ class _VersioningKwargs(TypedDict, total=False):
     versioningEnabled: bool
 
 
+# Streaming chunk size for blob downloads. Downloads MUST stream to disk:
+# buffering whole files via ``response.content`` peaks at ~2x the file size
+# in RAM and has OOM'd memory-limited runtimes downloading many large chat
+# files concurrently (UN-24862).
+_DOWNLOAD_CHUNK_BYTES = 1024 * 1024
+
+
+def _stream_response_to_file(response: requests.Response, file_path: Path) -> None:
+    """Write the response body to *file_path* chunk by chunk.
+
+    Removes the partially written file when the transfer fails mid-stream so
+    callers never observe a truncated download at the destination path.
+    """
+    # open() outside the cleanup scope: if it fails (permissions, EMFILE) the
+    # destination was never truncated, and a pre-existing complete file there
+    # must not be deleted.
+    file = open(file_path, "wb")
+    try:
+        with file:
+            for chunk in response.iter_content(chunk_size=_DOWNLOAD_CHUNK_BYTES):
+                file.write(chunk)
+    except BaseException:
+        file_path.unlink(missing_ok=True)
+        raise
+
+
 # download readUrl a random directory in /tmp
 def download_file(url: str, filename: str):
     # Guard for callers without a type checker: fail fast with a clear error before reaching requests.
     if not isinstance(url, str):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("URL must be a string.")  # pyright: ignore[reportUnreachable]
-    # Create a random directory inside /tmp
-    random_dir = tempfile.mkdtemp(dir="/tmp")
+    with requests.get(
+        url, timeout=unique_sdk.blob_transfer_timeout, stream=True
+    ) as response:
+        if response.status_code != 200:
+            raise Exception(
+                f"Error downloading file: Status code {response.status_code}"
+            )
 
-    # Create the full file path
-    file_path = Path(random_dir) / filename
-
-    # Download the file and save it to the random directory
-    response = requests.get(url, timeout=unique_sdk.blob_transfer_timeout)
-    if response.status_code == 200:
-        with open(file_path, "wb") as file:
-            file.write(response.content)
-    else:
-        raise Exception(f"Error downloading file: Status code {response.status_code}")
+        random_dir = tempfile.mkdtemp(dir="/tmp")
+        file_path = Path(random_dir) / filename
+        _stream_response_to_file(response, file_path)
 
     return file_path
 
@@ -369,21 +393,22 @@ def download_content(
     # Issue the request before resolving the destination. A non-200
     # response should never leave a half-created directory or empty
     # file behind for callers who supplied ``target_path``.
-    response = requests.get(
-        url, headers=headers, timeout=unique_sdk.blob_transfer_timeout
-    )
-    if response.status_code != 200:
-        raise Exception(f"Error downloading file: Status code {response.status_code}")
+    with requests.get(
+        url, headers=headers, timeout=unique_sdk.blob_transfer_timeout, stream=True
+    ) as response:
+        if response.status_code != 200:
+            raise Exception(
+                f"Error downloading file: Status code {response.status_code}"
+            )
 
-    if target_path is not None:
-        file_path = Path(target_path)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-    else:
-        random_dir = tempfile.mkdtemp(dir="/tmp")
-        file_path = Path(random_dir) / filename
+        if target_path is not None:
+            file_path = Path(target_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            random_dir = tempfile.mkdtemp(dir="/tmp")
+            file_path = Path(random_dir) / filename
 
-    with open(file_path, "wb") as file:
-        file.write(response.content)
+        _stream_response_to_file(response, file_path)
 
     return file_path
 

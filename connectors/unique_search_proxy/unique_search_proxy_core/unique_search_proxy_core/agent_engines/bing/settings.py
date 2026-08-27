@@ -9,8 +9,6 @@ _ENV_PREFIX = "BING_AGENT_"
 
 
 class _BingAgentEnvSettings(BaseSettings):
-    """Environment defaults for Bing agent configuration."""
-
     default_market: str | None = Field(
         default=None,
         description="Default Bing market for grounded searches",

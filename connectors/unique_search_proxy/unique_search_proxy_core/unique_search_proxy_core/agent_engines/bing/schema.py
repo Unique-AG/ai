@@ -159,15 +159,6 @@ ExposableSetLang = ExposableParam[SetLangOrNone]
 ExposableFreshness = ExposableParam[FreshnessOrNone]
 
 
-def _default_market() -> ExposableMarket:
-    return ExposableMarket.model_validate(
-        {
-            "expose": False,
-            "value": bing_agent_env_settings.default_market,
-        },
-    )
-
-
 class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     """Deployment + request defaults for Bing grounding via Azure AI Projects."""
 
@@ -188,8 +179,9 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         description="Maximum number of Bing grounding results per query",
     )
     market: ExposableMarket = Field(
-        default_factory=_default_market,
-        json_schema_extra={"default": _default_market().model_dump(mode="json")},
+        default=ExposableMarket.model_validate(
+            {"expose": False, "value": bing_agent_env_settings.default_market},
+        ),
         title="Market",
         description=(
             "Country/region **and** language the results come from (Bing `mkt`), "

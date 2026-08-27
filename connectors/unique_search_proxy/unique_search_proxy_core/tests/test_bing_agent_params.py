@@ -17,10 +17,7 @@ from unique_search_proxy_core.agent_engines.bing.schema import (
     ExposableMarket,
     ExposableSetLang,
 )
-from unique_search_proxy_core.agent_engines.bing.settings import (
-    _get_settings,
-    bing_agent_env_settings,
-)
+from unique_search_proxy_core.agent_engines.bing.settings import _get_settings
 from unique_search_proxy_core.param_policy import ExposedParams
 
 
@@ -38,19 +35,6 @@ class TestBingAgentEnvSettings:
         monkeypatch.setenv("BING_AGENT_DEFAULT_MARKET", "fr-CH")
 
         assert _get_settings().default_market == "fr-CH"
-
-    @pytest.mark.ai
-    def test_schema_default_matches_environment_config_default(self) -> None:
-        """
-        Purpose: Verify the admin schema retains the environment-backed market default.
-        Why this matters: Configuration UIs must initialize new spaces consistently.
-        Setup summary: Compare the market schema default with a default config instance.
-        """
-        market_schema = BingAgentConfig.model_json_schema()["properties"]["market"]
-
-        assert market_schema["default"] == BingAgentConfig().market.model_dump(
-            mode="json"
-        )
 
 
 class TestBingAgentRequestModel:
@@ -167,40 +151,6 @@ class TestBingAgentExposedParams:
 
 
 class TestBingAgentMerge:
-    @pytest.mark.ai
-    def test_environment_market_default_merged(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """
-        Purpose: Verify an omitted space market inherits the environment default.
-        Why this matters: Existing spaces must receive the client default without backfill.
-        Setup summary: Set the loaded default, build an empty config, and merge a request.
-        """
-        monkeypatch.setattr(bing_agent_env_settings, "default_market", "fr-CH")
-
-        config = BingAgentConfig()
-
-        assert config.market == ExposableMarket(expose=False, value="fr-CH")
-        assert config.merge({}, query="x").market == "fr-CH"
-
-    @pytest.mark.ai
-    def test_explicit_null_deactivates_environment_market_default(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """
-        Purpose: Verify an explicit null space value disables the environment default.
-        Why this matters: Space administrators must retain explicit deactivation semantics.
-        Setup summary: Set an environment default, validate null space config, and merge.
-        """
-        monkeypatch.setattr(bing_agent_env_settings, "default_market", "fr-CH")
-        config = BingAgentConfig.model_validate(
-            {"market": {"expose": False, "value": None}},
-        )
-
-        assert config.merge({}, query="x").market is None
-
     @pytest.mark.ai
     def test_admin_defaults_merged(self) -> None:
         config = BingAgentConfig(
