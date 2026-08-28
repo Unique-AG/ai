@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import json
+import logging
 import re
 from collections.abc import Callable
 from pathlib import PurePosixPath
@@ -75,15 +76,33 @@ def _tokenize_for_fuzzy_scoring(
     return _NON_ALNUM_RE.sub(" ", value).strip()
 
 
+_LOGGER = logging.getLogger(__name__)
+
+# Each entry holds a full snapshot, so this bounds memory, not lookup speed.
+_FOLDER_WALK_CACHE_ENTRIES = 8
+
+
+def _log_walk_failure(task: asyncio.Task[FolderWalkSnapshot]) -> None:
+    """Retrieve an evicted walk's exception so asyncio does not report it."""
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is not None:
+        _LOGGER.debug("Folder walk failed", exc_info=error)
+
+
 class _CachedFolderWalkTaskFactory(Protocol):
-    """``functools.cache`` wrapper around the folder-walk snapshot factory."""
+    """Cache wrapper returning the walk task and the snapshot it fills.
+
+    Both live in one entry so they are evicted together.
+    """
 
     def __call__(
         self,
         filter_key: str,
         max_depth_key: int,
         max_concurrent_directory_listings: int,
-    ) -> asyncio.Task[FolderWalkSnapshot]: ...
+    ) -> tuple[asyncio.Task[FolderWalkSnapshot], FolderWalkSnapshot]: ...
 
     def cache_clear(self) -> None: ...
 
@@ -126,14 +145,15 @@ class ContentTree:
             None if metadata_filter is None else dict(metadata_filter)
         )
 
-        # Bind ``functools.cache`` per-instance so each service has its own
-        # task cache (class-level binding would leak across instances). The
-        # cached factory returns an :class:`asyncio.Task`: concurrent misses
-        # hit the same task → single-flight for free, stdlib-only.
-        self._folder_walk_task: _CachedFolderWalkTaskFactory = functools.cache(
-            self._create_folder_walk_task
-        )
-        self._folder_walk_progress: dict[tuple[str, int, int], FolderWalkSnapshot] = {}
+        # Bind the cache per-instance so each service has its own task cache
+        # (class-level binding would leak across instances). The cached factory
+        # returns an :class:`asyncio.Task`: concurrent misses hit the same task
+        # → single-flight for free, stdlib-only. Bounded because ``max_depth``
+        # is part of the key and often comes from caller input; eviction only
+        # costs a re-walk.
+        self._folder_walk_task: _CachedFolderWalkTaskFactory = functools.lru_cache(
+            maxsize=_FOLDER_WALK_CACHE_ENTRIES
+        )(self._create_folder_walk_task)
 
     # ── Read-only identity (frozen via the property mechanic) ────────────
 
@@ -233,15 +253,14 @@ class ContentTree:
         must reflect that change.
         """
         self._folder_walk_task.cache_clear()
-        self._folder_walk_progress.clear()
 
     def _create_folder_walk_task(
         self,
         filter_key: str,
         max_depth_key: int,
         max_concurrent_directory_listings: int,
-    ) -> asyncio.Task[FolderWalkSnapshot]:
-        """Build the cached folder-walk task.
+    ) -> tuple[asyncio.Task[FolderWalkSnapshot], FolderWalkSnapshot]:
+        """Build the cached folder-walk task and the snapshot it fills.
 
         ``max_depth_key`` is ``-1`` when ``max_depth`` is ``None`` so the
         cache key stays hashable. The walk itself is never given a timeout:
@@ -253,10 +272,7 @@ class ContentTree:
         )
         max_depth = None if max_depth_key < 0 else max_depth_key
         progress = FolderWalkSnapshot(files=[], folder_paths=[], complete=False)
-        self._folder_walk_progress[
-            (filter_key, max_depth_key, max_concurrent_directory_listings)
-        ] = progress
-        return asyncio.ensure_future(
+        task = asyncio.ensure_future(
             walk_visible_paths_via_folders_async(
                 user_id=self._user_id,
                 company_id=self._company_id,
@@ -266,6 +282,8 @@ class ContentTree:
                 progress=progress,
             )
         )
+        task.add_done_callback(_log_walk_failure)
+        return task, progress
 
     async def _await_folder_walk_task(
         self,
@@ -330,8 +348,7 @@ class ContentTree:
         filter_key = serialize_filter(effective_filter)
         max_depth_key = -1 if max_depth is None else max_depth
         cache_key = (filter_key, max_depth_key, max_concurrent_directory_listings)
-        task = self._folder_walk_task(*cache_key)
-        progress = self._folder_walk_progress[cache_key]
+        task, progress = self._folder_walk_task(*cache_key)
         return await self._await_folder_walk_task(task, progress, timeout=timeout)
 
     async def render_visible_tree_via_folders_async(

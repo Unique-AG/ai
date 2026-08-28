@@ -10,6 +10,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from unique_toolkit.content.schemas import ContentInfo
+from unique_toolkit.experimental.components.content_tree.service import (
+    _FOLDER_WALK_CACHE_ENTRIES,
+)
 from unique_toolkit.experimental.content_tree import (
     ContentTree,
     FolderWalkSnapshot,
@@ -1316,3 +1319,48 @@ async def test_AI_cancelled_waiter_keeps_in_flight_cached_walk() -> None:
     assert snapshot.complete is True
     assert snapshot.folder_paths == [_p("Legal")]
     assert mock_walk.await_count == 1
+
+
+# ── Bounded walk cache / cancellation-safe concurrency ────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_AI_walk_cache_is_bounded_by_distinct_depths() -> None:
+    """``max_depth`` is caller-supplied, so it must not grow the cache forever.
+
+    Each entry retains a full snapshot, so walking depths 1..N unbounded would
+    pin N snapshots for the life of the instance.
+    """
+    svc = _tree()
+    mock_core = AsyncMock(return_value=_walk_snapshot())
+
+    with patch(_PATCH_TARGET, mock_core):
+        depths = _FOLDER_WALK_CACHE_ENTRIES + 3
+        for depth in range(1, depths + 1):
+            await svc.resolve_visible_file_paths_via_folders_async(max_depth=depth)
+
+        assert svc._folder_walk_task.cache_info().currsize == _FOLDER_WALK_CACHE_ENTRIES
+
+        # The oldest key was evicted, so asking for it again re-walks.
+        before = mock_core.await_count
+        await svc.resolve_visible_file_paths_via_folders_async(max_depth=1)
+        assert mock_core.await_count == before + 1
+
+
+@pytest.mark.asyncio
+async def test_AI_evicted_entry_keeps_task_and_snapshot_together() -> None:
+    """Task and snapshot share one entry, so eviction cannot leave one behind.
+
+    Held apart, the snapshot would outlive its evicted task and reintroduce the
+    growth the bound exists to prevent.
+    """
+    svc = _tree()
+    with patch(_PATCH_TARGET, AsyncMock(return_value=_walk_snapshot())):
+        await svc.resolve_visible_file_paths_via_folders_async(max_depth=1)
+
+    task, progress = svc._folder_walk_task("null", 1, 25)
+    assert isinstance(task, asyncio.Task)
+    assert isinstance(progress, FolderWalkSnapshot)
+
+    svc.invalidate_cache()
+    assert svc._folder_walk_task.cache_info().currsize == 0
