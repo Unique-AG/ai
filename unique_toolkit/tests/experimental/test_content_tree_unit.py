@@ -2,24 +2,39 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
+from pathlib import PurePosixPath
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from unique_toolkit.content.schemas import ContentInfo
+from unique_toolkit.experimental.components.content_tree.service import (
+    _FOLDER_WALK_CACHE_ENTRIES,
+)
 from unique_toolkit.experimental.content_tree import (
     ContentTree,
+    FolderWalkSnapshot,
     FuzzyMatch,
-    extract_scope_ids_from_content_infos,
     format_path_trie,
+    walk_visible_paths_via_folders_async,
 )
 
 # All patches target the name as bound in ``experimental.components.content_tree.service``
 # (where the service module imports it from ``functions``), not the original
 # definition module. That's the usual ``mock.patch`` rule: patch where it's
-# looked up.
-_PATCH_TARGET = "unique_toolkit.experimental.components.content_tree.service.resolve_visible_file_paths_core"
+# looked up. Old methods and via-folders methods share this walk.
+_PATCH_TARGET = (
+    "unique_toolkit.experimental.components.content_tree.service"
+    ".walk_visible_paths_via_folders_async"
+)
+_WALK_PATCH = _PATCH_TARGET
+
+
+def _p(*parts: str) -> PurePosixPath:
+    """Knowledge-base path used in assertions and fixtures."""
+    return PurePosixPath(*parts)
 
 
 def _minimal_content_info(*, key: str, metadata: dict | None) -> ContentInfo:
@@ -37,6 +52,12 @@ def _minimal_content_info(*, key: str, metadata: dict | None) -> ContentInfo:
     )
 
 
+def _walk_snapshot(
+    rows: list[tuple[ContentInfo, PurePosixPath]] | None = None,
+) -> FolderWalkSnapshot:
+    return FolderWalkSnapshot(files=list(rows or []), folder_paths=[], complete=True)
+
+
 def test_AI_build_trie_groups_path_segments() -> None:
     """Building a trie merges files under the correct folder chain."""
     resolved = [
@@ -45,14 +66,14 @@ def test_AI_build_trie_groups_path_segments() -> None:
                 key="a.pdf",
                 metadata={"folderIdPath": "uniquepathid://s1/s2"},
             ),
-            ["Scope1", "Scope2", "a.pdf"],
+            _p("Scope1", "Scope2", "a.pdf"),
         ),
         (
             _minimal_content_info(
                 key="b.pdf",
                 metadata={"folderIdPath": "uniquepathid://s1/s2"},
             ),
-            ["Scope1", "Scope2", "b.pdf"],
+            _p("Scope1", "Scope2", "b.pdf"),
         ),
     ]
     trie = ContentTree.build_trie_from_resolved_paths(resolved)
@@ -62,13 +83,26 @@ def test_AI_build_trie_groups_path_segments() -> None:
     ]
 
 
+def test_AI_build_trie_includes_empty_folders_from_extra_paths() -> None:
+    """
+    Purpose: Extra folder prefixes create trie nodes even without files.
+    Why this matters: Folder-walk trees must show empty directories.
+    Setup summary: Build a trie with no files and extra_folder_paths; assert nodes.
+    """
+    trie = ContentTree.build_trie_from_resolved_paths(
+        [], extra_folder_paths=[_p("Legal", "Empty")]
+    )
+    assert "Empty" in trie.children["Legal"].children
+    assert trie.children["Legal"].children["Empty"].files == []
+
+
 def test_AI_format_path_trie_truncates_at_max_depth() -> None:
     """Depth-limited rendering omits deeper files (``tree -L`` semantics)."""
     trie = ContentTree.build_trie_from_resolved_paths(
         [
             (
                 _minimal_content_info(key="deep.pdf", metadata=None),
-                ["top", "mid", "deep.pdf"],
+                _p("top", "mid", "deep.pdf"),
             ),
         ]
     )
@@ -88,15 +122,15 @@ def test_AI_format_path_trie_hidden_count_is_recursive() -> None:
         [
             (
                 _minimal_content_info(key="a.pdf", metadata=None),
-                ["top", "mid", "a.pdf"],
+                _p("top", "mid", "a.pdf"),
             ),
             (
                 _minimal_content_info(key="b.pdf", metadata=None),
-                ["top", "mid", "b.pdf"],
+                _p("top", "mid", "b.pdf"),
             ),
             (
                 _minimal_content_info(key="c.pdf", metadata=None),
-                ["top", "other", "nested", "c.pdf"],
+                _p("top", "other", "nested", "c.pdf"),
             ),
         ]
     )
@@ -105,15 +139,105 @@ def test_AI_format_path_trie_hidden_count_is_recursive() -> None:
     assert "(3 dirs, 3 files below)" in out
 
 
-def test_AI_extract_scope_ids_matches_folder_id_path() -> None:
-    """Scope id extraction strips the ``uniquepathid://`` prefix."""
-    infos = [
-        _minimal_content_info(
-            key="x",
-            metadata={"folderIdPath": "uniquepathid://aa/bb"},
-        ),
-    ]
-    assert extract_scope_ids_from_content_infos(infos) == {"aa", "bb"}
+@pytest.mark.ai
+def test_AI_snapshot_render_includes_files_and_empty_folders() -> None:
+    """
+    Purpose: FolderWalkSnapshot.render draws files and empty directories.
+    Why this matters: Callers should print a snapshot without building a trie.
+    Setup summary: One file plus an empty folder prefix; assert both names appear.
+    """
+    snapshot = FolderWalkSnapshot(
+        files=[
+            (
+                _minimal_content_info(key="a.pdf", metadata=None),
+                _p("Legal", "a.pdf"),
+            )
+        ],
+        folder_paths=[_p("Legal"), _p("Empty")],
+    )
+    rendered = snapshot.render()
+    assert "a.pdf" in rendered
+    assert "Legal" in rendered
+    assert "Empty" in rendered
+    assert str(snapshot) == rendered
+
+
+@pytest.mark.ai
+def test_AI_empty_snapshot_is_truthy() -> None:
+    """
+    Purpose: An empty FolderWalkSnapshot is still a real object in boolean context.
+    Why this matters: Callers use ``progress or FolderWalkSnapshot(...)``; Sequence.__len__
+        would make an empty walk look missing and drop partial timeout updates.
+    Setup summary: Empty snapshot; assert bool is True and len is 0.
+    """
+    snapshot = FolderWalkSnapshot(files=[], folder_paths=[])
+    assert bool(snapshot) is True
+    assert len(snapshot) == 0
+
+
+@pytest.mark.ai
+def test_AI_snapshot_render_can_hide_files() -> None:
+    """
+    Purpose: show_files=False prints directories only, like tree -d.
+    Why this matters: Folder orientation should not require listing every file.
+    Setup summary: File under Legal plus empty folder; assert pdf omitted, dirs kept.
+    """
+    snapshot = FolderWalkSnapshot(
+        files=[
+            (
+                _minimal_content_info(key="a.pdf", metadata=None),
+                _p("Legal", "a.pdf"),
+            )
+        ],
+        folder_paths=[_p("Legal"), _p("Empty")],
+    )
+    rendered = snapshot.render(show_files=False)
+    assert "a.pdf" not in rendered
+    assert "Legal" in rendered
+    assert "Empty" in rendered
+
+
+@pytest.mark.ai
+def test_AI_snapshot_render_hide_files_omits_files_from_truncation_summary() -> None:
+    """
+    Purpose: Directories-only truncation does not mention hidden files.
+    Why this matters: tree -d -L should not report file counts below the cutoff.
+    Setup summary: Nested file; render max_depth=1 with show_files=False.
+    """
+    snapshot = FolderWalkSnapshot(
+        files=[
+            (
+                _minimal_content_info(key="deep.pdf", metadata=None),
+                _p("top", "mid", "deep.pdf"),
+            )
+        ],
+        folder_paths=[],
+    )
+    out = snapshot.render(max_depth=1, show_files=False)
+    assert "deep.pdf" not in out
+    assert "files below" not in out
+    assert "dirs below" in out
+
+
+@pytest.mark.ai
+def test_AI_snapshot_render_truncates_at_max_depth() -> None:
+    """
+    Purpose: snapshot.render(max_depth=) truncates print depth like tree -L.
+    Why this matters: Depth on render must not require a separate trie helper.
+    Setup summary: Nested file; assert basename is hidden at max_depth=1.
+    """
+    snapshot = FolderWalkSnapshot(
+        files=[
+            (
+                _minimal_content_info(key="deep.pdf", metadata=None),
+                _p("top", "mid", "deep.pdf"),
+            )
+        ],
+        folder_paths=[],
+    )
+    out = snapshot.render(max_depth=1)
+    assert "deep.pdf" not in out
+    assert "…" in out
 
 
 # ── Freeze + cache behavior ─────────────────────────────────────────────────
@@ -164,17 +288,50 @@ async def test_AI_resolve_visible_file_paths_is_cached_across_calls() -> None:
     resolved = [
         (
             _minimal_content_info(key="a.pdf", metadata=None),
-            ["_no_folder_path", "a.pdf"],
+            _p("_no_folder_path", "a.pdf"),
         ),
     ]
 
-    mock_core = AsyncMock(return_value=resolved)
+    mock_core = AsyncMock(return_value=_walk_snapshot(resolved))
     with patch(_PATCH_TARGET, mock_core):
         first = await svc.resolve_visible_file_paths_async()
         second = await svc.resolve_visible_file_paths_async()
 
-    assert first is second
+    assert first == second
     assert mock_core.await_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_AI_resolve_visible_file_paths_returns_string_segments() -> None:
+    """
+    Purpose: The original resolve method returns list[str] path segments.
+    Why this matters: Callers unpack ``(content_info, segments)`` and ``"/".join``.
+    Setup summary: Patch the walk with a POSIX path; assert adapted rows.
+    """
+    svc = _tree()
+    info = _minimal_content_info(key="nda.pdf", metadata=None)
+    mock_core = AsyncMock(return_value=_walk_snapshot([(info, _p("Legal", "nda.pdf"))]))
+    with patch(_PATCH_TARGET, mock_core):
+        rows = await svc.resolve_visible_file_paths_async()
+
+    assert isinstance(rows, list)
+    assert rows == [(info, ["Legal", "nda.pdf"])]
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+@pytest.mark.filterwarnings("default::DeprecationWarning")
+async def test_AI_resolve_visible_file_paths_async_emits_deprecation_warning() -> None:
+    """
+    Purpose: The original resolve method is deprecated in favor of via-folders.
+    Why this matters: Callers should migrate without the old method disappearing.
+    Setup summary: Call the deprecated method; expect DeprecationWarning.
+    """
+    svc = _tree()
+    with patch(_PATCH_TARGET, AsyncMock(return_value=_walk_snapshot())):
+        with pytest.warns(DeprecationWarning, match="via_folders"):
+            await svc.resolve_visible_file_paths_async()
 
 
 @pytest.mark.asyncio
@@ -183,15 +340,17 @@ async def test_AI_cache_keys_on_effective_metadata_filter() -> None:
     svc = _tree(metadata_filter={"env": "prod"})
 
     mock_core = AsyncMock(
-        side_effect=lambda **kw: [
-            (
-                _minimal_content_info(
-                    key=f"for-{(kw.get('metadata_filter') or {}).get('env', 'none')}.pdf",
-                    metadata=None,
-                ),
-                ["_no_folder_path", "x.pdf"],
-            )
-        ]
+        side_effect=lambda **kw: _walk_snapshot(
+            [
+                (
+                    _minimal_content_info(
+                        key=f"for-{(kw.get('metadata_filter') or {}).get('env', 'none')}.pdf",
+                        metadata=None,
+                    ),
+                    _p("_no_folder_path", "x.pdf"),
+                )
+            ]
+        )
     )
     with patch(_PATCH_TARGET, mock_core):
         await svc.resolve_visible_file_paths_async()
@@ -205,7 +364,7 @@ async def test_AI_cache_keys_on_effective_metadata_filter() -> None:
 async def test_AI_invalidate_cache_forces_refetch() -> None:
     """``invalidate_cache`` drops cached entries so the next call re-fetches."""
     svc = _tree()
-    mock_core = AsyncMock(return_value=[])
+    mock_core = AsyncMock(return_value=_walk_snapshot())
 
     with patch(_PATCH_TARGET, mock_core):
         await svc.resolve_visible_file_paths_async()
@@ -222,19 +381,19 @@ async def test_AI_cache_drops_failed_task_so_next_call_retries() -> None:
 
     calls = 0
 
-    async def flaky_core(**_kwargs: object) -> list:
+    async def flaky_core(**_kwargs: object) -> FolderWalkSnapshot:
         nonlocal calls
         calls += 1
         if calls == 1:
             raise RuntimeError("transient")
-        return []
+        return _walk_snapshot()
 
     with patch(_PATCH_TARGET, side_effect=flaky_core):
         with pytest.raises(RuntimeError, match="transient"):
             await svc.resolve_visible_file_paths_async()
         result = await svc.resolve_visible_file_paths_async()
 
-    assert result == []
+    assert list(result) == []
     assert calls == 2
 
 
@@ -246,11 +405,11 @@ async def test_AI_concurrent_cache_misses_single_flight() -> None:
     svc = _tree()
     call_count = 0
 
-    async def slow_core(**_kwargs: object) -> list:
+    async def slow_core(**_kwargs: object) -> FolderWalkSnapshot:
         nonlocal call_count
         call_count += 1
         await asyncio.sleep(0.01)
-        return []
+        return _walk_snapshot()
 
     with patch(_PATCH_TARGET, side_effect=slow_core):
         await asyncio.gather(
@@ -267,14 +426,13 @@ async def test_AI_concurrent_cache_misses_single_flight() -> None:
 
 def _resolved_row(
     *, key: str, segments: list[str], metadata: dict | None = None
-) -> tuple[ContentInfo, list[str]]:
-    return (_minimal_content_info(key=key, metadata=metadata), segments)
+) -> tuple[ContentInfo, PurePosixPath]:
+    return (_minimal_content_info(key=key, metadata=metadata), PurePosixPath(*segments))
 
 
-def _patch_core(resolved: list[tuple[ContentInfo, list[str]]]) -> AsyncMock:
-    """Return an AsyncMock patched in for the core resolver."""
-    mock_core = AsyncMock(return_value=resolved)
-    return mock_core
+def _patch_core(resolved: list[tuple[ContentInfo, PurePosixPath]]) -> AsyncMock:
+    """Return an AsyncMock patched in for the folder-walk resolver."""
+    return AsyncMock(return_value=_walk_snapshot(resolved))
 
 
 @pytest.mark.asyncio
@@ -394,6 +552,9 @@ async def test_AI_search_visible_files_fuzzy_match_on_path_finds_folder_hits() -
     assert len(hits) == 1
     assert hits[0].content_info.key == "x.pdf"
     assert hits[0].matched_on == "path"
+    assert hits[0].path == _p("legal", "contracts_2024", "x.pdf")
+    assert hits[0].path.parent == _p("legal", "contracts_2024")
+    assert hits[0].path.name == "x.pdf"
     assert hits[0].path_segments == ["legal", "contracts_2024", "x.pdf"]
 
 
@@ -461,22 +622,745 @@ async def test_AI_search_visible_files_fuzzy_reuses_cached_snapshot() -> None:
     assert mock_core.await_count == 1
 
 
-@pytest.mark.ai
-async def test_translate_scope_id_async__returns_none__when_folder_lookup_fails() -> (
-    None
-):
-    """A single failing folder lookup logs at debug and yields None so batch
-    resolution keeps going (callers fall back to the raw scope_id)."""
-    from unique_toolkit.experimental.components.content_tree.functions import (
-        translate_scope_id_async,
+_FUNCTIONS = "unique_toolkit.experimental.components.content_tree.functions"
+
+
+# ── Folder-walk tree (Folder.get_infos + Content.get_infos) ─────────────────
+
+
+def _walk_file_payload(*, key: str) -> dict[str, object]:
+    now = datetime.now(tz=UTC).isoformat()
+    return {
+        "id": f"id-{key}",
+        "object": "content",
+        "key": key,
+        "byteSize": 1,
+        "mimeType": "application/pdf",
+        "ownerId": "owner",
+        "createdAt": now,
+        "updatedAt": now,
+    }
+
+
+def _empty_listing() -> tuple[dict[str, object], dict[str, object]]:
+    return (
+        {"folderInfos": [], "totalCount": 0},
+        {"contentInfos": [], "totalCount": 0},
     )
 
-    with patch(
-        "unique_toolkit.experimental.components.content_tree.functions.get_folder_info_async",
-        new=AsyncMock(side_effect=RuntimeError("folder service unavailable")),
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_resolves_nested_paths_from_folder_names() -> None:
+    """
+    Purpose: Nested files get named paths from Folder.get_infos, not get_folder_path.
+    Why this matters: The folder walk must not depend on per-folder path lookups.
+    Setup summary: Mock nested folder/content listings; assert path segments.
+    """
+    empty_folders, empty_files = _empty_listing()
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None}
+                ],
+                "totalCount": 1,
+            }
+        if parent == "scope_legal":
+            return {
+                "folderInfos": [
+                    {"id": "scope_q1", "name": "Q1", "parentId": "scope_legal"}
+                ],
+                "totalCount": 1,
+            }
+        if parent == "scope_q1":
+            return empty_folders
+        raise AssertionError(f"unexpected parentId {parent!r}")
+
+    async def fake_content(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return empty_files
+        if parent == "scope_legal":
+            return {
+                "contentInfos": [_walk_file_payload(key="a.pdf")],
+                "totalCount": 1,
+            }
+        if parent == "scope_q1":
+            return {
+                "contentInfos": [_walk_file_payload(key="b.pdf")],
+                "totalCount": 1,
+            }
+        raise AssertionError(f"unexpected parentId {parent!r}")
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(side_effect=fake_content),
+        ),
     ):
-        resolved = await translate_scope_id_async(
-            user_id="u", company_id="c", scope_id="scope_x"
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c"
         )
 
-    assert resolved is None
+    paths = sorted(path.as_posix() for _info, path in snapshot.files)
+    assert paths == [
+        "Legal/Q1/b.pdf",
+        "Legal/a.pdf",
+    ]
+    by_name = {path.name: path for _info, path in snapshot.files}
+    assert by_name["a.pdf"].parent == _p("Legal")
+    assert by_name["b.pdf"].parent == _p("Legal", "Q1")
+    assert snapshot.complete is True
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_includes_empty_folder_prefixes() -> None:
+    """
+    Purpose: Empty directories appear in folder_paths even with no files.
+    Why this matters: Content-listing trees hide empty folders; this walk must not.
+    Setup summary: Root lists one empty folder; assert extra prefix and rendered name.
+    """
+    empty_folders, empty_files = _empty_listing()
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_empty", "name": "Empty", "parentId": None}
+                ],
+                "totalCount": 1,
+            }
+        if parent == "scope_empty":
+            return empty_folders
+        raise AssertionError(f"unexpected parentId {parent!r}")
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(return_value=empty_files),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c"
+        )
+
+    assert snapshot.files == []
+    assert _p("Empty") in snapshot.folder_paths
+    assert "Empty" in snapshot.render()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_max_depth_one_does_not_list_child_directories() -> None:
+    """
+    Purpose: max_depth=1 lists only knowledge-base root children.
+    Why this matters: Depth must reduce HTTP, unlike the content-listing renderer.
+    Setup summary: Root has one folder; assert Folder.get_infos never uses its id.
+    """
+    empty_files = {"contentInfos": [], "totalCount": 0}
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None}
+                ],
+                "totalCount": 1,
+            }
+        raise AssertionError(f"must not recurse into {parent!r}")
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ) as mock_folders,
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(return_value=empty_files),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", max_depth=1
+        )
+
+    assert snapshot.folder_paths == [_p("Legal")]
+    parent_ids = [call.kwargs.get("parentId") for call in mock_folders.await_args_list]
+    assert parent_ids == [None]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_paginates_when_total_count_exceeds_take() -> None:
+    """
+    Purpose: Remaining folder pages are fetched when totalCount exceeds take.
+    Why this matters: Directories with more than one page must not be truncated.
+    Setup summary: Root folders totalCount=2 with step_size=1; assert skip 0 and 1.
+    """
+    all_folders = [
+        {"id": "scope_a", "name": "A", "parentId": None},
+        {"id": "scope_b", "name": "B", "parentId": None},
+    ]
+    empty_files = {"contentInfos": [], "totalCount": 0}
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        skip = int(kwargs["skip"])  # type: ignore[arg-type]
+        take = int(kwargs["take"])  # type: ignore[arg-type]
+        if parent is None:
+            page = all_folders[skip : skip + take]
+            return {"folderInfos": page, "totalCount": 2}
+        return {"folderInfos": [], "totalCount": 0}
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ) as mock_folders,
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(return_value=empty_files),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", max_depth=1, step_size=1
+        )
+
+    root_skips = sorted(
+        call.kwargs["skip"]
+        for call in mock_folders.await_args_list
+        if call.kwargs.get("parentId") is None
+    )
+    assert root_skips == [0, 1]
+    assert sorted(snapshot.folder_paths) == [_p("A"), _p("B")]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_folder_walk_resolve_is_cached_across_calls() -> None:
+    """
+    Purpose: A second folder-walk with the same args reuses the cached task.
+    Why this matters: Repeat renders must not re-walk the knowledge base.
+    Setup summary: Patch walk helper; call resolve twice; assert one backend call.
+    """
+    from unique_toolkit.experimental.components.content_tree.schemas import (
+        FolderWalkSnapshot,
+    )
+
+    svc = _tree()
+    snapshot = FolderWalkSnapshot(files=[], folder_paths=[_p("Legal")])
+    mock_walk = AsyncMock(return_value=snapshot)
+    with patch(_WALK_PATCH, mock_walk):
+        first = await svc.resolve_visible_file_paths_via_folders_async(max_depth=2)
+        second = await svc.resolve_visible_file_paths_via_folders_async(max_depth=2)
+
+    assert first is second
+    assert mock_walk.await_count == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_folder_walk_cache_keys_on_max_depth() -> None:
+    """
+    Purpose: Different max_depth values do not share a cached walk.
+    Why this matters: Depth limits which directories are fetched.
+    Setup summary: Call resolve with max_depth 1 then 2; assert two walk calls.
+    """
+    from unique_toolkit.experimental.components.content_tree.schemas import (
+        FolderWalkSnapshot,
+    )
+
+    svc = _tree()
+    mock_walk = AsyncMock(return_value=FolderWalkSnapshot(files=[], folder_paths=[]))
+    with patch(_WALK_PATCH, mock_walk):
+        await svc.resolve_visible_file_paths_via_folders_async(max_depth=1)
+        await svc.resolve_visible_file_paths_via_folders_async(max_depth=2)
+
+    assert mock_walk.await_count == 2
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_render_visible_tree_async_includes_empty_dirs() -> None:
+    """
+    Purpose: Public tree renderer draws empty folders from the folder walk.
+    Why this matters: render_visible_tree_async must use depth-based listing, not content dump.
+    Setup summary: Stub a snapshot with only folder_paths; assert name in output.
+    """
+    from unique_toolkit.experimental.components.content_tree.schemas import (
+        FolderWalkSnapshot,
+    )
+
+    svc = _tree()
+    snapshot = FolderWalkSnapshot(files=[], folder_paths=[_p("Archive")])
+    with patch(_WALK_PATCH, AsyncMock(return_value=snapshot)):
+        rendered = await svc.render_visible_tree_async()
+
+    assert "Archive" in rendered
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_folder_walk_failed_task_is_dropped_from_cache() -> None:
+    """
+    Purpose: A failed folder walk is not cached so the next call retries.
+    Why this matters: Transient listing errors must not poison later renders.
+    Setup summary: First walk raises; second succeeds; assert two calls.
+    """
+    from unique_toolkit.experimental.components.content_tree.schemas import (
+        FolderWalkSnapshot,
+    )
+
+    svc = _tree()
+    calls = 0
+
+    async def flaky_walk(**_kwargs: object) -> FolderWalkSnapshot:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("transient")
+        return FolderWalkSnapshot(files=[], folder_paths=[])
+
+    with patch(_WALK_PATCH, side_effect=flaky_walk):
+        with pytest.raises(RuntimeError, match="transient"):
+            await svc.resolve_visible_file_paths_via_folders_async()
+        result = await svc.resolve_visible_file_paths_via_folders_async()
+
+    assert result.files == []
+    assert calls == 2
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_timeout_returns_partial_snapshot() -> None:
+    """
+    Purpose: A walk timeout returns listed directories instead of raising.
+    Why this matters: Callers can evaluate a partial tree without failing the run.
+    Setup summary: Root lists instantly; child listing sleeps; timeout before child.
+    """
+    empty_files = {"contentInfos": [], "totalCount": 0}
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None}
+                ],
+                "totalCount": 1,
+            }
+        await asyncio.sleep(0.5)
+        return {"folderInfos": [], "totalCount": 0}
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(return_value=empty_files),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", timeout=0.05
+        )
+
+    assert snapshot.complete is False
+    assert snapshot.folder_paths == [_p("Legal")]
+    assert snapshot.files == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_skips_unscoped_content_listing_at_root() -> None:
+    """
+    Purpose: Root listing does not call Content.get_infos without parentId.
+    Why this matters: That endpoint dumps every visible file and stalled timeouts at 0 rows.
+    Setup summary: Walk one root folder; assert every content call has parentId.
+    """
+    content_parent_ids: list[object] = []
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None}
+                ],
+                "totalCount": 1,
+            }
+        return {"folderInfos": [], "totalCount": 0}
+
+    async def fake_content(**kwargs: object) -> dict[str, object]:
+        content_parent_ids.append(kwargs.get("parentId"))
+        return {"contentInfos": [], "totalCount": 0}
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(side_effect=fake_content),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", max_depth=2
+        )
+
+    assert snapshot.folder_paths == [_p("Legal")]
+    assert content_parent_ids == ["scope_legal"]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_timeout_keeps_first_folder_page() -> None:
+    """
+    Purpose: A timeout after the first folder page still returns those folders.
+    Why this matters: Partial trees must not wait for every remaining page.
+    Setup summary: Root totalCount=2, step_size=1; second page sleeps past timeout.
+    """
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        skip = int(kwargs["skip"])  # type: ignore[arg-type]
+        if parent is None and skip == 0:
+            return {
+                "folderInfos": [{"id": "scope_a", "name": "A", "parentId": None}],
+                "totalCount": 2,
+            }
+        if parent is None:
+            await asyncio.sleep(0.5)
+            return {
+                "folderInfos": [{"id": "scope_b", "name": "B", "parentId": None}],
+                "totalCount": 2,
+            }
+        return {"folderInfos": [], "totalCount": 0}
+
+    with patch(
+        f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+        AsyncMock(side_effect=fake_folders),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", max_depth=1, step_size=1, timeout=0.05
+        )
+
+    assert snapshot.complete is False
+    assert _p("A") in snapshot.folder_paths
+    assert _p("B") not in snapshot.folder_paths
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_timeout_keeps_extra_pages_already_fetched() -> None:
+    """
+    Purpose: Extra listing pages are published as they arrive, not after gather.
+    Why this matters: A timeout must keep pages that already completed.
+    Setup summary: Three root folder pages; skip=1 is instant, skip=2 sleeps.
+    """
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        skip = int(kwargs.get("skip") or 0)
+        if parent is not None:
+            return {"folderInfos": [], "totalCount": 0}
+        if skip == 0:
+            return {
+                "folderInfos": [{"id": "scope_a", "name": "A", "parentId": None}],
+                "totalCount": 3,
+            }
+        if skip == 1:
+            return {
+                "folderInfos": [{"id": "scope_b", "name": "B", "parentId": None}],
+                "totalCount": 3,
+            }
+        await asyncio.sleep(0.5)
+        return {
+            "folderInfos": [{"id": "scope_c", "name": "C", "parentId": None}],
+            "totalCount": 3,
+        }
+
+    with patch(
+        f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+        AsyncMock(side_effect=fake_folders),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", max_depth=1, step_size=1, timeout=0.1
+        )
+
+    assert snapshot.complete is False
+    assert _p("A") in snapshot.folder_paths
+    assert _p("B") in snapshot.folder_paths
+    assert _p("C") not in snapshot.folder_paths
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_skips_failed_sibling_directory() -> None:
+    """
+    Purpose: One directory listing error does not drop the rest of the tree.
+    Why this matters: An ACL miss or 5xx on one folder used to abort tree/list/search.
+    Setup summary: Root has Legal (raises) and Finance (has a file); assert Finance remains.
+    """
+    empty_folders, empty_files = _empty_listing()
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None},
+                    {"id": "scope_finance", "name": "Finance", "parentId": None},
+                ],
+                "totalCount": 2,
+            }
+        if parent == "scope_legal":
+            raise RuntimeError("acl denied")
+        if parent == "scope_finance":
+            return empty_folders
+        raise AssertionError(f"unexpected parentId {parent!r}")
+
+    async def fake_content(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent == "scope_legal":
+            raise RuntimeError("acl denied")
+        if parent == "scope_finance":
+            return {
+                "contentInfos": [_walk_file_payload(key="q1.pdf")],
+                "totalCount": 1,
+            }
+        return empty_files
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(side_effect=fake_content),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c"
+        )
+
+    paths = [path.as_posix() for _info, path in snapshot.files]
+    assert paths == ["Finance/q1.pdf"]
+    assert snapshot.complete is True
+    assert _p("Finance") in snapshot.folder_paths
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_skip_logs_use_opaque_ids_not_folder_names(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Skip warnings log folder ids and stack traces, not customer folder names.
+    Why this matters: Folder labels and exception text must not leak into logs.
+    Setup summary: Legal listing fails; assert log records omit the name and use exc_info.
+    """
+    from unique_toolkit.experimental.components.content_tree.functions import (
+        _LOGGER as walk_logger,
+    )
+
+    empty_folders, empty_files = _empty_listing()
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None},
+                    {"id": "scope_ok", "name": "Ok", "parentId": None},
+                ],
+                "totalCount": 2,
+            }
+        if parent == "scope_legal":
+            raise RuntimeError("secret-folder-error")
+        return empty_folders
+
+    with (
+        caplog.at_level("WARNING", logger=walk_logger.name),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(return_value=empty_files),
+        ),
+    ):
+        await walk_visible_paths_via_folders_async(user_id="u", company_id="c")
+
+    joined = " ".join(record.getMessage() for record in caplog.records)
+    assert "scope_legal" in joined
+    assert "Legal" not in joined
+    assert "secret-folder-error" not in joined
+    assert any(record.exc_info is not None for record in caplog.records)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_skips_failed_extra_listing_page() -> None:
+    """
+    Purpose: A later listing page error keeps earlier pages.
+    Why this matters: One 5xx page must not erase the directory already listed.
+    Setup summary: First root folder page succeeds; skip=1 raises; assert first folder remains.
+    """
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        skip = int(kwargs.get("skip") or 0)
+        if parent is not None:
+            return {"folderInfos": [], "totalCount": 0}
+        if skip == 0:
+            return {
+                "folderInfos": [{"id": "scope_a", "name": "A", "parentId": None}],
+                "totalCount": 2,
+            }
+        raise RuntimeError("page unavailable")
+
+    with patch(
+        f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+        AsyncMock(side_effect=fake_folders),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u", company_id="c", max_depth=1, step_size=1
+        )
+
+    assert snapshot.complete is True
+    assert snapshot.folder_paths == [_p("A")]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_service_timeout_returns_partial_and_fills_cache() -> None:
+    """
+    Purpose: Service timeout returns a partial copy while the cached walk continues.
+    Why this matters: Higher layers can evaluate now and later await the full tree.
+    Setup summary: Walk records one folder, waits on an event, then records a child.
+    """
+    svc = _tree()
+    released = asyncio.Event()
+
+    async def slow_walk(
+        *_args: object,
+        progress: FolderWalkSnapshot | None = None,
+        **_kwargs: object,
+    ) -> FolderWalkSnapshot:
+        acc = progress or FolderWalkSnapshot(files=[], folder_paths=[], complete=False)
+        acc.folder_paths.append(_p("Legal"))
+        await released.wait()
+        acc.folder_paths.append(_p("Legal", "Q1"))
+        acc.complete = True
+        return acc.copy(complete=True)
+
+    with patch(_WALK_PATCH, side_effect=slow_walk) as mock_walk:
+        partial = await svc.resolve_visible_file_paths_via_folders_async(timeout=0.2)
+        assert partial.complete is False
+        assert partial.folder_paths == [_p("Legal")]
+        released.set()
+        full = await svc.resolve_visible_file_paths_via_folders_async()
+
+    assert full.complete is True
+    assert full.folder_paths == [_p("Legal"), _p("Legal", "Q1")]
+    assert mock_walk.await_count == 1
+    assert partial.folder_paths == [_p("Legal")]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_cancelled_waiter_keeps_in_flight_cached_walk() -> None:
+    """
+    Purpose: Cancelling a waiter does not drop the shielded in-flight walk.
+    Why this matters: A later resolve must reuse the same walk instead of starting another.
+    Setup summary: Cancel the first awaiter mid-walk; second call waits on the same task.
+    """
+    svc = _tree()
+    released = asyncio.Event()
+
+    async def slow_walk(
+        *_args: object,
+        progress: FolderWalkSnapshot | None = None,
+        **_kwargs: object,
+    ) -> FolderWalkSnapshot:
+        acc = progress or FolderWalkSnapshot(files=[], folder_paths=[], complete=False)
+        acc.folder_paths.append(_p("Legal"))
+        await released.wait()
+        acc.complete = True
+        return acc.copy(complete=True)
+
+    with patch(_WALK_PATCH, side_effect=slow_walk) as mock_walk:
+        waiter = asyncio.create_task(svc.resolve_visible_file_paths_via_folders_async())
+        await asyncio.sleep(0.05)
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        released.set()
+        snapshot = await svc.resolve_visible_file_paths_via_folders_async()
+
+    assert snapshot.complete is True
+    assert snapshot.folder_paths == [_p("Legal")]
+    assert mock_walk.await_count == 1
+
+
+# ── Bounded walk cache / cancellation-safe concurrency ────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_AI_walk_cache_is_bounded_by_distinct_depths() -> None:
+    """``max_depth`` is caller-supplied, so it must not grow the cache forever.
+
+    Each entry retains a full snapshot, so walking depths 1..N unbounded would
+    pin N snapshots for the life of the instance.
+    """
+    svc = _tree()
+    mock_core = AsyncMock(return_value=_walk_snapshot())
+
+    with patch(_PATCH_TARGET, mock_core):
+        depths = _FOLDER_WALK_CACHE_ENTRIES + 3
+        for depth in range(1, depths + 1):
+            await svc.resolve_visible_file_paths_via_folders_async(max_depth=depth)
+
+        assert svc._folder_walk_task.cache_info().currsize == _FOLDER_WALK_CACHE_ENTRIES
+
+        # The oldest key was evicted, so asking for it again re-walks.
+        before = mock_core.await_count
+        await svc.resolve_visible_file_paths_via_folders_async(max_depth=1)
+        assert mock_core.await_count == before + 1
+
+
+@pytest.mark.asyncio
+async def test_AI_evicted_entry_keeps_task_and_snapshot_together() -> None:
+    """Task and snapshot share one entry, so eviction cannot leave one behind.
+
+    Held apart, the snapshot would outlive its evicted task and reintroduce the
+    growth the bound exists to prevent.
+    """
+    svc = _tree()
+    with patch(_PATCH_TARGET, AsyncMock(return_value=_walk_snapshot())):
+        await svc.resolve_visible_file_paths_via_folders_async(max_depth=1)
+
+    task, progress = svc._folder_walk_task("null", 1, 25)
+    assert isinstance(task, asyncio.Task)
+    assert isinstance(progress, FolderWalkSnapshot)
+
+    svc.invalidate_cache()
+    assert svc._folder_walk_task.cache_info().currsize == 0

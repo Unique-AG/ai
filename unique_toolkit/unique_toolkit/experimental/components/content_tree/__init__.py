@@ -10,32 +10,31 @@ Typical usage::
     from unique_toolkit.experimental.components.content_tree import ContentTree
 
     tree = ContentTree.from_settings()
-    print(await tree.render_visible_tree_async(max_depth=2))
-    hits = await tree.search_visible_files_fuzzy_async("annual_report")
+    snapshot = await tree.resolve_visible_file_paths_via_folders_async(
+        max_depth=2, timeout=5.0
+    )
+    print(snapshot.render(show_files=False))
+    print(await tree.render_visible_tree_via_folders_async(max_depth=2))
 
-The subpackage is split into three modules to mirror the rest of the
-``content`` domain:
+The subpackage is split into:
 
 - :mod:`unique_toolkit.experimental.components.content_tree.schemas` — data classes
-  (:class:`PathTrieNode`, :class:`FuzzyMatch`, :data:`MatchTarget`).
-- :mod:`unique_toolkit.experimental.components.content_tree.functions` — pure helpers
-  for listing, scope-id resolution, trie construction, and ``tree(1)``-style
-  formatting.
+  (:class:`PathTrieNode`, :class:`FuzzyMatch`, :class:`FolderWalkSnapshot`;
+  file locations are :class:`~pathlib.PurePosixPath`).
+- :mod:`unique_toolkit.experimental.components.content_tree.functions` — folder-walk
+  helpers and ``tree(1)``-style formatting.
 - :mod:`unique_toolkit.experimental.components.content_tree.service` —
   :class:`ContentTree`, the orchestrating service with per-instance caching.
 """
 
 from unique_toolkit.experimental.components.content_tree.functions import (
     build_trie_from_resolved_paths,
-    extract_scope_ids_from_content_infos,
     format_path_trie,
-    get_all_content_infos_async,
     resolve_visible_file_paths_core,
-    translate_scope_id_async,
-    translate_scope_ids_async,
-    translate_scope_ids_batch,
+    walk_visible_paths_via_folders_async,
 )
 from unique_toolkit.experimental.components.content_tree.schemas import (
+    FolderWalkSnapshot,
     FuzzyMatch,
     MatchTarget,
     PathTrieNode,
@@ -48,11 +47,8 @@ __all__ = [
     "MatchTarget",
     "PathTrieNode",
     "build_trie_from_resolved_paths",
-    "extract_scope_ids_from_content_infos",
     "format_path_trie",
-    "get_all_content_infos_async",
+    "FolderWalkSnapshot",
     "resolve_visible_file_paths_core",
-    "translate_scope_id_async",
-    "translate_scope_ids_async",
-    "translate_scope_ids_batch",
+    "walk_visible_paths_via_folders_async",
 ]
