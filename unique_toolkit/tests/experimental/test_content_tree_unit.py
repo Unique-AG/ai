@@ -628,9 +628,9 @@ _FUNCTIONS = "unique_toolkit.experimental.components.content_tree.functions"
 # ── Folder-walk tree (Folder.get_infos + Content.get_infos) ─────────────────
 
 
-def _walk_file_payload(*, key: str) -> dict[str, object]:
+def _walk_file_payload(*, key: str, metadata: dict | None = None) -> dict[str, object]:
     now = datetime.now(tz=UTC).isoformat()
-    return {
+    payload: dict[str, object] = {
         "id": f"id-{key}",
         "object": "content",
         "key": key,
@@ -640,6 +640,9 @@ def _walk_file_payload(*, key: str) -> dict[str, object]:
         "createdAt": now,
         "updatedAt": now,
     }
+    if metadata is not None:
+        payload["metadata"] = metadata
+    return payload
 
 
 def _empty_listing() -> tuple[dict[str, object], dict[str, object]]:
@@ -1025,6 +1028,72 @@ async def test_AI_walk_skips_unscoped_content_listing_at_root() -> None:
 
     assert snapshot.folder_paths == [_p("Legal")]
     assert content_parent_ids == ["scope_legal"]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_walk_filters_content_client_side_when_parent_id_is_set() -> None:
+    """
+    Purpose: parentId content listings omit metadataFilter; UniqueQL is applied locally.
+    Why this matters: Unique rejects parentId+metadataFilter, so sending both skips
+        every folder's files. Dropping the filter would leak user-memory content.
+    Setup summary: One folder, two files; notContains folderIdPath user-memory.
+        Assert no metadataFilter on the content call; only the matching file remains.
+    """
+    empty_folders, _ = _empty_listing()
+    content_kwargs: list[dict[str, object]] = []
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None}
+                ],
+                "totalCount": 1,
+            }
+        return empty_folders
+
+    async def fake_content(**kwargs: object) -> dict[str, object]:
+        content_kwargs.append(kwargs)
+        return {
+            "contentInfos": [
+                _walk_file_payload(
+                    key="ok.pdf",
+                    metadata={"folderIdPath": "uniquepathid://scope_legal"},
+                ),
+                _walk_file_payload(
+                    key="memory.pdf",
+                    metadata={"folderIdPath": "uniquepathid://scope_user-memory"},
+                ),
+            ],
+            "totalCount": 2,
+        }
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(side_effect=fake_content),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u",
+            company_id="c",
+            metadata_filter={
+                "operator": "notContains",
+                "path": ["folderIdPath"],
+                "value": "user-memory",
+            },
+        )
+
+    assert content_kwargs
+    assert content_kwargs[0].get("parentId") == "scope_legal"
+    assert "metadataFilter" not in content_kwargs[0]
+    assert [path.name for _info, path in snapshot.files] == ["ok.pdf"]
 
 
 @pytest.mark.ai

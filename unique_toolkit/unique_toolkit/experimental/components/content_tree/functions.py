@@ -20,6 +20,10 @@ import asyncio
 import json
 import logging
 from collections.abc import Awaitable, Callable
+from operator import ge as operator_ge
+from operator import gt as operator_gt
+from operator import le as operator_le
+from operator import lt as operator_lt
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -67,6 +71,96 @@ def _parse_content_infos_payload(payload: Any) -> tuple[list[ContentInfo], int]:
     ]
     total = int(payload.get("totalCount", len(files)))
     return files, total
+
+
+def _lookup_uniqueql_path(metadata: dict[str, Any] | None, path: object) -> Any:
+    current: Any = metadata
+    keys = path if isinstance(path, list) else [path]
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def _uniqueql_contains(actual: Any, expected: Any) -> bool:
+    if actual is None:
+        return False
+    try:
+        return expected in actual
+    except TypeError:
+        return False
+
+
+def _uniqueql_overlaps(actual: Any, expected: Any) -> bool:
+    if not isinstance(actual, list) or not isinstance(expected, list):
+        return False
+    return any(item in actual for item in expected)
+
+
+def _uniqueql_ordered_compare(
+    actual: Any, expected: Any, op: Callable[[Any, Any], bool]
+) -> bool:
+    if actual is None:
+        return False
+    try:
+        return op(actual, expected)
+    except TypeError:
+        return False
+
+
+def _uniqueql_matches(metadata: dict[str, Any] | None, node: dict[str, Any]) -> bool:
+    op = unique_sdk.UQLOperator
+    combinator = unique_sdk.UQLCombinator
+    if combinator.AND in node:
+        children = node.get(combinator.AND) or []
+        return bool(children) and all(
+            isinstance(child, dict) and _uniqueql_matches(metadata, child)
+            for child in children
+        )
+    if combinator.OR in node:
+        children = node.get(combinator.OR) or []
+        return bool(children) and any(
+            isinstance(child, dict) and _uniqueql_matches(metadata, child)
+            for child in children
+        )
+    actual = _lookup_uniqueql_path(metadata, node.get("path") or [])
+    operator = node.get("operator")
+    expected = node.get("value")
+    is_empty = actual is None or actual in ("", [], {})
+    if operator == op.EQUALS:
+        return actual == expected
+    if operator == op.NOT_EQUALS:
+        return actual != expected
+    if operator == op.CONTAINS:
+        return _uniqueql_contains(actual, expected)
+    if operator == op.NOT_CONTAINS:
+        return not _uniqueql_contains(actual, expected)
+    if operator == op.IN:
+        return isinstance(expected, list) and actual in expected
+    if operator == op.NOT_IN:
+        return isinstance(expected, list) and actual not in expected
+    if operator == op.OVERLAPS:
+        return _uniqueql_overlaps(actual, expected)
+    if operator == op.NOT_OVERLAPS:
+        return not _uniqueql_overlaps(actual, expected)
+    if operator == op.GREATER_THAN:
+        return _uniqueql_ordered_compare(actual, expected, operator_gt)
+    if operator == op.GREATER_THAN_OR_EQUAL:
+        return _uniqueql_ordered_compare(actual, expected, operator_ge)
+    if operator == op.LESS_THAN:
+        return _uniqueql_ordered_compare(actual, expected, operator_lt)
+    if operator == op.LESS_THAN_OR_EQUAL:
+        return _uniqueql_ordered_compare(actual, expected, operator_le)
+    if operator == op.IS_NULL:
+        return actual is None
+    if operator == op.IS_NOT_NULL:
+        return actual is not None
+    if operator == op.IS_EMPTY:
+        return is_empty
+    if operator == op.IS_NOT_EMPTY:
+        return not is_empty
+    return False
 
 
 def _propagate_wait_interrupt(result: object) -> None:
@@ -139,7 +233,8 @@ async def _list_direct_children_async(
 
     ``scope_id=None`` is the knowledge-base root. ``Content.get_infos`` without
     ``parentId`` lists the **entire** catalog, so root only fetches folders.
-    Files are listed per folder with ``parentId``.
+    Files are listed per folder with ``parentId``. Unique rejects ``parentId``
+    with ``metadataFilter``, so UniqueQL is applied to the returned files.
     """
     parent_params: dict[str, Any] = {}
     if scope_id:
@@ -165,22 +260,30 @@ async def _list_direct_children_async(
         return await folders_task
 
     async def _content_page(skip: int) -> Any:
-        params = dict(parent_params)
-        if metadata_filter:
-            params["metadataFilter"] = metadata_filter
+        # Unique rejects parentId + metadataFilter on the same call.
         return await unique_sdk.Content.get_infos_async(
             user_id=user_id,
             company_id=company_id,
             skip=skip,
             take=step_size,
-            **params,
+            **parent_params,
         )
+
+    def _parse_content_page(payload: Any) -> tuple[list[ContentInfo], int]:
+        files, total = _parse_content_infos_payload(payload)
+        if metadata_filter:
+            files = [
+                info
+                for info in files
+                if _uniqueql_matches(info.metadata, metadata_filter)
+            ]
+        return files, total
 
     folder_result, file_result = await asyncio.gather(
         folders_task,
         _paginate_parent_listing(
             _content_page,
-            _parse_content_infos_payload,
+            _parse_content_page,
             step_size=step_size,
             max_concurrent_requests=max_concurrent_page_fetches,
             on_page=on_files,
