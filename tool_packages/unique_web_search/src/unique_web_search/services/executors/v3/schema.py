@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import typing
 from enum import StrEnum
+from typing import cast
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from pydantic.alias_generators import to_camel
@@ -65,9 +66,7 @@ class SearchPayload(ExposedParams):
             "is unlikely to be on the public web."
         )
     )
-    query: str = Field(
-        description=_STANDARD_QUERY_DESCRIPTION
-    )
+    query: str = Field(description=_STANDARD_QUERY_DESCRIPTION)
 
     @classmethod
     def with_exposed_params(
@@ -93,14 +92,20 @@ class SearchPayload(ExposedParams):
                 query=(str, Field(description=_AGENT_QUERY_DESCRIPTION)),
             )
         if mode == SearchEngineMode.AGENT:
-            return create_model(
+            return cast(
+                type[SearchPayload],
+                create_model(
+                    cls.__name__,
+                    __base__=(cls, exposed),
+                    query=(str, Field(description=_AGENT_QUERY_DESCRIPTION)),
+                ),
+            )
+        return cast(
+            type[SearchPayload],
+            create_model(
                 cls.__name__,
                 __base__=(cls, exposed),
-                query=(str, Field(description=_AGENT_QUERY_DESCRIPTION)),
-            )
-        return create_model(
-            cls.__name__,
-            __base__=(cls, exposed),
+            ),
         )
 
 

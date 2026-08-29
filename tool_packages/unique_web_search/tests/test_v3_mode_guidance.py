@@ -66,9 +66,8 @@ class TestV3ModeGuidance:
         parameter_schema = json.dumps(parameters_model.model_json_schema())
         tool_description = strategy.tool_description(context)
 
-        assert (
-            "comprehensive natural-language research request"
-            in _query_description(parameters_model)
+        assert "comprehensive natural-language research request" in _query_description(
+            parameters_model
         )
         assert "full intent, context, and constraints" in _query_description(
             parameters_model
