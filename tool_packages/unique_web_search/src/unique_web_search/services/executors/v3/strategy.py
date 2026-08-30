@@ -60,9 +60,11 @@ class WebSearchV3Strategy(WebSearchModeStrategy):
         )
 
     def system_prompt(self, ctx: WebSearchToolContext) -> str:
-        """Render the V3 system prompt with the current date string."""
+        """Render the V3 system prompt for the active engine mode and date."""
+        engine_mode = resolve_search_engine_mode(ctx.search_engine_config)
         return Template(self.mode_config.tool_description_for_system_prompt).render(
             date_string=ctx.date_string,
+            search_engine_mode=engine_mode.value,
         )
 
     def format_information_for_system_prompt(self, *, default: str) -> str:

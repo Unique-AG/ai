@@ -42,6 +42,7 @@ class TestV3ModeGuidance:
 
         parameters_model = strategy.build_tool_parameters(context)
         tool_description = strategy.tool_description(context)
+        system_prompt = strategy.system_prompt(context)
 
         assert _query_description(parameters_model) == (
             "Short search-engine keyword line (~3–8 words, not a sentence). "
@@ -51,6 +52,8 @@ class TestV3ModeGuidance:
         )
         assert "3–8 words" in tool_description
         assert "short `query` each, not one long query" in tool_description
+        assert "~3–8 keywords only" in system_prompt
+        assert "one short `query` per call" in system_prompt
 
     @pytest.mark.ai
     def test_agent_mode_uses_comprehensive_intent_guidance(self) -> None:
@@ -65,6 +68,7 @@ class TestV3ModeGuidance:
         parameters_model = strategy.build_tool_parameters(context)
         parameter_schema = json.dumps(parameters_model.model_json_schema())
         tool_description = strategy.tool_description(context)
+        system_prompt = strategy.system_prompt(context)
 
         assert "comprehensive natural-language research request" in _query_description(
             parameters_model
@@ -77,6 +81,11 @@ class TestV3ModeGuidance:
         assert "precise, short" not in parameter_schema
         assert "3–8 words" not in tool_description
         assert "short `query`" not in tool_description
+        assert "comprehensive natural-language research request" in system_prompt
+        assert "full intent, context, and constraints" in system_prompt
+        assert "3–8" not in system_prompt
+        assert "short `payload.query`" not in system_prompt
+        assert "short `query`" not in system_prompt
 
     @pytest.mark.ai
     def test_agent_mode_preserves_exposed_engine_parameters(self) -> None:
