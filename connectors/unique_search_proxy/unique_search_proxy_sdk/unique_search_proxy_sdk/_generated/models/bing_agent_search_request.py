@@ -42,23 +42,23 @@ class BingAgentSearchRequest:
             information, it MUST appear in your output. When in doubt, include it.\n'.
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         fetch_size (int | Unset): Maximum number of Bing grounding results per query Default: 5.
-        market (BingAgentSearchRequestMarketType0 | None | Unset): Country/region **and** language the results come from
-            (Bing `mkt`), as `<language>-<country>`: `de-CH` returns German-language Swiss results, `fr-CH` French-language
-            Swiss ones, `en-GB` UK English. Set it when the question is about a specific country or expects an answer in
-            that country's language. Left unset, Bing guesses the market from the caller and may answer from another
-            country. [Market codes](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-
-            search/reference/market-codes)
-        set_lang (BingAgentSearchRequestSetLangType0 | None | Unset): Language of Bing's own interface strings in the
-            response (Bing `setLang`), e.g. `de`, `fr`, `pt-br`. It changes neither which results come back nor the language
-            they are written in — use the market for that. Bing falls back to English for codes it does not support.
-            [Supported languages](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-
+        market (BingAgentSearchRequestMarketType0 | None | Unset): Optional fixed country/region and language for Bing
+            search results (Bing `mkt`). For example, `de-CH` returns German-language results from Switzerland, while `fr-
+            CH` returns French-language results from Switzerland. The selected value applies to every search in this space
+            and cannot be changed by the assistant. Leave blank to omit the market parameter. [View supported market
+            codes](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-
+            codes).
+        set_lang (BingAgentSearchRequestSetLangType0 | None | Unset): Optional fixed language for Bing's own interface
+            strings in the response (Bing `setLang`), e.g. `de`, `fr`, `pt-br`. It changes neither which results come back
+            nor the language they are written in — use Market for that. The selected value applies to every search in this
+            space and cannot be changed by the assistant. Leave blank to omit the interface language parameter. [Supported
+            languages](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-
             search/reference/market-codes#bing-supported-language-codes)
-        freshness (BingAgentSearchRequestFreshnessType0 | None | str | Unset): Keep only pages Bing discovered recently
-            (Bing `freshness`): `Day` (last 24 hours), `Week` (last 7 days), `Month` (last 30 days), a single `YYYY-MM-DD`
-            day, or an inclusive `YYYY-MM-DD..YYYY-MM-DD` range. Use it for news and fast-moving topics; leave it unset for
-            background or reference questions, where it would hide older pages that are still correct. [Accepted
-            values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-
-            parameters#freshness)
+        freshness (BingAgentSearchRequestFreshnessType0 | None | str | Unset): Optional fixed recency filter for every
+            search in this space (Bing `freshness`): `Day` (last 24 hours), `Week` (last 7 days), `Month` (last 30 days), a
+            single `YYYY-MM-DD` day, or an inclusive `YYYY-MM-DD..YYYY-MM-DD` range. The assistant cannot change this value.
+            Leave blank to omit the freshness parameter. [Accepted values](https://learn.microsoft.com/en-us/previous-
+            versions/bing/search-apis/bing-web-search/reference/query-parameters#freshness)
     """
 
     query: str

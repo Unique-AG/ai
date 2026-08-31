@@ -6,10 +6,6 @@ from unique_search_proxy_core.agent_engines import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
 )
-from unique_search_proxy_core.agent_engines.bing.schema import (
-    BingMarketConfig,
-    BingMarketSelection,
-)
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
@@ -177,36 +173,25 @@ class TestBingLegacySearch:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_legacy_search__admin_defaults_and_llm_overrides_reach_bing(
-        self, mocker
-    ) -> None:
+    async def test_legacy_search__fixed_values_reach_bing(self, mocker) -> None:
         """
-        Purpose: Verify exposable knobs are resolved for the direct Bing path.
-        Why this matters: An agent-selected market must reach direct Bing grounding.
-        Setup summary: Enable agent control, set another fixed knob, then select
-            a market per call and inspect the grounding configuration.
+        Purpose: Verify fixed space values reach the direct Bing path.
+        Why this matters: Fixed settings must work in every Web Search mode.
+        Setup summary: Configure Bing values, search without params, inspect grounding.
         """
         # Arrange
         config = BingSearchConfig.model_validate(
             {
-                "market": {
-                    "enabled": True,
-                    "agentControlled": True,
-                    "market": "Default",
-                },
-                "setLang": {"expose": False, "value": "de"},
+                "market": "fr-CH",
+                "setLang": "de",
             },
         )
         _, create_and_process_run = self._patch_bing_runtime(mocker, [])
         search = BingSearch(config, Mock())
-        exposed_cls = config.exposed_params_model()
-        assert exposed_cls is not None
+        assert config.exposed_params_model() is None
 
         # Act
-        await search._legacy_search(
-            "test query",
-            params=exposed_cls.model_validate({"market": "fr-CH"}),
-        )
+        await search._legacy_search("test query", params=None)
 
         # Assert
         assert create_and_process_run.call_args.kwargs[
@@ -218,32 +203,13 @@ class TestBingLegacySearch:
         )
 
     @pytest.mark.ai
-    @pytest.mark.parametrize(
-        "market_config",
-        [
-            {
-                "enabled": False,
-                "agentControlled": False,
-                "market": "fr-CH",
-            },
-            {
-                "enabled": True,
-                "agentControlled": True,
-                "market": "fr-CH",
-            },
-        ],
-        ids=["disabled", "agent-omitted"],
-    )
-    def test_grounding_configuration__omits_inactive_market(
-        self,
-        market_config: dict[str, object],
-    ) -> None:
+    def test_grounding_configuration__omits_blank_market(self) -> None:
         """
-        Purpose: Verify direct grounding omits disabled and agent-omitted markets.
-        Why this matters: Hidden values must never become an implicit direct-call fallback.
-        Setup summary: Build each omission state without LLM params and inspect grounding.
+        Purpose: Verify direct grounding omits an unconfigured market.
+        Why this matters: Blank means the Bing market parameter must not be sent.
+        Setup summary: Build the default config and inspect direct grounding.
         """
-        config = BingSearchConfig.model_validate({"market": market_config})
+        config = BingSearchConfig()
         search = BingSearch(config, Mock())
 
         grounding = search._grounding_configuration(None)
@@ -257,13 +223,7 @@ class TestBingLegacySearch:
         Why this matters: Fixed admin policy must apply without agent participation.
         Setup summary: Configure a specific market and inspect direct grounding.
         """
-        config = BingSearchConfig(
-            market=BingMarketConfig(
-                enabled=True,
-                agent_controlled=False,
-                market=BingMarketSelection.DE_CH,
-            ),
-        )
+        config = BingSearchConfig(market="de-CH")
         search = BingSearch(config, Mock())
 
         grounding = search._grounding_configuration(None)
@@ -293,22 +253,14 @@ class TestAgentProxyInvocation:
         assert invocation["fetch_size"] == config.fetch_size
 
     @pytest.mark.ai
-    def test_agent_proxy_invocation__resolves_exposable_defaults(self) -> None:
+    def test_agent_proxy_invocation__forwards_fixed_values(self) -> None:
         """
-        Purpose: Verify exposable knobs are sent as plain values, not `{expose, value}`.
-        Why this matters: The proxy request model rejects the admin wrapper shape.
-        Setup summary: Configure a market default; assert the plain value is forwarded.
+        Purpose: Verify fixed Bing values are sent to the proxy.
+        Why this matters: Space-level settings must apply without assistant parameters.
+        Setup summary: Configure a market; assert the plain value is forwarded.
         """
         # Arrange
-        config = BingSearchConfig.model_validate(
-            {
-                "market": {
-                    "enabled": True,
-                    "agentControlled": False,
-                    "market": "de-CH",
-                },
-            },
-        )
+        config = BingSearchConfig(market="de-CH")
         search = BingSearch(config, Mock())
 
         # Act
@@ -318,32 +270,13 @@ class TestAgentProxyInvocation:
         assert invocation["market"] == "de-CH"
 
     @pytest.mark.ai
-    @pytest.mark.parametrize(
-        "market_config",
-        [
-            {
-                "enabled": False,
-                "agentControlled": False,
-                "market": "de-CH",
-            },
-            {
-                "enabled": True,
-                "agentControlled": True,
-                "market": "de-CH",
-            },
-        ],
-        ids=["disabled", "agent-omitted"],
-    )
-    def test_agent_proxy_invocation__omits_inactive_market(
-        self,
-        market_config: dict[str, object],
-    ) -> None:
+    def test_agent_proxy_invocation__omits_blank_market(self) -> None:
         """
-        Purpose: Verify proxy calls omit disabled and agent-omitted market values.
-        Why this matters: Proxy and direct paths must apply the same no-fallback policy.
-        Setup summary: Build each omission state and inspect proxy invocation kwargs.
+        Purpose: Verify proxy calls omit an unconfigured market.
+        Why this matters: Proxy and direct paths must apply the same blank behavior.
+        Setup summary: Build the default config and inspect proxy invocation kwargs.
         """
-        config = BingSearchConfig.model_validate({"market": market_config})
+        config = BingSearchConfig()
         search = BingSearch(config, Mock())
 
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
@@ -351,34 +284,15 @@ class TestAgentProxyInvocation:
         assert "market" not in invocation
 
     @pytest.mark.ai
-    def test_agent_proxy_invocation__llm_params_override_defaults(self) -> None:
+    def test_agent_proxy_invocation__bing_has_no_exposed_params(self) -> None:
         """
-        Purpose: Verify per-call LLM parameters win over deployment defaults.
-        Why this matters: An exposed knob is only useful if the LLM's choice is used.
-        Setup summary: Expose market with a default, pass a different market per call.
+        Purpose: Verify Bing does not advertise per-call assistant controls.
+        Why this matters: V2 cannot forward exposed parameters and the UI offers fixed values.
+        Setup summary: Configure a fixed market and inspect the exposed model.
         """
-        # Arrange
-        config = BingSearchConfig.model_validate(
-            {
-                "market": {
-                    "enabled": True,
-                    "agentControlled": True,
-                    "market": "Default",
-                },
-            },
-        )
-        search = BingSearch(config, Mock())
-        exposed_cls = config.exposed_params_model()
-        assert exposed_cls is not None
+        config = BingSearchConfig(market="de-CH")
 
-        # Act
-        invocation = search._agent_proxy_invocation(
-            AgentEngineType.BING,
-            exposed_cls.model_validate({"market": "fr-CH"}),
-        )
-
-        # Assert
-        assert invocation["market"] == "fr-CH"
+        assert config.exposed_params_model() is None
 
 
 class TestGetSearchEngineModelConfig:
