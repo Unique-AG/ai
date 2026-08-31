@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.34.0...unique-search-proxy-core-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **search-proxy:** add Bing grounding knobs to the agent config ([#2330](https://github.com/Unique-AG/ai/issues/2330)) ([dbd8075](https://github.com/Unique-AG/ai/commit/dbd807589f55e613810be3086212f74f17827b78))
+* **search-proxy:** default Bing market from environment ([#2352](https://github.com/Unique-AG/ai/issues/2352)) ([6862cad](https://github.com/Unique-AG/ai/commit/6862cad628d08f72517351875344429e8b5adc09))
+* **search-proxy:** lock Vertex AI enterprise search via env ([#2322](https://github.com/Unique-AG/ai/issues/2322)) ([a7464a1](https://github.com/Unique-AG/ai/commit/a7464a1dd09b53c338fb824928cf73664a0386dc))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
 ## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.32.0...unique-search-proxy-core-v2026.34.0) (2026-08-14)
 
 
