@@ -30,7 +30,7 @@ from unique_search_proxy_core.agent_engines.bing.settings import (
 )
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.param_policy.ui_tags import dynamic_enforced_by_infra
-from unique_search_proxy_core.schema import DeactivatedNone, camelized_model_config
+from unique_search_proxy_core.schema import DeactivatedNone
 
 _BING_DOCS_BASE_URL = (
     "https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/"
@@ -82,12 +82,18 @@ T = TypeVar("T")
 class BingMarketParam(ExposableParam[T], Generic[T]):
     """Bing-specific admin policy projected onto the generic parameter lifecycle."""
 
-    model_config = ConfigDict(**camelized_model_config, extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
     _expose: bool = PrivateAttr(default=False)
     _value: T | None = PrivateAttr(default=None)
-    expose: ClassVar[property] = property(lambda self: self._expose)
-    value: ClassVar[property] = property(lambda self: self._value)
+    # Pydantic treats these ClassVar properties as replacements for the inherited
+    # storage fields, leaving only the three admin controls in JSON/UI schemas.
+    expose: ClassVar[property] = property(  # pyright: ignore[reportIncompatibleVariableOverride]
+        lambda self: self._expose
+    )
+    value: ClassVar[property] = property(  # pyright: ignore[reportIncompatibleVariableOverride]
+        lambda self: self._value
+    )
     enabled: Annotated[
         bool,
         RJSFMetaTag.BooleanWidget.checkbox(title="Enable market parameter"),
