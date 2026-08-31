@@ -44,21 +44,19 @@ class BingAgentSearchRequest:
         fetch_size (int | Unset): Maximum number of Bing grounding results per query Default: 5.
         market (BingAgentSearchRequestMarketType0 | None | Unset): Optional fixed country/region and language for Bing
             search results (Bing `mkt`). For example, `de-CH` returns German-language results from Switzerland, while `fr-
-            CH` returns French-language results from Switzerland. The selected value applies to every search in this space
-            and cannot be changed by the assistant. Leave blank to omit the market parameter. [View supported market
-            codes](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-
-            codes).
+            CH` returns French-language results from Switzerland. Leave blank to omit the market parameter. [View supported
+            market codes](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-
+            search/reference/market-codes).
         set_lang (BingAgentSearchRequestSetLangType0 | None | Unset): Optional fixed language for Bing's own interface
             strings in the response (Bing `setLang`), e.g. `de`, `fr`, `pt-br`. It changes neither which results come back
-            nor the language they are written in — use Market for that. The selected value applies to every search in this
-            space and cannot be changed by the assistant. Leave blank to omit the interface language parameter. [Supported
-            languages](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-
+            nor the language they are written in — use Market for that. Leave blank to omit the interface language
+            parameter. [Supported languages](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-
             search/reference/market-codes#bing-supported-language-codes)
         freshness (BingAgentSearchRequestFreshnessType0 | None | str | Unset): Optional fixed recency filter for every
             search in this space (Bing `freshness`): `Day` (last 24 hours), `Week` (last 7 days), `Month` (last 30 days), a
-            single `YYYY-MM-DD` day, or an inclusive `YYYY-MM-DD..YYYY-MM-DD` range. The assistant cannot change this value.
-            Leave blank to omit the freshness parameter. [Accepted values](https://learn.microsoft.com/en-us/previous-
-            versions/bing/search-apis/bing-web-search/reference/query-parameters#freshness)
+            single `YYYY-MM-DD` day, or an inclusive `YYYY-MM-DD..YYYY-MM-DD` range. [Accepted
+            values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-
+            parameters#freshness)
     """
 
     query: str

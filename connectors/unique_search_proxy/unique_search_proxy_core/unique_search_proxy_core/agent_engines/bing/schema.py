@@ -82,9 +82,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             "Optional fixed country/region and language for Bing search results "
             "(Bing `mkt`). For example, `de-CH` returns German-language results "
             "from Switzerland, while `fr-CH` returns French-language results "
-            "from Switzerland. The selected value applies to every search in this "
-            "space and cannot be changed by the assistant. Leave blank to omit the "
-            "market parameter. "
+            "from Switzerland. Leave blank to omit the market parameter. "
             f"[View supported market codes]({_BING_MARKET_CODES_DOCS_URL})."
         ),
     )
@@ -95,9 +93,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             "Optional fixed language for Bing's own interface strings in the response "
             "(Bing `setLang`), e.g. `de`, `fr`, `pt-br`. It changes neither which "
             "results come back nor the language they are written in — use Market for "
-            "that. The selected value applies to every search in this space and cannot "
-            "be changed by the assistant. Leave blank to omit the interface language "
-            "parameter. "
+            "that. Leave blank to omit the interface language parameter. "
             f"[Supported languages]({_BING_MARKET_CODES_DOCS_URL}#bing-supported-language-codes)"
         ),
     )
@@ -119,8 +115,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             "Optional fixed recency filter for every search in this space (Bing "
             "`freshness`): `Day` (last 24 hours), `Week` (last 7 days), `Month` "
             "(last 30 days), a single `YYYY-MM-DD` day, or an inclusive "
-            "`YYYY-MM-DD..YYYY-MM-DD` range. The assistant cannot change this value. "
-            "Leave blank to omit the freshness parameter. "
+            "`YYYY-MM-DD..YYYY-MM-DD` range. "
             f"[Accepted values]({_BING_QUERY_PARAMS_DOCS_URL}#freshness)"
         ),
     )
