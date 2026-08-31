@@ -25,17 +25,24 @@ _CACHE_MAX_AGE_SECONDS = 5 * 60
 class ModelCost(BaseModel):
     """Per-million-token prices for one language model."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Unknown fields are ignored, not rejected: the Helm-rendered schema evolves
+    # independently of this one. Required fields below still validate strictly.
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     input: float
     completion: float
     currency: str = Field(default="USD", min_length=1)
+    # Optional cache pricing rendered by the same Helm chart as node-chat's
+    # cost-sheet.schema.json. Absent for rows without verified cache pricing yet.
+    cached_input: float | None = Field(default=None, alias="cachedInput")
+    cache_write: float | None = Field(default=None, alias="cacheWrite")
+    cache_write_1h: float | None = Field(default=None, alias="cacheWrite1h")
 
 
 class ModelCostCatalog(BaseModel):
     """Versioned model-price catalog rendered by the platform Helm charts."""
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     cost_schema_version: int = Field(alias="costSchemaVersion")
     models: dict[str, ModelCost] = Field(min_length=1)
