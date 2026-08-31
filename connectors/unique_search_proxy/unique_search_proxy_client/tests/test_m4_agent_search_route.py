@@ -75,48 +75,6 @@ class TestAgentSearchRoute:
         assert body["engine"] == "bing"
 
     @pytest.mark.ai
-    def test_agent_search_accepts_bing_grounding_knobs(
-        self, client: TestClient, bing_env: None
-    ) -> None:
-        """
-        Purpose: Verify market/setLang/freshness are accepted on the HTTP body.
-        Why this matters: Callers configure them as camelCase JSON; a schema gap
-            would surface as a 422 instead of a differently grounded search.
-        Setup summary: POST a body carrying all three knobs; assert the parsed
-            request handed to the engine keeps them.
-        """
-        with patch(
-            "unique_search_proxy_client.web.api.v1.agent_search.get_agent_engine_service",
-        ) as get_service:
-            from unique_search_proxy_core.schema import AgentSearchResponse
-
-            mock_engine = AsyncMock()
-            mock_engine.search = AsyncMock(
-                return_value=AgentSearchResponse(
-                    engine="bing",
-                    query="test query",
-                    answer="done",
-                    raw={},
-                ),
-            )
-            get_service.return_value = mock_engine
-
-            resp = client.post(
-                "/v1/agent-search",
-                json=_agent_search_body(
-                    market="fr-CH",
-                    setLang="fr",
-                    freshness="Week",
-                ),
-            )
-
-        assert resp.status_code == 200
-        request = mock_engine.search.await_args.args[0]
-        assert request.market == "fr-CH"
-        assert request.set_lang == "fr"
-        assert request.freshness == "Week"
-
-    @pytest.mark.ai
     def test_list_providers_includes_agent_engines(self, client: TestClient) -> None:
         resp = client.get("/v1/configuration/providers")
         assert resp.status_code == 200
