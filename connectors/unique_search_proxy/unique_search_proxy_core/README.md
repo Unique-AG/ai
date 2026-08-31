@@ -146,7 +146,7 @@ flowchart TB
 | `param_policy/derive.py` | `derive_request_model` / `derive_exposed_params_model` factories called by the config base classes |
 | `providers/schema.py` | JSON Schema + defaults for deployment UIs (`provider_config_json_schema`, …) |
 | `search_engines/` | Config models with the config-owned API (`request_model` / `exposed_params_model` / `merge` / `provider_query_params`), request union |
-| `agent_engines/` | Agent config/request models (`request_model`, `exposed_params_model`, `merge`), output schema, Bing grounding configuration + agent naming |
+| `agent_engines/` | Agent config/request models (`request_model`, `exposed_params_model`, `merge`), output schema |
 | `crawlers/` | `*Config` deployment models + derived `*CrawlRequest` bodies (`request_model()`) |
 
 ---
@@ -211,7 +211,7 @@ from unique_search_proxy_core import (
 
 - Discriminated provider configs (`engine`, `crawler` Literal discriminators)
 - **Search & agent:** `ExposableParam` policy; config-owned `request_model` / `exposed_params_model` / `merge` (`provider_query_params` is search-only)
-- **Agent:** `BingAgentConfig.request_model()` (injects `query`; excludes `output_schema`); Bing exposes `market` / `setLang` / `freshness`, which are baked into the hashed agent name (`market` and `setLang` are `Literal`s over Bing's documented codes, like `BraveCountry`)
+- **Agent:** `BingAgentConfig.request_model()` (injects `query`; excludes `output_schema`)
 - **Crawl:** `BasicConfig.request_model()` (injects `urls`); no exposable params / no merge
 - CamelCase JSON aliases on all models
 - Zero server dependencies (import-linter enforced in the client package)
