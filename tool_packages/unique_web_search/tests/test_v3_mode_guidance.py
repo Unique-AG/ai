@@ -1,24 +1,32 @@
 """Tests for search-engine-mode-aware WebSearch V3 query guidance."""
 
 import json
+from importlib.resources import files
 
 import pytest
+from pydantic import BaseModel
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
 from unique_web_search.services.executors.modes import WebSearchToolContext
 from unique_web_search.services.executors.v3.config import WebSearchV3Config
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.services.executors.v3.strategy import WebSearchV3Strategy
+from unique_web_search.services.search_engine.base import SearchEngineMode
 from unique_web_search.services.search_engine.bing import BingSearchConfig
+from unique_web_search.services.search_engine.custom_api import CustomAPIConfig
+from unique_web_search.services.search_engine.vertexai import VertexAIConfig
 
 
 def _tool_context(
-    search_engine_config: GoogleConfig | BingSearchConfig,
+    search_engine_config: BaseModel,
 ) -> WebSearchToolContext:
+    exposed_params_factory = getattr(search_engine_config, "exposed_params_model", None)
     return WebSearchToolContext(
         search_engine_config=search_engine_config,
         date_string="Saturday August 29, 2026",
-        exposed_params_cls=search_engine_config.exposed_params_model(),
+        exposed_params_cls=(
+            exposed_params_factory() if callable(exposed_params_factory) else None
+        ),
     )
 
 
@@ -56,17 +64,30 @@ class TestV3ModeGuidance:
         assert "one short `query` per call" in system_prompt
 
     @pytest.mark.ai
-    def test_agent_mode_uses_comprehensive_intent_guidance(self) -> None:
+    @pytest.mark.parametrize(
+        "search_engine_config",
+        [
+            BingSearchConfig(),
+            VertexAIConfig(),
+            CustomAPIConfig(search_engine_mode=SearchEngineMode.AGENT),
+        ],
+        ids=["bing", "vertex-ai", "custom-api-agent"],
+    )
+    def test_agent_mode_uses_comprehensive_intent_guidance(
+        self,
+        search_engine_config: BaseModel,
+    ) -> None:
         """
         Purpose: Verify V3 gives agent engines a complete natural-language research request.
         Why this matters: Agent engines plan searches internally and lose context in terse keywords.
-        Setup summary: Build Bing parameters and description, then reject all short-query wording.
+        Setup summary: Build each agent engine's surfaces, then reject short-query wording.
         """
         strategy = WebSearchV3Strategy(WebSearchV3Config())
-        context = _tool_context(BingSearchConfig())
+        context = _tool_context(search_engine_config)
 
         parameters_model = strategy.build_tool_parameters(context)
-        parameter_schema = json.dumps(parameters_model.model_json_schema())
+        model_json_schema = parameters_model.model_json_schema()
+        parameter_schema = json.dumps(model_json_schema)
         tool_description = strategy.tool_description(context)
         system_prompt = strategy.system_prompt(context)
 
@@ -79,6 +100,10 @@ class TestV3ModeGuidance:
         assert "comprehensive natural-language research request" in tool_description
         assert "3–8 words" not in parameter_schema
         assert "precise, short" not in parameter_schema
+        assert (
+            "pursue the research request"
+            in model_json_schema["properties"]["phase"]["description"]
+        )
         assert "3–8 words" not in tool_description
         assert "short `query`" not in tool_description
         assert "comprehensive natural-language research request" in system_prompt
@@ -109,3 +134,22 @@ class TestV3ModeGuidance:
             "comprehensive natural-language research request"
             in payload_properties["query"]["description"]
         )
+
+    @pytest.mark.ai
+    def test_bundled_skill_defers_query_shape_to_live_schema(self) -> None:
+        """
+        Purpose: Ensure the optional V3 skill cannot override engine-specific guidance.
+        Why this matters: The skill is activated for complex searches in every engine mode.
+        Setup summary: Read the packaged skill and verify it describes both live-schema branches.
+        """
+        skill_text = (
+            files("unique_web_search")
+            .joinpath("skills/web-search-v3.md")
+            .read_text(encoding="utf-8")
+        )
+
+        assert "Follow the live tool schema" in skill_text
+        assert "**Standard engine**" in skill_text
+        assert "**Agent engine**" in skill_text
+        assert "do not condense it into keywords" in skill_text
+        assert "payload.query` to one focused 3-8 keyword string" not in skill_text

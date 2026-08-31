@@ -218,8 +218,9 @@ class WebSearchV3ToolParameters(ExposedParams):
                 parts.append(f'"{key}": {placeholder}')
             return "{ " + ", ".join(parts) + " }"
 
+        parameters_model = cls.with_search_engine_mode(mode, exposed)
         lines: list[str] = []
-        for name, field in cls.model_fields.items():
+        for name, field in parameters_model.model_fields.items():
             if name == "command":
                 choices = " or ".join(f'`"{c.value}"`' for c in Command)
                 lines.append(f"- **`{name}`** — {choices}.")
