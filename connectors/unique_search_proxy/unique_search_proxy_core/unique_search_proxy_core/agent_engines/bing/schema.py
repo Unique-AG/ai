@@ -15,7 +15,6 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     """Deployment + request defaults for Bing grounding via Azure AI Projects."""
 
     _request_model_name: ClassVar[str] = "BingAgentSearchRequest"
-    _exposed_params_model_name: ClassVar[str] = "BingAgentExposedParams"
 
     engine: Annotated[
         Literal[AgentEngineType.BING], RJSFMetaTag.SpecialWidget.hidden()
