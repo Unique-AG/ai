@@ -154,23 +154,28 @@ class TestV3FlatExposedParams:
 
 class TestAgentEngineExposedParams:
     @pytest.mark.ai
-    def test_bing_knobs_reach_the_v3_tool_schema(self) -> None:
+    def test_bing_fixed_values_do_not_reach_the_v3_tool_schema(self) -> None:
         """
-        Purpose: Verify agent-engine knobs surface on the LLM tool schema.
-        Why this matters: Bing is configured through the same admin mechanism as
-            standard engines, so an exposed knob must be selectable per call.
-        Setup summary: Expose Bing market, build the V3 tool model, inspect props.
+        Purpose: Verify Bing's space-level values are not shown to the assistant.
+        Why this matters: The tool schema must not imply unsupported per-call control.
+        Setup summary: Configure fixed Bing values, build the V3 model, inspect props.
         """
         config = BingSearchConfig.model_validate(
-            {"market": {"expose": True, "value": "en-US"}},
+            {
+                "market": "fr-CH",
+                "setLang": "fr",
+                "freshness": "Week",
+            },
         )
         exposed = config.exposed_params_model()
         tool_model = WebSearchV3ToolParameters.with_exposed_params(exposed)
         payload_props = tool_model.model_json_schema()["$defs"]["SearchPayload"][
             "properties"
         ]
-        assert "market" in payload_props
+        assert exposed is None
+        assert "market" not in payload_props
         assert "setLang" not in payload_props
+        assert "freshness" not in payload_props
 
     @pytest.mark.ai
     def test_tool_schema_unchanged_when_nothing_exposed(self) -> None:

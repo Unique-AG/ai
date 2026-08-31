@@ -113,15 +113,13 @@ class TestV3ModeGuidance:
         assert "short `query`" not in system_prompt
 
     @pytest.mark.ai
-    def test_agent_mode_preserves_exposed_engine_parameters(self) -> None:
+    def test_agent_mode_does_not_expose_fixed_bing_parameters(self) -> None:
         """
-        Purpose: Verify mode-specific payload generation retains exposed engine controls.
-        Why this matters: Tailored guidance must not remove admin-enabled per-call parameters.
-        Setup summary: Expose Bing market, build V3 parameters, and inspect payload properties.
+        Purpose: Verify fixed Bing parameters stay out of the assistant tool schema.
+        Why this matters: Space-level values cannot be changed by the assistant.
+        Setup summary: Set a Bing market, build V3 parameters, and inspect the payload.
         """
-        config = BingSearchConfig.model_validate(
-            {"market": {"expose": True, "value": "en-US"}},
-        )
+        config = BingSearchConfig(market="fr-CH")
         strategy = WebSearchV3Strategy(WebSearchV3Config())
 
         parameters_model = strategy.build_tool_parameters(_tool_context(config))
@@ -129,7 +127,7 @@ class TestV3ModeGuidance:
             "SearchPayload"
         ]["properties"]
 
-        assert "market" in payload_properties
+        assert "market" not in payload_properties
         assert (
             "comprehensive natural-language research request"
             in payload_properties["query"]["description"]

@@ -28,7 +28,7 @@ Deployment configs for Google / Brave / Perplexity (and agent base fields) live 
 |--|----------|-------------------|
 | Proxy route | `POST /v1/search` | `POST /v1/agent-search` |
 | Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text → parsed locally |
-| LLM knobs | `ExposableParam` + `config.merge()` | `ExposableParam` (Bing only) |
+| LLM knobs | `ExposableParam` + `config.merge()` | None; Bing parameters are fixed config values |
 | Typical scrape | Often yes (Google) | Often no (`requires_scraping=false`) |
 
 ---
@@ -152,7 +152,7 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 | Field | Notes |
 |-------|-------|
 | `fetch_size` | Bing result count |
-| `market`, `set_lang`, `freshness` | `ExposableParam`; `market` / `set_lang` restricted to Bing's documented codes; forwarded to `BingGroundingSearchConfiguration` |
+| `market`, `set_lang`, `freshness` | Optional fixed Bing parameters; blank values are omitted, configured values apply to every search, and none are exposed to the assistant; forwarded to `BingGroundingSearchConfiguration` |
 
 Bing bakes the tool configuration into the *agent version*, so these knobs take
 part in the hashed agent name (`unique-grounding-with-bing-<hash>`): changing one
@@ -160,9 +160,7 @@ provisions a new agent version instead of reusing a mismatched one.
 
 ```bash
 AZURE_AI_PROJECT_ENDPOINT=...
-AZURE_AI_AGENT_ID=...          # optional; empty → auto-provision
 AZURE_IDENTITY_CREDENTIAL_TYPE=workload  # or default
-BING_AGENT_MARKET={"default": "fr-CH", "enforce": false}  # optional environment default
 ```
 
 ### VertexAI (Grounding with VertexAI)

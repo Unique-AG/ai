@@ -14,7 +14,7 @@ def enforced_by_infra(enforced: bool, *, help: str | None = None) -> RJSFMetaTag
     """Grey out a whole config field (including every child of an ``ExposableParam``).
 
     Apply to the *field* annotation, not the ``ExposableParam`` type argument:
-    ``Annotated[ExposableMarket, DynamicRJSFTag(enforced_by_infra_factory)]``.
+    ``Annotated[ExposableParam[str], DynamicRJSFTag(enforced_by_infra_factory)]``.
     Tags inside ``ExposableParam[Annotated[T, ...]]`` are dropped, because
     ``ui_schema_for_model`` resolves annotations with ``get_type_hints``, which
     does not substitute TypeVars on Pydantic generics.
