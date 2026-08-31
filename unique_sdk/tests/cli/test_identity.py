@@ -11,20 +11,24 @@ from click.testing import CliRunner
 
 from unique_sdk.cli.cli import main
 from unique_sdk.cli.identity import (
+    CHAT_ID_ENV_VAR,
     TURN_IDENTITY_ENV_VAR,
     TurnIdentity,
     TurnIdentityError,
     read_turn_identity,
+    resolve_chat_id,
     resolve_message_id,
 )
 
 
-def _write_identity(path: Path, *, message_id: str = "msg-live") -> Path:
+def _write_identity(
+    path: Path, *, message_id: str = "msg-live", chat_id: str = "chat-1"
+) -> Path:
     path.write_text(
         json.dumps(
             {
                 "message_id": message_id,
-                "chat_id": "chat-1",
+                "chat_id": chat_id,
                 "user_id": "u1",
                 "company_id": "c1",
                 "assistant_id": "a1",
@@ -40,7 +44,7 @@ class TestReadTurnIdentity:
     def test_returns_typed_identity_ignoring_extra_keys(self, tmp_path: Path) -> None:
         path = _write_identity(tmp_path / "turn-identity.json")
         identity = read_turn_identity(path)
-        assert identity == TurnIdentity(message_id="msg-live")
+        assert identity == TurnIdentity(message_id="msg-live", chat_id="chat-1")
 
     def test_returns_none_when_unconfigured(
         self, monkeypatch: pytest.MonkeyPatch
@@ -107,6 +111,61 @@ class TestResolveMessageId:
             resolve_message_id(None)
 
 
+class TestResolveChatId:
+    def test_explicit_real_id_wins_over_file_and_env(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        identity = _write_identity(tmp_path / "turn-identity.json")
+        monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(identity))
+        monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat-env")
+        assert resolve_chat_id("chat-explicit") == "chat-explicit"
+
+    def test_explicit_preboot_placeholder_resolves_from_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        identity = _write_identity(tmp_path / "turn-identity.json", chat_id="chat-real")
+        monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(identity))
+        monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat_preboot123")
+        assert resolve_chat_id("chat_preboot123") == "chat-real"
+
+    def test_env_preboot_placeholder_resolves_from_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        identity = _write_identity(tmp_path / "turn-identity.json", chat_id="chat-real")
+        monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(identity))
+        monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat_preboot123")
+        assert resolve_chat_id(None) == "chat-real"
+
+    def test_placeholder_everywhere_yields_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv(TURN_IDENTITY_ENV_VAR, raising=False)
+        monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat_preboot123")
+        assert resolve_chat_id("chat_preboot123") is None
+
+    def test_env_fallback_when_no_file(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(TURN_IDENTITY_ENV_VAR, raising=False)
+        monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat-env")
+        assert resolve_chat_id(None) == "chat-env"
+
+    def test_file_without_chat_id_falls_back_to_env(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = tmp_path / "turn-identity.json"
+        path.write_text(json.dumps({"message_id": "msg-1"}), encoding="utf-8")
+        monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(path))
+        monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat-env")
+        assert resolve_chat_id(None) == "chat-env"
+
+    def test_missing_file_fails_loud(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(tmp_path / "missing.json"))
+        monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat-env")
+        with pytest.raises(TurnIdentityError, match="missing"):
+            resolve_chat_id(None)
+
+
 @patch("unique_sdk.cli.cli.cmd_mcp")
 def test_mcp_cli_passes_resolved_message_id(
     mock_cmd_mcp: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -127,6 +186,42 @@ def test_mcp_cli_passes_resolved_message_id(
     )
     assert result.exit_code == 0
     assert mock_cmd_mcp.call_args.kwargs["message_id"] == "msg-from-file"
+
+
+@patch("unique_sdk.cli.cli.cmd_mcp")
+def test_mcp_cli_resolves_preboot_chat_id_from_file(
+    mock_cmd_mcp: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_cmd_mcp.return_value = "ok"
+    identity = _write_identity(tmp_path / "turn-identity.json", chat_id="chat-real")
+    monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(identity))
+    monkeypatch.setenv("UNIQUE_USER_ID", "u1")
+    monkeypatch.setenv("UNIQUE_COMPANY_ID", "c1")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["mcp", "-c", "chat_preboot4fz7ii", '{"name": "tool", "arguments": {}}'],
+    )
+    assert result.exit_code == 0
+    assert mock_cmd_mcp.call_args.kwargs["chat_id"] == "chat-real"
+
+
+@patch("unique_sdk.cli.cli.cmd_mcp")
+def test_mcp_cli_requires_resolvable_chat_id(
+    mock_cmd_mcp: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv(TURN_IDENTITY_ENV_VAR, raising=False)
+    monkeypatch.delenv("UNIQUE_CHAT_ID", raising=False)
+    monkeypatch.setenv("UNIQUE_MESSAGE_ID", "msg-1")
+    monkeypatch.setenv("UNIQUE_USER_ID", "u1")
+    monkeypatch.setenv("UNIQUE_COMPANY_ID", "c1")
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["mcp", '{"name": "tool", "arguments": {}}'])
+    assert result.exit_code == 2
+    assert "chat id is required" in result.output
+    mock_cmd_mcp.assert_not_called()
 
 
 @patch("unique_sdk.cli.cli.cmd_mcp")

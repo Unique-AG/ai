@@ -94,7 +94,11 @@ from unique_sdk.cli.commands.web_search import (
 )
 from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
 from unique_sdk.cli.config import load_config
-from unique_sdk.cli.identity import TurnIdentityError, resolve_message_id
+from unique_sdk.cli.identity import (
+    TurnIdentityError,
+    resolve_chat_id,
+    resolve_message_id,
+)
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
 
@@ -118,6 +122,33 @@ def _resolve_cli_message_id(
         click.echo(
             "Error: message id is required. Pass --message-id, or set "
             "UNIQUE_TURN_IDENTITY_FILE / UNIQUE_MESSAGE_ID.",
+            err=True,
+        )
+        ctx.exit(2)
+    return resolved
+
+
+def _resolve_cli_chat_id(
+    ctx: click.Context,
+    explicit: str | None,
+    *,
+    required: bool = False,
+) -> str | None:
+    """Resolve chat id for Click commands; exit on turn-identity errors.
+
+    Preboot-placeholder ids (``chat_preboot*``) are re-resolved through the
+    turn-identity file so adopted preboot clients never send a chat id the
+    platform will reject as nonexistent.
+    """
+    try:
+        resolved = resolve_chat_id(explicit)
+    except TurnIdentityError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        ctx.exit(2)
+    if required and not resolved:
+        click.echo(
+            "Error: chat id is required. Pass --chat-id, or set "
+            "UNIQUE_TURN_IDENTITY_FILE / UNIQUE_CHAT_ID.",
             err=True,
         )
         ctx.exit(2)
@@ -736,8 +767,12 @@ def uploaded_search(
 @click.option(
     "--chat-id",
     "-c",
-    required=True,
-    help="Chat ID for the MCP tool call context.",
+    default=None,
+    help=(
+        "Chat ID for the MCP tool call context. Defaults to the current "
+        "turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_CHAT_ID."
+    ),
 )
 @click.option(
     "--message-id",
@@ -767,7 +802,7 @@ def uploaded_search(
 def mcp(
     ctx: click.Context,
     payload: str | None,
-    chat_id: str,
+    chat_id: str | None,
     message_id: str | None,
     file_path: str | None,
     use_stdin: bool,
@@ -780,9 +815,9 @@ def mcp(
 
     \b
     The JSON is forwarded 1:1 to the MCP call-tool API. Chat ID and
-    message ID are provided as separate flags to identify the
-    conversation context. When --message-id is omitted, the CLI resolves
-    it from $UNIQUE_TURN_IDENTITY_FILE (preferred) or $UNIQUE_MESSAGE_ID.
+    message ID identify the conversation context. When --message-id or
+    --chat-id is omitted, the CLI resolves it from
+    $UNIQUE_TURN_IDENTITY_FILE (preferred) or the matching env var.
 
     \b
     Input sources (exactly one required):
@@ -800,10 +835,11 @@ def mcp(
       cat payload.json | unique-cli mcp -c chat_123 -m msg_456 --stdin
     """
     resolved_message_id = _resolve_cli_message_id(ctx, message_id, required=True)
+    resolved_chat_id = _resolve_cli_chat_id(ctx, chat_id, required=True)
     click.echo(
         cmd_mcp(
             LazyState.get(ctx),
-            chat_id=chat_id,
+            chat_id=resolved_chat_id or "",
             message_id=resolved_message_id or "",
             payload=payload,
             file=file_path,
@@ -826,8 +862,11 @@ def mcp(
     "--chat-id",
     "parent_chat_id",
     default=None,
-    envvar="UNIQUE_CHAT_ID",
-    help="Parent chat ID for message correlation.",
+    help=(
+        "Parent chat ID for message correlation. Defaults to the current "
+        "turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_CHAT_ID."
+    ),
 )
 @click.option(
     "--message-id",
@@ -881,12 +920,13 @@ def subagent(
       unique-cli subagent Finance "Summarize Q4 revenue" --reset-chat
     """
     resolved_message_id = _resolve_cli_message_id(ctx, parent_message_id)
+    resolved_chat_id = _resolve_cli_chat_id(ctx, parent_chat_id)
     output = cmd_subagent(
         LazyState.get(ctx),
         tool_name=tool_name,
         message=message,
         config_path=config_path,
-        parent_chat_id=parent_chat_id,
+        parent_chat_id=resolved_chat_id,
         parent_message_id=resolved_message_id,
         parent_assistant_id=parent_assistant_id,
         reset_chat=reset_chat,
@@ -1144,7 +1184,15 @@ def elicit() -> None:
         '"answer" string field when omitted.'
     ),
 )
-@click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
+@click.option(
+    "--chat-id",
+    "-c",
+    default=None,
+    help=(
+        "Associated chat ID. Defaults to the current turn identity file "
+        "($UNIQUE_TURN_IDENTITY_FILE), then $UNIQUE_CHAT_ID."
+    ),
+)
 @click.option(
     "--message-id",
     "-m",
@@ -1276,7 +1324,7 @@ def elicit_ask(
         "message": message,
         "tool_name": tool_name,
         "schema": schema,
-        "chat_id": chat_id,
+        "chat_id": _resolve_cli_chat_id(ctx, chat_id),
         "message_id": _resolve_cli_message_id(ctx, message_id),
         "timeout": timeout,
         "expires_in_seconds": expires_in_seconds,
@@ -1313,7 +1361,15 @@ def elicit_ask(
     help="JSON schema (required for --mode FORM).",
 )
 @click.option("--url", default=None, help="External URL (required for --mode URL).")
-@click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
+@click.option(
+    "--chat-id",
+    "-c",
+    default=None,
+    help=(
+        "Associated chat ID. Defaults to the current turn identity file "
+        "($UNIQUE_TURN_IDENTITY_FILE), then $UNIQUE_CHAT_ID."
+    ),
+)
 @click.option(
     "--message-id",
     "-m",
@@ -1426,7 +1482,7 @@ def elicit_create(
         "tool_name": tool_name,
         "schema": schema,
         "url": url,
-        "chat_id": chat_id,
+        "chat_id": _resolve_cli_chat_id(ctx, chat_id),
         "message_id": _resolve_cli_message_id(ctx, message_id),
         "expires_in_seconds": expires_in_seconds,
         "external_elicitation_id": external_elicitation_id,
@@ -2074,12 +2130,12 @@ Examples:
     "--chat-id",
     "chat_id",
     default=None,
-    envvar="UNIQUE_CHAT_ID",
     help=(
-        "Chat id this call is made on behalf of. Defaults to $UNIQUE_CHAT_ID "
-        "(auto-set in Conduct sandboxes). When set, the space's Web Search "
-        "toggle is enforced server-side and the call is rejected if Web "
-        "Search is disabled for that space."
+        "Chat id this call is made on behalf of. Defaults to the current "
+        "turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_CHAT_ID (auto-set in Conduct sandboxes). When set, the "
+        "space's Web Search toggle is enforced server-side and the call is "
+        "rejected if Web Search is disabled for that space."
     ),
 )
 @click.pass_context
@@ -2105,7 +2161,7 @@ def web_search_search_cmd(
         crawler_config_raw=crawler_config_raw,
         output_json=output_json,
         config_path=resolved_config,
-        chat_id=chat_id,
+        chat_id=_resolve_cli_chat_id(ctx, chat_id),
     )
     _emit_web_search(ctx, output)
 
@@ -2165,12 +2221,12 @@ Examples:
     "--chat-id",
     "chat_id",
     default=None,
-    envvar="UNIQUE_CHAT_ID",
     help=(
-        "Chat id this call is made on behalf of. Defaults to $UNIQUE_CHAT_ID "
-        "(auto-set in Conduct sandboxes). When set, the space's Web Search "
-        "toggle is enforced server-side and the call is rejected if Web "
-        "Search is disabled for that space."
+        "Chat id this call is made on behalf of. Defaults to the current "
+        "turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_CHAT_ID (auto-set in Conduct sandboxes). When set, the "
+        "space's Web Search toggle is enforced server-side and the call is "
+        "rejected if Web Search is disabled for that space."
     ),
 )
 @click.pass_context
@@ -2200,7 +2256,7 @@ def web_search_crawl_cmd(
         crawler_config_raw=crawler_config_raw,
         output_json=output_json,
         config_path=resolved_config,
-        chat_id=chat_id,
+        chat_id=_resolve_cli_chat_id(ctx, chat_id),
     )
     _emit_web_search(ctx, output)
 
