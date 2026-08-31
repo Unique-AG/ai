@@ -402,10 +402,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         # Cleared at the start of each run(); holds this-turn download sizes.
         self._file_size_map: dict[str, int] = {}
-        # Set at the start of each run(); read back in
-        # apply_postprocessing_to_response, which only receives the loop response.
-        # This provider-independent list can include files recovered when OpenAI
-        # omitted an annotation for a sandbox link.
         self._container_files: list[CodeInterpreterContainerFile] = []
 
         # Resolved in run() (before apply_postprocessing_to_response) since flag evaluation is async.
