@@ -123,9 +123,7 @@ class TestResolveChatId:
     def test_explicit_preboot_placeholder_resolves_from_file(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        identity = _write_identity(
-            tmp_path / "turn-identity.json", chat_id="chat-real"
-        )
+        identity = _write_identity(tmp_path / "turn-identity.json", chat_id="chat-real")
         monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(identity))
         monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat_preboot123")
         assert resolve_chat_id("chat_preboot123") == "chat-real"
@@ -133,9 +131,7 @@ class TestResolveChatId:
     def test_env_preboot_placeholder_resolves_from_file(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        identity = _write_identity(
-            tmp_path / "turn-identity.json", chat_id="chat-real"
-        )
+        identity = _write_identity(tmp_path / "turn-identity.json", chat_id="chat-real")
         monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(identity))
         monkeypatch.setenv(CHAT_ID_ENV_VAR, "chat_preboot123")
         assert resolve_chat_id(None) == "chat-real"
@@ -197,9 +193,7 @@ def test_mcp_cli_resolves_preboot_chat_id_from_file(
     mock_cmd_mcp: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     mock_cmd_mcp.return_value = "ok"
-    identity = _write_identity(
-        tmp_path / "turn-identity.json", chat_id="chat-real"
-    )
+    identity = _write_identity(tmp_path / "turn-identity.json", chat_id="chat-real")
     monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(identity))
     monkeypatch.setenv("UNIQUE_USER_ID", "u1")
     monkeypatch.setenv("UNIQUE_COMPANY_ID", "c1")
