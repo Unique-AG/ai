@@ -8,9 +8,6 @@ from pydantic import BaseModel
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.config_types import ENGINE_NAME_TO_CONFIG
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
-from unique_search_proxy_core.param_policy.exposable_param import (
-    resolve_exposable_value,
-)
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
@@ -158,7 +155,8 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         engine: AgentEngineType,
     ) -> list[WebSearchResult]:
         """Dispatch a grounded agent search via the proxy SDK and parse the answer."""
-        invocation = self._agent_proxy_invocation(engine, params)
+        del params  # Agent engines do not expose LLM knobs today.
+        invocation = self._agent_proxy_invocation(engine)
         async with open_search_proxy_client(
             timeout=float(self.config.timeout),
             context=self._request_context,
@@ -174,16 +172,8 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         )
         return await self._postprocess_results(results)
 
-    def _agent_proxy_invocation(
-        self,
-        engine: AgentEngineType,
-        params: ExposedParams | None,
-    ) -> dict[str, Any]:
-        """Collect the config fields accepted by the agent proxy call for ``engine``.
-
-        Exposable knobs contribute their admin ``value``; per-call ``params``
-        chosen by the LLM win over the deployment defaults.
-        """
+    def _agent_proxy_invocation(self, engine: AgentEngineType) -> dict[str, Any]:
+        """Collect the config fields accepted by the agent proxy call for ``engine``."""
         core_config_cls = ENGINE_NAME_TO_CONFIG[engine.value]
         invocation: dict[str, Any] = {}
         for field_name in core_config_cls.model_fields:
@@ -191,13 +181,11 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 continue
             if not hasattr(self.config, field_name):
                 continue
-            value = resolve_exposable_value(getattr(self.config, field_name))
+            value = getattr(self.config, field_name)
             # Empty values fall through to the SDK/server defaults.
             if value is None or value == "":
                 continue
             invocation[field_name] = value
-        if params is not None:
-            invocation.update(params.model_dump(exclude_none=True))
         return invocation
 
     async def _postprocess_results(

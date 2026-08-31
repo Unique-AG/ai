@@ -3,9 +3,6 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from httpx import HTTPError
 from unique_search_proxy_core.agent_engines import AgentEngineType
-from unique_search_proxy_core.agent_engines.bing.grounding import (
-    BingGroundingConfiguration,
-)
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
@@ -171,45 +168,6 @@ class TestBingLegacySearch:
         assert len(get_project_client.call_args.args) == 1
         assert "agent_id" not in create_and_process_run.call_args.kwargs
 
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_legacy_search__admin_defaults_and_llm_overrides_reach_bing(
-        self, mocker
-    ) -> None:
-        """
-        Purpose: Verify exposable knobs are resolved for the direct Bing path.
-        Why this matters: Admin defaults must apply, and an exposed knob chosen by
-            the LLM must win over the deployment default.
-        Setup summary: Expose market, set an admin default for both knobs, then
-            override market per call; assert the resulting grounding configuration.
-        """
-        # Arrange
-        config = BingSearchConfig.model_validate(
-            {
-                "market": {"expose": True, "value": "de-CH"},
-                "setLang": {"expose": False, "value": "de"},
-            },
-        )
-        _, create_and_process_run = self._patch_bing_runtime(mocker, [])
-        search = BingSearch(config, Mock())
-        exposed_cls = config.exposed_params_model()
-        assert exposed_cls is not None
-
-        # Act
-        await search._legacy_search(
-            "test query",
-            params=exposed_cls.model_validate({"market": "fr-CH"}),
-        )
-
-        # Assert
-        assert create_and_process_run.call_args.kwargs[
-            "grounding"
-        ] == BingGroundingConfiguration(
-            fetch_size=config.fetch_size,
-            market="fr-CH",
-            set_lang="de",
-        )
-
 
 class TestAgentProxyInvocation:
     """Tests for the config-to-kwargs mapping used by the agent proxy path."""
@@ -226,54 +184,11 @@ class TestAgentProxyInvocation:
         search = BingSearch(config, Mock())
 
         # Act
-        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING)
 
         # Assert
         assert "agent_id" not in invocation
         assert invocation["fetch_size"] == config.fetch_size
-
-    @pytest.mark.ai
-    def test_agent_proxy_invocation__resolves_exposable_defaults(self) -> None:
-        """
-        Purpose: Verify exposable knobs are sent as plain values, not `{expose, value}`.
-        Why this matters: The proxy request model rejects the admin wrapper shape.
-        Setup summary: Configure a market default; assert the plain value is forwarded.
-        """
-        # Arrange
-        config = BingSearchConfig.model_validate(
-            {"market": {"expose": False, "value": "de-CH"}},
-        )
-        search = BingSearch(config, Mock())
-
-        # Act
-        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
-
-        # Assert
-        assert invocation["market"] == "de-CH"
-
-    @pytest.mark.ai
-    def test_agent_proxy_invocation__llm_params_override_defaults(self) -> None:
-        """
-        Purpose: Verify per-call LLM parameters win over deployment defaults.
-        Why this matters: An exposed knob is only useful if the LLM's choice is used.
-        Setup summary: Expose market with a default, pass a different market per call.
-        """
-        # Arrange
-        config = BingSearchConfig.model_validate(
-            {"market": {"expose": True, "value": "de-CH"}},
-        )
-        search = BingSearch(config, Mock())
-        exposed_cls = config.exposed_params_model()
-        assert exposed_cls is not None
-
-        # Act
-        invocation = search._agent_proxy_invocation(
-            AgentEngineType.BING,
-            exposed_cls.model_validate({"market": "fr-CH"}),
-        )
-
-        # Assert
-        assert invocation["market"] == "fr-CH"
 
 
 class TestGetSearchEngineModelConfig:

@@ -4,10 +4,8 @@ from time import time
 
 from typing_extensions import override
 from unique_search_proxy_core.context import RequestContext
-from unique_search_proxy_core.param_policy.exposable_config import (
-    ExposableParamsConfig,
-)
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+from unique_search_proxy_core.search_engines.base import BaseSearchEngineConfig
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import FeatureFlagNames
@@ -117,13 +115,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self.content_reducer = content_reducer
 
     def _resolve_exposed_params_cls(self) -> type[ExposedParams] | None:
-        """Resolve the exposed-params model from the search-engine config, if any.
-
-        Covers standard and agent engines alike; local engines (custom APIs) do
-        not carry exposable knobs.
-        """
+        """Resolve the exposed-params model from the search-engine config, if any."""
         cfg = self.config.search_engine_config
-        if isinstance(cfg, ExposableParamsConfig):
+        if isinstance(cfg, BaseSearchEngineConfig):
             return cfg.exposed_params_model()
         return None
 

@@ -14,11 +14,6 @@ from openai.types.responses.response_output_text import ResponseOutputText
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 from openai.types.responses.response_usage import ResponseUsage
 from pydantic import ValidationError
-from unique_search_proxy_core.agent_engines.bing.grounding import (
-    BingGroundingConfiguration,
-    bing_agent_config_hash,
-    bing_agent_name,
-)
 
 from unique_web_search.invocation_stats import collector
 from unique_web_search.services.search_engine.schema import (
@@ -35,6 +30,8 @@ from unique_web_search.services.search_engine.utils.grounding.bing.models import
     ResultItem,
 )
 from unique_web_search.services.search_engine.utils.grounding.bing.runner import (
+    _agent_name_for_config,
+    _config_hash,
     _is_missing_agent_error,
     create_and_process_run,
     create_bing_agent,
@@ -52,11 +49,6 @@ async def _async_iter(items: list) -> AsyncIterator:
     """Wrap a list as an async iterator for mocking async-for-compatible APIs."""
     for item in items:
         yield item
-
-
-def _grounding(**overrides) -> BingGroundingConfiguration:
-    """Bing tool configuration with the legacy default result count."""
-    return BingGroundingConfiguration(**{"fetch_size": 5, **overrides})
 
 
 # ---------------------------------------------------------------------------
@@ -442,19 +434,15 @@ class TestConfigHashAndAgentName:
         """
         Purpose: Verify hash and agent name are stable for identical inputs.
         Why this matters: Stable names enable Responses-first reuse without agents.get.
-        Setup summary: Hash twice with same model/grounding/instructions; assert equality.
+        Setup summary: Hash twice with same model/fetch_size/instructions; assert equality.
         """
-        a = bing_agent_config_hash(
-            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
-        )
-        b = bing_agent_config_hash(
-            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
-        )
+        a = _config_hash(model="gpt-5.1", fetch_size=5, instructions="Be helpful.")
+        b = _config_hash(model="gpt-5.1", fetch_size=5, instructions="Be helpful.")
         assert a == b
         assert len(a) == 12
         assert (
-            bing_agent_name(
-                model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+            _agent_name_for_config(
+                model="gpt-5.1", fetch_size=5, instructions="Be helpful."
             )
             == f"unique-grounding-with-bing-{a}"
         )
@@ -466,47 +454,17 @@ class TestConfigHashAndAgentName:
         Why this matters: Different Bing configs must not share an agent version.
         Setup summary: Vary one input at a time; assert distinct names.
         """
-        base = bing_agent_name(
-            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        base = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
         )
-        other_size = bing_agent_name(
-            model="gpt-5.1",
-            instructions="Be helpful.",
-            grounding=_grounding(fetch_size=10),
+        other_size = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=10, instructions="Be helpful."
         )
-        other_instructions = bing_agent_name(
-            model="gpt-5.1", instructions="Be concise.", grounding=_grounding()
+        other_instructions = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be concise."
         )
         assert base != other_size
         assert base != other_instructions
-
-    @pytest.mark.ai
-    @pytest.mark.parametrize(
-        "knob",
-        [
-            {"market": "fr-CH"},
-            {"set_lang": "fr"},
-            {"freshness": "Week"},
-        ],
-    )
-    def test_each_grounding_knob__changes_name(self, knob: dict[str, str]) -> None:
-        """
-        Purpose: Verify market, setLang and freshness participate in the agent hash.
-        Why this matters: These knobs are baked into the agent version, so reusing a
-            name would serve results for the wrong market/language/recency window.
-        Setup summary: Hash a baseline configuration against one knob at a time.
-        """
-        base = bing_agent_name(
-            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
-        )
-        assert (
-            bing_agent_name(
-                model="gpt-5.1",
-                instructions="Be helpful.",
-                grounding=_grounding(**knob),
-            )
-            != base
-        )
 
     @pytest.mark.ai
     def test_different_model__changes_name(self) -> None:
@@ -514,13 +472,13 @@ class TestConfigHashAndAgentName:
         Purpose: Verify model is included in the agent hash.
         Why this matters: Model is baked into the Foundry agent; changing deployment
             must create a new hashed agent instead of reusing the old one.
-        Setup summary: Same grounding/instructions, different model; assert distinct names.
+        Setup summary: Same fetch_size/instructions, different model; assert distinct names.
         """
-        base = bing_agent_name(
-            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        base = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
         )
-        other_model = bing_agent_name(
-            model="gpt-4o", instructions="Be helpful.", grounding=_grounding()
+        other_model = _agent_name_for_config(
+            model="gpt-4o", fetch_size=5, instructions="Be helpful."
         )
         assert base != other_model
 
@@ -529,18 +487,18 @@ class TestConfigHashAndAgentName:
         """
         Purpose: Verify resolve_bing_agent_name always derives a hash-based name.
         Why this matters: Agent names are auto-provisioned; no pinned override remains.
-        Setup summary: Call resolve with model/grounding/instructions; assert hash name.
+        Setup summary: Call resolve with model/fetch_size/instructions; assert hash name.
         """
-        expected = bing_agent_name(
+        expected = _agent_name_for_config(
             model="gpt-5.1",
+            fetch_size=5,
             instructions="Be helpful.",
-            grounding=_grounding(),
         )
         assert (
             resolve_bing_agent_name(
                 model="gpt-5.1",
+                fetch_size=5,
                 instructions="Be helpful.",
-                grounding=_grounding(),
             )
             == expected
         )
@@ -566,10 +524,10 @@ class TestCreateBingAgent:
         mock_env.azure_ai_bing_resource_connection_string = (
             "/subscriptions/x/connections/bing"
         )
-        expected_name = bing_agent_name(
+        expected_name = _agent_name_for_config(
             model="gpt-5.1",
+            fetch_size=5,
             instructions="Be helpful.\n## Output Format",
-            grounding=_grounding(),
         )
         new_agent = MagicMock()
         new_agent.name = expected_name
@@ -580,8 +538,8 @@ class TestCreateBingAgent:
             mock_agent_client,
             agent_name=expected_name,
             model="gpt-5.1",
+            fetch_size=5,
             instructions="Be helpful.\n## Output Format",
-            grounding=_grounding(),
         )
 
         assert agent_name == expected_name
@@ -606,8 +564,8 @@ class TestCreateBingAgent:
         mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         expected = resolve_bing_agent_name(
             model="gpt-5.1",
+            fetch_size=5,
             instructions=RESPONSE_RULE,
-            grounding=_grounding(),
         )
 
         agent_name = await get_or_create_agent_id(mock_agent_client)
@@ -658,61 +616,12 @@ class TestGetBingGroundingTool:
             "projects/123/connections/bing"
         )
 
-        tool = get_bing_grounding_tool(_grounding(fetch_size=10))
+        tool = get_bing_grounding_tool(fetch_size=10)
 
         configs = tool.bing_grounding.search_configurations
         assert len(configs) == 1
         assert configs[0].project_connection_id == "projects/123/connections/bing"
         assert configs[0].count == 10
-
-    @pytest.mark.ai
-    @patch(
-        "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
-    )
-    def test_get_tool__grounding_knobs_set__forwards_them(
-        self, mock_env: MagicMock
-    ) -> None:
-        """
-        Purpose: Verify market, setLang and freshness reach the search configuration.
-        Why this matters: These knobs are the whole point of the config; dropping them
-            silently returns results from the wrong market.
-        Setup summary: Build the tool with all knobs set; assert each value forwarded.
-        """
-        mock_env.azure_ai_bing_resource_connection_string = (
-            "projects/123/connections/bing"
-        )
-
-        tool = get_bing_grounding_tool(
-            _grounding(market="fr-CH", set_lang="fr", freshness="Week"),
-        )
-
-        config = tool.bing_grounding.search_configurations[0]
-        assert config.market == "fr-CH"
-        assert config.set_lang == "fr"
-        assert config.freshness == "Week"
-
-    @pytest.mark.ai
-    @patch(
-        "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
-    )
-    def test_get_tool__knobs_unset__leaves_bing_defaults(
-        self, mock_env: MagicMock
-    ) -> None:
-        """
-        Purpose: Verify unset knobs are not sent to Bing.
-        Why this matters: Deployments that configure nothing must keep today's behaviour.
-        Setup summary: Build the tool from a fetch-size-only configuration; assert nulls.
-        """
-        mock_env.azure_ai_bing_resource_connection_string = (
-            "projects/123/connections/bing"
-        )
-
-        tool = get_bing_grounding_tool(_grounding())
-
-        config = tool.bing_grounding.search_configurations[0]
-        assert config.market is None
-        assert config.set_lang is None
-        assert config.freshness is None
 
     @pytest.mark.ai
     @patch(
@@ -729,7 +638,7 @@ class TestGetBingGroundingTool:
         mock_env.azure_ai_bing_resource_connection_string = None
 
         with pytest.raises(ValueError) as exc_info:
-            get_bing_grounding_tool(_grounding())
+            get_bing_grounding_tool(fetch_size=5)
         assert "Connection String is not set" in str(exc_info.value)
 
     @pytest.mark.ai
@@ -747,7 +656,7 @@ class TestGetBingGroundingTool:
         mock_env.azure_ai_bing_resource_connection_string = ""
 
         with pytest.raises(ValueError):
-            get_bing_grounding_tool(_grounding())
+            get_bing_grounding_tool(fetch_size=5)
 
 
 # ---------------------------------------------------------------------------
@@ -874,7 +783,7 @@ class TestCreateAndProcessRun:
             results = await create_and_process_run(
                 agent_client=mock_agent_client,
                 query="test query",
-                grounding=_grounding(),
+                fetch_size=5,
                 response_parsers_strategies=[mock_parser],
                 generation_instructions="Test instructions",
             )
@@ -919,7 +828,7 @@ class TestCreateAndProcessRun:
             await create_and_process_run(
                 agent_client=mock_agent_client,
                 query="test query",
-                grounding=_grounding(),
+                fetch_size=5,
                 response_parsers_strategies=[mock_parser],
                 generation_instructions="Test instructions",
             )
@@ -969,7 +878,7 @@ class TestCreateAndProcessRun:
             await create_and_process_run(
                 agent_client=mock_agent_client,
                 query="test query",
-                grounding=_grounding(),
+                fetch_size=5,
                 response_parsers_strategies=[mock_parser],
                 generation_instructions="Test instructions",
             )
@@ -998,8 +907,8 @@ class TestCreateAndProcessRun:
             "/subscriptions/x/connections/bing"
         )
         instructions = f"Test instructions\n{RESPONSE_RULE}"
-        expected_name = bing_agent_name(
-            model="gpt-5.1", instructions=instructions, grounding=_grounding()
+        expected_name = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions=instructions
         )
         missing = NotFoundError(
             message=f"Agent {expected_name} not found",
@@ -1027,7 +936,7 @@ class TestCreateAndProcessRun:
             results = await create_and_process_run(
                 agent_client=mock_agent_client,
                 query="test query",
-                grounding=_grounding(),
+                fetch_size=5,
                 response_parsers_strategies=[mock_parser],
                 generation_instructions="Test instructions",
             )
@@ -1048,7 +957,6 @@ class TestCreateAndProcessRun:
         Why this matters: Callers need a definitive signal that parsing failed.
         Setup summary: Mock Responses stream succeeds but all parsers raise; assert ValueError.
         """
-        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         mock_agent_client = MagicMock()
         failing_parser = AsyncMock(side_effect=ValueError("cannot parse"))
 
@@ -1060,7 +968,7 @@ class TestCreateAndProcessRun:
                 await create_and_process_run(
                     agent_client=mock_agent_client,
                     query="test",
-                    grounding=_grounding(),
+                    fetch_size=5,
                     response_parsers_strategies=[failing_parser],
                     generation_instructions="instructions",
                 )
@@ -1078,7 +986,6 @@ class TestCreateAndProcessRun:
         Why this matters: Validates the full strategy chain within create_and_process_run.
         Setup summary: First parser raises; second returns results; assert success.
         """
-        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         mock_agent_client = MagicMock()
         expected = [
             WebSearchResult(url="https://fb.com", title="FB", snippet="s", content="c")
@@ -1093,7 +1000,7 @@ class TestCreateAndProcessRun:
             results = await create_and_process_run(
                 agent_client=mock_agent_client,
                 query="query",
-                grounding=_grounding(fetch_size=3),
+                fetch_size=3,
                 response_parsers_strategies=[parser_1, parser_2],
                 generation_instructions="instructions",
             )
