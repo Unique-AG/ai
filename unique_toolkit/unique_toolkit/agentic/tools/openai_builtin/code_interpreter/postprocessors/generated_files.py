@@ -6,10 +6,10 @@ import time
 from dataclasses import dataclass
 from mimetypes import guess_type
 from typing import NamedTuple, TypedDict, override
+from urllib.parse import quote, unquote
 
 import httpx
 from openai import AsyncOpenAI
-from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel, Field, RootModel
 from pydantic.json_schema import SkipJsonSchema
 from tenacity import (
@@ -34,6 +34,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterBlock,
+    CodeInterpreterContainerFile,
     CodeInterpreterFile,
     CodeInterpreterFileType,
 )
@@ -311,7 +312,7 @@ class _FileProgressTracker:
             if state.phase == "pending":
                 continue
             progress = self._format_inline(filename, state)
-            pattern = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+            pattern = _sandbox_link_pattern(filename)
             text = re.sub(pattern, progress, text)
 
         active = {
@@ -401,6 +402,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         # Cleared at the start of each run(); holds this-turn download sizes.
         self._file_size_map: dict[str, int] = {}
+        self._container_files: list[CodeInterpreterContainerFile] = []
 
         # Resolved in run() (before apply_postprocessing_to_response) since flag evaluation is async.
         self._fence_ff_on = False
@@ -418,6 +420,89 @@ class DisplayCodeInterpreterFilesPostProcessor(
             before_sleep=before_sleep_log(self._log, logging.WARNING),  # type: ignore[arg-type]
             reraise=True,
         )
+
+    async def _resolve_container_files(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> list[CodeInterpreterContainerFile]:
+        """
+        Matches files cited by the agent to their id.
+        First tries to match files using the `citations` in the llm response.
+        If that fails, uses `container.files.list` in order to find the correct file
+        """
+        container_files = [
+            CodeInterpreterContainerFile(
+                container_id=annotation.container_id,
+                file_id=annotation.file_id,
+                filename=annotation.filename,
+            )
+            for annotation in loop_response.container_files
+        ]
+
+        text = loop_response.message.text or ""
+        cited_files = set(_extract_container_file_citations_from_text(text))
+
+        unresolved_files = cited_files - {file.filename for file in container_files}
+
+        if len(unresolved_files) == 0:
+            return container_files
+
+        code_interpreter_calls = loop_response.code_interpreter_calls
+
+        if len(code_interpreter_calls) == 0:
+            return container_files
+
+        container_id = code_interpreter_calls[0].container_id
+
+        self._log.info(
+            "Recovering %d unresolved sandbox link(s) from container %s: %s",
+            len(unresolved_files),
+            container_id,
+            list(unresolved_files),
+        )
+
+        try:
+            async for container_file in self._client.containers.files.list(
+                container_id=container_id,
+                order="desc",
+            ):
+                if container_file.source != "assistant":
+                    continue
+
+                path = container_file.path
+                filename = (
+                    path.removeprefix("/mnt/data/")
+                    if path.startswith("/mnt/data/")
+                    else path
+                )
+
+                if filename in unresolved_files:
+                    unresolved_files.remove(filename)
+                    container_files.append(
+                        CodeInterpreterContainerFile(
+                            container_id=container_file.container_id,
+                            file_id=container_file.id,
+                            filename=filename,
+                        )
+                    )
+
+                if len(unresolved_files) == 0:
+                    break
+
+        except Exception:
+            self._log.exception(
+                "Failed to list files for container %s while recovering "
+                "missing citations; dangling-link handling will continue.",
+                container_id,
+            )
+
+        if len(unresolved_files) > 0:
+            self._log.info(
+                "%d sandbox link(s) left unresolved after recovery: %s",
+                len(unresolved_files),
+                list(unresolved_files),
+            )
+
+        return container_files
 
     @override
     async def run(
@@ -437,9 +522,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
             company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
         )
 
-        container_files = loop_response.container_files
+        container_files = await self._resolve_container_files(loop_response)
+        self._container_files = container_files
         self._log.info(
-            "run() found %d container file annotation(s): %s",
+            "run() resolved %d container file(s): %s",
             len(container_files),
             [cf.filename for cf in container_files],
         )
@@ -535,10 +621,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
             save_ms,
         )
 
-        return self._compute_artifacts_debug_info(loop_response)
+        return self._compute_artifacts_debug_info(loop_response, container_files)
 
     def _compute_artifacts_debug_info(
-        self, loop_response: ResponsesLanguageModelStreamResponse
+        self,
+        loop_response: ResponsesLanguageModelStreamResponse,
+        container_files: list[CodeInterpreterContainerFile],
     ) -> ArtifactsDebugInfo | None:
         """Compute this turn's successfully-created artifacts.
 
@@ -562,7 +650,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         created_filenames = {
             cf.filename
-            for cf in loop_response.container_files
+            for cf in container_files
             if self._content_map.get(cf.filename) is not None
         }
         total_bytes = sum(
@@ -679,7 +767,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         if self._fence_ff_on:
             code_blocks = _build_code_blocks(
-                loop_response, self._content_map, include_html=self._html_fence_ff_on
+                loop_response,
+                self._content_map,
+                self._container_files,
+                include_html=self._html_fence_ff_on,
             )
             self._log.info(
                 "Fence injection — %d code block(s), files: %s",
@@ -733,7 +824,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
     @failsafe_async(failure_return_value=None, logger=logger)
     async def _download_and_upload_container_files_to_knowledge_base(
         self,
-        container_file: AnnotationContainerFileCitation,
+        container_file: CodeInterpreterContainerFile,
         semaphore: asyncio.Semaphore,
         tracker: _FileProgressTracker | None = None,
     ) -> _ContentInfo | None:
@@ -804,7 +895,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
     async def _download_file_bytes_with_progress(
         self,
-        container_file: AnnotationContainerFileCitation,
+        container_file: CodeInterpreterContainerFile,
         tracker: _FileProgressTracker | None,
     ) -> bytes:
         """Download container file with streaming progress and manual retry loop.
@@ -887,7 +978,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
     async def _stream_download_bytes(
         self,
-        container_file: AnnotationContainerFileCitation,
+        container_file: CodeInterpreterContainerFile,
         tracker: _FileProgressTracker | None,
         retry_attempt: int,
         download_start: float,
@@ -1195,6 +1286,7 @@ def _inject_code_execution_fences(
 def _build_code_blocks(
     loop_response: ResponsesLanguageModelStreamResponse,
     content_map: dict[str, str | None],
+    container_files: list[CodeInterpreterContainerFile],
     include_html: bool = False,
 ) -> list[CodeInterpreterBlock]:
     """Map each code interpreter call to the files it produced via /mnt/data/ path matching.
@@ -1225,7 +1317,7 @@ def _build_code_blocks(
     for idx, call in enumerate(calls):
         if not call.code:
             continue
-        for annotation in loop_response.container_files:
+        for annotation in container_files:
             if (
                 content_map.get(annotation.filename) is not None
                 and f"/mnt/data/{annotation.filename}" in call.code
@@ -1254,7 +1346,7 @@ def _build_code_blocks(
     for idx, call in enumerate(calls):
         if not call.code:
             continue
-        for annotation in loop_response.container_files:
+        for annotation in container_files:
             if annotation.filename in primary_matched_filenames:
                 continue
             if content_map.get(annotation.filename) is None:
@@ -1281,7 +1373,7 @@ def _build_code_blocks(
         if call.code:
             last_block_idx = idx
     if last_block_idx is not None:
-        for annotation in loop_response.container_files:
+        for annotation in container_files:
             if annotation.filename in file_to_block_idx:
                 continue
             if content_map.get(annotation.filename) is None:
@@ -1294,7 +1386,7 @@ def _build_code_blocks(
     # file appears exactly once per block (last annotation wins, consistent with
     # the last-writer-wins rule applied in step 1).
     block_file_map: dict[int, dict[str, CodeInterpreterFile]] = {}
-    for annotation in loop_response.container_files:
+    for annotation in container_files:
         if not include_html and _get_file_type(annotation.filename) == "html":
             continue
         content_id = content_map.get(annotation.filename)
@@ -1345,8 +1437,22 @@ def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> 
 # so the entire `[label](sandbox://...)` token can be replaced rather than just the URL.
 _SANDBOX_MARKDOWN_LINK_RE = re.compile(r"!?\[.*?\]\(sandbox:/mnt/data/\S+?\)")
 
+
+def _sandbox_link_pattern(filename: str) -> str:
+    """Return a pattern matching the markdown sandbox link for `filename`."""
+    spellings = "|".join(
+        dict.fromkeys([re.escape(filename), re.escape(quote(filename))])
+    )
+    return rf"!?\[.*?\]\(sandbox:/mnt/data/(?:{spellings})\)"
+
+
 # Extracts the bare filename from a sandbox URL like `sandbox:/mnt/data/foo.csv`.
 _SANDBOX_FILENAME_RE = re.compile(r"sandbox:/mnt/data/([^)\s]+)")
+
+
+def _extract_container_file_citations_from_text(text: str) -> list[str]:
+    """Extract container filenames from sandbox citations in their text order."""
+    return [unquote(filename) for filename in _SANDBOX_FILENAME_RE.findall(text)]
 
 
 def _replace_dangling_sandbox_links(
@@ -1371,8 +1477,8 @@ def _replace_dangling_sandbox_links(
         return text, False
 
     def _replacement(m: re.Match[str]) -> str:
-        filename_match = _SANDBOX_FILENAME_RE.search(m.group())
-        filename = filename_match.group(1) if filename_match else "the file"
+        filenames = _extract_container_file_citations_from_text(m.group())
+        filename = filenames[0] if filenames else "the file"
         logger.warning(
             "Dangling sandbox link found in final text: '%s'. ci_ran=%s. "
             "The file was either never generated or the link format did not match "
@@ -1433,7 +1539,7 @@ def _get_next_ref_number(references: list[ContentReference] | None) -> int:
 def _replace_container_file_error(
     text: str, filename: str, error_message: str
 ) -> tuple[str, bool]:
-    image_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    image_markdown = _sandbox_link_pattern(filename)
 
     if not re.search(image_markdown, text):
         logger.warning(
@@ -1454,7 +1560,7 @@ def _replace_container_file_error(
 def _replace_container_image_citation(
     text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
-    image_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    image_markdown = _sandbox_link_pattern(filename)
 
     if not re.search(image_markdown, text):
         logger.warning(
@@ -1476,7 +1582,7 @@ def _replace_container_image_citation(
 def _replace_container_html_citation(
     text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
-    link_core = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    link_core = _sandbox_link_pattern(filename)
     html_markdown = link_core
 
     if not re.search(html_markdown, text):
@@ -1534,7 +1640,7 @@ def _replace_container_file_citation(
     original pre-fence behaviour is restored: the link is replaced with <sup>N</sup>
     and the file remains accessible via the references panel.
     """
-    file_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    file_markdown = _sandbox_link_pattern(filename)
 
     if not re.search(file_markdown, text):
         logger.warning(
