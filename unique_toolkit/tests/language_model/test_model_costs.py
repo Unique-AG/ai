@@ -48,6 +48,66 @@ models:
 
 
 @pytest.mark.ai
+def test_load_model_cost_catalog__parses_optional_cache_pricing(tmp_path: Path) -> None:
+    """Purpose: Verify cache-pricing fields rendered by the Helm chart parse.
+    Why this matters: assistants-core and node-chat share a Helm template that
+    renders cachedInput/cacheWrite/cacheWrite1h; unknown fields previously
+    failed the whole catalog under extra="forbid", breaking cost tracking
+    platform-wide, not just for models with cache pricing.
+    Setup summary: Write a row with cache fields and assert they parse.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+    cachedInput: 0.2
+    cacheWrite: 2.5
+    cacheWrite1h: 4
+""",
+    )
+
+    catalog = load_model_cost_catalog(path)
+
+    assert catalog is not None
+    model_cost = catalog.models["test-model"]
+    assert model_cost.cached_input == 0.2
+    assert model_cost.cache_write == 2.5
+    assert model_cost.cache_write_1h == 4
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__cache_pricing_defaults_to_none(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify rows without cache pricing still parse.
+    Why this matters: Most catalog rows omit cache fields entirely.
+    Setup summary: Write a row without cache fields and assert they default to None.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+
+    catalog = load_model_cost_catalog(path)
+
+    assert catalog is not None
+    model_cost = catalog.models["test-model"]
+    assert model_cost.cached_input is None
+    assert model_cost.cache_write is None
+    assert model_cost.cache_write_1h is None
+
+
+@pytest.mark.ai
 def test_load_model_cost_catalog__returns_none_for_unsupported_version(
     tmp_path: Path,
 ) -> None:

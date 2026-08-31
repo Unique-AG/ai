@@ -25,11 +25,16 @@ _CACHE_MAX_AGE_SECONDS = 5 * 60
 class ModelCost(BaseModel):
     """Per-million-token prices for one language model."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     input: float
     completion: float
     currency: str = Field(default="USD", min_length=1)
+    # Optional cache pricing rendered by the same Helm chart as node-chat's
+    # cost-sheet.schema.json. Absent for rows without verified cache pricing yet.
+    cached_input: float | None = Field(default=None, alias="cachedInput")
+    cache_write: float | None = Field(default=None, alias="cacheWrite")
+    cache_write_1h: float | None = Field(default=None, alias="cacheWrite1h")
 
 
 class ModelCostCatalog(BaseModel):
