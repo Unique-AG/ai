@@ -1441,14 +1441,7 @@ _SANDBOX_MARKDOWN_LINK_RE = re.compile(r"!?\[.*?\]\(sandbox:/mnt/data/\S+?\)")
 
 
 def _sandbox_link_pattern(filename: str) -> str:
-    """Return a pattern matching the markdown sandbox link for `filename`.
-
-    Both the raw and the percent-encoded spelling are matched: the model may cite
-    `sandbox:/mnt/data/sales%20report.csv` while the container path, and therefore
-    every filename we carry, holds the decoded name. Matching only the raw form
-    would leave such a link in place after its file was uploaded, so the user would
-    be told the file could not be retrieved.
-    """
+    """Return a pattern matching the markdown sandbox link for `filename`."""
     spellings = "|".join(
         dict.fromkeys([re.escape(filename), re.escape(quote(filename))])
     )
@@ -1460,12 +1453,7 @@ _SANDBOX_FILENAME_RE = re.compile(r"sandbox:/mnt/data/([^)\s]+)")
 
 
 def _extract_container_file_citations_from_text(text: str) -> list[str]:
-    """Extract container filenames from sandbox citations in their text order.
-
-    Filenames are percent-decoded (``sales%20report.csv`` -> ``sales report.csv``)
-    because models emit URL-encoded links while annotations and container paths
-    carry the raw name; comparing the two undecoded would never match.
-    """
+    """Extract container filenames from sandbox citations in their text order."""
     return [unquote(filename) for filename in _SANDBOX_FILENAME_RE.findall(text)]
 
 
