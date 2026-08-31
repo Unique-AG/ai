@@ -25,11 +25,8 @@ _CACHE_MAX_AGE_SECONDS = 5 * 60
 class ModelCost(BaseModel):
     """Per-million-token prices for one language model."""
 
-    # Unknown fields are ignored rather than rejected: the Helm chart that renders
-    # this catalog evolves independently of this schema, and one new field on one
-    # model row must not take down cost tracking for every model (see cachedInput/
-    # cacheWrite/cacheWrite1h, which briefly did exactly that). Required fields
-    # below still validate strictly.
+    # Unknown fields are ignored, not rejected: the Helm-rendered schema evolves
+    # independently of this one. Required fields below still validate strictly.
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     input: float
