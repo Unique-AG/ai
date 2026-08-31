@@ -424,12 +424,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
     async def _resolve_container_files(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> list[CodeInterpreterContainerFile]:
-        """Resolve response annotations and recover files for unannotated links.
-
-        Container listing is deliberately limited to filenames explicitly linked
-        in this response. Reused containers can contain user uploads and artifacts
-        from earlier turns, so treating every listed file as a current artifact
-        would leak unrelated files into rendering and analytics.
+        """
+        Matches files cited by the agent to their id.
+        First tries to match files using the `citations` in the llm response.
+        If that fails, uses `container.files.list` in order to find the correct file
         """
         container_files = [
             CodeInterpreterContainerFile(
