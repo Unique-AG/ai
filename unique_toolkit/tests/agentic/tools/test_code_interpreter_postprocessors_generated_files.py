@@ -1,6 +1,7 @@
 """Tests for code interpreter generated-files postprocessor (config, __init__, helpers)."""
 
 import logging
+import re
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -29,7 +30,9 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     _FileProgressTracker,
     _FileState,
     _inject_code_execution_fences,
+    _replace_container_file_citation,
     _replace_dangling_sandbox_links,
+    _sandbox_link_pattern,
     _warn_missing_content_ids,
     _warn_unmatched_code_blocks,
 )
@@ -3429,3 +3432,91 @@ def test_extract_container_file_citations__decodes_and_preserves_order() -> None
         "b.csv",
         "my file.csv",
     ]
+
+
+# ---------------------------------------------------------------------------
+# _sandbox_link_pattern — matching links the model percent-encoded
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_sandbox_link_pattern__matches_both_spellings__when_name_has_space() -> None:
+    """
+    Purpose: The pattern for a decoded filename matches both the raw and the
+    percent-encoded spelling of its sandbox link.
+    Why this matters: Filenames are carried decoded (container paths hold the raw name)
+    while the model may cite the encoded form; a pattern matching only one spelling
+    misses half the links.
+    Setup summary: One filename with a space, both link spellings in the text.
+    """
+    pattern = _sandbox_link_pattern("sales report.csv")
+
+    assert re.search(pattern, "[a](sandbox:/mnt/data/sales report.csv)")
+    assert re.search(pattern, "[a](sandbox:/mnt/data/sales%20report.csv)")
+    assert not re.search(pattern, "[a](sandbox:/mnt/data/other.csv)")
+
+
+@pytest.mark.ai
+def test_sandbox_link_pattern__matches_once__when_name_needs_no_encoding() -> None:
+    """
+    Purpose: A filename whose encoded form equals its raw form yields one alternative.
+    Why this matters: The common case must not produce a redundant `(?:a|a)` branch.
+    Setup summary: A plain filename; assert the pattern still matches and holds no
+    duplicated alternation.
+    """
+    pattern = _sandbox_link_pattern("report.csv")
+
+    assert re.search(pattern, "[a](sandbox:/mnt/data/report.csv)")
+    assert "|" not in pattern
+
+
+@pytest.mark.ai
+def test_replace_container_file_citation__replaces_link__when_link_is_encoded() -> None:
+    """
+    Purpose: An encoded sandbox link is replaced with the content link for the file
+    recovered under its decoded name.
+    Why this matters: Without it the file is uploaded, the link stays untouched, and
+    _replace_dangling_sandbox_links then tells the user it could not be retrieved.
+    Setup summary: Text cites `sales%20report.csv`; replace using the decoded filename.
+    """
+    text, replaced = _replace_container_file_citation(
+        text="Here is [the report](sandbox:/mnt/data/sales%20report.csv).",
+        filename="sales report.csv",
+        content_id="cid_sales",
+        ref_number=1,
+        use_content_link=True,
+    )
+
+    assert replaced is True
+    assert text == "Here is [sales report.csv](unique://content/cid_sales)."
+    assert "sandbox:" not in text
+
+
+@pytest.mark.ai
+def test_apply_postprocessing__no_dangling_notice__when_link_is_encoded() -> None:
+    """
+    Purpose: End to end, an encoded link leaves no "could not be retrieved" notice.
+    Why this matters: This is the user-visible symptom the encoded-form matching fixes;
+    the file is in the knowledge base, so the message must link it, not disown it.
+    Setup summary: content_map holds the decoded name, the message cites the encoded
+    one; assert the content link replaced it and no dangling notice was emitted.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"sales report.csv": "cid_sales"}
+    _set_gen_files_feature_flags(proc, fence_ff_on=False)
+
+    message = SimpleNamespace(
+        text="See [report](sandbox:/mnt/data/sales%20report.csv).",
+        references=[],
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[_make_ci_call("run()")],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert "could not be retrieved" not in message.text
+    assert "sandbox:" not in message.text

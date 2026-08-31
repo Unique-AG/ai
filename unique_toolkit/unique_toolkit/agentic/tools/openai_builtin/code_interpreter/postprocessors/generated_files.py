@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 from mimetypes import guess_type
 from typing import NamedTuple, TypedDict, override
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 import httpx
 from openai import AsyncOpenAI
@@ -312,7 +312,7 @@ class _FileProgressTracker:
             if state.phase == "pending":
                 continue
             progress = self._format_inline(filename, state)
-            pattern = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+            pattern = _sandbox_link_pattern(filename)
             text = re.sub(pattern, progress, text)
 
         active = {
@@ -1439,6 +1439,22 @@ def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> 
 # so the entire `[label](sandbox://...)` token can be replaced rather than just the URL.
 _SANDBOX_MARKDOWN_LINK_RE = re.compile(r"!?\[.*?\]\(sandbox:/mnt/data/\S+?\)")
 
+
+def _sandbox_link_pattern(filename: str) -> str:
+    """Return a pattern matching the markdown sandbox link for `filename`.
+
+    Both the raw and the percent-encoded spelling are matched: the model may cite
+    `sandbox:/mnt/data/sales%20report.csv` while the container path, and therefore
+    every filename we carry, holds the decoded name. Matching only the raw form
+    would leave such a link in place after its file was uploaded, so the user would
+    be told the file could not be retrieved.
+    """
+    spellings = "|".join(
+        dict.fromkeys([re.escape(filename), re.escape(quote(filename))])
+    )
+    return rf"!?\[.*?\]\(sandbox:/mnt/data/(?:{spellings})\)"
+
+
 # Extracts the bare filename from a sandbox URL like `sandbox:/mnt/data/foo.csv`.
 _SANDBOX_FILENAME_RE = re.compile(r"sandbox:/mnt/data/([^)\s]+)")
 
@@ -1537,7 +1553,7 @@ def _get_next_ref_number(references: list[ContentReference] | None) -> int:
 def _replace_container_file_error(
     text: str, filename: str, error_message: str
 ) -> tuple[str, bool]:
-    image_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    image_markdown = _sandbox_link_pattern(filename)
 
     if not re.search(image_markdown, text):
         logger.warning(
@@ -1558,7 +1574,7 @@ def _replace_container_file_error(
 def _replace_container_image_citation(
     text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
-    image_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    image_markdown = _sandbox_link_pattern(filename)
 
     if not re.search(image_markdown, text):
         logger.warning(
@@ -1580,7 +1596,7 @@ def _replace_container_image_citation(
 def _replace_container_html_citation(
     text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
-    link_core = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    link_core = _sandbox_link_pattern(filename)
     html_markdown = link_core
 
     if not re.search(html_markdown, text):
@@ -1638,7 +1654,7 @@ def _replace_container_file_citation(
     original pre-fence behaviour is restored: the link is replaced with <sup>N</sup>
     and the file remains accessible via the references panel.
     """
-    file_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    file_markdown = _sandbox_link_pattern(filename)
 
     if not re.search(file_markdown, text):
         logger.warning(
