@@ -739,20 +739,6 @@ class RJSFMetaTag:
         return RJSFMetaTag({**union_attrs, "anyOf": any_of_branches})
 
 
-class DynamicRJSFTag:
-    """Defer RJSF metadata until ``ui_schema_for_model`` runs.
-
-    Use for env-driven admin locks (``ui:disabled``) that must reflect the
-    deployment environment at schema-generation time, not at module import.
-    """
-
-    def __init__(self, factory: Callable[[], RJSFMetaTag]) -> None:
-        self._factory = factory
-
-    def resolve_rjsf_tag(self) -> RJSFMetaTag:
-        return self._factory()
-
-
 # --------- Helpers ----------
 _NONE_TYPES = {type(None)}
 """
@@ -799,12 +785,6 @@ def _collect_metatags(extras: list[Any]) -> dict[str, Any]:
     """
     out: dict[str, Any] = {}
     for x in extras:
-        resolve = getattr(x, "resolve_rjsf_tag", None)
-        if callable(resolve):
-            tag = resolve()
-            if isinstance(tag, RJSFMetaTag):
-                out.update(tag.attrs)
-            continue
         if isinstance(x, RJSFMetaTag):
             out.update(x.attrs)
     return out
@@ -958,9 +938,6 @@ def ui_schema_for_model(
         # Re-process the unwrapped type to extract metadata from the Annotated branch.
         if not meta and get_origin(base) is Annotated:
             base, meta = _walk_annotated_chain(base)
-        field_meta = _collect_metatags(list(field_info.metadata))
-        if field_meta:
-            meta = {**meta, **field_meta}
         # Start with field-level metadata (flat dict)
         if meta:
             node.update(meta)

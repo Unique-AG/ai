@@ -4,9 +4,6 @@ import logging
 from collections.abc import AsyncIterator
 
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
-from unique_search_proxy_core.agent_engines.bing.grounding import (
-    BingGroundingConfiguration,
-)
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.agent_engines.resolve import (
     resolve_output_schema_for_engine,
@@ -70,12 +67,6 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                 generation_instructions=request.generation_instructions,
                 output_schema=output_schema,
             )
-            grounding = BingGroundingConfiguration(
-                fetch_size=request.fetch_size,
-                market=request.market,
-                set_lang=request.set_lang,
-                freshness=request.freshness,
-            )
             async with get_credentials() as credential:
                 async with get_project_client(
                     credential,
@@ -85,8 +76,8 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                         project_client,
                         query=request.query,
                         model=read_secret(creds.bing_agent_model),
+                        fetch_size=request.fetch_size,
                         instructions=instructions,
-                        grounding=grounding,
                     ):
                         if delta:
                             answer_parts.append(delta)

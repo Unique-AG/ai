@@ -1,9 +1,8 @@
 """Model factories: deployment config class -> derived Pydantic models.
 
 Private-by-convention; the public entry points are the config-class methods
-(``request_model()`` / ``exposed_params_model()`` on the search and agent bases
-through :class:`~unique_search_proxy_core.param_policy.exposable_config.ExposableParamsConfig`,
-and ``request_model()`` on the crawler base), which delegate here.
+(``BaseSearchEngineConfig.request_model()`` / ``exposed_params_model()`` and the
+agent/crawler ``request_model()`` counterparts), which delegate here.
 
 Two factories, both plain ``create_model`` calls over ``model_fields``:
 

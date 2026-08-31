@@ -42,11 +42,10 @@ An upstream AI agent / grounded model searches and returns opaque text that this
 
 | Engine | Proxy | Notes |
 |--------|-------|-------|
-| Bing (Azure AI Foundry grounding) | legacy + proxy | Configurable `requires_scraping`; `market` / `setLang` / `freshness` are `ExposableParam` knobs |
+| Bing (Azure AI Foundry grounding) | legacy + proxy | Configurable `requires_scraping` |
 | VertexAI (Gemini grounding) | legacy + proxy | Configurable `requires_scraping` |
 
-Bing's grounding knobs are baked into the hashed Foundry agent name, so changing
-one provisions a new agent version.
+Agent engines do **not** use `ExposableParam`.
 
 ## Web crawlers (page readers)
 

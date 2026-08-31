@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 
@@ -22,10 +23,6 @@ from openai.types.responses.response_output_text import (
     ResponseOutputText,
 )
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
-from unique_search_proxy_core.agent_engines.bing.grounding import (
-    BingGroundingConfiguration,
-    bing_agent_name,
-)
 
 from unique_web_search.invocation_stats import collector
 from unique_web_search.services.search_engine.schema import (
@@ -44,6 +41,8 @@ from unique_web_search.services.search_engine.utils.grounding.bing.models import
 from unique_web_search.settings import env_settings
 
 _LOGGER = logging.getLogger(__name__)
+BING_AUTO_AGENT_NAME_PREFIX = "unique-grounding-with-bing"
+_CONFIG_HASH_LENGTH = 12
 
 
 # ---------------------------------------------------------------------------
@@ -51,21 +50,32 @@ _LOGGER = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+def _config_hash(*, model: str, fetch_size: int, instructions: str) -> str:
+    """Return a short hex digest of model + fetch_size + instructions for agent naming."""
+    payload = f"{model}\0{fetch_size}\0{instructions}".encode()
+    return hashlib.sha256(payload).hexdigest()[:_CONFIG_HASH_LENGTH]
+
+
+def _agent_name_for_config(*, model: str, fetch_size: int, instructions: str) -> str:
+    """Build a Foundry-safe agent name unique to this config."""
+    return (
+        f"{BING_AUTO_AGENT_NAME_PREFIX}-"
+        f"{_config_hash(model=model, fetch_size=fetch_size, instructions=instructions)}"
+    )
+
+
 def resolve_bing_agent_name(
     *,
     model: str,
+    fetch_size: int,
     instructions: str,
-    grounding: BingGroundingConfiguration,
 ) -> str:
     """Return the hash-based agent name to use for Responses (no Foundry round-trip).
 
-    Derives a stable name from everything baked into the agent version: the
-    model, the instructions, and the Bing grounding tool configuration.
+    Derives a stable name from ``model`` + ``fetch_size`` + ``instructions``.
     """
-    return bing_agent_name(
-        model=model,
-        instructions=instructions,
-        grounding=grounding,
+    return _agent_name_for_config(
+        model=model, fetch_size=fetch_size, instructions=instructions
     )
 
 
@@ -74,8 +84,8 @@ async def create_bing_agent(
     *,
     agent_name: str,
     model: str,
+    fetch_size: int,
     instructions: str,
-    grounding: BingGroundingConfiguration,
 ) -> str:
     """Create a Foundry agent version and return its name."""
     started = time.perf_counter()
@@ -84,7 +94,7 @@ async def create_bing_agent(
         definition=PromptAgentDefinition(
             model=model,
             instructions=instructions,
-            tools=[get_bing_grounding_tool(grounding)],
+            tools=[get_bing_grounding_tool(fetch_size)],
             tool_choice="required",
         ),
         description="Unique Bing grounding agent",
@@ -107,8 +117,8 @@ async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
     del agent_client  # kept for call-site compatibility
     return resolve_bing_agent_name(
         model=env_settings.azure_ai_bing_agent_model,
+        fetch_size=5,
         instructions=RESPONSE_RULE,
-        grounding=BingGroundingConfiguration(fetch_size=5),
     )
 
 
@@ -117,13 +127,11 @@ async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
 # ---------------------------------------------------------------------------
 
 
-def get_bing_grounding_tool(
-    grounding: BingGroundingConfiguration,
-) -> BingGroundingTool:
+def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
     """Build a BingGroundingTool configured with the environment connection string.
 
     Args:
-        grounding: Bing tool knobs; knobs left unset keep Bing's own defaults.
+        fetch_size: Maximum number of search results the tool should return.
 
     Raises:
         ValueError: If the Bing resource connection string is not configured.
@@ -136,10 +144,7 @@ def get_bing_grounding_tool(
             search_configurations=[
                 BingGroundingSearchConfiguration(
                     project_connection_id=connection_id,
-                    count=grounding.fetch_size,
-                    market=grounding.market,
-                    set_lang=grounding.set_lang,
-                    freshness=grounding.freshness,
+                    count=fetch_size,
                 )
             ]
         )
@@ -179,7 +184,7 @@ def _is_missing_agent_error(exc: BaseException, *, agent_name: str) -> bool:
 async def create_and_process_run(
     agent_client: AIProjectClient,
     query: str,
-    grounding: BingGroundingConfiguration,
+    fetch_size: int,
     response_parsers_strategies: list[ResponseParser],
     generation_instructions: str,
 ) -> list[WebSearchResult]:
@@ -191,7 +196,7 @@ async def create_and_process_run(
     Args:
         agent_client: Azure AI project client used to manage agents.
         query: The search query to send to the agent.
-        grounding: Bing tool knobs (result count, market, language, freshness).
+        fetch_size: Maximum number of Bing results the agent should retrieve.
         response_parsers_strategies: Ordered list of parsing strategies to try
             when converting the agent's free-text response into structured results.
         generation_instructions: Per-request system instructions for the agent.
@@ -206,8 +211,8 @@ async def create_and_process_run(
         agent_client,
         query=query,
         model=model,
+        fetch_size=fetch_size,
         instructions=instructions,
-        grounding=grounding,
     )
 
     return await convert_response_to_search_results(answer, response_parsers_strategies)
@@ -218,8 +223,8 @@ async def _run_responses_agent(
     *,
     query: str,
     model: str,
+    fetch_size: int,
     instructions: str,
-    grounding: BingGroundingConfiguration,
 ) -> str:
     """Invoke the agent via Responses API and return the full output text.
 
@@ -229,8 +234,8 @@ async def _run_responses_agent(
     """
     resolved_name = resolve_bing_agent_name(
         model=model,
+        fetch_size=fetch_size,
         instructions=instructions,
-        grounding=grounding,
     )
     openai_client = get_openai_client(agent_client)
 
@@ -252,8 +257,8 @@ async def _run_responses_agent(
             agent_client,
             agent_name=resolved_name,
             model=model,
+            fetch_size=fetch_size,
             instructions=instructions,
-            grounding=grounding,
         )
         stream = await _create_responses_stream(
             openai_client,
