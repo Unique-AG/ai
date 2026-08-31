@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.34.0...unique-user-memory-v2026.36.0) (2026-08-31)
+
+
+### Bug Fixes
+
+* **user-memory:** resolve per-user home folders after shared root retirement ([#2347](https://github.com/Unique-AG/ai/issues/2347)) ([28e5a15](https://github.com/Unique-AG/ai/commit/28e5a155654043c0dd104422229afb1576dc6580))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
 ## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.32.0...unique-user-memory-v2026.34.0) (2026-08-14)
 
 

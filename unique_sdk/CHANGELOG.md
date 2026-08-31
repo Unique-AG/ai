@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.34.0...unique-sdk-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **sdk:** add languageModel parameter support to Space.create_message ([#2343](https://github.com/Unique-AG/ai/issues/2343)) ([3e1fab2](https://github.com/Unique-AG/ai/commit/3e1fab2fb57769eae7853fd96cd43e6bebdca57c))
+* **toolkit:** add bulk library-sheet-row verified metadata [UN-24872] ([#2342](https://github.com/Unique-AG/ai/issues/2342)) ([ec43a7b](https://github.com/Unique-AG/ai/commit/ec43a7b067f0546f768633db88aa263b4c0d30f0))
+* **toolkit:** add magic-table bulk rerun-rows event schema [UN-24275] ([#2340](https://github.com/Unique-AG/ai/issues/2340)) ([16e8838](https://github.com/Unique-AG/ai/commit/16e88389bc58ea122fda5a86bd09961d6664173f))
+
+
+### Bug Fixes
+
+* **cli:** resolve preboot chat-id placeholders via turn-identity file ([#2360](https://github.com/Unique-AG/ai/issues/2360)) ([e42e3cc](https://github.com/Unique-AG/ai/commit/e42e3cc56a69d390c4dbf48533e1ad14d0aab131))
+* **sdk:** stream blob downloads to disk instead of buffering in RAM ([#2344](https://github.com/Unique-AG/ai/issues/2344)) ([a8df392](https://github.com/Unique-AG/ai/commit/a8df39258e8213f90032f591b75b001c791ddd9f))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
 ## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.32.0...unique-sdk-v2026.34.0) (2026-08-14)
 
 

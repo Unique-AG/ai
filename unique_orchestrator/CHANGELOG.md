@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.34.0...unique-orchestrator-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **orchestrator:** forward x-assistant-message-id on hand-built completion headers [UN-24452] ([#2287](https://github.com/Unique-AG/ai/issues/2287)) ([c42d577](https://github.com/Unique-AG/ai/commit/c42d5774a6542c283a56f111c792c55a0c021b16))
+* **unique_orchestrator:** Enable uploaded files serialization in us… ([#2319](https://github.com/Unique-AG/ai/issues/2319)) ([340ce1b](https://github.com/Unique-AG/ai/commit/340ce1b92e27a7d298081df01b75a30f1da3d56c))
+
+
+### Bug Fixes
+
+* **orchestrator:** emit additionalLLMOptions schema key as camelCase ([#2278](https://github.com/Unique-AG/ai/issues/2278)) ([1d682cc](https://github.com/Unique-AG/ai/commit/1d682cc7e47b0c7591a48ce324f54fdd31505408))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
 ## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.32.0...unique-orchestrator-v2026.34.0) (2026-08-14)
 
 

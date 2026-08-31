@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.34.0...unique-web-search-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **search-proxy:** default Bing market from environment ([#2352](https://github.com/Unique-AG/ai/issues/2352)) ([6862cad](https://github.com/Unique-AG/ai/commit/6862cad628d08f72517351875344429e8b5adc09))
+* **search-proxy:** lock Vertex AI enterprise search via env ([#2322](https://github.com/Unique-AG/ai/issues/2322)) ([a7464a1](https://github.com/Unique-AG/ai/commit/a7464a1dd09b53c338fb824928cf73664a0386dc))
+* **web-search:** let the LLM steer Bing grounding per call ([#2332](https://github.com/Unique-AG/ai/issues/2332)) ([fcc372e](https://github.com/Unique-AG/ai/commit/fcc372eab236eaf2b668a2ef83fa7a0166da7c40))
+
+
+### Bug Fixes
+
+* **web-search:** evaluate UN-18741 via FeatureFlagClient [UN-18741] ([#2338](https://github.com/Unique-AG/ai/issues/2338)) ([ec389c4](https://github.com/Unique-AG/ai/commit/ec389c45501a54382122291ddc1df21db88cb8e4))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
 ## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.32.0...unique-web-search-v2026.34.0) (2026-08-14)
 
 

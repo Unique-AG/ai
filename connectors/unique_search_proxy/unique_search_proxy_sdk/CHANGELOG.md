@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.34.0...unique-search-proxy-sdk-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **search-proxy:** forward Bing grounding knobs to Foundry ([#2331](https://github.com/Unique-AG/ai/issues/2331)) ([cf4caaa](https://github.com/Unique-AG/ai/commit/cf4caaa1cb931be1300db9fd75f931f8a4ff54ef))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
 ## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.32.0...unique-search-proxy-sdk-v2026.34.0) (2026-08-14)
 
 
