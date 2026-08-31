@@ -28,7 +28,7 @@ Deployment configs for Google / Brave / Perplexity (and agent base fields) live 
 |--|----------|-------------------|
 | Proxy route | `POST /v1/search` | `POST /v1/agent-search` |
 | Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text → parsed locally |
-| LLM knobs | `ExposableParam` + `config.merge()` | `ExposableParam` (Bing only) |
+| LLM knobs | `ExposableParam` + `config.merge()` | None; Bing parameters are fixed config values |
 | Typical scrape | Often yes (Google) | Often no (`requires_scraping=false`) |
 
 ---
@@ -160,7 +160,6 @@ provisions a new agent version instead of reusing a mismatched one.
 
 ```bash
 AZURE_AI_PROJECT_ENDPOINT=...
-AZURE_AI_AGENT_ID=...          # optional; empty → auto-provision
 AZURE_IDENTITY_CREDENTIAL_TYPE=workload  # or default
 ```
 
