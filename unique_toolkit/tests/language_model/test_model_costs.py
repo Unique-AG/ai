@@ -108,6 +108,60 @@ models:
 
 
 @pytest.mark.ai
+def test_load_model_cost_catalog__ignores_unknown_model_fields(tmp_path: Path) -> None:
+    """Purpose: Verify a future, not-yet-modeled per-model field doesn't break loading.
+    Why this matters: The Helm chart evolves independently of this schema; a single
+    unknown field on one model row must not take down cost tracking for every model
+    (this is exactly what happened before cachedInput/cacheWrite/cacheWrite1h were added).
+    Setup summary: Write a row with an unrecognized field and assert it still loads.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+    someFutureField: 1.5
+""",
+    )
+
+    catalog = load_model_cost_catalog(path)
+
+    assert catalog is not None
+    assert catalog.models["test-model"].input == 2
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__ignores_unknown_top_level_fields(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify a future, not-yet-modeled top-level catalog field doesn't
+    break loading.
+    Why this matters: Same resilience guarantee as per-model fields, at the
+    catalog-envelope level.
+    Setup summary: Write a catalog with an unrecognized top-level key.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+someFutureTopLevelField: true
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+
+    catalog = load_model_cost_catalog(path)
+
+    assert catalog is not None
+    assert catalog.models["test-model"].input == 2
+
+
+@pytest.mark.ai
 def test_load_model_cost_catalog__returns_none_for_unsupported_version(
     tmp_path: Path,
 ) -> None:

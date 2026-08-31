@@ -25,7 +25,12 @@ _CACHE_MAX_AGE_SECONDS = 5 * 60
 class ModelCost(BaseModel):
     """Per-million-token prices for one language model."""
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    # Unknown fields are ignored rather than rejected: the Helm chart that renders
+    # this catalog evolves independently of this schema, and one new field on one
+    # model row must not take down cost tracking for every model (see cachedInput/
+    # cacheWrite/cacheWrite1h, which briefly did exactly that). Required fields
+    # below still validate strictly.
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     input: float
     completion: float
@@ -40,7 +45,7 @@ class ModelCost(BaseModel):
 class ModelCostCatalog(BaseModel):
     """Versioned model-price catalog rendered by the platform Helm charts."""
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     cost_schema_version: int = Field(alias="costSchemaVersion")
     models: dict[str, ModelCost] = Field(min_length=1)
