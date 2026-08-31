@@ -37,6 +37,7 @@ from unique_sdk.cli.commands.web_search_config import (
     resolve_config_path,
 )
 from unique_sdk.cli.config import Config
+from unique_sdk.cli.identity import TURN_IDENTITY_ENV_VAR
 from unique_sdk.cli.state import ShellState
 
 
@@ -1347,3 +1348,63 @@ class TestClickIntegrationChatId:
         result = runner.invoke(cli_main, ["web-search", "crawl", "https://a"])
         assert result.exit_code == 0
         assert mock_cmd.call_args[1]["chat_id"] is None
+
+    def _write_turn_identity(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, chat_id: str
+    ) -> None:
+        identity = tmp_path / "turn-identity.json"
+        identity.write_text(
+            json.dumps({"message_id": "msg-live", "chat_id": chat_id}),
+            encoding="utf-8",
+        )
+        monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(identity))
+
+    @patch("unique_sdk.cli.cli.cmd_web_search")
+    def test_search_preboot_env_placeholder_resolves_via_turn_identity(
+        self, mock_cmd: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Adopted preboot clients keep chat_preboot* frozen in their env;
+        the turn-identity file must supply the real chat id (UN gap of #29252)."""
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_preboot4fz7ii")
+        self._write_turn_identity(tmp_path, monkeypatch, chat_id="chat_real123")
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "search", "x"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] == "chat_real123"
+
+    @patch("unique_sdk.cli.cli.cmd_web_search")
+    def test_search_preboot_placeholder_without_identity_file_omits_chat_id(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_preboot4fz7ii")
+        monkeypatch.delenv(TURN_IDENTITY_ENV_VAR, raising=False)
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "search", "x"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] is None
+
+    @patch("unique_sdk.cli.cli.cmd_web_crawl")
+    def test_crawl_explicit_preboot_placeholder_resolves_via_turn_identity(
+        self, mock_cmd: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.delenv("UNIQUE_CHAT_ID", raising=False)
+        self._write_turn_identity(tmp_path, monkeypatch, chat_id="chat_real123")
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(
+            cli_main,
+            [
+                "web-search",
+                "crawl",
+                "--chat-id",
+                "chat_preboot4fz7ii",
+                "https://a",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] == "chat_real123"
