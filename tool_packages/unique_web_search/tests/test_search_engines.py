@@ -6,6 +6,10 @@ from unique_search_proxy_core.agent_engines import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
 )
+from unique_search_proxy_core.agent_engines.bing.schema import (
+    BingMarketConfig,
+    BingMarketSelection,
+)
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
@@ -178,15 +182,18 @@ class TestBingLegacySearch:
     ) -> None:
         """
         Purpose: Verify exposable knobs are resolved for the direct Bing path.
-        Why this matters: Admin defaults must apply, and an exposed knob chosen by
-            the LLM must win over the deployment default.
-        Setup summary: Expose market, set an admin default for both knobs, then
-            override market per call; assert the resulting grounding configuration.
+        Why this matters: An agent-selected market must reach direct Bing grounding.
+        Setup summary: Enable agent control, set another fixed knob, then select
+            a market per call and inspect the grounding configuration.
         """
         # Arrange
         config = BingSearchConfig.model_validate(
             {
-                "market": {"expose": True, "value": "de-CH"},
+                "market": {
+                    "enabled": True,
+                    "agentControlled": True,
+                    "market": "Default",
+                },
                 "setLang": {"expose": False, "value": "de"},
             },
         )
@@ -209,6 +216,59 @@ class TestBingLegacySearch:
             market="fr-CH",
             set_lang="de",
         )
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "market_config",
+        [
+            {
+                "enabled": False,
+                "agentControlled": False,
+                "market": "fr-CH",
+            },
+            {
+                "enabled": True,
+                "agentControlled": True,
+                "market": "fr-CH",
+            },
+        ],
+        ids=["disabled", "agent-omitted"],
+    )
+    def test_grounding_configuration__omits_inactive_market(
+        self,
+        market_config: dict[str, object],
+    ) -> None:
+        """
+        Purpose: Verify direct grounding omits disabled and agent-omitted markets.
+        Why this matters: Hidden values must never become an implicit direct-call fallback.
+        Setup summary: Build each omission state without LLM params and inspect grounding.
+        """
+        config = BingSearchConfig.model_validate({"market": market_config})
+        search = BingSearch(config, Mock())
+
+        grounding = search._grounding_configuration(None)
+
+        assert grounding.market is None
+
+    @pytest.mark.ai
+    def test_grounding_configuration__uses_fixed_market(self) -> None:
+        """
+        Purpose: Verify direct grounding always receives a fixed space-level market.
+        Why this matters: Fixed admin policy must apply without agent participation.
+        Setup summary: Configure a specific market and inspect direct grounding.
+        """
+        config = BingSearchConfig(
+            market=BingMarketConfig(
+                enabled=True,
+                agent_controlled=False,
+                market=BingMarketSelection.DE_CH,
+            ),
+        )
+        search = BingSearch(config, Mock())
+
+        grounding = search._grounding_configuration(None)
+
+        assert grounding.market == "de-CH"
 
 
 class TestAgentProxyInvocation:
@@ -241,7 +301,13 @@ class TestAgentProxyInvocation:
         """
         # Arrange
         config = BingSearchConfig.model_validate(
-            {"market": {"expose": False, "value": "de-CH"}},
+            {
+                "market": {
+                    "enabled": True,
+                    "agentControlled": False,
+                    "market": "de-CH",
+                },
+            },
         )
         search = BingSearch(config, Mock())
 
@@ -252,6 +318,39 @@ class TestAgentProxyInvocation:
         assert invocation["market"] == "de-CH"
 
     @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "market_config",
+        [
+            {
+                "enabled": False,
+                "agentControlled": False,
+                "market": "de-CH",
+            },
+            {
+                "enabled": True,
+                "agentControlled": True,
+                "market": "de-CH",
+            },
+        ],
+        ids=["disabled", "agent-omitted"],
+    )
+    def test_agent_proxy_invocation__omits_inactive_market(
+        self,
+        market_config: dict[str, object],
+    ) -> None:
+        """
+        Purpose: Verify proxy calls omit disabled and agent-omitted market values.
+        Why this matters: Proxy and direct paths must apply the same no-fallback policy.
+        Setup summary: Build each omission state and inspect proxy invocation kwargs.
+        """
+        config = BingSearchConfig.model_validate({"market": market_config})
+        search = BingSearch(config, Mock())
+
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
+
+        assert "market" not in invocation
+
+    @pytest.mark.ai
     def test_agent_proxy_invocation__llm_params_override_defaults(self) -> None:
         """
         Purpose: Verify per-call LLM parameters win over deployment defaults.
@@ -260,7 +359,13 @@ class TestAgentProxyInvocation:
         """
         # Arrange
         config = BingSearchConfig.model_validate(
-            {"market": {"expose": True, "value": "de-CH"}},
+            {
+                "market": {
+                    "enabled": True,
+                    "agentControlled": True,
+                    "market": "Default",
+                },
+            },
         )
         search = BingSearch(config, Mock())
         exposed_cls = config.exposed_params_model()

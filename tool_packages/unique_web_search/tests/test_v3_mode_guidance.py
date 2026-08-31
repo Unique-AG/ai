@@ -95,7 +95,13 @@ class TestV3ModeGuidance:
         Setup summary: Expose Bing market, build V3 parameters, and inspect payload properties.
         """
         config = BingSearchConfig.model_validate(
-            {"market": {"expose": True, "value": "en-US"}},
+            {
+                "market": {
+                    "enabled": True,
+                    "agentControlled": True,
+                    "market": "Default",
+                },
+            },
         )
         strategy = WebSearchV3Strategy(WebSearchV3Config())
 

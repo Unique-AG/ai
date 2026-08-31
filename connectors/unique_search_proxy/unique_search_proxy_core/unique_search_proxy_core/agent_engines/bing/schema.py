@@ -1,8 +1,17 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, ClassVar, Literal, TypeAlias
+from typing import Annotated, Any, ClassVar, Generic, Literal, TypeAlias, TypeVar, cast
 
-from pydantic import Field, GetCoreSchemaHandler, field_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    GetCoreSchemaHandler,
+    GetJsonSchemaHandler,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
+from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema, core_schema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
@@ -13,6 +22,7 @@ from unique_search_proxy_core.agent_engines.base import (
 from unique_search_proxy_core.agent_engines.bing.enums import (
     BingFreshnessPreset,
     BingMarket,
+    BingMarketSelection,
     BingSetLang,
 )
 from unique_search_proxy_core.agent_engines.bing.settings import (
@@ -20,7 +30,7 @@ from unique_search_proxy_core.agent_engines.bing.settings import (
 )
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.param_policy.ui_tags import dynamic_enforced_by_infra
-from unique_search_proxy_core.schema import DeactivatedNone
+from unique_search_proxy_core.schema import DeactivatedNone, camelized_model_config
 
 _BING_DOCS_BASE_URL = (
     "https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/"
@@ -62,28 +72,147 @@ FreshnessOrNone: TypeAlias = (
     | DeactivatedNone
 )
 
-ExposableMarket = ExposableParam[MarketOrNone]
 ExposableSetLang = ExposableParam[SetLangOrNone]
 ExposableFreshness = ExposableParam[FreshnessOrNone]
 
 
-def _default_market() -> ExposableMarket:
-    return ExposableMarket(
-        expose=False,
-        value=bing_agent_env_settings.market.default,
+T = TypeVar("T")
+
+
+class BingMarketParam(ExposableParam[T], Generic[T]):
+    """Bing-specific admin policy projected onto the generic parameter lifecycle."""
+
+    model_config = ConfigDict(**camelized_model_config, extra="forbid")
+
+    _expose: bool = PrivateAttr(default=False)
+    _value: T | None = PrivateAttr(default=None)
+    expose: ClassVar[property] = property(lambda self: self._expose)
+    value: ClassVar[property] = property(lambda self: self._value)
+    enabled: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(title="Enable market parameter"),
+    ] = Field(
+        default=False,
+        title="Enable market parameter",
+        description=(
+            "Include a Bing market when fixed below, or let the agent choose one."
+        ),
     )
+    agent_controlled: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(title="Agent controlled parameter"),
+    ] = Field(
+        default=False,
+        title="Agent controlled parameter",
+        description=(
+            "Allow the agent to choose an optional Bing market for each search. "
+            "When the agent omits it, no market is sent."
+        ),
+    )
+    market: BingMarketSelection = Field(
+        default=BingMarketSelection.DEFAULT,
+        title="Market",
+        description=(
+            "Select a fixed Bing market. Default uses `BING_AGENT_MARKET.default`; "
+            "if that setting is unset, no market is sent and Bing infers it."
+        ),
+    )
+
+    @classmethod
+    def model_parametrized_name(cls, params: tuple[type[Any], ...]) -> str:
+        return "BingMarketConfig"
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        core_schema: CoreSchema,
+        handler: GetJsonSchemaHandler,
+    ) -> JsonSchemaValue:
+        """Show dependent controls using standard RJSF conditional-schema support."""
+        schema = handler(core_schema)
+        properties = schema.get("properties")
+        if not isinstance(properties, dict):
+            return schema
+
+        agent_key = (
+            "agentControlled" if "agentControlled" in properties else "agent_controlled"
+        )
+        enabled = properties.get("enabled")
+        agent_controlled = properties.get(agent_key)
+        market = properties.get("market")
+        if enabled is None or agent_controlled is None or market is None:
+            return schema
+
+        schema.pop("additionalProperties", None)
+        schema["properties"] = {"enabled": enabled}
+        schema["allOf"] = [
+            {
+                "if": {
+                    "properties": {"enabled": {"const": True}},
+                    "required": ["enabled"],
+                },
+                "then": {
+                    "properties": {agent_key: agent_controlled},
+                    "allOf": [
+                        {
+                            "if": {
+                                "properties": {
+                                    agent_key: {"const": False},
+                                },
+                            },
+                            "then": {"properties": {"market": market}},
+                        },
+                    ],
+                },
+            },
+        ]
+        return schema
+
+    @model_validator(mode="before")
+    @classmethod
+    def prefer_agent_controlled_alias(cls, data: Any) -> Any:
+        """Let a submitted camel-case value override merged factory defaults."""
+        if not isinstance(data, dict) or "agentControlled" not in data:
+            return data
+        normalized = dict(data)
+        normalized["agent_controlled"] = normalized.pop("agentControlled")
+        return normalized
+
+    @model_validator(mode="after")
+    def resolve_policy(self) -> BingMarketParam[T]:
+        """Populate the generic runtime fields without serializing resolved defaults."""
+        self._expose = self.enabled and self.agent_controlled
+        if not self.enabled or self.agent_controlled:
+            runtime_value: str | None = None
+        elif self.market is BingMarketSelection.DEFAULT:
+            runtime_value = bing_agent_env_settings.market.default
+        else:
+            runtime_value = self.market.value
+        self._value = cast(T, runtime_value)
+        return self
+
+
+BingMarketConfig = BingMarketParam[MarketOrNone]
 
 
 def _market_is_enforced() -> bool:
     return bing_agent_env_settings.market.enforce
 
 
-EnforcedExposableMarket = Annotated[
-    ExposableMarket,
+def _default_market() -> BingMarketConfig:
+    return BingMarketConfig(
+        enabled=bing_agent_env_settings.market.enforce,
+        agent_controlled=False,
+        market=BingMarketSelection.DEFAULT,
+    )
+
+
+EnforcedBingMarketConfig = Annotated[
+    BingMarketConfig,
     dynamic_enforced_by_infra(
         _market_is_enforced,
         help=(
-            "Market is pinned for this deployment by "
+            "Market controls are pinned to Default for this deployment by "
             '`BING_AGENT_MARKET={"default": "<mkt>", "enforce": true}`.'
         ),
     ),
@@ -109,16 +238,17 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         le=50,
         description="Maximum number of Bing grounding results per query",
     )
-    market: EnforcedExposableMarket = Field(
-        default=_default_market(),
+    market: EnforcedBingMarketConfig = Field(
+        default_factory=_default_market,
         title="Market",
         description=(
             "Country/region **and** language the results come from (Bing `mkt`), "
             "as `<language>-<country>`: `de-CH` returns German-language Swiss "
             "results, `fr-CH` French-language Swiss ones, `en-GB` UK English. "
-            "Set it when the question is about a specific country or expects an "
-            "answer in that country's language. Left unset, Bing guesses the "
-            "market from the caller and may answer from another country. "
+            "Set a fixed market when every question targets one country, let the "
+            "agent choose per search, or select Default to use "
+            "`BING_AGENT_MARKET.default`. With no resolved market, Bing infers it "
+            "and may answer from another country. "
             f"[Market codes]({_BING_MARKET_CODES_DOCS_URL})"
         ),
     )
@@ -150,11 +280,13 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
 
     @field_validator("market", mode="before")
     @classmethod
-    def validate_market(cls, v: ExposableMarket) -> ExposableMarket:
+    def validate_market(cls, v: Any) -> Any:
         if bing_agent_env_settings.market.enforce:
-            return ExposableMarket(
-                expose=False, value=bing_agent_env_settings.market.default
-            )
+            return {
+                "enabled": True,
+                "agentControlled": False,
+                "market": BingMarketSelection.DEFAULT,
+            }
         return v
 
 
@@ -167,8 +299,9 @@ __all__ = [
     "BingFreshnessDate",
     "BingFreshnessPreset",
     "BingMarket",
+    "BingMarketConfig",
+    "BingMarketSelection",
     "BingSetLang",
     "ExposableFreshness",
-    "ExposableMarket",
     "ExposableSetLang",
 ]

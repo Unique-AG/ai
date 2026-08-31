@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Literal, TypeAlias
 
 #: Markets Bing serves content for (``mkt``), in the documented order.
@@ -41,6 +42,51 @@ BingMarket: TypeAlias = Literal[
     "en-US",
     "es-US",
 ]
+
+
+class BingMarketSelection(StrEnum):
+    """Admin market choices, including the deployment-default source."""
+
+    DEFAULT = "Default"
+    ES_AR = "es-AR"
+    EN_AU = "en-AU"
+    DE_AT = "de-AT"
+    NL_BE = "nl-BE"
+    FR_BE = "fr-BE"
+    PT_BR = "pt-BR"
+    EN_CA = "en-CA"
+    FR_CA = "fr-CA"
+    ES_CL = "es-CL"
+    DA_DK = "da-DK"
+    FI_FI = "fi-FI"
+    FR_FR = "fr-FR"
+    DE_DE = "de-DE"
+    ZH_HK = "zh-HK"
+    EN_IN = "en-IN"
+    EN_ID = "en-ID"
+    IT_IT = "it-IT"
+    JA_JP = "ja-JP"
+    KO_KR = "ko-KR"
+    EN_MY = "en-MY"
+    ES_MX = "es-MX"
+    NL_NL = "nl-NL"
+    EN_NZ = "en-NZ"
+    NO_NO = "no-NO"
+    ZH_CN = "zh-CN"
+    PL_PL = "pl-PL"
+    EN_PH = "en-PH"
+    RU_RU = "ru-RU"
+    EN_ZA = "en-ZA"
+    ES_ES = "es-ES"
+    SV_SE = "sv-SE"
+    FR_CH = "fr-CH"
+    DE_CH = "de-CH"
+    ZH_TW = "zh-TW"
+    TR_TR = "tr-TR"
+    EN_GB = "en-GB"
+    EN_US = "en-US"
+    ES_US = "es-US"
+
 
 #: Languages Bing localizes its interface strings into (``setLang``).
 BingSetLang: TypeAlias = Literal[

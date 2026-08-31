@@ -162,7 +162,13 @@ class TestAgentEngineExposedParams:
         Setup summary: Expose Bing market, build the V3 tool model, inspect props.
         """
         config = BingSearchConfig.model_validate(
-            {"market": {"expose": True, "value": "en-US"}},
+            {
+                "market": {
+                    "enabled": True,
+                    "agentControlled": True,
+                    "market": "Default",
+                },
+            },
         )
         exposed = config.exposed_params_model()
         tool_model = WebSearchV3ToolParameters.with_exposed_params(exposed)
@@ -171,6 +177,14 @@ class TestAgentEngineExposedParams:
         ]
         assert "market" in payload_props
         assert "setLang" not in payload_props
+        market_choices = next(
+            branch["enum"]
+            for branch in payload_props["market"]["anyOf"]
+            if "enum" in branch
+        )
+        assert "Default" not in market_choices
+        assert "enabled" not in payload_props
+        assert "agentControlled" not in payload_props
 
     @pytest.mark.ai
     def test_tool_schema_unchanged_when_nothing_exposed(self) -> None:
