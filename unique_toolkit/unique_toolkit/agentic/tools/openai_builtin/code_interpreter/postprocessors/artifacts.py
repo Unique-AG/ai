@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 import unique_sdk.utils.file_io as file_io
-from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel
 
 from unique_toolkit import ChatService
@@ -15,6 +14,9 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     OFFICE_PREVIEW_MIME_TYPES,
     convert_office_bytes_to_preview_pdf,
     office_extension,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
+    CodeInterpreterContainerFile,
 )
 from unique_toolkit.content.schemas import Content
 
@@ -61,7 +63,7 @@ def _kb_safe_mime(mime: str) -> str:
 
 
 def _artifact_metadata(
-    file: AnnotationContainerFileCitation,
+    file: CodeInterpreterContainerFile,
 ) -> dict[str, Any]:
     return {
         _CODE_EXECUTION_ARTIFACT_METADATA_KEY: CodeExecutionArtifactMetadata(
@@ -74,7 +76,7 @@ def _artifact_metadata(
 
 async def _upload_artifact_bytes(
     chat_service: ChatService,
-    file: AnnotationContainerFileCitation,
+    file: CodeInterpreterContainerFile,
     file_bytes: bytes,
     mime: str,
 ) -> Content:
@@ -97,7 +99,7 @@ async def _upload_artifact_bytes(
 
 async def _upload_office_artifact_with_preview(
     chat_service: ChatService,
-    file: AnnotationContainerFileCitation,
+    file: CodeInterpreterContainerFile,
     file_bytes: bytes,
     mime: str,
 ) -> Content | None:
@@ -146,7 +148,7 @@ async def _upload_office_artifact_with_preview(
 
 async def save_code_execution_artifact(
     chat_service: ChatService,
-    file: AnnotationContainerFileCitation,
+    file: CodeInterpreterContainerFile,
     file_bytes: bytes,
     *,
     attach_office_preview: bool = False,
