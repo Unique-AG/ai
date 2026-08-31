@@ -89,6 +89,16 @@ EnforcedExposableMarket = Annotated[
     ),
 ]
 
+# The grounding knobs are not cleared for release yet, so they are kept out of
+# the admin form instead of being removed: the fields, the values stored configs
+# already carry and the runtime path stay intact, but with no widget to render,
+# no admin can pin a value or expose a knob to the LLM. Drop the tag to release.
+_hidden_until_released = RJSFMetaTag.SpecialWidget.hidden()
+
+HiddenExposableMarket = Annotated[EnforcedExposableMarket, _hidden_until_released]
+HiddenExposableSetLang = Annotated[ExposableSetLang, _hidden_until_released]
+HiddenExposableFreshness = Annotated[ExposableFreshness, _hidden_until_released]
+
 
 class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     """Deployment + request defaults for Bing grounding via Azure AI Projects."""
@@ -109,7 +119,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         le=50,
         description="Maximum number of Bing grounding results per query",
     )
-    market: EnforcedExposableMarket = Field(
+    market: HiddenExposableMarket = Field(
         default=_default_market(),
         title="Market",
         description=(
@@ -122,7 +132,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             f"[Market codes]({_BING_MARKET_CODES_DOCS_URL})"
         ),
     )
-    set_lang: ExposableSetLang = Field(
+    set_lang: HiddenExposableSetLang = Field(
         default=ExposableSetLang(expose=False, value=None),
         title="Interface language",
         description=(
@@ -134,7 +144,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             f"[Supported languages]({_BING_MARKET_CODES_DOCS_URL}#bing-supported-language-codes)"
         ),
     )
-    freshness: ExposableFreshness = Field(
+    freshness: HiddenExposableFreshness = Field(
         default=ExposableFreshness(expose=False, value=None),
         title="Freshness",
         description=(

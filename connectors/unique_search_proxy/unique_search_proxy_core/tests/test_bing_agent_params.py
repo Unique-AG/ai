@@ -91,7 +91,7 @@ class TestBingAgentEnvSettings:
 
 class TestBingAgentMarketUiSchema:
     @pytest.mark.ai
-    def test_market_ui_schema_editable_when_not_enforced(
+    def test_market_ui_schema_not_locked_when_not_enforced(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -118,6 +118,24 @@ class TestBingAgentMarketUiSchema:
         assert "BING_AGENT_MARKET" in market_ui["ui:help"]
         assert "expose" in market_ui
         assert "value" in market_ui
+
+
+class TestBingGroundingKnobsHiddenFromAdmin:
+    @pytest.mark.ai
+    @pytest.mark.parametrize("knob", ["market", "set_lang", "freshness"])
+    def test_knob_is_hidden_in_the_admin_ui_schema(self, knob: str) -> None:
+        """
+        Purpose: Verify the grounding knobs never render in the admin form.
+        Why this matters: They are not cleared for release. The fields stay on
+            the config so stored deployments keep validating and the runtime
+            path is untouched, which leaves `ui:widget: hidden` as the only
+            thing stopping an admin from pinning a value or exposing a knob to
+            the LLM.
+        Setup summary: Generate the config uiSchema and read each knob's node.
+        """
+        knob_ui = ui_schema_for_model(BingAgentConfig)[knob]
+
+        assert knob_ui["ui:widget"] == "hidden"
 
 
 class TestBingAgentMarketEnforcement:
