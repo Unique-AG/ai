@@ -152,7 +152,7 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 | Field | Notes |
 |-------|-------|
 | `fetch_size` | Bing result count |
-| `market`, `set_lang`, `freshness` | `ExposableParam`; `market` / `set_lang` restricted to Bing's documented codes; forwarded to `BingGroundingSearchConfiguration` |
+| `market`, `set_lang`, `freshness` | `ExposableParam`; `market` / `set_lang` restricted to Bing's documented codes; forwarded to `BingGroundingSearchConfiguration`. Hidden from the admin form (`ui:widget: hidden`) until they are cleared for release, so they stay at their defaults |
 
 Bing bakes the tool configuration into the *agent version*, so these knobs take
 part in the hashed agent name (`unique-grounding-with-bing-<hash>`): changing one
