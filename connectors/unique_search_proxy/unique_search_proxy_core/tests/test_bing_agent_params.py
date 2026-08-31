@@ -93,7 +93,10 @@ class TestBingAgentAdminConfig:
         [
             ("market", {"enabled": True, "fixedMarket": True, "market": "fr-CH"}),
             ("setLang", {"expose": False, "value": "fr"}),
-            ("freshness", {"enabled": True, "fixedFreshness": True, "freshness": "Week"}),
+            (
+                "freshness",
+                {"enabled": True, "fixedFreshness": True, "freshness": "Week"},
+            ),
         ],
     )
     def test_retired_wrapper_shapes_are_rejected(
