@@ -19,18 +19,21 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import Awaitable, Callable
-from operator import ge as operator_ge
-from operator import gt as operator_gt
-from operator import le as operator_le
-from operator import lt as operator_lt
+from collections.abc import Awaitable, Callable, Mapping
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, Never
 
 import unique_sdk
 from typing_extensions import deprecated
 
 from unique_toolkit.content.schemas import BaseFolderInfo, ContentInfo
+from unique_toolkit.content.smart_rules import (
+    AndStatement,
+    Operator,
+    OrStatement,
+    UniqueQL,
+    parse_uniqueql,
+)
 from unique_toolkit.experimental.components.content_tree.schemas import (
     FolderWalkSnapshot,
     PathTrieNode,
@@ -73,94 +76,102 @@ def _parse_content_infos_payload(payload: Any) -> tuple[list[ContentInfo], int]:
     return files, total
 
 
-def _lookup_uniqueql_path(metadata: dict[str, Any] | None, path: object) -> Any:
-    current: Any = metadata
-    keys = path if isinstance(path, list) else [path]
-    for key in keys:
-        if not isinstance(current, dict):
-            return None
-        current = current.get(key)
-    return current
+def _content_uniqueql_record(info: ContentInfo) -> dict[str, Any]:
+    """Flatten content fields and metadata so UniqueQL paths match the server."""
+    dumped = info.model_dump(by_alias=True, mode="json")
+    metadata = dumped.pop("metadata", None) or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+    return {**metadata, **dumped}
 
 
-def _uniqueql_contains(actual: Any, expected: Any) -> bool:
-    if actual is None:
-        return False
-    try:
-        return expected in actual
-    except TypeError:
-        return False
-
-
-def _uniqueql_overlaps(actual: Any, expected: Any) -> bool:
-    if not isinstance(actual, list) or not isinstance(expected, list):
-        return False
-    return any(item in actual for item in expected)
-
-
-def _uniqueql_ordered_compare(
-    actual: Any, expected: Any, op: Callable[[Any, Any], bool]
-) -> bool:
-    if actual is None:
-        return False
-    try:
-        return op(actual, expected)
-    except TypeError:
-        return False
-
-
-def _uniqueql_matches(metadata: dict[str, Any] | None, node: dict[str, Any]) -> bool:
-    op = unique_sdk.UQLOperator
-    combinator = unique_sdk.UQLCombinator
-    if combinator.AND in node:
-        children = node.get(combinator.AND) or []
-        return bool(children) and all(
-            isinstance(child, dict) and _uniqueql_matches(metadata, child)
-            for child in children
+def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
+    """Apply a parsed UniqueQL AST (from ``parse_uniqueql``) to a flat record."""
+    if isinstance(query, AndStatement):
+        return bool(query.and_list) and all(
+            _uniqueql_matches(record, child) for child in query.and_list
         )
-    if combinator.OR in node:
-        children = node.get(combinator.OR) or []
-        return bool(children) and any(
-            isinstance(child, dict) and _uniqueql_matches(metadata, child)
-            for child in children
+    if isinstance(query, OrStatement):
+        return bool(query.or_list) and any(
+            _uniqueql_matches(record, child) for child in query.or_list
         )
-    actual = _lookup_uniqueql_path(metadata, node.get("path") or [])
-    operator = node.get("operator")
-    expected = node.get("value")
+    actual: Any = record
+    for key in query.path:
+        if not isinstance(actual, Mapping):
+            actual = None
+            break
+        actual = actual.get(key)
+    expected = query.value
+    operator = query.operator
     is_empty = actual is None or actual in ("", [], {})
-    if operator == op.EQUALS:
-        return actual == expected
-    if operator == op.NOT_EQUALS:
-        return actual != expected
-    if operator == op.CONTAINS:
-        return _uniqueql_contains(actual, expected)
-    if operator == op.NOT_CONTAINS:
-        return not _uniqueql_contains(actual, expected)
-    if operator == op.IN:
-        return isinstance(expected, list) and actual in expected
-    if operator == op.NOT_IN:
-        return isinstance(expected, list) and actual not in expected
-    if operator == op.OVERLAPS:
-        return _uniqueql_overlaps(actual, expected)
-    if operator == op.NOT_OVERLAPS:
-        return not _uniqueql_overlaps(actual, expected)
-    if operator == op.GREATER_THAN:
-        return _uniqueql_ordered_compare(actual, expected, operator_gt)
-    if operator == op.GREATER_THAN_OR_EQUAL:
-        return _uniqueql_ordered_compare(actual, expected, operator_ge)
-    if operator == op.LESS_THAN:
-        return _uniqueql_ordered_compare(actual, expected, operator_lt)
-    if operator == op.LESS_THAN_OR_EQUAL:
-        return _uniqueql_ordered_compare(actual, expected, operator_le)
-    if operator == op.IS_NULL:
-        return actual is None
-    if operator == op.IS_NOT_NULL:
-        return actual is not None
-    if operator == op.IS_EMPTY:
-        return is_empty
-    if operator == op.IS_NOT_EMPTY:
-        return not is_empty
-    return False
+    match operator:
+        case Operator.EQUALS:
+            return actual == expected
+        case Operator.NOT_EQUALS:
+            return actual != expected
+        case Operator.CONTAINS:
+            try:
+                return expected in actual
+            except TypeError:
+                return False
+        case Operator.NOT_CONTAINS:
+            try:
+                return expected not in actual
+            except TypeError:
+                return True
+        case Operator.IN:
+            return isinstance(expected, list) and actual in expected
+        case Operator.NOT_IN:
+            return isinstance(expected, list) and actual not in expected
+        case Operator.OVERLAPS:
+            return (
+                isinstance(actual, list)
+                and isinstance(expected, list)
+                and any(item in actual for item in expected)
+            )
+        case Operator.NOT_OVERLAPS:
+            return not (
+                isinstance(actual, list)
+                and isinstance(expected, list)
+                and any(item in actual for item in expected)
+            )
+        case Operator.GREATER_THAN:
+            try:
+                return actual > expected
+            except TypeError:
+                return False
+        case Operator.GREATER_THAN_OR_EQUAL:
+            try:
+                return actual >= expected
+            except TypeError:
+                return False
+        case Operator.LESS_THAN:
+            try:
+                return actual < expected
+            except TypeError:
+                return False
+        case Operator.LESS_THAN_OR_EQUAL:
+            try:
+                return actual <= expected
+            except TypeError:
+                return False
+        case Operator.IS_NULL:
+            return actual is None
+        case Operator.IS_NOT_NULL:
+            return actual is not None
+        case Operator.IS_EMPTY:
+            return is_empty
+        case Operator.IS_NOT_EMPTY:
+            return not is_empty
+        case Operator.NESTED:
+            return (
+                isinstance(expected, (AndStatement, OrStatement))
+                and isinstance(actual, Mapping)
+                and _uniqueql_matches(actual, expected)
+            )
+        case _:
+            never: Never = operator
+            raise ValueError(f"unsupported UniqueQL operator: {never}")
 
 
 def _propagate_wait_interrupt(result: object) -> None:
@@ -259,6 +270,8 @@ async def _list_direct_children_async(
     if not scope_id:
         return await folders_task
 
+    parsed_filter = parse_uniqueql(metadata_filter) if metadata_filter else None
+
     async def _content_page(skip: int) -> Any:
         # Unique rejects parentId + metadataFilter on the same call.
         return await unique_sdk.Content.get_infos_async(
@@ -271,11 +284,13 @@ async def _list_direct_children_async(
 
     def _parse_content_page(payload: Any) -> tuple[list[ContentInfo], int]:
         files, total = _parse_content_infos_payload(payload)
-        if metadata_filter:
+        # Keep parentId listing + local UniqueQL until UniqueQL/folderId metadata
+        # listing is equivalent (soft-delete/versioning); then drop this record filter.
+        if parsed_filter is not None:
             files = [
                 info
                 for info in files
-                if _uniqueql_matches(info.metadata, metadata_filter)
+                if _uniqueql_matches(_content_uniqueql_record(info), parsed_filter)
             ]
         return files, total
 
