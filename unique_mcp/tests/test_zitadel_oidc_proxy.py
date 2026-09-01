@@ -156,3 +156,39 @@ def test_create_zitadel_oidc_proxy__uses_none_auth_method__when_client_secret_om
     assert mock_oidc.call_args.kwargs["client_secret"] is None
     assert mock_oidc.call_args.kwargs["jwt_signing_key"] == "test_signing_key"
     assert mock_oidc.call_args.kwargs["token_endpoint_auth_method"] == "none"
+
+
+@pytest.mark.ai
+def test_create_zitadel_oidc_proxy__respects_kwargs__over_settings_derived_defaults(
+    sample_mcp_server_url: str,
+) -> None:
+    """
+    Purpose: Verify explicit token_endpoint_auth_method/jwt_signing_key kwargs win
+    over the values derived from settings.
+    Why this matters: Callers with unusual Zitadel client configurations need an
+    escape hatch from the client_secret-presence-based defaults, matching the
+    existing override pattern for extra_authorize_params/valid_scopes.
+    Setup summary: Construct settings with a client_secret (which would otherwise
+    default to client_secret_post) and pass conflicting kwargs, assert the kwargs win.
+    """
+    # Arrange
+    settings = ZitadelOIDCProxySettings(
+        base_url="http://localhost:10116",
+        client_id="test_client",
+        client_secret="test_secret",
+        jwt_signing_key="settings_signing_key",
+    )
+
+    # Act
+    with patch("unique_mcp.auth.zitadel.oidc_proxy.OIDCProxy") as mock_oidc:
+        create_zitadel_oidc_proxy(
+            client_storage=MemoryStore(),
+            mcp_server_base_url=sample_mcp_server_url,
+            zitadel_oidc_proxy_settings=settings,
+            token_endpoint_auth_method="none",
+            jwt_signing_key="override_signing_key",
+        )
+
+    # Assert
+    assert mock_oidc.call_args.kwargs["token_endpoint_auth_method"] == "none"
+    assert mock_oidc.call_args.kwargs["jwt_signing_key"] == "override_signing_key"
