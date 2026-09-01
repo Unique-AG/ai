@@ -1,0 +1,49 @@
+[project]
+name = "mcp-fa-research"
+version = "0.1.0"
+description = "Synthetic data MCP for the FA (fundamental analyst) sell-side research demo — cockpit feeds + mock consensus/price/estimates connectors."
+readme = "README.md"
+authors = [{ name = "Florian Barras", email = "florian.barras@unique.ai" }]
+requires-python = ">=3.12"
+dependencies = [
+    "openpyxl>=3.1.5",
+    "unique-sdk>=2026.30.1",
+    "unique-toolkit>=2026.30.1",
+    "tzdata>=2026.3",
+    "fastapi>=0.120.2",
+    "fastmcp>=3.4.4",
+    "pydantic>=2.12.3",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+# Relaxed so fastmcp 3.4.4 (client_secret_basic /token parsing fix the platform
+# MCP SDK needs) can resolve — mirrors mcp_trade_reconciliation.
+exclude-newer = "1 day"
+constraint-dependencies = [
+    "openpyxl",
+    "unique-sdk",
+    "unique-toolkit",
+    "tzdata",
+    "authlib>=1.6.11",
+    "cryptography>=46.0.7",
+    "fastmcp>=3.2.0",
+    "pillow>=12.2.0",
+    "pyjwt>=2.12.0",
+    "pygments>=2.20.0",
+    "python-dotenv>=1.2.2",
+    "python-multipart>=0.0.27",
+    "requests>=2.33.0",
+    "urllib3>=2.7.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E"]
+per-file-ignores = { "src/mcp_fa_research/mcp_fa_research.py" = ["E501"], "src/mcp_fa_research/seed.py" = ["E501"] }
