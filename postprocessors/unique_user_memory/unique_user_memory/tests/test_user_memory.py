@@ -832,6 +832,12 @@ def test_cid_policy_is_embedded_in_every_write_path_prompt() -> None:
         "Facts about the user themselves are ALWAYS allowed" in prompt
         for prompt in prompts
     )
+    # Same for the user's own personal life facts (regression guard for the
+    # gate answering NOOP on the user stating their own family status).
+    assert all(
+        "The user's own life facts stated about themselves are also allowed" in prompt
+        for prompt in prompts
+    )
 
 
 @pytest.mark.ai
