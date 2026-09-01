@@ -149,7 +149,18 @@ def test_kb_ingestion_subgroup_help_shows_summary() -> None:
     invoke_help = _make_help_invoker()
     result_output = invoke_help(["kb", "ingestion", "--help"])
     assert "Folder.update_ingestion_config" in result_output
+    assert "get" in result_output
     assert "set" in result_output
+
+
+def test_kb_ingestion_get_help() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "ingestion", "get", "--help"])
+    assert "--folder-path" in result_output
+    assert "--scope-id" in result_output
+    assert "--output" in result_output
+    assert "Examples:" in result_output
+    assert "uqadm kb ingestion get" in result_output
 
 
 def test_kb_access_grant_help() -> None:
