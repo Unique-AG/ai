@@ -17,10 +17,23 @@ class AsyncTTLCache:
     Both the value cache and the lock dict are bounded by ``maxsize``.
 
     Keys may be any hashable — strings, tuples, etc.
+
+    When ``keep_stale`` is true (the default), every fetched value is also
+    kept in a second, LRU-only cache retrievable via ``get_stale()`` even
+    after it expires from the TTL cache — for a caller that wants to serve
+    a last-known-good value rather than fail outright when a fresh fetch
+    errors. That fallback copy is bounded by count (``maxsize``), not time:
+    with low key turnover it can hold a value far longer than ``ttl_ms``
+    would suggest. Set ``keep_stale=False`` for a cache whose caller never
+    calls ``get_stale()`` — the fallback is pure memory cost with no benefit
+    there, and it can matter for large cached values.
     """
 
-    def __init__(self, *, maxsize: int = 1024, ttl_ms: float = 5_000) -> None:
+    def __init__(
+        self, *, maxsize: int = 1024, ttl_ms: float = 5_000, keep_stale: bool = True
+    ) -> None:
         self._cache: TTLCache[Any, Any] = TTLCache(maxsize=maxsize, ttl=ttl_ms / 1000)
+        self._keep_stale = keep_stale
         self._stale: LRUCache[Any, Any] = LRUCache(maxsize=maxsize)
         self._locks: LRUCache[Any, asyncio.Lock] = LRUCache(maxsize=maxsize)
         self._dict_lock = asyncio.Lock()
@@ -41,7 +54,8 @@ class AsyncTTLCache:
         """Return ``(value, from_cache)``, fetching on a miss with per-key stampede protection."""
         cached = self._cache.get(key, _MISSING)
         if cached is not _MISSING:
-            self._stale[key] = cached  # keep stale warm while TTL cache is hot
+            if self._keep_stale:
+                self._stale[key] = cached  # keep stale warm while TTL cache is hot
             return cached, True
 
         # Acquire per-key lock; re-check inside in case another waiter already fetched.
@@ -49,12 +63,14 @@ class AsyncTTLCache:
         async with key_lock:
             cached = self._cache.get(key, _MISSING)
             if cached is not _MISSING:
-                self._stale[key] = cached  # keep stale warm while TTL cache is hot
+                if self._keep_stale:
+                    self._stale[key] = cached  # keep stale warm while TTL cache is hot
                 return cached, True
 
             value = await fetcher()
             self._cache[key] = value
-            self._stale[key] = value
+            if self._keep_stale:
+                self._stale[key] = value
             return value, False
 
     def get_stale(self, key: Any) -> tuple[Any, bool]:
