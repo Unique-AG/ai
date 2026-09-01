@@ -17,13 +17,22 @@ class AsyncTTLCache:
     Both the value cache and the lock dict are bounded by ``maxsize``.
 
     Keys may be any hashable — strings, tuples, etc.
+
+    Set ``keep_stale=False`` when the caller never uses the stale fallback.
     """
 
-    def __init__(self, *, maxsize: int = 1024, ttl_ms: float = 5_000) -> None:
+    def __init__(
+        self, *, maxsize: int = 1024, ttl_ms: float = 5_000, keep_stale: bool = True
+    ) -> None:
         self._cache: TTLCache[Any, Any] = TTLCache(maxsize=maxsize, ttl=ttl_ms / 1000)
+        self._keep_stale = keep_stale
         self._stale: LRUCache[Any, Any] = LRUCache(maxsize=maxsize)
         self._locks: LRUCache[Any, asyncio.Lock] = LRUCache(maxsize=maxsize)
         self._dict_lock = asyncio.Lock()
+
+    def _set_stale(self, key: Any, value: Any) -> None:
+        if self._keep_stale:
+            self._stale[key] = value
 
     async def _get_key_lock(self, key: Any) -> asyncio.Lock:
         async with self._dict_lock:
@@ -41,7 +50,7 @@ class AsyncTTLCache:
         """Return ``(value, from_cache)``, fetching on a miss with per-key stampede protection."""
         cached = self._cache.get(key, _MISSING)
         if cached is not _MISSING:
-            self._stale[key] = cached  # keep stale warm while TTL cache is hot
+            self._set_stale(key, cached)
             return cached, True
 
         # Acquire per-key lock; re-check inside in case another waiter already fetched.
@@ -49,12 +58,12 @@ class AsyncTTLCache:
         async with key_lock:
             cached = self._cache.get(key, _MISSING)
             if cached is not _MISSING:
-                self._stale[key] = cached  # keep stale warm while TTL cache is hot
+                self._set_stale(key, cached)
                 return cached, True
 
             value = await fetcher()
             self._cache[key] = value
-            self._stale[key] = value
+            self._set_stale(key, value)
             return value, False
 
     def get_stale(self, key: Any) -> tuple[Any, bool]:
