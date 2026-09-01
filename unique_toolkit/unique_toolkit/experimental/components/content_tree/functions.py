@@ -361,7 +361,7 @@ async def _list_direct_children_async(
         _log_skipped_listing(
             "Skipping content listing for parent %s", file_result, scope_id
         )
-    return folder_result
+    return cast(list[BaseFolderInfo], folder_result)
 
 
 async def walk_visible_paths_via_folders_async(
