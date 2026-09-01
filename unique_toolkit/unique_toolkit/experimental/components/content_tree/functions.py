@@ -77,7 +77,6 @@ def _parse_content_infos_payload(payload: Any) -> tuple[list[ContentInfo], int]:
 
 
 def _content_uniqueql_record(info: ContentInfo) -> dict[str, Any]:
-    """Flatten content fields and metadata so UniqueQL paths match the server."""
     dumped = info.model_dump(by_alias=True, mode="json")
     metadata = dumped.pop("metadata", None) or {}
     if not isinstance(metadata, dict):
@@ -86,7 +85,6 @@ def _content_uniqueql_record(info: ContentInfo) -> dict[str, Any]:
 
 
 def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
-    """Apply a parsed UniqueQL AST (from ``parse_uniqueql``) to a flat record."""
     if isinstance(query, AndStatement):
         return bool(query.and_list) and all(
             _uniqueql_matches(record, child) for child in query.and_list
@@ -273,7 +271,6 @@ async def _list_direct_children_async(
     parsed_filter = parse_uniqueql(metadata_filter) if metadata_filter else None
 
     async def _content_page(skip: int) -> Any:
-        # Unique rejects parentId + metadataFilter on the same call.
         return await unique_sdk.Content.get_infos_async(
             user_id=user_id,
             company_id=company_id,
