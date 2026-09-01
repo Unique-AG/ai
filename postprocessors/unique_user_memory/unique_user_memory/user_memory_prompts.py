@@ -37,6 +37,53 @@ def empty_profile(user_id: str) -> str:
     )
 
 
+# Shared across the consolidation, condensation, gate, and scrub prompts so
+# the CID/PII rules cannot drift between the write-path stages (UN-24886).
+_CID_POLICY = """\
+# CID / PII policy - the current user only - STRICT
+
+The profile belongs to exactly one person: the signed-in user. It may
+contain personal data (PII) of that user only. It must NEVER contain
+client-identifying data (CID) or PII of any other person or private
+entity - not other users, not clients, not prospects, not counterparties.
+
+NEVER store, about any person or private entity other than the user:
+
+- Direct identifiers: full or partial names with identifying context,
+  addresses, email addresses, phone numbers, dates of birth,
+  passport / national ID / tax ID numbers, employee IDs, client IDs,
+  customer numbers, CRM or ticket IDs.
+- Financial identifiers: account numbers, IBANs, card numbers,
+  portfolio / custody / mandate numbers, transaction or payment
+  references, loan, mortgage, or insurance policy numbers.
+- Bank-client relationship signals: any statement that a person or
+  private entity is a client, customer, prospect, account holder,
+  beneficial owner, borrower, investor, or KYC/onboarding subject.
+- Financial or personal context tied to an identifiable person or
+  private entity: holdings, balances, transactions, source of wealth,
+  income, creditworthiness, risk rating, KYC/AML status, health, family,
+  legal disputes, or tax situation.
+- Indirect identification: combinations of attributes that could single
+  out a non-public person or private entity even without a name.
+
+These rules apply even when the identifying data is abbreviated,
+misspelled, obfuscated, or split across words.
+
+When a durable fact about the user's own work involves such a person or
+entity, keep only a fully de-identified version: "runs quarterly
+portfolio reviews" is fine; "reviews the portfolio of J. Muster" is not.
+
+Public figures in their public capacity (politicians, executives,
+athletes) may be mentioned when the fact concerns publicly available
+public-role information and implies no client relationship.
+
+Also NEVER store, for anyone including the user: credentials, API keys,
+passwords, OTPs, payment card data, health-record details, or government
+ID numbers. If any of these appear in a conversation, ignore the value
+entirely.\
+"""
+
+
 _CONSOLIDATION_SYSTEM_PROMPT_TEMPLATE = """\
 You are a memory-consolidation engine for the Unique AI platform.
 
@@ -160,14 +207,12 @@ ADD/UPDATE for facts that are:
 
 NEVER extract:
 
-- Sensitive credentials, API keys, passwords, OTPs, payment info,
-  health-record details, government IDs. If the user pastes any of
-  these, ignore the value entirely.
-- Information about other named individuals beyond the immediate
-  professional context.
+- Anything forbidden by the CID / PII policy below.
 - Transient turn-level state: one-off factual answers, code snippets,
   error messages, file contents, search results.
 - Anything stated as third-party information or retrieved context.
+
+{{ cid_policy }}
 
 # Word budget - STRICT
 
@@ -202,6 +247,7 @@ def consolidation_system_prompt(max_tokens: int) -> str:
         max_tokens=max_tokens,
         section_list=section_list,
         now_datetime=now.strftime("%Y-%m-%d %H:%M UTC"),
+        cid_policy=_CID_POLICY,
     )
 
 
@@ -243,6 +289,12 @@ fact about the user. This is lossy compression, not deletion of meaning.
 # Hard rules
 
 - NEVER invent, embellish, or add facts that are not already present.
+- DELETE any bullet that violates the CID / PII policy below - CID or
+  PII of any person or private entity other than the user. This deletion
+  is mandatory even when the bullet is otherwise high-signal and does
+  not count against the shrink priorities above. When such a bullet also
+  carries a durable fact about the user's own work, keep only a fully
+  de-identified rewrite.
 - Keep exactly these section headings, in this order, even if a section
   becomes empty (use the literal string `_(empty)_`):
 
@@ -251,6 +303,8 @@ fact about the user. This is lossy compression, not deletion of meaning.
 - Resolve contradictions in favour of the most recent statement; never
   keep two conflicting bullets.
 - Use `-` markdown bullets, no nesting beyond two levels, no emojis.
+
+{{ cid_policy }}
 
 # Output
 
@@ -276,6 +330,7 @@ def condensation_system_prompt(
         target_words=int(target_tokens * 0.75),
         reduction_pct=max(reduction_pct, 1),
         max_tokens=max_tokens,
+        cid_policy=_CID_POLICY,
     )
 
 
@@ -358,17 +413,18 @@ only the single word `UPDATE` or `NOOP`.
 
 # What NEVER justifies UPDATE (lean NOOP)
 
-- Credentials, API keys, passwords, payment or health details, IDs.
-- Facts about other people beyond the immediate professional context.
+- Anything forbidden by the CID / PII policy below.
 - Transient turn state: one-off answers, code snippets, error messages,
   file contents, search results.
 - Anything stated as third-party or retrieved context.
 - Facts already captured in `<existing_memory>`.
+
+{{ cid_policy }}
 """
 
 
 def memory_gate_system_prompt() -> str:
-    return Template(_GATE_SYSTEM_PROMPT_TEMPLATE).render()
+    return Template(_GATE_SYSTEM_PROMPT_TEMPLATE).render(cid_policy=_CID_POLICY)
 
 
 _GATE_USER_PROMPT_TEMPLATE = """\
@@ -400,3 +456,60 @@ def memory_gate_user_prompt(
         user_message=(user_message or "").strip(),
         assistant_message=(assistant_message or "").strip(),
     )
+
+
+_SCRUB_SYSTEM_PROMPT_TEMPLATE = """\
+You are the final content gate for the user-memory system on the Unique
+AI platform. You receive a candidate Markdown memory profile just before
+it is persisted. Your ONLY job is to enforce the CID / PII policy below;
+you never improve, extend, or restyle the profile.
+
+{{ cid_policy }}
+
+# Your task
+
+Inspect every bullet of the candidate profile:
+
+- Remove each bullet that violates the policy. When a violating bullet
+  also carries a durable fact about the user's own work, replace it with
+  a fully de-identified rewrite instead of deleting it.
+- Leave every compliant bullet unchanged, word for word. Never add
+  facts, never merge or reorder bullets, never rename or reorder
+  sections.
+- A section left without bullets keeps its heading with the literal
+  placeholder `_(empty)_`.
+
+# Output
+
+- When every bullet complies, reply with EXACTLY the single uppercase
+  word `CLEAN` and nothing else.
+- Otherwise return the complete cleaned profile body, starting with
+  `## Identity` and containing exactly these section headings in this
+  order:
+
+{{ section_list }}
+
+Do NOT add a document-level `# User Memory` title. Do NOT emit a diff or
+commentary. Do NOT wrap the output in ``` fences.
+"""
+
+
+def scrub_system_prompt() -> str:
+    section_list = "\n".join(f"- ## {heading}" for heading in SECTION_HEADINGS)
+    return Template(_SCRUB_SYSTEM_PROMPT_TEMPLATE).render(
+        cid_policy=_CID_POLICY,
+        section_list=section_list,
+    )
+
+
+_SCRUB_USER_PROMPT_TEMPLATE = """\
+<candidate_profile>
+{{ profile }}
+</candidate_profile>
+
+Reply with CLEAN or the complete cleaned profile body now.
+"""
+
+
+def scrub_user_prompt(profile: str) -> str:
+    return Template(_SCRUB_USER_PROMPT_TEMPLATE).render(profile=profile)
