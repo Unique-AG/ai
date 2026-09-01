@@ -149,7 +149,7 @@ def test_rss_check_tick__requires_two_consecutive_over_limit_checks__before_kill
     consecutive = memory._rss_check_tick(
         rss_mib=600, max_rss_mib=500, consecutive_high=consecutive
     )
-    assert consecutive == 2
+    assert consecutive is None
     assert kill_calls == [(memory.os.getpid(), memory.signal.SIGTERM)]
 
 

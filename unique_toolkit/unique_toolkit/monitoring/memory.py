@@ -128,7 +128,7 @@ def _resolve_max_rss_mib() -> int:
 
 def _rss_check_tick(
     rss_mib: float | None, max_rss_mib: int, consecutive_high: int
-) -> int:
+) -> int | None:
     """Update the over-limit streak and terminate after two high readings."""
     if rss_mib is None:
         return consecutive_high
@@ -145,6 +145,7 @@ def _rss_check_tick(
     if consecutive_high >= 2:
         logger.info("[MEMORY-LIMIT] RSS sustained above limit — sending SIGTERM")
         os.kill(os.getpid(), signal.SIGTERM)
+        return None
     return consecutive_high
 
 
@@ -177,9 +178,12 @@ def start_rss_ceiling_watcher() -> None:
         while True:
             time.sleep(interval)
             try:
-                consecutive_high = _rss_check_tick(
+                next_consecutive_high = _rss_check_tick(
                     _read_rss_mib(), max_rss_mib, consecutive_high
                 )
+                if next_consecutive_high is None:
+                    return
+                consecutive_high = next_consecutive_high
             except Exception:
                 logger.exception("rss-ceiling-watcher cycle failed; continuing")
 
