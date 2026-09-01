@@ -160,6 +160,39 @@ def test_create_zitadel_oidc_proxy__uses_none_auth_method__when_client_secret_om
 
 
 @pytest.mark.ai
+def test_create_zitadel_oidc_proxy__uses_none_auth_method__when_client_secret_empty(
+    sample_mcp_server_url: str,
+) -> None:
+    """
+    Purpose: Verify an empty-string client_secret is treated as no secret.
+    Why this matters: an env var that resolves to "" (e.g. an unset secretRef)
+    must not be mistaken for a real client_secret_post credential — that would
+    forward an empty secret to Zitadel instead of falling back to PKCE.
+    Setup summary: Construct settings with client_secret="", inspect what
+    reaches OIDCProxy.
+    """
+    # Arrange
+    settings = ZitadelOIDCProxySettings(
+        base_url="http://localhost:10116",
+        client_id="test_client",
+        client_secret=SecretStr(""),
+        jwt_signing_key=SecretStr("test_signing_key"),
+    )
+
+    # Act
+    with patch("unique_mcp.auth.zitadel.oidc_proxy.OIDCProxy") as mock_oidc:
+        create_zitadel_oidc_proxy(
+            client_storage=MemoryStore(),
+            mcp_server_base_url=sample_mcp_server_url,
+            zitadel_oidc_proxy_settings=settings,
+        )
+
+    # Assert
+    assert mock_oidc.call_args.kwargs["client_secret"] is None
+    assert mock_oidc.call_args.kwargs["token_endpoint_auth_method"] == "none"
+
+
+@pytest.mark.ai
 def test_create_zitadel_oidc_proxy__respects_kwargs__over_settings_derived_defaults(
     sample_mcp_server_url: str,
 ) -> None:

@@ -80,7 +80,9 @@ def create_zitadel_oidc_proxy(
     # Advertised for DCR and /authorize only — see required_scopes in the docstring.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
 
-    client_secret = _unwrap_secret(settings.client_secret)
+    # Empty string (e.g. an unset env var resolving to "") must count as no
+    # secret, not as a real client_secret_post credential.
+    client_secret = _unwrap_secret(settings.client_secret) or None
     token_endpoint_auth_method = kwargs.pop(
         "token_endpoint_auth_method",
         "none" if client_secret is None else "client_secret_post",
