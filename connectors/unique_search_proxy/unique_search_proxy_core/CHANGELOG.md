@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.36.1](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.36.0...unique-search-proxy-core-v2026.36.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **search-proxy:** hide Bing grounding knobs from the admin config ([#2371](https://github.com/Unique-AG/ai/issues/2371)) ([8722e8d](https://github.com/Unique-AG/ai/commit/8722e8d9163e152974cabfa65758e6926b240c24))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.34.0...unique-search-proxy-core-v2026.36.0) (2026-08-31)
 
 

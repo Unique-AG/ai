@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.36.1](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.36.0...unique-web-search-v2026.36.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **search-proxy:** hide Bing grounding knobs from the admin config ([#2371](https://github.com/Unique-AG/ai/issues/2371)) ([8722e8d](https://github.com/Unique-AG/ai/commit/8722e8d9163e152974cabfa65758e6926b240c24))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.34.0...unique-web-search-v2026.36.0) (2026-08-31)
 
 
