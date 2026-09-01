@@ -18,15 +18,7 @@ class AsyncTTLCache:
 
     Keys may be any hashable — strings, tuples, etc.
 
-    When ``keep_stale`` is true (the default), every fetched value is also
-    kept in a second, LRU-only cache retrievable via ``get_stale()`` even
-    after it expires from the TTL cache — for a caller that wants to serve
-    a last-known-good value rather than fail outright when a fresh fetch
-    errors. That fallback copy is bounded by count (``maxsize``), not time:
-    with low key turnover it can hold a value far longer than ``ttl_ms``
-    would suggest. Set ``keep_stale=False`` for a cache whose caller never
-    calls ``get_stale()`` — the fallback is pure memory cost with no benefit
-    there, and it can matter for large cached values.
+    Set ``keep_stale=False`` when the caller never uses the stale fallback.
     """
 
     def __init__(

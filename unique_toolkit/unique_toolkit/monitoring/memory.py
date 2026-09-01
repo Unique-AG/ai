@@ -1,12 +1,4 @@
-"""Process-level memory hygiene: periodic glibc malloc_trim + an opt-in RSS ceiling watcher.
-
-Call once at process startup, after any forking — e.g. right before
-`mcp.run()` for a `unique_mcp` server, or from a gunicorn `post_worker_init`
-hook (which already runs post-fork, once per worker). Calling this before a
-fork (e.g. from `preload_app`) is unsupported: the background thread doesn't
-survive the fork, but the idempotency guard does, so every worker would
-silently inherit "already started" and never get one.
-"""
+"""Process-level memory trimming and optional RSS ceiling monitoring."""
 
 from __future__ import annotations
 
@@ -23,20 +15,20 @@ logger = logging.getLogger(__name__)
 
 _SAFETY_FACTOR = 0.9
 
-_LIBC = None
+_libc = None
 
 
 def _get_libc():
-    global _LIBC
-    if _LIBC is None and platform.system() == "Linux":
+    global _libc
+    if _libc is None and platform.system() == "Linux":
         try:
             lib = ctypes.CDLL("libc.so.6", use_errno=True)
             lib.malloc_trim.argtypes = [ctypes.c_size_t]
             lib.malloc_trim.restype = ctypes.c_int
-            _LIBC = lib
-        except OSError:
-            _LIBC = False
-    return _LIBC or None
+            _libc = lib
+        except (AttributeError, OSError):
+            _libc = False
+    return _libc or None
 
 
 def _read_rss_mib() -> float | None:
@@ -52,17 +44,7 @@ def _read_rss_mib() -> float | None:
 
 
 def trim_memory(reason: str) -> None:
-    """Run gc.collect() then ask glibc to return free pages to the OS.
-
-    Logs reclaimed MiB, trim latency, gc cycle count, and uncollectable
-    objects so dashboards can confirm the trim is working.
-
-    No-op for malloc_trim (gc still runs) when:
-    - not running on Linux
-    - MEMORY_TRIM_MALLOC_TRIM=false
-    - jemalloc is preloaded via LD_PRELOAD (jemalloc returns pages via its
-      own background thread; calling libc malloc_trim would be a no-op anyway)
-    """
+    """Collect garbage and ask glibc to return free pages to the OS."""
     before = _read_rss_mib()
     t0 = time.time()
 
@@ -73,7 +55,7 @@ def trim_memory(reason: str) -> None:
     ).lower() == "true" and "jemalloc" not in os.getenv("LD_PRELOAD", ""):
         libc = _get_libc()
         if libc is not None:
-            libc.malloc_trim(0)
+            getattr(libc, "malloc_trim")(0)
 
     after = _read_rss_mib()
     reclaimed = before - after if before is not None and after is not None else None
@@ -94,10 +76,7 @@ _trimmer_lock = threading.Lock()
 
 
 def start_memory_trimmer() -> None:
-    """Start a background daemon thread that periodically trims memory.
-
-    Call once at process startup. Idempotent: safe to call multiple times.
-    """
+    """Start an idempotent daemon thread that periodically trims process memory."""
     global _trimmer_started
     with _trimmer_lock:
         if _trimmer_started:
@@ -122,23 +101,7 @@ def start_memory_trimmer() -> None:
 
 
 def _resolve_max_rss_mib() -> int:
-    """Return the per-process RSS ceiling in MiB.
-
-    Precedence:
-    1. MEMORY_TRIM_MAX_RSS_MIB — explicit override (0 = disabled)
-    2. CONTAINER_MEMORY_LIMIT_MIB / MEMORY_TRIM_PROCESS_COUNT * 0.9
-       (injected by Kubernetes Downward API from resources.limits.memory)
-    3. 0 (disabled) if no limit is configured
-
-    Migration note: MEMORY_TRIM_PROCESS_COUNT replaces assistants-core's
-    GUNICORN_WORKERS as the divisor here. A multi-worker gunicorn deployment
-    adopting this function MUST set MEMORY_TRIM_PROCESS_COUNT to its actual
-    worker count — the default of 1 assumes a single-process service. Left
-    unset on a multi-worker deployment, each worker computes its ceiling as
-    if it were the only process, so N workers can together exceed the
-    container's real memory limit before any one of them individually trips
-    the watcher.
-    """
+    """Resolve the per-process RSS ceiling from environment variables."""
     explicit = os.getenv("MEMORY_TRIM_MAX_RSS_MIB")
     if explicit is not None:
         try:
@@ -166,13 +129,7 @@ def _resolve_max_rss_mib() -> int:
 def _rss_check_tick(
     rss_mib: float | None, max_rss_mib: int, consecutive_high: int
 ) -> int:
-    """Run one check cycle; return the updated consecutive-over-limit count.
-
-    Requires two consecutive over-limit checks before sending SIGTERM, so a
-    single transient spike (e.g. a large in-flight request) doesn't recycle
-    the process — only RSS that's still over the ceiling on the next check,
-    one interval later, does.
-    """
+    """Update the over-limit streak and terminate after two high readings."""
     if rss_mib is None:
         return consecutive_high
     if rss_mib <= max_rss_mib:
@@ -196,14 +153,7 @@ _watcher_lock = threading.Lock()
 
 
 def start_rss_ceiling_watcher() -> None:
-    """Start a background daemon that SIGTERMs this process if RSS stays over a ceiling.
-
-    Opt-in: only takes effect once a ceiling resolves to > 0 (see
-    `_resolve_max_rss_mib`) — otherwise this is a no-op and no thread is
-    spawned. Call explicitly from a service that wants this safety net; it is
-    not started automatically by anything else in this module. Idempotent:
-    safe to call multiple times.
-    """
+    """Start an idempotent daemon that SIGTERMs the process after high RSS readings."""
     max_rss_mib = _resolve_max_rss_mib()
     if max_rss_mib <= 0:
         logger.info("[MEMORY-LIMIT] RSS ceiling watcher disabled (no limit configured)")
