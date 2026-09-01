@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+import unique_toolkit.experimental.components.content_tree.functions as functions_mod
 from unique_toolkit.content.schemas import ContentInfo
 from unique_toolkit.content.smart_rules import parse_uniqueql
 from unique_toolkit.experimental.components.content_tree.functions import (
     _content_uniqueql_record,
+    _task_group_results,
     _uniqueql_fill_nullish_values,
     _uniqueql_matches,
 )
@@ -632,6 +634,37 @@ _FUNCTIONS = "unique_toolkit.experimental.components.content_tree.functions"
 
 
 # ── Folder-walk tree (Folder.get_infos + Content.get_infos) ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_AI_task_group_results_waits_for_cancelled_children() -> None:
+    """Cancellation waits for child cleanup before the group exits."""
+    cleanup_started = asyncio.Event()
+    cleanup_release = asyncio.Event()
+
+    async def slow_cleanup() -> None:
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cleanup_started.set()
+            await cleanup_release.wait()
+
+    task = asyncio.create_task(_task_group_results([slow_cleanup()]))
+    await asyncio.sleep(0)
+    task.cancel()
+
+    await asyncio.wait_for(cleanup_started.wait(), timeout=1)
+    assert not task.done()
+    cleanup_release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+def test_AI_content_tree_walk_has_no_asyncio_gather() -> None:
+    """The walk fan-out must retain cancellation-safe TaskGroup handling."""
+    text = Path(functions_mod.__file__).read_text(encoding="utf-8")
+    assert "asyncio.gather" not in text
+    assert "_propagate_wait_interrupt" not in text
 
 
 def _walk_file_payload(*, key: str, metadata: dict | None = None) -> dict[str, object]:
