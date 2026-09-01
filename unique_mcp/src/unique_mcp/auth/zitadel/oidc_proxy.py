@@ -13,6 +13,10 @@ if TYPE_CHECKING:
     from key_value.aio.protocols import AsyncKeyValue
 
 
+def _unwrap_secret(value: SecretStr | None) -> str | None:
+    return value.get_secret_value() if isinstance(value, SecretStr) else value
+
+
 class ZitadelOIDCProxySettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=find_env_file(filenames=["zitadel.env", ".env"], required=False),
@@ -76,21 +80,13 @@ def create_zitadel_oidc_proxy(
     # Advertised for DCR and /authorize only — see required_scopes in the docstring.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
 
-    client_secret = (
-        settings.client_secret.get_secret_value()
-        if settings.client_secret is not None
-        else None
-    )
+    client_secret = _unwrap_secret(settings.client_secret)
     token_endpoint_auth_method = kwargs.pop(
         "token_endpoint_auth_method",
         "none" if client_secret is None else "client_secret_post",
     )
-    # settings value is SecretStr; a caller override via kwargs is a raw str/bytes.
-    jwt_signing_key_kwarg = kwargs.pop("jwt_signing_key", settings.jwt_signing_key)
-    jwt_signing_key = (
-        jwt_signing_key_kwarg.get_secret_value()
-        if isinstance(jwt_signing_key_kwarg, SecretStr)
-        else jwt_signing_key_kwarg
+    jwt_signing_key = _unwrap_secret(
+        kwargs.pop("jwt_signing_key", settings.jwt_signing_key)
     )
 
     proxy = OIDCProxy(
