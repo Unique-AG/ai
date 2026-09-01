@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from key_value.aio.stores.memory import MemoryStore
+from pydantic import SecretStr
 
 from unique_mcp.auth.zitadel.oidc_proxy import (
     ZitadelOIDCProxySettings,
@@ -26,7 +27,7 @@ def test_zitadel_oidc_proxy_settings__constructs_config_url__with_base_url(
     settings = ZitadelOIDCProxySettings(
         base_url=sample_base_url,
         client_id="test_client",
-        client_secret="test_secret",
+        client_secret=SecretStr("test_secret"),
     )
 
     # Act & Assert
@@ -58,7 +59,7 @@ def test_create_zitadel_oidc_proxy__raises__when_client_storage_is_none() -> Non
             zitadel_oidc_proxy_settings=ZitadelOIDCProxySettings(
                 base_url="http://localhost:10116",
                 client_id="test_client",
-                client_secret="test_secret",
+                client_secret=SecretStr("test_secret"),
             ),
         )
 
@@ -78,7 +79,7 @@ def test_create_zitadel_oidc_proxy__forwards_client_storage__to_oidc_proxy(
     settings = ZitadelOIDCProxySettings(
         base_url="http://localhost:10116",
         client_id="test_client",
-        client_secret="test_secret",
+        client_secret=SecretStr("test_secret"),
     )
 
     # Act
@@ -109,7 +110,7 @@ def test_create_zitadel_oidc_proxy__sets_authorize_scope__by_default(
     settings = ZitadelOIDCProxySettings(
         base_url="http://localhost:10116",
         client_id="test_client",
-        client_secret="test_secret",
+        client_secret=SecretStr("test_secret"),
     )
 
     # Act
@@ -141,7 +142,7 @@ def test_create_zitadel_oidc_proxy__uses_none_auth_method__when_client_secret_om
     settings = ZitadelOIDCProxySettings(
         base_url="http://localhost:10116",
         client_id="test_client",
-        jwt_signing_key="test_signing_key",
+        jwt_signing_key=SecretStr("test_signing_key"),
     )
 
     # Act
@@ -175,8 +176,8 @@ def test_create_zitadel_oidc_proxy__respects_kwargs__over_settings_derived_defau
     settings = ZitadelOIDCProxySettings(
         base_url="http://localhost:10116",
         client_id="test_client",
-        client_secret="test_secret",
-        jwt_signing_key="settings_signing_key",
+        client_secret=SecretStr("test_secret"),
+        jwt_signing_key=SecretStr("settings_signing_key"),
     )
 
     # Act
