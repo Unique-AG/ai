@@ -207,10 +207,24 @@ def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
             )
 
 
-def _propagate_wait_interrupt(result: object) -> None:
-    """Re-raise timeout/cancellation so callers can return a partial snapshot."""
-    if isinstance(result, (asyncio.CancelledError, TimeoutError)):
-        raise result
+async def _task_group_results[T](
+    coros: list[Awaitable[T]],
+) -> list[T | BaseException]:
+    """Collect ordinary failures while preserving cancellation and timeout."""
+    results: dict[int, T | BaseException] = {}
+
+    async def _run(i: int, coro: Awaitable[T]) -> None:
+        try:
+            results[i] = await coro
+        except (asyncio.CancelledError, TimeoutError):
+            raise
+        except Exception as exc:
+            results[i] = exc
+
+    async with asyncio.TaskGroup() as tg:
+        for i, coro in enumerate(coros):
+            _ = tg.create_task(_run(i, coro))
+    return [results[i] for i in range(len(coros))]
 
 
 def _log_skipped_listing(message: str, err: BaseException, *args: object) -> None:
@@ -249,12 +263,8 @@ async def _paginate_parent_listing[T](
                 on_page(page_items)
             return page_items
 
-    extra = await asyncio.gather(
-        *[_fetch(skip) for skip in remaining_skips],
-        return_exceptions=True,
-    )
+    extra = await _task_group_results([_fetch(skip) for skip in remaining_skips])
     for page in extra:
-        _propagate_wait_interrupt(page)
         if isinstance(page, BaseException):
             _log_skipped_listing("Skipping listing page after fetch error", page)
             continue
@@ -330,19 +340,18 @@ async def _list_direct_children_async(
             ]
         return files, total
 
-    folder_result, file_result = await asyncio.gather(
-        folders_task,
-        _paginate_parent_listing(
-            _content_page,
-            _parse_content_page,
-            step_size=step_size,
-            max_concurrent_requests=max_concurrent_page_fetches,
-            on_page=on_files,
-        ),
-        return_exceptions=True,
+    folder_result, file_result = await _task_group_results(
+        [
+            folders_task,
+            _paginate_parent_listing(
+                _content_page,
+                _parse_content_page,
+                step_size=step_size,
+                max_concurrent_requests=max_concurrent_page_fetches,
+                on_page=on_files,
+            ),
+        ]
     )
-    _propagate_wait_interrupt(folder_result)
-    _propagate_wait_interrupt(file_result)
     if isinstance(folder_result, BaseException):
         _log_skipped_listing(
             "Skipping folder listing for parent %s", folder_result, scope_id
@@ -352,7 +361,7 @@ async def _list_direct_children_async(
         _log_skipped_listing(
             "Skipping content listing for parent %s", file_result, scope_id
         )
-    return folder_result
+    return cast(list[BaseFolderInfo], folder_result)
 
 
 async def walk_visible_paths_via_folders_async(
@@ -440,15 +449,10 @@ async def walk_visible_paths_via_folders_async(
             folders = await asyncio.shield(_list_and_record(scope_id, path))
         recurse = max_depth is None or depth + 1 < max_depth
         if recurse and folders:
-            child_results = await asyncio.gather(
-                *[
-                    _visit(folder.id, path / folder.name, depth + 1)
-                    for folder in folders
-                ],
-                return_exceptions=True,
+            child_results = await _task_group_results(
+                [_visit(folder.id, path / folder.name, depth + 1) for folder in folders]
             )
             for folder, result in zip(folders, child_results, strict=True):
-                _propagate_wait_interrupt(result)
                 if isinstance(result, BaseException):
                     _log_skipped_listing("Skipping subtree %s", result, folder.id)
 
