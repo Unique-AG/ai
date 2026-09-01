@@ -19,14 +19,21 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 import unique_sdk
 from typing_extensions import deprecated
 
 from unique_toolkit.content.schemas import BaseFolderInfo, ContentInfo
+from unique_toolkit.content.smart_rules import (
+    AndStatement,
+    Operator,
+    OrStatement,
+    UniqueQL,
+    parse_uniqueql,
+)
 from unique_toolkit.experimental.components.content_tree.schemas import (
     FolderWalkSnapshot,
     PathTrieNode,
@@ -67,6 +74,137 @@ def _parse_content_infos_payload(payload: Any) -> tuple[list[ContentInfo], int]:
     ]
     total = int(payload.get("totalCount", len(files)))
     return files, total
+
+
+_NULLISH_OPERATORS = {
+    Operator.IS_NULL.value,
+    Operator.IS_NOT_NULL.value,
+    Operator.IS_EMPTY.value,
+    Operator.IS_NOT_EMPTY.value,
+}
+
+
+def _content_uniqueql_record(info: ContentInfo) -> dict[str, Any]:
+    dumped = info.model_dump(by_alias=True, mode="json")
+    metadata = dumped.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+    record = {
+        key: value
+        for key, value in dumped.items()
+        if key != "metadata" and value is not None
+    }
+    record["metadata"] = metadata
+    for key, value in metadata.items():
+        record.setdefault(key, value)
+    return record
+
+
+def _uniqueql_fill_nullish_values(node: Any) -> Any:
+    """Statement.value cannot be None; documented isNull/isEmpty UniqueQL uses null."""
+    if not isinstance(node, dict):
+        return node
+    if "and" in node:
+        return {
+            **node,
+            "and": [_uniqueql_fill_nullish_values(item) for item in node["and"]],
+        }
+    if "or" in node:
+        return {
+            **node,
+            "or": [_uniqueql_fill_nullish_values(item) for item in node["or"]],
+        }
+    filled = dict(node)
+    if filled.get("operator") in _NULLISH_OPERATORS and filled.get("value") is None:
+        filled["value"] = True
+    if isinstance(filled.get("value"), dict):
+        filled["value"] = _uniqueql_fill_nullish_values(filled["value"])
+    return filled
+
+
+def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
+    if isinstance(query, AndStatement):
+        return bool(query.and_list) and all(
+            _uniqueql_matches(record, child) for child in query.and_list
+        )
+    if isinstance(query, OrStatement):
+        return bool(query.or_list) and any(
+            _uniqueql_matches(record, child) for child in query.or_list
+        )
+    actual: Any = record
+    for key in query.path:
+        if not isinstance(actual, Mapping):
+            actual = None
+            break
+        actual = actual.get(key)
+    expected = query.value
+    operator = query.operator
+    is_empty = actual is None or actual in ("", [], {})
+    match operator:
+        case Operator.EQUALS:
+            return actual == expected
+        case Operator.NOT_EQUALS:
+            return actual != expected
+        case Operator.CONTAINS:
+            try:
+                return expected in cast(Any, actual)
+            except TypeError:
+                return False
+        case Operator.NOT_CONTAINS:
+            try:
+                return expected not in cast(Any, actual)
+            except TypeError:
+                return True
+        case Operator.IN:
+            return isinstance(expected, list) and actual in expected
+        case Operator.NOT_IN:
+            return isinstance(expected, list) and actual not in expected
+        case Operator.OVERLAPS:
+            return (
+                isinstance(actual, list)
+                and isinstance(expected, list)
+                and any(item in actual for item in expected)
+            )
+        case Operator.NOT_OVERLAPS:
+            return not (
+                isinstance(actual, list)
+                and isinstance(expected, list)
+                and any(item in actual for item in expected)
+            )
+        case Operator.GREATER_THAN:
+            try:
+                return cast(Any, actual) > expected
+            except TypeError:
+                return False
+        case Operator.GREATER_THAN_OR_EQUAL:
+            try:
+                return cast(Any, actual) >= expected
+            except TypeError:
+                return False
+        case Operator.LESS_THAN:
+            try:
+                return cast(Any, actual) < expected
+            except TypeError:
+                return False
+        case Operator.LESS_THAN_OR_EQUAL:
+            try:
+                return cast(Any, actual) <= expected
+            except TypeError:
+                return False
+        case Operator.IS_NULL:
+            return actual is None
+        case Operator.IS_NOT_NULL:
+            return actual is not None
+        case Operator.IS_EMPTY:
+            return is_empty
+        case Operator.IS_NOT_EMPTY:
+            return not is_empty
+        case Operator.NESTED:
+            return (
+                isinstance(expected, (AndStatement, OrStatement))
+                and isinstance(actual, Mapping)
+                and _uniqueql_matches(actual, expected)
+            )
 
 
 def _propagate_wait_interrupt(result: object) -> None:
@@ -139,7 +277,8 @@ async def _list_direct_children_async(
 
     ``scope_id=None`` is the knowledge-base root. ``Content.get_infos`` without
     ``parentId`` lists the **entire** catalog, so root only fetches folders.
-    Files are listed per folder with ``parentId``.
+    Files are listed per folder with ``parentId``. Unique rejects ``parentId``
+    with ``metadataFilter``, so UniqueQL is applied to the returned files.
     """
     parent_params: dict[str, Any] = {}
     if scope_id:
@@ -164,23 +303,38 @@ async def _list_direct_children_async(
     if not scope_id:
         return await folders_task
 
+    parsed_filter = (
+        parse_uniqueql(_uniqueql_fill_nullish_values(metadata_filter))
+        if metadata_filter
+        else None
+    )
+
     async def _content_page(skip: int) -> Any:
-        params = dict(parent_params)
-        if metadata_filter:
-            params["metadataFilter"] = metadata_filter
         return await unique_sdk.Content.get_infos_async(
             user_id=user_id,
             company_id=company_id,
             skip=skip,
             take=step_size,
-            **params,
+            **parent_params,
         )
+
+    def _parse_content_page(payload: Any) -> tuple[list[ContentInfo], int]:
+        files, total = _parse_content_infos_payload(payload)
+        # Keep parentId listing + local UniqueQL until UniqueQL/folderId metadata
+        # listing is equivalent (soft-delete/versioning); then drop this record filter.
+        if parsed_filter is not None:
+            files = [
+                info
+                for info in files
+                if _uniqueql_matches(_content_uniqueql_record(info), parsed_filter)
+            ]
+        return files, total
 
     folder_result, file_result = await asyncio.gather(
         folders_task,
         _paginate_parent_listing(
             _content_page,
-            _parse_content_infos_payload,
+            _parse_content_page,
             step_size=step_size,
             max_concurrent_requests=max_concurrent_page_fetches,
             on_page=on_files,

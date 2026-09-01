@@ -10,6 +10,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from unique_toolkit.content.schemas import ContentInfo
+from unique_toolkit.content.smart_rules import parse_uniqueql
+from unique_toolkit.experimental.components.content_tree.functions import (
+    _content_uniqueql_record,
+    _uniqueql_fill_nullish_values,
+    _uniqueql_matches,
+)
 from unique_toolkit.experimental.components.content_tree.service import (
     _FOLDER_WALK_CACHE_ENTRIES,
 )
@@ -628,9 +634,9 @@ _FUNCTIONS = "unique_toolkit.experimental.components.content_tree.functions"
 # ── Folder-walk tree (Folder.get_infos + Content.get_infos) ─────────────────
 
 
-def _walk_file_payload(*, key: str) -> dict[str, object]:
+def _walk_file_payload(*, key: str, metadata: dict | None = None) -> dict[str, object]:
     now = datetime.now(tz=UTC).isoformat()
-    return {
+    payload: dict[str, object] = {
         "id": f"id-{key}",
         "object": "content",
         "key": key,
@@ -640,6 +646,9 @@ def _walk_file_payload(*, key: str) -> dict[str, object]:
         "createdAt": now,
         "updatedAt": now,
     }
+    if metadata is not None:
+        payload["metadata"] = metadata
+    return payload
 
 
 def _empty_listing() -> tuple[dict[str, object], dict[str, object]]:
@@ -1029,6 +1038,72 @@ async def test_AI_walk_skips_unscoped_content_listing_at_root() -> None:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_AI_walk_filters_content_client_side_when_parent_id_is_set() -> None:
+    """
+    Purpose: parentId content listings omit metadataFilter; UniqueQL is applied locally.
+    Why this matters: Unique rejects parentId+metadataFilter, so sending both skips
+        every folder's files. Dropping the filter would leak user-memory content.
+    Setup summary: One folder, two files; notContains folderIdPath user-memory.
+        Assert no metadataFilter on the content call; only the matching file remains.
+    """
+    empty_folders, _ = _empty_listing()
+    content_kwargs: list[dict[str, object]] = []
+
+    async def fake_folders(**kwargs: object) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent is None:
+            return {
+                "folderInfos": [
+                    {"id": "scope_legal", "name": "Legal", "parentId": None}
+                ],
+                "totalCount": 1,
+            }
+        return empty_folders
+
+    async def fake_content(**kwargs: object) -> dict[str, object]:
+        content_kwargs.append(kwargs)
+        return {
+            "contentInfos": [
+                _walk_file_payload(
+                    key="ok.pdf",
+                    metadata={"folderIdPath": "uniquepathid://scope_legal"},
+                ),
+                _walk_file_payload(
+                    key="memory.pdf",
+                    metadata={"folderIdPath": "uniquepathid://scope_user-memory"},
+                ),
+            ],
+            "totalCount": 2,
+        }
+
+    with (
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Folder.get_infos_async",
+            AsyncMock(side_effect=fake_folders),
+        ),
+        patch(
+            f"{_FUNCTIONS}.unique_sdk.Content.get_infos_async",
+            AsyncMock(side_effect=fake_content),
+        ),
+    ):
+        snapshot = await walk_visible_paths_via_folders_async(
+            user_id="u",
+            company_id="c",
+            metadata_filter={
+                "operator": "notContains",
+                "path": ["folderIdPath"],
+                "value": "user-memory",
+            },
+        )
+
+    assert content_kwargs
+    assert content_kwargs[0].get("parentId") == "scope_legal"
+    assert "metadataFilter" not in content_kwargs[0]
+    assert [path.name for _info, path in snapshot.files] == ["ok.pdf"]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_AI_walk_timeout_keeps_first_folder_page() -> None:
     """
     Purpose: A timeout after the first folder page still returns those folders.
@@ -1364,3 +1439,203 @@ async def test_AI_evicted_entry_keeps_task_and_snapshot_together() -> None:
 
     svc.invalidate_cache()
     assert svc._folder_walk_task.cache_info().currsize == 0
+
+
+@pytest.mark.ai
+def test_AI_content_uniqueql_record_ignores_non_dict_metadata() -> None:
+    """
+    Purpose: Non-dict metadata is treated as empty so UniqueQL still sees content fields.
+    Why this matters: Malformed metadata must not crash local filtering.
+    Setup summary: Construct ContentInfo with string metadata; assert key is on the record.
+    """
+    info = _minimal_content_info(key="a.pdf", metadata=None)
+    object.__setattr__(info, "metadata", "not-a-dict")
+    record = _content_uniqueql_record(info)
+    assert record["key"] == "a.pdf"
+    assert record["metadata"] == {}
+    assert "not-a-dict" not in record.values()
+
+
+@pytest.mark.ai
+def test_AI_content_uniqueql_record_keeps_metadata_when_content_field_is_null() -> None:
+    """
+    Purpose: Null ContentInfo fields must not overwrite flattened metadata values.
+    Why this matters: UniqueQL paths like title/url otherwise match None and drop files.
+    Setup summary: title is None on ContentInfo, set in metadata; assert metadata wins.
+    """
+    info = _minimal_content_info(
+        key="a.pdf", metadata={"title": "From meta", "dept": "legal"}
+    )
+    object.__setattr__(info, "title", None)
+    record = _content_uniqueql_record(info)
+    assert record["title"] == "From meta"
+    assert record["metadata"]["title"] == "From meta"
+    assert record["dept"] == "legal"
+
+
+@pytest.mark.ai
+def test_AI_uniqueql_is_null_with_none_value_parses() -> None:
+    """
+    Purpose: Documented isNull UniqueQL with value None still parses for folder walks.
+    Why this matters: parse_uniqueql otherwise raises and aborts the whole tree walk.
+    Setup summary: Fill nullish values, parse, match a record with a missing title.
+    """
+    query = parse_uniqueql(
+        _uniqueql_fill_nullish_values(
+            {"operator": "isNull", "path": ["title"], "value": None}
+        )
+    )
+    assert _uniqueql_matches({"key": "a.pdf"}, query) is True
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("query", "record", "expected"),
+    [
+        ({"and": []}, {"key": "a"}, False),
+        ({"or": []}, {"key": "a"}, False),
+        (
+            {
+                "and": [
+                    {"operator": "equals", "path": ["key"], "value": "a.pdf"},
+                    {"operator": "equals", "path": ["dept"], "value": "legal"},
+                ]
+            },
+            {"key": "a.pdf", "dept": "legal"},
+            True,
+        ),
+        (
+            {
+                "or": [
+                    {"operator": "equals", "path": ["key"], "value": "miss"},
+                    {"operator": "equals", "path": ["key"], "value": "a.pdf"},
+                ]
+            },
+            {"key": "a.pdf"},
+            True,
+        ),
+        (
+            {"operator": "equals", "path": ["meta", "dept"], "value": "legal"},
+            {"meta": "not-a-map"},
+            False,
+        ),
+        (
+            {"operator": "equals", "path": ["metadata", "dept"], "value": "legal"},
+            {"metadata": {"dept": "legal"}},
+            True,
+        ),
+        (
+            {"operator": "equals", "path": ["key"], "value": "a.pdf"},
+            {"key": "a.pdf"},
+            True,
+        ),
+        (
+            {"operator": "notEquals", "path": ["key"], "value": "b.pdf"},
+            {"key": "a.pdf"},
+            True,
+        ),
+        (
+            {"operator": "contains", "path": ["folderIdPath"], "value": "legal"},
+            {"folderIdPath": "uniquepathid://legal"},
+            True,
+        ),
+        (
+            {"operator": "contains", "path": ["count"], "value": "x"},
+            {"count": 1},
+            False,
+        ),
+        (
+            {"operator": "notContains", "path": ["count"], "value": "x"},
+            {"count": 1},
+            True,
+        ),
+        (
+            {"operator": "in", "path": ["mime"], "value": ["pdf", "txt"]},
+            {"mime": "pdf"},
+            True,
+        ),
+        (
+            {"operator": "notIn", "path": ["mime"], "value": ["txt"]},
+            {"mime": "pdf"},
+            True,
+        ),
+        (
+            {"operator": "overlaps", "path": ["tags"], "value": ["a", "b"]},
+            {"tags": ["b", "c"]},
+            True,
+        ),
+        (
+            {"operator": "notOverlaps", "path": ["tags"], "value": ["a"]},
+            {"tags": ["b"]},
+            True,
+        ),
+        (
+            {"operator": "notOverlaps", "path": ["tags"], "value": ["a"]},
+            {"tags": "not-a-list"},
+            True,
+        ),
+        ({"operator": "greaterThan", "path": ["n"], "value": 1}, {"n": 2}, True),
+        ({"operator": "greaterThan", "path": ["n"], "value": 1}, {"n": None}, False),
+        (
+            {"operator": "greaterThanOrEqual", "path": ["n"], "value": 2},
+            {"n": 2},
+            True,
+        ),
+        (
+            {"operator": "greaterThanOrEqual", "path": ["n"], "value": 1},
+            {"n": None},
+            False,
+        ),
+        ({"operator": "lessThan", "path": ["n"], "value": 2}, {"n": 1}, True),
+        ({"operator": "lessThan", "path": ["n"], "value": 1}, {"n": None}, False),
+        (
+            {"operator": "lessThanOrEqual", "path": ["n"], "value": 1},
+            {"n": 1},
+            True,
+        ),
+        (
+            {"operator": "lessThanOrEqual", "path": ["n"], "value": 1},
+            {"n": None},
+            False,
+        ),
+        ({"operator": "isNull", "path": ["gone"], "value": True}, {}, True),
+        ({"operator": "isNotNull", "path": ["key"], "value": True}, {"key": "a"}, True),
+        ({"operator": "isEmpty", "path": ["tags"], "value": True}, {"tags": []}, True),
+        (
+            {"operator": "isNotEmpty", "path": ["key"], "value": True},
+            {"key": "a"},
+            True,
+        ),
+        (
+            {
+                "operator": "nested",
+                "path": ["meta"],
+                "value": {
+                    "and": [{"operator": "equals", "path": ["dept"], "value": "legal"}]
+                },
+            },
+            {"meta": {"dept": "legal"}},
+            True,
+        ),
+        (
+            {
+                "operator": "nested",
+                "path": ["meta"],
+                "value": {
+                    "and": [{"operator": "equals", "path": ["dept"], "value": "legal"}]
+                },
+            },
+            {"meta": "not-a-map"},
+            False,
+        ),
+    ],
+)
+def test_AI_uniqueql_matches_operators(
+    query: dict, record: dict, expected: bool
+) -> None:
+    """
+    Purpose: Local UniqueQL evaluation covers every operator used in folder walks.
+    Why this matters: parentId listings cannot send metadataFilter to Unique.
+    Setup summary: Parse a UniqueQL dict, match a record, assert the boolean result.
+    """
+    assert _uniqueql_matches(record, parse_uniqueql(query)) is expected
