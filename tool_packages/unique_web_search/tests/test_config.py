@@ -1,4 +1,5 @@
 import pytest
+from jinja2 import Template
 from pydantic import ValidationError
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.basic.schema import (
@@ -36,6 +37,12 @@ from unique_web_search.services.executors.v1.config import (
 )
 from unique_web_search.services.executors.v2.config import WebSearchV2Config
 from unique_web_search.services.executors.v3.config import WebSearchV3Config
+from unique_web_search.services.executors.v3.prompts import (
+    DEFAULT_TOOL_DESCRIPTION as DEFAULT_TOOL_DESCRIPTION_V3,
+)
+from unique_web_search.services.executors.v3.prompts import (
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT as DEFAULT_SYSTEM_PROMPT_V3,
+)
 from unique_web_search.services.search_engine.registry import SEARCH_ENGINE_REGISTRY
 
 # ActivatedSearchEngine / ActivatedCrawler use the registry's titled subclass.
@@ -265,6 +272,41 @@ class TestWebSearchV3Config:
         assert "Domain Diversity Requirement" in (
             config.tool_format_information_for_system_prompt
         )
+
+    def test_migrates_legacy_mode_blind_default_prompts(self) -> None:
+        """Unchanged persisted V3 defaults are upgraded to mode-aware templates."""
+        legacy_tool_description = (
+            Template(DEFAULT_TOOL_DESCRIPTION_V3).render(
+                search_engine_mode="standard",
+                tool_parameters_schema="{{ tool_parameters_schema }}",
+            )
+            + "\n"
+        )
+        legacy_system_prompt = (
+            Template(DEFAULT_SYSTEM_PROMPT_V3).render(
+                search_engine_mode="standard",
+                date_string="{{ date_string }}",
+            )
+            + "\n"
+        )
+
+        config = WebSearchV3Config(
+            tool_description=legacy_tool_description,
+            tool_description_for_system_prompt=legacy_system_prompt,
+        )
+
+        assert config.tool_description == DEFAULT_TOOL_DESCRIPTION_V3
+        assert config.tool_description_for_system_prompt == DEFAULT_SYSTEM_PROMPT_V3
+
+    def test_preserves_custom_mode_blind_prompts(self) -> None:
+        """Prompt migration must not overwrite tenant-authored V3 instructions."""
+        config = WebSearchV3Config(
+            tool_description="Custom concise search guidance.",
+            tool_description_for_system_prompt="Custom research playbook.",
+        )
+
+        assert config.tool_description == "Custom concise search guidance."
+        assert config.tool_description_for_system_prompt == "Custom research playbook."
 
 
 class TestQueryRefinementConfig:

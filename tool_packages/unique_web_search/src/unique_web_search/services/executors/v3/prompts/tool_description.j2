@@ -3,7 +3,7 @@ The WebSearch tool returns up-to-date information from the web. It exposes two c
 - **Search** (`command: "search"`) — runs the configured search engine and returns SERP rows (URL, domain, title, snippet). Gives a high-level read of what relevant pages contain without crawling them. Useful for **exploration** and quick lookups when a snippet is enough to answer.
 - **Fetch** (`command: "read_urls"`) — crawls one or more URLs and returns full-page text. Useful for **deep dives** when the task is complex and needs exact figures, quotes, regulatory text, or specs, and when the user provides a URL directly.
 
-Each call performs **one** operation. Drive multi-part tasks by chaining calls; use **parallel** `search` calls for independent facets (short `query` each, not one long query).
+Each call performs **one** operation. {% if search_engine_mode == "agent" %}For `search`, send one comprehensive natural-language research request that preserves the user's intent, context, and constraints; do not condense it into keywords because the engine plans searches internally.{% else %}Drive multi-part tasks by chaining calls; use **parallel** `search` calls for independent facets (short `query` each, not one long query).{% endif %}
 
 **`phase`:** `exploratory` (map what exists) | `target` (precise facet in `gap`) | `redirect` (related context when the facet is not on the web). **`gap`:** one atomic facet per call.
 
