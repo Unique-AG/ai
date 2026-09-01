@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.36.1](https://github.com/Unique-AG/ai/compare/uqadm-v2026.36.0...uqadm-v2026.36.1) (2026-09-01)
+
+
+### Miscellaneous
+
+* **uqadm:** Synchronize ai versions
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.34.0...uqadm-v2026.36.0) (2026-08-31)
 
 
