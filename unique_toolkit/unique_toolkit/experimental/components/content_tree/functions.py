@@ -21,7 +21,7 @@ import json
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from pathlib import PurePosixPath
-from typing import Any, Never
+from typing import Any, cast
 
 import unique_sdk
 from typing_extensions import deprecated
@@ -76,12 +76,50 @@ def _parse_content_infos_payload(payload: Any) -> tuple[list[ContentInfo], int]:
     return files, total
 
 
+_NULLISH_OPERATORS = {
+    Operator.IS_NULL.value,
+    Operator.IS_NOT_NULL.value,
+    Operator.IS_EMPTY.value,
+    Operator.IS_NOT_EMPTY.value,
+}
+
+
 def _content_uniqueql_record(info: ContentInfo) -> dict[str, Any]:
     dumped = info.model_dump(by_alias=True, mode="json")
-    metadata = dumped.pop("metadata", None) or {}
+    metadata = dumped.get("metadata") or {}
     if not isinstance(metadata, dict):
         metadata = {}
-    return {**metadata, **dumped}
+    record = {
+        key: value
+        for key, value in dumped.items()
+        if key != "metadata" and value is not None
+    }
+    record["metadata"] = metadata
+    for key, value in metadata.items():
+        record.setdefault(key, value)
+    return record
+
+
+def _uniqueql_fill_nullish_values(node: Any) -> Any:
+    """Statement.value cannot be None; documented isNull/isEmpty UniqueQL uses null."""
+    if not isinstance(node, dict):
+        return node
+    if "and" in node:
+        return {
+            **node,
+            "and": [_uniqueql_fill_nullish_values(item) for item in node["and"]],
+        }
+    if "or" in node:
+        return {
+            **node,
+            "or": [_uniqueql_fill_nullish_values(item) for item in node["or"]],
+        }
+    filled = dict(node)
+    if filled.get("operator") in _NULLISH_OPERATORS and filled.get("value") is None:
+        filled["value"] = True
+    if isinstance(filled.get("value"), dict):
+        filled["value"] = _uniqueql_fill_nullish_values(filled["value"])
+    return filled
 
 
 def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
@@ -109,12 +147,12 @@ def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
             return actual != expected
         case Operator.CONTAINS:
             try:
-                return expected in actual
+                return expected in cast(Any, actual)
             except TypeError:
                 return False
         case Operator.NOT_CONTAINS:
             try:
-                return expected not in actual
+                return expected not in cast(Any, actual)
             except TypeError:
                 return True
         case Operator.IN:
@@ -135,22 +173,22 @@ def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
             )
         case Operator.GREATER_THAN:
             try:
-                return actual > expected
+                return cast(Any, actual) > expected
             except TypeError:
                 return False
         case Operator.GREATER_THAN_OR_EQUAL:
             try:
-                return actual >= expected
+                return cast(Any, actual) >= expected
             except TypeError:
                 return False
         case Operator.LESS_THAN:
             try:
-                return actual < expected
+                return cast(Any, actual) < expected
             except TypeError:
                 return False
         case Operator.LESS_THAN_OR_EQUAL:
             try:
-                return actual <= expected
+                return cast(Any, actual) <= expected
             except TypeError:
                 return False
         case Operator.IS_NULL:
@@ -167,9 +205,6 @@ def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
                 and isinstance(actual, Mapping)
                 and _uniqueql_matches(actual, expected)
             )
-        case _:
-            never: Never = operator
-            raise ValueError(f"unsupported UniqueQL operator: {never}")
 
 
 def _propagate_wait_interrupt(result: object) -> None:
@@ -268,7 +303,11 @@ async def _list_direct_children_async(
     if not scope_id:
         return await folders_task
 
-    parsed_filter = parse_uniqueql(metadata_filter) if metadata_filter else None
+    parsed_filter = (
+        parse_uniqueql(_uniqueql_fill_nullish_values(metadata_filter))
+        if metadata_filter
+        else None
+    )
 
     async def _content_page(skip: int) -> Any:
         return await unique_sdk.Content.get_infos_async(
