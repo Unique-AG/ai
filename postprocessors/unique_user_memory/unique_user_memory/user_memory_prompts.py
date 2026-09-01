@@ -69,8 +69,17 @@ NEVER store, about any person or private entity other than the user:
 These rules apply even when the identifying data is abbreviated,
 misspelled, obfuscated, or split across words.
 
-When a durable fact about the user's own work involves such a person or
-entity, keep only a fully de-identified version: "runs quarterly
+Facts about the user themselves are ALWAYS allowed, even when they name
+an organization: the user's own employer (current and past), team, role,
+job title, location, and the organizations, products, and tools they say
+they work at or with. "Works at Julius Baer", "moved from UBS to
+Swiss Re" are the user's own identity facts, not CID. The prohibitions
+above target OTHER people, and entities in a client, prospect, or
+counterparty relationship - never the user's own employment or
+affiliations.
+
+When a durable fact about the user's own work involves a client or
+counterparty, keep only a fully de-identified version: "runs quarterly
 portfolio reviews" is fine; "reviews the portfolio of J. Muster" is not.
 
 Public figures in their public capacity (politicians, executives,

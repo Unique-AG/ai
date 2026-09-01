@@ -825,6 +825,13 @@ def test_cid_policy_is_embedded_in_every_write_path_prompt() -> None:
 
     assert all(policy_marker in prompt for prompt in prompts)
     assert all("Bank-client relationship signals" in prompt for prompt in prompts)
+    # The policy must not swallow the user's own facts: employer changes and
+    # other affiliations are identity data, not CID (regression guard for the
+    # gate answering NOOP on "I work at X now, not at Y anymore").
+    assert all(
+        "Facts about the user themselves are ALWAYS allowed" in prompt
+        for prompt in prompts
+    )
 
 
 @pytest.mark.ai
