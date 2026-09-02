@@ -1413,3 +1413,46 @@ class TestShellElicit:
         kw = mock.call_args[1]
         assert kw["action"] == "ACCEPT"
         assert kw["content"] == '{"a":1}'
+
+
+def test_format_api_error_surfaces_platform_detail() -> None:
+    """A terse backend code must not arrive with the diagnosis stripped off."""
+    from unique_sdk.cli.commands.elicitation import _format_api_error
+
+    error = unique_sdk.APIError(
+        "FAILED_TO_CREATE_ELICITATION",
+        http_status=400,
+        code="BAD_REQUEST",
+        json_body={"message": "schema is required when mode is FORM"},
+        headers={"request-id": "req_abc123"},
+    )
+
+    rendered = _format_api_error(error)
+
+    assert "FAILED_TO_CREATE_ELICITATION" in rendered
+    assert "status=400" in rendered
+    assert "code=BAD_REQUEST" in rendered
+    # The request id is what makes the matching backend log line findable.
+    assert "request_id=req_abc123" in rendered
+    assert "schema is required when mode is FORM" in rendered
+
+
+def test_format_api_error_without_detail_stays_terse() -> None:
+    from unique_sdk.cli.commands.elicitation import _format_api_error
+
+    rendered = _format_api_error(unique_sdk.APIError("BOOM"))
+
+    assert rendered == "elicit: BOOM"
+
+
+def test_format_api_error_truncates_huge_bodies() -> None:
+    from unique_sdk.cli.commands.elicitation import _format_api_error
+
+    # UniqueError only decodes http_body when it is bytes (a str body is
+    # dropped), which is what the HTTP client actually supplies.
+    rendered = _format_api_error(
+        unique_sdk.APIError("BOOM", http_body=b"x" * 5000)
+    )
+
+    assert "…(truncated)" in rendered
+    assert len(rendered) < 1200

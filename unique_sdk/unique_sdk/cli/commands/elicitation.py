@@ -414,6 +414,41 @@ def _extract_visibility_context(
     return chat_id, message_id, step_id, mode
 
 
+def _format_api_error(exc: Exception) -> str:
+    """Render an SDK error with the detail the platform actually returned.
+
+    ``UniqueError.__str__`` is only the ``message`` field, so a terse backend
+    code (e.g. ``FAILED_TO_CREATE_ELICITATION``) reaches the caller with the
+    status, error code, response body and request id all discarded — leaving
+    an agent nothing to act on and no way to find the matching backend log
+    line. Everything below is already on the exception; this just stops
+    throwing it away.
+    """
+    parts = [str(exc) or exc.__class__.__name__]
+    status = getattr(exc, "http_status", None)
+    if status is not None:
+        parts.append(f"status={status}")
+    code = getattr(exc, "code", None)
+    if code:
+        parts.append(f"code={code}")
+    request_id = getattr(exc, "request_id", None)
+    if request_id:
+        parts.append(f"request_id={request_id}")
+    detail = getattr(exc, "json_body", None) or getattr(exc, "http_body", None)
+    if detail:
+        rendered = (
+            json.dumps(detail, separators=(",", ":"))
+            if not isinstance(detail, str)
+            else detail
+        )
+        # Bodies are error payloads, not user content, but keep the line
+        # readable when a stack trace or HTML page comes back.
+        if len(rendered) > 800:
+            rendered = rendered[:800] + "…(truncated)"
+        parts.append(f"detail={rendered}")
+    return "elicit: " + " ".join(parts)
+
+
 def cmd_elicit_create(
     state: ShellState,
     *,
@@ -531,7 +566,7 @@ def cmd_elicit_create(
             f"{format_elicitation(elicitation)}{suffix}"
         )
     except (ValueError, unique_sdk.APIError) as exc:
-        return f"elicit: {exc}"
+        return _format_api_error(exc)
 
 
 def cmd_elicit_pending(state: ShellState) -> str:
@@ -562,7 +597,7 @@ def cmd_elicit_pending(state: ShellState) -> str:
             elicitations = []
         return format_pending_elicitations(elicitations)
     except unique_sdk.APIError as exc:
-        return f"elicit: {exc}"
+        return _format_api_error(exc)
 
 
 def cmd_elicit_get(state: ShellState, elicitation_id: str) -> str:
@@ -575,7 +610,7 @@ def cmd_elicit_get(state: ShellState, elicitation_id: str) -> str:
         )
         return format_elicitation(elicitation)
     except unique_sdk.APIError as exc:
-        return f"elicit: {exc}"
+        return _format_api_error(exc)
 
 
 def cmd_elicit_respond(
@@ -647,7 +682,7 @@ def cmd_elicit_respond(
 
         return format_elicitation_response(result, elicitation_id, action_upper)
     except (ValueError, unique_sdk.APIError) as exc:
-        return f"elicit: {exc}"
+        return _format_api_error(exc)
 
 
 def _is_transient_api_failure(exc: BaseException) -> bool:
@@ -784,7 +819,7 @@ def cmd_elicit_wait(
                 )
             time.sleep(poll_interval)
     except (unique_sdk.APIError, unique_sdk.APIConnectionError) as exc:
-        return f"elicit: {exc}"
+        return _format_api_error(exc)
     finally:
         # If the poll loop exited before we ever received a response
         # (e.g. the very first ``get_elicitation`` raised ``APIError``),
@@ -1000,4 +1035,4 @@ def cmd_elicit_ask(
             poll_interval=poll_interval,
         )
     except (ValueError, unique_sdk.APIError) as exc:
-        return f"elicit: {exc}"
+        return _format_api_error(exc)
