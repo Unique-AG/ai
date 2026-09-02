@@ -5,11 +5,13 @@ description: >-
   question in free-form chat -- for clarifications, confirmations
   (especially destructive actions), missing parameters, multiple-choice
   decisions, or structured form input. Elicitations are routed through
-  the Unique AI Platform UI via `unique-cli elicit create` + `elicit wait`
-  (the default polling pattern) or a single supervised `unique-cli elicit
-  ask` call (only when your agent instructions say your environment
-  supervises the wait) so the user gets a proper structured prompt and
-  you get a structured answer back.
+  the Unique AI Platform UI so the user gets a proper structured prompt
+  and you get a structured answer back. Your agent instructions decide
+  which command pattern to use: a single `unique-cli elicit ask` call
+  when they say your environment supervises the wait, otherwise
+  `unique-cli elicit create` + a short `elicit wait` polling loop.
+  Follow the pattern your instructions mandate, not the one this
+  description happens to mention first.
   Do NOT ask the user in plain chat when you can use this skill instead.
 ---
 
@@ -53,12 +55,21 @@ If in doubt, use Pattern A -- it is correct in every environment, whereas
 Pattern B is only correct in one that actually supervises the wait. Neither
 pattern is forbidden; pick the one your instructions call for.
 
-## Pattern A: `elicit create` + short polling loop with `elicit wait` (default)
+**"In doubt" means your instructions are silent.** If they state that this
+space supervises the wait, you are not in doubt and Pattern A is the wrong
+choice -- use Pattern B. A supervised mandate in your agent instructions
+outranks this file, including the word "default" wherever it appears here.
 
-Do **not** call `elicit ask` from inside an agent harness (Claude Code, Codex,
-or any environment where your Bash/shell tool has its own foreground-wait
-timeout — commonly ~2 minutes) **unless your agent instructions explicitly
-say your environment supervises the wait (see Pattern B below)**. `elicit
+## Pattern A: `elicit create` + short polling loop with `elicit wait` (unsupervised environments)
+
+**If your agent instructions say your environment supervises the wait, stop
+reading this section and use Pattern B below — that instruction overrides
+everything in this section, including the harness names in the next
+sentence.**
+
+Otherwise: do **not** call `elicit ask` from inside an agent harness (Claude
+Code, Codex, or any environment where your Bash/shell tool has its own
+foreground-wait timeout — commonly ~2 minutes). `elicit
 ask` blocks synchronously for up to `--timeout` seconds (default 2 hours)
 waiting for the human to answer, but a human reading and answering a prompt
 routinely takes longer than a typical Bash tool timeout. If that timeout
@@ -388,7 +399,7 @@ esac
 
 ## Agent workflow rules
 
-1. **Default to `elicit create` + `elicit wait` polling (Pattern A).** If you need an answer from the user, use this pattern, not a chat message -- unless your agent instructions explicitly say your environment supervises the wait, in which case use a single `elicit ask` call (Pattern B). See "Two patterns" above.
+1. **Check your agent instructions first, then pick the pattern.** If they say your environment supervises the wait, use a single `elicit ask` call (Pattern B). If they are silent on it, use `elicit create` + `elicit wait` polling (Pattern A). Either way use an elicitation, not a chat message. See "Two patterns" above.
 2. **Always pass `--chat-id "$UNIQUE_CHAT_ID"`.** Without it the elicitation is not attached to a chat and the user will not see it.
 3. **Omit `--message-id`.** The CLI resolves the current turn's assistant message ID from `$UNIQUE_TURN_IDENTITY_FILE` (preferred) or `$UNIQUE_MESSAGE_ID`. Do not pass a stale `$UNIQUE_MESSAGE_ID` from a persistent process environment.
 4. **Never pass `--no-visible`.** See the warning above. The visibility workaround is mandatory today.
