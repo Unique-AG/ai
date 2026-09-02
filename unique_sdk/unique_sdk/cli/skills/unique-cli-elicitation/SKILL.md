@@ -43,9 +43,10 @@ by this skill file guessing which harness you're running in:**
 
 - **Your instructions are silent, or say nothing about your environment
   supervising long-running waits** -- use **Pattern A: `elicit create` +
-  short polling loop with `elicit wait`** below. This is the default and is
-  safe everywhere, including inside a harness whose Bash/shell tool has its
-  own foreground-wait timeout (Claude Code, Codex, ~2 minutes commonly).
+  short polling loop with `elicit wait`** below. This is the right choice
+  whenever your instructions are silent, and it is safe everywhere,
+  including inside a harness whose Bash/shell tool has its own
+  foreground-wait timeout (Claude Code, Codex, ~2 minutes commonly).
 - **Your instructions explicitly say your environment supervises the wait**
   for a single long-running tool call (it will not silently background or
   kill the process before the human answers) -- use **Pattern B: a single
