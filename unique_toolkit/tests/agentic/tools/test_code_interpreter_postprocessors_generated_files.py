@@ -2874,6 +2874,8 @@ async def test_download_and_upload__tracker_receives_upload_and_done__on_success
         # Also defined on FileMimeType / ImageMimeType (shared allowlist).
         ("text/markdown", "text/markdown"),
         ("application/json", "application/json"),
+        ("application/vnd.ms-outlook", "application/vnd.ms-outlook"),
+        ("message/rfc822", "message/rfc822"),
         ("image/bmp", "image/bmp"),
         # image/* must always pass through unchanged.
         ("image/png", "image/png"),
