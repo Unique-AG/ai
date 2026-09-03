@@ -37,10 +37,8 @@ class ModelCost(BaseModel):
     cached_input: float | None = Field(default=None, alias="cachedInput")
     cache_write: float | None = Field(default=None, alias="cacheWrite")
     cache_write_1h: float | None = Field(default=None, alias="cacheWrite1h")
-    # Long-context tier (e.g. OpenAI GPT-5.x >272K input tokens): above the
-    # threshold the ENTIRE request is billed at these multipliers, not just the
-    # overflow. All three are required together; a partial definition is rejected
-    # so a misconfigured row is never silently priced at short-context rates.
+    # Long-context tier: above the threshold the whole request (not just the
+    # overflow) is billed at these multipliers. All-or-none, see validator below.
     long_context_threshold: int | None = Field(
         default=None, alias="longContextThreshold"
     )
