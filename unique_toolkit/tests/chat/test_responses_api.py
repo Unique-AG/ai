@@ -8,10 +8,12 @@ import unique_sdk
 from unique_toolkit.chat.responses_api import (
     _attempt_extract_reasoning_from_options,
     _attempt_extract_verbosity_from_options,
+    _prepare_responses_args,
     _prepare_responses_params_util,
     _responses_stream_with_rate_limit_retry,
     convert_messages_to_openai,
     rate_limit_retry_config,
+    strip_translated_responses_options,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -489,3 +491,114 @@ def test_prepare_responses_params__passes_custom_model_string_through() -> None:
     )
 
     assert params.model_name == "litellm:customer-private-model"
+
+
+# ============================================================================
+# Tests for chat-completions option translation on the Responses path
+# ============================================================================
+
+
+def _build_openai_options(other_options: dict) -> dict:
+    """Run the full prepare pipeline and return the ``options`` forwarded to OpenAI."""
+    params = _prepare_responses_params_util(
+        model_name=LanguageModelName.AZURE_GPT_55_2026_0424,
+        content_chunks=None,
+        temperature=1.0,
+        tools=None,
+        messages="Hello",
+        reasoning=None,
+        text=None,
+        other_options=other_options,
+    )
+    args = _prepare_responses_args(
+        company_id="company",
+        user_id="user",
+        assistant_message_id="am",
+        user_message_id="um",
+        chat_id="chat",
+        assistant_id="assistant",
+        params=params,
+        debug_info=None,
+        start_text=None,
+        include=None,
+        instructions=None,
+        max_output_tokens=None,
+        metadata=None,
+        parallel_tool_calls=None,
+        tool_choice=None,
+        top_p=None,
+        other_options=other_options,
+    )
+    return args["options"]
+
+
+@pytest.mark.ai
+def test_strip_translated_options__removes_reasoning_and_verbosity_keys() -> None:
+    """
+    Purpose: Verify every spelling that is translated into ``reasoning``/``text`` is dropped.
+    Why this matters: /v1/responses rejects flat ``verbosity`` / ``reasoning_effort`` with
+      "Unrecognized request argument" (UN-20123); anything else must pass through untouched.
+    Setup summary: Strip a dict mixing translated keys and an unrelated key.
+    """
+    result = strip_translated_responses_options(
+        {
+            "reasoning": {"effort": "low"},
+            "reasoning_effort": "low",
+            "reasoningEffort": "low",
+            "verbosity": "low",
+            "text": {"verbosity": "low"},
+            "user": "space-1",
+        }
+    )
+
+    assert result == {"user": "space-1"}
+    assert strip_translated_responses_options(None) == {}
+
+
+@pytest.mark.ai
+def test_prepare_responses_args__maps_flat_verbosity_to_text_and_drops_flat_key() -> (
+    None
+):
+    """
+    Purpose: ``verbosity`` from additional_llm_options reaches OpenAI only as ``text.verbosity``.
+    Why this matters: GPT-5.5 spaces configured with ``verbosity`` (chat-completions style)
+      failed with 400 once routed through the Responses API because the flat key leaked
+      into the request next to the translated ``text`` config.
+    Setup summary: Prepare args with ``verbosity: low``; assert ``text`` set, ``verbosity`` absent.
+    """
+    options = _build_openai_options({"verbosity": "low"})
+
+    assert options["text"] == {"verbosity": "low"}
+    assert "verbosity" not in options
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("key", ["reasoning_effort", "reasoningEffort"])
+def test_prepare_responses_args__maps_flat_reasoning_effort_and_drops_flat_key(
+    key: str,
+) -> None:
+    """
+    Purpose: Flat ``reasoning_effort`` / ``reasoningEffort`` reach OpenAI only as
+      ``reasoning.effort``.
+    Why this matters: Same 400 as for ``verbosity``; both spellings are accepted in
+      space configs and must be normalised identically.
+    Setup summary: Prepare args with the flat key; assert nested effort set, flat key absent.
+    """
+    options = _build_openai_options({key: "high"})
+
+    assert options["reasoning"]["effort"] == "high"
+    assert "reasoning_effort" not in options
+    assert "reasoningEffort" not in options
+
+
+@pytest.mark.ai
+def test_prepare_responses_args__keeps_unrelated_other_options() -> None:
+    """
+    Purpose: Only translated keys are stripped; genuine Responses options still pass through.
+    Why this matters: ``other_options`` is the escape hatch for arbitrary create() kwargs.
+    Setup summary: Prepare args with a translated key plus ``user``; assert ``user`` survives.
+    """
+    options = _build_openai_options({"verbosity": "low", "user": "space-1"})
+
+    assert options["user"] == "space-1"
+    assert options["text"] == {"verbosity": "low"}

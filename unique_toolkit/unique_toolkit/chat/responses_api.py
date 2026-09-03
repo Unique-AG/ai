@@ -270,6 +270,34 @@ def _attempt_extract_verbosity_from_options(
     return None
 
 
+# Option keys that ``_attempt_extract_reasoning_from_options`` and
+# ``_attempt_extract_verbosity_from_options`` translate into the Responses API
+# ``reasoning`` / ``text`` parameters. The flat chat-completions spellings
+# (``reasoning_effort``, ``reasoningEffort``, ``verbosity``) are rejected by
+# /v1/responses ("Unrecognized request argument"), so none of these may be
+# forwarded verbatim once translated.
+REASONING_OPTION_KEYS: tuple[str, ...] = (
+    "reasoning",
+    "reasoning_effort",
+    "reasoningEffort",
+)
+VERBOSITY_OPTION_KEYS: tuple[str, ...] = ("text", "verbosity")
+
+
+def strip_translated_responses_options(
+    other_options: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Return a copy of ``other_options`` without keys already mapped to
+    ``reasoning`` / ``text``."""
+    if not other_options:
+        return {}
+    return {
+        k: v
+        for k, v in other_options.items()
+        if k not in REASONING_OPTION_KEYS and k not in VERBOSITY_OPTION_KEYS
+    }
+
+
 def _prepare_responses_args(
     company_id: str,
     user_id: str,
@@ -329,10 +357,12 @@ def _prepare_responses_args(
 
     openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType, reportCallIssue]
 
-    # allow any other openai.resources.responses.Response.create options
-    if other_options is not None:
-        for k, v in other_options.items():
-            openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
+    # allow any other openai.resources.responses.Response.create options.
+    # Reasoning / verbosity keys were already translated into ``params.reasoning``
+    # and ``params.text`` above and must not leak through in their flat
+    # chat-completions form.
+    for k, v in strip_translated_responses_options(other_options).items():
+        openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
     options["options"] = openai_options
 
