@@ -270,6 +270,10 @@ class ModelCapabilities(StrEnum):
     STRUCTURED_OUTPUT = "structured_output"
     STREAMING = "streaming"
     VISION = "vision"
+    # Restriction marker: the provider rejects function tools combined with
+    # reasoning on /v1/chat/completions for this model, so agentic (tool-calling)
+    # runs must use the Responses API. Tool-less chat completions still work.
+    TOOL_CALLING_REQUIRES_RESPONSES_API = "tool_calling_requires_responses_api"
 
 
 class TemperatureBounds(BaseModel):
@@ -366,6 +370,24 @@ class LanguageModelInfo(BaseModel):
         if isinstance(self.encoder_name, EncoderName):
             return self.encoder_name.get_decoder()
         return _load_custom_decoder(self.encoder_name)
+
+    @property
+    def requires_responses_api_for_tool_calling(self) -> bool:
+        """Whether agentic (tool-calling) runs must use the Responses API.
+
+        True when the model supports the Responses API and either does not
+        support chat completions at all, or is marked with
+        ``TOOL_CALLING_REQUIRES_RESPONSES_API`` because the provider rejects
+        function tools combined with reasoning on ``/v1/chat/completions``
+        (e.g. GPT-5.4, GPT-5.5, GPT-5.6).
+        """
+        capabilities = self.capabilities
+        if ModelCapabilities.RESPONSES_API not in capabilities:
+            return False
+        return (
+            ModelCapabilities.CHAT_COMPLETIONS_API not in capabilities
+            or ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API in capabilities
+        )
 
     def resolve_temp_and_reasoning(
         self,
@@ -1027,6 +1049,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
@@ -1093,6 +1116,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
@@ -1129,6 +1153,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
@@ -1163,6 +1188,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
@@ -2509,6 +2535,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
@@ -2545,6 +2572,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
@@ -2575,6 +2603,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
@@ -2611,6 +2640,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
@@ -2645,6 +2675,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
+                        ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000

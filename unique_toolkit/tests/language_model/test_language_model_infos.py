@@ -11,6 +11,7 @@ from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
     LanguageModelProvider,
+    ModelCapabilities,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
@@ -464,3 +465,86 @@ class TestLanguageModelInfoFromEnv:
             assert model.version == "custom"
             assert model.token_limits.token_limit_input == 3000
             assert model.token_limits.token_limit_output == 150
+
+
+class TestRequiresResponsesApiForToolCalling:
+    """``requires_responses_api_for_tool_calling`` drives orchestrator transport.
+
+    OpenAI/Azure reject function tools combined with reasoning on
+    ``/v1/chat/completions`` for GPT-5.4+ models, so agentic runs on these
+    models must use the Responses API (UN-20123).
+    """
+
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_54_2026_0305,
+            LanguageModelName.AZURE_GPT_55_2026_0424,
+            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.LITELLM_OPENAI_GPT_54,
+            LanguageModelName.LITELLM_OPENAI_GPT_54_THINKING,
+            LanguageModelName.LITELLM_OPENAI_GPT_55,
+            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+        ],
+    )
+    def test_marked_models_require_responses_api(self, model_name):
+        info = LanguageModelInfo.from_name(model_name)
+        assert (
+            ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API in info.capabilities
+        )
+        assert info.requires_responses_api_for_tool_calling is True
+
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_5_PRO_2025_1006,
+            LanguageModelName.AZURE_GPT_54_PRO_2026_0305,
+        ],
+    )
+    def test_models_without_chat_completions_require_responses_api(self, model_name):
+        info = LanguageModelInfo.from_name(model_name)
+        assert ModelCapabilities.CHAT_COMPLETIONS_API not in info.capabilities
+        assert info.requires_responses_api_for_tool_calling is True
+
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_4o_2024_1120,
+            LanguageModelName.AZURE_GPT_5_2025_0807,
+            LanguageModelName.AZURE_GPT_51_2025_1113,
+            LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_5,
+        ],
+    )
+    def test_unaffected_models_stay_on_chat_completions(self, model_name):
+        info = LanguageModelInfo.from_name(model_name)
+        assert info.requires_responses_api_for_tool_calling is False
+
+    def test_marker_without_responses_api_support_is_ignored(self):
+        info = LanguageModelInfo(
+            name="custom-model",
+            provider=LanguageModelProvider.CUSTOM,
+            capabilities=[
+                ModelCapabilities.CHAT_COMPLETIONS_API,
+                ModelCapabilities.FUNCTION_CALLING,
+                ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
+            ],
+        )
+        assert info.requires_responses_api_for_tool_calling is False
+
+    def test_custom_model_with_marker_and_responses_api_requires_it(self):
+        info = LanguageModelInfo(
+            name="custom-model",
+            provider=LanguageModelProvider.CUSTOM,
+            capabilities=[
+                ModelCapabilities.CHAT_COMPLETIONS_API,
+                ModelCapabilities.RESPONSES_API,
+                ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API,
+            ],
+        )
+        assert info.requires_responses_api_for_tool_calling is True
