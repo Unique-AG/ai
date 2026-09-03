@@ -10,6 +10,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 from unique_toolkit.content.schemas import Content
+from unique_toolkit.services.chat_service import ChatService
 from unique_user_memory.user_memory import UserMemoryState
 
 from unique_orchestrator._builders.history_manager import (
@@ -67,14 +68,17 @@ def _patch_build_common_user_memory(
     monkeypatch: pytest.MonkeyPatch,
     *,
     memory_state: UserMemoryState | None | object = _DEFAULT_MEMORY_STATE,
+    chat_contents: list[Content] | None = None,
 ) -> tuple[MagicMock, AsyncMock, MagicMock]:
     event = _make_event(tool_choices=[])
     event.payload.additional_parameters = None
     event.payload.mcp_servers = []
 
     chat_service = MagicMock()
+    # Run the real toolkit image/document classification over the supplied
+    # contents so the test covers the actual upload-discovery filter.
     chat_service.download_chat_images_and_documents_async = AsyncMock(
-        return_value=([], [])
+        return_value=ChatService._filter_images_and_documents(chat_contents or [])
     )
     content_service = MagicMock()
 
@@ -270,6 +274,59 @@ async def test_build_common_closes_loading_step_when_memory_load_raises(
         "RuntimeError",
         load_user_memory.side_effect,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "filename,mime_type",
+    [
+        ("mail.msg", "application/vnd.ms-outlook"),
+        ("mail.eml", "message/rfc822"),
+    ],
+)
+async def test_build_common_ingested_email_upload_activates_uploaded_search(
+    monkeypatch: pytest.MonkeyPatch,
+    filename: str,
+    mime_type: str,
+) -> None:
+    """
+    Purpose: Verify an ingested Outlook `.msg` / `.eml` chat upload survives
+    upload discovery and causes UploadedSearch to be registered and forced.
+    Why this matters: UN-24575 — the toolkit's file-type allowlist dropped
+    email uploads before `_configure_uploaded_search_tool` ran, so the model
+    was told no document was attached even though ingestion had FINISHED.
+    Setup summary: Feed one ingested email Content through the real toolkit
+    filter inside `_build_common`, then run the uploaded-search configuration.
+    """
+    email_upload = Content(
+        id="cont_email",
+        key=filename,
+        mime_type=mime_type,
+        applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+    )
+    event, _, _ = _patch_build_common_user_memory(
+        monkeypatch, chat_contents=[email_upload]
+    )
+
+    common_components = await _build_common(
+        event=event,
+        logger=MagicMock(),
+        config=UniqueAIConfig(),
+    )
+
+    assert common_components.uploaded_documents == [email_upload]
+    assert common_components.uploaded_images == []
+
+    should_force = _configure_uploaded_search_tool(
+        event=event,
+        logger=MagicMock(),
+        common_components=common_components,
+        config=UploadedSearchToolConfig(force=True),
+    )
+
+    tool_names = [t.name for t in common_components.tool_manager_config.tools]
+    assert UploadedSearchTool.name in tool_names
+    assert should_force is True
 
 
 class TestSerializeUploadedFileForHistory:

@@ -7,6 +7,7 @@ from unique_toolkit._common.utils.files import (
     FileMimeType,
     get_common_name,
     get_file_extensions,
+    guess_mime_type,
     is_file_content,
     is_image_content,
 )
@@ -27,6 +28,8 @@ from unique_toolkit._common.utils.files import (
         (FileMimeType.TXT, "text"),
         (FileMimeType.MD, "markdown"),
         (FileMimeType.HTML, "html"),
+        (FileMimeType.MSG, "email"),
+        (FileMimeType.EML, "email"),
     ],
 )
 def test_get_common_name_known_types(mime, expected):
@@ -140,12 +143,72 @@ def test_get_file_extensions_filters_none(monkeypatch: pytest.MonkeyPatch):
     assert get_file_extensions([FileMimeType.PDF]) == []
 
 
+def test_get_file_extensions_email_types_do_not_depend_on_registry(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    Purpose: `.msg` has no entry in Python's mimetypes registry, so the
+    extension must come from the toolkit's own override table.
+    Why this matters: UN-24575 — downstream tools build upload filters from
+    these extensions; a missing `.msg` would silently exclude Outlook mails.
+    Setup summary: Force guess_extension to None; assert overrides still win.
+    """
+    monkeypatch.setattr(mimetypes, "guess_extension", lambda _: None)
+
+    assert get_file_extensions([FileMimeType.MSG, FileMimeType.EML]) == [
+        ".msg",
+        ".eml",
+    ]
+
+
+# ---------------------------------------------------------------------------
+# guess_mime_type — extension overrides beat the stdlib registry
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "filename,expected",
+    [
+        ("mail.msg", "application/vnd.ms-outlook"),
+        ("MAIL.MSG", "application/vnd.ms-outlook"),
+        ("mail.eml", "message/rfc822"),
+        (Path("dir/mail.msg"), "application/vnd.ms-outlook"),
+        ("report.pdf", "application/pdf"),
+        ("file.unknown", None),
+    ],
+)
+def test_guess_mime_type(filename, expected):
+    assert guess_mime_type(filename) == expected
+
+
+def test_guess_mime_type_msg_ignores_registry(monkeypatch: pytest.MonkeyPatch):
+    """
+    Purpose: Verify `.msg` classification does not depend on the host's
+    `/etc/mime.types` (which may be absent, or map `.msg` differently).
+    Why this matters: UN-24575 — macOS returns (None, None) for `.msg` while
+    some Linux images return a type; behaviour must be identical everywhere.
+    Setup summary: Make the stdlib registry return a bogus type; the override
+    must still win.
+    """
+    monkeypatch.setattr(
+        mimetypes, "guess_type", lambda *_a, **_k: ("application/x-bogus", None)
+    )
+
+    assert guess_mime_type("mail.msg") == "application/vnd.ms-outlook"
+    assert is_file_content("mail.msg") is True
+
+
 @pytest.mark.parametrize(
     "filename,expected",
     [
         ("file.pdf", True),
         ("file.docx", True),
         ("file.json", True),
+        ("file.txt", True),
+        ("mail.msg", True),
+        ("mail.MSG", True),
+        ("mail.eml", True),
+        ("image.png", False),
         ("file.exe", False),
         ("file.unknown", False),
     ],
@@ -162,6 +225,8 @@ def test_is_file_content(filename, expected):
         ("image.webp", True),
         ("file.pdf", False),
         ("file.txt", False),
+        ("mail.msg", False),
+        ("mail.eml", False),
     ],
 )
 def test_is_image_content(filename, expected):
@@ -187,6 +252,8 @@ def test_is_image_content_unknown_extension():
             FileMimeType.XLSX,
         ),
         ("application/vnd.ms-excel", FileMimeType.XLS),
+        ("application/vnd.ms-outlook", FileMimeType.MSG),
+        ("message/rfc822", FileMimeType.EML),
     ],
 )
 def test_from_mime_string_known(mime, expected):
@@ -227,6 +294,9 @@ def test_from_mime_string_empty():
         (FileMimeType.PDF, "is_json", False),
         (FileMimeType.CSV, "is_csv", True),
         (FileMimeType.PDF, "is_csv", False),
+        (FileMimeType.MSG, "is_email", True),
+        (FileMimeType.EML, "is_email", True),
+        (FileMimeType.PDF, "is_email", False),
     ],
 )
 def test_mime_type_properties(mime, prop, expected):
