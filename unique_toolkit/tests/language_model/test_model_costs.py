@@ -108,6 +108,97 @@ models:
 
 
 @pytest.mark.ai
+def test_load_model_cost_catalog__parses_long_context_tier(tmp_path: Path) -> None:
+    """Purpose: Verify the per-model long-context tier fields parse.
+    Why this matters: node-chat renders longContextThreshold/InputMultiplier/
+    CompletionMultiplier into the shared Helm ConfigMap; the toolkit must price
+    the same tier so debug spend agrees with platform billing.
+    Setup summary: Write a row with the three tier fields and assert they parse.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 5
+    completion: 30
+    longContextThreshold: 272000
+    longContextInputMultiplier: 2
+    longContextCompletionMultiplier: 1.5
+""",
+    )
+
+    catalog = load_model_cost_catalog(path)
+
+    assert catalog is not None
+    model_cost = catalog.models["test-model"]
+    assert model_cost.long_context_threshold == 272_000
+    assert model_cost.long_context_input_multiplier == 2
+    assert model_cost.long_context_completion_multiplier == 1.5
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__long_context_tier_defaults_to_none(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify rows without a long-context tier still parse.
+    Why this matters: Only 1.05M-context OpenAI models carry the tier today.
+    Setup summary: Write a plain row and assert the tier fields default to None.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+
+    catalog = load_model_cost_catalog(path)
+
+    assert catalog is not None
+    model_cost = catalog.models["test-model"]
+    assert model_cost.long_context_threshold is None
+    assert model_cost.long_context_input_multiplier is None
+    assert model_cost.long_context_completion_multiplier is None
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "partial_tier",
+    [
+        "    longContextThreshold: 272000\n",
+        "    longContextInputMultiplier: 2\n    longContextCompletionMultiplier: 1.5\n",
+    ],
+)
+def test_load_model_cost_catalog__rejects_partial_long_context_tier(
+    tmp_path: Path, partial_tier: str
+) -> None:
+    """Purpose: Verify a partially defined long-context tier is rejected.
+    Why this matters: Falling back to short-context rates for a row that declares
+    a threshold would silently under-price every long request; "unknown" is the
+    only safe outcome.
+    Setup summary: Write a row with only some tier fields and assert loading
+    returns None.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        f"""
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 5
+    completion: 30
+{partial_tier}""",
+    )
+
+    assert load_model_cost_catalog(path) is None
+
+
+@pytest.mark.ai
 def test_load_model_cost_catalog__ignores_unknown_model_fields(tmp_path: Path) -> None:
     """Purpose: Verify a future, not-yet-modeled per-model field doesn't break loading.
     Why this matters: The Helm chart evolves independently of this schema; a single
@@ -356,6 +447,102 @@ models:
     )
 
     assert cost == pytest.approx(0.004)
+
+
+_SOL_CATALOG = """
+costSchemaVersion: 1
+models:
+  AZURE_GPT_56_SOL_2026_0709:
+    input: 5
+    completion: 30
+    longContextThreshold: 272000
+    longContextInputMultiplier: 2
+    longContextCompletionMultiplier: 1.5
+  AZURE_GPT_56_TERRA_2026_0709:
+    input: 2
+    completion: 12
+    longContextThreshold: 272000
+    longContextInputMultiplier: 2
+    longContextCompletionMultiplier: 1.5
+  no-tier-model:
+    input: 5
+    completion: 30
+"""
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("model_name", "input_rate", "completion_rate"),
+    [
+        ("AZURE_GPT_56_SOL_2026_0709", 5, 30),
+        ("AZURE_GPT_56_TERRA_2026_0709", 2, 12),
+    ],
+)
+def test_calculate_invocation_cost_usd__bills_base_rates_at_long_context_threshold(
+    tmp_path: Path, model_name: str, input_rate: float, completion_rate: float
+) -> None:
+    """Purpose: Verify a request exactly at the threshold is priced short-context.
+    Why this matters: OpenAI's rule is strictly "more than 272K"; 272,000 itself
+    must not trigger the tier.
+    Setup summary: Price exactly 272,000 prompt tokens and compare to base rates.
+    """
+    catalog = load_model_cost_catalog(_write_catalog(tmp_path / "c.yaml", _SOL_CATALOG))
+
+    cost = calculate_invocation_cost_usd(
+        model_name,
+        LanguageModelTokenUsage(prompt_tokens=272_000, completion_tokens=1_000),
+        catalog,
+    )
+
+    assert cost == pytest.approx((272_000 * input_rate + 1_000 * completion_rate) / 1e6)
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("model_name", "input_rate", "completion_rate"),
+    [
+        ("AZURE_GPT_56_SOL_2026_0709", 5, 30),
+        ("AZURE_GPT_56_TERRA_2026_0709", 2, 12),
+    ],
+)
+def test_calculate_invocation_cost_usd__reprices_entire_request_above_threshold(
+    tmp_path: Path, model_name: str, input_rate: float, completion_rate: float
+) -> None:
+    """Purpose: Verify one token over the threshold re-prices the whole request.
+    Why this matters: The long-context tier is a step function on the full
+    request (2x input, 1.5x output), not a surcharge on the overflow.
+    Setup summary: Price 272,001 prompt tokens and compare to multiplied rates.
+    """
+    catalog = load_model_cost_catalog(_write_catalog(tmp_path / "c.yaml", _SOL_CATALOG))
+
+    cost = calculate_invocation_cost_usd(
+        model_name,
+        LanguageModelTokenUsage(prompt_tokens=272_001, completion_tokens=1_000),
+        catalog,
+    )
+
+    assert cost == pytest.approx(
+        (272_001 * input_rate * 2 + 1_000 * completion_rate * 1.5) / 1e6
+    )
+
+
+@pytest.mark.ai
+def test_calculate_invocation_cost_usd__never_reprices_models_without_tier(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify models without a long-context tier keep flat pricing.
+    Why this matters: The multiplier must be opt-in per model row, never implied.
+    Setup summary: Price a huge prompt on an untiered row and compare to base rates.
+    """
+    catalog = load_model_cost_catalog(_write_catalog(tmp_path / "c.yaml", _SOL_CATALOG))
+
+    cost = calculate_invocation_cost_usd(
+        "no-tier-model",
+        LanguageModelTokenUsage(prompt_tokens=1_000_000, completion_tokens=1_000),
+        catalog,
+    )
+
+    assert cost == pytest.approx((1_000_000 * 5 + 1_000 * 30) / 1e6)
 
 
 @pytest.mark.ai
