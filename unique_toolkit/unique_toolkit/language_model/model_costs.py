@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
@@ -37,6 +37,52 @@ class ModelCost(BaseModel):
     cached_input: float | None = Field(default=None, alias="cachedInput")
     cache_write: float | None = Field(default=None, alias="cacheWrite")
     cache_write_1h: float | None = Field(default=None, alias="cacheWrite1h")
+    # Long-context tier (e.g. OpenAI GPT-5.x >272K input tokens): above the
+    # threshold the ENTIRE request is billed at these multipliers, not just the
+    # overflow. All three are required together; a partial definition is rejected
+    # so a misconfigured row is never silently priced at short-context rates.
+    long_context_threshold: int | None = Field(
+        default=None, alias="longContextThreshold"
+    )
+    long_context_input_multiplier: float | None = Field(
+        default=None, alias="longContextInputMultiplier"
+    )
+    long_context_completion_multiplier: float | None = Field(
+        default=None, alias="longContextCompletionMultiplier"
+    )
+
+    @model_validator(mode="after")
+    def _validate_long_context_all_or_none(self) -> "ModelCost":
+        fields = (
+            self.long_context_threshold,
+            self.long_context_input_multiplier,
+            self.long_context_completion_multiplier,
+        )
+        defined = [field for field in fields if field is not None]
+        if defined and len(defined) != len(fields):
+            raise ValueError(
+                "longContextThreshold, longContextInputMultiplier and "
+                "longContextCompletionMultiplier must be set together"
+            )
+        return self
+
+    def multipliers_for(self, prompt_tokens: int) -> tuple[float, float]:
+        """Return ``(input_multiplier, completion_multiplier)`` for a request.
+
+        ``prompt_tokens`` is the provider-reported input size of the single
+        request (for OpenAI this already includes cached tokens).
+        """
+        if (
+            self.long_context_threshold is None
+            or self.long_context_input_multiplier is None
+            or self.long_context_completion_multiplier is None
+            or prompt_tokens <= self.long_context_threshold
+        ):
+            return 1.0, 1.0
+        return (
+            self.long_context_input_multiplier,
+            self.long_context_completion_multiplier,
+        )
 
 
 class ModelCostCatalog(BaseModel):
@@ -119,7 +165,10 @@ def calculate_invocation_cost_usd(
     if model_cost is None:
         return None
 
+    input_multiplier, completion_multiplier = model_cost.multipliers_for(
+        token_usage.prompt_tokens
+    )
     return (
-        token_usage.prompt_tokens * model_cost.input
-        + token_usage.completion_tokens * model_cost.completion
+        token_usage.prompt_tokens * model_cost.input * input_multiplier
+        + token_usage.completion_tokens * model_cost.completion * completion_multiplier
     ) / _TOKENS_PER_MILLION
