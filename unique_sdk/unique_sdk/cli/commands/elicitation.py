@@ -434,19 +434,40 @@ def _format_api_error(exc: Exception) -> str:
     request_id = getattr(exc, "request_id", None)
     if request_id:
         parts.append(f"request_id={request_id}")
-    detail = getattr(exc, "json_body", None) or getattr(exc, "http_body", None)
-    if detail:
-        rendered = (
-            json.dumps(detail, separators=(",", ":"))
-            if not isinstance(detail, str)
-            else detail
-        )
-        # Bodies are error payloads, not user content, but keep the line
-        # readable when a stack trace or HTML page comes back.
-        if len(rendered) > 800:
-            rendered = rendered[:800] + "…(truncated)"
+    rendered = _render_error_detail(exc)
+    if rendered:
         parts.append(f"detail={rendered}")
     return "elicit: " + " ".join(parts)
+
+
+def _render_error_detail(exc: Exception) -> str | None:
+    """Render the response body, or ``None`` when there is nothing safe to show.
+
+    Deliberately narrow about what counts as a body. ``APIRequestor``
+    ``interpret_response`` passes ``rheaders`` in the ``json_body`` position
+    when the response is not JSON, so ``json_body`` can hold a header mapping
+    (``requests.structures.CaseInsensitiveDict``, ``httpx.Headers``) rather
+    than a payload. Rendering that would print response headers into agent
+    output and logs, and ``json.dumps`` raises ``TypeError`` on those types —
+    replacing the API failure with a crash. Only str/dict/list are treated as
+    bodies; anything else is dropped rather than guessed at.
+    """
+    detail = getattr(exc, "json_body", None) or getattr(exc, "http_body", None)
+    if not detail:
+        return None
+    if isinstance(detail, str):
+        rendered = detail
+    elif isinstance(detail, (dict, list)):
+        try:
+            rendered = json.dumps(detail, separators=(",", ":"), default=str)
+        except (TypeError, ValueError):
+            return None
+    else:
+        return None
+    # Keep the line readable when a stack trace or HTML page comes back.
+    if len(rendered) > 800:
+        rendered = rendered[:800] + "…(truncated)"
+    return rendered
 
 
 def cmd_elicit_create(
