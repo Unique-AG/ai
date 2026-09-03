@@ -1450,9 +1450,7 @@ def test_format_api_error_truncates_huge_bodies() -> None:
 
     # UniqueError only decodes http_body when it is bytes (a str body is
     # dropped), which is what the HTTP client actually supplies.
-    rendered = _format_api_error(
-        unique_sdk.APIError("BOOM", http_body=b"x" * 5000)
-    )
+    rendered = _format_api_error(unique_sdk.APIError("BOOM", http_body=b"x" * 5000))
 
     assert "…(truncated)" in rendered
     assert len(rendered) < 1200
