@@ -138,6 +138,7 @@ class LanguageModelName(StrEnum):
     LITELLM_DEEPSEEK_R1 = "litellm:deepseek-r1"
     LITELLM_DEEPSEEK_V3 = "litellm:deepseek-v3-1"
     LITELLM_DEEPSEEK_V4_PRO = "litellm:deepseek-v4-pro"
+    LITELLM_DEEPSEEK_V4_PRO_0813 = "litellm:deepseek-v4-pro-0813"
     LITELLM_GLM_5_1 = "litellm:glm-5.1"
     LITELLM_GLM_5_2 = "litellm:glm-5.2"
     LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH = "litellm:phoeniqs-deepseek-v4-flash"
@@ -2907,6 +2908,26 @@ class LanguageModelInfo(BaseModel):
                     ),
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_DEEPSEEK_V4_PRO_0813:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.DEEPSEEK,
+                    version="deepseek-v4-pro-0813",
+                    encoder_name=EncoderName.DEEPSEEK,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000, token_limit_output=384_000
+                    ),
+                    # The provider also supports the provider-specific "max" effort;
+                    # leave effort validation as pass-through until the shared type includes it.
                 )
             case LanguageModelName.LITELLM_GLM_5_1:
                 return cls(

@@ -106,6 +106,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
+            LanguageModelName.LITELLM_DEEPSEEK_V4_PRO_0813,
             LanguageModelName.LITELLM_GLM_5_1,
             LanguageModelName.LITELLM_GLM_5_2,
             LanguageModelName.LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH,
@@ -137,6 +138,19 @@ class TestLanguageModelInfos:
         model_names = [model.name for model in models]
         for model_name in expected_models:
             assert model_name in model_names
+
+    def test_deepseek_v4_pro_0813_metadata(self):
+        model = LanguageModelInfo.from_name(
+            LanguageModelName.LITELLM_DEEPSEEK_V4_PRO_0813
+        )
+
+        assert model.name == LanguageModelName.LITELLM_DEEPSEEK_V4_PRO_0813
+        assert model.provider == LanguageModelProvider.LITELLM
+        assert model.version == "deepseek-v4-pro-0813"
+        assert model.encoder_name == EncoderName.DEEPSEEK
+        assert model.token_limits.token_limit_input == 1_000_000
+        assert model.token_limits.token_limit_output == 384_000
+        assert model.supported_reasoning_efforts is None
 
     def test_get_custom_language_model(self):
         model = LanguageModel("My Custom Model")
