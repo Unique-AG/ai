@@ -172,7 +172,13 @@ class TestUniqueAIServicesEvaluationConfigValidator:
 
 
 def _make_model(*, supports_responses_api: bool) -> LanguageModelInfo:
-    capabilities = [ModelCapabilities.FUNCTION_CALLING, ModelCapabilities.STREAMING]
+    # Advertise chat completions as well so the model is not treated as
+    # "Responses-only" by enable_responses_api_when_model_requires_it.
+    capabilities = [
+        ModelCapabilities.CHAT_COMPLETIONS_API,
+        ModelCapabilities.FUNCTION_CALLING,
+        ModelCapabilities.STREAMING,
+    ]
     if supports_responses_api:
         capabilities.append(ModelCapabilities.RESPONSES_API)
     return LanguageModelInfo(
@@ -293,35 +299,18 @@ class TestUniqueAIConfigOpenFileValidator:
         assert config.agent.experimental.responses_api_config.use_responses_api is True
 
 
-class TestUniqueAIConfigGpt55AndGpt56ResponsesApiValidator:
-    """Tests for the GPT-5.5 and GPT-5.6 Responses API validator.
+class TestUniqueAIConfigResponsesApiRequiredValidator:
+    """Tests for UniqueAIConfig.enable_responses_api_when_model_requires_it.
 
-    These models reject requests that combine `tools` with `reasoning_effort`
-    on /v1/chat/completions and demand /v1/responses. The validator forces the
-    Responses API on regardless of which tools are configured.
-    Tracked in Jira: UN-20123.
+    The validator keys off ``LanguageModelInfo.requires_responses_api_for_tool_calling``
+    instead of a hardcoded model list (UN-20123). Exhaustive per-model coverage
+    lives in ``tests/test_config_responses_api_required_models.py``.
     """
 
-    @pytest.mark.parametrize(
-        "model_name",
-        [
-            LanguageModelName.AZURE_GPT_55_2026_0424,
-            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
-            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
-            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
-            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
-            LanguageModelName.LITELLM_OPENAI_GPT_55,
-            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
-        ],
-    )
-    def test_enables_responses_api_for_affected_models(
-        self, model_name: LanguageModelName
-    ):
-        """Affected models must route through /v1/responses."""
-        model = LanguageModelInfo.from_name(model_name)
+    def test_enables_responses_api_for_marked_model(self):
+        """A model marked TOOL_CALLING_REQUIRES_RESPONSES_API routes to /v1/responses."""
+        model = _make_model(supports_responses_api=True)
+        model.capabilities.append(ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API)
 
         config = UniqueAIConfig(
             space=UniqueAISpaceConfig(language_model=model, tools=[]),
@@ -329,72 +318,39 @@ class TestUniqueAIConfigGpt55AndGpt56ResponsesApiValidator:
 
         assert config.agent.experimental.responses_api_config.use_responses_api is True
 
-    @pytest.mark.parametrize(
-        "model_name",
-        [
-            LanguageModelName.AZURE_GPT_55_2026_0424,
-            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
-            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
-            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
-            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
-            LanguageModelName.LITELLM_OPENAI_GPT_55,
-            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
-        ],
-    )
-    def test_enables_responses_api_for_affected_models_with_tools(
-        self, model_name: LanguageModelName
-    ):
-        """The transport requirement is independent of configured tools."""
-        model = LanguageModelInfo.from_name(model_name)
+    def test_enables_responses_api_for_responses_only_model(self):
+        """A model without CHAT_COMPLETIONS_API can only run on /v1/responses."""
+        model = _make_model(supports_responses_api=True)
+        model.capabilities.remove(ModelCapabilities.CHAT_COMPLETIONS_API)
 
         config = UniqueAIConfig(
-            space=UniqueAISpaceConfig(
-                language_model=model,
-                tools=[CODE_INTERPRETER_TOOL],
-            ),
+            space=UniqueAISpaceConfig(language_model=model, tools=[]),
         )
 
         assert config.agent.experimental.responses_api_config.use_responses_api is True
 
-    def test_does_not_enable_responses_api_for_other_models(self):
-        """The validator must not affect unrelated Responses-capable models."""
+    def test_does_not_enable_responses_api_for_dual_api_model(self):
+        """A model supporting both APIs without the marker stays on chat completions."""
         config = _make_config(tools=[], supports_responses_api=True)
 
         assert config.agent.experimental.responses_api_config.use_responses_api is False
 
-    @pytest.mark.parametrize(
-        "model_name",
-        [
-            LanguageModelName.AZURE_GPT_55_2026_0424,
-            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
-            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
-            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
-            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
-            LanguageModelName.LITELLM_OPENAI_GPT_55,
-            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
-        ],
-    )
-    def test_keeps_responses_api_enabled_when_already_enabled(
-        self, model_name: LanguageModelName
-    ):
-        """The validator must remain idempotent."""
-        from unique_orchestrator.config import ExperimentalConfig, ResponsesApiConfig
-
-        model = LanguageModelInfo.from_name(model_name)
+    def test_marker_is_ignored_without_responses_api_support(self):
+        """The marker must never force a transport the model does not support."""
+        model = _make_model(supports_responses_api=False)
+        model.capabilities.append(ModelCapabilities.TOOL_CALLING_REQUIRES_RESPONSES_API)
 
         config = UniqueAIConfig(
             space=UniqueAISpaceConfig(language_model=model, tools=[]),
-            agent={
-                "experimental": ExperimentalConfig(
-                    responses_api_config=ResponsesApiConfig(use_responses_api=True),
-                )
-            },
+        )
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is False
+
+    def test_real_gpt_55_model_is_routed_to_responses_api(self):
+        model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_55_2026_0424)
+
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(language_model=model, tools=[]),
         )
 
         assert config.agent.experimental.responses_api_config.use_responses_api is True

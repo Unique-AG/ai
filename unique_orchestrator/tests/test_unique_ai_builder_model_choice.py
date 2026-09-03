@@ -23,6 +23,7 @@ from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
+    LanguageModelName,
     LanguageModelProvider,
     ModelCapabilities,
 )
@@ -579,6 +580,37 @@ def test_model_choice_removes_code_interpreter_when_selected_model_lacks_respons
     assert config.space.language_model == selected_model
     assert config.space.tools == []
     assert config.agent.experimental.responses_api_config.use_responses_api is False
+
+
+@pytest.mark.ai
+def test_model_choice_enables_responses_api_when_selected_model_requires_it() -> None:
+    """
+    Purpose: Verify switching to a model that requires the Responses API re-routes the run.
+    Why this matters: GPT-5.4+ reject tools + reasoning on chat completions (UN-20123); the
+    transport decision must follow the user-selected model, not only the space default.
+    Setup summary: Start on a chat-completions model; select GPT-5.5 and assert the flag flips.
+    """
+    default_model = _make_model("default-model")
+    selected_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_55_2026_0424
+    )
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            language_model=default_model,
+            tools=[],
+        )
+    )
+    assert config.agent.experimental.responses_api_config.use_responses_api is False
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model.name == LanguageModelName.AZURE_GPT_55_2026_0424
+    assert config.agent.experimental.responses_api_config.use_responses_api is True
 
 
 @pytest.mark.ai

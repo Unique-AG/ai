@@ -67,7 +67,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporterConfig,
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
-from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
@@ -579,27 +579,16 @@ class UniqueAIConfig(BaseToolConfig):
         return self
 
     @model_validator(mode="after")
-    def enable_responses_api_for_gpt_55_and_gpt_56_models(self) -> "UniqueAIConfig":
-        """Auto-enable the Responses API for GPT-5.5 and GPT-5.6 models.
+    def enable_responses_api_when_model_requires_it(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API when the model requires it for tool calling.
 
-        TEMP FIX: GPT-5.5 and GPT-5.6 reject requests that combine `tools` with
-        `reasoning_effort` on /v1/chat/completions and demand /v1/responses.
-        Forcing the Responses API here avoids the OpenAI 400 error until the
-        runner can pick the right transport based on model capabilities.
-        Tracked in Jira: UN-20123.
+        The decision is driven by the model's capabilities (see
+        ``LanguageModelInfo.requires_responses_api_for_tool_calling``): models that
+        do not support chat completions at all, or whose provider rejects function
+        tools combined with reasoning on /v1/chat/completions (GPT-5.4+), are
+        always routed through /v1/responses.
         """
-        if self.space.language_model.name in {
-            LanguageModelName.AZURE_GPT_55_2026_0424,
-            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
-            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
-            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
-            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
-            LanguageModelName.LITELLM_OPENAI_GPT_55,
-            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
-        }:
+        if self.space.language_model.requires_responses_api_for_tool_calling:
             self.agent.experimental.responses_api_config.use_responses_api = True
         return self
 
