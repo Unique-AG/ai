@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.36.0...uqadm-v2026.38.0) (2026-09-03)
+
+
+### Features
+
+* **uqadm:** add kb ingestion get and model replacement [UN-24141] ([#2281](https://github.com/Unique-AG/ai/issues/2281)) ([a1c62a3](https://github.com/Unique-AG/ai/commit/a1c62a3e63bce5851ad51305ded99d74568dcd55))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.34.0...uqadm-v2026.36.0) (2026-08-31)
 
 

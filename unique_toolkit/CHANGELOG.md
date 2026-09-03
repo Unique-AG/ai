@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.36.0...unique-toolkit-v2026.38.0) (2026-09-03)
+
+
+### Features
+
+* **toolkit:** add grok-4-6 model info [UN-24804] ([#2375](https://github.com/Unique-AG/ai/issues/2375)) ([b98be4d](https://github.com/Unique-AG/ai/commit/b98be4d8386fa077aa707f934324a81e04fc2653))
+* **unique_toolkit:** add shared memory monitoring and TTL cache bounds ([#2379](https://github.com/Unique-AG/ai/issues/2379)) ([0a5112c](https://github.com/Unique-AG/ai/commit/0a5112c53aa9785a0003045e1833c5a9369665d7))
+
+
+### Bug Fixes
+
+* **toolkit:** await cancelled content-tree fan-out via TaskGroup ([#2382](https://github.com/Unique-AG/ai/issues/2382)) ([061e2f6](https://github.com/Unique-AG/ai/commit/061e2f61b1888668f13eda0b46ebc390872393fb))
+* **toolkit:** await cancelled search fan-out via TaskGroup ([#2357](https://github.com/Unique-AG/ai/issues/2357)) ([ca7ea8b](https://github.com/Unique-AG/ai/commit/ca7ea8be5640a746a5df57360843be749b96f331))
+* **toolkit:** map chat-completions verbosity/reasoning_effort to Responses API params ([#2390](https://github.com/Unique-AG/ai/issues/2390)) ([2cb722a](https://github.com/Unique-AG/ai/commit/2cb722abc14286d32841159b8ef0cae5f3cec47f))
+* **toolkit:** recognise .msg/.eml chat uploads as documents ([#2386](https://github.com/Unique-AG/ai/issues/2386)) ([b256fcd](https://github.com/Unique-AG/ai/commit/b256fcdd4d719afa0ae6a162206016290d42389b))
+* **toolkit:** tolerate cache-pricing fields in model cost catalog ([#2365](https://github.com/Unique-AG/ai/issues/2365)) ([4523cf0](https://github.com/Unique-AG/ai/commit/4523cf0eff29d539b5a8be33b8b5cc691a871734))
+* **unique_toolkit:** Fix code interpreter generated files failing ([#2367](https://github.com/Unique-AG/ai/issues/2367)) ([a575eb1](https://github.com/Unique-AG/ai/commit/a575eb1483b215bfda225680f386f3b981066c43))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.34.0...unique-toolkit-v2026.36.0) (2026-08-31)
 
 

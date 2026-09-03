@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.36.0...unique-orchestrator-v2026.38.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **toolkit:** recognise .msg/.eml chat uploads as documents ([#2386](https://github.com/Unique-AG/ai/issues/2386)) ([b256fcd](https://github.com/Unique-AG/ai/commit/b256fcdd4d719afa0ae6a162206016290d42389b))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.34.0...unique-orchestrator-v2026.36.0) (2026-08-31)
 
 
