@@ -6,12 +6,12 @@ import pytest
 import unique_sdk
 
 from unique_toolkit.chat.responses_api import (
-    _attempt_extract_reasoning_from_options,
-    _attempt_extract_verbosity_from_options,
     _prepare_responses_args,
     _prepare_responses_params_util,
     _responses_stream_with_rate_limit_retry,
     convert_messages_to_openai,
+    extract_reasoning_from_options,
+    extract_verbosity_from_options,
     rate_limit_retry_config,
     strip_translated_responses_options,
 )
@@ -23,7 +23,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 # ============================================================================
-# Tests for _attempt_extract_reasoning_from_options
+# Tests for extract_reasoning_from_options
 # ============================================================================
 
 
@@ -38,7 +38,7 @@ def test_extract_reasoning__parses_json_string__correctly() -> None:
     options = {"reasoning": '{"effort": "high"}'}
 
     # Act
-    result = _attempt_extract_reasoning_from_options(options)
+    result = extract_reasoning_from_options(options)
 
     # Assert
     assert result is not None
@@ -56,7 +56,7 @@ def test_extract_reasoning__handles_dict__correctly() -> None:
     options = {"reasoning": {"effort": "low"}}
 
     # Act
-    result = _attempt_extract_reasoning_from_options(options)
+    result = extract_reasoning_from_options(options)
 
     # Assert
     assert result is not None
@@ -74,7 +74,7 @@ def test_extract_reasoning__handles_invalid_json__gracefully() -> None:
     options = {"reasoning": '{"invalid": json}'}
 
     # Act
-    result = _attempt_extract_reasoning_from_options(options)
+    result = extract_reasoning_from_options(options)
 
     # Assert
     # Function has @failsafe decorator, should return None for invalid input
@@ -92,14 +92,14 @@ def test_extract_reasoning__returns_none__when_missing() -> None:
     options = {"temperature": 0.7}
 
     # Act
-    result = _attempt_extract_reasoning_from_options(options)
+    result = extract_reasoning_from_options(options)
 
     # Assert
     assert result is None
 
 
 # ============================================================================
-# Tests for _attempt_extract_verbosity_from_options
+# Tests for extract_verbosity_from_options
 # ============================================================================
 
 
@@ -114,7 +114,7 @@ def test_extract_verbosity__parses_json_string__correctly() -> None:
     options = {"text": '{"verbosity": "high"}'}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     assert result is not None
@@ -132,7 +132,7 @@ def test_extract_verbosity__handles_dict__correctly() -> None:
     options = {"text": {"verbosity": "medium"}}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     assert result is not None
@@ -150,7 +150,7 @@ def test_extract_verbosity__handles_invalid_json__gracefully() -> None:
     options = {"text": '{"invalid": json}'}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     # Function has @failsafe decorator, should return None for invalid input
@@ -168,7 +168,7 @@ def test_extract_verbosity__returns_none__when_missing() -> None:
     options = {"temperature": 0.7}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     assert result is None
@@ -185,7 +185,7 @@ def test_extract_verbosity__uses_correct_variable_name() -> None:
     options = {"text": {"verbosity": "low"}}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     # This test ensures the variable name bug is fixed

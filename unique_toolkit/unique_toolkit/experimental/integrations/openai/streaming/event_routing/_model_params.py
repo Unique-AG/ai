@@ -9,8 +9,8 @@ from typing import Any
 from openai.types.shared_params import Reasoning
 
 from unique_toolkit.chat.responses_api import (
-    _attempt_extract_reasoning_from_options,
-    _attempt_extract_verbosity_from_options,
+    extract_reasoning_from_options,
+    extract_verbosity_from_options,
     strip_translated_responses_options,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
@@ -81,8 +81,8 @@ def prepare_responses_model_params(
     """
     raw_options = dict(other_options) if other_options else {}
     if reasoning is None:
-        reasoning = _attempt_extract_reasoning_from_options(raw_options)
-    text = _attempt_extract_verbosity_from_options(raw_options)
+        reasoning = extract_reasoning_from_options(raw_options)
+    text = extract_verbosity_from_options(raw_options)
     options = strip_translated_responses_options(raw_options)
 
     requested_effort = reasoning.get("effort") if reasoning is not None else None

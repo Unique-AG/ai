@@ -161,8 +161,8 @@ def _prepare_responses_params_util(
 
     if other_options is not None:
         # Key word argument takes precedence
-        reasoning = reasoning or _attempt_extract_reasoning_from_options(other_options)
-        text = text or _attempt_extract_verbosity_from_options(other_options)
+        reasoning = reasoning or extract_reasoning_from_options(other_options)
+        text = text or extract_verbosity_from_options(other_options)
 
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
@@ -207,9 +207,15 @@ def _prepare_responses_params_util(
     log_exc_info=False,
     logger=logger,
 )
-def _attempt_extract_reasoning_from_options(
+def extract_reasoning_from_options(
     options: dict[str, Any],
 ) -> Reasoning | None:
+    """Build the Responses ``reasoning`` parameter from LLM options.
+
+    Accepts the Responses spelling (``reasoning``, dict or JSON string) as well
+    as the chat-completions spellings (``reasoning_effort`` / ``reasoningEffort``).
+    Returns ``None`` when no reasoning option is present or it fails validation.
+    """
     reasoning: dict[str, Any] | str | None = None
 
     # Responses API
@@ -243,9 +249,15 @@ def _attempt_extract_reasoning_from_options(
     log_exc_info=False,
     logger=logger,
 )
-def _attempt_extract_verbosity_from_options(
+def extract_verbosity_from_options(
     options: dict[str, Any],
 ) -> ResponseTextConfigParam | None:
+    """Build the Responses ``text`` parameter from LLM options.
+
+    Accepts the chat-completions spelling (flat ``verbosity``) as well as the
+    Responses spelling (``text``, dict or JSON string). Returns ``None`` when no
+    verbosity option is present or it fails validation.
+    """
     if "verbosity" in options:
         return TypeAdapter(ResponseTextConfigParam).validate_python(
             {"verbosity": options["verbosity"]}
@@ -270,8 +282,8 @@ def _attempt_extract_verbosity_from_options(
     return None
 
 
-# Option keys that ``_attempt_extract_reasoning_from_options`` and
-# ``_attempt_extract_verbosity_from_options`` translate into the Responses API
+# Option keys that ``extract_reasoning_from_options`` and
+# ``extract_verbosity_from_options`` translate into the Responses API
 # ``reasoning`` / ``text`` parameters. The flat chat-completions spellings
 # (``reasoning_effort``, ``reasoningEffort``, ``verbosity``) are rejected by
 # /v1/responses ("Unrecognized request argument"), so none of these may be
