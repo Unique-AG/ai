@@ -4,11 +4,8 @@ import mimetypes
 from enum import StrEnum
 from pathlib import Path
 
-# Extensions whose MIME type Python's `mimetypes` registry either does not know
-# (`.msg` returns `(None, None)` on macOS and in slim Linux images) or may map
-# differently depending on the host's `/etc/mime.types`. These take precedence
-# over the registry so classification is identical across environments and
-# matches the platform's `supported-mime-types` catalog.
+# Takes precedence over `mimetypes` (which lacks `.msg` and varies by host)
+# so classification matches the platform's supported-mime-types catalog.
 _EXTENSION_MIME_OVERRIDES: dict[str, str] = {
     ".msg": "application/vnd.ms-outlook",
     ".eml": "message/rfc822",
