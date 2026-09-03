@@ -282,12 +282,8 @@ def extract_verbosity_from_options(
     return None
 
 
-# Option keys that ``extract_reasoning_from_options`` and
-# ``extract_verbosity_from_options`` translate into the Responses API
-# ``reasoning`` / ``text`` parameters. The flat chat-completions spellings
-# (``reasoning_effort``, ``reasoningEffort``, ``verbosity``) are rejected by
-# /v1/responses ("Unrecognized request argument"), so none of these may be
-# forwarded verbatim once translated.
+# Keys translated into the Responses ``reasoning`` / ``text`` params; the flat
+# chat-completions spellings are rejected by /v1/responses if forwarded as-is.
 REASONING_OPTION_KEYS: tuple[str, ...] = (
     "reasoning",
     "reasoning_effort",
@@ -369,10 +365,7 @@ def _prepare_responses_args(
 
     openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType, reportCallIssue]
 
-    # allow any other openai.resources.responses.Response.create options.
-    # Reasoning / verbosity keys were already translated into ``params.reasoning``
-    # and ``params.text`` above and must not leak through in their flat
-    # chat-completions form.
+    # allow any other openai.resources.responses.Response.create options
     for k, v in strip_translated_responses_options(other_options).items():
         openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
 

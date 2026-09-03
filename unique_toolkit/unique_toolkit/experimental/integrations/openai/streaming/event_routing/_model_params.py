@@ -63,11 +63,10 @@ def prepare_responses_model_params(
     Extracts reasoning from ``other_options`` when the explicit argument is
     missing (UniqueAI passes ``reasoning`` that way), applies
     ``LanguageModelInfo`` bounds, and bumps ``minimal`` effort to ``low`` when
-    a code-interpreter tool is present. Chat-completions spellings
-    (``reasoning_effort``, ``verbosity``) are translated to the Responses
-    ``reasoning`` / ``text`` parameters and never forwarded verbatim, since
-    /v1/responses rejects them. Clamped temperature, resolved reasoning and
-    text config are written onto the returned options dict.
+    a code-interpreter tool is present. Chat-completions ``reasoning_effort`` /
+    ``verbosity`` are mapped to ``reasoning`` / ``text`` and not forwarded
+    verbatim. Clamped temperature, reasoning and text are written onto the
+    returned options dict.
 
     Args:
         model_name (LanguageModelName | str): Model identifier from the caller.
