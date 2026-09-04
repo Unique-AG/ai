@@ -1,34 +1,17 @@
-"""OpenAI-typed streaming event handler protocols.
+"""Deprecated import path shim — use the stable module instead."""
 
-This package contains only the **framework-specific** event handler contracts
-that reference ``openai.types.*`` payloads. The framework-agnostic
-pieces (``TextState``, ``StreamEventHandlerProtocol``, ``TextFlushed``,
-``ActivityProgressUpdate``, ``AppendixProducer``, ``UsageProducer``)
-live in the domain layer at :mod:`unique_toolkit.experimental._internal.streaming` —
-import them from there.
+from importlib import import_module
 
-* :mod:`chat_completions` — Chat Completions event handler protocols.
-* :mod:`responses` — Responses API event handler protocols.
-"""
-
-from __future__ import annotations
-
-from .chat_completions import (
-    ChatCompletionTextEventHandlerProtocol,
-    ChatCompletionToolCallEventHandlerProtocol,
-)
-from .responses import (
-    ResponsesCodeInterpreterEventHandlerProtocol,
-    ResponsesCompletedEventHandlerProtocol,
-    ResponsesTextDeltaEventHandlerProtocol,
-    ResponsesToolCallEventHandlerProtocol,
+from unique_toolkit._common.streaming_deprecation import (
+    reexport_streaming_module,
+    warn_streaming_deprecated_import,
 )
 
-__all__ = [
-    "ChatCompletionTextEventHandlerProtocol",
-    "ChatCompletionToolCallEventHandlerProtocol",
-    "ResponsesCodeInterpreterEventHandlerProtocol",
-    "ResponsesCompletedEventHandlerProtocol",
-    "ResponsesTextDeltaEventHandlerProtocol",
-    "ResponsesToolCallEventHandlerProtocol",
-]
+_OLD = (
+    "unique_toolkit.experimental.integrations.openai.streaming.event_routing.protocols"
+)
+_NEW = "unique_toolkit.integrations.openai.streaming.event_routing.protocols"
+
+warn_streaming_deprecated_import(old_path=_OLD, new_path=_NEW)
+
+reexport_streaming_module(globals(), import_module(_NEW))

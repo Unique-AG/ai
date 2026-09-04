@@ -1,0 +1,194 @@
+"""Subscriber that persists assistant messages in response to stream events.
+
+Single responsibility: owns every SDK write related to a streaming
+response. Stream boundaries go through ``unique_sdk.Message.modify_async``
+(``startedStreamingAt`` on start, final text + ``stoppedStreamingAt`` on
+end); incremental text deltas go through
+``unique_sdk.Message.create_event_async`` on the hot path. It also owns
+the ``content_chunks`` used to filter references down to what was actually
+cited.
+
+The same message is streamed into once per agent round, and this subscriber
+only sees per-request boundaries (never end-of-turn). It therefore stamps
+``stoppedStreamingAt`` only on rounds that produced answer text; tool-call
+rounds (empty text) leave it null so the message stays in the streaming
+state. ``completedAt`` is intentionally **not** written here — the
+orchestrator marks completion at end-of-turn via ``set_completed_at``.
+
+Attach by calling :meth:`register` once on the owned bus:
+
+.. code-block:: python
+
+    persister = MessagePersistingSubscriber(settings)
+    persister.register(orchestrator.bus)
+
+No internal per-stream state is required beyond the per-message chunk
+lookup because every event carries the ``message_id``/``chat_id`` it
+targets; this makes the subscriber safe to reuse across overlapping
+streams within the same ``UniqueSettings``.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, cast
+
+import unique_sdk
+
+from unique_toolkit._internal.streaming.pattern_replacer import (
+    filter_cited_sdk_references,
+)
+
+from ..events import StreamEnded, StreamEventBus, StreamStarted, TextUpdate
+
+_LOGGER = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from unique_toolkit.app.unique_settings import UniqueSettings
+    from unique_toolkit.content.schemas import ContentChunk
+
+
+def _now_utc_iso() -> str:
+    """Millisecond-precision UTC ISO-8601 string for SDK timestamp fields.
+
+    The SDK's ``Message.ModifyParams`` TypedDict annotates streaming
+    timestamps as ``datetime | None``, but its HTTP client serializes the
+    body with bare ``json.dumps`` (no ``default=`` hook) and so cannot
+    actually transport a raw ``datetime`` — it raises ``TypeError: Object
+    of type datetime is not JSON serializable``. The wire format is
+    ISO-8601 with millisecond precision and a trailing ``Z``; emit that
+    here and ``cast(Any, ...)`` at the call site to silence type checkers.
+    Same workaround used by ``unique_sdk.cli.commands.elicitation``.
+    """
+    return (
+        datetime.now(tz=timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+
+
+class MessagePersistingSubscriber:
+    """Translates text lifecycle events into ``unique_sdk.Message`` SDK writes.
+
+    Stream start/end are persisted via ``Message.modify_async``; incremental
+    :class:`TextUpdate` deltas are persisted via ``Message.create_event_async``.
+
+    Holds the retrieved chunks for the currently active stream (keyed by
+    ``message_id``) so reference filtering on :class:`TextUpdate` and
+    :class:`StreamEnded` uses only what was retrieved for that stream.
+
+    ``persist_every_n_deltas`` throttles SDK writes on the
+    :class:`TextUpdate` hot path. The default (``1``) preserves the original
+    behaviour — every flush from the event handler produces one write. The
+    event handler's own ``send_every_n_events`` knob already throttles on the
+    upstream side (content chunks per flush); this subscriber-level knob
+    adds a secondary throttle measured in *flushes*. Combine them when the
+    event handler is configured for low-latency flushes but downstream SDK
+    pressure needs reducing. The final :class:`StreamEnded` write is
+    always performed and is authoritative, so throttling deltas only ever
+    coarsens intermediate UI updates — it never drops data.
+    """
+
+    def __init__(
+        self,
+        settings: UniqueSettings,
+        *,
+        persist_every_n_deltas: int = 1,
+    ) -> None:
+        self._settings = settings
+        self._chunks_by_message: dict[str, list[ContentChunk]] = {}
+        self._persist_every_n_deltas = max(1, persist_every_n_deltas)
+        # Per-message counter so overlapping streams on the same subscriber
+        # instance don't share a throttle boundary.
+        self._delta_counter_by_message: dict[str, int] = {}
+
+    def register(self, bus: StreamEventBus) -> None:
+        """Subscribe this persister to the text lifecycle channels on ``bus``.
+
+        Intentionally does not touch :attr:`StreamEventBus.activity_progress`:
+        progress logs are owned by :class:`ProgressLogPersister`.
+        """
+        bus.stream_started.subscribe(self.on_started)
+        bus.text_delta.subscribe(self.on_text_delta)
+        bus.stream_ended.subscribe(self.on_ended)
+
+    async def on_started(self, event: StreamStarted) -> None:
+        self._chunks_by_message[event.message_id] = list(event.content_chunks)
+
+        # References are intentionally empty here: we only attach a
+        # reference once the model has actually cited it (detected via
+        # ``<sup>N</sup>`` in the normalised streaming text). Seeding all
+        # retrieved chunks upfront would leak every candidate source into
+        # the frontend before the model decides to use it.
+        await unique_sdk.Message.modify_async(
+            id=event.message_id,
+            chatId=event.chat_id,
+            user_id=self._settings.context.auth.user_id.get_secret_value(),
+            company_id=self._settings.context.auth.company_id.get_secret_value(),
+            references=[],
+            startedStreamingAt=cast(Any, _now_utc_iso()),
+        )
+
+    async def on_text_delta(self, event: TextUpdate) -> None:
+        chunks = self._chunks_by_message.get(event.message_id, [])
+
+        # Apply the per-subscriber throttle. We only skip intermediate
+        # writes — the authoritative final state ships on :class:`StreamEnded`.
+        count = self._delta_counter_by_message.get(event.message_id, 0) + 1
+        self._delta_counter_by_message[event.message_id] = count
+        if count % self._persist_every_n_deltas != 0:
+            return
+
+        # Incremental writes are the hot path: a transient SDK failure here
+        # must not abort the stream loop. The authoritative final state is
+        # written again in :meth:`on_ended`, so a dropped delta degrades
+        # to a slightly coarser UI update rather than data loss.
+        try:
+            await unique_sdk.Message.create_event_async(
+                messageId=event.message_id,
+                chatId=event.chat_id,
+                user_id=self._settings.context.auth.user_id.get_secret_value(),
+                company_id=self._settings.context.auth.company_id.get_secret_value(),
+                text=event.full_text or None,
+                originalText=event.original_text or None,
+                references=filter_cited_sdk_references(chunks, event.full_text),
+            )
+        except Exception as exc:
+            _LOGGER.warning(
+                "MessagePersistingSubscriber: incremental text_delta write "
+                "failed for message %r; continuing stream. Error: %r",
+                event.message_id,
+                exc,
+            )
+
+    async def on_ended(self, event: StreamEnded) -> None:
+        chunks = self._chunks_by_message.pop(event.message_id, [])
+        self._delta_counter_by_message.pop(event.message_id, None)
+        now_iso = _now_utc_iso()
+
+        # Concatenate any appendices (e.g. a code-interpreter code block)
+        # contributed by auxiliary event handlers. This keeps the final persist
+        # to a single Message.modify_async call — appendix-producing
+        # event handlers no longer need their own retrieve+modify round-trip.
+        final_text = event.full_text
+        if event.appendices:
+            final_text = final_text + "".join(event.appendices)
+
+        # Only mark streaming stopped on the answer round; tool-call rounds have
+        # empty text and must stay "streaming" so the frontend keeps the steps.
+        stopped_streaming_at = now_iso if final_text else None
+
+        await unique_sdk.Message.modify_async(
+            id=event.message_id,
+            chatId=event.chat_id,
+            user_id=self._settings.context.auth.user_id.get_secret_value(),
+            company_id=self._settings.context.auth.company_id.get_secret_value(),
+            text=final_text or None,
+            originalText=event.original_text or None,
+            references=filter_cited_sdk_references(chunks, event.full_text),
+            # Chat completions persist their request as a JSON array; the SDK type is narrower.
+            gptRequest=event.gpt_request,  # pyright: ignore[reportArgumentType]
+            debugInfo=event.debug_info,
+            stoppedStreamingAt=cast(Any, stopped_streaming_at),
+        )
