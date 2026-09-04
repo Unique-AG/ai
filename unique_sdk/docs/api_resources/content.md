@@ -441,12 +441,13 @@ The Content resource provides methods to:
 
     - `contentId` (str, required) - ID of the content to update
     - `ingestionState` (str, required) - The new ingestion state to set.
+    - `chatId` (str, optional) - Chat ID when the content is owned by a chat
 
     **Returns:**
 
     Returns a [`ContentInfo`](#contentinfo) object.
 
-    **Example:**
+    **Examples:**
 
     Re-queue content for ingestion:
 
@@ -456,6 +457,18 @@ The Content resource provides methods to:
         company_id=company_id,
         contentId="cont_ok2343q5owbce80w78hudawu5",
         ingestionState="QUEUED"
+    )
+    ```
+
+    Re-queue chat-owned content:
+
+    ```python
+    unique_sdk.Content.update_ingestion_state(
+        user_id=user_id,
+        company_id=company_id,
+        contentId="cont_ok2343q5owbce80w78hudawu5",
+        ingestionState="QUEUED",
+        chatId="chat_v3xfa7liv876h89vuiibus1",
     )
     ```
 
