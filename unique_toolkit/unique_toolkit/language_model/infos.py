@@ -916,7 +916,13 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
-                    supported_reasoning_efforts=["none", "low", "medium", "high"],
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
                 )
             case LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113:
                 return cls(
@@ -945,7 +951,13 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
-                    supported_reasoning_efforts=["none", "low", "medium", "high"],
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
                 )
             case LanguageModelName.AZURE_GPT_52_2025_1211:
                 return cls(
