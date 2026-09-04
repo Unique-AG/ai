@@ -51,3 +51,48 @@ def test_AI_deprecated_streaming_import_shims__emit_warning_and_reexport_symbols
             and STREAMING_DEPRECATED_REMOVAL_DATE in str(w.message)
             for w in caught
         ), f"Expected deprecation warning for {module_name}"
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("deprecated_path", "stable_path", "symbol"),
+    [
+        (
+            "unique_toolkit.experimental._internal.streaming",
+            "unique_toolkit._internal.streaming",
+            "TextFlushed",
+        ),
+        (
+            "unique_toolkit.experimental._internal.streaming.pattern_replacer",
+            "unique_toolkit._internal.streaming.pattern_replacer",
+            "StreamingPatternReplacer",
+        ),
+        (
+            "unique_toolkit.experimental.integrations.openai.streaming.event_routing",
+            "unique_toolkit.integrations.openai.streaming.event_routing",
+            "ResponsesCompleteWithReferences",
+        ),
+        (
+            "unique_toolkit.experimental.integrations.openai.streaming.event_routing."
+            "chat_completions.complete_with_references",
+            "unique_toolkit.integrations.openai.streaming.event_routing."
+            "chat_completions.complete_with_references",
+            "ChatCompletionsCompleteWithReferences",
+        ),
+    ],
+)
+def test_AI_deprecated_streaming_import_identity__matches_stable_symbol(
+    deprecated_path: str, stable_path: str, symbol: str
+) -> None:
+    """Deprecated nested imports must be the same object as the stable symbol.
+
+    Purpose: Verify experimental shims re-export the stable class rather than
+    loading a second copy via a copied package ``__path__``.
+    Why this matters: Duplicate class objects break ``isinstance`` checks during
+    the migration window.
+    Setup summary: Import the same symbol from deprecated and stable paths and
+    assert identity.
+    """
+    deprecated = importlib.import_module(deprecated_path)
+    stable = importlib.import_module(stable_path)
+    assert getattr(deprecated, symbol) is getattr(stable, symbol)
