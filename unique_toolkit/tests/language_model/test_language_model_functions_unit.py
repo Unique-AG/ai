@@ -437,6 +437,24 @@ def test_resolve_temp_and_reasoning_warns_on_out_of_bounds_temperature(caplog):
     assert effort == "none"  # model default applied
 
 
+def test_resolve_temp_and_reasoning_keeps_xhigh_for_codex(caplog):
+    """Regression for UN-25265: xhigh must not be downgraded (previously fell back
+    to the first supported effort, "none", silently disabling reasoning)."""
+    for codex_name in (
+        LanguageModelName.AZURE_GPT_51_CODEX_2025_1113,
+        LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113,
+    ):
+        codex = LanguageModelInfo.from_name(codex_name)
+        with caplog.at_level(
+            logging.WARNING, logger="unique_toolkit.language_model.infos"
+        ):
+            temp, effort = codex.resolve_temp_and_reasoning(0.5, "xhigh")
+
+        assert "not supported" not in caplog.text
+        assert effort == "xhigh"
+        assert temp == 1.0
+
+
 def test_resolve_temp_and_reasoning_no_warning_for_valid_effort(caplog):
     """No warning is logged when reasoning_effort is valid for the model."""
     # gpt-5.4-pro supports ["medium", "high", "xhigh"]
@@ -466,6 +484,20 @@ def test_supported_reasoning_efforts_set_correctly():
     gpt51 = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_51_2025_1113)
     assert gpt51.supported_reasoning_efforts == ["none", "low", "medium", "high"]
     assert "minimal" not in gpt51.supported_reasoning_efforts
+
+    # gpt-5.1 codex family additionally supports xhigh (UN-25265)
+    for codex_name in (
+        LanguageModelName.AZURE_GPT_51_CODEX_2025_1113,
+        LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113,
+    ):
+        codex = LanguageModelInfo.from_name(codex_name)
+        assert codex.supported_reasoning_efforts == [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+        ]
 
     # Thinking-only variants do not include none or low
     gpt54_pro = LanguageModelInfo.from_name(
