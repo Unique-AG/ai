@@ -827,6 +827,12 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "none",
                     },
+                    # Do NOT add "xhigh": xhigh is Codex-only in the GPT-5.1
+                    # family. Verified on QA (switzerlandnorth, 2026-09-04):
+                    # the deployment accepts reasoning_effort=xhigh on the
+                    # wire but returns 0 reasoning tokens (vs ~2'200-2'400 at
+                    # "high"), i.e. it silently runs without reasoning.
+                    # See UN-25265.
                     supported_reasoning_efforts=["none", "low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_51_THINKING_2025_1113:
@@ -889,6 +895,10 @@ class LanguageModelInfo(BaseModel):
                     },
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
+            # The GPT-5.1 Codex family supports reasoning_effort="xhigh"
+            # (unlike base GPT-5.1, see comment there / UN-25265). No Azure
+            # deployment of the Codex models exists yet (as of 2026-09), so
+            # the server side could not be verified end-to-end.
             case LanguageModelName.AZURE_GPT_51_CODEX_2025_1113:
                 return cls(
                     name=model_name,
