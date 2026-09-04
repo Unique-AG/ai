@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class BingAgentSearchRequestFreshnessType0(str, Enum):
+class BingAgentSearchRequestSearchFreshnessType0(str, Enum):
     DAY = "Day"
     MONTH = "Month"
     WEEK = "Week"

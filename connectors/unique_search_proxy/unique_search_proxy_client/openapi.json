@@ -863,11 +863,11 @@
             "type": "integer",
             "maximum": 50.0,
             "minimum": 1.0,
-            "title": "Fetch Size",
-            "description": "Maximum number of Bing grounding results per query",
+            "title": "Results per search",
+            "description": "How many search results Bing returns for each query. More results give the model more to work with, and cost more tokens to read.",
             "default": 5
           },
-          "market": {
+          "searchMarket": {
             "anyOf": [
               {
                 "type": "string",
@@ -916,74 +916,10 @@
                 "type": "null"
               }
             ],
-            "title": "Market",
-            "description": "Country/region **and** language the results come from (Bing `mkt`), as `<language>-<country>`: `de-CH` returns German-language Swiss results, `fr-CH` French-language Swiss ones, `en-GB` UK English. Set it when the question is about a specific country or expects an answer in that country's language. Left unset, Bing guesses the market from the caller and may answer from another country. [Market codes](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-codes)"
+            "title": "Preferred region and language",
+            "description": "Region and language Bing should favour, as `<language>-<country>`: `fr-FR`, `fr-CH`, `de-CH`, `en-GB`. This biases the results rather than restricting them \u2014 sources from other regions can still appear. Set it when the space serves one country; left blank, the deployment default applies, or Bing guesses from the caller if there is none. [Supported `mkt` values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-codes)"
           },
-          "setLang": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "ar",
-                  "eu",
-                  "bn",
-                  "bg",
-                  "ca",
-                  "zh-hans",
-                  "zh-hant",
-                  "hr",
-                  "cs",
-                  "da",
-                  "nl",
-                  "en",
-                  "en-gb",
-                  "et",
-                  "fi",
-                  "fr",
-                  "gl",
-                  "de",
-                  "gu",
-                  "he",
-                  "hi",
-                  "hu",
-                  "is",
-                  "it",
-                  "jp",
-                  "kn",
-                  "ko",
-                  "lv",
-                  "lt",
-                  "ms",
-                  "ml",
-                  "mr",
-                  "nb",
-                  "pl",
-                  "pt-br",
-                  "pt-pt",
-                  "pa",
-                  "ro",
-                  "ru",
-                  "sr",
-                  "sk",
-                  "sl",
-                  "es",
-                  "sv",
-                  "ta",
-                  "te",
-                  "th",
-                  "tr",
-                  "uk",
-                  "vi"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Interface language",
-            "description": "Language of Bing's own interface strings in the response (Bing `setLang`), e.g. `de`, `fr`, `pt-br`. It changes neither which results come back nor the language they are written in \u2014 use the market for that. Bing falls back to English for codes it does not support. [Supported languages](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-codes#bing-supported-language-codes)"
-          },
-          "freshness": {
+          "searchFreshness": {
             "anyOf": [
               {
                 "type": "string",
@@ -1001,8 +937,8 @@
                 "type": "null"
               }
             ],
-            "title": "Freshness",
-            "description": "Keep only pages Bing discovered recently (Bing `freshness`): `Day` (last 24 hours), `Week` (last 7 days), `Month` (last 30 days), a single `YYYY-MM-DD` day, or an inclusive `YYYY-MM-DD..YYYY-MM-DD` range. Use it for news and fast-moving topics; leave it unset for background or reference questions, where it would hide older pages that are still correct. [Accepted values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-parameters#freshness)"
+            "title": "Only results published recently",
+            "description": "Drops anything Bing discovered before a cut-off: `Day`, `Week` or `Month` for the last 24 hours / 7 days / 30 days, a single date as `2026-01-31`, or a range as `2026-01-01..2026-03-31`. Unlike the region, this really does filter. It applies to **every** search in the space, so set it only for news spaces \u2014 elsewhere it hides older pages that are still correct. [Accepted `freshness` values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-parameters#freshness)"
           }
         },
         "type": "object",

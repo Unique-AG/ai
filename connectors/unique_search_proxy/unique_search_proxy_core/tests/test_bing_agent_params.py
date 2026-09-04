@@ -1,6 +1,10 @@
-"""Bing agent exposable knobs: derived surfaces, merge, and agent naming."""
+"""Bing agent fixed grounding knobs: admin form, env default, requests, naming."""
+
+import json
+from typing import get_args
 
 import pytest
+from humps import camelize
 from pydantic import ValidationError
 from unique_toolkit._common.pydantic.rjsf_tags import ui_schema_for_model
 
@@ -14,174 +18,292 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
 from unique_search_proxy_core.agent_engines.bing.schema import (
     BingAgentConfig,
     BingAgentSearchRequest,
-    ExposableFreshness,
-    ExposableMarket,
-    ExposableSetLang,
+    BingMarket,
 )
 from unique_search_proxy_core.agent_engines.bing.settings import (
-    MarketSettings,
     _get_settings,
     bing_agent_env_settings,
+    resolve_market,
 )
-from unique_search_proxy_core.param_policy import ExposedParams
 
 
-def _patch_market_settings(
+def _patch_default_market(
     monkeypatch: pytest.MonkeyPatch,
-    *,
-    default: str | None = None,
-    enforce: bool = False,
+    value: str | None,
 ) -> None:
-    monkeypatch.setattr(
-        bing_agent_env_settings,
-        "market",
-        MarketSettings(default=default, enforce=enforce),
-    )
+    monkeypatch.setattr(bing_agent_env_settings, "default_market", value)
 
 
-class TestBingAgentEnvSettings:
+class TestBingAgentAdminForm:
     @pytest.mark.ai
-    def test_market_default_reads_environment(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
+    def test_knobs_render_as_one_control_each(self) -> None:
         """
-        Purpose: Verify the Bing market default is loaded from the deployment environment.
-        Why this matters: Each client environment must be able to select its own market.
-        Setup summary: Set the nested market JSON env var and reload settings.
+        Purpose: Verify each grounding knob is a single admin control.
+        Why this matters: ``Literal | None`` reaches RJSF as an ``anyOf``, which it
+            draws as a branch picker ("option 1 / option 2") wrapping a second
+            control — the shape that made the first attempt at these knobs
+            unusable. Market must be one dropdown, freshness one text input.
+        Setup summary: Inspect the admin JSON schema and the freshness uiSchema.
         """
-        monkeypatch.setenv("BING_AGENT_MARKET", '{"default": "fr-CH"}')
+        properties = BingAgentConfig.model_json_schema()["properties"]
+        ui_schema = ui_schema_for_model(BingAgentConfig, key_transform=camelize)
 
-        settings = _get_settings()
-        assert settings.market.default == "fr-CH"
-        assert settings.market.enforce is False
-
-    @pytest.mark.ai
-    def test_market_enforce_reads_environment(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        monkeypatch.setenv(
-            "BING_AGENT_MARKET",
-            '{"default": "de-CH", "enforce": true}',
+        market = properties["searchMarket"]
+        assert "anyOf" not in market
+        assert market["type"] == ["string", "null"]
+        assert market["oneOf"][0] == {"const": None, "title": "Not set"}
+        assert {choice["const"] for choice in market["oneOf"][1:]} == set(
+            get_args(BingMarket)
         )
 
-        settings = _get_settings()
-        assert settings.market.default == "de-CH"
-        assert settings.market.enforce is True
+        freshness = properties["searchFreshness"]
+        assert "anyOf" not in freshness
+        assert freshness["type"] == ["string", "null"]
+        # No `pattern`: it would flag a half-typed date while the admin types.
+        assert "pattern" not in freshness
+        assert ui_schema["searchFreshness"]["ui:widget"] == "text"
+        assert ui_schema["searchFreshness"]["ui:emptyValue"] is None
 
     @pytest.mark.ai
-    @pytest.mark.parametrize("value", ["", "fr-XX"])
-    def test_invalid_market_default_rejects_at_settings_load(
+    def test_no_exposable_wrapper_survives_in_the_schema(self) -> None:
+        """
+        Purpose: Verify the knobs are plain fixed values, not exposable params.
+        Why this matters: These are admin decisions applied to every search; an
+            ``{expose, value}`` wrapper would put a checkbox in the form and
+            offer the knob to the LLM to steer per call.
+        Setup summary: Serialize the admin schema and assert the wrapper is gone.
+        """
+        serialized = json.dumps(BingAgentConfig.model_json_schema())
+
+        assert '"expose"' not in serialized
+        assert "Exposable" not in serialized
+        assert BingAgentConfig().exposed_params_model() is None
+
+    @pytest.mark.ai
+    def test_knobs_are_visible_in_the_admin_ui_schema(self) -> None:
+        """
+        Purpose: Verify the knobs are no longer hidden from the admin form.
+        Why this matters: 2026.36 shipped them behind ``ui:widget: hidden`` because
+            the form was not acceptable. This rework is what releases them, so a
+            leftover hidden tag would silently ship nothing.
+        Setup summary: Generate the config uiSchema and check for hidden widgets.
+        """
+        ui_schema = ui_schema_for_model(BingAgentConfig, key_transform=camelize)
+
+        for knob in ("searchMarket", "searchFreshness"):
+            assert ui_schema.get(knob, {}).get("ui:widget") != "hidden"
+
+    @pytest.mark.ai
+    def test_defaults_leave_every_knob_blank(self) -> None:
+        saved = BingAgentConfig().model_dump(mode="json", by_alias=True)
+
+        assert saved["searchMarket"] is None
+        assert saved["searchFreshness"] is None
+
+
+class TestStoredConfigCompatibility:
+    """The 2026.36 keys are retired, not reshaped — that is what keeps rollback safe."""
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "legacy",
+        [
+            {"market": {"expose": False, "value": None}},
+            {"market": {"expose": False, "value": "fr-CH"}},
+            {"market": {"expose": True, "value": "de-CH"}},
+            {"freshness": {"expose": False, "value": "Week"}},
+            {"setLang": {"expose": False, "value": "de"}},
+            # Not burned keys, but still present on pre-#2263 rows.
+            {"agentId": "legacy-agent", "endpoint": "https://old.example.com"},
+            {"market": {}, "freshness": {}},
+            {"market": None, "freshness": None, "setLang": None},
+        ],
+    )
+    def test_retired_keys_are_ignored_not_reshaped(
+        self,
+        legacy: dict[str, object],
+    ) -> None:
+        """
+        Purpose: Verify every config key retired on 2026.36 validates as an extra.
+        Why this matters: A field reusing one of these names would inherit the
+            stale wrapper shape, and ``ToolBuildConfig`` answers an invalid tool
+            config by silently disabling the whole tool rather than raising. The
+            names are recorded in ``_BURNED_CONFIG_KEYS`` for that reason.
+        Setup summary: Validate each retired shape and assert it is dropped.
+        """
+        config = BingAgentConfig.model_validate(legacy)
+
+        assert config.search_market is None
+        assert config.search_freshness is None
+        for key in legacy:
+            assert key not in config.model_dump(by_alias=True)
+
+    @pytest.mark.ai
+    def test_current_keys_are_not_burned_names(self) -> None:
+        """
+        Purpose: Verify no live field reuses a key retired on an earlier release.
+        Why this matters: Reuse is the one way the rename stops protecting us, and
+            it would surface as a whole tool silently disabling for spaces saved
+            on 2026.36 — not as a validation error anyone would see.
+        Setup summary: Compare the config's JSON keys against the burned set.
+        """
+        keys = {
+            field.alias or name for name, field in BingAgentConfig.model_fields.items()
+        }
+
+        assert keys.isdisjoint(BingAgentConfig._BURNED_CONFIG_KEYS)
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("payload_key", "attribute"),
+        [
+            ("searchMarket", "search_market"),
+            ("searchFreshness", "search_freshness"),
+        ],
+    )
+    def test_blank_string_is_read_as_blank(
+        self,
+        payload_key: str,
+        attribute: str,
+    ) -> None:
+        """
+        Purpose: Verify a cleared control saves as "no fixed value".
+        Why this matters: A cleared dropdown or text input can arrive as ``""``,
+            which the Bing vocabularies would reject and turn into a form error
+            for a knob the admin was allowed to leave unset.
+        Setup summary: Validate each knob as an empty string.
+        """
+        config = BingAgentConfig.model_validate({payload_key: ""})
+
+        assert getattr(config, attribute) is None
+
+
+class TestDefaultMarketFromEnvironment:
+    @pytest.mark.ai
+    def test_default_market_reads_environment(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify the deployment market default is loaded from the environment.
+        Why this matters: A deployment serving one country pins its market once
+            instead of per space.
+        Setup summary: Set the env var and reload settings.
+        """
+        monkeypatch.setenv("BING_AGENT_DEFAULT_MARKET", "fr-FR")
+
+        assert _get_settings().default_market == "fr-FR"
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_blank_default_market_loads_as_unset(
         self,
         value: str,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """
-        Purpose: Verify unknown market codes fail when loading deployment settings.
-        Why this matters: ``market.default`` is typed as ``BingMarket``; a typo must
-            surface at startup instead of being silently ignored.
-        Setup summary: Set an invalid default and expect settings construction to fail.
+        Purpose: Verify an empty variable does not stop the service from booting.
+        Why this matters: Helm renders an unconfigured optional value as ``""``, and
+            a ``BingMarket`` literal would reject it — taking down every search to
+            enforce an optional knob.
+        Setup summary: Set the var to blank and load settings.
         """
-        monkeypatch.setenv("BING_AGENT_MARKET", f'{{"default": "{value}"}}')
+        monkeypatch.setenv("BING_AGENT_DEFAULT_MARKET", value)
+
+        assert _get_settings().default_market is None
+
+    @pytest.mark.ai
+    def test_invalid_default_market_fails_at_startup(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify an unknown market code fails when loading settings.
+        Why this matters: Bing ignores codes it does not know, so a typo would
+            silently serve the wrong country. Failing at startup surfaces it
+            during rollout instead of in front of users.
+        Setup summary: Set an invalid default and expect settings to raise.
+        """
+        monkeypatch.setenv("BING_AGENT_DEFAULT_MARKET", "fr-XX")
 
         with pytest.raises(ValidationError):
             _get_settings()
 
-
-class TestBingAgentMarketUiSchema:
     @pytest.mark.ai
-    def test_market_ui_schema_not_locked_when_not_enforced(
+    def test_blank_space_config_falls_back_to_the_deployment_default(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        _patch_market_settings(monkeypatch, default="de-CH", enforce=False)
+        _patch_default_market(monkeypatch, "fr-FR")
 
-        market_ui = ui_schema_for_model(BingAgentConfig)["market"]
-        assert market_ui["ui:disabled"] is False
-        assert "expose" in market_ui
-        assert "value" in market_ui
+        assert resolve_market(None) == "fr-FR"
+        assert resolve_market("") == "fr-FR"
 
     @pytest.mark.ai
-    def test_market_ui_schema_disabled_when_enforced(
+    def test_space_config_wins_over_the_deployment_default(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        _patch_market_settings(monkeypatch, default="de-CH", enforce=True)
+        _patch_default_market(monkeypatch, "fr-FR")
 
-        market_ui = ui_schema_for_model(BingAgentConfig)["market"]
-        assert market_ui["ui:disabled"] is True
-        # The lock is set through the nested JSON var; naming a flat
-        # `BING_AGENT_MARKET_*` var here would send admins to a variable
-        # `_BingAgentEnvSettings` never reads.
-        assert "BING_AGENT_MARKET_ENFORCE" not in market_ui["ui:help"]
-        assert "BING_AGENT_MARKET" in market_ui["ui:help"]
-        assert "expose" in market_ui
-        assert "value" in market_ui
+        assert resolve_market("de-CH") == "de-CH"
 
-
-class TestBingGroundingKnobsHiddenFromAdmin:
     @pytest.mark.ai
-    @pytest.mark.parametrize("knob", ["market", "set_lang", "freshness"])
-    def test_knob_is_hidden_in_the_admin_ui_schema(self, knob: str) -> None:
+    def test_no_market_anywhere_resolves_to_none(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """
-        Purpose: Verify the grounding knobs never render in the admin form.
-        Why this matters: They are not cleared for release. The fields stay on
-            the config so stored deployments keep validating and the runtime
-            path is untouched, which leaves `ui:widget: hidden` as the only
-            thing stopping an admin from pinning a value or exposing a knob to
-            the LLM.
-        Setup summary: Generate the config uiSchema and read each knob's node.
+        Purpose: Verify ``mkt`` is omitted when neither space nor deployment set it.
+        Why this matters: Sending an empty or guessed market would change today's
+            behaviour for every deployment that has not opted in.
+        Setup summary: Clear the deployment default and resolve a blank value.
         """
-        knob_ui = ui_schema_for_model(BingAgentConfig)[knob]
+        _patch_default_market(monkeypatch, None)
 
-        assert knob_ui["ui:widget"] == "hidden"
+        assert resolve_market(None) is None
 
-
-class TestBingAgentMarketEnforcement:
     @pytest.mark.ai
-    def test_validate_market_pins_env_default_when_enforced(
+    def test_deployment_default_does_not_prefill_the_admin_form(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        _patch_market_settings(monkeypatch, default="de-CH", enforce=True)
+        """
+        Purpose: Verify the env default stays a runtime fallback.
+        Why this matters: Baking it into the field default would show it as a
+            configured choice and freeze it into every config saved afterwards,
+            so changing the deployment default would stop reaching those spaces.
+        Setup summary: Set a deployment default and inspect the config default.
+        """
+        _patch_default_market(monkeypatch, "fr-FR")
 
-        config = BingAgentConfig.model_validate(
-            {"market": {"expose": True, "value": "fr-CH"}},
+        assert BingAgentConfig().search_market is None
+        assert (
+            BingAgentConfig.model_json_schema()["properties"]["searchMarket"].get(
+                "default"
+            )
+            is None
         )
-        assert config.market == ExposableMarket(expose=False, value="de-CH")
-
-    @pytest.mark.ai
-    def test_validate_market_leaves_admin_value_when_not_enforced(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        _patch_market_settings(monkeypatch, default="de-CH", enforce=False)
-
-        config = BingAgentConfig.model_validate(
-            {"market": {"expose": True, "value": "fr-CH"}},
-        )
-        assert config.market == ExposableMarket(expose=True, value="fr-CH")
 
 
 class TestBingAgentRequestModel:
     @pytest.mark.ai
-    def test_exposable_knobs_are_optional_request_fields(self) -> None:
-        assert {"market", "set_lang", "freshness"} <= set(
-            BingAgentSearchRequest.model_fields,
+    def test_knobs_are_optional_request_fields(self) -> None:
+        assert {"search_market", "search_freshness"} <= set(
+            BingAgentSearchRequest.model_fields
         )
+        assert "set_lang" not in BingAgentSearchRequest.model_fields
         request = BingAgentSearchRequest.model_validate({"query": "x"})
-        assert request.market is None
-        assert request.set_lang is None
-        assert request.freshness is None
+        assert request.search_market is None
+        assert request.search_freshness is None
 
     @pytest.mark.ai
     def test_camel_case_aliases_accepted(self) -> None:
         request = BingAgentSearchRequest.model_validate(
-            {"query": "x", "setLang": "fr", "market": "fr-CH"},
+            {"query": "x", "fetchSize": 7, "searchMarket": "fr-CH"},
         )
-        assert request.set_lang == "fr"
-        assert request.market == "fr-CH"
+        assert request.fetch_size == 7
+        assert request.search_market == "fr-CH"
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
@@ -190,22 +312,21 @@ class TestBingAgentRequestModel:
     )
     def test_freshness_accepts_presets_days_and_ranges(self, freshness: str) -> None:
         request = BingAgentSearchRequest.model_validate(
-            {"query": "x", "freshness": freshness},
+            {"query": "x", "searchFreshness": freshness},
         )
-        assert request.freshness == freshness
+        assert request.search_freshness == freshness
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
         ("field", "value"),
         [
-            ("market", "fr-XX"),
-            ("market", "french"),
-            ("market", "fr"),
-            ("setLang", "ja"),
-            ("freshness", "recently"),
-            ("freshness", "day"),
-            ("freshness", "last week"),
-            ("freshness", "2026-01-01-2026-02-01"),
+            ("searchMarket", "fr-XX"),
+            ("searchMarket", "french"),
+            ("searchMarket", "fr"),
+            ("searchFreshness", "recently"),
+            ("searchFreshness", "day"),
+            ("searchFreshness", "last week"),
+            ("searchFreshness", "2026-01-01-2026-02-01"),
         ],
     )
     def test_values_outside_bings_vocabulary_are_rejected(
@@ -216,9 +337,9 @@ class TestBingAgentRequestModel:
         """
         Purpose: Verify the knobs only accept values Bing documents.
         Why this matters: Bing ignores unknown values, so a plausible-looking one
-            from the LLM would return results that look right while ignoring the
-            request — and since these knobs are hashed into the agent name, each
-            distinct string would also mint its own Foundry agent version.
+            would return results that look right while ignoring the request — and
+            since these knobs are hashed into the agent name, each distinct string
+            would also mint its own Foundry agent version.
         Setup summary: Validate a request per invalid value and expect a rejection.
         """
         with pytest.raises(ValidationError):
@@ -229,77 +350,23 @@ class TestBingAgentRequestModel:
         assert "output_schema" not in BingAgentSearchRequest.model_fields
 
 
-class TestBingAgentExposedParams:
-    @pytest.mark.ai
-    def test_none_when_nothing_exposed(self) -> None:
-        assert BingAgentConfig().exposed_params_model() is None
-
-    @pytest.mark.ai
-    def test_contains_exactly_the_exposed_knobs(self) -> None:
-        config = BingAgentConfig(
-            market=ExposableMarket(expose=True, value=None),
-            freshness=ExposableFreshness(expose=True, value=None),
-            set_lang=ExposableSetLang(expose=False, value="fr"),
-        )
-        exposed = config.exposed_params_model()
-        assert exposed is not None
-        assert issubclass(exposed, ExposedParams)
-        assert exposed.__name__ == "BingAgentExposedParams"
-        assert set(exposed.model_fields) == {"market", "freshness"}
-
-    @pytest.mark.ai
-    def test_schema_is_description_only(self) -> None:
-        config = BingAgentConfig(
-            market=ExposableMarket(expose=True, value="en-US"),
-        )
-        exposed = config.exposed_params_model()
-        assert exposed is not None
-        prop = exposed.model_json_schema()["properties"]["market"]
-        assert "Bing `mkt`" in prop["description"]
-        # Pydantic auto-title and the admin default must not leak to the LLM.
-        assert "title" not in prop
-        assert "default" not in prop
-
-    @pytest.mark.ai
-    def test_market_choices_reach_the_llm_schema(self) -> None:
-        """
-        Purpose: Verify the LLM sees Bing's market vocabulary, not a free-form string.
-        Why this matters: An unconstrained string invites plausible-looking codes
-            such as `fr-XX`, which Bing ignores while still returning results.
-        Setup summary: Expose market and inspect the enum branch of its schema.
-        """
-        config = BingAgentConfig(market=ExposableMarket(expose=True, value=None))
-        exposed = config.exposed_params_model()
-        assert exposed is not None
-        prop = exposed.model_json_schema()["properties"]["market"]
-        choices = next(branch["enum"] for branch in prop["anyOf"] if "enum" in branch)
-        assert {"de-CH", "fr-CH", "en-US"} <= set(choices)
-        assert "fr-XX" not in choices
-
-
 class TestBingAgentMerge:
     @pytest.mark.ai
-    def test_admin_defaults_merged(self) -> None:
-        config = BingAgentConfig(
-            market=ExposableMarket(expose=False, value="fr-CH"),
-            freshness=ExposableFreshness(expose=False, value="Week"),
-        )
+    def test_fixed_values_are_merged_into_the_request(self) -> None:
+        config = BingAgentConfig(search_market="fr-CH", search_freshness="Week")
+
         request = config.merge({}, query="x")
+
         assert isinstance(request, BingAgentSearchRequest)
-        assert request.market == "fr-CH"
-        assert request.freshness == "Week"
+        assert request.search_market == "fr-CH"
+        assert request.search_freshness == "Week"
 
     @pytest.mark.ai
-    def test_deactivated_knob_dropped(self) -> None:
-        config = BingAgentConfig(market=ExposableMarket(expose=True, value=None))
-        assert config.merge({}, query="x").market is None
+    def test_blank_knobs_are_dropped(self) -> None:
+        request = BingAgentConfig().merge({}, query="x")
 
-    @pytest.mark.ai
-    def test_override_wins_over_admin_default(self) -> None:
-        config = BingAgentConfig(
-            market=ExposableMarket(expose=True, value="en-US"),
-        )
-        assert config.merge({"market": "fr-CH"}, query="x").market == "fr-CH"
+        assert request.search_market is None
+        assert request.search_freshness is None
 
     @pytest.mark.ai
     def test_engine_injected_from_config(self) -> None:
@@ -330,7 +397,6 @@ class TestBingAgentNaming:
         [
             {"fetch_size": 10},
             {"market": "fr-CH"},
-            {"set_lang": "fr"},
             {"freshness": "Week"},
         ],
     )

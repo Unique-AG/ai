@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from httpx import HTTPError
 from unique_search_proxy_core.agent_engines import AgentEngineType
+from unique_search_proxy_core.agent_engines.bing import settings as bing_settings
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
 )
@@ -173,33 +174,20 @@ class TestBingLegacySearch:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_legacy_search__admin_defaults_and_llm_overrides_reach_bing(
-        self, mocker
-    ) -> None:
+    async def test_legacy_search__fixed_knobs_reach_bing(self, mocker) -> None:
         """
-        Purpose: Verify exposable knobs are resolved for the direct Bing path.
-        Why this matters: Admin defaults must apply, and an exposed knob chosen by
-            the LLM must win over the deployment default.
-        Setup summary: Expose market, set an admin default for both knobs, then
-            override market per call; assert the resulting grounding configuration.
+        Purpose: Verify the space's fixed knobs are forwarded on the direct Bing path.
+        Why this matters: This is the path used wherever the search proxy is not
+            deployed, so a knob dropped here silently serves the wrong market.
+        Setup summary: Configure both knobs; assert the grounding configuration.
         """
         # Arrange
-        config = BingSearchConfig.model_validate(
-            {
-                "market": {"expose": True, "value": "de-CH"},
-                "setLang": {"expose": False, "value": "de"},
-            },
-        )
+        config = BingSearchConfig(search_market="fr-CH", search_freshness="Week")
         _, create_and_process_run = self._patch_bing_runtime(mocker, [])
         search = BingSearch(config, Mock())
-        exposed_cls = config.exposed_params_model()
-        assert exposed_cls is not None
 
         # Act
-        await search._legacy_search(
-            "test query",
-            params=exposed_cls.model_validate({"market": "fr-CH"}),
-        )
+        await search._legacy_search("test query", params=None)
 
         # Assert
         assert create_and_process_run.call_args.kwargs[
@@ -207,8 +195,56 @@ class TestBingLegacySearch:
         ] == BingGroundingConfiguration(
             fetch_size=config.fetch_size,
             market="fr-CH",
-            set_lang="de",
+            freshness="Week",
         )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__blank_market_uses_the_deployment_default(
+        self, mocker, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify a space that fixes no market falls back to the environment.
+        Why this matters: This is how a single-country deployment pins its market
+            without touching every space configuration.
+        Setup summary: Patch the deployment default, search with a blank config.
+        """
+        # Arrange
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", "fr-FR"
+        )
+        _, create_and_process_run = self._patch_bing_runtime(mocker, [])
+        search = BingSearch(BingSearchConfig(), Mock())
+
+        # Act
+        await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert create_and_process_run.call_args.kwargs["grounding"].market == "fr-FR"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__omits_market_when_nothing_is_configured(
+        self, mocker, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify no market is sent when neither space nor deployment sets one.
+        Why this matters: Deployments that have not opted in must keep the behaviour
+            they have today rather than inheriting someone else's market.
+        Setup summary: Clear the deployment default, search with a blank config.
+        """
+        # Arrange
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", None
+        )
+        _, create_and_process_run = self._patch_bing_runtime(mocker, [])
+        search = BingSearch(BingSearchConfig(), Mock())
+
+        # Act
+        await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert create_and_process_run.call_args.kwargs["grounding"].market is None
 
 
 class TestAgentProxyInvocation:
@@ -233,15 +269,16 @@ class TestAgentProxyInvocation:
         assert invocation["fetch_size"] == config.fetch_size
 
     @pytest.mark.ai
-    def test_agent_proxy_invocation__resolves_exposable_defaults(self) -> None:
+    def test_agent_proxy_invocation__forwards_fixed_knobs(self) -> None:
         """
-        Purpose: Verify exposable knobs are sent as plain values, not `{expose, value}`.
-        Why this matters: The proxy request model rejects the admin wrapper shape.
-        Setup summary: Configure a market default; assert the plain value is forwarded.
+        Purpose: Verify the fixed knobs are sent to the proxy under their own names.
+        Why this matters: The proxy derives its request model from this config, so
+            a name drift here silently drops the knob instead of failing.
+        Setup summary: Configure both knobs; assert both reach the invocation.
         """
         # Arrange
         config = BingSearchConfig.model_validate(
-            {"market": {"expose": False, "value": "de-CH"}},
+            {"searchMarket": "de-CH", "searchFreshness": "Week"},
         )
         search = BingSearch(config, Mock())
 
@@ -249,31 +286,47 @@ class TestAgentProxyInvocation:
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
 
         # Assert
-        assert invocation["market"] == "de-CH"
+        assert invocation["search_market"] == "de-CH"
+        assert invocation["search_freshness"] == "Week"
 
     @pytest.mark.ai
-    def test_agent_proxy_invocation__llm_params_override_defaults(self) -> None:
+    def test_agent_proxy_invocation__fills_blank_market_from_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """
-        Purpose: Verify per-call LLM parameters win over deployment defaults.
-        Why this matters: An exposed knob is only useful if the LLM's choice is used.
-        Setup summary: Expose market with a default, pass a different market per call.
+        Purpose: Verify the resolved market travels to the proxy.
+        Why this matters: Resolving here means `BING_AGENT_DEFAULT_MARKET` works
+            wherever the web-search tool is configured, without also having to be
+            set on the search-proxy deployment.
+        Setup summary: Patch the deployment default, invoke with a blank config.
         """
         # Arrange
-        config = BingSearchConfig.model_validate(
-            {"market": {"expose": True, "value": "de-CH"}},
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", "fr-FR"
         )
-        search = BingSearch(config, Mock())
-        exposed_cls = config.exposed_params_model()
-        assert exposed_cls is not None
+        search = BingSearch(BingSearchConfig(), Mock())
 
         # Act
-        invocation = search._agent_proxy_invocation(
-            AgentEngineType.BING,
-            exposed_cls.model_validate({"market": "fr-CH"}),
-        )
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
 
         # Assert
-        assert invocation["market"] == "fr-CH"
+        assert invocation["search_market"] == "fr-FR"
+
+    @pytest.mark.ai
+    def test_agent_proxy_invocation__omits_market_when_nothing_is_configured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Arrange
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", None
+        )
+        search = BingSearch(BingSearchConfig(), Mock())
+
+        # Act
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
+
+        # Assert
+        assert "search_market" not in invocation
 
 
 class TestGetSearchEngineModelConfig:

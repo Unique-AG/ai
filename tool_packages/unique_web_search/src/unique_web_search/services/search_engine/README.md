@@ -151,8 +151,36 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 
 | Field | Notes |
 |-------|-------|
-| `fetch_size` | Bing result count |
-| `market`, `set_lang`, `freshness` | `ExposableParam`; `market` / `set_lang` restricted to Bing's documented codes; forwarded to `BingGroundingSearchConfiguration`. Hidden from the admin form (`ui:widget: hidden`) until they are cleared for release, so they stay at their defaults |
+| `fetch_size` | Bing result count (`count` on the tool configuration) |
+| `search_market` | Region **and** language Bing favours (Bing `mkt`). A bias, not a filter — other regions can still appear. The one knob that fixes UN-24652 |
+| `search_freshness` | Recency cut-off applied to every search in the space (Bing `freshness`) |
+
+Both are optional **fixed** values an admin picks for the whole space and are
+never offered to the LLM. `search_market` is restricted to Bing's documented
+codes; blank values are omitted so Bing applies its own defaults.
+
+The `search_` prefix is deliberate. Release 2026.36 shipped these knobs as
+`market` / `freshness` / `setLang` holding `ExposableParam` `{expose, value}`
+objects. Reusing those keys for the plain scalars would make a 2026.36 row
+invalid on read, and `ToolBuildConfig` answers an invalid tool config by
+silently disabling the whole tool — and, worse, would break rollback to 2026.36
+for any space re-saved in between. New names sidestep both: the old keys are
+ignored going forward, and old code finds its keys absent and applies its own
+defaults. See `BingAgentConfig._BURNED_CONFIG_KEYS`.
+
+`BingGroundingSearchConfiguration` also accepts `setLang`, which we deliberately
+do **not** expose: it only localizes the labels Bing puts around results, never
+which results come back or their language. An admin reading "language" would
+reasonably set it expecting French results and believe the market problem was
+solved, leaving `mkt` unset — the exact failure in UN-24652. Beyond these, Bing
+grounding has no `safeSearch`, `responseFilter`, or `answerCount` the way the
+classic Bing Web Search API does, so `count` / `market` / `freshness` is the
+whole useful surface.
+
+A blank `search_market` falls back to `BING_AGENT_DEFAULT_MARKET`, so a deployment
+serving one country pins its market once instead of per space. With neither set,
+`mkt` is left off the call entirely and Bing infers the market from the caller —
+which is what returned Swiss results to French users in UN-24652.
 
 Bing bakes the tool configuration into the *agent version*, so these knobs take
 part in the hashed agent name (`unique-grounding-with-bing-<hash>`): changing one
@@ -162,7 +190,8 @@ provisions a new agent version instead of reusing a mismatched one.
 AZURE_AI_PROJECT_ENDPOINT=...
 AZURE_AI_AGENT_ID=...          # optional; empty → auto-provision
 AZURE_IDENTITY_CREDENTIAL_TYPE=workload  # or default
-BING_AGENT_MARKET={"default": "fr-CH", "enforce": false}  # optional environment default
+# Market applied to spaces that fix none; omit to send no market at all.
+BING_AGENT_DEFAULT_MARKET=fr-FR
 ```
 
 ### VertexAI (Grounding with VertexAI)

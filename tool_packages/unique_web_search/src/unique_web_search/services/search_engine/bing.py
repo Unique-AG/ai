@@ -1,5 +1,5 @@
 import asyncio
-from typing import override
+from typing import Any, override
 
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
@@ -7,10 +7,8 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
+from unique_search_proxy_core.agent_engines.bing.settings import resolve_market
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
-from unique_search_proxy_core.param_policy.exposable_param import (
-    resolve_exposable_value,
-)
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
@@ -88,24 +86,31 @@ class BingSearch(SearchEngine[BingSearchConfig]):
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
-    def _grounding_configuration(
-        self,
-        params: ExposedParams | None,
-    ) -> BingGroundingConfiguration:
-        """Resolve the Bing tool knobs from deployment defaults + LLM overrides."""
-        overrides = params.model_dump(exclude_none=True) if params else {}
-
-        def knob(field_name: str) -> str | None:
-            if field_name in overrides:
-                return overrides[field_name]
-            return resolve_exposable_value(getattr(self.config, field_name))
-
+    def _grounding_configuration(self) -> BingGroundingConfiguration:
+        """The Bing tool knobs this space has fixed, with the market resolved."""
         return BingGroundingConfiguration(
             fetch_size=self.config.fetch_size,
-            market=knob("market"),
-            set_lang=knob("set_lang"),
-            freshness=knob("freshness"),
+            market=resolve_market(self.config.search_market),
+            freshness=self.config.search_freshness,
         )
+
+    @override
+    def _agent_proxy_invocation(
+        self,
+        engine: AgentEngineType,
+        params: ExposedParams | None,
+    ) -> dict[str, Any]:
+        """Send the resolved market so the proxy needs no market default of its own.
+
+        The proxy applies ``BING_AGENT_DEFAULT_MARKET`` too, so either service
+        having it set is enough; resolving here means the variable can live
+        wherever the web-search tool is configured.
+        """
+        invocation = super()._agent_proxy_invocation(engine, params)
+        market = resolve_market(invocation.get("search_market"))
+        if market is not None:
+            invocation["search_market"] = market
+        return invocation
 
     @override
     async def _legacy_search(
@@ -119,7 +124,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
             search_results = await create_and_process_run(
                 agent_client,
                 query=query,
-                grounding=self._grounding_configuration(params),
+                grounding=self._grounding_configuration(),
                 response_parsers_strategies=self.response_parsers,
                 generation_instructions=self.config.generation_instructions,
             )
