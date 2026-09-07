@@ -64,7 +64,7 @@ class RequestContext(BaseModel):
     ) -> RequestContext:
         """Build context from headers, using ``fallback`` for any missing values."""
         normalized = {key.lower(): value for key, value in headers.items()}
-        values: dict[str, str | None] = {}
+        values: dict[str, Any] = {}
         for field_name, header_name in _CONTEXT_HEADER_FIELDS:
             raw = normalized.get(header_name.lower())
             if raw is None or (isinstance(raw, str) and not raw.strip()):
