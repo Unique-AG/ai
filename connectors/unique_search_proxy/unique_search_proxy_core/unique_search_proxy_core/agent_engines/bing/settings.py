@@ -25,10 +25,8 @@ class _BingAgentEnvSettings(BaseSettings):
     def _blank_is_unset(cls, value: Any) -> Any:
         """Treat an empty variable as unset instead of failing to boot.
 
-        Helm renders an unconfigured optional value as ``""``, which a
-        ``BingMarket`` literal would reject — taking the whole service down for
-        a knob that is meant to be optional. A non-blank typo still fails
-        loudly at startup, before any traffic is served.
+        Helm renders an unconfigured optional value as ``""``, which
+        ``BingMarket`` would reject. A non-blank typo still fails at startup.
         """
         if isinstance(value, str) and not value.strip():
             return None
@@ -57,9 +55,7 @@ bing_agent_env_settings = _get_settings()
 def resolve_market(value: str | None = None) -> str | None:
     """Return the market to send to Bing, or ``None`` to send none at all.
 
-    The space's fixed market wins; a space that leaves it blank falls back to
-    ``BING_AGENT_DEFAULT_MARKET``, so a deployment serving one country can pin
-    its market once instead of per space. With neither set, ``mkt`` is left off
-    the grounding tool entirely and Bing keeps inferring the market itself.
+    The space's fixed market wins, falling back to ``BING_AGENT_DEFAULT_MARKET``.
+    With neither set, ``mkt`` is left off the grounding tool entirely.
     """
     return value or bing_agent_env_settings.default_market

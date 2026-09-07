@@ -40,13 +40,10 @@ def _single_dropdown(
 ) -> JsonSchemaValue:
     """Render an optional literal as one dropdown instead of a union selector.
 
-    ``Literal[...] | None`` reaches RJSF as an ``anyOf``, which it draws as a
-    branch picker ("option 1 / option 2") wrapping a second control. A single
-    ``oneOf`` of constants collapses that into one select whose first entry is
-    the blank value, titled so it reads as a choice rather than as an error.
-
-    ``titles`` labels the options for vocabularies whose wire values are not
-    admin-facing copy; without it each option is titled with its own value.
+    ``Literal[...] | None`` reaches RJSF as an ``anyOf``, drawn as a branch
+    picker wrapping a second control; a single ``oneOf`` of constants collapses
+    that into one select whose first entry is the blank value. ``titles``
+    relabels options whose wire values are not admin-facing copy.
     """
     schema = dict(property_schema)
     schema.pop("anyOf", None)
@@ -89,8 +86,8 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         default=None,
         title="Preferred region and language",
         description=(
-            "Region and language Bing should favour, as `<language>-<country>`: "
-            "`fr-FR`, `fr-CH`, `de-CH`, `en-GB`. This biases the results rather "
+            "Region and language Bing should favour, as `<language>-<country>`. "
+            "Examples: `de-CH`, `fr-CH`, `fr-FR`. This biases the results rather "
             "than restricting them — sources from other regions can still "
             "appear. Set it when the space serves one country; left blank, the "
             "deployment default applies, or Bing guesses from the caller if "
@@ -138,12 +135,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     @field_validator("search_market", "search_freshness", mode="before")
     @classmethod
     def _blank_is_unset(cls, value: Any) -> Any:
-        """Read a cleared control as "no fixed value".
-
-        Both dropdowns offer ``null`` as their blank choice, but a control
-        cleared to ``""`` would otherwise fail the Bing vocabularies and turn an
-        optional knob into a form error.
-        """
+        """Read a control cleared to ``""`` as unset, not a vocabulary error."""
         if isinstance(value, str) and not value.strip():
             return None
         return value

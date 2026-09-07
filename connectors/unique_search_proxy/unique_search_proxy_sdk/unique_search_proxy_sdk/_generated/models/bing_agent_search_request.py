@@ -40,7 +40,7 @@ class BingAgentSearchRequest:
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         fetch_size (int | Unset): Maximum number of Bing grounding results per query Default: 5.
         search_market (BingAgentSearchRequestSearchMarketType0 | None | Unset): Region and language Bing should favour,
-            as `<language>-<country>`: `fr-FR`, `fr-CH`, `de-CH`, `en-GB`. This biases the results rather than restricting
+            as `<language>-<country>`. Examples: `de-CH`, `fr-CH`, `fr-FR`. This biases the results rather than restricting
             them — sources from other regions can still appear. Set it when the space serves one country; left blank, the
             deployment default applies, or Bing guesses from the caller if there is none. [Supported `mkt`
             values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-

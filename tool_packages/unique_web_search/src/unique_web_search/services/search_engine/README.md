@@ -152,7 +152,7 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 | Field | Notes |
 |-------|-------|
 | `fetch_size` | Bing result count (`count` on the tool configuration) |
-| `search_market` | Region **and** language Bing favours (Bing `mkt`). A bias, not a filter — other regions can still appear. The one knob that fixes UN-24652 |
+| `search_market` | Region **and** language Bing favours (Bing `mkt`). A bias, not a filter — other regions can still appear |
 | `search_freshness` | Recency cut-off applied to every search in the space (Bing `freshness`): `Day` / `Week` / `Month` |
 
 Both are optional **fixed** values an admin picks for the whole space and are
@@ -162,34 +162,19 @@ own defaults.
 
 `freshness` also accepts absolute days and ranges (`2026-01-01..2026-03-31`),
 which we deliberately do **not** offer: pinned space-wide, an absolute window
-freezes the space to a range that rots the day after it is saved. Only the
-relative presets make sense as a fixed value. This also keeps the emitted admin
-schema fully enumerated — the form validates against that schema alone, and a
-free-text field with no `pattern` would let a typo save and then demote the whole
-tool at read time.
-
-The `search_` prefix is deliberate. Release 2026.36 shipped these knobs as
-`market` / `freshness` / `setLang` holding `ExposableParam` `{expose, value}`
-objects. Reusing those keys for the plain scalars would make a 2026.36 row
-invalid on read, and `ToolBuildConfig` answers an invalid tool config by
-silently disabling the whole tool — and, worse, would break rollback to 2026.36
-for any space re-saved in between. New names sidestep both: the old keys are
-ignored going forward, and old code finds its keys absent and applies its own
-defaults. See `BingAgentConfig._BURNED_CONFIG_KEYS`.
+freezes the space to a range that rots the day after it is saved. Presets only
+also keep the admin schema fully enumerated, so a typo cannot save.
 
 `BingGroundingSearchConfiguration` also accepts `setLang`, which we deliberately
-do **not** expose: it only localizes the labels Bing puts around results, never
-which results come back or their language. An admin reading "language" would
-reasonably set it expecting French results and believe the market problem was
-solved, leaving `mkt` unset — the exact failure in UN-24652. Beyond these, Bing
-grounding has no `safeSearch`, `responseFilter`, or `answerCount` the way the
-classic Bing Web Search API does, so `count` / `market` / `freshness` is the
-whole useful surface.
+do **not** expose: it only localizes the labels Bing puts around results, so an
+admin reading "language" would set it expecting French results and leave `mkt`
+unset. Beyond these, Bing grounding has no `safeSearch`, `responseFilter`, or
+`answerCount`, so `count` / `market` / `freshness` is the whole useful surface.
 
-A blank `search_market` falls back to `BING_AGENT_DEFAULT_MARKET`, so a deployment
-serving one country pins its market once instead of per space. With neither set,
-`mkt` is left off the call entirely and Bing infers the market from the caller —
-which is what returned Swiss results to French users in UN-24652.
+A blank `search_market` falls back to the `BING_AGENT_DEFAULT_MARKET` environment
+variable (below), so a deployment serving a single country pins its market once
+instead of per space. With neither set, `mkt` is left off the call entirely and
+Bing infers the market from the caller's location.
 
 Bing bakes the tool configuration into the *agent version*, so these knobs take
 part in the hashed agent name (`unique-grounding-with-bing-<hash>`): changing one

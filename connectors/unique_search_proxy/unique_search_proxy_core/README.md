@@ -211,7 +211,7 @@ from unique_search_proxy_core import (
 
 - Discriminated provider configs (`engine`, `crawler` Literal discriminators)
 - **Search & agent:** config-owned `request_model` / `exposed_params_model` / `merge` (`provider_query_params` is search-only); standard engines put optional provider knobs behind the `ExposableParam` policy
-- **Agent:** `BingAgentConfig.request_model()` (injects `query`; excludes `output_schema`); Bing's `searchMarket` / `searchFreshness` are fixed admin values, never exposed to the LLM, and are baked into the hashed agent name (both are `Literal`s over Bing's documented values, like `BraveCountry`). A blank `searchMarket` falls back to `BING_AGENT_DEFAULT_MARKET`; the pre-2026.38 `market` / `freshness` / `setLang` keys are retired, not reshaped (see `BingAgentConfig._BURNED_CONFIG_KEYS`)
+- **Agent:** `BingAgentConfig.request_model()` (injects `query`; excludes `output_schema`); Bing's `searchMarket` / `searchFreshness` are fixed admin values, never exposed to the LLM, and are baked into the hashed agent name (both are `Literal`s over Bing's documented values, like `BraveCountry`). A blank `searchMarket` falls back to the `BING_AGENT_DEFAULT_MARKET` environment variable
 - **Crawl:** `BasicConfig.request_model()` (injects `urls`); no exposable params / no merge
 - CamelCase JSON aliases on all models
 - Zero server dependencies (import-linter enforced in the client package)

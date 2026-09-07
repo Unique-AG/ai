@@ -100,12 +100,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         engine: AgentEngineType,
         params: ExposedParams | None,
     ) -> dict[str, Any]:
-        """Send the resolved market so the proxy needs no market default of its own.
-
-        The proxy applies ``BING_AGENT_DEFAULT_MARKET`` too, so either service
-        having it set is enough; resolving here means the variable can live
-        wherever the web-search tool is configured.
-        """
+        """Resolve the market here too, so the env default works on either service."""
         invocation = super()._agent_proxy_invocation(engine, params)
         market = resolve_market(invocation.get("search_market"))
         if market is not None:

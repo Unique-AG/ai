@@ -41,9 +41,8 @@ class TestBingAgentAdminForm:
         """
         Purpose: Verify each grounding knob is a single admin control.
         Why this matters: ``Literal | None`` reaches RJSF as an ``anyOf``, which it
-            draws as a branch picker ("option 1 / option 2") wrapping a second
-            control — the shape that made the first attempt at these knobs
-            unusable. Both knobs must be one dropdown each.
+            draws as a branch picker wrapping a second control. Both knobs must
+            be one dropdown each.
         Setup summary: Inspect the admin JSON schema for both properties.
         """
         properties = BingAgentConfig.model_json_schema()["properties"]
@@ -100,10 +99,9 @@ class TestBingAgentAdminForm:
     @pytest.mark.ai
     def test_knobs_are_visible_in_the_admin_ui_schema(self) -> None:
         """
-        Purpose: Verify the knobs are no longer hidden from the admin form.
-        Why this matters: 2026.36 shipped them behind ``ui:widget: hidden`` because
-            the form was not acceptable. This rework is what releases them, so a
-            leftover hidden tag would silently ship nothing.
+        Purpose: Verify the knobs are visible in the admin form.
+        Why this matters: a ``ui:widget: hidden`` tag leaves no widget to render,
+            so the knobs would ship with no way for an admin to set them.
         Setup summary: Generate the config uiSchema and check for hidden widgets.
         """
         ui_schema = ui_schema_for_model(BingAgentConfig, key_transform=camelize)
