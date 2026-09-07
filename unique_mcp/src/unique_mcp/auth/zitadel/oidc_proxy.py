@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from fastmcp.server.auth.oidc_proxy import OIDCProxy
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from unique_mcp.auth.zitadel.scopes import ZITADEL_DEFAULT_MCP_SCOPES
@@ -10,6 +11,10 @@ from unique_mcp.util.find_env_file import find_env_file
 
 if TYPE_CHECKING:
     from key_value.aio.protocols import AsyncKeyValue
+
+
+def _unwrap_secret(value: SecretStr | None) -> str | None:
+    return value.get_secret_value() if isinstance(value, SecretStr) else value
 
 
 class ZitadelOIDCProxySettings(BaseSettings):
@@ -21,7 +26,8 @@ class ZitadelOIDCProxySettings(BaseSettings):
 
     base_url: str
     client_id: str
-    client_secret: str
+    client_secret: SecretStr | None = None
+    jwt_signing_key: SecretStr | None = None
 
     @property
     def config_url(self) -> str:
@@ -74,14 +80,26 @@ def create_zitadel_oidc_proxy(
     # Advertised for DCR and /authorize only — see required_scopes in the docstring.
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
 
+    # Empty string (e.g. an unset env var resolving to "") must count as no
+    # secret, not as a real client_secret_post credential.
+    client_secret = _unwrap_secret(settings.client_secret) or None
+    token_endpoint_auth_method = kwargs.pop(
+        "token_endpoint_auth_method",
+        "none" if client_secret is None else "client_secret_post",
+    )
+    jwt_signing_key = _unwrap_secret(
+        kwargs.pop("jwt_signing_key", settings.jwt_signing_key)
+    )
+
     proxy = OIDCProxy(
         config_url=settings.config_url,
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=client_secret,
         base_url=mcp_server_base_url,
-        token_endpoint_auth_method="client_secret_post",
+        token_endpoint_auth_method=token_endpoint_auth_method,
         client_storage=client_storage,
         extra_authorize_params=extra_authorize_params,
+        jwt_signing_key=jwt_signing_key,
         **kwargs,
     )
     # OIDCProxy does not forward ``valid_scopes`` to OAuthProxy; set them after init

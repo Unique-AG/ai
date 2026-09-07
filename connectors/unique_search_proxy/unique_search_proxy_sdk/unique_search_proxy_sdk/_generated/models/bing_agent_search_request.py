@@ -38,8 +38,7 @@ class BingAgentSearchRequest:
             whenever available. Do NOT paraphrase away precision.\n5. **No omissions** — if a source contains relevant
             information, it MUST appear in your output. When in doubt, include it.\n'.
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
-        fetch_size (int | Unset): How many search results Bing returns for each query. More results give the model more
-            to work with, and cost more tokens to read. Default: 5.
+        fetch_size (int | Unset): Maximum number of Bing grounding results per query Default: 5.
         search_market (BingAgentSearchRequestSearchMarketType0 | None | Unset): Region and language Bing should favour,
             as `<language>-<country>`: `fr-FR`, `fr-CH`, `de-CH`, `en-GB`. This biases the results rather than restricting
             them — sources from other regions can still appear. Set it when the space serves one country; left blank, the

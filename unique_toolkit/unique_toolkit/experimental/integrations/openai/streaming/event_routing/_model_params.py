@@ -8,13 +8,15 @@ from typing import Any
 
 from openai.types.shared_params import Reasoning
 
-from unique_toolkit.chat.responses_api import _attempt_extract_reasoning_from_options
+from unique_toolkit.chat.responses_api import (
+    extract_reasoning_from_options,
+    extract_verbosity_from_options,
+    strip_translated_responses_options,
+)
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import reasoning_effort_to_openai
 
 _LOGGER = logging.getLogger(__name__)
-
-_REASONING_OPTION_KEYS = ("reasoning", "reasoning_effort", "reasoningEffort")
 
 
 def prepare_chat_completions_model_params(
@@ -61,8 +63,10 @@ def prepare_responses_model_params(
     Extracts reasoning from ``other_options`` when the explicit argument is
     missing (UniqueAI passes ``reasoning`` that way), applies
     ``LanguageModelInfo`` bounds, and bumps ``minimal`` effort to ``low`` when
-    a code-interpreter tool is present. Clamped temperature and resolved
-    reasoning are written onto the returned options dict.
+    a code-interpreter tool is present. Chat-completions ``reasoning_effort`` /
+    ``verbosity`` are mapped to ``reasoning`` / ``text`` and not forwarded
+    verbatim. Clamped temperature, reasoning and text are written onto the
+    returned options dict.
 
     Args:
         model_name (LanguageModelName | str): Model identifier from the caller.
@@ -74,11 +78,11 @@ def prepare_responses_model_params(
     Returns:
         dict[str, Any]: Sanitized create() options including ``temperature``.
     """
-    options = dict(other_options) if other_options else {}
+    raw_options = dict(other_options) if other_options else {}
     if reasoning is None:
-        reasoning = _attempt_extract_reasoning_from_options(options)
-    for key in _REASONING_OPTION_KEYS:
-        options.pop(key, None)
+        reasoning = extract_reasoning_from_options(raw_options)
+    text = extract_verbosity_from_options(raw_options)
+    options = strip_translated_responses_options(raw_options)
 
     requested_effort = reasoning.get("effort") if reasoning is not None else None
     temperature, resolved_effort = LanguageModelInfo.from_name(
@@ -91,6 +95,8 @@ def prepare_responses_model_params(
     options["temperature"] = temperature
     if reasoning is not None:
         options["reasoning"] = reasoning
+    if text is not None:
+        options["text"] = text
     return options
 
 

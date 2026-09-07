@@ -7,6 +7,7 @@ from typing import Annotated, List, Literal, Optional
 
 import typer
 
+from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
 from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 from uqadm.space.access_grant import cmd_space_access_grant
@@ -16,6 +17,7 @@ from uqadm.space.export import cmd_export
 from uqadm.space.ingestion_set import cmd_space_ingestion_set
 from uqadm.space.list import cmd_list
 from uqadm.space.migrate import cmd_migrate
+from uqadm.space.model_replace import cmd_model_replace
 from uqadm.space.upsert import cmd_upsert
 
 space_app = typer.Typer(
@@ -139,8 +141,6 @@ def space_upsert(
     Omit --target to create a new space. Provide --target SPACE_ID to update
     an existing space. --slot selects the credential slot (default slot if omitted).
     """
-    from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
-
     resolved_slot = _resolve(slot)
     target_space_id: str | None = None
     if target is not None:
@@ -249,6 +249,148 @@ def space_migrate(
 
 
 @space_app.command(
+    "model-replace",
+    short_help="Replace a language model across a space, snapshot file, or all spaces.",
+)
+def space_model_replace(
+    ctx: typer.Context,
+    from_model: Annotated[
+        str,
+        typer.Option(
+            "--from-model",
+            help="Model name currently in the configuration that should be replaced.",
+        ),
+    ],
+    to_model: Annotated[
+        str,
+        typer.Option(
+            "--to-model",
+            help=(
+                "Replacement model: a model name, or a path to a .json/.yaml/.yml "
+                "file with language-model info (must include 'name')."
+            ),
+        ),
+    ],
+    space_id: Annotated[
+        Optional[str],
+        typer.Argument(
+            metavar="[SPACE_ID]",
+            help=(
+                "Space id or URL to rewrite (mutually exclusive with --file and --all)."
+            ),
+        ),
+    ] = None,
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
+    file: Annotated[
+        Optional[Path],
+        typer.Option(
+            "-f",
+            "--file",
+            help="Local snapshot (.json/.yaml/.yml) to rewrite instead of a live space.",
+            exists=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ] = None,
+    all_spaces: Annotated[
+        bool,
+        typer.Option(
+            "--all",
+            help="Iterate every space in the slot, prompting per matching space.",
+        ),
+    ] = False,
+    name_filter: Annotated[
+        Optional[str],
+        typer.Option(
+            "--name",
+            help="With --all: case-insensitive partial filter on space name.",
+        ),
+    ] = None,
+    output: Annotated[
+        Optional[Path],
+        typer.Option(
+            "-o",
+            "--output",
+            help=(
+                "Write the rewritten snapshot to this .json/.yaml/.yml file "
+                "instead of updating the platform (stdout for --file without -o)."
+            ),
+        ),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Print matched paths and planned updates without writing anything.",
+        ),
+    ] = False,
+    yes: Annotated[
+        bool,
+        typer.Option("-y", "--yes", help="With --all: apply without prompting."),
+    ] = False,
+) -> None:
+    """Replace one language model with another across a space configuration.
+
+    Rewrites every model-bearing key (``languageModel``, ``fallbackModel``,
+    ``hallucinationModel``, nested tool/module configs, ``switchableLanguageModels``
+    entries, …) whose value equals ``--from-model``. Prompt text and non-model
+    fields are never touched.
+
+    ``--to-model`` takes a model name, or a path to a .json/.yaml/.yml file
+    holding language-model info: a name is written as a plain string, a file is
+    written as the full mapping it contains.
+
+    Input is exactly one of: a SPACE_ID (live space), ``--file`` (local
+    snapshot), or ``--all`` (interactive sweep over every space in the slot,
+    prompting y/n/a/q per matching space). With ``-o`` the rewritten snapshot
+    is written to a file and no API write happens; otherwise the space is
+    updated in place with a minimal payload, then read back and verified.
+    Only ``--all`` prompts: a single SPACE_ID applies immediately, so use
+    ``--dry-run`` first to preview. ``--dry-run`` writes nothing at all, ``-o``
+    included.
+
+    A match under a field ``update_space`` cannot write (anything in a module
+    outside its ``configuration``, or an unsupported top-level key) makes the
+    command refuse the update rather than apply it in part; export the full
+    rewrite with ``-o`` instead.
+    Note: a single-space run does not follow links into sub-agent spaces;
+    ``--all`` covers them because it iterates every space in the slot.
+
+    Examples:
+
+      uqadm space model-replace asst_abc --from-model AZURE_GPT_4o_2024_0806 --to-model AZURE_GPT_5_2025_0807 --dry-run
+      uqadm space model-replace asst_abc --from-model AZURE_GPT_4o_2024_0806 --to-model AZURE_GPT_5_2025_0807 -o migrated.yaml
+      uqadm space model-replace -f backup.yaml --from-model OLD --to-model ./new-model.yaml -o backup.migrated.yaml
+      uqadm space model-replace --all --slot prod --from-model OLD --to-model NEW
+    """
+    parsed_space_id: str | None = None
+    if space_id is not None:
+        try:
+            parsed_space_id = parse_bare_endpoint(space_id)
+        except EndpointParseError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(2)
+
+    cfg = None
+    if parsed_space_id is not None or all_spaces:
+        resolved_slot = _resolve(slot)
+        cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+
+    cmd_model_replace(
+        cfg,
+        space_id=parsed_space_id,
+        file_path=file,
+        sweep_all=all_spaces,
+        name_filter=name_filter,
+        from_model=from_model,
+        to_model=to_model,
+        output=output,
+        dry_run=dry_run,
+        assume_yes=yes,
+    )
+
+
+@space_app.command(
     "access-grant",
     short_help="Add user/group space access (merged with existing ACL).",
 )
@@ -290,8 +432,6 @@ def space_access_grant(
       uqadm space access-grant asst_abc --group grp_1 --group grp_2
       uqadm space access-grant asst_abc --user user_1 --type MANAGE --slot qa
     """
-    from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
-
     resolved_slot = _resolve(slot)
     cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
     try:
@@ -353,8 +493,6 @@ def space_ingestion_set(
       uqadm space ingestion-set asst_abc ./ingestion.yaml --slot prod
       uqadm space ingestion-set asst_abc ./ingestion.json --dry-run
     """
-    from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
-
     resolved_slot = _resolve(slot)
     cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
     try:

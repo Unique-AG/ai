@@ -863,8 +863,8 @@
             "type": "integer",
             "maximum": 50.0,
             "minimum": 1.0,
-            "title": "Results per search",
-            "description": "How many search results Bing returns for each query. More results give the model more to work with, and cost more tokens to read.",
+            "title": "Fetch Size",
+            "description": "Maximum number of Bing grounding results per query",
             "default": 5
           },
           "searchMarket": {

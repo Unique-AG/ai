@@ -118,3 +118,43 @@ def test_AI_prepare_responses_model_params__code_interpreter_bumps_minimal() -> 
     )
 
     assert options["reasoning"]["effort"] == "low"
+
+
+@pytest.mark.ai
+def test_AI_prepare_responses_model_params__maps_verbosity_to_text() -> None:
+    """
+    Purpose: Chat-completions ``verbosity`` in other_options becomes ``text.verbosity``
+      and the flat key is dropped.
+    Why this matters: /v1/responses rejects a flat ``verbosity`` argument (UN-20123);
+      spaces configure it chat-completions style and must keep working when routed
+      through the Responses API.
+    Setup summary: Prepare GPT-5.5 params with ``verbosity: low``; assert ``text``
+      is set and ``verbosity`` is gone.
+    """
+    options = prepare_responses_model_params(
+        "AZURE_GPT_55_2026_0424", 1.0, None, {"verbosity": "low"}
+    )
+
+    assert options["text"] == {"verbosity": "low"}
+    assert "verbosity" not in options
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("key", ["reasoning_effort", "reasoningEffort"])
+def test_AI_prepare_responses_model_params__maps_flat_reasoning_effort(
+    key: str,
+) -> None:
+    """
+    Purpose: Flat ``reasoning_effort`` / ``reasoningEffort`` become ``reasoning.effort``
+      and are not forwarded verbatim.
+    Why this matters: Same rejection as ``verbosity``; both spellings occur in configs.
+    Setup summary: Prepare GPT-5.5 params with the flat key; assert nested effort and
+      no flat keys remain.
+    """
+    options = prepare_responses_model_params(
+        "AZURE_GPT_55_2026_0424", 1.0, None, {key: "high"}
+    )
+
+    assert options["reasoning"]["effort"] == "high"
+    assert "reasoning_effort" not in options
+    assert "reasoningEffort" not in options

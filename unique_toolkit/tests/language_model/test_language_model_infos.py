@@ -67,6 +67,7 @@ class TestLanguageModelInfos:
             LanguageModelName.GROK_4_1_FAST_NON_REASONING,
             LanguageModelName.GROK_4_1_FAST_REASONING,
             LanguageModelName.GROK_4_5,
+            LanguageModelName.GROK_4_6,
             LanguageModelName.AZURE_GPT_5_2025_0807,
             LanguageModelName.AZURE_GPT_5_MINI_2025_0807,
             LanguageModelName.AZURE_GPT_5_NANO_2025_0807,

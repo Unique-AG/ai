@@ -257,6 +257,59 @@ async def test_run__raises_first_exception_when_all_queries_fail():
 
 
 @pytest.mark.ai
+async def test_run__one_failed_query_returns_partial_results(make_chunk):
+    """
+    Purpose: One failing search string does not abort the rest of the batch.
+    Why this matters: Replacing gather(return_exceptions=True) with a naive
+        TaskGroup turns the first child error into ExceptionGroup and drops
+        every sibling result.
+    Setup summary: Three queries; the middle one raises. run() must return
+        an InternalSearchResult with the two successful queries.
+    """
+    svc = _make_service()
+    svc._state.search_queries = ["alpha", "beta", "gamma"]
+
+    async def search(*, query: str) -> SearchStringResult:
+        if query == "beta":
+            raise RuntimeError("beta failed")
+        return SearchStringResult(query=query, chunks=[make_chunk(query)])
+
+    svc._search_single_query = search  # type: ignore[method-assign]
+
+    with patch.object(svc, "post_progress_message", new=AsyncMock()):
+        result = await svc.run()
+
+    assert len(result.search_string_results) == 2
+
+
+@pytest.mark.ai
+async def test_run__partial_results_keep_query_identity(make_chunk):
+    """
+    Purpose: Surviving results stay aligned with the queries that produced them.
+    Why this matters: _collect_results walks gather output by index; a fan-out
+        that appends as tasks finish would pair chunks with the wrong query.
+    Setup summary: Three queries; the middle one raises. The two successes keep
+        their own query strings and chunk ids, in input order.
+    """
+    svc = _make_service()
+    svc._state.search_queries = ["alpha", "beta", "gamma"]
+
+    async def search(*, query: str) -> SearchStringResult:
+        if query == "beta":
+            raise RuntimeError("beta failed")
+        return SearchStringResult(query=query, chunks=[make_chunk(f"chunk-{query}")])
+
+    svc._search_single_query = search  # type: ignore[method-assign]
+
+    with patch.object(svc, "post_progress_message", new=AsyncMock()):
+        result = await svc.run()
+
+    assert [item.query for item in result.search_string_results] == ["alpha", "gamma"]
+    assert result.search_string_results[0].chunks[0].chunk_id == "chunk-alpha"
+    assert result.search_string_results[1].chunks[0].chunk_id == "chunk-gamma"
+
+
+@pytest.mark.ai
 async def test_run__returns_result_with_chunks(make_chunk):
     """
     Purpose: Verifies the full run() pipeline produces an InternalSearchResult with chunks.

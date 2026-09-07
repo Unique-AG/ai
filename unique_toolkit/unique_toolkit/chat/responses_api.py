@@ -161,8 +161,8 @@ def _prepare_responses_params_util(
 
     if other_options is not None:
         # Key word argument takes precedence
-        reasoning = reasoning or _attempt_extract_reasoning_from_options(other_options)
-        text = text or _attempt_extract_verbosity_from_options(other_options)
+        reasoning = reasoning or extract_reasoning_from_options(other_options)
+        text = text or extract_verbosity_from_options(other_options)
 
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
@@ -207,9 +207,15 @@ def _prepare_responses_params_util(
     log_exc_info=False,
     logger=logger,
 )
-def _attempt_extract_reasoning_from_options(
+def extract_reasoning_from_options(
     options: dict[str, Any],
 ) -> Reasoning | None:
+    """Build the Responses ``reasoning`` parameter from LLM options.
+
+    Accepts the Responses spelling (``reasoning``, dict or JSON string) as well
+    as the chat-completions spellings (``reasoning_effort`` / ``reasoningEffort``).
+    Returns ``None`` when no reasoning option is present or it fails validation.
+    """
     reasoning: dict[str, Any] | str | None = None
 
     # Responses API
@@ -243,9 +249,15 @@ def _attempt_extract_reasoning_from_options(
     log_exc_info=False,
     logger=logger,
 )
-def _attempt_extract_verbosity_from_options(
+def extract_verbosity_from_options(
     options: dict[str, Any],
 ) -> ResponseTextConfigParam | None:
+    """Build the Responses ``text`` parameter from LLM options.
+
+    Accepts the chat-completions spelling (flat ``verbosity``) as well as the
+    Responses spelling (``text``, dict or JSON string). Returns ``None`` when no
+    verbosity option is present or it fails validation.
+    """
     if "verbosity" in options:
         return TypeAdapter(ResponseTextConfigParam).validate_python(
             {"verbosity": options["verbosity"]}
@@ -268,6 +280,30 @@ def _attempt_extract_verbosity_from_options(
             return TypeAdapter(ResponseTextConfigParam).validate_python(text_config)
 
     return None
+
+
+# Keys translated into the Responses ``reasoning`` / ``text`` params; the flat
+# chat-completions spellings are rejected by /v1/responses if forwarded as-is.
+REASONING_OPTION_KEYS: tuple[str, ...] = (
+    "reasoning",
+    "reasoning_effort",
+    "reasoningEffort",
+)
+VERBOSITY_OPTION_KEYS: tuple[str, ...] = ("text", "verbosity")
+
+
+def strip_translated_responses_options(
+    other_options: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Return a copy of ``other_options`` without keys already mapped to
+    ``reasoning`` / ``text``."""
+    if not other_options:
+        return {}
+    return {
+        k: v
+        for k, v in other_options.items()
+        if k not in REASONING_OPTION_KEYS and k not in VERBOSITY_OPTION_KEYS
+    }
 
 
 def _prepare_responses_args(
@@ -330,9 +366,8 @@ def _prepare_responses_args(
     openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType, reportCallIssue]
 
     # allow any other openai.resources.responses.Response.create options
-    if other_options is not None:
-        for k, v in other_options.items():
-            openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
+    for k, v in strip_translated_responses_options(other_options).items():
+        openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
     options["options"] = openai_options
 

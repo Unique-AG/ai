@@ -90,11 +90,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         default=5,
         ge=1,
         le=50,
-        title="Results per search",
-        description=(
-            "How many search results Bing returns for each query. More results "
-            "give the model more to work with, and cost more tokens to read."
-        ),
+        description="Maximum number of Bing grounding results per query",
     )
     search_market: BingMarket | None = Field(
         default=None,
