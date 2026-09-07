@@ -52,16 +52,14 @@ GENERATED_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpret
 def _set_gen_files_feature_flags(
     proc: DisplayCodeInterpreterFilesPostProcessor,
     *,
-    fence_ff_on: bool = False,
     html_fence_ff_on: bool = False,
 ) -> None:
     """Seed flag state on the instance, as `run()` would after awaiting it.
 
-    Production resolves both flags asynchronously in `run()` (always awaited
-    before `apply_postprocessing_to_response`), so unit tests exercising
+    Production resolves the html-fence flag asynchronously in `run()` (always
+    awaited before `apply_postprocessing_to_response`), so unit tests exercising
     `apply_postprocessing_to_response` directly seed the post-`run()` state.
     """
-    proc._fence_ff_on = fence_ff_on
     proc._html_fence_ff_on = html_fence_ff_on
 
 
@@ -144,58 +142,6 @@ def test_display_code_interpreter_files_post_processor__raises__when_no_chat_ser
 
 
 @pytest.mark.ai
-def test_get_next_ref_number__returns_one__when_references_empty() -> None:
-    """
-    Purpose: Verify next reference number is 1 when no references exist.
-    Why this matters: First citation gets sequence number 1.
-    Setup summary: Call _get_next_ref_number with empty list; assert 1.
-    """
-    # Act
-    result = gen_mod._get_next_ref_number([])
-
-    # Assert
-    assert result == 1
-
-
-@pytest.mark.ai
-def test_get_next_ref_number__returns_one__when_references_none() -> None:
-    """Message.references may be None before postprocessing; treat like no refs."""
-    assert gen_mod._get_next_ref_number(None) == 1
-
-
-@pytest.mark.ai
-def test_get_next_ref_number__returns_max_plus_one__when_references_given() -> None:
-    """
-    Purpose: Verify next reference number is max(sequence_number) + 1.
-    Why this matters: Citations are numbered sequentially without collision.
-    Setup summary: References with sequence_number 2 and 5; assert 6.
-    """
-    # Arrange
-    refs = [
-        ContentReference(
-            name="a",
-            sequence_number=2,
-            source="s",
-            source_id="sid",
-            url="u",
-        ),
-        ContentReference(
-            name="b",
-            sequence_number=5,
-            source="s",
-            source_id="sid",
-            url="u",
-        ),
-    ]
-
-    # Act
-    result = gen_mod._get_next_ref_number(refs)
-
-    # Assert
-    assert result == 6
-
-
-@pytest.mark.ai
 def test_replace_container_file_error__replaces_image_markdown__with_error_message() -> (
     None
 ):
@@ -271,10 +217,10 @@ def test_replace_container_file_citation__replaces_link__with_unique_content_lin
     None
 ):
     """
-    Purpose: Verify file link markdown is replaced by a unique://content link when fence FF is on.
-    Why this matters: When the fence feature flag is enabled, the content link is needed so the
-    subsequent fence injection step can locate and replace it with a fileWithSource fence.
-    Setup summary: Text with [label](sandbox:/mnt/data/data.csv); use_content_link=True;
+    Purpose: Verify file link markdown is replaced by a unique://content link.
+    Why this matters: The content link is needed so the subsequent fence injection step
+    can locate and replace it with a fileWithSource fence.
+    Setup summary: Text with [label](sandbox:/mnt/data/data.csv);
     assert unique://content/{content_id} in result.
     """
     # Arrange
@@ -286,8 +232,6 @@ def test_replace_container_file_citation__replaces_link__with_unique_content_lin
         text,
         filename="data.csv",
         content_id=content_id,
-        ref_number=1,
-        use_content_link=True,
     )
 
     # Assert
@@ -317,45 +261,11 @@ def test_replace_container_file_citation__replaces_link_with_bang_prefix__when_l
         text,
         filename="data.csv",
         content_id=content_id,
-        ref_number=1,
-        use_content_link=True,
     )
 
     # Assert
     assert replaced is True
     assert f"[data.csv](unique://content/{content_id})" in new_text
-    assert "sandbox" not in new_text
-
-
-@pytest.mark.ai
-def test_replace_container_file_citation__replaces_link__with_superscript_when_fence_ff_off() -> (
-    None
-):
-    """
-    Purpose: Verify file link markdown is replaced by a superscript ref when fence FF is off.
-    Why this matters: When the fence feature flag is disabled, the original pre-fence behaviour
-    must be preserved — the sandbox link becomes <sup>N</sup> and the file remains accessible
-    via the references panel only. This restores the regression introduced in PR #1163.
-    Setup summary: Text with [label](sandbox:/mnt/data/data.csv); use_content_link=False;
-    assert <sup>1</sup> in result, no unique:// link in text.
-    """
-    # Arrange
-    text = "Data in [file](sandbox:/mnt/data/data.csv)."
-    content_id = "cont_abc123"
-
-    # Act
-    new_text, replaced = gen_mod._replace_container_file_citation(
-        text,
-        filename="data.csv",
-        content_id=content_id,
-        ref_number=1,
-        use_content_link=False,
-    )
-
-    # Assert
-    assert replaced is True
-    assert "<sup>1</sup>" in new_text
-    assert "unique://" not in new_text
     assert "sandbox" not in new_text
 
 
@@ -560,8 +470,8 @@ async def test_display_files_postprocessor__run__uses_placeholder__when_no_compa
     passes COMPANY_ID_PLACEHOLDER to is_flag_enabled instead of an empty string.
     Why this matters: is_flag_enabled() raises on an empty company_id; the old
     `self._company_id or ""` would crash the whole turn instead of resolving the flag.
-    Setup summary: Construct with company_id=None; assert run() completes and both FF
-    checks were called with COMPANY_ID_PLACEHOLDER, not "".
+    Setup summary: Construct with company_id=None; assert run() completes and the FF
+    check was called with COMPANY_ID_PLACEHOLDER, not "".
     """
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     client = MagicMock()
@@ -581,7 +491,7 @@ async def test_display_files_postprocessor__run__uses_placeholder__when_no_compa
     with patch(GENERATED_FILES_FF, mock_is_flag_enabled):
         await proc.run(response)
 
-    assert mock_is_flag_enabled.await_count == 2
+    assert mock_is_flag_enabled.await_count == 1
     for _, kwargs in mock_is_flag_enabled.await_args_list:
         assert kwargs["company_id"] == COMPANY_ID_PLACEHOLDER
         assert kwargs["company_id"] != ""
@@ -1340,8 +1250,6 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
             text="No link here.",
             filename="data.csv",
             content_id="cont_y",
-            ref_number=1,
-            use_content_link=False,
         )
 
     assert replaced is False
@@ -1840,14 +1748,12 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string() -
 
 
 @pytest.mark.ai
-def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_file() -> (
-    None
-):
+def test_apply_postprocessing__does_not_append_reference_for_non_image_file() -> None:
     """
-    Purpose: When fence FF is ON, non-image files must NOT be added to message.references.
+    Purpose: Non-image files must NOT be added to message.references.
     Why this matters: Files are rendered as fence blocks in message.text; references entries
     would incorrectly surface them as source citations in the references panel.
-    Setup summary: One .pdf with sandbox link, fence FF ON; assert references stays empty.
+    Setup summary: One .pdf with sandbox link; assert references stays empty.
     """
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
@@ -1867,52 +1773,19 @@ def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_fi
         container_files=[],
         code_interpreter_calls=[],
     )
-    _set_gen_files_feature_flags(proc, fence_ff_on=True)
+    _set_gen_files_feature_flags(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert message.references == []
 
 
 @pytest.mark.ai
-def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file() -> None:
+def test_apply_postprocessing__existing_citation_refs_preserved() -> None:
     """
-    Purpose: When fence FF is OFF, non-image files must still be added to message.references.
-    Why this matters: The legacy references UI uses these entries for download/open actions.
-    Setup summary: One .pdf with sandbox link, fence FF OFF; assert one ContentReference appended.
-    """
-    config = DisplayCodeInterpreterFilesPostProcessorConfig()
-    proc = DisplayCodeInterpreterFilesPostProcessor(
-        client=MagicMock(),
-        content_service=MagicMock(),
-        config=config,
-        chat_service=MagicMock(),
-        company_id="company-fence-off",
-    )
-    proc._content_map = {"report.pdf": "cid-pdf-1"}
-    message = SimpleNamespace(
-        text="See [report.pdf](sandbox:/mnt/data/report.pdf) for details.",
-        references=[],
-    )
-    loop_response = SimpleNamespace(
-        message=message,
-        container_files=[],
-        code_interpreter_calls=[],
-    )
-    _set_gen_files_feature_flags(proc)
-    proc.apply_postprocessing_to_response(loop_response)
-    assert len(message.references) == 1
-    ref = message.references[0]
-    assert ref.source_id == "cid-pdf-1"
-    assert ref.name == "report.pdf"
-
-
-@pytest.mark.ai
-def test_apply_postprocessing__ff_off__existing_citation_refs_preserved() -> None:
-    """
-    Purpose: Pre-existing (ingestion/citation) references are preserved when fence FF is OFF
-    and a new artifact reference is appended alongside them.
-    Why this matters: Regression check — the fix must not disturb existing non-artifact refs.
-    Setup summary: One pre-existing ContentReference; one .xlsx with sandbox link; FF OFF.
-    Assert both refs present after postprocessing.
+    Purpose: Pre-existing (ingestion/citation) references survive postprocessing untouched.
+    Why this matters: Regression check — artifact handling must not disturb refs that
+    other tools put on the message.
+    Setup summary: One pre-existing ContentReference; one .xlsx with sandbox link.
+    Assert only that ref remains after postprocessing.
     """
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
@@ -1941,53 +1814,18 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved() -> Non
     )
     _set_gen_files_feature_flags(proc)
     proc.apply_postprocessing_to_response(loop_response)
-    assert len(message.references) == 2
-    source_ids = {r.source_id for r in message.references}
-    assert "existing-sid" in source_ids
-    assert "cid-xls-1" in source_ids
+    assert [r.source_id for r in message.references] == ["existing-sid"]
 
 
 @pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_off() -> (
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fence_ff_off() -> (
     None
 ):
     """
-    Purpose: HTML uses HtmlRendering when the code-execution fence FF is off.
-    Why this matters: Default path — HtmlRendering is the correct output when the
-    code-execution fence feature is disabled (html_fence FF is irrelevant here).
-    """
-    proc = _make_display_files_postprocessor()
-    proc._content_map = {"report.html": "cid_html"}
-
-    refs: list[ContentReference] = []
-    message = SimpleNamespace(
-        text="[Download](sandbox:/mnt/data/report.html)",
-        references=refs,
-    )
-    loop_response = SimpleNamespace(
-        message=message,
-        container_files=[],
-        code_interpreter_calls=[],
-    )
-
-    _set_gen_files_feature_flags(proc)
-    changed = proc.apply_postprocessing_to_response(loop_response)
-
-    assert changed is True
-    assert "HtmlRendering" in message.text
-    assert "unique://content/cid_html" in message.text
-    assert len(refs) == 0
-
-
-@pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_on_but_html_fence_ff_off() -> (
-    None
-):
-    """
-    Purpose: HTML still uses HtmlRendering when the fence FF is on but the html-fence FF
+    Purpose: HTML uses HtmlRendering when the html-fence FF
     (enable_html_with_fence_un_17927) is off (the default).
-    Why this matters: The html-fence FF defaults to False so existing deployments are
-    unaffected when they turn on the code-execution fence FF.
+    Why this matters: The html-fence FF defaults to False, so HTML artifacts keep the
+    HtmlRendering block even though code-execution fences are always on.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -2008,7 +1846,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
     # apply_postprocessing_to_response is called.
     proc._container_files = _container_files(loop_response)
 
-    _set_gen_files_feature_flags(proc, fence_ff_on=True)
+    _set_gen_files_feature_flags(proc)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -2019,12 +1857,12 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
 
 
 @pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_ffs_on() -> (
+def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_html_fence_ff_on() -> (
     None
 ):
     """
-    Purpose: HTML uses htmlWithSource fence injection when BOTH the code-execution
-    fence FF and the html-fence FF (enable_html_with_fence_un_17927) are on.
+    Purpose: HTML uses htmlWithSource fence injection when the html-fence FF
+    (enable_html_with_fence_un_17927) is on.
     Why this matters: The html-fence FF is the opt-in gate for the new behavior.
     """
     proc = _make_display_files_postprocessor()
@@ -2046,7 +1884,7 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
     # apply_postprocessing_to_response is called.
     proc._container_files = _container_files(loop_response)
 
-    _set_gen_files_feature_flags(proc, fence_ff_on=True, html_fence_ff_on=True)
+    _set_gen_files_feature_flags(proc, html_fence_ff_on=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -3485,8 +3323,6 @@ def test_replace_container_file_citation__replaces_link__when_link_is_encoded() 
         text="Here is [the report](sandbox:/mnt/data/sales%20report.csv).",
         filename="sales report.csv",
         content_id="cid_sales",
-        ref_number=1,
-        use_content_link=True,
     )
 
     assert replaced is True
@@ -3505,7 +3341,7 @@ def test_apply_postprocessing__no_dangling_notice__when_link_is_encoded() -> Non
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"sales report.csv": "cid_sales"}
-    _set_gen_files_feature_flags(proc, fence_ff_on=False)
+    _set_gen_files_feature_flags(proc)
 
     message = SimpleNamespace(
         text="See [report](sandbox:/mnt/data/sales%20report.csv).",
