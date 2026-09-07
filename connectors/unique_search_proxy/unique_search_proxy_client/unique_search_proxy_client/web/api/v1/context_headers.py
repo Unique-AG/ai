@@ -10,6 +10,7 @@ from unique_search_proxy_core.context import (
     COMPANY_ID_HEADER,
     LOCAL_REQUEST_CONTEXT,
     USER_ID_HEADER,
+    USER_NAME_HEADER,
 )
 
 
@@ -35,6 +36,13 @@ async def document_request_context_headers(
             description="Tenant chat or session identifier.",
         ),
     ] = LOCAL_REQUEST_CONTEXT.chat_id,
+    x_unique_user_name: Annotated[
+        str | None,
+        Header(
+            alias=USER_NAME_HEADER,
+            description="Stamped user login for per-user egress authentication.",
+        ),
+    ] = LOCAL_REQUEST_CONTEXT.user_name,
 ) -> None:
     """Declare context headers on /v1 routes for Swagger; enforcement is in middleware."""
     return None

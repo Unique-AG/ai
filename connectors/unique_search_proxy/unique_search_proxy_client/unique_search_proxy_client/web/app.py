@@ -77,8 +77,9 @@ def create_app() -> FastAPI:
             "Use **Try it out** on `/v1/search` and `/v1/crawl` — pick an example "
             "from the request-body dropdown (snippets-only Google search, crawl with "
             "HTML markdown, etc.). `/v1/*` routes accept tenant context headers "
-            "(`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`; "
-            "defaults `local` in Swagger). Requires provider env vars (e.g. "
+            "(`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`, and "
+            "optional `x-unique-user-name`; ID headers default `local` in Swagger). "
+            "Requires provider env vars (e.g. "
             "`GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls."
         ),
         version="0.2.0",

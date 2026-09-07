@@ -9,6 +9,7 @@ from unique_search_proxy_core.context import (
     COMPANY_ID_HEADER,
     LOCAL_REQUEST_CONTEXT,
     USER_ID_HEADER,
+    USER_NAME_HEADER,
     RequestContext,
 )
 
@@ -20,12 +21,17 @@ class TestRequestContext:
             company_id="company-1",
             user_id="user-1",
             chat_id="chat-1",
+            user_name="jsmith",
         )
         assert context.to_headers() == {
             COMPANY_ID_HEADER: "company-1",
             USER_ID_HEADER: "user-1",
             CHAT_ID_HEADER: "chat-1",
+            USER_NAME_HEADER: "jsmith",
         }
+
+    def test_to_headers_omits_missing_user_name(self) -> None:
+        assert USER_NAME_HEADER not in LOCAL_REQUEST_CONTEXT.to_headers()
 
     def test_missing_headers_detects_absent_values(self) -> None:
         missing = RequestContext.missing_headers(
@@ -46,3 +52,11 @@ class TestRequestContext:
         assert context.company_id == "company-1"
         assert context.user_id == "local"
         assert context.chat_id == "local"
+        assert context.user_name is None
+
+    def test_from_headers_reads_user_name(self) -> None:
+        context = RequestContext.from_headers(
+            {USER_NAME_HEADER: "jsmith"},
+            fallback=LOCAL_REQUEST_CONTEXT,
+        )
+        assert context.user_name == "jsmith"

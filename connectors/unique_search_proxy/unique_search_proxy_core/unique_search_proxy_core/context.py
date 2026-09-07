@@ -10,11 +10,16 @@ from pydantic import BaseModel, ConfigDict
 COMPANY_ID_HEADER = "x-unique-company-id"
 USER_ID_HEADER = "x-unique-user-id"
 CHAT_ID_HEADER = "x-unique-chat-id"
+USER_NAME_HEADER = "x-unique-user-name"
 
-_CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
+_REQUIRED_CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
     ("company_id", COMPANY_ID_HEADER),
     ("user_id", USER_ID_HEADER),
     ("chat_id", CHAT_ID_HEADER),
+)
+_CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
+    *_REQUIRED_CONTEXT_HEADER_FIELDS,
+    ("user_name", USER_NAME_HEADER),
 )
 
 
@@ -26,21 +31,25 @@ class RequestContext(BaseModel):
     company_id: str
     user_id: str
     chat_id: str
+    user_name: str | None = None
 
     def to_headers(self) -> dict[str, str]:
         """Serialize context to the canonical HTTP header names."""
-        return {
+        headers = {
             COMPANY_ID_HEADER: self.company_id,
             USER_ID_HEADER: self.user_id,
             CHAT_ID_HEADER: self.chat_id,
         }
+        if self.user_name is not None:
+            headers[USER_NAME_HEADER] = self.user_name
+        return headers
 
     @classmethod
     def missing_headers(cls, headers: Mapping[str, Any]) -> list[str]:
         """Return header names that are absent or blank."""
         normalized = {key.lower(): value for key, value in headers.items()}
         missing: list[str] = []
-        for _field, header_name in _CONTEXT_HEADER_FIELDS:
+        for _field, header_name in _REQUIRED_CONTEXT_HEADER_FIELDS:
             value = normalized.get(header_name.lower())
             if value is None or (isinstance(value, str) and not value.strip()):
                 missing.append(header_name)
@@ -55,7 +64,7 @@ class RequestContext(BaseModel):
     ) -> RequestContext:
         """Build context from headers, using ``fallback`` for any missing values."""
         normalized = {key.lower(): value for key, value in headers.items()}
-        values: dict[str, str] = {}
+        values: dict[str, str | None] = {}
         for field_name, header_name in _CONTEXT_HEADER_FIELDS:
             raw = normalized.get(header_name.lower())
             if raw is None or (isinstance(raw, str) and not raw.strip()):
@@ -78,4 +87,5 @@ __all__ = [
     "LOCAL_REQUEST_CONTEXT",
     "RequestContext",
     "USER_ID_HEADER",
+    "USER_NAME_HEADER",
 ]

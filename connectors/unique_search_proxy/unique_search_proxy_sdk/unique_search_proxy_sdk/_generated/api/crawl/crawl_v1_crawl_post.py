@@ -11,7 +11,7 @@ from ...models.firecrawl_crawl_request import FirecrawlCrawlRequest
 from ...models.http_validation_error import HTTPValidationError
 from ...models.jina_crawl_request import JinaCrawlRequest
 from ...models.tavily_crawl_request import TavilyCrawlRequest
-from ...types import Response, Unset
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
@@ -23,6 +23,7 @@ def _get_kwargs(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_user_name: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(x_unique_company_id, Unset):
@@ -33,6 +34,9 @@ def _get_kwargs(
 
     if not isinstance(x_unique_chat_id, Unset):
         headers["x-unique-chat-id"] = x_unique_chat_id
+
+    if not isinstance(x_unique_user_name, Unset):
+        headers["x-unique-user-name"] = x_unique_user_name
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -94,6 +98,7 @@ def sync_detailed(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_user_name: None | str | Unset = UNSET,
 ) -> Response[CrawlResponse | HTTPValidationError]:
     """Crawl URLs with a configured crawler
 
@@ -101,6 +106,8 @@ def sync_detailed(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_user_name (None | str | Unset): Stamped user login for per-user egress
+            authentication.
         body (BasicCrawlRequest | FirecrawlCrawlRequest | JinaCrawlRequest | TavilyCrawlRequest):
 
     Raises:
@@ -116,6 +123,7 @@ def sync_detailed(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
+        x_unique_user_name=x_unique_user_name,
     )
 
     response = client.get_httpx_client().request(
@@ -135,6 +143,7 @@ def sync(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_user_name: None | str | Unset = UNSET,
 ) -> CrawlResponse | HTTPValidationError | None:
     """Crawl URLs with a configured crawler
 
@@ -142,6 +151,8 @@ def sync(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_user_name (None | str | Unset): Stamped user login for per-user egress
+            authentication.
         body (BasicCrawlRequest | FirecrawlCrawlRequest | JinaCrawlRequest | TavilyCrawlRequest):
 
     Raises:
@@ -158,6 +169,7 @@ def sync(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
+        x_unique_user_name=x_unique_user_name,
     ).parsed
 
 
@@ -171,6 +183,7 @@ async def asyncio_detailed(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_user_name: None | str | Unset = UNSET,
 ) -> Response[CrawlResponse | HTTPValidationError]:
     """Crawl URLs with a configured crawler
 
@@ -178,6 +191,8 @@ async def asyncio_detailed(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_user_name (None | str | Unset): Stamped user login for per-user egress
+            authentication.
         body (BasicCrawlRequest | FirecrawlCrawlRequest | JinaCrawlRequest | TavilyCrawlRequest):
 
     Raises:
@@ -193,6 +208,7 @@ async def asyncio_detailed(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
+        x_unique_user_name=x_unique_user_name,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -210,6 +226,7 @@ async def asyncio(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_user_name: None | str | Unset = UNSET,
 ) -> CrawlResponse | HTTPValidationError | None:
     """Crawl URLs with a configured crawler
 
@@ -217,6 +234,8 @@ async def asyncio(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_user_name (None | str | Unset): Stamped user login for per-user egress
+            authentication.
         body (BasicCrawlRequest | FirecrawlCrawlRequest | JinaCrawlRequest | TavilyCrawlRequest):
 
     Raises:
@@ -234,5 +253,6 @@ async def asyncio(
             x_unique_company_id=x_unique_company_id,
             x_unique_user_id=x_unique_user_id,
             x_unique_chat_id=x_unique_chat_id,
+            x_unique_user_name=x_unique_user_name,
         )
     ).parsed
