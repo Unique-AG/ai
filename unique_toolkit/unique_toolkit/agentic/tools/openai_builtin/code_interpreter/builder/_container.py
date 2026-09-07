@@ -13,11 +13,8 @@ logger = logging.getLogger(__name__)
 # Statuses in which a container accepts file uploads and code execution.
 LIVE_CONTAINER_STATUSES = frozenset({"active", "running"})
 
-# After `containers.create` Azure may report the container before it is
-# live; uploading into it immediately is the path that hung for 10 minutes
-# (UN-25045). Poll briefly for a live status before the first upload. This
-# is best-effort: if the deadline passes we proceed anyway and rely on the
-# upload retry, so a slow status transition never fails the tool build.
+# Best-effort wait for a live status before the first upload; on deadline we
+# proceed anyway and rely on the upload retry.
 CONTAINER_READY_TIMEOUT_SECONDS = 10.0
 CONTAINER_READY_POLL_INTERVAL_SECONDS = 0.5
 
