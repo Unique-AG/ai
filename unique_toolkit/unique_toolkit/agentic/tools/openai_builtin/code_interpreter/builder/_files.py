@@ -28,17 +28,8 @@ logger = logging.getLogger(__name__)
 UPLOAD_MAX_RETRIES = 2
 UPLOAD_RETRY_BASE_DELAY = 0.5
 
-# Fail-fast timeouts for `containers.files.create` (UN-25045). Azure's
-# `POST /containers/{id}/files` intermittently never answers right after
-# `containers.create`; with the SDK default (600s read timeout, 2 internal
-# retries) a chat sat idle for 10 minutes before the retry succeeded in ~1s.
-#
-# node-chat now aborts each upstream attempt after 30s
-# (`OPENAI_PROXY_FILE_UPLOAD_TIMEOUT_MS`) and lets the openai-node SDK retry
-# twice, so its worst case before returning a 504 is ~95s. Our read timeout
-# deliberately sits above that so we never abandon a request node-chat is
-# still legitimately retrying (which would double-upload), while still
-# capping a hung proxy hop well below the SDK default.
+# Read timeout must stay above node-chat's own upload retry window (~95s) so we
+# never abandon a request the proxy is still retrying, which would double-upload.
 UPLOAD_CONNECT_TIMEOUT_SECONDS = 5.0
 UPLOAD_READ_TIMEOUT_SECONDS = 120.0
 
