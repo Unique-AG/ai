@@ -45,10 +45,9 @@ class BingAgentSearchRequest:
             deployment default applies, or Bing guesses from the caller if there is none. [Supported `mkt`
             values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-
             codes)
-        search_freshness (BingAgentSearchRequestSearchFreshnessType0 | None | str | Unset): Drops anything Bing
-            discovered before a cut-off: `Day`, `Week` or `Month` for the last 24 hours / 7 days / 30 days, a single date as
-            `2026-01-31`, or a range as `2026-01-01..2026-03-31`. Unlike the region, this really does filter. It applies to
-            **every** search in the space, so set it only for news spaces — elsewhere it hides older pages that are still
+        search_freshness (BingAgentSearchRequestSearchFreshnessType0 | None | Unset): Drops anything Bing discovered
+            before a cut-off, counted back from each search. Unlike the region, this really does filter, and it applies to
+            **every** search in the space — set it only for news spaces, since elsewhere it hides older pages that are still
             correct. [Accepted `freshness` values](https://learn.microsoft.com/en-us/previous-versions/bing/search-
             apis/bing-web-search/reference/query-parameters#freshness)
     """
@@ -61,9 +60,7 @@ class BingAgentSearchRequest:
     timeout: int | Unset = 120
     fetch_size: int | Unset = 5
     search_market: BingAgentSearchRequestSearchMarketType0 | None | Unset = UNSET
-    search_freshness: (
-        BingAgentSearchRequestSearchFreshnessType0 | None | str | Unset
-    ) = UNSET
+    search_freshness: BingAgentSearchRequestSearchFreshnessType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -153,7 +150,7 @@ class BingAgentSearchRequest:
 
         def _parse_search_freshness(
             data: object,
-        ) -> BingAgentSearchRequestSearchFreshnessType0 | None | str | Unset:
+        ) -> BingAgentSearchRequestSearchFreshnessType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -168,9 +165,7 @@ class BingAgentSearchRequest:
                 return search_freshness_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                BingAgentSearchRequestSearchFreshnessType0 | None | str | Unset, data
-            )
+            return cast(BingAgentSearchRequestSearchFreshnessType0 | None | Unset, data)
 
         search_freshness = _parse_search_freshness(d.pop("searchFreshness", UNSET))
 

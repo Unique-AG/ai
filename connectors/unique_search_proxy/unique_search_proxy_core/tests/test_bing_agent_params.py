@@ -18,6 +18,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
 from unique_search_proxy_core.agent_engines.bing.schema import (
     BingAgentConfig,
     BingAgentSearchRequest,
+    BingFreshnessPreset,
     BingMarket,
 )
 from unique_search_proxy_core.agent_engines.bing.settings import (
@@ -42,11 +43,10 @@ class TestBingAgentAdminForm:
         Why this matters: ``Literal | None`` reaches RJSF as an ``anyOf``, which it
             draws as a branch picker ("option 1 / option 2") wrapping a second
             control — the shape that made the first attempt at these knobs
-            unusable. Market must be one dropdown, freshness one text input.
-        Setup summary: Inspect the admin JSON schema and the freshness uiSchema.
+            unusable. Both knobs must be one dropdown each.
+        Setup summary: Inspect the admin JSON schema for both properties.
         """
         properties = BingAgentConfig.model_json_schema()["properties"]
-        ui_schema = ui_schema_for_model(BingAgentConfig, key_transform=camelize)
 
         market = properties["searchMarket"]
         assert "anyOf" not in market
@@ -59,10 +59,28 @@ class TestBingAgentAdminForm:
         freshness = properties["searchFreshness"]
         assert "anyOf" not in freshness
         assert freshness["type"] == ["string", "null"]
-        # No `pattern`: it would flag a half-typed date while the admin types.
-        assert "pattern" not in freshness
-        assert ui_schema["searchFreshness"]["ui:widget"] == "text"
-        assert ui_schema["searchFreshness"]["ui:emptyValue"] is None
+        assert freshness["oneOf"][0] == {"const": None, "title": "Not set"}
+        assert {choice["const"] for choice in freshness["oneOf"][1:]} == set(
+            get_args(BingFreshnessPreset)
+        )
+
+    @pytest.mark.ai
+    def test_freshness_options_are_labelled_for_admins(self) -> None:
+        """
+        Purpose: Verify the recency presets carry admin-facing option labels.
+        Why this matters: Bing's wire values are terse enough to be ambiguous —
+            "Day" reads as "today" rather than "the last 24 hours" — and the
+            dropdown is the only place an admin sees them.
+        Setup summary: Inspect the titles on the freshness ``oneOf`` branches.
+        """
+        freshness = BingAgentConfig.model_json_schema()["properties"]["searchFreshness"]
+
+        assert {choice["const"]: choice["title"] for choice in freshness["oneOf"]} == {
+            None: "Not set",
+            "Day": "Past 24 hours",
+            "Week": "Past 7 days",
+            "Month": "Past 30 days",
+        }
 
     @pytest.mark.ai
     def test_no_exposable_wrapper_survives_in_the_schema(self) -> None:
@@ -306,11 +324,8 @@ class TestBingAgentRequestModel:
         assert request.search_market == "fr-CH"
 
     @pytest.mark.ai
-    @pytest.mark.parametrize(
-        "freshness",
-        ["Day", "Week", "Month", "2026-02-04", "2026-01-01..2026-02-01"],
-    )
-    def test_freshness_accepts_presets_days_and_ranges(self, freshness: str) -> None:
+    @pytest.mark.parametrize("freshness", ["Day", "Week", "Month"])
+    def test_freshness_accepts_the_recency_presets(self, freshness: str) -> None:
         request = BingAgentSearchRequest.model_validate(
             {"query": "x", "searchFreshness": freshness},
         )
@@ -326,7 +341,10 @@ class TestBingAgentRequestModel:
             ("searchFreshness", "recently"),
             ("searchFreshness", "day"),
             ("searchFreshness", "last week"),
-            ("searchFreshness", "2026-01-01-2026-02-01"),
+            # Absolute dates are Bing-valid but deliberately not offered: pinned
+            # space-wide they freeze the space to a window that immediately rots.
+            ("searchFreshness", "2026-02-04"),
+            ("searchFreshness", "2026-01-01..2026-02-01"),
         ],
     )
     def test_values_outside_bings_vocabulary_are_rejected(

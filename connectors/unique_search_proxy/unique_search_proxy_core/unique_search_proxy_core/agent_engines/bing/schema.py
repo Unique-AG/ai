@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, ClassVar, Literal, get_args
+from typing import Annotated, Any, ClassVar, Literal, Mapping, get_args
 
-from pydantic import Field, GetCoreSchemaHandler, GetJsonSchemaHandler, field_validator
+from pydantic import Field, GetJsonSchemaHandler, field_validator
 from pydantic.json_schema import JsonSchemaValue
-from pydantic_core import CoreSchema, core_schema
+from pydantic_core import CoreSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.agent_engines.base import (
@@ -23,26 +23,12 @@ _BING_DOCS_BASE_URL = (
 _BING_QUERY_PARAMS_DOCS_URL = f"{_BING_DOCS_BASE_URL}/query-parameters"
 _BING_MARKET_CODES_DOCS_URL = f"{_BING_DOCS_BASE_URL}/market-codes"
 
-_FRESHNESS_DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}(?:\.\.\d{4}-\d{2}-\d{2})?$"
-
-
-class BingFreshnessDate(str):
-    """A single ``YYYY-MM-DD`` day or an inclusive ``YYYY-MM-DD..YYYY-MM-DD`` span.
-
-    The constraint lives in the type rather than in ``Field(pattern=...)`` so it
-    survives into the derived request model, where ``Annotated`` metadata is
-    stripped off union branches. Freshness is baked into the hashed agent name,
-    so free text would mint a Foundry agent version per distinct string while
-    Bing ignored the value itself.
-    """
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls,
-        source: type[Any],
-        handler: GetCoreSchemaHandler,
-    ) -> CoreSchema:
-        return core_schema.str_schema(pattern=_FRESHNESS_DATE_PATTERN)
+#: Admin-facing labels for the recency presets, whose wire values are terse.
+_FRESHNESS_PRESET_TITLES: Mapping[str, str] = {
+    "Day": "Past 24 hours",
+    "Week": "Past 7 days",
+    "Month": "Past 30 days",
+}
 
 
 def _single_dropdown(
@@ -50,6 +36,7 @@ def _single_dropdown(
     *,
     values: tuple[Any, ...],
     blank_title: str,
+    titles: Mapping[Any, str] | None = None,
 ) -> JsonSchemaValue:
     """Render an optional literal as one dropdown instead of a union selector.
 
@@ -57,13 +44,19 @@ def _single_dropdown(
     branch picker ("option 1 / option 2") wrapping a second control. A single
     ``oneOf`` of constants collapses that into one select whose first entry is
     the blank value, titled so it reads as a choice rather than as an error.
+
+    ``titles`` labels the options for vocabularies whose wire values are not
+    admin-facing copy; without it each option is titled with its own value.
     """
     schema = dict(property_schema)
     schema.pop("anyOf", None)
     schema["type"] = ["string", "null"]
     schema["oneOf"] = [
         {"const": None, "title": blank_title},
-        *({"const": value, "title": value} for value in values),
+        *(
+            {"const": value, "title": (titles or {}).get(value, value)}
+            for value in values
+        ),
     ]
     return schema
 
@@ -105,28 +98,15 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             f"[Supported `mkt` values]({_BING_MARKET_CODES_DOCS_URL})"
         ),
     )
-    search_freshness: Annotated[
-        BingFreshnessPreset | BingFreshnessDate | None,
-        # Raw attrs rather than ``StringWidget.textfield``: the helper drops any
-        # attribute whose value is ``None``, and a cleared field must save as
-        # ``null`` rather than as the empty string.
-        RJSFMetaTag(
-            {
-                "ui:widget": "text",
-                "ui:placeholder": "Week, Month, or 2026-01-01..2026-03-31",
-                "ui:emptyValue": None,
-            }
-        ),
-    ] = Field(
+    search_freshness: BingFreshnessPreset | None = Field(
         default=None,
         title="Only results published recently",
         description=(
-            "Drops anything Bing discovered before a cut-off: `Day`, `Week` or "
-            "`Month` for the last 24 hours / 7 days / 30 days, a single date as "
-            "`2026-01-31`, or a range as `2026-01-01..2026-03-31`. Unlike the "
-            "region, this really does filter. It applies to **every** search in "
-            "the space, so set it only for news spaces — elsewhere it hides "
-            "older pages that are still correct. "
+            "Drops anything Bing discovered before a cut-off, counted back from "
+            "each search. Unlike the region, this really does filter, and it "
+            "applies to **every** search in the space — set it only for news "
+            "spaces, since elsewhere it hides older pages that are still "
+            "correct. "
             f"[Accepted `freshness` values]({_BING_QUERY_PARAMS_DOCS_URL}#freshness)"
         ),
     )
@@ -160,9 +140,9 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     def _blank_is_unset(cls, value: Any) -> Any:
         """Read a cleared control as "no fixed value".
 
-        The dropdown offers ``null`` and the text field sets ``ui:emptyValue:
-        null``, but a control cleared to ``""`` would otherwise fail the Bing
-        vocabularies and turn an optional knob into a form error.
+        Both dropdowns offer ``null`` as their blank choice, but a control
+        cleared to ``""`` would otherwise fail the Bing vocabularies and turn an
+        optional knob into a form error.
         """
         if isinstance(value, str) and not value.strip():
             return None
@@ -190,13 +170,12 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
 
         freshness = properties.get("searchFreshness")
         if isinstance(freshness, dict):
-            # One plain text input, and no `pattern` to reject half-typed dates
-            # while the admin is still typing. Pydantic still validates the
-            # preset/date syntax when the configuration is saved.
-            freshness = dict(freshness)
-            freshness.pop("anyOf", None)
-            freshness["type"] = ["string", "null"]
-            properties["searchFreshness"] = freshness
+            properties["searchFreshness"] = _single_dropdown(
+                freshness,
+                values=get_args(BingFreshnessPreset),
+                blank_title="Not set",
+                titles=_FRESHNESS_PRESET_TITLES,
+            )
 
         return schema
 
@@ -207,7 +186,6 @@ BingAgentSearchRequest = BingAgentConfig.request_model()
 __all__ = [
     "BingAgentConfig",
     "BingAgentSearchRequest",
-    "BingFreshnessDate",
     "BingFreshnessPreset",
     "BingMarket",
 ]

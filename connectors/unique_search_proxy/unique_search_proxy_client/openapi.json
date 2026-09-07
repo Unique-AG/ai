@@ -930,15 +930,11 @@
                 ]
               },
               {
-                "type": "string",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}(?:\\.\\.\\d{4}-\\d{2}-\\d{2})?$"
-              },
-              {
                 "type": "null"
               }
             ],
             "title": "Only results published recently",
-            "description": "Drops anything Bing discovered before a cut-off: `Day`, `Week` or `Month` for the last 24 hours / 7 days / 30 days, a single date as `2026-01-31`, or a range as `2026-01-01..2026-03-31`. Unlike the region, this really does filter. It applies to **every** search in the space, so set it only for news spaces \u2014 elsewhere it hides older pages that are still correct. [Accepted `freshness` values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-parameters#freshness)"
+            "description": "Drops anything Bing discovered before a cut-off, counted back from each search. Unlike the region, this really does filter, and it applies to **every** search in the space \u2014 set it only for news spaces, since elsewhere it hides older pages that are still correct. [Accepted `freshness` values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-parameters#freshness)"
           }
         },
         "type": "object",

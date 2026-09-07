@@ -184,7 +184,7 @@ class BingAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
         timeout: int = 120,
         fetch_size: int = 5,
         search_market: BingMarket | None = None,
-        search_freshness: BingFreshnessPreset | str | None = None,
+        search_freshness: BingFreshnessPreset | None = None,
     ) -> AgentSearchResponse:
         return await self._call(
             query=query,
@@ -238,7 +238,7 @@ class BingAgentSearchStreamEndpoint(_TypedStreamEndpoint):
         timeout: int = 120,
         fetch_size: int = 5,
         search_market: BingMarket | None = None,
-        search_freshness: BingFreshnessPreset | str | None = None,
+        search_freshness: BingFreshnessPreset | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         async for event in self._call(
             query=query,

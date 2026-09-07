@@ -153,11 +153,20 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 |-------|-------|
 | `fetch_size` | Bing result count (`count` on the tool configuration) |
 | `search_market` | Region **and** language Bing favours (Bing `mkt`). A bias, not a filter — other regions can still appear. The one knob that fixes UN-24652 |
-| `search_freshness` | Recency cut-off applied to every search in the space (Bing `freshness`) |
+| `search_freshness` | Recency cut-off applied to every search in the space (Bing `freshness`): `Day` / `Week` / `Month` |
 
 Both are optional **fixed** values an admin picks for the whole space and are
-never offered to the LLM. `search_market` is restricted to Bing's documented
-codes; blank values are omitted so Bing applies its own defaults.
+never offered to the LLM, and both are restricted to Bing's documented values so
+they render as one dropdown each; blank values are omitted so Bing applies its
+own defaults.
+
+`freshness` also accepts absolute days and ranges (`2026-01-01..2026-03-31`),
+which we deliberately do **not** offer: pinned space-wide, an absolute window
+freezes the space to a range that rots the day after it is saved. Only the
+relative presets make sense as a fixed value. This also keeps the emitted admin
+schema fully enumerated — the form validates against that schema alone, and a
+free-text field with no `pattern` would let a typo save and then demote the whole
+tool at read time.
 
 The `search_` prefix is deliberate. Release 2026.36 shipped these knobs as
 `market` / `freshness` / `setLang` holding `ExposableParam` `{expose, value}`
