@@ -1,5 +1,5 @@
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from unique_toolkit.agentic.feature_flags import FeatureFlagNames
@@ -30,7 +30,6 @@ class TestSearchProxyUserNameContext:
     def test_tool_context_carries_user_name_to_proxy_services(
         self,
         mock_web_search_config_v1: Mock,
-        mocker: Any,
     ) -> None:
         event = Mock()
         event.company_id = "company-1"
@@ -45,17 +44,18 @@ class TestSearchProxyUserNameContext:
         tool._chat_service = Mock()
         tool._chat_service.get_full_history.return_value = []
 
-        mocker.patch("unique_web_search.service.Tool.__init__", return_value=None)
-        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
-        get_search_engine_service = mocker.patch(
-            "unique_web_search.service.get_search_engine_service"
-        )
-        get_crawler_service = mocker.patch(
-            "unique_web_search.service.get_crawler_service"
-        )
-        mocker.patch("unique_web_search.service.ContentProcessor")
-
-        WebSearchTool.__init__(tool, mock_web_search_config_v1)
+        with (
+            patch("unique_web_search.service.Tool.__init__", return_value=None),
+            patch("unique_web_search.service.ChunkRelevancySorter"),
+            patch(
+                "unique_web_search.service.get_search_engine_service"
+            ) as get_search_engine_service,
+            patch(
+                "unique_web_search.service.get_crawler_service"
+            ) as get_crawler_service,
+            patch("unique_web_search.service.ContentProcessor"),
+        ):
+            WebSearchTool.__init__(tool, mock_web_search_config_v1)
 
         assert tool.request_context.user_name == "jsmith"
         get_search_engine_service.assert_called_once_with(
