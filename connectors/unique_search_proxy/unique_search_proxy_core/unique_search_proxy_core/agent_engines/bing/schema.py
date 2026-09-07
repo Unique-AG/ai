@@ -89,9 +89,10 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             "Region and language Bing should favour, as `<language>-<country>`. "
             "Examples: `de-CH`, `fr-CH`, `fr-FR`. This biases the results rather "
             "than restricting them — sources from other regions can still "
-            "appear. Set it when the space serves one country; left blank, the "
-            "deployment default applies, or Bing guesses from the caller if "
-            "there is none. "
+            "appear. If left blank, the deployment default set in the "
+            "environment variable `BING_AGENT_DEFAULT_MARKET` applies. If left "
+            "blank and the environment variable is not set, Bing may favour the "
+            "region where the underlying Microsoft Foundry resource is deployed. "
             f"[Supported `mkt` values]({_BING_MARKET_CODES_DOCS_URL})"
         ),
     )

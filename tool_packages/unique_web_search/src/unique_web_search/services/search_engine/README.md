@@ -174,7 +174,8 @@ unset. Beyond these, Bing grounding has no `safeSearch`, `responseFilter`, or
 A blank `search_market` falls back to the `BING_AGENT_DEFAULT_MARKET` environment
 variable (below), so a deployment serving a single country pins its market once
 instead of per space. With neither set, `mkt` is left off the call entirely and
-Bing infers the market from the caller's location.
+Bing may favour the region where the underlying Microsoft Foundry resource is
+deployed.
 
 Bing bakes the tool configuration into the *agent version*, so these knobs take
 part in the hashed agent name (`unique-grounding-with-bing-<hash>`): changing one
