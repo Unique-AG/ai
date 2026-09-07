@@ -110,24 +110,10 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
 
     # Burned config keys — never reintroduce a Bing field under one of these.
     #
-    # Release 2026.36 shipped `market` / `freshness` / `setLang` holding
-    # ExposableParam `{expose, value}` objects. Spaces saved on it still carry
-    # them, and stored configs are only rewritten when an admin re-saves, so a
-    # scalar field reusing one of these names would meet a dict at validation —
-    # and `ToolBuildConfig` answers an invalid tool config by silently disabling
-    # the whole tool rather than surfacing an error.
-    #
-    # This is why 2026.38 renamed rather than reshaped. It also keeps rollback to
-    # 2026.36 safe: old code finds its key absent and applies its own default.
-    # Reshaping the rows in place instead would not have been recoverable — the
-    # monorepo's node-chat data migrations are the mechanism for rewriting these
-    # configs (see `20260804120000_drop_null_agent_id_from_web_search_engine_config`
-    # for the pattern), but their `down` is a no-op, so a shape 2026.36 cannot
-    # parse would take rollback with it permanently.
-    #
-    # To retire this entry: a data migration *deleting* these keys is rollback-safe
-    # (an absent key falls back to 2026.36's own default) and would give certainty
-    # that no row still carries the wrapper, which waiting for admin re-saves never will.
+    # 2026.36 briefly shipped `market` / `freshness` / `setLang` holding
+    # ExposableParam `{expose, value}` objects, and spaces saved then still carry
+    # that shape. A scalar field reusing one of these names would meet a dict at
+    # validation, and an invalid tool config silently disables the whole tool.
     _BURNED_CONFIG_KEYS: ClassVar[frozenset[str]] = frozenset(
         {"market", "freshness", "setLang"},
     )
