@@ -21,7 +21,6 @@ _BING_DOCS_BASE_URL = (
     "bing-web-search/reference"
 )
 _BING_QUERY_PARAMS_DOCS_URL = f"{_BING_DOCS_BASE_URL}/query-parameters"
-_BING_MARKET_CODES_DOCS_URL = f"{_BING_DOCS_BASE_URL}/market-codes"
 
 #: Admin-facing labels for the recency presets, whose wire values are terse.
 _FRESHNESS_PRESET_TITLES: Mapping[str, str] = {
@@ -92,8 +91,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             "appear. If left blank, the deployment default set in the "
             "environment variable `BING_AGENT_DEFAULT_MARKET` applies. If left "
             "blank and the environment variable is not set, Bing may favour the "
-            "region where the underlying Microsoft Foundry resource is deployed. "
-            f"[Supported `mkt` values]({_BING_MARKET_CODES_DOCS_URL})"
+            "region where the underlying Microsoft Foundry resource is deployed."
         ),
     )
     search_freshness: BingFreshnessPreset | None = Field(
