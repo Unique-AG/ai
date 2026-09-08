@@ -6,7 +6,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import ValidationInfo, field_validator
+from pydantic import SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import LanguageModelName
@@ -92,10 +92,16 @@ class Base(BaseSettings):
     ##  For username/password authentication
     proxy_username: str | None = None
     proxy_password: str | None = None
+    per_user_proxy_company_ids: list[str] = []
+    per_user_proxy_password: SecretStr | None = None
 
     ## For SSL/TLS authentication
     proxy_ssl_cert_path: str | None = None
     proxy_ssl_key_path: str | None = None
+
+    def per_user_proxy_enabled_for(self, company_id: str) -> bool:
+        """Return whether direct page fetches require per-user proxy auth."""
+        return company_id in self.per_user_proxy_company_ids
 
     ## For Azure Identity Credential
     unique_private_endpoint_transport_enabled: bool | None = False

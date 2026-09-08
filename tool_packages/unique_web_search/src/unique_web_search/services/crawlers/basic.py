@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import re
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 import timeout_decorator
@@ -18,7 +20,7 @@ from unique_search_proxy_core.crawlers.basic.schema import (
 )
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
-from unique_web_search.services.client.proxy_config import async_client
+from unique_web_search.services.client.proxy_config import build_legacy_crawl_client
 from unique_web_search.services.crawlers.base import BaseCrawler
 from unique_web_search.services.crawlers.registry import register_crawler
 from unique_web_search.services.crawlers.url_safety import (
@@ -89,29 +91,49 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
 
     @override
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
-        async with async_client(timeout=Timeout(self.config.timeout)) as client:
-            tasks = [self._crawl_url_with_client(client, target) for target in targets]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        async with self._legacy_http_client() as client:
+            if client is None:
+                raise RuntimeError("Basic crawler HTTP client was not initialized")
+            return await self._legacy_crawl_with_http_client(targets, client)
 
-            validation_errors = [
-                result
-                for result in results
-                if isinstance(result, CrawlTargetValidationError)
-            ]
-            if validation_errors:
-                raise validation_errors[0]
+    @override
+    @asynccontextmanager
+    async def _legacy_http_client(
+        self,
+    ) -> AsyncIterator[AsyncClient | None]:
+        async with build_legacy_crawl_client(
+            self._request_context,
+            timeout=Timeout(self.config.timeout),
+        ) as client:
+            yield client
 
-            markdowns: list[str] = []
-            for result in results:
-                if isinstance(result, BaseException):
-                    markdowns.append(
-                        f"Unexpected error occurred while crawling the URL: {result}"
-                    )
+    @override
+    async def _legacy_crawl_with_http_client(
+        self,
+        targets: list[ResolvedCrawlTarget],
+        http_client: AsyncClient,
+    ) -> list[str]:
+        tasks = [self._crawl_url_with_client(http_client, target) for target in targets]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                else:
-                    markdowns.append(result)
+        validation_errors = [
+            result
+            for result in results
+            if isinstance(result, CrawlTargetValidationError)
+        ]
+        if validation_errors:
+            raise validation_errors[0]
 
-            return markdowns
+        markdowns: list[str] = []
+        for result in results:
+            if isinstance(result, BaseException):
+                markdowns.append(
+                    f"Unexpected error occurred while crawling the URL: {result}"
+                )
+            else:
+                markdowns.append(result)
+
+        return markdowns
 
     async def _crawl_url_with_client(
         self, client: AsyncClient, target: ResolvedCrawlTarget

@@ -51,6 +51,24 @@ class TestSettingsValidateJSON:
         assert settings.custom_web_search_api_client_config is None
 
 
+class TestPerUserProxySettings:
+    @pytest.mark.ai
+    def test_loads_company_gate_and_masked_placeholder_password(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("PER_USER_PROXY_COMPANY_IDS", '["company-1"]')
+        monkeypatch.setenv("PER_USER_PROXY_PASSWORD", "placeholder")
+
+        settings = Base()
+
+        assert settings.per_user_proxy_enabled_for("company-1")
+        assert not settings.per_user_proxy_enabled_for("company-2")
+        assert settings.per_user_proxy_password is not None
+        assert settings.per_user_proxy_password.get_secret_value() == "placeholder"
+        assert str(settings.per_user_proxy_password) == "**********"
+
+
 class TestCustomAPISettings:
     """Test cases for Custom API settings."""
 

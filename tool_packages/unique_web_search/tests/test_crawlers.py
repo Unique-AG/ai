@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -131,7 +132,7 @@ class TestBasicCrawler:
         monkeypatch.setattr(
             "unique_web_search.services.crawlers.base.UrlSafetyService.validate_batch_urls",
             AsyncMock(
-                side_effect=lambda urls: [
+                side_effect=lambda urls, **_kwargs: [
                     ResolvedCrawlTarget(
                         normalized_url=url.strip(),
                         hostname="",
@@ -380,15 +381,34 @@ class TestBaseCrawlerValidationFlow:
             "validate_batch_urls",
             mock_validate_batch_urls,
         )
+        http_client = AsyncMock(spec=httpx.AsyncClient)
+
+        @asynccontextmanager
+        async def legacy_http_client():
+            yield http_client
+
+        monkeypatch.setattr(
+            basic_crawler,
+            "_legacy_http_client",
+            legacy_http_client,
+        )
         mock_legacy_crawl = AsyncMock(return_value=["content"])
-        monkeypatch.setattr(basic_crawler, "_legacy_crawl", mock_legacy_crawl)
+        monkeypatch.setattr(
+            basic_crawler,
+            "_legacy_crawl_with_http_client",
+            mock_legacy_crawl,
+        )
 
         await basic_crawler.crawl([" https://example.com/start "])
 
         mock_validate_batch_urls.assert_called_once_with(
-            [" https://example.com/start "]
+            [" https://example.com/start "],
+            redirect_http_client=http_client,
         )
-        mock_legacy_crawl.assert_called_once_with([transformed_target])
+        mock_legacy_crawl.assert_called_once_with(
+            [transformed_target],
+            http_client,
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -454,7 +474,7 @@ class TestBaseCrawlerValidationFlow:
         mock_legacy_crawl = AsyncMock(return_value=["content"])
         monkeypatch.setattr(
             basic_crawler,
-            "_legacy_crawl",
+            "_legacy_crawl_with_http_client",
             mock_legacy_crawl,
         )
 
