@@ -1,13 +1,12 @@
 import logging
 from collections.abc import Sequence
-from typing import Any, Protocol, cast, override
+from typing import Any, Protocol, override
 
 from perplexity import AsyncPerplexity
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexityConfig,
-    PerplexitySearchRequest,
 )
 
 from unique_web_search.client_settings import get_perplexity_search_settings
@@ -64,10 +63,7 @@ class PerplexitySearch(SearchEngine[PerplexityConfig]):
         overrides = (
             params.model_dump(by_alias=True, exclude_none=True) if params else {}
         )
-        request = cast(
-            PerplexitySearchRequest,
-            self.config.merge(overrides, query=query),
-        )
+        request = self.config.merge(overrides, query=query)
         provider_params = PerplexityConfig.provider_query_params(
             request,
             by_alias=False,
@@ -81,7 +77,7 @@ class PerplexitySearch(SearchEngine[PerplexityConfig]):
             )
             response = await client.search.create(
                 query=query,
-                max_results=min(request.fetch_size, MAX_RESULTS_PER_REQUEST),
+                max_results=min(self.config.fetch_size, MAX_RESULTS_PER_REQUEST),
                 **provider_params,
             )
 
