@@ -151,8 +151,39 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 
 | Field | Notes |
 |-------|-------|
-| `fetch_size` | Bing result count |
-| `market`, `set_lang`, `freshness` | `ExposableParam`; `market` / `set_lang` restricted to Bing's documented codes; forwarded to `BingGroundingSearchConfiguration`. Hidden from the admin form (`ui:widget: hidden`) until they are cleared for release, so they stay at their defaults |
+| `fetch_size` | Bing result count (`count` on the tool configuration) |
+| `market` | Region **and** language Bing favours (Bing `mkt`). A bias, not a filter — other regions can still appear |
+| `freshness` | Recency cut-off applied to every search in the space (Bing `freshness`): `Day` / `Week` / `Month` |
+
+Both are optional **fixed** values an admin picks for the whole space and are
+never offered to the LLM, and both are restricted to Bing's documented values so
+they render as one dropdown each; blank values are omitted so Bing applies its
+own defaults.
+
+`freshness` also accepts absolute days and ranges (`2026-01-01..2026-03-31`),
+which we deliberately do **not** offer: pinned space-wide, an absolute window
+freezes the space to a range that rots the day after it is saved. Presets only
+also keep the admin schema fully enumerated, so a typo cannot save.
+
+`BingGroundingSearchConfiguration` also accepts `setLang`, which we deliberately
+do **not** expose: it only localizes the labels Bing puts around results, so an
+admin reading "language" would set it expecting French results and leave `mkt`
+unset. Beyond these, Bing grounding has no `safeSearch`, `responseFilter`, or
+`answerCount`, so `count` / `market` / `freshness` is the whole useful surface.
+
+Spaces saved on 2026.36 hold an `ExposableParam` `{expose, value}` object under
+both keys. node-chat data migration
+`20260908120000_drop_bing_grounding_exposable_params` deletes them, and
+`BingAgentConfig` reads that shape as unset for rows the migration has not
+reached — an invalid tool config disables the whole tool silently, so tolerating
+it is not optional. The migration deletes rather than unwraps, which keeps a
+rollback to 2026.36 valid.
+
+A blank `market` falls back to the `BING_AGENT_DEFAULT_MARKET` environment
+variable (below), so a deployment serving a single country pins its market once
+instead of per space. With neither set, `mkt` is left off the call entirely and
+Bing may favour the region where the underlying Microsoft Foundry resource is
+deployed.
 
 Bing bakes the tool configuration into the *agent version*, so these knobs take
 part in the hashed agent name (`unique-grounding-with-bing-<hash>`): changing one
@@ -162,7 +193,8 @@ provisions a new agent version instead of reusing a mismatched one.
 AZURE_AI_PROJECT_ENDPOINT=...
 AZURE_AI_AGENT_ID=...          # optional; empty → auto-provision
 AZURE_IDENTITY_CREDENTIAL_TYPE=workload  # or default
-BING_AGENT_MARKET={"default": "fr-CH", "enforce": false}  # optional environment default
+# Market applied to spaces that fix none; omit to send no market at all.
+BING_AGENT_DEFAULT_MARKET=fr-FR
 ```
 
 ### VertexAI (Grounding with VertexAI)

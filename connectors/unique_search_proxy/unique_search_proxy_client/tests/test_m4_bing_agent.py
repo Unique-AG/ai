@@ -11,6 +11,7 @@ from openai.types.responses.response_completed_event import ResponseCompletedEve
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import ResponseOutputText
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
+from unique_search_proxy_core.agent_engines.bing import settings as bing_settings
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BING_AUTO_AGENT_NAME_PREFIX,
     BingGroundingConfiguration,
@@ -193,8 +194,8 @@ class TestBingAgentSearchService:
         """
         Purpose: Verify request-level Bing knobs are forwarded to the runner.
         Why this matters: They are baked into the agent version, so dropping them
-            silently serves results from the wrong market/language/recency.
-        Setup summary: Patch the runner, run a request carrying all three knobs.
+            silently serves results from the wrong market or recency window.
+        Setup summary: Patch the runner, run a request carrying both knobs.
         """
         mock_client = MagicMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -226,15 +227,71 @@ class TestBingAgentSearchService:
             ),
         ):
             await BingAgentSearchService().search(
-                _bing_request(market="fr-CH", set_lang="fr", freshness="Week"),
+                _bing_request(market="fr-CH", freshness="Week"),
             )
 
         assert recorded["grounding"] == BingGroundingConfiguration(
             fetch_size=5,
             market="fr-CH",
-            set_lang="fr",
             freshness="Week",
         )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("requested_market", "expected_market"),
+        [(None, "fr-FR"), ("de-CH", "de-CH")],
+    )
+    async def test_deployment_default_market_fills_a_blank_request(
+        self,
+        requested_market: str | None,
+        expected_market: str,
+        bing_env: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify ``BING_AGENT_DEFAULT_MARKET`` applies to requests without a market.
+        Why this matters: A deployment serving one country pins its market once
+            rather than per space, and the request's own market must still win.
+        Setup summary: Patch the deployment default and record the grounding used.
+        """
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", "fr-FR"
+        )
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+        recorded: dict[str, Any] = {}
+
+        async def _recording_stream(
+            *_args: Any,
+            **kwargs: Any,
+        ) -> AsyncIterator[tuple[str, Any]]:
+            recorded.update(kwargs)
+            yield "agent answer text", {}
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=_recording_stream,
+            ),
+        ):
+            await BingAgentSearchService().search(
+                _bing_request(market=requested_market),
+            )
+
+        assert recorded["grounding"].market == expected_market
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -266,13 +323,12 @@ class TestGetBingGroundingTool:
         assert configs[0].count == 7
 
     @pytest.mark.ai
-    def test_forwards_market_set_lang_and_freshness(self, bing_env: None) -> None:
+    def test_forwards_market_and_freshness(self, bing_env: None) -> None:
         tool = get_bing_grounding_tool(
-            _grounding(market="fr-CH", set_lang="fr", freshness="Week"),
+            _grounding(market="fr-CH", freshness="Week"),
         )
         config = tool.bing_grounding.search_configurations[0]
         assert config.market == "fr-CH"
-        assert config.set_lang == "fr"
         assert config.freshness == "Week"
 
     @pytest.mark.ai
@@ -339,7 +395,6 @@ class TestConfigHashAndAgentName:
         "knob",
         [
             {"market": "fr-CH"},
-            {"set_lang": "fr"},
             {"freshness": "Week"},
         ],
     )

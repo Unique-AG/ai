@@ -9,7 +9,6 @@ from unique_search_proxy_core.agent_engines.base import DEFAULT_GENERATION_INSTR
 from unique_search_proxy_core.agent_engines.bing.schema import (
     BingFreshnessPreset,
     BingMarket,
-    BingSetLang,
 )
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
 from unique_search_proxy_core.crawlers.jina.schema import (
@@ -185,8 +184,7 @@ class BingAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
         timeout: int = 120,
         fetch_size: int = 5,
         market: BingMarket | None = None,
-        set_lang: BingSetLang | None = None,
-        freshness: BingFreshnessPreset | str | None = None,
+        freshness: BingFreshnessPreset | None = None,
     ) -> AgentSearchResponse:
         return await self._call(
             query=query,
@@ -195,7 +193,6 @@ class BingAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
             timeout=timeout,
             fetch_size=fetch_size,
             market=market,
-            set_lang=set_lang,
             freshness=freshness,
         )
 
@@ -241,8 +238,7 @@ class BingAgentSearchStreamEndpoint(_TypedStreamEndpoint):
         timeout: int = 120,
         fetch_size: int = 5,
         market: BingMarket | None = None,
-        set_lang: BingSetLang | None = None,
-        freshness: BingFreshnessPreset | str | None = None,
+        freshness: BingFreshnessPreset | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         async for event in self._call(
             query=query,
@@ -251,7 +247,6 @@ class BingAgentSearchStreamEndpoint(_TypedStreamEndpoint):
             timeout=timeout,
             fetch_size=fetch_size,
             market=market,
-            set_lang=set_lang,
             freshness=freshness,
         ):
             yield event

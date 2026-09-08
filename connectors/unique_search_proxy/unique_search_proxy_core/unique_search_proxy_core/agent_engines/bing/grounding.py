@@ -24,7 +24,6 @@ class BingGroundingConfiguration:
 
     fetch_size: int
     market: str | None = None
-    set_lang: str | None = None
     freshness: str | None = None
 
     def hash_payload(self) -> str:

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, ClassVar, Literal, TypeAlias
+from typing import Annotated, Any, ClassVar, Literal, Mapping, get_args
 
-from pydantic import Field, GetCoreSchemaHandler, field_validator
-from pydantic_core import CoreSchema, core_schema
+from pydantic import Field, GetJsonSchemaHandler, field_validator
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.agent_engines.base import (
@@ -13,95 +14,50 @@ from unique_search_proxy_core.agent_engines.base import (
 from unique_search_proxy_core.agent_engines.bing.enums import (
     BingFreshnessPreset,
     BingMarket,
-    BingSetLang,
 )
-from unique_search_proxy_core.agent_engines.bing.settings import (
-    bing_agent_env_settings,
-)
-from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
-from unique_search_proxy_core.param_policy.ui_tags import dynamic_enforced_by_infra
-from unique_search_proxy_core.schema import DeactivatedNone
 
-_BING_DOCS_BASE_URL = (
-    "https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/"
-    "bing-web-search/reference"
-)
-_BING_QUERY_PARAMS_DOCS_URL = f"{_BING_DOCS_BASE_URL}/query-parameters"
-_BING_MARKET_CODES_DOCS_URL = f"{_BING_DOCS_BASE_URL}/market-codes"
+#: Admin-facing labels for the recency presets, whose wire values are terse.
+_FRESHNESS_PRESET_TITLES: Mapping[str, str] = {
+    "Day": "Past 24 hours",
+    "Week": "Past 7 days",
+    "Month": "Past 30 days",
+}
 
 
-_FRESHNESS_DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}(?:\.\.\d{4}-\d{2}-\d{2})?$"
+def _single_dropdown(
+    property_schema: JsonSchemaValue,
+    *,
+    values: tuple[Any, ...],
+    blank_title: str,
+    titles: Mapping[Any, str] | None = None,
+) -> JsonSchemaValue:
+    """Render an optional literal as one dropdown instead of a union selector.
 
-
-class BingFreshnessDate(str):
-    """A single ``YYYY-MM-DD`` day or an inclusive ``YYYY-MM-DD..YYYY-MM-DD`` span.
-
-    The constraint lives in the type instead of ``Field(pattern=...)`` because
-    request-model derivation strips ``Annotated`` metadata off union branches,
-    which would leave exactly the surface the LLM writes to unchecked. Freshness
-    is baked into the hashed agent name, so free text here would mint a Foundry
-    agent version per distinct string while Bing ignored the value itself.
+    ``Literal[...] | None`` reaches RJSF as an ``anyOf``, drawn as a branch
+    picker wrapping a second control; a single ``oneOf`` of constants collapses
+    that into one select whose first entry is the blank value. ``titles``
+    relabels options whose wire values are not admin-facing copy.
     """
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls,
-        source: type[Any],
-        handler: GetCoreSchemaHandler,
-    ) -> CoreSchema:
-        return core_schema.str_schema(pattern=_FRESHNESS_DATE_PATTERN)
-
-
-MarketOrNone: TypeAlias = Annotated[BingMarket, Field(title="Market")] | DeactivatedNone
-SetLangOrNone: TypeAlias = (
-    Annotated[BingSetLang, Field(title="Language")] | DeactivatedNone
-)
-FreshnessOrNone: TypeAlias = (
-    Annotated[BingFreshnessPreset, Field(title="Preset")]
-    | Annotated[BingFreshnessDate, Field(title="Day or range")]
-    | DeactivatedNone
-)
-
-ExposableMarket = ExposableParam[MarketOrNone]
-ExposableSetLang = ExposableParam[SetLangOrNone]
-ExposableFreshness = ExposableParam[FreshnessOrNone]
-
-
-def _default_market() -> ExposableMarket:
-    return ExposableMarket(
-        expose=False,
-        value=bing_agent_env_settings.market.default,
-    )
-
-
-def _market_is_enforced() -> bool:
-    return bing_agent_env_settings.market.enforce
-
-
-EnforcedExposableMarket = Annotated[
-    ExposableMarket,
-    dynamic_enforced_by_infra(
-        _market_is_enforced,
-        help=(
-            "Market is pinned for this deployment by "
-            '`BING_AGENT_MARKET={"default": "<mkt>", "enforce": true}`.'
+    schema = dict(property_schema)
+    schema.pop("anyOf", None)
+    schema["type"] = ["string", "null"]
+    schema["oneOf"] = [
+        {"const": None, "title": blank_title},
+        *(
+            {"const": value, "title": (titles or {}).get(value, value)}
+            for value in values
         ),
-    ),
-]
-
-# The grounding knobs are not cleared for release yet, so they are kept out of
-# the admin form instead of being removed: the fields, the values stored configs
-# already carry and the runtime path stay intact, but with no widget to render,
-# no admin can pin a value or expose a knob to the LLM. Drop the tag to release.
-_hidden_until_released = RJSFMetaTag.SpecialWidget.hidden()
-
-HiddenExposableMarket = Annotated[EnforcedExposableMarket, _hidden_until_released]
-HiddenExposableSetLang = Annotated[ExposableSetLang, _hidden_until_released]
-HiddenExposableFreshness = Annotated[ExposableFreshness, _hidden_until_released]
+    ]
+    return schema
 
 
 class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
-    """Deployment + request defaults for Bing grounding via Azure AI Projects."""
+    """Deployment + request defaults for Bing grounding via Azure AI Projects.
+
+    The grounding knobs are fixed values chosen by an admin: whatever is set
+    here applies to every search in the space and is never offered to the LLM
+    to steer per call.
+    """
 
     _request_model_name: ClassVar[str] = "BingAgentSearchRequest"
     _exposed_params_model_name: ClassVar[str] = "BingAgentExposedParams"
@@ -119,53 +75,75 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         le=50,
         description="Maximum number of Bing grounding results per query",
     )
-    market: HiddenExposableMarket = Field(
-        default=_default_market(),
-        title="Market",
+    market: BingMarket | None = Field(
+        default=None,
+        title="Preferred region and language",
         description=(
-            "Country/region **and** language the results come from (Bing `mkt`), "
-            "as `<language>-<country>`: `de-CH` returns German-language Swiss "
-            "results, `fr-CH` French-language Swiss ones, `en-GB` UK English. "
-            "Set it when the question is about a specific country or expects an "
-            "answer in that country's language. Left unset, Bing guesses the "
-            "market from the caller and may answer from another country. "
-            f"[Market codes]({_BING_MARKET_CODES_DOCS_URL})"
+            "Region and language Bing should favour, as `<language>-<country>`. "
+            "Examples: `de-CH`, `fr-CH`, `fr-FR`. This biases the results rather "
+            "than restricting them — sources from other regions can still "
+            "appear. If left blank, the deployment default set in the "
+            "environment variable `BING_AGENT_DEFAULT_MARKET` applies. If left "
+            "blank and the environment variable is not set, Bing may favour the "
+            "region where the underlying Microsoft Foundry resource is deployed."
         ),
     )
-    set_lang: HiddenExposableSetLang = Field(
-        default=ExposableSetLang(expose=False, value=None),
-        title="Interface language",
+    freshness: BingFreshnessPreset | None = Field(
+        default=None,
+        title="Only results published recently",
         description=(
-            "Language of Bing's own interface strings in the response (Bing "
-            "`setLang`), e.g. `de`, `fr`, `pt-br`. It changes neither which "
-            "results come back nor the language they are written in — use the "
-            "market for that. Bing falls back to English for codes it does not "
-            "support. "
-            f"[Supported languages]({_BING_MARKET_CODES_DOCS_URL}#bing-supported-language-codes)"
-        ),
-    )
-    freshness: HiddenExposableFreshness = Field(
-        default=ExposableFreshness(expose=False, value=None),
-        title="Freshness",
-        description=(
-            "Keep only pages Bing discovered recently (Bing `freshness`): `Day` "
-            "(last 24 hours), `Week` (last 7 days), `Month` (last 30 days), a "
-            "single `YYYY-MM-DD` day, or an inclusive "
-            "`YYYY-MM-DD..YYYY-MM-DD` range. Use it for news and fast-moving "
-            "topics; leave it unset for background or reference questions, where "
-            "it would hide older pages that are still correct. "
-            f"[Accepted values]({_BING_QUERY_PARAMS_DOCS_URL}#freshness)"
+            "Only includes results Bing discovered within the chosen timeframe, "
+            "counted back from each search. This is a hard filter and it applies "
+            "to every search in the space."
         ),
     )
 
-    @field_validator("market", mode="before")
+    # Spaces saved on 2026.36 hold an ExposableParam `{expose, value}` object
+    # under `market` and `freshness`, where these fields now expect a scalar.
+    # node-chat data migration `20260908120000_drop_bing_grounding_exposable_params`
+    # deletes those keys; the validator below reads the same shape as unset for
+    # any row the migration has not reached, because an invalid tool config
+    # silently disables the whole tool instead of reporting the problem.
+    @field_validator("market", "freshness", mode="before")
     @classmethod
-    def validate_market(cls, v: ExposableMarket) -> ExposableMarket:
-        if bing_agent_env_settings.market.enforce:
-            return ExposableMarket(
-                expose=False, value=bing_agent_env_settings.market.default
+    def _coerce_unset(cls, value: Any) -> Any:
+        """Read a cleared control, or a retired `{expose, value}` object, as unset."""
+        if isinstance(value, Mapping):
+            return None
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        core_schema: CoreSchema,
+        handler: GetJsonSchemaHandler,
+    ) -> JsonSchemaValue:
+        """Keep the optional grounding knobs to one control each in the admin form."""
+        schema = handler(core_schema)
+        properties = schema.get("properties")
+        if not isinstance(properties, dict):
+            return schema
+
+        market = properties.get("market")
+        if isinstance(market, dict):
+            properties["market"] = _single_dropdown(
+                market,
+                values=get_args(BingMarket),
+                blank_title="Not set",
             )
-        return v
+
+        freshness = properties.get("freshness")
+        if isinstance(freshness, dict):
+            properties["freshness"] = _single_dropdown(
+                freshness,
+                values=get_args(BingFreshnessPreset),
+                blank_title="Not set",
+                titles=_FRESHNESS_PRESET_TITLES,
+            )
+
+        return schema
 
 
 BingAgentSearchRequest = BingAgentConfig.request_model()
@@ -174,11 +152,6 @@ BingAgentSearchRequest = BingAgentConfig.request_model()
 __all__ = [
     "BingAgentConfig",
     "BingAgentSearchRequest",
-    "BingFreshnessDate",
     "BingFreshnessPreset",
     "BingMarket",
-    "BingSetLang",
-    "ExposableFreshness",
-    "ExposableMarket",
-    "ExposableSetLang",
 ]
