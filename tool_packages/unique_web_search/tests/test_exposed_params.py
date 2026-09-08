@@ -163,7 +163,7 @@ class TestAgentEngineExposedParams:
             own Foundry agent version.
         Setup summary: Configure both knobs, build the V3 tool model, inspect props.
         """
-        config = BingSearchConfig(search_market="en-US", search_freshness="Week")
+        config = BingSearchConfig(market="en-US", freshness="Week")
 
         exposed = config.exposed_params_model()
         tool_model = WebSearchV3ToolParameters.with_exposed_params(exposed)
@@ -172,8 +172,8 @@ class TestAgentEngineExposedParams:
         ]
 
         assert exposed is None
-        assert "searchMarket" not in payload_props
-        assert "searchFreshness" not in payload_props
+        assert "market" not in payload_props
+        assert "freshness" not in payload_props
 
     @pytest.mark.ai
     def test_tool_schema_unchanged_when_nothing_configured(self) -> None:

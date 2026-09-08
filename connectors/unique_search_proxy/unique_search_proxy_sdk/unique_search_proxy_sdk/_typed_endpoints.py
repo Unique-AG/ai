@@ -183,8 +183,8 @@ class BingAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
         generation_instructions: str = DEFAULT_GENERATION_INSTRUCTIONS,
         timeout: int = 120,
         fetch_size: int = 5,
-        search_market: BingMarket | None = None,
-        search_freshness: BingFreshnessPreset | None = None,
+        market: BingMarket | None = None,
+        freshness: BingFreshnessPreset | None = None,
     ) -> AgentSearchResponse:
         return await self._call(
             query=query,
@@ -192,8 +192,8 @@ class BingAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
             generation_instructions=generation_instructions,
             timeout=timeout,
             fetch_size=fetch_size,
-            search_market=search_market,
-            search_freshness=search_freshness,
+            market=market,
+            freshness=freshness,
         )
 
 
@@ -237,8 +237,8 @@ class BingAgentSearchStreamEndpoint(_TypedStreamEndpoint):
         generation_instructions: str = DEFAULT_GENERATION_INSTRUCTIONS,
         timeout: int = 120,
         fetch_size: int = 5,
-        search_market: BingMarket | None = None,
-        search_freshness: BingFreshnessPreset | None = None,
+        market: BingMarket | None = None,
+        freshness: BingFreshnessPreset | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         async for event in self._call(
             query=query,
@@ -246,8 +246,8 @@ class BingAgentSearchStreamEndpoint(_TypedStreamEndpoint):
             generation_instructions=generation_instructions,
             timeout=timeout,
             fetch_size=fetch_size,
-            search_market=search_market,
-            search_freshness=search_freshness,
+            market=market,
+            freshness=freshness,
         ):
             yield event
 

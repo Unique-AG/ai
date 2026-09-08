@@ -227,7 +227,7 @@ class TestBingAgentSearchService:
             ),
         ):
             await BingAgentSearchService().search(
-                _bing_request(search_market="fr-CH", search_freshness="Week"),
+                _bing_request(market="fr-CH", freshness="Week"),
             )
 
         assert recorded["grounding"] == BingGroundingConfiguration(
@@ -288,7 +288,7 @@ class TestBingAgentSearchService:
             ),
         ):
             await BingAgentSearchService().search(
-                _bing_request(search_market=requested_market),
+                _bing_request(market=requested_market),
             )
 
         assert recorded["grounding"].market == expected_market

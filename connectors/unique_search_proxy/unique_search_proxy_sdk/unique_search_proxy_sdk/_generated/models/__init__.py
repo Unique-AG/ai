@@ -3,12 +3,10 @@
 from .agent_search_response import AgentSearchResponse
 from .basic_crawl_request import BasicCrawlRequest
 from .bing_agent_search_request import BingAgentSearchRequest
-from .bing_agent_search_request_search_freshness_type_0 import (
-    BingAgentSearchRequestSearchFreshnessType0,
+from .bing_agent_search_request_freshness_type_0 import (
+    BingAgentSearchRequestFreshnessType0,
 )
-from .bing_agent_search_request_search_market_type_0 import (
-    BingAgentSearchRequestSearchMarketType0,
-)
+from .bing_agent_search_request_market_type_0 import BingAgentSearchRequestMarketType0
 from .brave_search_request import BraveSearchRequest
 from .brave_search_request_country_type_0 import BraveSearchRequestCountryType0
 from .brave_search_request_result_filter_type_0_item import (
@@ -62,8 +60,8 @@ __all__ = (
     "AgentSearchResponse",
     "BasicCrawlRequest",
     "BingAgentSearchRequest",
-    "BingAgentSearchRequestSearchFreshnessType0",
-    "BingAgentSearchRequestSearchMarketType0",
+    "BingAgentSearchRequestFreshnessType0",
+    "BingAgentSearchRequestMarketType0",
     "BraveSearchRequest",
     "BraveSearchRequestCountryType0",
     "BraveSearchRequestResultFilterType0Item",

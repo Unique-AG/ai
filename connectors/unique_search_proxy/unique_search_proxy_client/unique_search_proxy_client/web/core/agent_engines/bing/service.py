@@ -73,8 +73,8 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
             )
             grounding = BingGroundingConfiguration(
                 fetch_size=request.fetch_size,
-                market=resolve_market(request.search_market),
-                freshness=request.search_freshness,
+                market=resolve_market(request.market),
+                freshness=request.freshness,
             )
             async with get_credentials() as credential:
                 async with get_project_client(

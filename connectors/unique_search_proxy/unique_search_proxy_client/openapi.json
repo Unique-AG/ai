@@ -867,7 +867,7 @@
             "description": "Maximum number of Bing grounding results per query",
             "default": 5
           },
-          "searchMarket": {
+          "market": {
             "anyOf": [
               {
                 "type": "string",
@@ -919,7 +919,7 @@
             "title": "Preferred region and language",
             "description": "Region and language Bing should favour, as `<language>-<country>`. Examples: `de-CH`, `fr-CH`, `fr-FR`. This biases the results rather than restricting them \u2014 sources from other regions can still appear. If left blank, the deployment default set in the environment variable `BING_AGENT_DEFAULT_MARKET` applies. If left blank and the environment variable is not set, Bing may favour the region where the underlying Microsoft Foundry resource is deployed."
           },
-          "searchFreshness": {
+          "freshness": {
             "anyOf": [
               {
                 "type": "string",
@@ -934,7 +934,7 @@
               }
             ],
             "title": "Only results published recently",
-            "description": "Drops anything Bing discovered before a cut-off, counted back from each search. Unlike the region, this really does filter, and it applies to **every** search in the space \u2014 set it only for news spaces, since elsewhere it hides older pages that are still correct. [Accepted `freshness` values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-parameters#freshness)"
+            "description": "Only includes results Bing discovered within the chosen timeframe, counted back from each search. This is a hard filter and it applies to every search in the space."
           }
         },
         "type": "object",

@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class BingAgentSearchRequestSearchMarketType0(str, Enum):
+class BingAgentSearchRequestMarketType0(str, Enum):
     DA_DK = "da-DK"
     DE_AT = "de-AT"
     DE_CH = "de-CH"

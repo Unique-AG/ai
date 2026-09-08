@@ -182,7 +182,7 @@ class TestBingLegacySearch:
         Setup summary: Configure both knobs; assert the grounding configuration.
         """
         # Arrange
-        config = BingSearchConfig(search_market="fr-CH", search_freshness="Week")
+        config = BingSearchConfig(market="fr-CH", freshness="Week")
         _, create_and_process_run = self._patch_bing_runtime(mocker, [])
         search = BingSearch(config, Mock())
 
@@ -278,7 +278,7 @@ class TestAgentProxyInvocation:
         """
         # Arrange
         config = BingSearchConfig.model_validate(
-            {"searchMarket": "de-CH", "searchFreshness": "Week"},
+            {"market": "de-CH", "freshness": "Week"},
         )
         search = BingSearch(config, Mock())
 
@@ -286,8 +286,8 @@ class TestAgentProxyInvocation:
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
 
         # Assert
-        assert invocation["search_market"] == "de-CH"
-        assert invocation["search_freshness"] == "Week"
+        assert invocation["market"] == "de-CH"
+        assert invocation["freshness"] == "Week"
 
     @pytest.mark.ai
     def test_agent_proxy_invocation__fills_blank_market_from_the_environment(
@@ -310,7 +310,7 @@ class TestAgentProxyInvocation:
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
 
         # Assert
-        assert invocation["search_market"] == "fr-FR"
+        assert invocation["market"] == "fr-FR"
 
     @pytest.mark.ai
     def test_agent_proxy_invocation__omits_market_when_nothing_is_configured(
@@ -326,7 +326,7 @@ class TestAgentProxyInvocation:
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
 
         # Assert
-        assert "search_market" not in invocation
+        assert "market" not in invocation
 
 
 class TestGetSearchEngineModelConfig:

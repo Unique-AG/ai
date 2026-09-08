@@ -16,12 +16,6 @@ from unique_search_proxy_core.agent_engines.bing.enums import (
     BingMarket,
 )
 
-_BING_DOCS_BASE_URL = (
-    "https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/"
-    "bing-web-search/reference"
-)
-_BING_QUERY_PARAMS_DOCS_URL = f"{_BING_DOCS_BASE_URL}/query-parameters"
-
 #: Admin-facing labels for the recency presets, whose wire values are terse.
 _FRESHNESS_PRESET_TITLES: Mapping[str, str] = {
     "Day": "Past 24 hours",
@@ -81,7 +75,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         le=50,
         description="Maximum number of Bing grounding results per query",
     )
-    search_market: BingMarket | None = Field(
+    market: BingMarket | None = Field(
         default=None,
         title="Preferred region and language",
         description=(
@@ -94,33 +88,28 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
             "region where the underlying Microsoft Foundry resource is deployed."
         ),
     )
-    search_freshness: BingFreshnessPreset | None = Field(
+    freshness: BingFreshnessPreset | None = Field(
         default=None,
         title="Only results published recently",
         description=(
-            "Drops anything Bing discovered before a cut-off, counted back from "
-            "each search. Unlike the region, this really does filter, and it "
-            "applies to **every** search in the space — set it only for news "
-            "spaces, since elsewhere it hides older pages that are still "
-            "correct. "
-            f"[Accepted `freshness` values]({_BING_QUERY_PARAMS_DOCS_URL}#freshness)"
+            "Only includes results Bing discovered within the chosen timeframe, "
+            "counted back from each search. This is a hard filter and it applies "
+            "to every search in the space."
         ),
     )
 
-    # Burned config keys — never reintroduce a Bing field under one of these.
-    #
-    # 2026.36 briefly shipped `market` / `freshness` / `setLang` holding
-    # ExposableParam `{expose, value}` objects, and spaces saved then still carry
-    # that shape. A scalar field reusing one of these names would meet a dict at
-    # validation, and an invalid tool config silently disables the whole tool.
-    _BURNED_CONFIG_KEYS: ClassVar[frozenset[str]] = frozenset(
-        {"market", "freshness", "setLang"},
-    )
-
-    @field_validator("search_market", "search_freshness", mode="before")
+    # Spaces saved on 2026.36 hold an ExposableParam `{expose, value}` object
+    # under `market` and `freshness`, where these fields now expect a scalar.
+    # node-chat data migration `20260908120000_drop_bing_grounding_exposable_params`
+    # deletes those keys; the validator below reads the same shape as unset for
+    # any row the migration has not reached, because an invalid tool config
+    # silently disables the whole tool instead of reporting the problem.
+    @field_validator("market", "freshness", mode="before")
     @classmethod
-    def _blank_is_unset(cls, value: Any) -> Any:
-        """Read a control cleared to ``""`` as unset, not a vocabulary error."""
+    def _coerce_unset(cls, value: Any) -> Any:
+        """Read a cleared control, or a retired `{expose, value}` object, as unset."""
+        if isinstance(value, Mapping):
+            return None
         if isinstance(value, str) and not value.strip():
             return None
         return value
@@ -137,17 +126,17 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
         if not isinstance(properties, dict):
             return schema
 
-        market = properties.get("searchMarket")
+        market = properties.get("market")
         if isinstance(market, dict):
-            properties["searchMarket"] = _single_dropdown(
+            properties["market"] = _single_dropdown(
                 market,
                 values=get_args(BingMarket),
                 blank_title="Not set",
             )
 
-        freshness = properties.get("searchFreshness")
+        freshness = properties.get("freshness")
         if isinstance(freshness, dict):
-            properties["searchFreshness"] = _single_dropdown(
+            properties["freshness"] = _single_dropdown(
                 freshness,
                 values=get_args(BingFreshnessPreset),
                 blank_title="Not set",

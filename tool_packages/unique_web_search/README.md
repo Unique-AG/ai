@@ -42,7 +42,7 @@ An upstream AI agent / grounded model searches and returns opaque text that this
 
 | Engine | Proxy | Notes |
 |--------|-------|-------|
-| Bing (Azure AI Foundry grounding) | legacy + proxy | Configurable `requires_scraping`; fixed `searchMarket` / `searchFreshness` chosen by an admin, with `searchMarket` falling back to `BING_AGENT_DEFAULT_MARKET` |
+| Bing (Azure AI Foundry grounding) | legacy + proxy | Configurable `requires_scraping`; fixed `market` / `freshness` chosen by an admin, with `market` falling back to `BING_AGENT_DEFAULT_MARKET` |
 | VertexAI (Gemini grounding) | legacy + proxy | Configurable `requires_scraping` |
 
 Bing's grounding knobs are baked into the hashed Foundry agent name, so changing

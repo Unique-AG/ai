@@ -152,8 +152,8 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 | Field | Notes |
 |-------|-------|
 | `fetch_size` | Bing result count (`count` on the tool configuration) |
-| `search_market` | Region **and** language Bing favours (Bing `mkt`). A bias, not a filter — other regions can still appear |
-| `search_freshness` | Recency cut-off applied to every search in the space (Bing `freshness`): `Day` / `Week` / `Month` |
+| `market` | Region **and** language Bing favours (Bing `mkt`). A bias, not a filter — other regions can still appear |
+| `freshness` | Recency cut-off applied to every search in the space (Bing `freshness`): `Day` / `Week` / `Month` |
 
 Both are optional **fixed** values an admin picks for the whole space and are
 never offered to the LLM, and both are restricted to Bing's documented values so
@@ -171,7 +171,15 @@ admin reading "language" would set it expecting French results and leave `mkt`
 unset. Beyond these, Bing grounding has no `safeSearch`, `responseFilter`, or
 `answerCount`, so `count` / `market` / `freshness` is the whole useful surface.
 
-A blank `search_market` falls back to the `BING_AGENT_DEFAULT_MARKET` environment
+Spaces saved on 2026.36 hold an `ExposableParam` `{expose, value}` object under
+both keys. node-chat data migration
+`20260908120000_drop_bing_grounding_exposable_params` deletes them, and
+`BingAgentConfig` reads that shape as unset for rows the migration has not
+reached — an invalid tool config disables the whole tool silently, so tolerating
+it is not optional. The migration deletes rather than unwraps, which keeps a
+rollback to 2026.36 valid.
+
+A blank `market` falls back to the `BING_AGENT_DEFAULT_MARKET` environment
 variable (below), so a deployment serving a single country pins its market once
 instead of per space. With neither set, `mkt` is left off the call entirely and
 Bing may favour the region where the underlying Microsoft Foundry resource is

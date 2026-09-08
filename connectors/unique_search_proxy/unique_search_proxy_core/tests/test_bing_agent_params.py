@@ -47,7 +47,7 @@ class TestBingAgentAdminForm:
         """
         properties = BingAgentConfig.model_json_schema()["properties"]
 
-        market = properties["searchMarket"]
+        market = properties["market"]
         assert "anyOf" not in market
         assert market["type"] == ["string", "null"]
         assert market["oneOf"][0] == {"const": None, "title": "Not set"}
@@ -55,7 +55,7 @@ class TestBingAgentAdminForm:
             get_args(BingMarket)
         )
 
-        freshness = properties["searchFreshness"]
+        freshness = properties["freshness"]
         assert "anyOf" not in freshness
         assert freshness["type"] == ["string", "null"]
         assert freshness["oneOf"][0] == {"const": None, "title": "Not set"}
@@ -72,7 +72,7 @@ class TestBingAgentAdminForm:
             dropdown is the only place an admin sees them.
         Setup summary: Inspect the titles on the freshness ``oneOf`` branches.
         """
-        freshness = BingAgentConfig.model_json_schema()["properties"]["searchFreshness"]
+        freshness = BingAgentConfig.model_json_schema()["properties"]["freshness"]
 
         assert {choice["const"]: choice["title"] for choice in freshness["oneOf"]} == {
             None: "Not set",
@@ -106,19 +106,19 @@ class TestBingAgentAdminForm:
         """
         ui_schema = ui_schema_for_model(BingAgentConfig, key_transform=camelize)
 
-        for knob in ("searchMarket", "searchFreshness"):
+        for knob in ("market", "freshness"):
             assert ui_schema.get(knob, {}).get("ui:widget") != "hidden"
 
     @pytest.mark.ai
     def test_defaults_leave_every_knob_blank(self) -> None:
         saved = BingAgentConfig().model_dump(mode="json", by_alias=True)
 
-        assert saved["searchMarket"] is None
-        assert saved["searchFreshness"] is None
+        assert saved["market"] is None
+        assert saved["freshness"] is None
 
 
 class TestStoredConfigCompatibility:
-    """The 2026.36 keys are retired, not reshaped — that is what keeps rollback safe."""
+    """A space saved on 2026.36 must keep working, whatever shape it stored."""
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
@@ -128,60 +128,62 @@ class TestStoredConfigCompatibility:
             {"market": {"expose": False, "value": "fr-CH"}},
             {"market": {"expose": True, "value": "de-CH"}},
             {"freshness": {"expose": False, "value": "Week"}},
-            {"setLang": {"expose": False, "value": "de"}},
-            # Not burned keys, but still present on pre-#2263 rows.
-            {"agentId": "legacy-agent", "endpoint": "https://old.example.com"},
             {"market": {}, "freshness": {}},
-            {"market": None, "freshness": None, "setLang": None},
+            {"market": None, "freshness": None},
+            # Doubly wrapped, as an ExposableParam of an ExposableParam would be.
+            {"market": {"expose": False, "value": {"expose": False, "value": "de"}}},
         ],
     )
-    def test_retired_keys_are_ignored_not_reshaped(
+    def test_legacy_exposable_shape_reads_as_unset(
         self,
         legacy: dict[str, object],
     ) -> None:
         """
-        Purpose: Verify every config key retired on 2026.36 validates as an extra.
-        Why this matters: A field reusing one of these names would inherit the
-            stale wrapper shape, and ``ToolBuildConfig`` answers an invalid tool
-            config by silently disabling the whole tool rather than raising. The
-            names are recorded in ``_BURNED_CONFIG_KEYS`` for that reason.
-        Setup summary: Validate each retired shape and assert it is dropped.
+        Purpose: Verify a stored ``{expose, value}`` object validates as unset.
+        Why this matters: ``market`` and ``freshness`` now hold a scalar, so a
+            space saved on 2026.36 presents a dict where one is expected. The
+            data migration clears those keys, but the runtime cannot assume it
+            has already run: ``ToolBuildConfig`` answers an invalid tool config
+            by silently disabling the whole tool rather than raising, so an
+            unmigrated row would take Web Search out of the space with no error.
+        Setup summary: Validate each stored shape and assert both knobs are unset.
         """
         config = BingAgentConfig.model_validate(legacy)
 
-        assert config.search_market is None
-        assert config.search_freshness is None
-        for key in legacy:
-            assert key not in config.model_dump(by_alias=True)
+        assert config.market is None
+        assert config.freshness is None
 
     @pytest.mark.ai
-    def test_current_keys_are_not_burned_names(self) -> None:
+    def test_a_full_2026_36_config_still_builds(self) -> None:
         """
-        Purpose: Verify no live field reuses a key retired on an earlier release.
-        Why this matters: Reuse is the one way the rename stops protecting us, and
-            it would surface as a whole tool silently disabling for spaces saved
-            on 2026.36 — not as a validation error anyone would see.
-        Setup summary: Compare the config's JSON keys against the burned set.
+        Purpose: Verify a complete 2026.36 stored config validates unchanged.
+        Why this matters: This is the row an upgrading client actually has. The
+            field-level cases above cover the knobs in isolation; this one proves
+            nothing else in that payload — including the retired ``setLang`` and
+            the pre-#2263 ``agentId`` / ``endpoint`` — trips validation.
+        Setup summary: Validate the payload the previous release wrote and check
+            the surviving fields.
         """
-        keys = {
-            field.alias or name for name, field in BingAgentConfig.model_fields.items()
+        stored = {
+            "engine": "bing",
+            "fetchSize": 7,
+            "agentId": "legacy-agent",
+            "endpoint": "https://old.example.com",
+            "market": {"expose": False, "value": "de-CH"},
+            "setLang": {"expose": False, "value": "de"},
+            "freshness": {"expose": False, "value": None},
         }
 
-        assert keys.isdisjoint(BingAgentConfig._BURNED_CONFIG_KEYS)
+        config = BingAgentConfig.model_validate(stored)
+
+        assert config.fetch_size == 7
+        assert config.market is None
+        assert config.freshness is None
+        assert "setLang" not in config.model_dump(by_alias=True)
 
     @pytest.mark.ai
-    @pytest.mark.parametrize(
-        ("payload_key", "attribute"),
-        [
-            ("searchMarket", "search_market"),
-            ("searchFreshness", "search_freshness"),
-        ],
-    )
-    def test_blank_string_is_read_as_blank(
-        self,
-        payload_key: str,
-        attribute: str,
-    ) -> None:
+    @pytest.mark.parametrize("knob", ["market", "freshness"])
+    def test_blank_string_is_read_as_blank(self, knob: str) -> None:
         """
         Purpose: Verify a cleared control saves as "no fixed value".
         Why this matters: A cleared dropdown or text input can arrive as ``""``,
@@ -189,9 +191,9 @@ class TestStoredConfigCompatibility:
             for a knob the admin was allowed to leave unset.
         Setup summary: Validate each knob as an empty string.
         """
-        config = BingAgentConfig.model_validate({payload_key: ""})
+        config = BingAgentConfig.model_validate({knob: ""})
 
-        assert getattr(config, attribute) is None
+        assert getattr(config, knob) is None
 
 
 class TestDefaultMarketFromEnvironment:
@@ -293,11 +295,9 @@ class TestDefaultMarketFromEnvironment:
         """
         _patch_default_market(monkeypatch, "fr-FR")
 
-        assert BingAgentConfig().search_market is None
+        assert BingAgentConfig().market is None
         assert (
-            BingAgentConfig.model_json_schema()["properties"]["searchMarket"].get(
-                "default"
-            )
+            BingAgentConfig.model_json_schema()["properties"]["market"].get("default")
             is None
         )
 
@@ -305,44 +305,42 @@ class TestDefaultMarketFromEnvironment:
 class TestBingAgentRequestModel:
     @pytest.mark.ai
     def test_knobs_are_optional_request_fields(self) -> None:
-        assert {"search_market", "search_freshness"} <= set(
-            BingAgentSearchRequest.model_fields
-        )
+        assert {"market", "freshness"} <= set(BingAgentSearchRequest.model_fields)
         assert "set_lang" not in BingAgentSearchRequest.model_fields
         request = BingAgentSearchRequest.model_validate({"query": "x"})
-        assert request.search_market is None
-        assert request.search_freshness is None
+        assert request.market is None
+        assert request.freshness is None
 
     @pytest.mark.ai
     def test_camel_case_aliases_accepted(self) -> None:
         request = BingAgentSearchRequest.model_validate(
-            {"query": "x", "fetchSize": 7, "searchMarket": "fr-CH"},
+            {"query": "x", "fetchSize": 7, "market": "fr-CH"},
         )
         assert request.fetch_size == 7
-        assert request.search_market == "fr-CH"
+        assert request.market == "fr-CH"
 
     @pytest.mark.ai
     @pytest.mark.parametrize("freshness", ["Day", "Week", "Month"])
     def test_freshness_accepts_the_recency_presets(self, freshness: str) -> None:
         request = BingAgentSearchRequest.model_validate(
-            {"query": "x", "searchFreshness": freshness},
+            {"query": "x", "freshness": freshness},
         )
-        assert request.search_freshness == freshness
+        assert request.freshness == freshness
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
         ("field", "value"),
         [
-            ("searchMarket", "fr-XX"),
-            ("searchMarket", "french"),
-            ("searchMarket", "fr"),
-            ("searchFreshness", "recently"),
-            ("searchFreshness", "day"),
-            ("searchFreshness", "last week"),
+            ("market", "fr-XX"),
+            ("market", "french"),
+            ("market", "fr"),
+            ("freshness", "recently"),
+            ("freshness", "day"),
+            ("freshness", "last week"),
             # Absolute dates are Bing-valid but deliberately not offered: pinned
             # space-wide they freeze the space to a window that immediately rots.
-            ("searchFreshness", "2026-02-04"),
-            ("searchFreshness", "2026-01-01..2026-02-01"),
+            ("freshness", "2026-02-04"),
+            ("freshness", "2026-01-01..2026-02-01"),
         ],
     )
     def test_values_outside_bings_vocabulary_are_rejected(
@@ -369,20 +367,20 @@ class TestBingAgentRequestModel:
 class TestBingAgentMerge:
     @pytest.mark.ai
     def test_fixed_values_are_merged_into_the_request(self) -> None:
-        config = BingAgentConfig(search_market="fr-CH", search_freshness="Week")
+        config = BingAgentConfig(market="fr-CH", freshness="Week")
 
         request = config.merge({}, query="x")
 
         assert isinstance(request, BingAgentSearchRequest)
-        assert request.search_market == "fr-CH"
-        assert request.search_freshness == "Week"
+        assert request.market == "fr-CH"
+        assert request.freshness == "Week"
 
     @pytest.mark.ai
     def test_blank_knobs_are_dropped(self) -> None:
         request = BingAgentConfig().merge({}, query="x")
 
-        assert request.search_market is None
-        assert request.search_freshness is None
+        assert request.market is None
+        assert request.freshness is None
 
     @pytest.mark.ai
     def test_engine_injected_from_config(self) -> None:

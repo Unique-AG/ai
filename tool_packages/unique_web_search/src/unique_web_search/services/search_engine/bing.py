@@ -90,8 +90,8 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         """The Bing tool knobs this space has fixed, with the market resolved."""
         return BingGroundingConfiguration(
             fetch_size=self.config.fetch_size,
-            market=resolve_market(self.config.search_market),
-            freshness=self.config.search_freshness,
+            market=resolve_market(self.config.market),
+            freshness=self.config.freshness,
         )
 
     @override
@@ -102,9 +102,9 @@ class BingSearch(SearchEngine[BingSearchConfig]):
     ) -> dict[str, Any]:
         """Resolve the market here too, so the env default works on either service."""
         invocation = super()._agent_proxy_invocation(engine, params)
-        market = resolve_market(invocation.get("search_market"))
+        market = resolve_market(invocation.get("market"))
         if market is not None:
-            invocation["search_market"] = market
+            invocation["market"] = market
         return invocation
 
     @override

@@ -79,7 +79,7 @@ class TestAgentSearchRoute:
         self, client: TestClient, bing_env: None
     ) -> None:
         """
-        Purpose: Verify searchMarket/searchFreshness are accepted on the HTTP body.
+        Purpose: Verify market/freshness are accepted on the HTTP body.
         Why this matters: Callers configure them as camelCase JSON; a schema gap
             would surface as a 422 instead of a differently grounded search.
         Setup summary: POST a body carrying all three knobs; assert the parsed
@@ -104,15 +104,15 @@ class TestAgentSearchRoute:
             resp = client.post(
                 "/v1/agent-search",
                 json=_agent_search_body(
-                    searchMarket="fr-CH",
-                    searchFreshness="Week",
+                    market="fr-CH",
+                    freshness="Week",
                 ),
             )
 
         assert resp.status_code == 200
         request = mock_engine.search.await_args.args[0]
-        assert request.search_market == "fr-CH"
-        assert request.search_freshness == "Week"
+        assert request.market == "fr-CH"
+        assert request.freshness == "Week"
 
     @pytest.mark.ai
     def test_list_providers_includes_agent_engines(self, client: TestClient) -> None:
