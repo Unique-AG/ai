@@ -8,6 +8,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
+from unique_search_proxy_core.agent_engines.bing.settings import resolve_market
 from unique_search_proxy_core.agent_engines.resolve import (
     resolve_output_schema_for_engine,
 )
@@ -72,8 +73,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
             )
             grounding = BingGroundingConfiguration(
                 fetch_size=request.fetch_size,
-                market=request.market,
-                set_lang=request.set_lang,
+                market=resolve_market(request.market),
                 freshness=request.freshness,
             )
             async with get_credentials() as credential:

@@ -7,9 +7,6 @@ from .bing_agent_search_request_freshness_type_0 import (
     BingAgentSearchRequestFreshnessType0,
 )
 from .bing_agent_search_request_market_type_0 import BingAgentSearchRequestMarketType0
-from .bing_agent_search_request_set_lang_type_0 import (
-    BingAgentSearchRequestSetLangType0,
-)
 from .brave_search_request import BraveSearchRequest
 from .brave_search_request_country_type_0 import BraveSearchRequestCountryType0
 from .brave_search_request_result_filter_type_0_item import (
@@ -65,7 +62,6 @@ __all__ = (
     "BingAgentSearchRequest",
     "BingAgentSearchRequestFreshnessType0",
     "BingAgentSearchRequestMarketType0",
-    "BingAgentSearchRequestSetLangType0",
     "BraveSearchRequest",
     "BraveSearchRequestCountryType0",
     "BraveSearchRequestResultFilterType0Item",
