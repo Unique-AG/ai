@@ -24,11 +24,13 @@ from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import _parse_and_validate, _read_payload, cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
 from unique_sdk.cli.commands.scheduled_tasks import (
+    SCHEDULE_ERROR_PREFIX,
     cmd_schedule_create,
     cmd_schedule_delete,
     cmd_schedule_get,
     cmd_schedule_list,
     cmd_schedule_update,
+    is_error_output,
 )
 from unique_sdk.cli.commands.search import (
     _build_metadata_filter,
@@ -1955,6 +1957,10 @@ def _scheduled_task_obj(
 
 
 class TestScheduledTasks:
+    def test_is_error_output(self) -> None:
+        assert is_error_output(f"{SCHEDULE_ERROR_PREFIX}fail") is True
+        assert is_error_output("Deleted scheduled task task_abc") is False
+
     @patch("unique_sdk.ScheduledTask.list")
     def test_list_empty(self, mock: MagicMock) -> None:
         mock.return_value = []

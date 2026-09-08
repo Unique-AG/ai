@@ -8,6 +8,13 @@ import unique_sdk
 from unique_sdk.cli.formatting import format_scheduled_task, format_scheduled_tasks
 from unique_sdk.cli.state import ShellState
 
+SCHEDULE_ERROR_PREFIX = "schedule: "
+
+
+def is_error_output(output: str) -> bool:
+    """Return True if `output` is a schedule command error message."""
+    return output.startswith(SCHEDULE_ERROR_PREFIX)
+
 
 def cmd_schedule_list(state: ShellState) -> str:
     """List all scheduled tasks for the authenticated user."""
@@ -18,7 +25,7 @@ def cmd_schedule_list(state: ShellState) -> str:
         )
         return format_scheduled_tasks(tasks)
     except unique_sdk.APIError as e:
-        return f"schedule: {e}"
+        return f"{SCHEDULE_ERROR_PREFIX}{e}"
 
 
 def cmd_schedule_get(state: ShellState, task_id: str) -> str:
@@ -31,7 +38,7 @@ def cmd_schedule_get(state: ShellState, task_id: str) -> str:
         )
         return format_scheduled_task(task)
     except unique_sdk.APIError as e:
-        return f"schedule: {e}"
+        return f"{SCHEDULE_ERROR_PREFIX}{e}"
 
 
 def cmd_schedule_create(
@@ -62,7 +69,7 @@ def cmd_schedule_create(
         task_id = getattr(task, "id", "?")
         return f"Created scheduled task {task_id}\n\n{format_scheduled_task(task)}"
     except unique_sdk.APIError as e:
-        return f"schedule: {e}"
+        return f"{SCHEDULE_ERROR_PREFIX}{e}"
 
 
 def cmd_schedule_update(
@@ -90,7 +97,7 @@ def cmd_schedule_update(
             params["enabled"] = enabled
 
         if not params:
-            return "schedule: nothing to update (provide at least one option)"
+            return f"{SCHEDULE_ERROR_PREFIX}nothing to update (provide at least one option)"
 
         task = unique_sdk.ScheduledTask.modify(
             user_id=state.config.user_id,
@@ -100,7 +107,7 @@ def cmd_schedule_update(
         )
         return f"Updated scheduled task {task_id}\n\n{format_scheduled_task(task)}"
     except unique_sdk.APIError as e:
-        return f"schedule: {e}"
+        return f"{SCHEDULE_ERROR_PREFIX}{e}"
 
 
 def cmd_schedule_delete(state: ShellState, task_id: str) -> str:
@@ -114,4 +121,4 @@ def cmd_schedule_delete(state: ShellState, task_id: str) -> str:
         deleted_id = result.get("id", task_id) if hasattr(result, "get") else task_id
         return f"Deleted scheduled task {deleted_id}"
     except unique_sdk.APIError as e:
-        return f"schedule: {e}"
+        return f"{SCHEDULE_ERROR_PREFIX}{e}"
