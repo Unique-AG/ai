@@ -38,6 +38,9 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
         super().__init__(self.__class__.__name__)
         self._config = config
 
+    # `remove_from_text` does all the work, but the manager still calls `run` and
+    # `apply_postprocessing_to_response` on every turn and the base class raises
+    # NotImplementedError. So both must stay, even though they do nothing.
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
         return None

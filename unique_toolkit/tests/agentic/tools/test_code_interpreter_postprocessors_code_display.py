@@ -84,8 +84,8 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__ret
 async def test_show_executed_code_postprocessor__run__is_a_no_op() -> None:
     """
     Purpose: Verify run() does no work and returns None.
-    Why this matters: Nothing has to be resolved before apply_postprocessing_to_response
-    any more, so the turn should not pay for a sleep or a flag lookup here.
+    Why this matters: The manager calls run() on every turn and the base class raises
+    NotImplementedError, so this override must stay even though it does nothing.
     Setup summary: Call run() with an empty loop_response; assert it returns None.
     """
     # Arrange
