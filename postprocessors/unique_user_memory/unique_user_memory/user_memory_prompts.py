@@ -87,10 +87,6 @@ When a durable fact about the user's own work involves a client or
 counterparty, keep only a fully de-identified version: "runs quarterly
 portfolio reviews" is fine; "reviews the portfolio of J. Muster" is not.
 
-Public figures in their public capacity (politicians, executives,
-athletes) may be mentioned when the fact concerns publicly available
-public-role information and implies no client relationship.
-
 Also NEVER store, for anyone including the user: credentials, API keys,
 passwords, OTPs, payment card data, health-record details, or government
 ID numbers. If any of these appear in a conversation, ignore the value
