@@ -1167,7 +1167,7 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
                     ),
-                    info_cutoff_at=date(2026, 6, 1),
+                    info_cutoff_at=date(2026, 2, 16),
                     published_at=date(2026, 7, 9),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=0.0, max_temperature=1.0
@@ -2649,7 +2649,7 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
                     ),
-                    info_cutoff_at=date(2026, 6, 1),
+                    info_cutoff_at=date(2026, 2, 16),
                     published_at=date(2026, 7, 9),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=0.0, max_temperature=1.0

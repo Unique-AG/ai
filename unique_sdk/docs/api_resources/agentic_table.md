@@ -678,6 +678,7 @@ These mirror the public magic-table REST contract (`2023-12-06` / `node-chat`).
     - `companyId` (str) - Company ID
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `chatId` (str, optional) - Associated chat ID when present
+    - `userAbortedAt` (str | None, optional) - ISO 8601 timestamp when the user stopped an in-progress refresh (`stopMagicTableRefresh`). `null` or omitted when the sheet was not aborted. After stop the sheet state is `IDLE`; poll this field (not `STOPPED_BY_USER`) to detect a user stop.
     - `magicTableRowCount` (int, optional) - Total row count when requested with `includeRowCount=true`
     - `magicTableCells` (List[AgenticTableCell], optional) - Cells when `includeCells=true`
     - `magicTableSheetMetadata` (List[[`MagicTableMetadataEntry`](#magictablemetadataentry)], optional) - When `includeSheetMetadata=true`

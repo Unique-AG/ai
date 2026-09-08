@@ -65,11 +65,15 @@ from unique_sdk.cli.commands.read import (
     is_error_output as _is_read_error_output,
 )
 from unique_sdk.cli.commands.scheduled_tasks import (
+    SCHEDULE_ERROR_PREFIX,
     cmd_schedule_create,
     cmd_schedule_delete,
     cmd_schedule_get,
     cmd_schedule_list,
     cmd_schedule_update,
+)
+from unique_sdk.cli.commands.scheduled_tasks import (
+    is_error_output as _is_schedule_error_output,
 )
 from unique_sdk.cli.commands.search import (
     cmd_search,
@@ -973,7 +977,10 @@ def schedule_list(ctx: click.Context) -> None:
     Examples:
       unique-cli schedule list
     """
-    click.echo(cmd_schedule_list(LazyState.get(ctx)))
+    output = cmd_schedule_list(LazyState.get(ctx))
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 @schedule.command(name="get")
@@ -989,7 +996,10 @@ def schedule_get(ctx: click.Context, task_id: str) -> None:
     Examples:
       unique-cli schedule get clx3ghi4f0003mnopqr345678
     """
-    click.echo(cmd_schedule_get(LazyState.get(ctx), task_id))
+    output = cmd_schedule_get(LazyState.get(ctx), task_id)
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 @schedule.command(name="create")
@@ -1053,16 +1063,17 @@ def schedule_create(
       unique-cli schedule create \\
         -c "*/15 * * * *" -a clx1abc -p "Check inbox" --disabled
     """
-    click.echo(
-        cmd_schedule_create(
-            LazyState.get(ctx),
-            cron=cron,
-            assistant_id=assistant_id,
-            prompt=prompt,
-            chat_id=chat_id,
-            enabled=not disabled,
-        )
+    output = cmd_schedule_create(
+        LazyState.get(ctx),
+        cron=cron,
+        assistant_id=assistant_id,
+        prompt=prompt,
+        chat_id=chat_id,
+        enabled=not disabled,
     )
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 @schedule.command(name="update")
@@ -1100,8 +1111,10 @@ def schedule_update(
       unique-cli schedule update clx3ghi4f --chat-id none
     """
     if enable and disable:
-        click.echo("schedule: cannot use --enable and --disable together")
-        return
+        click.echo(
+            f"{SCHEDULE_ERROR_PREFIX} cannot use --enable and --disable together"
+        )
+        ctx.exit(1)
 
     enabled: bool | None = None
     if enable:
@@ -1113,17 +1126,18 @@ def schedule_update(
     if chat_id and chat_id.lower() == "none":
         resolved_chat_id = ""
 
-    click.echo(
-        cmd_schedule_update(
-            LazyState.get(ctx),
-            task_id,
-            cron=cron,
-            assistant_id=assistant_id,
-            prompt=prompt,
-            chat_id=resolved_chat_id,
-            enabled=enabled,
-        )
+    output = cmd_schedule_update(
+        LazyState.get(ctx),
+        task_id,
+        cron=cron,
+        assistant_id=assistant_id,
+        prompt=prompt,
+        chat_id=resolved_chat_id,
+        enabled=enabled,
     )
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 @schedule.command(name="delete")
@@ -1140,7 +1154,10 @@ def schedule_delete(ctx: click.Context, task_id: str) -> None:
     Examples:
       unique-cli schedule delete clx3ghi4f0003mnopqr345678
     """
-    click.echo(cmd_schedule_delete(LazyState.get(ctx), task_id))
+    output = cmd_schedule_delete(LazyState.get(ctx), task_id)
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 # -- Elicitations ----------------------------------------------------------

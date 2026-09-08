@@ -916,72 +916,8 @@
                 "type": "null"
               }
             ],
-            "title": "Market",
-            "description": "Country/region **and** language the results come from (Bing `mkt`), as `<language>-<country>`: `de-CH` returns German-language Swiss results, `fr-CH` French-language Swiss ones, `en-GB` UK English. Set it when the question is about a specific country or expects an answer in that country's language. Left unset, Bing guesses the market from the caller and may answer from another country. [Market codes](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-codes)"
-          },
-          "setLang": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "ar",
-                  "eu",
-                  "bn",
-                  "bg",
-                  "ca",
-                  "zh-hans",
-                  "zh-hant",
-                  "hr",
-                  "cs",
-                  "da",
-                  "nl",
-                  "en",
-                  "en-gb",
-                  "et",
-                  "fi",
-                  "fr",
-                  "gl",
-                  "de",
-                  "gu",
-                  "he",
-                  "hi",
-                  "hu",
-                  "is",
-                  "it",
-                  "jp",
-                  "kn",
-                  "ko",
-                  "lv",
-                  "lt",
-                  "ms",
-                  "ml",
-                  "mr",
-                  "nb",
-                  "pl",
-                  "pt-br",
-                  "pt-pt",
-                  "pa",
-                  "ro",
-                  "ru",
-                  "sr",
-                  "sk",
-                  "sl",
-                  "es",
-                  "sv",
-                  "ta",
-                  "te",
-                  "th",
-                  "tr",
-                  "uk",
-                  "vi"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Interface language",
-            "description": "Language of Bing's own interface strings in the response (Bing `setLang`), e.g. `de`, `fr`, `pt-br`. It changes neither which results come back nor the language they are written in \u2014 use the market for that. Bing falls back to English for codes it does not support. [Supported languages](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/market-codes#bing-supported-language-codes)"
+            "title": "Preferred region and language",
+            "description": "Region and language Bing should favour, as `<language>-<country>`. Examples: `de-CH`, `fr-CH`, `fr-FR`. This biases the results rather than restricting them \u2014 sources from other regions can still appear. If left blank, the deployment default set in the environment variable `BING_AGENT_DEFAULT_MARKET` applies. If left blank and the environment variable is not set, Bing may favour the region where the underlying Microsoft Foundry resource is deployed."
           },
           "freshness": {
             "anyOf": [
@@ -994,15 +930,11 @@
                 ]
               },
               {
-                "type": "string",
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}(?:\\.\\.\\d{4}-\\d{2}-\\d{2})?$"
-              },
-              {
                 "type": "null"
               }
             ],
-            "title": "Freshness",
-            "description": "Keep only pages Bing discovered recently (Bing `freshness`): `Day` (last 24 hours), `Week` (last 7 days), `Month` (last 30 days), a single `YYYY-MM-DD` day, or an inclusive `YYYY-MM-DD..YYYY-MM-DD` range. Use it for news and fast-moving topics; leave it unset for background or reference questions, where it would hide older pages that are still correct. [Accepted values](https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/reference/query-parameters#freshness)"
+            "title": "Only results published recently",
+            "description": "Only includes results Bing discovered within the chosen timeframe, counted back from each search. This is a hard filter and it applies to every search in the space."
           }
         },
         "type": "object",
