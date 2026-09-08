@@ -14,7 +14,8 @@ return await self._legacy_search(...)      # direct provider call from this proc
 | Kind | Engines | Proxy | Legacy |
 |------|---------|-------|--------|
 | **Standard** | Google | yes | yes |
-| **Standard** | Brave, Perplexity | yes | **raises** (proxy-only) |
+| **Standard** | Brave | yes | **raises** (proxy-only) |
+| **Standard** | Perplexity | yes | yes |
 | **Standard** | Custom API | never | always |
 | **Agent** | Bing, VertexAI | yes | yes |
 
@@ -111,9 +112,9 @@ search = BraveSearch(BraveConfig(fetch_size=10))
 results = await search.search("privacy-focused search")  # requires SEARCH_PROXY_BASE_URL
 ```
 
-### Perplexity Search (proxy-only)
+### Perplexity Search
 
-**Provider:** Perplexity Search API · **Legacy:** not supported
+**Provider:** Perplexity Search API · **Proxy:** legacy + proxy
 
 Config: `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityConfig`
 

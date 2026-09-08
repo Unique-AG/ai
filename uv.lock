@@ -16,23 +16,23 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
-unique-toolkit = false
+unique-deep-research = false
+unique-follow-up-questions = false
 unique-internal-search = false
-unique-swot = false
-unique-sdk = false
-unique-search-proxy-core = false
 unique-mcp = false
 unique-orchestrator = false
-unique-follow-up-questions = false
-unique-user-memory = false
-unique-six = false
-unique-search-proxy = false
-unique-web-search = false
-unique-deep-research = false
-unique-stock-ticker = false
-unique-search-proxy-sdk = false
-unique-skill-tool = false
 unique-quartr = false
+unique-sdk = false
+unique-search-proxy = false
+unique-search-proxy-core = false
+unique-search-proxy-sdk = false
+unique-six = false
+unique-skill-tool = false
+unique-stock-ticker = false
+unique-swot = false
+unique-toolkit = false
+unique-user-memory = false
+unique-web-search = false
 
 [manifest]
 members = [
@@ -3610,6 +3610,22 @@ wheels = [
 ]
 
 [[package]]
+name = "perplexityai"
+version = "0.43.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ed/be/1b63d3730a38ce7ec3f3b86ba1ed89bc4413d8e4d7491676ce435a963370/perplexityai-0.43.3-py3-none-any.whl", hash = "sha256:039dd7c1dac18dd00672d0815b935b6dfc987af1c440510af3fbc0883ce38284", size = 142925, upload-time = "2026-08-11T01:24:12.486Z" },
+]
+
+[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5882,6 +5898,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "markdownify" },
     { name = "openai" },
+    { name = "perplexityai" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "rapidfuzz" },
@@ -5909,6 +5926,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "markdownify", specifier = ">=0.14.1,<1" },
     { name = "openai", specifier = ">=1.105.0,<3" },
+    { name = "perplexityai", specifier = ">=0.43.3" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
     { name = "rapidfuzz", specifier = ">=3.0.0,<4" },

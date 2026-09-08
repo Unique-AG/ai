@@ -11,7 +11,7 @@ Outbound web access should go through **Unique Search Proxy** (`connectors/uniqu
 | **Proxy (recommended)** | `SEARCH_PROXY_BASE_URL` set | `_proxy_search` / `_proxy_crawl` via the SDK |
 | **Legacy** | URL unset | Direct provider calls from this process (`_legacy_search` / `_legacy_crawl`) |
 
-- **New standard engines (Brave, Perplexity) are proxy-only** — legacy raises.
+- **Brave is proxy-only** — its legacy path raises.
 - **Custom API** always runs locally (never routed through the proxy).
 - Future provider work targets Search Proxy only; legacy is preserved for migrated engines.
 
@@ -31,7 +31,7 @@ Query → normalised results (URL / title / snippet / optional content). Optiona
 |--------|-------|-------|
 | Google | legacy + proxy | Requires scraping by default |
 | Brave | **proxy-only** | Rich snippets; `ExposableParam` knobs |
-| Perplexity | **proxy-only** | Content extraction knobs; `ExposableParam` |
+| Perplexity | legacy + proxy | Content extraction knobs; `ExposableParam` |
 | Custom API | always local | Your REST endpoint |
 
 Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `value`) for optional provider knobs. See [Search Engines README](./src/unique_web_search/services/search_engine/README.md).

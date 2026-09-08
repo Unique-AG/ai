@@ -6,7 +6,7 @@ Platform services need web search, grounded agent research, and URL crawling —
 
 **Search Proxy is the recommended way** for every tenant to run Web Search. Callers (notably `assistants-core` via `unique_web_search`) should talk only to the `search-proxy` pod; that pod owns provider credentials and internet egress. Network policies can then keep assistant pods cluster-internal for web access.
 
-**Legacy direct-provider calls** (Search Proxy disabled — `SEARCH_PROXY_BASE_URL` unset) remain available for engines that already supported them. Behaviour is preserved, but **new providers and future development target Search Proxy only**. Today, **Brave** and **Perplexity** standard search are **proxy-only**.
+**Legacy direct-provider calls** (Search Proxy disabled — `SEARCH_PROXY_BASE_URL` unset) remain available for engines that already supported them. Behaviour is preserved, but **new providers and future development target Search Proxy only**. Today, **Brave** standard search is **proxy-only**.
 
 | Without the proxy | With the proxy |
 |-------------------|----------------|
