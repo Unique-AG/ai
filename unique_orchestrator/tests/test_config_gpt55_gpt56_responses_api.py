@@ -1,4 +1,4 @@
-"""Tests for the GPT-5.5 and GPT-5.6 Responses API validator.
+"""Tests for the GPT-5.5, GPT-5.6, and GPT-6 Responses API validator.
 
 These models reject requests that combine ``tools`` with ``reasoning_effort``
 on ``/v1/chat/completions`` and demand ``/v1/responses``. The validator forces
@@ -39,11 +39,13 @@ AFFECTED_MODELS = [
     LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
     LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
     LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+    LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
     LanguageModelName.LITELLM_OPENAI_GPT_55,
     LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
     LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
     LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
     LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+    LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
 ]
 
 CODE_INTERPRETER_TOOL = ToolBuildConfig(
