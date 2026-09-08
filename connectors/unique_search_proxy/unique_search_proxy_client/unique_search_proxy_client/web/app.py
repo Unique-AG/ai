@@ -16,6 +16,9 @@ from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     aclose_private_endpoint_http_client,
 )
+from unique_search_proxy_client.web.core.client.per_user import (
+    create_per_user_proxy_client_cache,
+)
 from unique_search_proxy_client.web.core.client.service import create_http_client_pool
 from unique_search_proxy_client.web.core.providers import register_builtin_providers
 from unique_search_proxy_client.web.error_handlers import register_exception_handlers
@@ -58,12 +61,15 @@ async def lifespan(app: FastAPI):
     _LOGGER.info("Starting Unique Search Proxy...")
     log_startup_settings_report(_LOGGER)
     await maybe_cleanup_auto_provisioned_bing_agents_on_start()
+    per_user_proxy_client_cache = create_per_user_proxy_client_cache()
     pool = await create_http_client_pool()
+    app.state.per_user_proxy_client_cache = per_user_proxy_client_cache
     app.state.http_client_pool = pool
     try:
         yield
     finally:
         await aclose_private_endpoint_http_client()
+        await per_user_proxy_client_cache.aclose()
         await pool.aclose()
         _LOGGER.info("Shutting down Unique Search Proxy...")
 
@@ -78,8 +84,8 @@ def create_app() -> FastAPI:
             "from the request-body dropdown (snippets-only Google search, crawl with "
             "HTML markdown, etc.). `/v1/*` routes accept tenant context headers "
             "(`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`, and "
-            "optional `x-unique-user-name`; ID headers default `local` in Swagger). "
-            "Requires provider env vars (e.g. "
+            "optional `x-unique-external-user-id`; internal ID headers default "
+            "`local` in Swagger). Requires provider env vars (e.g. "
             "`GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls."
         ),
         version="0.2.0",

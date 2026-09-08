@@ -30,6 +30,8 @@ ValidateUrlFn = Callable[[str], Awaitable[tuple[str, str] | None]]
 async def resolve_redirect_chain(
     url: str,
     validate_url: ValidateUrlFn,
+    *,
+    http_client: httpx.AsyncClient | None = None,
 ) -> str:
     """Follow HTTP 3xx redirects hop-by-hop, validating each destination.
 
@@ -37,56 +39,77 @@ async def resolve_redirect_chain(
     Raises CrawlTargetValidationError if any hop is blocked or redirect probing
     cannot be completed (fail-closed to prevent GET-time redirect SSRF bypass).
     """
+    if http_client is not None:
+        return await _resolve_redirect_chain_with_client(
+            url,
+            validate_url,
+            http_client,
+        )
+
+    async with httpx.AsyncClient() as client:
+        return await _resolve_redirect_chain_with_client(
+            url,
+            validate_url,
+            client,
+        )
+
+
+async def _resolve_redirect_chain_with_client(
+    url: str,
+    validate_url: ValidateUrlFn,
+    client: httpx.AsyncClient,
+) -> str:
+    """Resolve redirects with a caller-owned client."""
     current = url
     timeout = url_safety_settings.redirect_timeout_seconds
-    async with httpx.AsyncClient(
-        follow_redirects=False,
-        timeout=timeout,
-        headers={"User-Agent": _REDIRECT_PROBE_USER_AGENT},
-    ) as client:
-        for _ in range(url_safety_settings.max_redirect_hops):
-            error = await validate_url(current)
-            if error is not None:
-                category, reason = error
-                raise CrawlTargetValidationError(
-                    [
-                        BlockedCrawlTarget(
-                            hostname=extract_hostname(current),
-                            category=category,
-                            reason=reason,
-                        )
-                    ]
-                )
+    for _ in range(url_safety_settings.max_redirect_hops):
+        error = await validate_url(current)
+        if error is not None:
+            category, reason = error
+            raise CrawlTargetValidationError(
+                [
+                    BlockedCrawlTarget(
+                        hostname=extract_hostname(current),
+                        category=category,
+                        reason=reason,
+                    )
+                ]
+            )
 
-            try:
-                resp = await client.head(current)
-            except Exception as exc:
-                _LOGGER.debug(
-                    "Redirect resolution blocked at %s due to network error: %s",
-                    current,
-                    exc,
-                )
-                raise CrawlTargetValidationError(
-                    [
-                        BlockedCrawlTarget(
-                            hostname=extract_hostname(current),
-                            category="redirect",
-                            reason=(
-                                "Unable to verify redirect chain before crawl; "
-                                "blocking to prevent redirect-based SSRF"
-                            ),
-                        )
-                    ]
-                ) from exc
+        try:
+            resp = await client.head(
+                current,
+                follow_redirects=False,
+                headers={"User-Agent": _REDIRECT_PROBE_USER_AGENT},
+                timeout=timeout,
+            )
+        except Exception as exc:
+            _LOGGER.debug(
+                "Redirect resolution blocked at %s due to network error: %s",
+                current,
+                exc,
+            )
+            raise CrawlTargetValidationError(
+                [
+                    BlockedCrawlTarget(
+                        hostname=extract_hostname(current),
+                        category="redirect",
+                        reason=(
+                            "Unable to verify redirect chain before crawl; "
+                            "blocking to prevent redirect-based SSRF"
+                        ),
+                    )
+                ]
+            ) from exc
 
-            if resp.status_code not in _REDIRECT_STATUS_CODES:
-                break
+        if resp.status_code not in _REDIRECT_STATUS_CODES:
+            break
 
-            location = resp.headers.get("location")
-            if not location:
-                break
+        location = resp.headers.get("location")
+        if not location:
+            break
 
-            current = urljoin(current, location)
+        current = urljoin(current, location)
 
     error = await validate_url(current)
     if error is not None:

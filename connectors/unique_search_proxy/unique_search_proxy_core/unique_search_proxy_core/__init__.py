@@ -3,9 +3,9 @@
 from unique_search_proxy_core.context import (
     CHAT_ID_HEADER,
     COMPANY_ID_HEADER,
+    EXTERNAL_USER_ID_HEADER,
     LOCAL_REQUEST_CONTEXT,
     USER_ID_HEADER,
-    USER_NAME_HEADER,
     RequestContext,
 )
 from unique_search_proxy_core.errors import (
@@ -32,10 +32,10 @@ from unique_search_proxy_core.schema import (
 __all__ = [
     "CHAT_ID_HEADER",
     "COMPANY_ID_HEADER",
+    "EXTERNAL_USER_ID_HEADER",
     "LOCAL_REQUEST_CONTEXT",
     "RequestContext",
     "USER_ID_HEADER",
-    "USER_NAME_HEADER",
     "BadRequestProxyError",
     "CrawlResponse",
     "EmptySearchResultsError",

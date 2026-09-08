@@ -15,7 +15,7 @@ def _get_kwargs(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
-    x_unique_user_name: None | str | Unset = UNSET,
+    x_unique_external_user_id: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(x_unique_company_id, Unset):
@@ -27,8 +27,8 @@ def _get_kwargs(
     if not isinstance(x_unique_chat_id, Unset):
         headers["x-unique-chat-id"] = x_unique_chat_id
 
-    if not isinstance(x_unique_user_name, Unset):
-        headers["x-unique-user-name"] = x_unique_user_name
+    if not isinstance(x_unique_external_user_id, Unset):
+        headers["x-unique-external-user-id"] = x_unique_external_user_id
 
     _kwargs: dict[str, Any] = {
         "method": "get",
@@ -75,7 +75,7 @@ def sync_detailed(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
-    x_unique_user_name: None | str | Unset = UNSET,
+    x_unique_external_user_id: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | ProvidersListResponse]:
     """List registered search engines and crawlers
 
@@ -83,8 +83,8 @@ def sync_detailed(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
-        x_unique_user_name (None | str | Unset): Stamped user login for per-user egress
-            authentication.
+        x_unique_external_user_id (None | str | Unset): Client-provided identity for per-user
+            egress authentication.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -98,7 +98,7 @@ def sync_detailed(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
-        x_unique_user_name=x_unique_user_name,
+        x_unique_external_user_id=x_unique_external_user_id,
     )
 
     response = client.get_httpx_client().request(
@@ -114,7 +114,7 @@ def sync(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
-    x_unique_user_name: None | str | Unset = UNSET,
+    x_unique_external_user_id: None | str | Unset = UNSET,
 ) -> HTTPValidationError | ProvidersListResponse | None:
     """List registered search engines and crawlers
 
@@ -122,8 +122,8 @@ def sync(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
-        x_unique_user_name (None | str | Unset): Stamped user login for per-user egress
-            authentication.
+        x_unique_external_user_id (None | str | Unset): Client-provided identity for per-user
+            egress authentication.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -138,7 +138,7 @@ def sync(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
-        x_unique_user_name=x_unique_user_name,
+        x_unique_external_user_id=x_unique_external_user_id,
     ).parsed
 
 
@@ -148,7 +148,7 @@ async def asyncio_detailed(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
-    x_unique_user_name: None | str | Unset = UNSET,
+    x_unique_external_user_id: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | ProvidersListResponse]:
     """List registered search engines and crawlers
 
@@ -156,8 +156,8 @@ async def asyncio_detailed(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
-        x_unique_user_name (None | str | Unset): Stamped user login for per-user egress
-            authentication.
+        x_unique_external_user_id (None | str | Unset): Client-provided identity for per-user
+            egress authentication.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -171,7 +171,7 @@ async def asyncio_detailed(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
-        x_unique_user_name=x_unique_user_name,
+        x_unique_external_user_id=x_unique_external_user_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -185,7 +185,7 @@ async def asyncio(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
-    x_unique_user_name: None | str | Unset = UNSET,
+    x_unique_external_user_id: None | str | Unset = UNSET,
 ) -> HTTPValidationError | ProvidersListResponse | None:
     """List registered search engines and crawlers
 
@@ -193,8 +193,8 @@ async def asyncio(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
-        x_unique_user_name (None | str | Unset): Stamped user login for per-user egress
-            authentication.
+        x_unique_external_user_id (None | str | Unset): Client-provided identity for per-user
+            egress authentication.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -210,6 +210,6 @@ async def asyncio(
             x_unique_company_id=x_unique_company_id,
             x_unique_user_id=x_unique_user_id,
             x_unique_chat_id=x_unique_chat_id,
-            x_unique_user_name=x_unique_user_name,
+            x_unique_external_user_id=x_unique_external_user_id,
         )
     ).parsed

@@ -58,14 +58,16 @@ from unique_web_search.utils import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def _user_name_from_metadata(
+def _external_user_id_from_metadata(
     user_metadata: Mapping[str, object] | None,
 ) -> str | None:
-    """Read the stamped user login used by per-user search-proxy egress."""
-    user_name = user_metadata.get("userName") if user_metadata is not None else None
-    if not isinstance(user_name, str) or not user_name.strip():
+    """Map the current stamped metadata field to the client egress identity."""
+    external_user_id = (
+        user_metadata.get("userName") if user_metadata is not None else None
+    )
+    if not isinstance(external_user_id, str) or not external_user_id.strip():
         return None
-    return user_name
+    return external_user_id.strip()
 
 
 class WebSearchTool(Tool[WebSearchConfig]):
@@ -91,7 +93,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
             company_id=self.event.company_id,
             user_id=self.event.user_id,
             chat_id=self.event.payload.chat_id,
-            user_name=_user_name_from_metadata(self.event.payload.user_metadata),
+            external_user_id=_external_user_id_from_metadata(
+                self.event.payload.user_metadata
+            ),
         )
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,

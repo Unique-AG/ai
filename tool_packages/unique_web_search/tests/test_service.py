@@ -5,7 +5,7 @@ import pytest
 from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 
 from unique_web_search.invocation_stats import collector
-from unique_web_search.service import WebSearchTool, _user_name_from_metadata
+from unique_web_search.service import WebSearchTool, _external_user_id_from_metadata
 from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
@@ -13,21 +13,22 @@ from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParame
 
 
 @pytest.mark.ai
-class TestSearchProxyUserNameContext:
-    def test_reads_stamped_user_name_metadata(self) -> None:
-        assert _user_name_from_metadata({"userName": "jsmith"}) == "jsmith"
+class TestSearchProxyExternalUserIdContext:
+    def test_reads_external_user_id_from_current_stamped_metadata_field(self) -> None:
+        assert _external_user_id_from_metadata({"userName": "jsmith"}) == "jsmith"
+        assert _external_user_id_from_metadata({"userName": " jsmith "}) == "jsmith"
 
     @pytest.mark.parametrize(
         "user_metadata",
         [None, {}, {"userName": ""}, {"userName": "   "}, {"userName": 123}],
     )
-    def test_omits_invalid_or_missing_user_name_metadata(
+    def test_omits_invalid_or_missing_external_user_id_metadata(
         self,
         user_metadata: dict[str, object] | None,
     ) -> None:
-        assert _user_name_from_metadata(user_metadata) is None
+        assert _external_user_id_from_metadata(user_metadata) is None
 
-    def test_tool_context_carries_user_name_to_proxy_services(
+    def test_tool_context_carries_external_user_id_to_proxy_services(
         self,
         mock_web_search_config_v1: Mock,
     ) -> None:
@@ -57,7 +58,7 @@ class TestSearchProxyUserNameContext:
         ):
             WebSearchTool.__init__(tool, mock_web_search_config_v1)
 
-        assert tool.request_context.user_name == "jsmith"
+        assert tool.request_context.external_user_id == "jsmith"
         get_search_engine_service.assert_called_once_with(
             mock_web_search_config_v1.search_engine_config,
             tool.language_model_service,

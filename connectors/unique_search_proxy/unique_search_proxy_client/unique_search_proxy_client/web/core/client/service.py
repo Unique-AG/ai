@@ -153,6 +153,40 @@ def build_async_client(
     )
 
 
+def build_per_user_async_client(
+    external_user_id: str,
+    *,
+    settings: HttpClientSettings | None = None,
+    timeout: float | None = None,
+) -> AsyncClient:
+    """Build a proxy client authenticated with a request-scoped user identity."""
+    client_settings = settings or _settings()
+    proxy_password = client_settings.per_user_proxy_password
+    if proxy_password is None:
+        raise ValueError(
+            "Per-user proxy password must be configured when per-user proxy "
+            "authentication is enabled"
+        )
+
+    proxy = httpx.Proxy(
+        url=_build_proxy_url_with_tls(client_settings),
+        auth=(external_user_id, read_secret(proxy_password)),
+        headers=read_secret_headers(client_settings.proxy_headers) or None,
+    )
+    effective_timeout = timeout or client_settings.pool_timeout_seconds
+    limits = httpx.Limits(
+        max_connections=client_settings.max_connections,
+        max_keepalive_connections=client_settings.max_keepalive_connections,
+    )
+    return AsyncClient(
+        proxy=proxy,
+        verify=client_settings.proxy_ssl_ca_bundle_path or True,
+        trust_env=False,
+        timeout=effective_timeout,
+        limits=limits,
+    )
+
+
 def async_client_factory(
     *,
     settings: HttpClientSettings | None = None,

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 COMPANY_ID_HEADER = "x-unique-company-id"
 USER_ID_HEADER = "x-unique-user-id"
 CHAT_ID_HEADER = "x-unique-chat-id"
-USER_NAME_HEADER = "x-unique-user-name"
+EXTERNAL_USER_ID_HEADER = "x-unique-external-user-id"
 
 _REQUIRED_CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
     ("company_id", COMPANY_ID_HEADER),
@@ -19,7 +19,7 @@ _REQUIRED_CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
 )
 _CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
     *_REQUIRED_CONTEXT_HEADER_FIELDS,
-    ("user_name", USER_NAME_HEADER),
+    ("external_user_id", EXTERNAL_USER_ID_HEADER),
 )
 
 
@@ -31,7 +31,7 @@ class RequestContext(BaseModel):
     company_id: str
     user_id: str
     chat_id: str
-    user_name: str | None = None
+    external_user_id: str | None = None
 
     def to_headers(self) -> dict[str, str]:
         """Serialize context to the canonical HTTP header names."""
@@ -40,8 +40,8 @@ class RequestContext(BaseModel):
             USER_ID_HEADER: self.user_id,
             CHAT_ID_HEADER: self.chat_id,
         }
-        if self.user_name is not None:
-            headers[USER_NAME_HEADER] = self.user_name
+        if self.external_user_id is not None:
+            headers[EXTERNAL_USER_ID_HEADER] = self.external_user_id
         return headers
 
     @classmethod
@@ -84,8 +84,8 @@ LOCAL_REQUEST_CONTEXT = RequestContext(
 __all__ = [
     "CHAT_ID_HEADER",
     "COMPANY_ID_HEADER",
+    "EXTERNAL_USER_ID_HEADER",
     "LOCAL_REQUEST_CONTEXT",
     "RequestContext",
     "USER_ID_HEADER",
-    "USER_NAME_HEADER",
 ]

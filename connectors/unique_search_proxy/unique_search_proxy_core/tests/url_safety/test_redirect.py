@@ -55,13 +55,40 @@ class TestResolveRedirectChain:
             result = await self._resolve_redirect_chain("https://example.com/page")
 
         assert result == "https://example.com/page"
-        mock_client.head.assert_called_once_with("https://example.com/page")
-        _, kwargs = mock_client_cls.call_args
+        mock_client_cls.assert_called_once_with()
+        mock_client.head.assert_called_once()
+        args, kwargs = mock_client.head.call_args
+        assert args == ("https://example.com/page",)
         assert (
             kwargs["headers"]["User-Agent"]
             == redirect_module._REDIRECT_PROBE_USER_AGENT
         )
         assert not kwargs["headers"]["User-Agent"].startswith("python-httpx")
+        assert kwargs["follow_redirects"] is False
+        assert (
+            kwargs["timeout"]
+            == redirect_module.url_safety_settings.redirect_timeout_seconds
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_resolve_redirect_chain__uses_caller_owned_http_client(
+        self,
+    ) -> None:
+        mock_client = self._make_mock_client([(200, None)])
+
+        with patch(_REDIRECT_HTTPX) as mock_client_cls:
+            result = await redirect_module.resolve_redirect_chain(
+                "https://example.com/page",
+                validate_url=UrlSafetyService.validate_url,
+                http_client=mock_client,
+            )
+
+        assert result == "https://example.com/page"
+        mock_client_cls.assert_not_called()
+        mock_client.__aenter__.assert_not_awaited()
+        mock_client.__aexit__.assert_not_awaited()
+        mock_client.head.assert_awaited_once()
 
     @pytest.mark.ai
     @pytest.mark.asyncio

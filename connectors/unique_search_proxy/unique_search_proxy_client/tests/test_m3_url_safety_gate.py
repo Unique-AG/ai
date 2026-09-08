@@ -134,7 +134,12 @@ def test_crawl_url_safety__gate_respects_request_timeout(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def slow_gate(_urls: list[str]) -> UrlSafetyGateResult:
+    async def slow_gate(
+        _urls: list[str],
+        *,
+        redirect_http_client: httpx.AsyncClient | None = None,
+    ) -> UrlSafetyGateResult:
+        assert redirect_http_client is not None
         await asyncio.sleep(2)
         return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
 

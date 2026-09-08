@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Unique Search Proxy",
-    "description": "Unified web egress proxy for search engines and crawlers. Use **Try it out** on `/v1/search` and `/v1/crawl` \u2014 pick an example from the request-body dropdown (snippets-only Google search, crawl with HTML markdown, etc.). `/v1/*` routes accept tenant context headers (`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`, and optional `x-unique-user-name`; ID headers default `local` in Swagger). Requires provider env vars (e.g. `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls.",
+    "description": "Unified web egress proxy for search engines and crawlers. Use **Try it out** on `/v1/search` and `/v1/crawl` \u2014 pick an example from the request-body dropdown (snippets-only Google search, crawl with HTML markdown, etc.). `/v1/*` routes accept tenant context headers (`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`, and optional `x-unique-external-user-id`; internal ID headers default `local` in Swagger). Requires provider env vars (e.g. `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls.",
     "version": "0.2.0"
   },
   "paths": {
@@ -99,7 +99,7 @@
             "description": "Tenant chat or session identifier."
           },
           {
-            "name": "x-unique-user-name",
+            "name": "x-unique-external-user-id",
             "in": "header",
             "required": false,
             "schema": {
@@ -111,10 +111,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Stamped user login for per-user egress authentication.",
-              "title": "X-Unique-User-Name"
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
             },
-            "description": "Stamped user login for per-user egress authentication."
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "responses": {
@@ -186,7 +186,7 @@
             "description": "Tenant chat or session identifier."
           },
           {
-            "name": "x-unique-user-name",
+            "name": "x-unique-external-user-id",
             "in": "header",
             "required": false,
             "schema": {
@@ -198,10 +198,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Stamped user login for per-user egress authentication.",
-              "title": "X-Unique-User-Name"
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
             },
-            "description": "Stamped user login for per-user egress authentication."
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "requestBody": {
@@ -340,7 +340,7 @@
             "description": "Tenant chat or session identifier."
           },
           {
-            "name": "x-unique-user-name",
+            "name": "x-unique-external-user-id",
             "in": "header",
             "required": false,
             "schema": {
@@ -352,10 +352,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Stamped user login for per-user egress authentication.",
-              "title": "X-Unique-User-Name"
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
             },
-            "description": "Stamped user login for per-user egress authentication."
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "requestBody": {
@@ -465,7 +465,7 @@
             "description": "Tenant chat or session identifier."
           },
           {
-            "name": "x-unique-user-name",
+            "name": "x-unique-external-user-id",
             "in": "header",
             "required": false,
             "schema": {
@@ -477,10 +477,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Stamped user login for per-user egress authentication.",
-              "title": "X-Unique-User-Name"
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
             },
-            "description": "Stamped user login for per-user egress authentication."
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "requestBody": {
@@ -588,7 +588,7 @@
             "description": "Tenant chat or session identifier."
           },
           {
-            "name": "x-unique-user-name",
+            "name": "x-unique-external-user-id",
             "in": "header",
             "required": false,
             "schema": {
@@ -600,10 +600,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Stamped user login for per-user egress authentication.",
-              "title": "X-Unique-User-Name"
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
             },
-            "description": "Stamped user login for per-user egress authentication."
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "requestBody": {
