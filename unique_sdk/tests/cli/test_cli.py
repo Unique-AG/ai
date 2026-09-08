@@ -9,6 +9,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 from click.testing import CliRunner
 
+import unique_sdk
 from unique_sdk.cli.cli import main
 
 
@@ -368,6 +369,14 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "No scheduled tasks found" in result.output
 
+    @patch("unique_sdk.ScheduledTask.list")
+    def test_schedule_list_error_exit_code(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("boom")
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "list"])
+        assert result.exit_code == 1
+        assert "schedule:" in result.output
+
     @patch("unique_sdk.ScheduledTask.retrieve")
     def test_schedule_get(self, mock: MagicMock) -> None:
         task = MagicMock()
@@ -386,6 +395,14 @@ class TestClickCLI:
         result = runner.invoke(main, ["schedule", "get", "task_1"])
         assert result.exit_code == 0
         assert "task_1" in result.output
+
+    @patch("unique_sdk.ScheduledTask.retrieve")
+    def test_schedule_get_error_exit_code(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("not found")
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "get", "task_xyz"])
+        assert result.exit_code == 1
+        assert "schedule:" in result.output
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_schedule_create(self, mock: MagicMock) -> None:
@@ -417,6 +434,26 @@ class TestClickCLI:
         )
         assert result.exit_code == 0
         assert "Created scheduled task task_new" in result.output
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create_error_exit_code(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("bad cron")
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "create",
+                "--cron",
+                "bad",
+                "--assistant",
+                "ast_1",
+                "--prompt",
+                "Report",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "schedule:" in result.output
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_schedule_create_disabled(self, mock: MagicMock) -> None:
@@ -469,12 +506,21 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "Updated" in result.output
 
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_error_exit_code(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("not found")
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "update", "task_1", "--disable"])
+        assert result.exit_code == 1
+        assert "schedule:" in result.output
+
     def test_schedule_update_enable_disable_conflict(self) -> None:
+        # Usage error, folded into the same ctx.exit(1) treatment as API errors.
         runner = CliRunner()
         result = runner.invoke(
             main, ["schedule", "update", "task_1", "--enable", "--disable"]
         )
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "cannot use --enable and --disable together" in result.output
 
     @patch("unique_sdk.ScheduledTask.delete")
@@ -488,6 +534,14 @@ class TestClickCLI:
         result = runner.invoke(main, ["schedule", "delete", "task_1"])
         assert result.exit_code == 0
         assert "Deleted scheduled task task_1" in result.output
+
+    @patch("unique_sdk.ScheduledTask.delete")
+    def test_schedule_delete_error_exit_code(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("not found")
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "delete", "task_xyz"])
+        assert result.exit_code == 1
+        assert "schedule:" in result.output
 
     # -- Out-of-scope denials must exit non-zero (UN-21780) --
     # Agents chain content access with shell `&&`; a denial that exited 0
