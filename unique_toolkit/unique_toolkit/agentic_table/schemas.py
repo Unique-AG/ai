@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Any, Generic, Literal, TypeVar, override
 
@@ -501,6 +502,15 @@ class MagicTableSheet(BaseModel):
     created_by: str
     company_id: str
     created_at: str
+    user_aborted_at: datetime | None = Field(
+        default=None,
+        description=(
+            "When the user stopped an in-progress refresh. Set by "
+            "stopMagicTableRefresh and returned on GET sheet/library so the "
+            "agent can poll and exit. None when the run was not aborted or "
+            "when an older backend omits the field."
+        ),
+    )
     magic_table_cells: list[MagicTableCell] = Field(
         default_factory=list, description="The cells in the sheet"
     )

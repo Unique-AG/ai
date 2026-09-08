@@ -224,6 +224,7 @@ class AgenticTableSheet(_AgenticTableSheetRequired, total=False):
     magicTableRowCount: int
     magicTableCells: list[AgenticTableCell]
     magicTableSheetMetadata: list[MagicTableMetadataEntry]
+    userAbortedAt: str | None
 
 
 class AgenticTable(APIResource["AgenticTable"]):

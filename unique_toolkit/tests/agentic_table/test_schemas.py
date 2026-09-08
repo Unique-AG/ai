@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 from unique_sdk.api_resources._agentic_table import MagicTableAction
 
@@ -14,6 +16,7 @@ from unique_toolkit.agentic_table.schemas import (
     MagicTableLibrarySheetRowVerifiedPayload,
     MagicTableRerunRowPayload,
     MagicTableRerunRowsPayload,
+    MagicTableSheet,
     RerunRowMetadata,
     RerunRowsMetadata,
     SheetType,
@@ -818,3 +821,56 @@ class TestRerunEventDiscrimination:
     def test_rerun_rows_event_type_wire_value(self):
         """Test that the bulk event name matches the platform contract."""
         assert MagicTableEventTypes.RERUN_ROWS == "unique.magic-table.rerun-rows"
+
+
+def _minimal_sheet_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "sheetId": "sheet_123",
+        "name": "Test sheet",
+        "state": "IDLE",
+        "createdBy": "user_123",
+        "companyId": "company_123",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+    }
+    payload.update(overrides)
+    return payload
+
+
+class TestMagicTableSheetUserAbortedAt:
+    """Parse optional ``userAbortedAt`` from the public GET sheet payload (UN-25482)."""
+
+    @pytest.mark.ai
+    def test_magic_table_sheet__omits_user_aborted_at__when_payload_lacks_field(self):
+        """
+        Purpose: Sheets without userAbortedAt still validate.
+        Why this matters: Older backends and in-progress runs omit the field; requiring it would break existing agents.
+        Setup summary: Validate a legacy GET sheet payload and assert user_aborted_at is None.
+        """
+        sheet = MagicTableSheet.model_validate(_minimal_sheet_payload())
+        assert sheet.user_aborted_at is None
+
+    @pytest.mark.ai
+    def test_magic_table_sheet__keeps_user_aborted_at_none__when_payload_sends_null(
+        self,
+    ):
+        """
+        Purpose: Explicit null userAbortedAt maps to None.
+        Why this matters: Public GET sheet returns null when the run was not stopped; the agent must treat that as not aborted.
+        Setup summary: Validate a payload with userAbortedAt null and assert user_aborted_at is None.
+        """
+        sheet = MagicTableSheet.model_validate(
+            _minimal_sheet_payload(userAbortedAt=None)
+        )
+        assert sheet.user_aborted_at is None
+
+    @pytest.mark.ai
+    def test_magic_table_sheet__parses_user_aborted_at__from_iso_timestamp(self):
+        """
+        Purpose: A stop timestamp on the public sheet payload is available to the agent.
+        Why this matters: After stopMagicTableRefresh the sheet is IDLE, so the agent must poll userAbortedAt rather than STOPPED_BY_USER.
+        Setup summary: Validate a payload with an ISO userAbortedAt and assert the parsed UTC datetime.
+        """
+        sheet = MagicTableSheet.model_validate(
+            _minimal_sheet_payload(userAbortedAt="2026-09-07T12:00:00.000Z")
+        )
+        assert sheet.user_aborted_at == datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)
