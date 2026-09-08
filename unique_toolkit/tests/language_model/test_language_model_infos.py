@@ -229,6 +229,28 @@ class TestLanguageModelInfos:
         with pytest.raises(ValueError):
             LanguageModelTokenLimits(token_limit_input=1000, fraction_input=0.5)  # type: ignore[call-arg]
 
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+        ],
+    )
+    def test_gpt_56_info_cutoff_matches_openai_knowledge_cutoff(self, model_name):
+        """
+        Purpose: GPT-5.6 registry cutoff matches OpenAI's knowledge cutoff.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff;
+        Azure's June last-collection date would overstate parametric knowledge.
+        Setup summary: Load each GPT-5.6 LanguageModelInfo and assert 2026-02-16.
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.info_cutoff_at == date(2026, 2, 16)
+
 
 class TestLoadLanguageModelInfosFromEnv:
     """Tests for the _load_from_env classmethod."""
