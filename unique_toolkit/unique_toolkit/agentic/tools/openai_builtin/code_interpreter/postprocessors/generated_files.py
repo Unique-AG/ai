@@ -21,7 +21,6 @@ from tenacity import (
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
-from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -39,10 +38,6 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
     CodeInterpreterFileType,
 )
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.experimental.resources.feature_flags import (
-    COMPANY_ID_PLACEHOLDER,
-    is_flag_enabled,
-)
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
@@ -403,9 +398,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._file_size_map: dict[str, int] = {}
         self._container_files: list[CodeInterpreterContainerFile] = []
 
-        # Resolved in run() (before apply_postprocessing_to_response) since flag evaluation is async.
-        self._html_fence_ff_on = False
-
     def _build_retry(self) -> AsyncRetrying:
         """Build a tenacity retry policy from the current config.
 
@@ -508,13 +500,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
     ) -> ArtifactsDebugInfo | None:
         run_t0 = time.monotonic()
         self._log.info("run() started — fetching and uploading code interpreter files")
-
-        # HTML files stay in an HtmlRendering block unless this flag is on; the
-        # default (FF off) keeps HtmlRendering, so existing deployments are unaffected.
-        self._html_fence_ff_on = await is_flag_enabled(
-            FeatureFlagNames.enable_html_with_fence_un_17927,
-            company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
-        )
 
         container_files = await self._resolve_container_files(loop_response)
         self._container_files = container_files
@@ -703,18 +688,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HTML rendered as HtmlRendering block unless the dedicated html-fence FF
-            # is on (enable_html_with_fence_un_17927). Default keeps HtmlRendering.
-            elif is_html and not self._html_fence_ff_on:
-                loop_response.message.text, replaced = _replace_container_html_citation(
-                    text=loop_response.message.text or "",
-                    filename=filename,
-                    content_id=content_id,
-                )
-                changed |= replaced
-
-            # Non-HTML files, or HTML when self._html_fence_ff_on → inline content link for
-            # subsequent fence injection (htmlWithSource / imgWithSource / fileWithSource)
+            # Everything else, HTML included, becomes an inline content link for
+            # subsequent fence injection (htmlWithSource / fileWithSource)
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text or "",
@@ -745,16 +720,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
             loop_response,
             self._content_map,
             self._container_files,
-            include_html=self._html_fence_ff_on,
         )
         self._log.info(
             "Fence injection — %d code block(s), files: %s",
             len(code_blocks),
             [f.filename for b in code_blocks for f in b.files],
         )
-        _warn_unmatched_code_blocks(
-            self._content_map, code_blocks, include_html=self._html_fence_ff_on
-        )
+        _warn_unmatched_code_blocks(self._content_map, code_blocks)
         text_before = loop_response.message.text
         loop_response.message.text = _inject_code_execution_fences(
             loop_response.message.text or "",
@@ -1262,7 +1234,6 @@ def _build_code_blocks(
     loop_response: ResponsesLanguageModelStreamResponse,
     content_map: dict[str, str | None],
     container_files: list[CodeInterpreterContainerFile],
-    include_html: bool = False,
 ) -> list[CodeInterpreterBlock]:
     """Map each code interpreter call to the files it produced via /mnt/data/ path matching.
 
@@ -1362,8 +1333,6 @@ def _build_code_blocks(
     # the last-writer-wins rule applied in step 1).
     block_file_map: dict[int, dict[str, CodeInterpreterFile]] = {}
     for annotation in container_files:
-        if not include_html and _get_file_type(annotation.filename) == "html":
-            continue
         content_id = content_map.get(annotation.filename)
         if content_id is None:
             continue
@@ -1474,21 +1443,18 @@ def _replace_dangling_sandbox_links(
 def _warn_unmatched_code_blocks(
     content_map: dict[str, str | None],
     code_blocks: list[CodeInterpreterBlock],
-    include_html: bool = False,
 ) -> None:
     """Warn for files that were uploaded but could not be matched to any code block.
 
-    When the fence feature flag is on, every uploaded file should map to a code block
-    via its /mnt/data/<filename> path so it can receive a fence.  If a file is not
-    matched (e.g. the LLM used a variable for the output path rather than a literal
-    string) it falls back to a plain unique://content/ link with no code context.
-    The user can still download it, but the frontend artifact UI will not be shown.
+    Every uploaded file should map to a code block via its /mnt/data/<filename>
+    path so it can receive a fence.  If a file is not matched (e.g. the LLM used a
+    variable for the output path rather than a literal string) it falls back to a
+    plain unique://content/ link with no code context. The user can still download
+    it, but the frontend artifact UI will not be shown.
     """
     fenced_filenames = {f.filename for block in code_blocks for f in block.files}
     for filename, content_id in content_map.items():
         if content_id is None:
-            continue
-        if not include_html and _get_file_type(filename) == "html":
             continue
         if filename not in fenced_filenames:
             logger.warning(
@@ -1543,52 +1509,6 @@ def _replace_container_image_citation(
         f"![image](unique://content/{content_id})",
         text,
     ), True
-
-
-def _replace_container_html_citation(
-    text: str, filename: str, content_id: str
-) -> tuple[str, bool]:
-    link_core = _sandbox_link_pattern(filename)
-    html_markdown = link_core
-
-    if not re.search(html_markdown, text):
-        logger.warning(
-            "No sandbox link found for HTML file '%s' (content_id=%s); "
-            "file was uploaded but the LLM did not reference it — it will not be displayed.",
-            filename,
-            content_id,
-        )
-        return text, False
-
-    logger.info("Inserting HTML rendering block for '%s'", filename)
-    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
-
-    # Pattern 1 — link is the only non-whitespace content on its line (the common case
-    # when the model writes the link as a list continuation on its own indented line).
-    # Replace the FULL line (including leading whitespace) so the opening fence is
-    # flush-left. Parsers require column-0 fences.
-    # Also consume any whitespace-only lines immediately before the match so we don't
-    # leave orphan indented blank lines above the block.
-    line_only_link = re.compile(
-        rf"(?m)^(?:[ \t]*\n)*[ \t]*{link_core}[ \t]*(?=\r?\n|$)"
-    )
-    if line_only_link.search(text):
-        result = line_only_link.sub(block, text)
-        return result, True
-
-    # Pattern 2 — link shares a line with other content (e.g. "3. Dashboard: [link]").
-    # Keep the label, then start the block on the next line.
-    def _replace(m: re.Match[str]) -> str:
-        start = m.start()
-        line_start = text.rfind("\n", 0, start) + 1
-        prefix_on_line = text[line_start:start].strip()
-        leading = "\n" if prefix_on_line else ""
-        # Ensure one blank line after the closing fence when followed by more text.
-        end = m.end()
-        trailing = "\n" if end < len(text) and not text[end:].startswith("\n") else ""
-        return leading + block + trailing
-
-    return re.sub(html_markdown, _replace, text), True
 
 
 def _replace_container_file_citation(

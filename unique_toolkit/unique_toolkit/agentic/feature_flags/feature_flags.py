@@ -23,7 +23,6 @@ class FeatureFlagNames(StrEnum):
         "FEATURE_FLAG_ENABLE_MCP_METADATA_FALLBACK_UN_19145"
     )
     enable_html_rendering_un_15131 = "FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131"
-    enable_html_with_fence_un_17927 = "FEATURE_FLAG_ENABLE_HTML_WITH_FENCE_UN_17927"
     enable_web_search_argument_screening_un_18741 = (
         "FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741"
     )
@@ -117,7 +116,12 @@ class FeatureFlags(BaseSettings):
 
     enable_html_with_fence_un_17927: FeatureFlag = Field(
         default=FeatureFlag(False),
-        description="Render HTML code interpreter files as htmlWithSource fences instead of HtmlRendering blocks (UN-17927). Can be 'true' or comma-separated company IDs.",
+        description=(
+            "Retired (UN-25451): HTML code interpreter files are always rendered "
+            "as htmlWithSource fences now, no code reads this field. Kept only so "
+            "removing it doesn't trip the config-checker's breaking-change gate "
+            "on this settings model; delete once that checker allows field removal."
+        ),
     )
 
     enable_web_search_argument_screening_un_18741: FeatureFlag = Field(

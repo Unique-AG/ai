@@ -43,24 +43,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
 )
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.experimental.resources.feature_flags import COMPANY_ID_PLACEHOLDER
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
-
-GENERATED_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.is_flag_enabled"
-
-
-def _set_gen_files_feature_flags(
-    proc: DisplayCodeInterpreterFilesPostProcessor,
-    *,
-    html_fence_ff_on: bool = False,
-) -> None:
-    """Seed flag state on the instance, as `run()` would after awaiting it.
-
-    Production resolves the html-fence flag asynchronously in `run()` (always
-    awaited before `apply_postprocessing_to_response`), so unit tests exercising
-    `apply_postprocessing_to_response` directly seed the post-`run()` state.
-    """
-    proc._html_fence_ff_on = html_fence_ff_on
 
 
 class _MockStreamResponse:
@@ -269,129 +252,6 @@ def test_replace_container_file_citation__replaces_link_with_bang_prefix__when_l
     assert "sandbox" not in new_text
 
 
-@pytest.mark.ai
-def test_replace_container_html_citation__replaces_markdown__with_html_rendering_block() -> (
-    None
-):
-    """
-    Purpose: Verify sandbox HTML link replaced by HtmlRendering block with correct single blank line.
-    Why this matters: HTML files are rendered in chat via special block; exact format matters.
-    Setup summary: Link at start of line — no leading newline injected.
-    """
-    text = "[report](sandbox:/mnt/data/report.html)"
-    content_id = "html-content-456"
-
-    new_text, replaced = gen_mod._replace_container_html_citation(
-        text, filename="report.html", content_id=content_id
-    )
-
-    assert replaced is True
-    assert "sandbox" not in new_text
-    expected_block = (
-        f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
-    )
-    assert expected_block in new_text
-
-
-@pytest.mark.ai
-def test_replace_container_html_citation__inline_link__starts_on_new_line() -> None:
-    """
-    Purpose: Verify that when the sandbox link is mid-line (e.g. in a list item), the
-    HtmlRendering block is placed on a new line so the frontend parser can detect it.
-    Why this matters: LLMs often write "3. Dashboard: [link](sandbox://...)" — without
-    a leading newline the HtmlRendering fence is inline and fails to render.
-    """
-    text = (
-        "3. **HTML Dashboard**: [View the dashboard](sandbox:/mnt/data/dashboard.html) "
-    )
-    content_id = "cid-dash"
-
-    new_text, replaced = gen_mod._replace_container_html_citation(
-        text, filename="dashboard.html", content_id=content_id
-    )
-
-    assert replaced is True
-    assert "sandbox" not in new_text
-    # Block must be preceded by a newline (not inline after the label)
-    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
-    assert "\n" + block in new_text
-    # Label is preserved before the block
-    assert "3. **HTML Dashboard**:" in new_text
-
-
-@pytest.mark.ai
-def test_replace_container_html_citation__indented_link_only_line__flushes_fence_left() -> (
-    None
-):
-    """
-    Purpose: List continuations often use two spaces then the sandbox link alone on
-    the line. Replacing only the link left `` ```HtmlRendering `` indented; parsers
-    require a column-0 fence. The full whitespace+link line must become the block.
-    """
-    text = (
-        "- 📊 HTML dashboard:\n\n"
-        "  [VIX Analytics Dashboard (HTML)](sandbox:/mnt/data/vix_dashboard.html)\n"
-    )
-    content_id = "cid-html"
-    new_text, replaced = gen_mod._replace_container_html_citation(
-        text, filename="vix_dashboard.html", content_id=content_id
-    )
-
-    assert replaced is True
-    assert "sandbox" not in new_text
-    assert "  ```HtmlRendering" not in new_text
-    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
-    assert block in new_text
-
-
-@pytest.mark.ai
-def test_replace_container_html_citation__blank_lines_before_link__are_stripped() -> (
-    None
-):
-    """
-    Purpose: When the link is on its own indented line, any whitespace-only lines
-    immediately before it (common list separator lines like '  \\n') must also be
-    consumed so they don't appear as orphaned blank lines above the HtmlRendering block.
-    """
-    text = (
-        "- HTML dashboard (open in your browser):\n"
-        "  \n"
-        "  [Dashboard](sandbox:/mnt/data/dash.html)\n"
-        "- Next item\n"
-    )
-    content_id = "cid-blank"
-    new_text, replaced = gen_mod._replace_container_html_citation(
-        text, filename="dash.html", content_id=content_id
-    )
-    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
-    assert replaced is True
-    assert "sandbox" not in new_text
-    assert "  ```HtmlRendering" not in new_text
-    assert block in new_text
-    # The orphaned '  \n' must not appear between the label and the block
-    assert "  \n" + block not in new_text
-
-
-@pytest.mark.ai
-def test_replace_container_html_citation__mid_line_followed_by_more_text__trailing_newline() -> (
-    None
-):
-    """
-    Purpose: When the link is mid-line and is followed immediately by more text
-    (no newline), the closing ``` must still be followed by a newline so subsequent
-    content starts on a fresh line.
-    """
-    text = "Dashboard: [d](sandbox:/mnt/data/d.html)More text here"
-    content_id = "cid-trail"
-    new_text, replaced = gen_mod._replace_container_html_citation(
-        text, filename="d.html", content_id=content_id
-    )
-    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
-    assert replaced is True
-    assert "sandbox" not in new_text
-    assert block + "\n" in new_text or new_text.endswith(block)
-
-
 # ============================================================================
 # Tests for _build_code_blocks
 # ============================================================================
@@ -462,16 +322,12 @@ def _container_files(response) -> list[CodeInterpreterContainerFile]:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_display_files_postprocessor__run__uses_placeholder__when_no_company_id() -> (
-    None
-):
+async def test_display_files_postprocessor__run__succeeds__when_no_company_id() -> None:
     """
-    Purpose: Verify run() doesn't crash when constructed without a company_id, and
-    passes COMPANY_ID_PLACEHOLDER to is_flag_enabled instead of an empty string.
-    Why this matters: is_flag_enabled() raises on an empty company_id; the old
-    `self._company_id or ""` would crash the whole turn instead of resolving the flag.
-    Setup summary: Construct with company_id=None; assert run() completes and the FF
-    check was called with COMPANY_ID_PLACEHOLDER, not "".
+    Purpose: Verify run() doesn't crash when constructed without a company_id.
+    Why this matters: company_id is optional, and since UN-25451 run() no longer
+    resolves a feature flag, so a missing company_id must not affect the turn.
+    Setup summary: Construct with company_id=None; assert run() completes.
     """
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     client = MagicMock()
@@ -485,16 +341,9 @@ async def test_display_files_postprocessor__run__uses_placeholder__when_no_compa
         user_id=None,
         chat_id=None,
     )
-    mock_is_flag_enabled = AsyncMock(return_value=False)
     response = _make_response([], [])
 
-    with patch(GENERATED_FILES_FF, mock_is_flag_enabled):
-        await proc.run(response)
-
-    assert mock_is_flag_enabled.await_count == 1
-    for _, kwargs in mock_is_flag_enabled.await_args_list:
-        assert kwargs["company_id"] == COMPANY_ID_PLACEHOLDER
-        assert kwargs["company_id"] != ""
+    await proc.run(response)
 
 
 @pytest.mark.ai
@@ -1258,26 +1107,6 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
     )
 
 
-@pytest.mark.ai
-def test_replace_container_html_citation__logs_warning__when_no_sandbox_link(
-    caplog,
-) -> None:
-    """
-    Purpose: Verify a WARNING is emitted by _replace_container_html_citation when no
-    sandbox link is present for the filename.
-    """
-    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _, replaced = gen_mod._replace_container_html_citation(
-            text="No link here.", filename="report.html", content_id="cont_z"
-        )
-
-    assert replaced is False
-    assert any(
-        "report.html" in r.message and r.levelno == logging.WARNING
-        for r in caplog.records
-    )
-
-
 # ============================================================================
 # Tests for _warn_missing_content_ids (end-of-pipeline check)
 # ============================================================================
@@ -1742,7 +1571,6 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string() -
         references=[],
     )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
-    _set_gen_files_feature_flags(proc)
     proc.apply_postprocessing_to_response(loop)
     assert msg.text == ""
 
@@ -1773,7 +1601,6 @@ def test_apply_postprocessing__does_not_append_reference_for_non_image_file() ->
         container_files=[],
         code_interpreter_calls=[],
     )
-    _set_gen_files_feature_flags(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert message.references == []
 
@@ -1812,20 +1639,16 @@ def test_apply_postprocessing__existing_citation_refs_preserved() -> None:
         container_files=[],
         code_interpreter_calls=[],
     )
-    _set_gen_files_feature_flags(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert [r.source_id for r in message.references] == ["existing-sid"]
 
 
 @pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fence_ff_off() -> (
-    None
-):
+def test_apply_postprocessing_to_response__html_always_uses_htmlWithSource() -> None:
     """
-    Purpose: HTML uses HtmlRendering when the html-fence FF
-    (enable_html_with_fence_un_17927) is off (the default).
-    Why this matters: The html-fence FF defaults to False, so HTML artifacts keep the
-    HtmlRendering block even though code-execution fences are always on.
+    Purpose: HTML always uses htmlWithSource fence injection.
+    Why this matters: Since UN-25451 there is no flag left to keep HTML on the old
+    HtmlRendering block, so every HTML artifact must come back as a fence.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -1846,45 +1669,6 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fe
     # apply_postprocessing_to_response is called.
     proc._container_files = _container_files(loop_response)
 
-    _set_gen_files_feature_flags(proc)
-    changed = proc.apply_postprocessing_to_response(loop_response)
-
-    assert changed is True
-    assert len(refs) == 0
-    assert "HtmlRendering" in message.text
-    assert "unique://content/cid_page" in message.text
-    assert "htmlWithSource" not in message.text
-
-
-@pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_html_fence_ff_on() -> (
-    None
-):
-    """
-    Purpose: HTML uses htmlWithSource fence injection when the html-fence FF
-    (enable_html_with_fence_un_17927) is on.
-    Why this matters: The html-fence FF is the opt-in gate for the new behavior.
-    """
-    proc = _make_display_files_postprocessor()
-    proc._content_map = {"page.html": "cid_page"}
-
-    refs: list[ContentReference] = []
-    message = SimpleNamespace(
-        text="[page.html](sandbox:/mnt/data/page.html)",
-        references=refs,
-    )
-    call = _make_ci_call('open("/mnt/data/page.html", "w").write("x")')
-    ann = _make_annotation("page.html", file_id="f_html", container_id="cntr_x")
-    loop_response = SimpleNamespace(
-        message=message,
-        container_files=[ann],
-        code_interpreter_calls=[call],
-    )
-    # Seed the post-run() state: run() resolves container files before
-    # apply_postprocessing_to_response is called.
-    proc._container_files = _container_files(loop_response)
-
-    _set_gen_files_feature_flags(proc, html_fence_ff_on=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -3341,7 +3125,6 @@ def test_apply_postprocessing__no_dangling_notice__when_link_is_encoded() -> Non
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"sales report.csv": "cid_sales"}
-    _set_gen_files_feature_flags(proc)
 
     message = SimpleNamespace(
         text="See [report](sandbox:/mnt/data/sales%20report.csv).",
