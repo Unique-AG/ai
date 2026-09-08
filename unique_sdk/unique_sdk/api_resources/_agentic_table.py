@@ -53,8 +53,9 @@ class MagicTableAction(StrEnum):
 
     Also used as the webhook payload ``action`` discriminator. Adding a member is
     additive: existing events and activity calls are unchanged until a caller
-    sends the new value. ``RERUN_ROWS`` is webhook-only until the backend
-    workflow-action enum includes it; do not pass it to ``set_activity`` yet.
+    sends the new value. ``RERUN_ROWS`` and ``STOP`` are webhook-only until the
+    backend workflow-action enum includes them; do not pass them to
+    ``set_activity`` yet.
     """
 
     DELETE_ROW = "DeleteRow"
@@ -70,6 +71,7 @@ class MagicTableAction(StrEnum):
     GENERATE_OVERVIEW = "GenerateOverview"
     RERUN_ROW = "RerunRow"
     RERUN_ROWS = "RerunRows"
+    STOP = "Stop"
 
 
 class ActivityStatus(StrEnum):

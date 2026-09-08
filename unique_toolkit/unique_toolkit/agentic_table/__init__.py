@@ -32,6 +32,7 @@ from .schemas import (
     MagicTableSheet,
     MagicTableSheetCompletedPayload,
     MagicTableSheetCreatedPayload,
+    MagicTableStopPayload,
     MagicTableUpdateCellPayload,
     RerunRowMetadata,
     RerunRowsMetadata,
@@ -40,6 +41,7 @@ from .schemas import (
     SelectionMethod,
     SheetMetadataEntryInput,
     SheetType,
+    StopMetadata,
 )
 from .service import (
     AgenticTableArtifactError,
@@ -82,6 +84,7 @@ __all__ = [
     "MagicTableSheet",
     "MagicTableSheetCompletedPayload",
     "MagicTableSheetCreatedPayload",
+    "MagicTableStopPayload",
     "MagicTableUpdateCellPayload",
     "LibrarySheetRowVerifiedMetadata",
     "LibrarySheetRowVerifiedRow",
@@ -93,4 +96,5 @@ __all__ = [
     "SelectionMethod",
     "SheetMetadataEntryInput",
     "SheetType",
+    "StopMetadata",
 ]
