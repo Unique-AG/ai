@@ -229,3 +229,44 @@ flowchart TD
 ## Syncing AI versions to the monorepo
 
 Syncing AI package versions into the monorepo is [documented in the monorepo](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow).
+
+---
+
+## Client-facing changelog fragments
+
+The package `CHANGELOG.md` files that release-please maintains are developer-facing (commit subjects with PR links). Customer-facing release notes for the Unique platform are assembled in the monorepo from [Changie](https://changie.dev) fragments — one small YAML file per change under `.changelog/unreleased/`. Changes made in this repo only appear in those release notes if the PR adds such a fragment here.
+
+### Per PR
+
+For every PR that changes user-visible behaviour of a published package, create a fragment and commit it with the code:
+
+```bash
+uv run poe changelog-new \
+  --kind Fixed \
+  --component "API / SDK" \
+  --body "Short, client-facing description of the fix." \
+  --custom Audience=user \
+  --custom Ticket=UN-12345
+```
+
+Allowed values come from `.changie.yaml` (kinds `Added|Changed|Fixed|Removed|Security`; platform components such as `API / SDK`, `Conduct`, `RAG`, `Web Search`, `Connectors`, `MCP`; `Audience` `user|admin|operator`; optional `Ticket` = `UN-<n>`, comma-separated). `.changie.yaml` is a copy of the monorepo's and must stay identical so fragments can be copied across unchanged. Wording rules and examples: `.claude/skills/changelog-fragment/SKILL.md`.
+
+PRs with no user-visible effect (refactors, tooling, dependency bumps) get the `no-changelog` label instead. Tests, docs, tutorials, lockfiles, `.github/`, helm charts and release-please artifacts never require a fragment; release-please, `chore/bump-dev-*`, dependabot and renovate PRs are skipped.
+
+### CI
+
+The `Changelog Fragment` job in `ci.yaml` runs `.github/scripts/changelog-check.sh` against the PR diff and validates any added fragment against `.changie.yaml`. It is warn-only until the repository variable `CHANGELOG_CHECK_ENFORCE` is set to `true`, after which a missing fragment fails the Gatekeeper. Labels are read from the PR event, so re-run the job after adding `no-changelog`. Locally: `uv run poe changelog-check` (needs `yq`).
+
+### How fragments reach the release notes
+
+```text
+ai PR  --> .changelog/unreleased/<kind>-<component>-<ts>.yaml on main
+       --> dev cut / stable tag
+       --> monorepo "Release · Sync AI Versions"
+             copies fragments first added between the previously pinned AI commit
+             (recorded in the monorepo's .github/ai-sync-state.json) and the new one
+             into monorepo .changelog/unreleased/ai-<file>.yaml
+       --> monorepo changie batch <version>  -->  .changelog/<version>.md (release notes)
+```
+
+Fragments are never batched in this repo; release-please keeps owning `CHANGELOG.md`.

@@ -27,6 +27,8 @@ dev = [
     "deptry>=0.24.0,<0.25",
     "import-linter>=2.0,<3",
     "poethepoet>=0.32.0,<0.33",
+    # changelog fragments (.github/scripts/changelog_new.py)
+    "pyyaml>=6.0,<7",
     # migrated from per-package dev groups
     "python-dotenv>=1.1.0,<2",
     "openai>=1.105.0,<3",
@@ -142,6 +144,10 @@ members = [
 # package directory.
 [tool.poe.tasks]
 check-imports = "lint-imports --config unique_toolkit/pyproject.toml"
+# Client-facing changelog fragment for the platform release notes
+# (see .claude/skills/changelog-fragment/SKILL.md).
+changelog-new = "python .github/scripts/changelog_new.py"
+changelog-check = "bash .github/scripts/changelog-check.sh"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
