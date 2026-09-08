@@ -1,5 +1,6 @@
 """Tests for ``AgenticTableService.get_sheet`` row metadata (UN-19885, SDK PR #1467)."""
 
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -300,3 +301,27 @@ async def test_get_sheet_rejects_sparse_rows_mixed_with_range() -> None:
             await svc.get_sheet(start_row=1, row_orders=[1, 3])
 
     gsm.assert_not_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_sheet__exposes_user_aborted_at__when_api_returns_timestamp() -> None:
+    """
+    Purpose: get_sheet surfaces userAbortedAt from the public GET sheet payload.
+    Why this matters: After a user stop the sheet state is IDLE; the agent polls this field to exit the refresh.
+    Setup summary: Mock get_sheet_data with userAbortedAt set and assert MagicTableSheet.user_aborted_at is populated.
+    """
+    header = {
+        **_minimal_sheet_header(row_count=0),
+        "userAbortedAt": "2026-09-07T12:00:00.000Z",
+    }
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        return_value=header,
+    ):
+        sheet = await svc.get_sheet(row_orders=[])
+
+    assert sheet.user_aborted_at == datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)
