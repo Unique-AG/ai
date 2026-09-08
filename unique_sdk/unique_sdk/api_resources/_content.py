@@ -227,6 +227,7 @@ class Content(APIResource["Content"]):
     class UpdateIngestionStateParams(RequestOptions):
         contentId: str
         ingestionState: str
+        chatId: NotRequired[str | None]
 
     class Chunk(TypedDict):
         id: str
@@ -743,6 +744,10 @@ class Content(APIResource["Content"]):
     ) -> "Content.ContentInfo":
         content_id = params.get("contentId")
         ingestion_state = params.get("ingestionState")
+        chat_id = params.get("chatId")
+        request_params = {"ingestionState": ingestion_state}
+        if chat_id is not None:
+            request_params["chatId"] = chat_id
 
         return cast(
             "Content.ContentInfo",
@@ -751,7 +756,7 @@ class Content(APIResource["Content"]):
                 f"/content/{content_id}/ingestion-state",
                 user_id,
                 company_id,
-                params={"ingestionState": ingestion_state},
+                params=request_params,
             ),
         )
 
@@ -764,6 +769,10 @@ class Content(APIResource["Content"]):
     ) -> "Content.ContentInfo":
         content_id = params.get("contentId")
         ingestion_state = params.get("ingestionState")
+        chat_id = params.get("chatId")
+        request_params = {"ingestionState": ingestion_state}
+        if chat_id is not None:
+            request_params["chatId"] = chat_id
 
         return cast(
             "Content.ContentInfo",
@@ -772,7 +781,7 @@ class Content(APIResource["Content"]):
                 f"/content/{content_id}/ingestion-state",
                 user_id,
                 company_id,
-                params={"ingestionState": ingestion_state},
+                params=request_params,
             ),
         )
 
