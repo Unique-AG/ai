@@ -269,4 +269,6 @@ ai PR  --> .changelog/unreleased/<kind>-<component>-<ts>.yaml on main
        --> monorepo changie batch <version>  -->  .changelog/<version>.md (release notes)
 ```
 
-Fragments are never batched in this repo; release-please keeps owning `CHANGELOG.md`.
+### Archiving after a stable release
+
+After release-please publishes a stable `YYYY.WW.0`, the `cut-and-arm` job in `cd-release.yaml` runs `.github/scripts/archive-changelog-fragments.sh` (pinned `changie batch <version> --move-dir <version>`) on `main`: the fragments in `.changelog/unreleased/` move to `.changelog/<version>/` and a rendered `.changelog/<version>.md` is committed alongside. This is housekeeping plus a per-release customer-facing changelog for the AI packages; the step is best-effort (`continue-on-error`) and the monorepo sync is unaffected because it selects fragments per commit, not by directory. release-please keeps owning the package `CHANGELOG.md` files.

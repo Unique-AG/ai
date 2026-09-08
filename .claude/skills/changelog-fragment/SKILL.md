@@ -19,6 +19,8 @@ Customer-facing release notes are assembled in **Unique-AG/monorepo** from Chang
 
 `.changie.yaml` here is a copy of the monorepo's and must stay identical (same kinds, components, custom fields) so fragments can be copied verbatim.
 
+After each stable release `cd-release.yaml` archives the accumulated fragments to `.changelog/<version>/` (+ `.changelog/<version>.md`) via `.github/scripts/archive-changelog-fragments.sh`; never do that by hand and never edit archived fragments.
+
 ## Create a fragment
 
 Non-interactive (the only mode; no TTY prompts):
