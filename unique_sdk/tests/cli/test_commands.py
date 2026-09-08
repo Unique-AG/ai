@@ -1958,7 +1958,7 @@ def _scheduled_task_obj(
 
 class TestScheduledTasks:
     def test_is_error_output(self) -> None:
-        assert is_error_output(f"{SCHEDULE_ERROR_PREFIX}fail") is True
+        assert is_error_output(f"{SCHEDULE_ERROR_PREFIX} fail") is True
         assert is_error_output("Deleted scheduled task task_abc") is False
 
     @patch("unique_sdk.ScheduledTask.list")

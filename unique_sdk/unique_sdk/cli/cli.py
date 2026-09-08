@@ -65,6 +65,7 @@ from unique_sdk.cli.commands.read import (
     is_error_output as _is_read_error_output,
 )
 from unique_sdk.cli.commands.scheduled_tasks import (
+    SCHEDULE_ERROR_PREFIX,
     cmd_schedule_create,
     cmd_schedule_delete,
     cmd_schedule_get,
@@ -1110,7 +1111,9 @@ def schedule_update(
       unique-cli schedule update clx3ghi4f --chat-id none
     """
     if enable and disable:
-        click.echo("schedule: cannot use --enable and --disable together")
+        click.echo(
+            f"{SCHEDULE_ERROR_PREFIX} cannot use --enable and --disable together"
+        )
         ctx.exit(1)
 
     enabled: bool | None = None
