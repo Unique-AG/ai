@@ -11,6 +11,12 @@ from unique_toolkit.language_model.invocation_stats import LanguageModelInvocati
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 from unique_user_memory.config import UserMemoryConfig
+from unique_user_memory.metrics import (
+    observe_unlabeled,
+    postprocessor_duration,
+    record_error,
+    record_postprocessor,
+)
 from unique_user_memory.user_memory import (
     UserMemoryState,
     consolidate_user_memory,
@@ -73,11 +79,21 @@ class UserMemoryPostprocessor(Postprocessor):
         Returns True if the memory profile changed and was uploaded, False
         otherwise (no user/company, NOOP consolidation, or failed upload).
         """
+        with observe_unlabeled(postprocessor_duration):
+            try:
+                return await self._run_inner(loop_response)
+            except Exception as exc:
+                record_error("postprocessor", exc)
+                record_postprocessor("error")
+                raise
+
+    async def _run_inner(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._invocation_stats = self.take_pending_invocation_stats()
         self._logger.info("[user-memory] running postprocessor")
         user_id = self._event.user_id
         company_id = self._event.company_id
         if not user_id or not company_id:
+            record_postprocessor("skipped_no_ids")
             return False
 
         async def _on_update_start() -> None:
@@ -107,6 +123,7 @@ class UserMemoryPostprocessor(Postprocessor):
         )
 
         if self._new_memory == self._state.text:
+            record_postprocessor("noop")
             self._logger.debug("[user-memory] consolidation NOOP - skipping upload")
             return False
 
@@ -118,10 +135,12 @@ class UserMemoryPostprocessor(Postprocessor):
             logger=self._logger,
         )
         if not uploaded:
+            record_postprocessor("upload_failed")
             self._logger.warning("[user-memory] memory update was not uploaded")
             return False
 
         await self._message_step_logger.log_updating_complete(with_settings_entry=True)
+        record_postprocessor("updated")
         self._logger.info("[user-memory] memory updated and uploaded successfully")
         return True
 
