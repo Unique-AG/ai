@@ -16,19 +16,11 @@ logger = logging.getLogger(__name__)
 
 class ShowExecutedCodePostprocessorConfig(BaseModel):
     model_config = get_configuration_dict()
-    enable: bool = Field(
-        default=True,
-        description="Retired (UN-25450): executed code is now shown inside each codeExecution fence, so this setting has no effect.",
-    )
     remove_from_history: SkipJsonSchema[bool] = (
         Field(  # At the moment, it's not possible to keep executed code in the history
             default=True,
             description="If set, the code interpreter call will be removed from the history on subsequent calls to the assistant.",
         )
-    )
-    sleep_time_before_display: float = Field(
-        default=0.2,
-        description="Retired (UN-25450): no code is prepended to the message any more, so this setting has no effect.",
     )
 
 

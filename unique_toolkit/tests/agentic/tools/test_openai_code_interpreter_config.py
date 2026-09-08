@@ -40,7 +40,6 @@ def test_code_interpreter_extended_config__has_defaults__when_constructed_with_n
         ShowExecutedCodePostprocessorConfig,
     )
     assert config.executed_code_display_config.remove_from_history is True
-    assert config.executed_code_display_config.sleep_time_before_display == 0.2
     assert isinstance(config.tool_config, OpenAICodeInterpreterConfig)
     assert config.tool_config.upload_files_in_chat_to_container is True
 
@@ -63,4 +62,3 @@ def test_code_interpreter_extended_config__defaults_executed_code_display__when_
         config.executed_code_display_config, ShowExecutedCodePostprocessorConfig
     )
     assert config.executed_code_display_config.remove_from_history is True
-    assert config.executed_code_display_config.sleep_time_before_display == 0.2

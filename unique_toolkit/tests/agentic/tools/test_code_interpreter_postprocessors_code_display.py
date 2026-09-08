@@ -15,17 +15,15 @@ def test_show_executed_code_postprocessor_config__has_defaults__when_constructed
     None
 ):
     """
-    Purpose: Verify ShowExecutedCodePostprocessorConfig defaults for remove_from_history, sleep_time, and enable.
-    Why this matters: Ensures safe defaults for history, display timing, and enablement.
+    Purpose: Verify ShowExecutedCodePostprocessorConfig defaults for remove_from_history.
+    Why this matters: Ensures the legacy <details> block is stripped from history by default.
     Setup summary: Instantiate config with no args; assert default field values.
     """
     # Act
     config = ShowExecutedCodePostprocessorConfig()
 
     # Assert
-    assert config.enable is True
     assert config.remove_from_history is True
-    assert config.sleep_time_before_display == 0.2
 
 
 @pytest.mark.ai

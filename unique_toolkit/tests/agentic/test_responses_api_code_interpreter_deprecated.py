@@ -75,4 +75,3 @@ def test_deprecated_code_display_config__instantiable_with_same_defaults__as_new
 
     config = ShowExecutedCodePostprocessorConfig()
     assert config.remove_from_history is True
-    assert config.sleep_time_before_display == 0.2

@@ -194,7 +194,7 @@ class TestConfigPassthrough:
         )
 
         custom_code_display_config = ShowExecutedCodePostprocessorConfig(
-            sleep_time_before_display=1.5
+            remove_from_history=False
         )
         ci_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=custom_code_display_config
@@ -260,12 +260,12 @@ class TestFirstMatchWins:
 
         first_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=ShowExecutedCodePostprocessorConfig(
-                sleep_time_before_display=0.1
+                remove_from_history=False
             )
         )
         second_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=ShowExecutedCodePostprocessorConfig(
-                sleep_time_before_display=9.9
+                remove_from_history=True
             )
         )
         mgr = _make_postprocessor_manager()
@@ -287,7 +287,7 @@ class TestFirstMatchWins:
         postprocessor: ShowExecutedCodePostprocessor = (
             mgr.add_postprocessor.call_args_list[0][0][0]
         )
-        assert postprocessor._config.sleep_time_before_display == 0.1
+        assert postprocessor._config is first_config.executed_code_display_config
 
     @pytest.mark.ai
     def test_skips_disabled_tool_and_uses_next_enabled_code_interpreter(self):
@@ -298,12 +298,12 @@ class TestFirstMatchWins:
 
         disabled_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=ShowExecutedCodePostprocessorConfig(
-                sleep_time_before_display=9.9
+                remove_from_history=True
             )
         )
         enabled_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=ShowExecutedCodePostprocessorConfig(
-                sleep_time_before_display=0.5
+                remove_from_history=False
             )
         )
         mgr = _make_postprocessor_manager()
@@ -325,4 +325,4 @@ class TestFirstMatchWins:
         postprocessor: ShowExecutedCodePostprocessor = (
             mgr.add_postprocessor.call_args_list[0][0][0]
         )
-        assert postprocessor._config.sleep_time_before_display == 0.5
+        assert postprocessor._config is enabled_config.executed_code_display_config
