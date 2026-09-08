@@ -1,12 +1,13 @@
 import logging
-from typing import Any, override
+from collections.abc import Sequence
+from typing import Any, Protocol, cast, override
 
 from perplexity import AsyncPerplexity
-from perplexity.types.search_create_response import Result
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexityConfig,
+    PerplexitySearchRequest,
 )
 
 from unique_web_search.client_settings import get_perplexity_search_settings
@@ -22,6 +23,17 @@ from unique_web_search.services.search_engine.schema import (
 
 _LOGGER = logging.getLogger(__name__)
 MAX_RESULTS_PER_REQUEST = 20
+
+
+class _PerplexityResult(Protocol):
+    @property
+    def url(self) -> str: ...
+
+    @property
+    def title(self) -> str: ...
+
+    @property
+    def snippet(self) -> str: ...
 
 
 @register_search_engine(
@@ -52,7 +64,10 @@ class PerplexitySearch(SearchEngine[PerplexityConfig]):
         overrides = (
             params.model_dump(by_alias=True, exclude_none=True) if params else {}
         )
-        request = self.config.merge(overrides, query=query)
+        request = cast(
+            PerplexitySearchRequest,
+            self.config.merge(overrides, query=query),
+        )
         provider_params = PerplexityConfig.provider_query_params(
             request,
             by_alias=False,
@@ -74,7 +89,7 @@ class PerplexitySearch(SearchEngine[PerplexityConfig]):
 
     def _to_web_search_results(
         self,
-        results: list[Result] | None,
+        results: Sequence[_PerplexityResult] | None,
     ) -> list[WebSearchResult]:
         if not results:
             _LOGGER.warning("No search results found in Perplexity search response")
