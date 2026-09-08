@@ -73,8 +73,8 @@ misspelled, obfuscated, or split across words.
 Facts about the user themselves are ALWAYS allowed, even when they name
 an organization: the user's own employer (current and past), team, role,
 job title, location, and the organizations, products, and tools they say
-they work at or with. "Works at Julius Baer", "moved from UBS to
-Swiss Re" are the user's own identity facts, not CID. The prohibitions
+they work at or with. "Works at COMPANY X", "moved from COMPANY X to
+COMPANY Y" are the user's own identity facts, not CID. The prohibitions
 above target OTHER people, and entities in a client, prospect, or
 counterparty relationship - never the user's own employment or
 affiliations.
