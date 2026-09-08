@@ -75,7 +75,6 @@ def get_bing_grounding_tool(
                     project_connection_id=connection_id,
                     count=grounding.fetch_size,
                     market=grounding.market,
-                    set_lang=grounding.set_lang,
                     freshness=grounding.freshness,
                 )
             ]

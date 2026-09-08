@@ -485,13 +485,12 @@ class TestConfigHashAndAgentName:
         "knob",
         [
             {"market": "fr-CH"},
-            {"set_lang": "fr"},
             {"freshness": "Week"},
         ],
     )
     def test_each_grounding_knob__changes_name(self, knob: dict[str, str]) -> None:
         """
-        Purpose: Verify market, setLang and freshness participate in the agent hash.
+        Purpose: Verify market and freshness participate in the agent hash.
         Why this matters: These knobs are baked into the agent version, so reusing a
             name would serve results for the wrong market/language/recency window.
         Setup summary: Hash a baseline configuration against one knob at a time.
@@ -673,7 +672,7 @@ class TestGetBingGroundingTool:
         self, mock_env: MagicMock
     ) -> None:
         """
-        Purpose: Verify market, setLang and freshness reach the search configuration.
+        Purpose: Verify market and freshness reach the search configuration.
         Why this matters: These knobs are the whole point of the config; dropping them
             silently returns results from the wrong market.
         Setup summary: Build the tool with all knobs set; assert each value forwarded.
@@ -683,12 +682,11 @@ class TestGetBingGroundingTool:
         )
 
         tool = get_bing_grounding_tool(
-            _grounding(market="fr-CH", set_lang="fr", freshness="Week"),
+            _grounding(market="fr-CH", freshness="Week"),
         )
 
         config = tool.bing_grounding.search_configurations[0]
         assert config.market == "fr-CH"
-        assert config.set_lang == "fr"
         assert config.freshness == "Week"
 
     @pytest.mark.ai
