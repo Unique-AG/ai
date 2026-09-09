@@ -33,10 +33,16 @@ class TestResolveRedirectChain:
         mock_client.__aexit__ = AsyncMock(return_value=None)
         return mock_client
 
-    async def _resolve_redirect_chain(self, url: str) -> str:
+    async def _resolve_redirect_chain(
+        self,
+        url: str,
+        *,
+        http_client: httpx.AsyncClient | None = None,
+    ) -> str:
         return await redirect_module.resolve_redirect_chain(
             url,
             validate_url=UrlSafetyService.validate_url,
+            http_client=http_client,
         )
 
     @pytest.mark.ai
@@ -55,7 +61,14 @@ class TestResolveRedirectChain:
             result = await self._resolve_redirect_chain("https://example.com/page")
 
         assert result == "https://example.com/page"
-        mock_client.head.assert_called_once_with("https://example.com/page")
+        mock_client.head.assert_called_once()
+        head_args, head_kwargs = mock_client.head.call_args
+        assert head_args == ("https://example.com/page",)
+        assert head_kwargs["follow_redirects"] is False
+        assert (
+            head_kwargs["headers"]["User-Agent"]
+            == redirect_module._REDIRECT_PROBE_USER_AGENT
+        )
         _, kwargs = mock_client_cls.call_args
         assert (
             kwargs["headers"]["User-Agent"]
@@ -193,3 +206,78 @@ class TestResolveRedirectChain:
 
         assert result == "https://example.com/a/other"
         assert mock_client.head.call_count == 2
+
+
+class TestResolveRedirectChainWithCallerClient:
+    """Probing through a caller-owned client, e.g. one carrying proxy credentials."""
+
+    @pytest.fixture(autouse=True)
+    def _use_fake_public_dns(self, fake_public_dns: None) -> None:
+        pass
+
+    def _make_caller_client(self, status_code: int) -> AsyncMock:
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.headers = {}
+        caller_client = AsyncMock()
+        caller_client.head = AsyncMock(return_value=resp)
+        return caller_client
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_probes_through_caller_client_without_building_its_own(self) -> None:
+        """Probes must share the crawl's egress path, not bypass it.
+
+        A probe on a default client would reach the internet directly while the
+        crawl goes through the proxy, so the two could see different pages.
+        """
+        caller_client = self._make_caller_client(200)
+
+        with patch(_REDIRECT_HTTPX) as mock_client_cls:
+            result = await redirect_module.resolve_redirect_chain(
+                "https://example.com/page",
+                validate_url=UrlSafetyService.validate_url,
+                http_client=caller_client,
+            )
+
+        assert result == "https://example.com/page"
+        caller_client.head.assert_called_once()
+        mock_client_cls.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_does_not_close_caller_client(self) -> None:
+        """The caller owns the client; closing it would break later crawl requests."""
+        caller_client = self._make_caller_client(200)
+
+        await redirect_module.resolve_redirect_chain(
+            "https://example.com/page",
+            validate_url=UrlSafetyService.validate_url,
+            http_client=caller_client,
+        )
+
+        caller_client.aclose.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_forces_probe_semantics_on_caller_client(self) -> None:
+        """A caller client may follow redirects by default; probing must not.
+
+        Internal redirect following would skip per-hop validation and reopen the
+        redirect SSRF bypass this probe exists to close.
+        """
+        caller_client = self._make_caller_client(200)
+
+        await redirect_module.resolve_redirect_chain(
+            "https://example.com/page",
+            validate_url=UrlSafetyService.validate_url,
+            http_client=caller_client,
+        )
+
+        _, kwargs = caller_client.head.call_args
+        assert kwargs["follow_redirects"] is False
+        assert (
+            kwargs["headers"]["User-Agent"]
+            == redirect_module._REDIRECT_PROBE_USER_AGENT
+        )
+        assert kwargs["timeout"] is not None

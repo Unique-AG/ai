@@ -141,7 +141,8 @@ def test_http_client_env_injection_is_not_enabled_gated() -> None:
     # themselves rather than on a meaningless ``enabled`` toggle.
     assert (
         "{{- if or .ctx.Values.httpClient.connection.proxyUsername "
-        ".ctx.Values.httpClient.connection.proxyPassword -}}"
+        ".ctx.Values.httpClient.connection.proxyPassword "
+        ".ctx.Values.httpClient.connection.perUserProxyPassword -}}"
     ) in template
 
 
@@ -268,7 +269,8 @@ def test_google_template_preserves_required_engine_id_guard() -> None:
     assert "or and .Values" not in template
     assert (
         "(list .ctx.Values.httpClient.connection.proxyUsername "
-        ".ctx.Values.httpClient.connection.proxyPassword)"
+        ".ctx.Values.httpClient.connection.proxyPassword "
+        ".ctx.Values.httpClient.connection.perUserProxyPassword)"
     ) in template
     assert ".Values.httpClient.tuning.poolTimeoutSeconds" in template
 

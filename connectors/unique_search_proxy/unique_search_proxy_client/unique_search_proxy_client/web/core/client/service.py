@@ -153,6 +153,48 @@ def build_async_client(
     )
 
 
+def build_per_user_proxy(
+    proxy_username: str,
+    *,
+    settings: HttpClientSettings | None = None,
+) -> httpx.Proxy:
+    """Describe the proxy hop authenticated as one end user.
+
+    Credentials go on ``httpx.Proxy`` rather than into the proxy URL so a
+    username containing URL-special characters needs no percent-encoding.
+    """
+    client_settings = settings or _settings()
+    return httpx.Proxy(
+        url=_build_proxy_url_with_tls(client_settings),
+        auth=(proxy_username, read_secret(client_settings.per_user_proxy_password)),
+    )
+
+
+def build_per_user_async_client(
+    proxy_username: str,
+    *,
+    settings: HttpClientSettings | None = None,
+    timeout: float | None = None,
+) -> AsyncClient:
+    """Build a client that authenticates to the proxy as one end user."""
+    client_settings = settings or _settings()
+    return AsyncClient(
+        proxy=build_per_user_proxy(proxy_username, settings=client_settings),
+        headers=read_secret_headers(client_settings.proxy_headers) or None,
+        verify=client_settings.proxy_ssl_ca_bundle_path or True,
+        cert=(
+            _get_cert_args(client_settings)
+            if client_settings.proxy_ssl_cert_path is not None
+            else None
+        ),
+        timeout=timeout or client_settings.pool_timeout_seconds,
+        limits=httpx.Limits(
+            max_connections=client_settings.max_connections,
+            max_keepalive_connections=client_settings.max_keepalive_connections,
+        ),
+    )
+
+
 def async_client_factory(
     *,
     settings: HttpClientSettings | None = None,

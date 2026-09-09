@@ -74,6 +74,67 @@ class TestHttpClientSettings:
         assert config.headers == {"Proxy-Authorization": "Bearer secret-token"}
 
 
+class TestPerUserProxySettings:
+    @pytest.mark.ai
+    def test_defaults_leave_per_user_proxy_off(self) -> None:
+        settings = get_http_client_settings()
+        assert settings.per_user_proxy_company_ids == []
+        assert settings.per_user_proxy_password is None
+        assert settings.per_user_proxy_client_cache_size == 128
+        assert settings.per_user_proxy_enabled_for("any-company") is False
+
+    @pytest.mark.ai
+    def test_username_field_defaults_to_user_name(self) -> None:
+        assert get_http_client_settings().per_user_proxy_username_field == "userName"
+
+    @pytest.mark.ai
+    def test_loads_per_user_proxy_config_from_env(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv(
+            "HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS",
+            json.dumps(["company-a", "company-b"]),
+        )
+        monkeypatch.setenv("HTTP_CLIENT_PER_USER_PROXY_USERNAME_FIELD", "email")
+        monkeypatch.setenv("HTTP_CLIENT_PER_USER_PROXY_PASSWORD", "placeholder")
+        monkeypatch.setenv("HTTP_CLIENT_PER_USER_PROXY_CLIENT_CACHE_SIZE", "8")
+        settings = get_http_client_settings()
+
+        assert settings.per_user_proxy_company_ids == ["company-a", "company-b"]
+        assert settings.per_user_proxy_username_field == "email"
+        assert settings.per_user_proxy_password is not None
+        assert settings.per_user_proxy_password.get_secret_value() == "placeholder"
+        assert settings.per_user_proxy_client_cache_size == 8
+
+    @pytest.mark.ai
+    def test_empty_password_is_a_valid_configured_value(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """BNPP's proxy expects ``--proxy-user <uid>:``, i.e. an empty password."""
+        monkeypatch.setenv("HTTP_CLIENT_PER_USER_PROXY_PASSWORD", "")
+        settings = get_http_client_settings()
+
+        assert settings.per_user_proxy_password is not None
+        assert settings.per_user_proxy_password.get_secret_value() == ""
+
+    @pytest.mark.ai
+    def test_gating_is_scoped_to_listed_companies(self) -> None:
+        settings = HttpClientSettings(per_user_proxy_company_ids=["company-a"])
+
+        assert settings.per_user_proxy_enabled_for("company-a") is True
+        assert settings.per_user_proxy_enabled_for("company-b") is False
+
+    @pytest.mark.ai
+    def test_password_is_masked_in_startup_report(self) -> None:
+        settings = HttpClientSettings(per_user_proxy_password=LogSecretStr("secret"))
+
+        assert "secret" not in _format_settings_value(
+            settings.per_user_proxy_password,
+        )
+
+
 class TestHttpClientSecretFormatting:
     @pytest.mark.ai
     def test_format_settings_value_masks_secret_headers(

@@ -90,7 +90,9 @@ class TestValidateUrlsWithRedirects:
 
         assert len(targets) == 1
         assert targets[0].normalized_url == "https://example.com/page"
-        mock_client.head.assert_called_once_with("https://example.com/page")
+        mock_client.head.assert_called_once()
+        probed_args, _ = mock_client.head.call_args
+        assert probed_args == ("https://example.com/page",)
 
 
 class TestValidateUrlsIndividually:

@@ -35,10 +35,13 @@ Dedicated Helm chart for the Unique search proxy connector
 | googleSearch.enabled | bool | `false` |  |
 | grafana.dashboards.enabled | bool | `true` |  |
 | grafana.dashboards.replacements.%%PROMETHEUS_UID%% | string | `"prometheus"` |  |
+| httpClient.connection.perUserProxyCompanyIds | list | `[]` |  |
+| httpClient.connection.perUserProxyUsernameField | string | `"userName"` |  |
 | httpClient.connection.proxyAuthMode | string | `"none"` |  |
 | httpClient.connection.proxyProtocol | string | `"http"` |  |
 | httpClient.tuning.maxConnections | int | `100` |  |
 | httpClient.tuning.maxKeepaliveConnections | int | `20` |  |
+| httpClient.tuning.perUserProxyClientCacheSize | int | `128` |  |
 | httpClient.tuning.poolTimeoutSeconds | float | `30` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |

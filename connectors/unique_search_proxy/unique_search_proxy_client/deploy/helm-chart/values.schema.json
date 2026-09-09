@@ -2255,6 +2255,21 @@
               "description": "Maps to env var HTTP_CLIENT_PROXY_PASSWORD.",
               "$ref": "#/$defs/valueSourceSensitive"
             },
+            "perUserProxyCompanyIds": {
+              "description": "Maps to env var HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "perUserProxyUsernameField": {
+              "description": "Maps to env var HTTP_CLIENT_PER_USER_PROXY_USERNAME_FIELD.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "perUserProxyPassword": {
+              "description": "Maps to env var HTTP_CLIENT_PER_USER_PROXY_PASSWORD.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
             "proxySslCertPath": {
               "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_CERT_PATH.",
               "$ref": "#/$defs/valueSourceString"
@@ -2279,6 +2294,10 @@
             },
             "maxKeepaliveConnections": {
               "description": "Maps to env var HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "perUserProxyClientCacheSize": {
+              "description": "Maps to env var HTTP_CLIENT_PER_USER_PROXY_CLIENT_CACHE_SIZE.",
               "$ref": "#/$defs/valueSourceInteger"
             }
           }

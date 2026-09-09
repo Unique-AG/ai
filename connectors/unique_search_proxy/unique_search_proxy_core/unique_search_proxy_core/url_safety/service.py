@@ -4,6 +4,8 @@ import logging
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
+import httpx
+
 from unique_search_proxy_core.url_safety import dns, redirect, resolver
 from unique_search_proxy_core.url_safety.models import (
     BlockedCrawlTarget,
@@ -33,7 +35,11 @@ def _safe_hostname(url: str) -> str | None:
 
 class UrlSafetyService:
     @staticmethod
-    async def validate_urls_individually(urls: list[str]) -> list[UrlSafetyOutcome]:
+    async def validate_urls_individually(
+        urls: list[str],
+        *,
+        redirect_http_client: httpx.AsyncClient | None = None,
+    ) -> list[UrlSafetyOutcome]:
         if not url_safety_settings.enabled:
             return [
                 UrlSafetyOutcome(url=url, resolved=bypass_crawl_target(url))
@@ -48,6 +54,7 @@ class UrlSafetyService:
                     working_url = await redirect.resolve_redirect_chain(
                         working_url,
                         validate_url=UrlSafetyService.validate_url,
+                        http_client=redirect_http_client,
                     )
                 resolved = await resolver.resolve_crawl_target(working_url)
                 outcomes.append(UrlSafetyOutcome(url=url, resolved=resolved))
@@ -71,8 +78,15 @@ class UrlSafetyService:
         return outcomes
 
     @staticmethod
-    async def validate_batch_urls(urls: list[str]) -> list[ResolvedCrawlTarget]:
-        outcomes = await UrlSafetyService.validate_urls_individually(urls)
+    async def validate_batch_urls(
+        urls: list[str],
+        *,
+        redirect_http_client: httpx.AsyncClient | None = None,
+    ) -> list[ResolvedCrawlTarget]:
+        outcomes = await UrlSafetyService.validate_urls_individually(
+            urls,
+            redirect_http_client=redirect_http_client,
+        )
         blocked_targets = [
             outcome.blocked for outcome in outcomes if outcome.blocked is not None
         ]

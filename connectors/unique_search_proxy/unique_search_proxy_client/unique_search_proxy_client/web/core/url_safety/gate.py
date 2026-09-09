@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from unique_search_proxy_core.schema import CrawlUrlResult
 from unique_search_proxy_core.url_safety import ResolvedCrawlTarget, UrlSafetyService
 
 from unique_search_proxy_client.web.core.provider_response import crawl_forbidden_target
 from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 
 @dataclass(frozen=True)
@@ -23,9 +27,16 @@ class UrlSafetyGateResult:
     blocked_by_index: dict[int, CrawlUrlResult]
 
 
-async def apply_url_safety_gate(urls: list[str]) -> UrlSafetyGateResult:
+async def apply_url_safety_gate(
+    urls: list[str],
+    *,
+    redirect_http_client: AsyncClient | None = None,
+) -> UrlSafetyGateResult:
     """Validate crawl URLs and partition them into allowed vs blocked targets."""
-    outcomes = await UrlSafetyService.validate_urls_individually(urls)
+    outcomes = await UrlSafetyService.validate_urls_individually(
+        urls,
+        redirect_http_client=redirect_http_client,
+    )
     allowed_targets: list[AllowedCrawlTarget] = []
     blocked_by_index: dict[int, CrawlUrlResult] = {}
 
