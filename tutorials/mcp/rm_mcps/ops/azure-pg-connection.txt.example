@@ -1,0 +1,9 @@
+# Azure PostgreSQL Flexible Server for the RM MCP demo — SHAPE ONLY, no real values.
+# Real values: app settings of the rm-crm-mcp / rm-advisory-mcp web apps
+# (subscription 698f3b43-…, rg-lab-demo-001-rm-agent-mcp) or 1Password.
+# Load into env with:  set -a; . azure-pg-connection.txt; set +a
+PG_HOST=rm-agent-mcp-pgdb.postgres.database.azure.com
+PG_PORT=5432
+PG_DATABASE=rmmcps
+PG_ADMIN_USER=pgadmin
+PG_ADMIN_PASSWORD=<from-app-settings-or-1password>
