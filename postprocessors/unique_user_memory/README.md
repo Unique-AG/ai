@@ -25,7 +25,38 @@ The memory file is intentionally small and structured. It is rewritten as a full
 5. `UserMemoryPostprocessor` runs after the assistant response.
 6. The package asks the configured language model to either return `NOOP` or a complete rewritten profile.
 7. If a rewrite runs, an **Updating your memory** Step is shown while consolidating (no settings entry yet).
-8. If the profile changed and `memory.md` uploads successfully (ingestion skipped, content hidden from chat), that Step is completed with a **Review your context memory** detail entry (same settings badge). On NOOP or failed upload the Step completes without the entry.
+8. Every rewrite passes through a mandatory CID/PII scrub call (see Content Policy below) before it is assembled for upload. When the scrub cannot vouch for the rewrite, the existing memory is kept unchanged.
+9. If the profile changed and `memory.md` uploads successfully (ingestion skipped, content hidden from chat), that Step is completed with a **Review your context memory** detail entry (same settings badge). On NOOP or failed upload the Step completes without the entry.
+
+## Content Policy — the current user's CID/PII only (UN-24886)
+
+The profile belongs to exactly one person: the signed-in user. It may contain
+personal data (PII) of that user only. It must never contain
+client-identifying data (CID) or PII of any other person or private entity —
+not other users, not clients, not prospects, not counterparties. Facts about
+the user's own work that involve a client are stored only in a fully
+de-identified form ("runs quarterly portfolio reviews", never "reviews the
+portfolio of J. Muster"). Credentials, payment data, health records, and
+government IDs are never stored for anyone, including the user.
+
+The policy text lives once, in `_CID_POLICY` in `user_memory_prompts.py`, and
+is embedded in every write-path stage so the rules cannot drift:
+
+| Stage | Role of the policy |
+| --- | --- |
+| Gate (`memory_gate_system_prompt`) | Turns whose only new facts are third-party CID/PII lean `NOOP` and never reach the rewrite. |
+| Consolidation (`consolidation_system_prompt`) | The rewrite itself must not extract forbidden content. |
+| Condensation (`condensation_system_prompt`) | Oversized (including legacy) profiles must drop violating bullets on every shrink, progressively cleaning old data. |
+| Scrub (`scrub_system_prompt` / `scrub_user_memory`) | Mandatory final gate on every consolidation rewrite. Answers `CLEAN`, returns a cleaned body, or vetoes the write. Fails closed: on any error the existing memory is kept and the unvalidated candidate is discarded. |
+
+Storage-level isolation (per-user home folder with exclusive owner ACL, see
+Storage Model) already prevents cross-user *access*; this policy governs
+cross-user and cross-client *content*.
+
+Note for follow-up client-memory work: this package is user memory only. A
+future client memory is a separate artefact with its own scoping and must not
+be built by loosening this policy — client-related durable knowledge is
+intentionally rejected here rather than stored under the user's profile.
 
 ## Storage Model
 

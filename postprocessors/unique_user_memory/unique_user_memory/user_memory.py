@@ -38,6 +38,8 @@ from unique_user_memory.user_memory_prompts import (
     empty_profile,
     memory_gate_system_prompt,
     memory_gate_user_prompt,
+    scrub_system_prompt,
+    scrub_user_prompt,
 )
 
 MEMORY_FILENAME = "memory.md"
@@ -846,6 +848,101 @@ async def consolidate_user_memory(
         await on_update_end()
 
 
+async def scrub_user_memory(
+    *,
+    body: str,
+    config: UserMemoryConfig,
+    language_model: LanguageModelInfo,
+    event: ChatEvent,
+    logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
+) -> str | None:
+    """Enforce the CID/PII policy on a candidate profile body (UN-24886).
+
+    Runs after every consolidation rewrite and before the profile is
+    assembled for upload. Returns the body unchanged when the model
+    answers ``CLEAN``, the cleaned body when bullets were removed or
+    de-identified, and ``None`` when the scrub cannot vouch for the
+    candidate (LLM error, malformed output). The caller MUST treat
+    ``None`` as fail-closed and keep the existing memory.
+    """
+    try:
+        llm_service = LanguageModelService(event)
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] cannot construct LanguageModelService for scrub: [%s] %s",
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    messages = LanguageModelMessages(
+        [
+            LanguageModelSystemMessage(content=scrub_system_prompt()),
+            LanguageModelUserMessage(
+                content=scrub_user_prompt(_sanitize_for_xml_context(body))
+            ),
+        ]
+    )
+
+    try:
+        response = await llm_service.complete_async(
+            messages=messages,
+            model_name=language_model.name,
+            other_options={
+                "max_tokens": config.max_tokens + _LLM_OUTPUT_HEADROOM_TOKENS
+            },
+        )
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] scrub LLM call failed (model=%s): [%s] %s",
+            language_model.name,
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    if invocation_stats is not None and response.usage is not None:
+        invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(
+                language_model.name,
+                response.usage,
+                source="user_memory_scrub",
+            )
+        )
+
+    try:
+        raw = response.choices[0].message.content or ""
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] could not extract content from scrub response: [%s] %s",
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    if not isinstance(raw, str):
+        logger.warning(
+            "[user-memory] scrub returned non-string content (%s)",
+            type(raw).__name__,
+        )
+        return None
+
+    if raw.strip().upper() == "CLEAN":
+        return body
+
+    cleaned = _without_legacy_profile_title(profile_body(_strip_code_fences(raw)))
+    if not _is_well_formed_profile(cleaned):
+        logger.warning(
+            "[user-memory] scrub output did not look like a profile (%d chars)",
+            len(cleaned),
+        )
+        return None
+
+    logger.info("[user-memory] scrub removed or de-identified profile content")
+    return cleaned
+
+
 async def _rewrite_user_memory(
     *,
     safe_current: str,
@@ -944,6 +1041,22 @@ async def _rewrite_user_memory(
             len(candidate_body),
         )
         return safe_current
+
+    scrubbed_body = await scrub_user_memory(
+        body=candidate_body,
+        config=config,
+        language_model=language_model,
+        event=event,
+        logger=logger,
+        invocation_stats=invocation_stats,
+    )
+    if scrubbed_body is None:
+        logger.warning(
+            "[user-memory] scrub could not validate the rewritten profile - "
+            "keeping existing memory"
+        )
+        return safe_current
+    candidate_body = scrubbed_body
 
     if safe_current and candidate_body == profile_body(safe_current):
         logger.debug("[user-memory] memory body unchanged - skipping update")

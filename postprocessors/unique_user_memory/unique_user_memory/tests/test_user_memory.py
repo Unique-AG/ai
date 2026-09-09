@@ -36,6 +36,7 @@ from unique_user_memory.user_memory import (
     ensure_user_memory_folder,
     fit_user_memory,
     profile_body,
+    scrub_user_memory,
     should_consolidate_memory,
     upload_user_memory,
 )
@@ -46,6 +47,7 @@ from unique_user_memory.user_memory_prompts import (
     consolidation_system_prompt,
     empty_profile,
     memory_gate_system_prompt,
+    scrub_system_prompt,
 )
 
 _TEST_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL)
@@ -375,6 +377,7 @@ async def test_user_memory_llm_paths_forward_event_attribution(
         side_effect=[
             _completion_response("UPDATE"),
             _completion_response(rewritten),
+            _completion_response("CLEAN"),
             _completion_response(condensed),
         ]
     )
@@ -415,7 +418,7 @@ async def test_user_memory_llm_paths_forward_event_attribution(
     assert gate_result is True
     assert rewritten in rewrite_result
     assert condense_result == condensed
-    assert complete_async.await_count == 3
+    assert complete_async.await_count == 4
     assert all(
         call.kwargs["chat_id"] == "chat_1"
         and call.kwargs["assistant_id"] == "assistant_1"
@@ -564,7 +567,8 @@ async def test_consolidate_user_memory_runs_full_rewrite_when_gate_update(
     assert "user_id: user_1" in result
     assert "schema_version: 1" in result
     assert "turn_count: 1" in result
-    llm_service.complete_async.assert_awaited_once()
+    # One rewrite call plus the mandatory CID/PII scrub call (UN-24886).
+    assert llm_service.complete_async.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -676,7 +680,8 @@ async def test_consolidate_user_memory_skips_gate_when_disabled(
     assert "user_id: user_1" in result
     assert "turn_count: 1" in result
     gate.assert_not_awaited()
-    llm_service.complete_async.assert_awaited_once()
+    # One rewrite call plus the mandatory CID/PII scrub call (UN-24886).
+    assert llm_service.complete_async.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -797,6 +802,257 @@ async def test_should_consolidate_memory_falls_back_to_true_on_error(
     )
 
     assert result is True
+
+
+@pytest.mark.ai
+def test_cid_policy_is_embedded_in_every_write_path_prompt() -> None:
+    """Purpose: Verify the shared CID/PII policy reaches all write-path prompts.
+    Why this matters: UN-24886 forbids other people's CID/PII in User Memory;
+    a prompt missing the policy silently reopens the leak.
+    Setup summary: Render all four system prompts and assert the policy marker.
+    """
+    policy_marker = "CID / PII policy - the current user only - STRICT"
+    prompts = (
+        consolidation_system_prompt(2000),
+        condensation_system_prompt(
+            max_tokens=2000,
+            current_tokens=2200,
+            target_tokens=1800,
+        ),
+        memory_gate_system_prompt(),
+        scrub_system_prompt(),
+    )
+
+    assert all(policy_marker in prompt for prompt in prompts)
+    assert all("Bank-client relationship signals" in prompt for prompt in prompts)
+    # The policy must not swallow the user's own facts: employer changes and
+    # other affiliations are identity data, not CID (regression guard for the
+    # gate answering NOOP on "I work at X now, not at Y anymore").
+    assert all(
+        "Facts about the user themselves are ALWAYS allowed" in prompt
+        for prompt in prompts
+    )
+    # Same for the user's own personal life facts (regression guard for the
+    # gate answering NOOP on the user stating their own family status).
+    assert all(
+        "The user's own life facts stated about themselves are also allowed" in prompt
+        for prompt in prompts
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_scrub_user_memory_returns_body_unchanged_on_clean(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify a compliant profile passes the scrub untouched.
+    Why this matters: The scrub must not mutate profiles that already comply.
+    Setup summary: Mock the LLM to answer CLEAN and compare input to output.
+    """
+    body = _complete_profile_body("- Prefers concise answers")
+    response = MagicMock()
+    response.choices[0].message.content = "CLEAN"
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await scrub_user_memory(
+        body=body,
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == body
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_scrub_user_memory_returns_cleaned_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify the scrub replaces a violating body with the cleaned one.
+    Why this matters: Third-party CID caught only at this last gate must be
+    stripped before the profile is persisted.
+    Setup summary: Mock the LLM to return a de-identified rewrite and assert it wins.
+    """
+    body_with_cid = _complete_profile_body(
+        "- Reviews the portfolio of J. Muster (client, IBAN CH93 0076 2011 6238 5295 7)"
+    )
+    cleaned = _complete_profile_body("- Runs quarterly portfolio reviews")
+    response = MagicMock()
+    response.choices[0].message.content = cleaned
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await scrub_user_memory(
+        body=body_with_cid,
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == cleaned
+    assert "J. Muster" not in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_scrub_user_memory_fails_closed_on_llm_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify a failing scrub call vetoes the write instead of passing it.
+    Why this matters: An unvalidated candidate must never reach storage; the
+    gate falls back to UPDATE on error, so the scrub must fall back to reject.
+    Setup summary: Mock the LLM to raise and assert the scrub returns None.
+    """
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(side_effect=RuntimeError("boom"))
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await scrub_user_memory(
+        body=_complete_profile_body(),
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_scrub_user_memory_fails_closed_on_malformed_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify non-profile scrub output rejects the candidate.
+    Why this matters: A scrub reply that is neither CLEAN nor a well-formed
+    profile gives no guarantee about the candidate, so it must not be stored.
+    Setup summary: Mock the LLM to return prose and assert the scrub returns None.
+    """
+    response = MagicMock()
+    response.choices[0].message.content = "I removed some sensitive data for you."
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await scrub_user_memory(
+        body=_complete_profile_body(),
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_persists_scrubbed_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify the consolidation write path stores the scrubbed rewrite.
+    Why this matters: The scrub is the enforcement layer for UN-24886; the
+    profile assembled for upload must be the cleaned body, not the raw rewrite.
+    Setup summary: Rewrite emits third-party CID, scrub emits a de-identified
+    version; assert the result contains only the latter.
+    """
+    rewritten_with_cid = _complete_profile_body(
+        "- Reviews the portfolio of J. Muster (client)"
+    )
+    cleaned = _complete_profile_body("- Runs quarterly portfolio reviews")
+    responses = iter([rewritten_with_cid, cleaned])
+
+    def _next_response(*args: object, **kwargs: object) -> MagicMock:
+        response = MagicMock()
+        response.choices[0].message.content = next(responses)
+        return response
+
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(side_effect=_next_response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="I just reviewed the portfolio of J. Muster",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert "Runs quarterly portfolio reviews" in result
+    assert "J. Muster" not in result
+    assert llm_service.complete_async.await_count == 2
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_keeps_existing_when_scrub_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify a failed scrub keeps the existing memory (fail closed).
+    Why this matters: When the enforcement layer cannot vouch for a rewrite,
+    the unvalidated candidate must be discarded, not uploaded.
+    Setup summary: Let the rewrite succeed, force the scrub to return None,
+    and assert the pre-turn memory survives unchanged.
+    """
+    current = empty_profile("user_1")
+    response = MagicMock()
+    response.choices[0].message.content = _complete_profile_body()
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.scrub_user_memory",
+        AsyncMock(return_value=None),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=current,
+        user_id="user_1",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == current
 
 
 @pytest.mark.asyncio
