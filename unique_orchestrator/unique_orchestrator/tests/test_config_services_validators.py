@@ -293,8 +293,8 @@ class TestUniqueAIConfigOpenFileValidator:
         assert config.agent.experimental.responses_api_config.use_responses_api is True
 
 
-class TestUniqueAIConfigGpt55AndGpt56ResponsesApiValidator:
-    """Tests for the GPT-5.5, GPT-5.6, and GPT-6 Responses API validator.
+class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
+    """Tests for the GPT frontier models (GPT-5.5 and newer) Responses API validator.
 
     These models reject requests that combine `tools` with `reasoning_effort`
     on /v1/chat/completions and demand /v1/responses. The validator forces the

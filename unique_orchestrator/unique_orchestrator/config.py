@@ -518,6 +518,26 @@ class UniqueAIAgentConfig(BaseToolConfig):
     experimental: ExperimentalConfig = ExperimentalConfig()
 
 
+# GPT frontier models (GPT-5.5 and newer) that must be served via the Responses API.
+# TEMP FIX, see `UniqueAIConfig.enable_responses_api_for_gpt_frontier_models`.
+GPT_FRONTIER_MODELS: frozenset[LanguageModelName] = frozenset(
+    {
+        LanguageModelName.AZURE_GPT_55_2026_0424,
+        LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+        LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+        LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+        LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+        LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+        LanguageModelName.LITELLM_OPENAI_GPT_55,
+        LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
+        LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+        LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+        LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+    }
+)
+
+
 class UniqueAIConfig(BaseToolConfig):
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
@@ -579,29 +599,16 @@ class UniqueAIConfig(BaseToolConfig):
         return self
 
     @model_validator(mode="after")
-    def enable_responses_api_for_gpt_55_and_gpt_56_models(self) -> "UniqueAIConfig":
-        """Auto-enable the Responses API for GPT-5.5, GPT-5.6, and GPT-6 models.
+    def enable_responses_api_for_gpt_frontier_models(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API for GPT frontier models (GPT-5.5 and newer).
 
-        TEMP FIX: GPT-5.5, GPT-5.6, and GPT-6 reject requests that combine `tools`
-        with `reasoning_effort` on /v1/chat/completions and demand /v1/responses.
+        TEMP FIX: these models reject requests that combine `tools` with
+        `reasoning_effort` on /v1/chat/completions and demand /v1/responses.
         Forcing the Responses API here avoids the OpenAI 400 error until the
         runner can pick the right transport based on model capabilities.
         Tracked in Jira: UN-20123.
         """
-        if self.space.language_model.name in {
-            LanguageModelName.AZURE_GPT_55_2026_0424,
-            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
-            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
-            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
-            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
-            LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
-            LanguageModelName.LITELLM_OPENAI_GPT_55,
-            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
-            LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
-        }:
+        if self.space.language_model.name in GPT_FRONTIER_MODELS:
             self.agent.experimental.responses_api_config.use_responses_api = True
         return self
 
