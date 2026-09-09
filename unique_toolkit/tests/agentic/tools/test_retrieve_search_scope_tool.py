@@ -124,6 +124,7 @@ class TestRetrieveSearchScopeToolRun:
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
+        tool.config.show_content_id = True
         content_infos = [
             _make_content_info("report.pdf", id="id_1"),
             _make_content_info("report.pdf", id="id_2"),
@@ -161,6 +162,7 @@ class TestRetrieveSearchScopeToolRun:
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
+        tool.config.show_content_id = True
         content_infos = [
             _make_content_info("report.pdf", id="cont_1"),
             _make_content_info("report.pdf", id="cont_1"),
@@ -171,7 +173,7 @@ class TestRetrieveSearchScopeToolRun:
         assert response.content.count("report.pdf (cont_1)") == 1
         assert "Listing 1 of 2" in response.content
 
-    async def test_non_openable_same_name_deduplicated(
+    async def test_same_name_deduplicated_when_content_ids_hidden(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
@@ -187,6 +189,24 @@ class TestRetrieveSearchScopeToolRun:
         assert response.content.count("page.html") == 1
         assert "Listing 1 of 2" in response.content
 
+    async def test_same_name_listed_separately_when_content_ids_shown(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.show_content_id = True
+        content_infos = [
+            _make_content_info("page.html", mime_type="text/html", id="cont_3"),
+            _make_content_info("page.html", mime_type="text/html", id="cont_4"),
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+
+        assert "page.html (cont_3)" in response.content
+        assert "page.html (cont_4)" in response.content
+        assert "2 of 2 files" in response.content
+
     async def test_returns_error_on_kb_failure(
         self,
         tool: RetrieveSearchScopeTool,
@@ -201,46 +221,15 @@ class TestRetrieveSearchScopeToolRun:
 
 
 @pytest.mark.unit
-class TestContentIdForOpenableFiles:
-    @pytest.mark.parametrize(
-        "filename, mime_type",
-        [
-            ("doc.pdf", "application/pdf"),
-            (
-                "doc.docx",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ),
-            ("doc.doc", "application/msword"),
-            (
-                "slides.pptx",
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            ),
-            ("slides.ppt", "application/vnd.ms-powerpoint"),
-        ],
-    )
-    async def test_openable_mime_types_include_content_id(
-        self,
-        tool: RetrieveSearchScopeTool,
-        mock_tool_call: LanguageModelFunction,
-        mocker: MockerFixture,
-        filename: str,
-        mime_type: str,
-    ):
-        content_infos = [
-            _make_content_info(filename, mime_type=mime_type, id="cont_123")
-        ]
-        _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
-        assert f"{filename} (cont_123)" in response.content
-
-    async def test_openable_file_without_id_does_not_append_content_id(
+class TestShowContentId:
+    async def test_default_excludes_content_id(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
         content_infos = [
-            _make_content_info("doc.pdf", mime_type="application/pdf", id="")
+            _make_content_info("doc.pdf", mime_type="application/pdf", id="cont_123")
         ]
         _stub_kb(mocker, content_infos)
         response = await tool.run(mock_tool_call)
@@ -250,6 +239,7 @@ class TestContentIdForOpenableFiles:
     @pytest.mark.parametrize(
         "filename, mime_type",
         [
+            ("doc.pdf", "application/pdf"),
             (
                 "data.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -257,7 +247,7 @@ class TestContentIdForOpenableFiles:
             ("notes.txt", "text/plain"),
         ],
     )
-    async def test_non_openable_mime_types_exclude_content_id(
+    async def test_when_enabled_includes_content_id_regardless_of_mime_type(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
@@ -265,15 +255,28 @@ class TestContentIdForOpenableFiles:
         filename: str,
         mime_type: str,
     ):
+        tool.config.show_content_id = True
         content_infos = [
-            _make_content_info(
-                filename, mime_type=mime_type, id="cont_should_not_appear"
-            )
+            _make_content_info(filename, mime_type=mime_type, id="cont_123")
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+        assert f"{filename} (cont_123)" in response.content
+
+    async def test_when_enabled_empty_id_does_not_append_content_id(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.show_content_id = True
+        content_infos = [
+            _make_content_info("doc.pdf", mime_type="application/pdf", id="")
         ]
         _stub_kb(mocker, content_infos)
         response = await tool.run(mock_tool_call)
         file_section = response.content.split("\n\n", 1)[1]
-        assert file_section.strip() == filename
+        assert file_section.strip() == "doc.pdf"
 
 
 @pytest.mark.unit
@@ -436,6 +439,7 @@ class TestTreeMode:
         mocker: MockerFixture,
     ):
         tool.config.display_mode = DisplayMode.tree
+        tool.config.show_content_id = True
         ci = _make_content_info("report.pdf", id="cont_1")
         _stub_kb(mocker, resolved_paths=[(ci, ["Documents", "Reports", "report.pdf"])])
         response = await tool.run(mock_tool_call)
@@ -457,13 +461,14 @@ class TestTreeMode:
         assert file_section.strip() == "orphan.txt"
         assert "_no_folder_path" not in response.content
 
-    async def test_openable_file_with_folder_path_includes_content_id(
+    async def test_file_with_folder_path_includes_content_id_when_enabled(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
         tool.config.display_mode = DisplayMode.tree
+        tool.config.show_content_id = True
         ci = _make_content_info("doc.pdf", id="cont_123")
         _stub_kb(mocker, resolved_paths=[(ci, ["Folder", "doc.pdf"])])
         response = await tool.run(mock_tool_call)
@@ -492,6 +497,7 @@ class TestTreeMode:
         mocker: MockerFixture,
     ):
         tool.config.display_mode = DisplayMode.tree
+        tool.config.show_content_id = True
         ci_1 = _make_content_info("report.pdf", id="cont_1")
         ci_2 = _make_content_info("report.pdf", id="cont_2")
         _stub_kb(
