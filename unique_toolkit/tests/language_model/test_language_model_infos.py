@@ -81,6 +81,7 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_52_2025_1211,
             LanguageModelName.AZURE_GPT_52_CHAT_2025_1211,
             LanguageModelName.AZURE_GPT_54_2026_0305,
+            LanguageModelName.AZURE_GPT_54_MINI_2026_0317,
             LanguageModelName.AZURE_GPT_54_PRO_2026_0305,
             LanguageModelName.AZURE_GPT_55_2026_0424,
             LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
@@ -252,6 +253,21 @@ class TestLanguageModelInfos:
         """
         model = LanguageModelInfo.from_name(model_name)
         assert model.info_cutoff_at == date(2026, 2, 16)
+
+    @pytest.mark.ai
+    def test_gpt_54_mini_token_limits_match_azure_400k_window(self):
+        """
+        Purpose: GPT-5.4 Mini uses the 272k/128k window, not GPT-5.4's 922k input.
+        Why this matters: Azure lists a 400k context with 272k input / 128k output.
+        Setup summary: Load AZURE_GPT_54_MINI_2026_0317 and assert token limits.
+        """
+        model = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_54_MINI_2026_0317
+        )
+        assert model.token_limits.token_limit_input == 272_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.info_cutoff_at == date(2025, 8, 31)
+        assert model.published_at == date(2026, 3, 17)
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
