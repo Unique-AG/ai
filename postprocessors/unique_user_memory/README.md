@@ -130,6 +130,27 @@ config = UserMemoryConfig(
 | `max_tokens` | `2000` | Maximum profile size. Must be between 500 and 8000 tokens. |
 | `root_folder` | `user-memory` | Subfolder name under each user's home folder (`/home-<user_id>/<root_folder>`) that holds the memory profile; also read as a legacy fallback at `/<root_folder>/<user_id>`. |
 
+## Observability
+
+The package registers Prometheus metrics on the shared `unique_toolkit.monitoring` registry (namespace `unique_user_memory`). They appear on whatever host already scrapes `GET /metrics` (assistants-core). Labels are closed enums — no company or user ids. LLM series include the model name so latency can be split per deployed model.
+
+QA dashboard: [User Memory](https://qa-grafana.alpine-bowfin.ts.net/d/unique-user-memory) (`unique-user-memory`). The dashboard is provisioned by the [assistants-core Helm chart](https://github.com/Unique-AG/monorepo/tree/master/python/assistants/bundles/core/deploy/helm-chart/files/grafana/dashboards).
+
+| Metric | Labels | What it answers |
+| --- | --- | --- |
+| `load_duration_seconds` / `load_total` | `outcome`: `success`, `empty`, `folder_failed`, `skipped_no_ids` | Is load slow? How often do we run without memory? |
+| `postprocessor_duration_seconds` / `postprocessor_total` | `outcome`: `updated`, `noop`, `upload_failed`, `skipped_no_ids`, `error` | Did this turn persist a new profile? |
+| `errors_total` | `stage`, `error_type` | Infra failures by stage (`folder_lookup`, `folder_create`, `download`, `upload`, `gate`, `consolidation`, `scrub`, `condense`, `postprocessor`). |
+| `llm_duration_seconds` / `llm_errors_total` | `purpose`: `gate`, `consolidation`, `scrub`, `condense`; `model`: the configured model name | Which LLM call is the latency or error hog, and how does that differ by model? |
+| `gate_decisions_total` | `decision`: `update`, `noop`, `fail_open` | Is the gate saving consolidations? Is fail-open spiking? |
+| `scrub_decisions_total` | `decision`: `clean`, `cleaned`, `veto` | CID/PII pass health. |
+| `consolidation_results_total` | `result`: `rewritten`, `noop`, `malformed`, `llm_error`, `scrub_veto`, `unchanged_after_scrub` | Why a rewrite did not persist. |
+| `storage_duration_seconds` / `storage_total` | `op`: `folder_lookup`, `folder_create`, `download`, `upload`; `outcome`: `success`, `error`, `not_found`, `refused_empty` | Is the content store the bottleneck? |
+| `memory_length_tokens` / `memory_length_chars` | `phase`: `load`, `write` | How large are profiles in tokens and characters versus `max_tokens`? |
+| `condense_total` | `trigger`: `load`, `post_consolidation`, `condense`; `result`: `llm_ok`, `hard_cut`, `llm_failed_then_hard_cut` | How often the budget shrink path fires. |
+
+Token usage for billing still flows through `LanguageModelInvocationStats`, not these series.
+
 ## Integration
 
 Typical orchestration code loads memory before the agent loop and registers the postprocessor for the same turn.
