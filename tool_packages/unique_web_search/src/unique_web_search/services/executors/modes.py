@@ -76,8 +76,8 @@ class WebSearchToolContext:
 
     ``exposed_params_cls`` is resolved once by ``WebSearchTool`` at init so
     strategies do not re-call ``exposed_params_model()``. The engine *mode*
-    (standard vs agent) is resolved lazily by the one strategy (V2) that needs
-    it, so V1/V3 never pay for a resolution they ignore.
+    (standard vs agent) is resolved lazily by the V2 and V3 strategies that
+    need it, so V1 never pays for a resolution it ignores.
     """
 
     search_engine_config: BaseModel
