@@ -87,6 +87,7 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
             LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
             LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
             LanguageModelName.LITELLM_OPENAI_GPT_5,
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
@@ -103,6 +104,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
             LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
@@ -250,6 +252,26 @@ class TestLanguageModelInfos:
         """
         model = LanguageModelInfo.from_name(model_name)
         assert model.info_cutoff_at == date(2026, 2, 16)
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+        ],
+    )
+    def test_gpt_6_astra_info_cutoff_matches_openai_knowledge_cutoff(self, model_name):
+        """
+        Purpose: GPT-6 Astra registry cutoff matches OpenAI's published knowledge cutoff.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff.
+        Setup summary: Load each GPT-6 Astra LanguageModelInfo and assert 2026-04-30.
+        Source: https://developers.openai.com/api/docs/models/gpt-6-astra
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.info_cutoff_at == date(2026, 4, 30)
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
 
 
 class TestLoadLanguageModelInfosFromEnv:
