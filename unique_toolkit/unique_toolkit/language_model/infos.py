@@ -58,6 +58,7 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_52_2025_1211 = "AZURE_GPT_52_2025_1211"
     AZURE_GPT_52_CHAT_2025_1211 = "AZURE_GPT_52_CHAT_2025_1211"
     AZURE_GPT_54_2026_0305 = "AZURE_GPT_54_2026_0305"
+    AZURE_GPT_54_MINI_2026_0317 = "AZURE_GPT_54_MINI_2026_0317"
     AZURE_GPT_54_PRO_2026_0305 = "AZURE_GPT_54_PRO_2026_0305"
     AZURE_GPT_55_2026_0424 = "AZURE_GPT_55_2026_0424"
     AZURE_GPT_55_PRO_2026_0424 = "AZURE_GPT_55_PRO_2026_0424"
@@ -215,6 +216,7 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_52_2025_1211
             | LMN.AZURE_GPT_52_CHAT_2025_1211
             | LMN.AZURE_GPT_54_2026_0305
+            | LMN.AZURE_GPT_54_MINI_2026_0317
             | LMN.AZURE_GPT_54_PRO_2026_0305
             | LMN.AZURE_GPT_55_2026_0424
             | LMN.AZURE_GPT_55_PRO_2026_0424
@@ -1059,6 +1061,42 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 9, 30),
                     published_at=date(2026, 3, 5),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "none",
+                    },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
+                )
+            case LanguageModelName.AZURE_GPT_54_MINI_2026_0317:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
+                    version="2026-03-17",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2025, 8, 31),
+                    published_at=date(2026, 3, 17),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=0.0, max_temperature=1.0
                     ),
