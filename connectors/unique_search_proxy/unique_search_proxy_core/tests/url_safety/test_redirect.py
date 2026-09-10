@@ -55,7 +55,12 @@ class TestResolveRedirectChain:
             result = await self._resolve_redirect_chain("https://example.com/page")
 
         assert result == "https://example.com/page"
-        mock_client.head.assert_called_once_with("https://example.com/page")
+        mock_client.head.assert_called_once_with(
+            "https://example.com/page",
+            follow_redirects=False,
+            timeout=redirect_module.url_safety_settings.redirect_timeout_seconds,
+            headers={"User-Agent": redirect_module._REDIRECT_PROBE_USER_AGENT},
+        )
         _, kwargs = mock_client_cls.call_args
         assert (
             kwargs["headers"]["User-Agent"]

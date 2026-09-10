@@ -123,6 +123,14 @@ library extension hooks (base.externalService.*.ext).
 - name: HTTP_CLIENT_PROXY_SSL_KEY_PATH
   value: {{ .Values.httpClient.connection.proxySslKeyPath | quote }}
 {{- end }}
+- name: HTTP_CLIENT_PROXY_USERNAME_SOURCE
+  value: {{ .Values.httpClient.connection.proxyUsernameSource | quote }}
+- name: HTTP_CLIENT_PROXY_USERNAME_METADATA_FIELD
+  value: {{ .Values.httpClient.connection.proxyUsernameMetadataField | quote }}
+- name: HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS
+  value: {{ .Values.httpClient.connection.perUserProxyCompanyIds | toJson | quote }}
+- name: HTTP_CLIENT_HTTP_CLIENT_CACHE_SIZE
+  value: {{ .Values.httpClient.tuning.httpClientCacheSize | quote }}
 - name: HTTP_CLIENT_POOL_TIMEOUT_SECONDS
   value: {{ .Values.httpClient.tuning.poolTimeoutSeconds | quote }}
 - name: HTTP_CLIENT_MAX_CONNECTIONS
@@ -265,6 +273,14 @@ library extension hooks (base.externalService.*.ext).
 - name: HTTP_CLIENT_PROXY_SSL_KEY_PATH
   value: {{ .ctx.Values.httpClient.connection.proxySslKeyPath | quote }}
 {{- end }}
+- name: HTTP_CLIENT_PROXY_USERNAME_SOURCE
+  value: {{ .ctx.Values.httpClient.connection.proxyUsernameSource | quote }}
+- name: HTTP_CLIENT_PROXY_USERNAME_METADATA_FIELD
+  value: {{ .ctx.Values.httpClient.connection.proxyUsernameMetadataField | quote }}
+- name: HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS
+  value: {{ .ctx.Values.httpClient.connection.perUserProxyCompanyIds | toJson | quote }}
+- name: HTTP_CLIENT_HTTP_CLIENT_CACHE_SIZE
+  value: {{ .ctx.Values.httpClient.tuning.httpClientCacheSize | quote }}
 - name: HTTP_CLIENT_POOL_TIMEOUT_SECONDS
   value: {{ .ctx.Values.httpClient.tuning.poolTimeoutSeconds | quote }}
 - name: HTTP_CLIENT_MAX_CONNECTIONS

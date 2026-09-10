@@ -157,9 +157,13 @@ httpClient:
   connection:
     proxyAuthMode: none
     proxyProtocol: http
+    proxyUsernameSource: settings
+    proxyUsernameMetadataField: userName
+    perUserProxyCompanyIds: []
     # proxyUsername: <fromSecret or fromSecretProvider>
     # proxyPassword: <fromSecret or fromSecretProvider>
   tuning:
+    httpClientCacheSize: 128
     poolTimeoutSeconds: 30.0
     maxConnections: 100
     maxKeepaliveConnections: 20

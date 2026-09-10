@@ -62,15 +62,15 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
     pool_transport = httpx.MockTransport(handler)
 
-    from unique_search_proxy_client.web.core.client.service import HttpClientPool
+    from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 
-    async def mock_create_pool() -> HttpClientPool:
+    async def mock_create_registry() -> HttpClientRegistry:
         http_client = httpx.AsyncClient(transport=pool_transport)
-        return HttpClientPool(client=http_client)
+        return HttpClientRegistry.fixed(http_client)
 
     monkeypatch.setattr(
-        "unique_search_proxy_client.web.app.create_http_client_pool",
-        mock_create_pool,
+        "unique_search_proxy_client.web.app.create_http_client_registry",
+        mock_create_registry,
     )
     with TestClient(create_app()) as test_client:
         yield test_client

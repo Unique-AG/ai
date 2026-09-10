@@ -1,23 +1,31 @@
+"""Build and cache httpx clients keyed by proxy credentials."""
+
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING
 
 import httpx
 from httpx import AsyncClient
+from unique_search_proxy_core.context import RequestContext
 
+from unique_search_proxy_client.web.core.client.credentials import (
+    ProxyCredentials,
+    ProxyCredentialResolver,
+    SettingsProxyCredentials,
+    resolver_from_settings,
+)
 from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
     ProxyAuthMode,
-    ProxyConfig,
     http_client_settings,
 )
-from unique_search_proxy_client.web.settings.secret_str import (
-    read_secret,
-    read_secret_headers,
-)
+from unique_search_proxy_client.web.settings.secret_str import read_secret_headers
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -26,13 +34,26 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class HttpClientPool:
-    """Shared httpx client used by engines and crawlers."""
+class DirectRoute:
+    """Leave the cluster without a forward proxy."""
 
-    client: AsyncClient
+    verify: bool | str
+    trust_env: bool
+    headers: Mapping[str, str]
 
-    async def aclose(self) -> None:
-        await self.client.aclose()
+
+@dataclass(frozen=True)
+class ProxiedRoute:
+    """Leave the cluster through a forward proxy."""
+
+    proxy: httpx.Proxy
+    verify: bool | str
+    headers: Mapping[str, str]
+    cert: tuple[str, str] | str | None
+    trust_env: bool = False
+
+
+EgressRoute = DirectRoute | ProxiedRoute
 
 
 def _settings() -> HttpClientSettings:
@@ -47,20 +68,7 @@ def _get_proxy_host_and_port(settings: HttpClientSettings) -> tuple[str, int]:
     return proxy_host, proxy_port
 
 
-def _build_proxy_url_with_username_password(settings: HttpClientSettings) -> str:
-    proxy_host, proxy_port = _get_proxy_host_and_port(settings)
-    proxy_username = settings.proxy_username
-    proxy_password = settings.proxy_password
-    if proxy_username is None or proxy_password is None:
-        raise ValueError("Proxy username and password are required")
-    return (
-        f"{settings.proxy_protocol}://"
-        f"{read_secret(proxy_username)}:{read_secret(proxy_password)}"
-        f"@{proxy_host}:{proxy_port}"
-    )
-
-
-def _build_proxy_url_with_tls(settings: HttpClientSettings) -> str:
+def _proxy_url(settings: HttpClientSettings) -> str:
     proxy_host, proxy_port = _get_proxy_host_and_port(settings)
     return f"{settings.proxy_protocol}://{proxy_host}:{proxy_port}"
 
@@ -79,78 +87,99 @@ def _get_cert_args(settings: HttpClientSettings) -> tuple[str, str] | str:
     return proxy_ssl_cert_path, proxy_ssl_key_path
 
 
-def _get_none_proxy_kwargs(settings: HttpClientSettings) -> ProxyConfig:
-    _LOGGER.info("Proxy auth mode: none. Using no proxy")
-    return ProxyConfig(
-        proxy=None,
-        headers=None,
-        verify=True,
-        trust_env=True,
-        cert=None,
+def _proxy_headers(settings: HttpClientSettings) -> dict[str, str]:
+    return read_secret_headers(settings.proxy_headers)
+
+
+def _build_httpx_proxy(
+    settings: HttpClientSettings,
+    credentials: ProxyCredentials,
+) -> httpx.Proxy:
+    """Describe the proxy hop. Credentials stay on ``auth``, never in the URL."""
+    if credentials.is_anonymous:
+        return httpx.Proxy(url=_proxy_url(settings))
+    return httpx.Proxy(
+        url=_proxy_url(settings),
+        auth=(credentials.username, credentials.password),
     )
 
 
-def _get_username_password_proxy_kwargs(settings: HttpClientSettings) -> ProxyConfig:
-    proxy_url = _build_proxy_url_with_username_password(settings)
-    _LOGGER.info(
-        "Proxy auth mode: username_password. Using proxy with username and password"
-    )
-    return ProxyConfig(
-        proxy=proxy_url,
-        headers=read_secret_headers(settings.proxy_headers) or None,
-        verify=settings.proxy_ssl_ca_bundle_path or True,
-    )
-
-
-def _get_ssl_tls_proxy_kwargs(settings: HttpClientSettings) -> ProxyConfig:
-    proxy_url = _build_proxy_url_with_tls(settings)
-    cert_args = _get_cert_args(settings)
-    _LOGGER.info("Proxy auth mode: ssl_tls. Using proxy with SSL/TLS")
-    return ProxyConfig(
-        proxy=proxy_url,
-        cert=cert_args,
-        headers=read_secret_headers(settings.proxy_headers) or None,
-        verify=settings.proxy_ssl_ca_bundle_path or True,
-    )
-
-
-def build_proxy_config(
-    settings: HttpClientSettings | None = None,
-) -> ProxyConfig:
-    client_settings = settings or _settings()
-    auth_mode: ProxyAuthMode = client_settings.proxy_auth_mode
+def build_route(
+    settings: HttpClientSettings,
+    credentials: ProxyCredentials,
+) -> EgressRoute:
+    """Turn settings and credentials into a concrete egress route."""
+    auth_mode: ProxyAuthMode = settings.proxy_auth_mode
+    headers = _proxy_headers(settings)
     match auth_mode:
         case "none":
-            return _get_none_proxy_kwargs(client_settings)
+            if credentials.is_anonymous:
+                _LOGGER.info("Proxy auth mode: none. Using no proxy")
+                return DirectRoute(verify=True, trust_env=True, headers={})
+            _LOGGER.info(
+                "Proxy auth mode: none with request credentials. "
+                "Using proxy with per-request username",
+            )
+            return ProxiedRoute(
+                proxy=_build_httpx_proxy(settings, credentials),
+                verify=settings.proxy_ssl_ca_bundle_path or True,
+                headers=headers,
+                cert=None,
+            )
         case "username_password":
-            return _get_username_password_proxy_kwargs(client_settings)
+            _LOGGER.info(
+                "Proxy auth mode: username_password. Using proxy with username "
+                "and password",
+            )
+            return ProxiedRoute(
+                proxy=_build_httpx_proxy(settings, credentials),
+                verify=settings.proxy_ssl_ca_bundle_path or True,
+                headers=headers,
+                cert=None,
+            )
         case "ssl_tls":
-            return _get_ssl_tls_proxy_kwargs(client_settings)
+            _LOGGER.info("Proxy auth mode: ssl_tls. Using proxy with SSL/TLS")
+            return ProxiedRoute(
+                proxy=_build_httpx_proxy(settings, credentials),
+                verify=settings.proxy_ssl_ca_bundle_path or True,
+                headers=headers,
+                cert=_get_cert_args(settings),
+            )
         case _:
             raise ValueError(f"Invalid proxy auth mode: {auth_mode}")
 
 
 def build_async_client(
+    settings: HttpClientSettings,
+    credentials: ProxyCredentials,
     *,
-    settings: HttpClientSettings | None = None,
-    timeout: float | None = None,
+    timeout: float,
 ) -> AsyncClient:
-    client_settings = settings or _settings()
-    proxy_kwargs = build_proxy_config(client_settings)
-    effective_timeout = timeout or client_settings.pool_timeout_seconds
+    """Build an httpx client for one credential set."""
+    route = build_route(settings, credentials)
     limits = httpx.Limits(
-        max_connections=client_settings.max_connections,
-        max_keepalive_connections=client_settings.max_keepalive_connections,
+        max_connections=settings.max_connections,
+        max_keepalive_connections=settings.max_keepalive_connections,
     )
-    return AsyncClient(
-        proxy=proxy_kwargs.proxy,
-        headers=proxy_kwargs.headers,
-        verify=proxy_kwargs.verify,
-        trust_env=proxy_kwargs.trust_env,
-        cert=proxy_kwargs.cert,
-        timeout=effective_timeout,
-        limits=limits,
-    )
+    match route:
+        case DirectRoute():
+            return AsyncClient(
+                headers=dict(route.headers) or None,
+                verify=route.verify,
+                trust_env=route.trust_env,
+                timeout=timeout,
+                limits=limits,
+            )
+        case ProxiedRoute():
+            return AsyncClient(
+                proxy=route.proxy,
+                headers=dict(route.headers) or None,
+                verify=route.verify,
+                trust_env=route.trust_env,
+                cert=route.cert,
+                timeout=timeout,
+                limits=limits,
+            )
 
 
 def async_client_factory(
@@ -158,29 +187,165 @@ def async_client_factory(
     settings: HttpClientSettings | None = None,
     timeout: float | None = None,
 ) -> partial[AsyncClient]:
-    """Factory for short-lived clients with the shared proxy configuration."""
-
+    """Factory for short-lived clients with the shared settings credentials."""
     client_settings = settings or _settings()
-    proxy_kwargs = build_proxy_config(client_settings)
+    resolver = resolver_from_settings(client_settings)
+    credentials = resolver.resolve(
+        RequestContext(company_id="local", user_id="local", chat_id="local"),
+    )
     effective_timeout = timeout or client_settings.pool_timeout_seconds
-    return partial(
-        AsyncClient,
-        proxy=proxy_kwargs.proxy,
-        headers=proxy_kwargs.headers,
-        verify=proxy_kwargs.verify,
-        trust_env=proxy_kwargs.trust_env,
-        cert=proxy_kwargs.cert,
-        timeout=effective_timeout,
+    route = build_route(client_settings, credentials)
+    match route:
+        case DirectRoute():
+            return partial(
+                AsyncClient,
+                headers=dict(route.headers) or None,
+                verify=route.verify,
+                trust_env=route.trust_env,
+                timeout=effective_timeout,
+            )
+        case ProxiedRoute():
+            return partial(
+                AsyncClient,
+                proxy=route.proxy,
+                headers=dict(route.headers) or None,
+                verify=route.verify,
+                trust_env=route.trust_env,
+                cert=route.cert,
+                timeout=effective_timeout,
+            )
+
+
+class HttpClientRegistry:
+    """Bounded LRU of httpx clients keyed by proxy credentials.
+
+    Settings mode holds one long-lived client. User-metadata mode holds one
+    client per username so CONNECT tunnels never cross users. The settings
+    fallback entry is pinned and never evicted.
+    """
+
+    def __init__(
+        self,
+        settings: HttpClientSettings,
+        resolver: ProxyCredentialResolver,
+        *,
+        fixed_client: AsyncClient | None = None,
+    ) -> None:
+        self._settings = settings
+        self._resolver = resolver
+        self._fixed_client = fixed_client
+        self._clients: OrderedDict[ProxyCredentials, AsyncClient] = OrderedDict()
+        self._pinned = SettingsProxyCredentials(settings).resolve(
+            RequestContext(company_id="__pin__", user_id="local", chat_id="local"),
+        )
+        self._lock = asyncio.Lock()
+        self._closed = False
+
+    @classmethod
+    def fixed(cls, client: AsyncClient) -> HttpClientRegistry:
+        """Test helper: always return the same client regardless of credentials."""
+        return cls(
+            settings=HttpClientSettings(),
+            resolver=resolver_from_settings(HttpClientSettings()),
+            fixed_client=client,
+        )
+
+    async def client_for(self, context: RequestContext) -> AsyncClient:
+        """Return the cached client for the request's resolved credentials."""
+        if self._fixed_client is not None:
+            return self._fixed_client
+        if self._closed:
+            raise RuntimeError("HTTP client registry is closed")
+
+        credentials = self._resolver.resolve(context)
+        evicted: AsyncClient | None = None
+        async with self._lock:
+            cached = self._clients.get(credentials)
+            if cached is not None:
+                self._clients.move_to_end(credentials)
+                return cached
+
+            client = build_async_client(
+                self._settings,
+                credentials,
+                timeout=self._settings.pool_timeout_seconds,
+            )
+            self._clients[credentials] = client
+
+            while len(self._clients) > self._settings.http_client_cache_size:
+                for key in list(self._clients.keys()):
+                    if key == self._pinned:
+                        continue
+                    evicted = self._clients.pop(key)
+                    break
+                else:
+                    break
+
+        if evicted is not None:
+            await evicted.aclose()
+        return client
+
+    @property
+    def is_open(self) -> bool:
+        """Whether the registry can still serve clients."""
+        if self._fixed_client is not None:
+            return not self._fixed_client.is_closed
+        return not self._closed
+
+    @property
+    def size(self) -> int:
+        """Number of cached clients."""
+        if self._fixed_client is not None:
+            return 1
+        return len(self._clients)
+
+    async def aclose(self) -> None:
+        """Close and drop every cached client."""
+        if self._fixed_client is not None:
+            await self._fixed_client.aclose()
+            self._closed = True
+            return
+        async with self._lock:
+            clients = list(self._clients.values())
+            self._clients.clear()
+            self._closed = True
+        await asyncio.gather(*(client.aclose() for client in clients))
+
+
+async def create_http_client_registry() -> HttpClientRegistry:
+    """Create the application-owned HTTP client registry."""
+    settings = _settings()
+    return HttpClientRegistry(
+        settings=settings,
+        resolver=resolver_from_settings(settings),
     )
 
 
-async def create_http_client_pool() -> HttpClientPool:
-    client = build_async_client()
-    return HttpClientPool(client=client)
+def get_http_client_registry(app: FastAPI) -> HttpClientRegistry:
+    """Return the initialized application-owned HTTP client registry."""
+    registry = getattr(app.state, "http_client_registry", None)
+    if registry is None:
+        raise RuntimeError("HTTP client registry is not initialized")
+    return registry
 
 
-def get_http_client_pool(app: FastAPI) -> HttpClientPool:
-    pool = getattr(app.state, "http_client_pool", None)
-    if pool is None:
-        raise RuntimeError("HTTP client pool is not initialized")
-    return pool
+# Compatibility aliases for fixtures and callers still named around the pool.
+HttpClientPool = HttpClientRegistry
+create_http_client_pool = create_http_client_registry
+get_http_client_pool = get_http_client_registry
+
+
+__all__ = [
+    "DirectRoute",
+    "EgressRoute",
+    "HttpClientPool",
+    "HttpClientRegistry",
+    "ProxiedRoute",
+    "async_client_factory",
+    "build_async_client",
+    "build_route",
+    "create_http_client_pool",
+    "create_http_client_registry",
+    "get_http_client_pool",
+    "get_http_client_registry",
+]

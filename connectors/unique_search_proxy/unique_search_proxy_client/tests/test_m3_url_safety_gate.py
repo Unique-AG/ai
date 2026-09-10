@@ -42,15 +42,15 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, Any, None]:
 
     pool_transport = httpx.MockTransport(handler)
 
-    from unique_search_proxy_client.web.core.client.service import HttpClientPool
+    from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 
-    async def mock_create_pool() -> HttpClientPool:
+    async def mock_create_registry() -> HttpClientRegistry:
         http_client = httpx.AsyncClient(transport=pool_transport)
-        return HttpClientPool(client=http_client)
+        return HttpClientRegistry.fixed(http_client)
 
     monkeypatch.setattr(
-        "unique_search_proxy_client.web.app.create_http_client_pool",
-        mock_create_pool,
+        "unique_search_proxy_client.web.app.create_http_client_registry",
+        mock_create_registry,
     )
 
     with TestClient(create_app()) as test_client:
@@ -134,7 +134,12 @@ def test_crawl_url_safety__gate_respects_request_timeout(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def slow_gate(_urls: list[str]) -> UrlSafetyGateResult:
+    async def slow_gate(
+        _urls: list[str],
+        *,
+        redirect_http_client: object | None = None,
+    ) -> UrlSafetyGateResult:
+        del redirect_http_client
         await asyncio.sleep(2)
         return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
 

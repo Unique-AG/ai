@@ -434,15 +434,15 @@ class TestGoogleSearchEndpoint:
 
         pool_transport = httpx.MockTransport(handler)
 
-        from unique_search_proxy_client.web.core.client.service import HttpClientPool
+        from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 
-        async def mock_create_pool() -> HttpClientPool:
+        async def mock_create_registry() -> HttpClientRegistry:
             client = httpx.AsyncClient(transport=pool_transport)
-            return HttpClientPool(client=client)
+            return HttpClientRegistry.fixed(client)
 
         monkeypatch.setattr(
-            "unique_search_proxy_client.web.app.create_http_client_pool",
-            mock_create_pool,
+            "unique_search_proxy_client.web.app.create_http_client_registry",
+            mock_create_registry,
         )
         with TestClient(create_app()) as client:
             resp = client.post(
@@ -500,15 +500,15 @@ class TestGoogleSearchEndpoint:
 
         pool_transport = httpx.MockTransport(handler)
 
-        from unique_search_proxy_client.web.core.client.service import HttpClientPool
+        from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 
-        async def mock_create_pool() -> HttpClientPool:
+        async def mock_create_registry() -> HttpClientRegistry:
             client = httpx.AsyncClient(transport=pool_transport)
-            return HttpClientPool(client=client)
+            return HttpClientRegistry.fixed(client)
 
         monkeypatch.setattr(
-            "unique_search_proxy_client.web.app.create_http_client_pool",
-            mock_create_pool,
+            "unique_search_proxy_client.web.app.create_http_client_registry",
+            mock_create_registry,
         )
         with TestClient(create_app()) as client:
             resp = client.post("/v1/search", json=_search_body())

@@ -475,6 +475,21 @@
             "proxySslKeyPath": {
               "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_KEY_PATH.",
               "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyUsernameSource": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME_SOURCE.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyUsernameMetadataField": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME_METADATA_FIELD.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "perUserProxyCompanyIds": {
+              "description": "Maps to env var HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -482,6 +497,10 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "httpClientCacheSize": {
+              "description": "Maps to env var HTTP_CLIENT_HTTP_CLIENT_CACHE_SIZE.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
             "poolTimeoutSeconds": {
               "description": "Maps to env var HTTP_CLIENT_POOL_TIMEOUT_SECONDS.",
               "type": "number"
