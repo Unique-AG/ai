@@ -1,8 +1,10 @@
-"""Module-level HTTP client registry for the web-search tool's direct egress path."""
+"""Process-wide HTTP client registry for the web-search tool's direct egress path.
+
+Clients are created lazily on first use via ``client_for`` / the registry — never
+at import time — so per-user proxy configs without a settings username can load.
+"""
 
 from __future__ import annotations
-
-from functools import partial
 
 from httpx import AsyncClient
 from pydantic import SecretStr
@@ -10,7 +12,6 @@ from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.http_client import (
     HttpClientRegistry,
     ProxySettings,
-    async_client_factory,
     resolver_from_settings,
 )
 
@@ -62,5 +63,8 @@ async def client_for(context: RequestContext) -> AsyncClient:
     return await get_http_client_registry().client_for(context)
 
 
-# Backward-compatible short-lived factory used by older call sites and tests.
-async_client: partial[AsyncClient] = async_client_factory(proxy_settings_from_env())
+__all__ = [
+    "client_for",
+    "get_http_client_registry",
+    "proxy_settings_from_env",
+]
