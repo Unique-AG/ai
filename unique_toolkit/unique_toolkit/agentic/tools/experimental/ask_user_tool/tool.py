@@ -158,6 +158,15 @@ class AskUserTool(Tool[AskUserToolConfig]):
 
         _LOGGER.info("User responded to elicitation request")
 
+        # An empty-properties confirmation schema has no fields, so accepting it
+        # yields no content. Return an explicit sentence instead of "null".
+        if not elicitation.response_content:
+            return ToolCallResponse(
+                id=tool_call.id,
+                name=self.name,
+                content=self.config.accepted_message,
+            )
+
         return ToolCallResponse(
             id=tool_call.id,
             name=self.name,
