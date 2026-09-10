@@ -201,6 +201,31 @@ async def test_ask_user_empty_schema_accept_uses_configured_message() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("response_content", [None, {}])
+async def test_ask_user_optional_field_left_blank_returns_empty_json(
+    response_content: dict[str, object] | None,
+) -> None:
+    """A form with fields that all come back empty is an answer ("{}"), not a
+    confirmation; the accepted message must only be used for field-less schemas."""
+    optional_multi_schema: dict[str, object] = {
+        "type": "object",
+        "properties": {
+            "exclude": {"type": "array", "items": {"type": "string", "enum": ["EU"]}}
+        },
+    }
+    tool, _ = _tool_with_service(
+        wait_return=SimpleNamespace(response_content=response_content)
+    )
+
+    resp = await tool.run(
+        _tool_call(message="Regions to exclude?", response_schema=optional_multi_schema)
+    )
+
+    assert json.loads(resp.content) == {}
+    assert resp.content != AskUserToolConfig().accepted_message
+
+
+@pytest.mark.asyncio
 async def test_ask_user_boolean_data_field_false_is_returned_as_json() -> None:
     """A required boolean left unchecked is a valid ``false`` answer, not a
     decline, and must reach the model as form content."""

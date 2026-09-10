@@ -158,9 +158,9 @@ class AskUserTool(Tool[AskUserToolConfig]):
 
         _LOGGER.info("User responded to elicitation request")
 
-        # An empty-properties confirmation schema has no fields, so accepting it
-        # yields no content. Return an explicit sentence instead of "null".
-        if not elicitation.response_content:
+        # Decide on the schema, not the payload: a form with optional fields left
+        # blank also comes back empty, and that is an answer ("{}"), not consent.
+        if not params.response_schema.get("properties"):
             return ToolCallResponse(
                 id=tool_call.id,
                 name=self.name,
@@ -170,5 +170,5 @@ class AskUserTool(Tool[AskUserToolConfig]):
         return ToolCallResponse(
             id=tool_call.id,
             name=self.name,
-            content=json.dumps(elicitation.response_content, ensure_ascii=False),
+            content=json.dumps(elicitation.response_content or {}, ensure_ascii=False),
         )
