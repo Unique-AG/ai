@@ -90,18 +90,18 @@ def _parse_user_metadata(
     *,
     fallback: dict[str, Any],
 ) -> dict[str, Any]:
-    """Decode the JSON user-metadata header.
-
-    Absent values fall back to ``fallback``. Malformed values become ``{}`` so
-    consumers that require an identity fail closed on a missing key rather than
-    aborting the whole request.
-    """
+    """Decode the JSON user-metadata header; absent → fallback, malformed → {}."""
     if raw is None or (isinstance(raw, str) and not raw.strip()):
         return fallback
     try:
         decoded = json.loads(raw)
-    except (TypeError, ValueError):
-        _LOGGER.warning("Ignoring malformed %s header", USER_METADATA_HEADER)
+    except (TypeError, ValueError) as exc:
+        # Log the error class only — never the header body (may contain PII).
+        _LOGGER.warning(
+            "Ignoring malformed %s header (%s)",
+            USER_METADATA_HEADER,
+            type(exc).__name__,
+        )
         return {}
     if not isinstance(decoded, dict):
         _LOGGER.warning("Ignoring non-object %s header", USER_METADATA_HEADER)
