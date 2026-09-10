@@ -33,15 +33,7 @@ HTTP_CLIENT_ENV_PREFIX = "HTTP_CLIENT_"
     },
 )
 class HttpClientSettings(ProxySettings):
-    """Outbound HTTP client: corporate proxy and connection pool limits.
-
-    Environment variables use the ``HTTP_CLIENT_`` prefix, e.g.
-    ``HTTP_CLIENT_PROXY_HOST``, ``HTTP_CLIENT_POOL_TIMEOUT_SECONDS``.
-
-    Secret fields stay as pydantic ``SecretStr`` from ``ProxySettings`` so
-    subclasses remain type-compatible (basedpyright). Startup masking still
-    works via ``SecretStr.__str__``.
-    """
+    """Outbound HTTP client settings under the ``HTTP_CLIENT_`` env prefix."""
 
     model_config = SettingsConfigDict(
         env_prefix=HTTP_CLIENT_ENV_PREFIX,
