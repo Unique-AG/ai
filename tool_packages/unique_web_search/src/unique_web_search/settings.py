@@ -93,6 +93,12 @@ class Base(BaseSettings):
     proxy_username: str | None = None
     proxy_password: str | None = None
 
+    ## Username source for per-user corporate proxies
+    proxy_username_source: Literal["settings", "user_metadata"] = "settings"
+    proxy_username_metadata_field: str = "userName"
+    per_user_proxy_company_ids: list[str] = []
+    http_client_cache_size: int = 128
+
     ## For SSL/TLS authentication
     proxy_ssl_cert_path: str | None = None
     proxy_ssl_key_path: str | None = None

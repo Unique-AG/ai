@@ -1,103 +1,24 @@
-"""Strategies that resolve the proxy username for an outbound request."""
+"""Credential resolvers — re-exported from unique_search_proxy_core."""
 
-from __future__ import annotations
-
-from dataclasses import dataclass
-from typing import Protocol
-
-from unique_search_proxy_core.context import RequestContext
-from unique_search_proxy_core.errors import ValidationProxyError
+from unique_search_proxy_core.http_client import (
+    ProxyCredentials,
+    ProxyCredentialResolver,
+    SettingsProxyCredentials,
+    UserMetadataProxyCredentials,
+    resolver_from_settings as _resolver_from_settings,
+)
 
 from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
     http_client_settings,
 )
-from unique_search_proxy_client.web.settings.secret_str import read_secret
-
-
-@dataclass(frozen=True)
-class ProxyCredentials:
-    """Identity presented to the corporate proxy for one egress client."""
-
-    username: str
-    password: str
-
-    @classmethod
-    def anonymous(cls) -> ProxyCredentials:
-        """Credentials for modes that carry no proxy username (none, ssl_tls)."""
-        return cls(username="", password="")
-
-    @property
-    def is_anonymous(self) -> bool:
-        return self.username == ""
-
-
-class ProxyCredentialResolver(Protocol):
-    """Resolve the proxy credentials that an outbound request must use."""
-
-    def resolve(self, context: RequestContext) -> ProxyCredentials: ...
-
-
-class SettingsProxyCredentials:
-    """Read the proxy username and password from HttpClientSettings."""
-
-    def __init__(self, settings: HttpClientSettings) -> None:
-        self._settings = settings
-
-    def resolve(self, context: RequestContext) -> ProxyCredentials:
-        del context
-        if self._settings.proxy_auth_mode != "username_password":
-            return ProxyCredentials.anonymous()
-        username = read_secret(self._settings.proxy_username)
-        if not username:
-            raise ValidationProxyError(
-                "proxy_username is required for username_password proxy auth",
-            )
-        return ProxyCredentials(
-            username=username,
-            password=read_secret(self._settings.proxy_password),
-        )
-
-
-class UserMetadataProxyCredentials:
-    """Read the proxy username from request user metadata for gated companies."""
-
-    def __init__(self, settings: HttpClientSettings) -> None:
-        self._settings = settings
-        self._fallback = SettingsProxyCredentials(settings)
-
-    def resolve(self, context: RequestContext) -> ProxyCredentials:
-        if not self._settings.per_user_proxy_enabled_for(context.company_id):
-            return self._fallback.resolve(context)
-
-        field_name = self._settings.proxy_username_metadata_field
-        value = context.user_metadata.get(field_name)
-        if not isinstance(value, str) or not value.strip():
-            raise ValidationProxyError(
-                f"User metadata field '{field_name}' is required for "
-                "per-user proxy authentication",
-            )
-        return ProxyCredentials(
-            username=value.strip(),
-            password=read_secret(self._settings.proxy_password),
-        )
 
 
 def resolver_from_settings(
     settings: HttpClientSettings | None = None,
 ) -> ProxyCredentialResolver:
     """Pick the credential resolver configured on the settings."""
-    client_settings = settings or http_client_settings
-    match client_settings.proxy_username_source:
-        case "settings":
-            return SettingsProxyCredentials(client_settings)
-        case "user_metadata":
-            return UserMetadataProxyCredentials(client_settings)
-        case _:
-            raise ValueError(
-                f"Invalid proxy_username_source: "
-                f"{client_settings.proxy_username_source}",
-            )
+    return _resolver_from_settings(settings or http_client_settings)
 
 
 __all__ = [

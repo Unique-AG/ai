@@ -78,7 +78,7 @@ def client(
         return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
     monkeypatch.setattr(
-        "unique_search_proxy_client.web.core.client.service.build_async_client",
+        "unique_search_proxy_core.http_client.client.build_async_client",
         tracking_build,
     )
 
