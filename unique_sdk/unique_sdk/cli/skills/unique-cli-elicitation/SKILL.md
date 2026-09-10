@@ -251,39 +251,10 @@ unique-cli elicit ask "Permanently delete /Archive/2024 and everything inside it
 
 Proceed **only** if the `Status:` is `ACCEPTED`. Treat `DECLINED`, `REJECTED`, `CANCELLED`, or `EXPIRED` all as "do not proceed" -- tell the user you stopped and return control. Put everything the user needs to decide into the message text, since the form has no fields.
 
-### Acknowledgement checkbox that must be ticked (`const: true`)
-
-When the confirmation sits inside a larger form, or you want the user to
-actively tick an "I understand ..." box rather than just press Confirm, use a
-boolean with `"const": true`. The UI refuses to submit the form until that box
-is ticked, so the response can only ever carry `true` — the button/checkbox
-disagreement described above cannot happen.
-
-```bash
-unique-cli elicit ask "Permanently delete /Archive/2024? This cannot be undone." \
-  --chat-id "$UNIQUE_CHAT_ID" \
-  --tool-name confirm_delete \
-  --schema '{
-    "type": "object",
-    "properties": {
-      "acknowledge": {
-        "type": "boolean",
-        "title": "I understand this deletes /Archive/2024 permanently",
-        "const": true
-      },
-      "notify_owner": {
-        "type": "boolean",
-        "title": "Notify the folder owner afterwards"
-      }
-    },
-    "required": ["acknowledge", "notify_owner"]
-  }'
-```
-
-- `acknowledge` (`const: true`): Confirm is blocked with an inline error until ticked; always `true` in the response.
-- `notify_owner` (plain boolean in `required`): may be left unchecked; comes back as `false`. `required` on a boolean only means "must be answered", and an unchecked box is a valid `false` answer.
-- Always give booleans a `"title"`. The checkbox label and its required marker are rendered from `title`; a boolean with only a `description` shows no label at all.
-- `const` is a Unique extension enforced by the chat UI (older UI versions ignore it). Still check the value in `Response:` before acting instead of assuming the UI enforced it.
+If the confirmation has to travel with other inputs (e.g. "which folder?" plus
+"really delete?"), do not merge them into one form with a checkbox. Ask for the
+inputs first, then send a separate empty-schema confirmation that restates what
+will happen.
 
 ### Structured form (multiple fields)
 
@@ -416,8 +387,8 @@ esac
 
 - Always set `"required"` for fields you actually need -- this guarantees the user cannot submit an empty form.
 - Use `enum` for closed choices so the UI can render a selector.
-- For pure yes/no confirmations use an **empty-properties schema** (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED` — do not add a plain boolean `confirm` field (the Confirm button and an unchecked box can disagree). Reserve plain `"type": "boolean"` for genuine data fields where `false` is a valid answer the user can still submit with Confirm (e.g. `include_appendix`).
-- When a checkbox genuinely **must be ticked** to proceed (an acknowledgement inside a larger form), add `"const": true` to the boolean. The UI blocks Confirm until it is ticked, so the response is always `true`. `required` alone does not do this: a required boolean is "must be answered" and `false` is a valid answer.
+- For yes/no confirmations use an **empty-properties schema** (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED` — never add a boolean `confirm` or `acknowledge` field (the Confirm button and the checkbox are two separate signals that can disagree). Reserve `"type": "boolean"` for genuine data fields where `false` is a valid answer the user can still submit with Confirm (e.g. `include_appendix`).
+- `"required"` on a boolean means "must be answered", not "must be ticked". An unchecked box is a valid `false` and the form submits with it; there is no way to force a checkbox on, which is another reason confirmations belong on the buttons.
 - Always give booleans a `"title"`. The checkbox label and its required marker come from `title`; with only a `description` the box renders unlabelled.
 - Add short `description` strings -- they are shown as help text next to each field.
 - Keep schemas small. Ask at most 5 questions in a single elicitation; if you need more, split the flow so the user is not confused by an oversized form.
