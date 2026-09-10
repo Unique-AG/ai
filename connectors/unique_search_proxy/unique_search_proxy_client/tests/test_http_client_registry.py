@@ -59,6 +59,14 @@ class TestHttpClientRegistry:
         finally:
             await registry.aclose()
 
+    def test_constructs_without_settings_username_in_user_metadata_mode(
+        self,
+    ) -> None:
+        """BNPP-style config must not require a technical username at boot."""
+        settings = _settings(proxy_username=None)
+        registry = _registry(settings)
+        assert registry.size == 0
+
     async def test_user_metadata_mode_isolates_clients_per_user(self) -> None:
         registry = _registry(_settings())
         try:
@@ -91,6 +99,30 @@ class TestHttpClientRegistry:
             evicted = await registry.client_for(_context("u1"))
             await registry.client_for(_context("u2"))
             assert evicted.is_closed
+        finally:
+            await registry.aclose()
+
+    async def test_does_not_return_closed_client_when_only_pin_fits(
+        self,
+    ) -> None:
+        """cache_size=1 with a live settings pin must not close the new client."""
+        settings = _settings(
+            http_client_cache_size=1,
+            per_user_proxy_company_ids=["company-a"],
+        )
+        registry = _registry(settings)
+        try:
+            pinned = await registry.client_for(
+                RequestContext(
+                    company_id="ungated",
+                    user_id="user-1",
+                    chat_id="chat-1",
+                ),
+            )
+            fresh = await registry.client_for(_context("u1"))
+            assert not fresh.is_closed
+            assert pinned is not fresh
+            assert not pinned.is_closed
         finally:
             await registry.aclose()
 

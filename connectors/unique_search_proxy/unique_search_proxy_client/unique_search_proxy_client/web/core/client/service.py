@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import httpx
 from httpx import AsyncClient
 from unique_search_proxy_core.context import RequestContext
+from unique_search_proxy_core.errors import ValidationProxyError
 
 from unique_search_proxy_client.web.core.client.credentials import (
     ProxyCredentialResolver,
@@ -221,7 +222,8 @@ class HttpClientRegistry:
 
     Settings mode holds one long-lived client. User-metadata mode holds one
     client per username so CONNECT tunnels never cross users. The settings
-    fallback entry is pinned and never evicted.
+    fallback entry is pinned lazily (never resolved at construction) and never
+    evicted once known.
     """
 
     def __init__(
@@ -235,11 +237,31 @@ class HttpClientRegistry:
         self._resolver = resolver
         self._fixed_client = fixed_client
         self._clients: OrderedDict[ProxyCredentials, AsyncClient] = OrderedDict()
-        self._pinned = SettingsProxyCredentials(settings).resolve(
-            RequestContext(company_id="__pin__", user_id="local", chat_id="local"),
-        )
+        self._pinned: ProxyCredentials | None = None
+        self._pin_resolved = False
         self._lock = asyncio.Lock()
         self._closed = False
+
+    def _ensure_pinned_credentials(self) -> ProxyCredentials | None:
+        """Resolve settings credentials once for eviction protection.
+
+        Skipped entirely when settings cannot produce an identity (typical
+        user_metadata deployments with no technical username).
+        """
+        if self._pin_resolved:
+            return self._pinned
+        self._pin_resolved = True
+        try:
+            self._pinned = SettingsProxyCredentials(self._settings).resolve(
+                RequestContext(
+                    company_id="__pin__",
+                    user_id="local",
+                    chat_id="local",
+                ),
+            )
+        except ValidationProxyError:
+            self._pinned = None
+        return self._pinned
 
     @classmethod
     def fixed(cls, client: AsyncClient) -> HttpClientRegistry:
@@ -272,9 +294,12 @@ class HttpClientRegistry:
             )
             self._clients[credentials] = client
 
+            pinned = self._ensure_pinned_credentials()
             while len(self._clients) > self._settings.http_client_cache_size:
                 for key in list(self._clients.keys()):
-                    if key == self._pinned:
+                    # Never evict the settings fallback or the client we just
+                    # inserted (avoids returning a closed httpx client).
+                    if key == pinned or key == credentials:
                         continue
                     evicted = self._clients.pop(key)
                     break
