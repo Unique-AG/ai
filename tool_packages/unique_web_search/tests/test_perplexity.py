@@ -53,16 +53,119 @@ class TestPerplexitySearchInit:
 
 class TestPerplexitySearch:
     @pytest.mark.asyncio
-    async def test_legacy_search_raises_not_implemented(
+    async def test_legacy_search_calls_api_and_maps_results(
         self, _mock_perplexity_settings
     ):
-        search = PerplexitySearch(PerplexityConfig())
+        config = PerplexityConfig(
+            fetch_size=50,
+            country=ExposableStrOrNone(expose=False, value="US"),
+            max_tokens=1024,
+            max_tokens_per_page=512,
+            search_recency_filter=ExposableRecencyFilter(
+                expose=False,
+                value="week",
+            ),
+            search_domain_filter=ExposableDomainFilter(
+                expose=False,
+                value=["example.com"],
+            ),
+            search_language_filter=ExposableLanguageFilter(
+                expose=False,
+                value=["en"],
+            ),
+        )
+        search = PerplexitySearch(config)
+        response = Mock(
+            results=[
+                Mock(
+                    url="https://example.com/page",
+                    title="Hit",
+                    snippet="Details",
+                )
+            ]
+        )
+        create = AsyncMock(return_value=response)
+        perplexity_client = Mock()
+        perplexity_client.search.create = create
+        http_client = AsyncMock()
 
-        with pytest.raises(
-            NotImplementedError,
-            match="Perplexity search is not supported in the legacy mode",
+        with (
+            patch(
+                "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+                False,
+            ),
+            patch(
+                "unique_web_search.services.search_engine.perplexity.async_client"
+            ) as async_client,
+            patch(
+                "unique_web_search.services.search_engine.perplexity.AsyncPerplexity",
+                return_value=perplexity_client,
+            ) as perplexity_client_cls,
+        ):
+            async_client.return_value.__aenter__.return_value = http_client
+            results = await search.search("query")
+
+        perplexity_client_cls.assert_called_once_with(
+            api_key="test-key",
+            http_client=http_client,
+        )
+        create.assert_awaited_once()
+        call_kwargs = create.await_args.kwargs
+        assert call_kwargs["query"] == "query"
+        assert call_kwargs["max_results"] == 20
+        assert call_kwargs["country"] == "US"
+        assert call_kwargs["max_tokens"] == 1024
+        assert call_kwargs["max_tokens_per_page"] == 512
+        assert call_kwargs["search_recency_filter"] == "week"
+        assert call_kwargs["search_domain_filter"] == ["example.com"]
+        assert call_kwargs["search_language_filter"] == ["en"]
+        assert "search_context_size" not in call_kwargs
+        assert results == [
+            WebSearchResult(
+                url="https://example.com/page",
+                title="Hit",
+                snippet="Details",
+            )
+        ]
+
+    @pytest.mark.asyncio
+    async def test_legacy_search_keeps_default_context_size_without_token_limits(
+        self, _mock_perplexity_settings
+    ):
+        search = PerplexitySearch(PerplexityConfig(fetch_size=3))
+        perplexity_client = Mock()
+        perplexity_client.search.create = AsyncMock(
+            return_value=Mock(results=[]),
+        )
+
+        with patch(
+            "unique_web_search.services.search_engine.perplexity.AsyncPerplexity",
+            return_value=perplexity_client,
         ):
             await search._legacy_search("query", params=None)
+
+        call_kwargs = perplexity_client.search.create.await_args.kwargs
+        assert call_kwargs["max_results"] == 3
+        assert call_kwargs["search_context_size"] == "medium"
+
+    def test_maps_empty_snippet_and_empty_results(
+        self, _mock_perplexity_settings
+    ) -> None:
+        search = PerplexitySearch(PerplexityConfig())
+
+        mapped = search._to_web_search_results(
+            [
+                Mock(
+                    url="https://example.com",
+                    title="Example",
+                    snippet="",
+                )
+            ]
+        )
+
+        assert mapped[0].snippet == "No Snippet Found"
+        assert search._to_web_search_results(None) == []
+        assert search._to_web_search_results([]) == []
 
     @pytest.mark.asyncio
     async def test_proxy_search_passes_config_to_client(
