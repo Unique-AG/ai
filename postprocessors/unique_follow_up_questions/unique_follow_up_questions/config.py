@@ -7,7 +7,7 @@ from unique_toolkit._common.utils.jinja.utils import validate_template_placehold
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model.default_language_model import (
-    DEFAULT_GPT_4o,
+    DEFAULT_GPT_51,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 
@@ -24,7 +24,7 @@ logger = getLogger(__name__)
 class FollowUpQuestionsConfig(BaseModel):
     model_config = get_configuration_dict()
     language_model: LMI = Field(
-        default=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
+        default=LanguageModelInfo.from_name(DEFAULT_GPT_51),
         description="The language model to be used for the follow-up question.",
     )
 
