@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.36.0...unique-web-search-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **web-search:** forward user metadata to the search proxy [UN-25449] ([#2434](https://github.com/Unique-AG/ai/issues/2434)) ([d549aab](https://github.com/Unique-AG/ai/commit/d549aab1653d4e48cec72241383bdcbc6c707717))
+
+
+### Bug Fixes
+
+* **search-proxy:** hide Bing grounding knobs from the admin config ([#2371](https://github.com/Unique-AG/ai/issues/2371)) ([36fd956](https://github.com/Unique-AG/ai/commit/36fd95623839b6a188e0fab65daefcf4b6307f82))
+* **search-proxy:** rework Bing grounding params as fixed admin values [UN-24652] ([#2397](https://github.com/Unique-AG/ai/issues/2397)) ([38edc46](https://github.com/Unique-AG/ai/commit/38edc465bc526ee7ab5568abce97985a87795ea8))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.34.0...unique-web-search-v2026.36.0) (2026-08-31)
 
 

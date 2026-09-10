@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.36.0...unique-deep-research-v2026.38.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **deep_research:** identify openai-proxy client as assistants-core [UN-25709] ([#2438](https://github.com/Unique-AG/ai/issues/2438)) ([9188073](https://github.com/Unique-AG/ai/commit/9188073bf18a0346c3e29f6b00152c836cec1514))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.34.0...unique-deep-research-v2026.36.0) (2026-08-31)
 
 

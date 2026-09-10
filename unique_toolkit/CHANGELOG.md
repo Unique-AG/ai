@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.36.0...unique-toolkit-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **toolkit:** add gpt-5.4-mini model info [UN-25639] ([#2426](https://github.com/Unique-AG/ai/issues/2426)) ([84bccb3](https://github.com/Unique-AG/ai/commit/84bccb33557424c23f6ea6f6b7714cfae4d9ef5f))
+* **toolkit:** add GPT-6 Astra model info [UN-25480] ([#2420](https://github.com/Unique-AG/ai/issues/2420)) ([b69c19f](https://github.com/Unique-AG/ai/commit/b69c19fdebd6d3219fbaf155ca183461f26e9b9f))
+* **toolkit:** add grok-4-6 model info [UN-24804] ([#2375](https://github.com/Unique-AG/ai/issues/2375)) ([b98be4d](https://github.com/Unique-AG/ai/commit/b98be4d8386fa077aa707f934324a81e04fc2653))
+* **toolkit:** add optional userAbortedAt on magic table sheet [UN-25482] ([#2404](https://github.com/Unique-AG/ai/issues/2404)) ([5eb2ddc](https://github.com/Unique-AG/ai/commit/5eb2ddc0921abe2984f0746a95ed6dc6a867e498))
+* **toolkit:** apply long-context pricing tier in invocation cost [UN-25193] ([#2391](https://github.com/Unique-AG/ai/issues/2391)) ([0379d67](https://github.com/Unique-AG/ai/commit/0379d67875aecfbbc7d20b5736ef3c5f67292929))
+* **unique_toolkit:** add shared memory monitoring and TTL cache bounds ([#2379](https://github.com/Unique-AG/ai/issues/2379)) ([0a5112c](https://github.com/Unique-AG/ai/commit/0a5112c53aa9785a0003045e1833c5a9369665d7))
+
+
+### Bug Fixes
+
+* **toolkit:** AskUser confirmations rely on the Confirm button, not a boolean field ([#2429](https://github.com/Unique-AG/ai/issues/2429)) ([1bc48d5](https://github.com/Unique-AG/ai/commit/1bc48d5a2728d47ccff7b04c0e615c050b6a5c78))
+* **toolkit:** await cancelled content-tree fan-out via TaskGroup ([#2382](https://github.com/Unique-AG/ai/issues/2382)) ([061e2f6](https://github.com/Unique-AG/ai/commit/061e2f61b1888668f13eda0b46ebc390872393fb))
+* **toolkit:** await cancelled search fan-out via TaskGroup ([#2357](https://github.com/Unique-AG/ai/issues/2357)) ([ca7ea8b](https://github.com/Unique-AG/ai/commit/ca7ea8be5640a746a5df57360843be749b96f331))
+* **toolkit:** map chat-completions verbosity/reasoning_effort to Responses API params ([#2390](https://github.com/Unique-AG/ai/issues/2390)) ([2cb722a](https://github.com/Unique-AG/ai/commit/2cb722abc14286d32841159b8ef0cae5f3cec47f))
+* **toolkit:** recognise .msg/.eml chat uploads as documents ([#2386](https://github.com/Unique-AG/ai/issues/2386)) ([b256fcd](https://github.com/Unique-AG/ai/commit/b256fcdd4d719afa0ae6a162206016290d42389b))
+* **toolkit:** set GPT-5.6 knowledge cutoff to 2026-02-16 [UN-25526] ([#2407](https://github.com/Unique-AG/ai/issues/2407)) ([e6604a5](https://github.com/Unique-AG/ai/commit/e6604a5cb2703989fc44f2ff67f70f27a754e296))
+* **toolkit:** support xhigh reasoning effort for GPT-5.1 Codex models [UN-25265] ([#2395](https://github.com/Unique-AG/ai/issues/2395)) ([776ee80](https://github.com/Unique-AG/ai/commit/776ee80fbdd68fc581da3680394c0dcdc69326ab))
+* **toolkit:** tolerate cache-pricing fields in model cost catalog ([#2365](https://github.com/Unique-AG/ai/issues/2365)) ([4523cf0](https://github.com/Unique-AG/ai/commit/4523cf0eff29d539b5a8be33b8b5cc691a871734))
+* **unique_toolkit:** Fix code interpreter generated files failing ([#2367](https://github.com/Unique-AG/ai/issues/2367)) ([a575eb1](https://github.com/Unique-AG/ai/commit/a575eb1483b215bfda225680f386f3b981066c43))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.34.0...unique-toolkit-v2026.36.0) (2026-08-31)
 
 
