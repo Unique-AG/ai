@@ -221,7 +221,8 @@ def test_default_prompts_steer_confirmations_to_empty_schema() -> None:
     assert '{"type":"object","properties":{}}' in config.response_schema_description
     assert "boolean `confirm`" not in config.response_schema_description
     assert (
-        "Never model consent as a boolean" in config.tool_description_for_system_prompt
+        "never model it as a boolean `confirm` field"
+        in config.tool_description_for_system_prompt
     )
     assert "title" in config.response_schema_description
 
