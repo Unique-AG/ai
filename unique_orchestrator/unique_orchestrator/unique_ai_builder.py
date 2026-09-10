@@ -489,10 +489,9 @@ def _register_code_interpreter_postprocessors(
 ) -> None:
     """Find the first enabled Code Interpreter tool and register its postprocessors.
 
-    When a CODE_INTERPRETER tool is present and enabled, both the generated-files
-    postprocessor (which turns produced files into codeExecution fences) and the
-    legacy code-display postprocessor (which only strips old `<details>` blocks
-    from the history) are registered.
+    When a CODE_INTERPRETER tool is present and enabled, both the executed-code
+    display postprocessor and the generated-files postprocessor are unconditionally
+    registered so that all Code Interpreter output is surfaced to the user.
     """
     code_interpreter_config = None
     for tool in tools:
@@ -508,6 +507,7 @@ def _register_code_interpreter_postprocessors(
     postprocessor_manager.add_postprocessor(
         ShowExecutedCodePostprocessor(
             config=code_interpreter_config.executed_code_display_config,
+            company_id=company_id,
         )
     )
     postprocessor_manager.add_postprocessor(

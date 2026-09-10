@@ -38,6 +38,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
     CodeInterpreterFile,
     CodeInterpreterFileType,
 )
+from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.experimental.resources.feature_flags import (
     COMPANY_ID_PLACEHOLDER,
@@ -404,6 +405,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._container_files: list[CodeInterpreterContainerFile] = []
 
         # Resolved in run() (before apply_postprocessing_to_response) since flag evaluation is async.
+        self._fence_ff_on = False
         self._html_fence_ff_on = False
 
     def _build_retry(self) -> AsyncRetrying:
@@ -509,8 +511,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
         run_t0 = time.monotonic()
         self._log.info("run() started — fetching and uploading code interpreter files")
 
-        # HTML files stay in an HtmlRendering block unless this flag is on; the
-        # default (FF off) keeps HtmlRendering, so existing deployments are unaffected.
+        self._fence_ff_on = await is_flag_enabled(
+            FeatureFlagNames.enable_code_execution_fence_un_17972,
+            company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
+        )
+        # htmlWithSource requires BOTH the fence FF and the HTML-fence FF on; default
+        # (FF off) keeps HtmlRendering, so existing deployments are unaffected.
         self._html_fence_ff_on = await is_flag_enabled(
             FeatureFlagNames.enable_html_with_fence_un_17927,
             company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
@@ -662,8 +668,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
     ) -> bool:
         apply_t0 = time.monotonic()
         self._log.info(
-            "apply_postprocessing started — %d file(s) in content_map",
+            "apply_postprocessing started — %d file(s) in content_map, fence_ff=%s",
             len(self._content_map),
+            self._fence_ff_on,
         )
 
         if loop_response.message.references is None:
@@ -671,6 +678,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         if loop_response.message.text is None:
             loop_response.message.text = ""
 
+        ref_number = _get_next_ref_number(loop_response.message.references)
         changed = False
 
         replaced_files: list[str] = []
@@ -720,6 +728,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     text=loop_response.message.text or "",
                     filename=filename,
                     content_id=content_id,
+                    ref_number=ref_number,
+                    use_content_link=self._fence_ff_on,
                 )
                 changed |= replaced
 
@@ -734,6 +744,20 @@ class DisplayCodeInterpreterFilesPostProcessor(
             else:
                 missed_files.append(filename)
 
+            # HtmlRendering and htmlWithSource both embed contentId directly — no ContentReference needed
+            is_html_rendered = is_html
+            if replaced and not (is_image or is_html_rendered or self._fence_ff_on):
+                loop_response.message.references.append(
+                    ContentReference(
+                        sequence_number=ref_number,
+                        source_id=content_id,
+                        source="node-ingestion-chunks",
+                        url=f"unique://content/{content_id}",
+                        name=filename,
+                    )
+                )
+                ref_number += 1
+
         self._log.info(
             "Stage-1 replacement summary — replaced=%s, missed=%s, error=%s",
             replaced_files,
@@ -741,29 +765,30 @@ class DisplayCodeInterpreterFilesPostProcessor(
             error_files,
         )
 
-        code_blocks = _build_code_blocks(
-            loop_response,
-            self._content_map,
-            self._container_files,
-            include_html=self._html_fence_ff_on,
-        )
-        self._log.info(
-            "Fence injection — %d code block(s), files: %s",
-            len(code_blocks),
-            [f.filename for b in code_blocks for f in b.files],
-        )
-        _warn_unmatched_code_blocks(
-            self._content_map, code_blocks, include_html=self._html_fence_ff_on
-        )
-        text_before = loop_response.message.text
-        loop_response.message.text = _inject_code_execution_fences(
-            loop_response.message.text or "",
-            code_blocks,
-        )
-        fences_changed = loop_response.message.text != text_before
-        changed |= fences_changed
-        if fences_changed:
-            self._log.info("Fence injection modified the message text")
+        if self._fence_ff_on:
+            code_blocks = _build_code_blocks(
+                loop_response,
+                self._content_map,
+                self._container_files,
+                include_html=self._html_fence_ff_on,
+            )
+            self._log.info(
+                "Fence injection — %d code block(s), files: %s",
+                len(code_blocks),
+                [f.filename for b in code_blocks for f in b.files],
+            )
+            _warn_unmatched_code_blocks(
+                self._content_map, code_blocks, include_html=self._html_fence_ff_on
+            )
+            text_before = loop_response.message.text
+            loop_response.message.text = _inject_code_execution_fences(
+                loop_response.message.text or "",
+                code_blocks,
+            )
+            fences_changed = loop_response.message.text != text_before
+            changed |= fences_changed
+            if fences_changed:
+                self._log.info("Fence injection modified the message text")
 
         _warn_missing_content_ids(loop_response.message.text or "", self._content_map)
         ci_ran = bool(loop_response.code_interpreter_calls)
@@ -1502,6 +1527,15 @@ def _warn_unmatched_code_blocks(
             )
 
 
+def _get_next_ref_number(references: list[ContentReference] | None) -> int:
+    if not references:
+        return 1
+    max_ref_number = 0
+    for ref in references:
+        max_ref_number = max(max_ref_number, ref.sequence_number)
+    return max_ref_number + 1
+
+
 def _replace_container_file_error(
     text: str, filename: str, error_message: str
 ) -> tuple[str, bool]:
@@ -1595,11 +1629,16 @@ def _replace_container_file_citation(
     text: str,
     filename: str,
     content_id: str,
+    ref_number: int,
+    use_content_link: bool,
 ) -> tuple[str, bool]:
-    """Replace a sandbox file link with an inline content link.
+    """Replace a sandbox file link with either an inline content link or a superscript ref.
 
-    The sandbox link becomes [filename](unique://content/{id}) so the fence
-    injection step that runs afterwards can find it and wrap it in a fence.
+    When the fence feature flag is on (use_content_link=True), the sandbox link is
+    replaced with [filename](unique://content/{id}) so the subsequent fence injection
+    step can locate and wrap it. When the flag is off (use_content_link=False), the
+    original pre-fence behaviour is restored: the link is replaced with <sup>N</sup>
+    and the file remains accessible via the references panel.
     """
     file_markdown = _sandbox_link_pattern(filename)
 
@@ -1613,6 +1652,9 @@ def _replace_container_file_citation(
         return text, False
 
     logger.info("Displaying file %s", filename)
-    return re.sub(
-        file_markdown, f"[{filename}](unique://content/{content_id})", text
-    ), True
+    replacement = (
+        f"[{filename}](unique://content/{content_id})"
+        if use_content_link
+        else f"<sup>{ref_number}</sup>"
+    )
+    return re.sub(file_markdown, replacement, text), True
