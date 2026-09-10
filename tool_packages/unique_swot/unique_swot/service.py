@@ -22,6 +22,7 @@ from unique_toolkit.language_model.schemas import LanguageModelToolDescription
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_swot.config import SwotAnalysisToolConfig
+from unique_swot.invocation_stats import invocation_stats_scope
 from unique_swot.services.citations import CitationManager
 from unique_swot.services.generation.agentic.agent import GenerationAgent
 from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
@@ -117,6 +118,27 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        with invocation_stats_scope() as invocation_stats:
+            try:
+                response = await self._run(tool_call)
+            except Exception as e:
+                # _run() already catches its own errors and returns a
+                # ToolCallResponse in the common case; this is a safety net
+                # for the rarer case where something raises while handling
+                # that failure. Without it, tokens already spent before the
+                # failure would never reach analytics, since SafeTaskExecutor
+                # builds its own fresh, stats-less error response one level up.
+                _LOGGER.exception("SWOT Analysis tool run failed")
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    error_message=str(e),
+                    invocation_stats=invocation_stats,
+                )
+        response.invocation_stats.extend(invocation_stats)
+        return response
+
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         session_config = self._try_load_session_config()
         if not session_config:
             await self._chat_service.modify_assistant_message_async(

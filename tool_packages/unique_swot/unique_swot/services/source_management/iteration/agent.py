@@ -55,6 +55,7 @@ class SourceIterationAgent:
             llm=self._llm,
             llm_service=self._llm_service,
             output_model=SourceIterationResults,
+            source="swot.source_iteration",
         )
 
         fallback_notification_message = (
