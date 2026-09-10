@@ -4,7 +4,7 @@ import re
 from typing import Annotated
 
 import timeout_decorator
-from httpx import AsyncClient
+from httpx import AsyncClient, Timeout
 from markdownify import markdownify
 from pydantic import Field
 from typing_extensions import override
@@ -132,6 +132,7 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
             target.request_url,
             headers=request_headers,
             extensions=request_extensions or None,
+            timeout=Timeout(self.config.timeout),
         )
 
         _ = response.raise_for_status()
