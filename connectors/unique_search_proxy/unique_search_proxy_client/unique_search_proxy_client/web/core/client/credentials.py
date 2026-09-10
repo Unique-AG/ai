@@ -1,10 +1,12 @@
 """Credential resolvers — re-exported from unique_search_proxy_core."""
 
 from unique_search_proxy_core.http_client import (
-    ProxyCredentials,
     ProxyCredentialResolver,
+    ProxyCredentials,
     SettingsProxyCredentials,
     UserMetadataProxyCredentials,
+)
+from unique_search_proxy_core.http_client import (
     resolver_from_settings as _resolver_from_settings,
 )
 

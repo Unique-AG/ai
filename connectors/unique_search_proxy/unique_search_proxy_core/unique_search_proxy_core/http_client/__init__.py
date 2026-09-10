@@ -10,11 +10,15 @@ from unique_search_proxy_core.http_client.client import (
     build_route,
 )
 from unique_search_proxy_core.http_client.credentials import (
-    ProxyCredentials,
     ProxyCredentialResolver,
+    ProxyCredentials,
     SettingsProxyCredentials,
     UserMetadataProxyCredentials,
     resolver_from_settings,
+)
+from unique_search_proxy_core.http_client.secrets import (
+    read_secret,
+    read_secret_mapping,
 )
 from unique_search_proxy_core.http_client.settings import (
     ProxyAuthMode,
@@ -22,7 +26,6 @@ from unique_search_proxy_core.http_client.settings import (
     ProxySettings,
     ProxyUsernameSource,
 )
-from unique_search_proxy_core.http_client.secrets import read_secret, read_secret_mapping
 
 __all__ = [
     "DirectRoute",

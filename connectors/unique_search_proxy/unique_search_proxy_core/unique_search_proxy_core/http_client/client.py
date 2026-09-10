@@ -11,10 +11,11 @@ from functools import partial
 
 import httpx
 from httpx import AsyncClient
+
 from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.http_client.credentials import (
-    ProxyCredentials,
     ProxyCredentialResolver,
+    ProxyCredentials,
     SettingsProxyCredentials,
     resolver_from_settings,
 )

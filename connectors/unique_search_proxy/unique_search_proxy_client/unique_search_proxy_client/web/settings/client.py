@@ -9,7 +9,6 @@ from unique_search_proxy_core.http_client import (
 
 from unique_search_proxy_client.web.helm.metadata import helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
-from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
 HTTP_CLIENT_ENV_PREFIX = "HTTP_CLIENT_"
 
@@ -38,6 +37,10 @@ class HttpClientSettings(ProxySettings):
 
     Environment variables use the ``HTTP_CLIENT_`` prefix, e.g.
     ``HTTP_CLIENT_PROXY_HOST``, ``HTTP_CLIENT_POOL_TIMEOUT_SECONDS``.
+
+    Secret fields stay as pydantic ``SecretStr`` from ``ProxySettings`` so
+    subclasses remain type-compatible (basedpyright). Startup masking still
+    works via ``SecretStr.__str__``.
     """
 
     model_config = SettingsConfigDict(
@@ -45,9 +48,6 @@ class HttpClientSettings(ProxySettings):
         extra="ignore",
     )
 
-    proxy_headers: dict[str, LogSecretStr] = Field(default_factory=dict)
-    proxy_username: LogSecretStr | None = None
-    proxy_password: LogSecretStr = Field(default_factory=lambda: LogSecretStr(""))
     proxy_username_source: ProxyUsernameSource = Field(
         default="settings",
         description=(

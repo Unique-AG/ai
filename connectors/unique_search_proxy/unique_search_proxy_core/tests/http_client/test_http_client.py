@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pydantic import SecretStr
+
 from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.errors import ValidationProxyError
 from unique_search_proxy_core.http_client import (
