@@ -35,12 +35,14 @@ _MINIMAL_ANSWER_SCHEMA: dict[str, object] = {
     "required": ["answer"],
 }
 
-_MINIMAL_CONFIRM_SCHEMA: dict[str, object] = {
+_EMPTY_CONFIRM_SCHEMA: dict[str, object] = {"type": "object", "properties": {}}
+
+_BOOLEAN_DATA_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
-        "confirm": {"type": "boolean", "description": "Acknowledge destructive action"},
+        "include_appendix": {"type": "boolean", "title": "Include appendix"},
     },
-    "required": ["confirm"],
+    "required": ["include_appendix"],
 }
 
 
@@ -162,21 +164,92 @@ async def test_ask_user_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ask_user_confirm_schema_sent_to_platform() -> None:
+async def test_ask_user_empty_schema_accept_returns_accepted_message() -> None:
+    """An accepted empty-properties confirmation has no content; the model
+    must get an explicit sentence rather than the JSON literal ``null``."""
     tool, service = _tool_with_service(
-        wait_return=SimpleNamespace(response_content={"confirm": True})
+        wait_return=SimpleNamespace(response_content=None)
     )
 
-    await tool.run(
+    resp = await tool.run(
         _tool_call(
             message="Confirm permanent deletion?",
-            response_schema=_MINIMAL_CONFIRM_SCHEMA,
+            response_schema=_EMPTY_CONFIRM_SCHEMA,
         )
     )
 
     assert (
-        service.create_async.await_args.kwargs["json_schema"] == _MINIMAL_CONFIRM_SCHEMA
+        service.create_async.await_args.kwargs["json_schema"] == _EMPTY_CONFIRM_SCHEMA
     )
+    assert resp.error_message == ""
+    assert resp.content == AskUserToolConfig().accepted_message
+    assert resp.content != "null"
+
+
+@pytest.mark.asyncio
+async def test_ask_user_empty_schema_accept_uses_configured_message() -> None:
+    tool, _ = _tool_with_service(
+        AskUserToolConfig(accepted_message="go ahead"),
+        wait_return=SimpleNamespace(response_content={}),
+    )
+
+    resp = await tool.run(
+        _tool_call(message="Proceed?", response_schema=_EMPTY_CONFIRM_SCHEMA)
+    )
+
+    assert resp.content == "go ahead"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response_content", [None, {}])
+async def test_ask_user_optional_field_left_blank_returns_empty_json(
+    response_content: dict[str, object] | None,
+) -> None:
+    """A form with fields that all come back empty is an answer ("{}"), not a
+    confirmation; the accepted message must only be used for field-less schemas."""
+    optional_multi_schema: dict[str, object] = {
+        "type": "object",
+        "properties": {
+            "exclude": {"type": "array", "items": {"type": "string", "enum": ["EU"]}}
+        },
+    }
+    tool, _ = _tool_with_service(
+        wait_return=SimpleNamespace(response_content=response_content)
+    )
+
+    resp = await tool.run(
+        _tool_call(message="Regions to exclude?", response_schema=optional_multi_schema)
+    )
+
+    assert json.loads(resp.content) == {}
+    assert resp.content != AskUserToolConfig().accepted_message
+
+
+@pytest.mark.asyncio
+async def test_ask_user_boolean_data_field_false_is_returned_as_json() -> None:
+    """A required boolean left unchecked is a valid ``false`` answer, not a
+    decline, and must reach the model as form content."""
+    tool, _ = _tool_with_service(
+        wait_return=SimpleNamespace(response_content={"include_appendix": False})
+    )
+
+    resp = await tool.run(
+        _tool_call(message="Report options", response_schema=_BOOLEAN_DATA_SCHEMA)
+    )
+
+    assert json.loads(resp.content) == {"include_appendix": False}
+
+
+def test_default_prompts_steer_confirmations_to_empty_schema() -> None:
+    config = AskUserToolConfig()
+
+    assert '{"type":"object","properties":{}}' in config.response_schema_description
+    assert "boolean `confirm`" not in config.response_schema_description
+    assert (
+        "never model it as a boolean `confirm` field"
+        in config.tool_description_for_system_prompt
+    )
+    assert "title" in config.response_schema_description
 
 
 @pytest.mark.asyncio
