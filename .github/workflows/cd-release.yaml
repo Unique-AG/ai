@@ -220,6 +220,37 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: ./.github/scripts/prepare-next-cycle.sh
 
+      # Client-facing changelog fragments (.changelog/unreleased/, see
+      # docs/contributing/release-process.md#client-facing-changelog-fragments)
+      # are moved under .changelog/<version>/ once the version has shipped.
+      # Housekeeping only: the monorepo sync finds fragments per commit, so
+      # a failure here never affects the platform release notes — hence
+      # continue-on-error. Pinned changie release binary, checksum from
+      # https://github.com/miniscruff/changie/releases/tag/v1.26.0.
+      - name: Install changie
+        id: changie
+        continue-on-error: true
+        env:
+          CHANGIE_VERSION: "1.26.0"
+          CHANGIE_SHA256: "eab168c8287a6e91912e1c02e5260911232d945bfd3c89d8a0e1ace6bb7b6161"
+        run: |
+          set -euo pipefail
+          DIR="${RUNNER_TEMP}/changie"
+          mkdir -p "$DIR"
+          curl -sSfL -o "${DIR}/changie.tar.gz" \
+            "https://github.com/miniscruff/changie/releases/download/v${CHANGIE_VERSION}/changie_${CHANGIE_VERSION}_linux_amd64.tar.gz"
+          echo "${CHANGIE_SHA256}  ${DIR}/changie.tar.gz" | sha256sum -c -
+          tar -xzf "${DIR}/changie.tar.gz" -C "$DIR" changie
+          echo "path=${DIR}/changie" >> "$GITHUB_OUTPUT"
+          "${DIR}/changie" --version
+
+      - name: Archive changelog fragments for the released version
+        if: steps.changie.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: ./.github/scripts/archive-changelog-fragments.sh --changie "${{ steps.changie.outputs.path }}"
+
       # cd-publish-dev.yaml already closes the prior dev-bump PR every time
       # it opens a new one, so at most one `chore: pin dev-cut <SHA>` PR is
       # ever open. After a stable cut, update-dep-floors.py has just
@@ -265,6 +296,7 @@ jobs:
             echo "### Post-release actions"
             echo "- Cut \`release/\` branch from the tagged release commit (App token bypasses branch protection on \`release-branches\` ruleset)"
             echo "- Pushed \`Release-As\` trailer to \`main\` to arm the next CalVer cycle (App token bypasses branch protection on \`main-branch\` ruleset)"
+            echo "- Archived \`.changelog/unreleased/\` fragments under \`.changelog/<version>/\` (best-effort; see the step above for the outcome)"
             echo "- Closed the open \`chore: pin dev-cut …\` PR (superseded by the stable floors that just landed on \`main\`)"
             echo "- \`cd-publish.yaml\` will fire on the \`release:published\` event created by release-please's App-token-authored release"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -37,8 +37,9 @@ Exception: release-please's own standing Release PR (opened by the Release Workf
 
 1. Land code with **conventional commit** subjects (`git-conventional-commits` skill).
 2. Use scopes that match the package path when helpful (e.g. `feat(sdk): ...`, `feat(toolkit): ...`).
-3. Let release-please accumulate notes on the standing Release PR (title: `chore: stable release main` per `group-pull-request-title-pattern` in `release-please-config.json`; target CalVer is in the PR diff, not the title).
-4. Merge the Release PR when ready to ship — release-please rewrites versions, changelogs, tags, and triggers PyPI publish.
+3. For a user-visible change, add a **client-facing changelog fragment** under `.changelog/unreleased/` with `uv run poe changelog-new ...` (`changelog-fragment` skill), or label the PR `no-changelog`. This is *not* a `CHANGELOG.md` edit — fragments are copied into the monorepo by its sync workflow and become the platform release notes; release-please never sees them.
+4. Let release-please accumulate notes on the standing Release PR (title: `chore: stable release main` per `group-pull-request-title-pattern` in `release-please-config.json`; target CalVer is in the PR diff, not the title).
+5. Merge the Release PR when ready to ship — release-please rewrites versions, changelogs, tags, and triggers PyPI publish.
 
 | Intent | Commit type | Notes |
 |--------|-------------|-------|
@@ -55,7 +56,8 @@ CalVer scheme: `YYYY.WW.PATCH` — see `docs/contributing/release-process.md`.
 
 1. Explain that release-please handles it on the standing Release PR.
 2. Ensure their work is committed with the right conventional commit type/scope.
-3. Point them to merge the Release PR or read `docs/contributing/release-process.md` for hotfixes/RC/dev cuts.
+3. If they mean the *customer-facing* release notes, add a fragment with the `changelog-fragment` skill instead.
+4. Point them to merge the Release PR or read `docs/contributing/release-process.md` for hotfixes/RC/dev cuts.
 
 ## Hotfixes on `release/*`
 
@@ -72,10 +74,11 @@ Script: `.github/scripts/check-release-lineage.sh` (runs in CI for human PRs tar
 
 ## Monorepo consumers (different repo)
 
-Bumping a **published** `unique_toolkit` / `unique_sdk` version inside the **monorepo** (e.g. `assistants-core` `pyproject.toml`) is a separate step after a stable AI release — not a manual ai-repo changelog edit. See `model-deployment` LESSONS-LEARNED for cherry-pick checklists.
+Bumping a **published** `unique_toolkit` / `unique_sdk` version inside the **monorepo** (e.g. `assistants-core` `pyproject.toml`) is a separate step after a stable AI release — not a manual ai-repo changelog edit. See `model-deployment` LESSONS-LEARNED for cherry-pick checklists. The monorepo's `Release · Sync AI Versions` workflow also carries over the `.changelog/unreleased/` fragments added since the previously pinned AI commit, which is how AI changes reach the platform release notes.
 
 ## Related skills
 
+- `changelog-fragment` — client-facing fragment per user-visible PR (platform release notes)
 - `hotfix-backport` — cherry-pick workflow and rebase-merge rules for `release/*`
 - `git-conventional-commits` — commit/PR title format
 - `security-maintenance` — same no-manual-release rules for CVE/CodeQL PRs
