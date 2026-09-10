@@ -80,6 +80,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             company_id=self.event.company_id,
             user_id=self.event.user_id,
             chat_id=self.event.payload.chat_id,
+            user_metadata=self.event.payload.user_metadata or {},
         )
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,

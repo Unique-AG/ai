@@ -1080,3 +1080,59 @@ class TestWebSearchToolArgumentScreeningFeatureFlag:
             language_model=screening_config.language_model,
             config=screening_config,
         )
+
+
+class TestWebSearchToolRequestContext:
+    """The tool forwards the chat event's user metadata to the search proxy."""
+
+    @staticmethod
+    def _build_tool(
+        config: Mock,
+        mocker: Any,
+        user_metadata: dict[str, Any] | None,
+    ) -> WebSearchTool:
+        event = Mock()
+        event.company_id = "test-company"
+        event.user_id = "test-user"
+        event.payload.chat_id = "test-chat"
+        event.payload.user_metadata = user_metadata
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        return WebSearchTool(
+            config,
+            event,
+            chat_service=Mock(get_full_history=Mock(return_value=[])),
+            language_model_service=Mock(),
+        )
+
+    @pytest.mark.ai
+    def test_forwards_user_metadata_from_the_event_payload(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        user_metadata = {
+            "userName": "u12345",
+            "email": "user@example.com",
+        }
+
+        tool = self._build_tool(mock_web_search_config_v1, mocker, user_metadata)
+
+        assert tool.request_context.user_metadata == user_metadata
+        assert tool.request_context.company_id == "test-company"
+        assert tool.request_context.user_id == "test-user"
+        assert tool.request_context.chat_id == "test-chat"
+
+    @pytest.mark.ai
+    def test_defaults_to_empty_dict_when_payload_has_no_user_metadata(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        tool = self._build_tool(mock_web_search_config_v1, mocker, None)
+
+        assert tool.request_context.user_metadata == {}
