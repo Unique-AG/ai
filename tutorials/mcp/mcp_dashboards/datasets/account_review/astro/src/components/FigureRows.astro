@@ -1,0 +1,37 @@
+---
+// Shared by CaseFigure.astro and the always-visible client-page sections.
+// Prefixes are dashboard shorthand; rendered fields read from the nested
+// DashboardFigures model generated from TypeSpec.
+export interface Props {
+  prefix: "fig" | "perf" | "mand" | "hold";
+  /** Number of rows to render from each generated figure group. */
+  count?: number;
+  /** Extra class on the wrapping .figrows div (e.g. "mandate-figure"). */
+  class?: string;
+  style?: string;
+}
+
+const { prefix, count = 3, class: className, style } = Astro.props;
+const rowIndexes = Array.from({ length: count }, (_, i) => i + 1);
+const groups = {
+  fig: "figures.documents",
+  perf: "figures.performance",
+  mand: "figures.mandate",
+  hold: "figures.holdings",
+};
+const groupPath = groups[prefix];
+---
+
+<div class:list={["figrows", className]} style={style}>
+  {
+    rowIndexes.map((n) => (
+      <div class="figrow" data-unique-attr-data-status={`${groupPath}.${n - 1}.status`}>
+        <span class="figrow-l" data-unique-field={`${groupPath}.${n - 1}.label`} />
+        <span class="figrow-v" data-unique-field={`${groupPath}.${n - 1}.value`} />
+        <span class="figbar">
+          <span class="figbar-fill" data-unique-attr-style={`${groupPath}.${n - 1}.pct_bar_style`} />
+        </span>
+      </div>
+    ))
+  }
+</div>

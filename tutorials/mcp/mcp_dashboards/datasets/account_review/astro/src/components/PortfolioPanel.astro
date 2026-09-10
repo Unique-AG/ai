@@ -1,0 +1,94 @@
+---
+// The "Your portfolio" panel: status KPIs, the full client table with
+// read-only status/risk, and (local modes only) the reset-demo-data toolbar.
+// Only ever rendered once per page, but broken out of index.astro so the
+// page shell reads as a list of named regions.
+import DataList from "./DataList.astro";
+import Icon from "./Icon.astro";
+import PortfolioFilters from "./PortfolioFilters.astro";
+import RiskCell from "./RiskCell.astro";
+import StatusCell from "./StatusCell.astro";
+import { callToolAttrs, clientRow, kpiRow } from "../lib/contract";
+import { portfolioListRefresh } from "../lib/editableCell";
+import { getMode } from "../lib/mode";
+
+const mode = getMode();
+const showReset = mode !== "live";
+---
+
+<details class="panel portfolio" open>
+  <summary><span class="chev"><Icon name="chevron-down" size={16} /></span> Your portfolio</summary>
+  <DataList class="kpis" listName="portfolioKpis" tool="portfolio_kpis" args={{}}>
+    <template data-unique-item>
+      <div class="kpi" {...kpiRow.key("bucket")} {...kpiRow.attr("data-bucket", "bucket")}>
+        <div class="k-l" {...kpiRow.field("label")} />
+        <div class="k-v" {...kpiRow.field("count")} />
+      </div>
+    </template>
+    <p data-unique-state="loading" class="small muted" hidden aria-hidden="true"></p>
+    <p data-unique-state="error" class="small muted" style="display: none">Portfolio summary could not be loaded.</p>
+  </DataList>
+
+  <PortfolioFilters />
+
+  <DataList class="table-wrap" listName="clientsLive" tool="list_clients" args={{ limit: 200 }}>
+    <table>
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Status</th>
+          <th>Risk</th>
+          <th>Due date</th>
+          <th>Trigger</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template data-unique-item>
+          <tr
+            {...clientRow.key("id")}
+            {...clientRow.attr("data-status", "case_action.status")}
+            {...clientRow.attr("data-risk", "compliance.risk_level")}
+            {...clientRow.attr("data-due", "case_action.due_bucket")}
+            {...clientRow.attr("data-crit", "compliance.criticality")}
+            {...clientRow.attr("data-rule", "case_action.rule_code")}
+          >
+            <td class="c-name">
+              <a class="c-nm" {...clientRow.attr("href", "client_href")} {...clientRow.field("identity.name")} />
+              <div class="c-ref">
+                <code {...clientRow.field("identity.reference")} />
+              </div>
+            </td>
+            <StatusCell />
+            <RiskCell />
+            <td class="c-due" {...clientRow.field("case_action.due_date")} />
+            <td class="c-trig" {...clientRow.field("case_action.open_issue")} />
+          </tr>
+        </template>
+      </tbody>
+    </table>
+    <p data-unique-state="loading" class="small muted" style="padding: 14px 4px" hidden aria-hidden="true"></p>
+    <p data-unique-state="empty" class="small muted" style="padding: 14px 4px">No clients found.</p>
+    <p data-unique-state="error" class="small muted" style="display: none; padding: 14px 4px">Clients could not be loaded.</p>
+  </DataList>
+
+  {
+    showReset && (
+      <div class="toolbar portfolio-admin">
+        <a class="btn btn-danger" href="#reset-db">Reset demo data…</a>
+        <span class="confirm" id="reset-db">
+          <span class="act">
+            <button
+              type="button"
+              class="btn btn-danger"
+              {...callToolAttrs({ tool: "reset_from_excel", args: {}, refresh: portfolioListRefresh })}
+            >
+              Confirm reset
+            </button>
+            <span class="toast toast-danger" role="status">↺ Reset sent — lists will refresh shortly</span>
+          </span>
+          <a class="btn btn-ghost" href="#top">Cancel</a>
+        </span>
+      </div>
+    )
+  }
+</details>
