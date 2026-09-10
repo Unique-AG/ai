@@ -251,10 +251,12 @@ unique-cli elicit ask "Permanently delete /Archive/2024 and everything inside it
 
 Proceed **only** if the `Status:` is `ACCEPTED`. Treat `DECLINED`, `REJECTED`, `CANCELLED`, or `EXPIRED` all as "do not proceed" -- tell the user you stopped and return control. Put everything the user needs to decide into the message text, since the form has no fields.
 
-If the confirmation has to travel with other inputs (e.g. "which folder?" plus
-"really delete?"), do not merge them into one form with a checkbox. Ask for the
-inputs first, then send a separate empty-schema confirmation that restates what
-will happen.
+Confirm on a form with fields is the same consent. If you still need inputs
+(e.g. which folder to delete), ask for them and state the consequence in the
+same `elicit ask` message, then act on `ACCEPTED` -- do not add a checkbox for
+the consent. Only split into a second, empty-schema confirmation when the
+consequence depends on the answers and the user should see it before you act
+(e.g. "Archive/2024 holds 1,234 files, 3 shared with other teams").
 
 ### Structured form (multiple fields)
 
@@ -387,8 +389,8 @@ esac
 
 - Always set `"required"` for fields you actually need -- this guarantees the user cannot submit an empty form.
 - Use `enum` for closed choices so the UI can render a selector.
-- For yes/no confirmations use an **empty-properties schema** (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED` — never add a boolean `confirm` or `acknowledge` field (the Confirm button and the checkbox are two separate signals that can disagree). Reserve `"type": "boolean"` for genuine data fields where `false` is a valid answer the user can still submit with Confirm (e.g. `include_appendix`).
-- `"required"` on a boolean means "must be answered", not "must be ticked". An unchecked box is a valid `false` and the form submits with it; there is no way to force a checkbox on, which is another reason confirmations belong on the buttons.
+- The Confirm button is the consent, on any form. Never add a boolean `confirm` or `acknowledge` field (the button and the checkbox are two separate signals that can disagree); put the consequence in the message text instead. When there is nothing else to ask, use an **empty-properties schema** (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED`. Reserve `"type": "boolean"` for genuine data fields where `false` is a valid answer the user can still submit with Confirm (e.g. `include_appendix`).
+- `"required"` on a boolean means "must be answered", not "must be ticked". An unchecked box is a valid `false` and the form submits with it; there is no way to force a checkbox on.
 - Always give booleans a `"title"`. The checkbox label and its required marker come from `title`; with only a `description` the box renders unlabelled.
 - Add short `description` strings -- they are shown as help text next to each field.
 - Keep schemas small. Ask at most 5 questions in a single elicitation; if you need more, split the flow so the user is not confused by an oversized form.
