@@ -221,6 +221,31 @@ class TestBasicCrawlerCrawlUrl:
         return BasicCrawler(config)
 
     @pytest.mark.asyncio
+    async def test_crawl_url_passes_config_timeout_on_get(self) -> None:
+        """Registry client uses pool timeout; each crawl GET must override it."""
+        config = TitledBasicConfig(crawler=CrawlerType.BASIC, timeout=12)
+        crawler = BasicCrawler(config)
+        response = httpx.Response(
+            200,
+            text="<html><body><p>ok</p></body></html>",
+            headers={"content-type": "text/html"},
+            request=httpx.Request("GET", "https://example.com"),
+        )
+        client = AsyncMock(spec=httpx.AsyncClient)
+        client.get.return_value = response
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com",
+            hostname="example.com",
+            resolved_ip="",
+            used_dns_resolution=False,
+        )
+
+        await crawler._crawl_url_with_client(client, target)
+
+        timeout = client.get.call_args.kwargs["timeout"]
+        assert timeout == httpx.Timeout(12)
+
+    @pytest.mark.asyncio
     async def test_crawl_url_returns_markdown(self, basic_crawler):
         html = "<html><body><h1>Hello</h1><p>World</p></body></html>"
         response = httpx.Response(

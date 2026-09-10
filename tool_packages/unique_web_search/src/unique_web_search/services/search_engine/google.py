@@ -9,7 +9,7 @@ from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
 from unique_web_search.client_settings import get_google_search_settings
-from unique_web_search.services.client.proxy_config import async_client
+from unique_web_search.services.client.http_client import client_for
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
 from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
@@ -69,8 +69,8 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
             start_index=start_index,
             num_fetch=num_fetch,
         )
-        async with async_client() as client:
-            response = await client.get(**request_params)
+        client = await client_for(self._request_context)
+        response = await client.get(**request_params)
         return response
 
     def _validate_url(self, url: str) -> bool:
