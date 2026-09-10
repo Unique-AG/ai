@@ -892,3 +892,74 @@ class TestUploadedSearchToolContentIdFilter:
 
         with pytest.raises(ValueError, match="content_ids"):
             await tool.run(tool_call)
+
+
+@pytest.mark.ai
+class TestUploadedSearchToolSelectedFilesFlag:
+    """Tests for the selected_uploaded_files_enabled config toggle on UploadedSearchTool.
+
+    The flag itself (FEATURE_FLAG_ENABLE_SELECTED_UPLOADED_FILES_UN_18215) is
+    resolved asynchronously by the orchestrator's builder and threaded through
+    as this plain bool field, since Tool.__init__ is synchronous. These tests
+    only cover the synchronous consumer side: given the field's value, does
+    _compute_valid_documents scope correctly.
+    """
+
+    @pytest.mark.ai
+    def test_valid_documents_scoped_to_selection__when_enabled(
+        self,
+        mock_chat_event: ChatEvent,
+        mock_tool_progress_reporter: ToolProgressReporter,
+        mock_uploaded_documents_valid: list[Content],
+    ) -> None:
+        """
+        Purpose: Verify _valid_documents is filtered to the selected file IDs when
+                 selected_uploaded_files_enabled=True.
+        Why this matters: This is the sync counterpart of the async flag check
+                          used elsewhere (is_chat_only/search); it must actually
+                          restrict which documents the tool considers searchable.
+        Setup summary: Two valid docs (doc_1, doc_2), event selects only doc_1,
+                       flag enabled; assert only doc_1 remains.
+        """
+        additional = Mock()
+        additional.selected_uploaded_file_ids = ["doc_1"]
+        mock_chat_event.payload.additional_parameters = additional
+
+        config = UploadedSearchConfig(selected_uploaded_files_enabled=True)
+        tool = _make_uploaded_search_tool(
+            mock_uploaded_documents_valid,
+            config,
+            mock_chat_event,
+            mock_tool_progress_reporter,
+        )
+
+        assert [doc.id for doc in tool._valid_documents] == ["doc_1"]
+
+    @pytest.mark.ai
+    def test_valid_documents_include_all__when_disabled(
+        self,
+        mock_chat_event: ChatEvent,
+        mock_tool_progress_reporter: ToolProgressReporter,
+        mock_uploaded_documents_valid: list[Content],
+    ) -> None:
+        """
+        Purpose: Verify _valid_documents keeps all valid docs when
+                 selected_uploaded_files_enabled is left at its default (False).
+        Why this matters: The default must preserve pre-selection behavior for
+                          companies the flag isn't enabled for.
+        Setup summary: Two valid docs, event selects only doc_1, flag left off
+                       (default config); assert both docs remain.
+        """
+        additional = Mock()
+        additional.selected_uploaded_file_ids = ["doc_1"]
+        mock_chat_event.payload.additional_parameters = additional
+
+        config = UploadedSearchConfig()
+        tool = _make_uploaded_search_tool(
+            mock_uploaded_documents_valid,
+            config,
+            mock_chat_event,
+            mock_tool_progress_reporter,
+        )
+
+        assert sorted(doc.id for doc in tool._valid_documents) == ["doc_1", "doc_2"]
