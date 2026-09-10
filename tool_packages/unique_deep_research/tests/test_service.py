@@ -88,6 +88,38 @@ def test_deep_research_tool__is_message_execution__returns_false__when_no_execut
 
 
 @pytest.mark.ai
+def test_deep_research_tool__openai_client__sends_assistants_core_service_id() -> None:
+    """
+    Purpose: OpenAI-engine Deep Research identifies as assistants-core on openai-proxy.
+    Why this matters: node-chat allows web_search_preview only for that service id.
+    Setup summary: Construct the tool and assert get_async_openai_client headers.
+    """
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_id = "test-assistant"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_progress_reporter = Mock()
+
+    with patch("unique_deep_research.service.get_async_openai_client") as mock_client:
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                DeepResearchTool(config, mock_event, mock_progress_reporter)
+
+    headers = mock_client.call_args.kwargs["additional_headers"]
+    assert headers["x-service-id"] == "assistants-core"
+    assert headers["x-company-id"] == "test-company"
+    assert headers["x-user-id"] == "test-user"
+    assert headers["x-assistant-id"] == "test-assistant"
+    assert headers["x-chat-id"] == "test-chat"
+
+
+@pytest.mark.ai
 def test_deep_research_tool__is_message_execution__returns_true__when_execution_id_present() -> (
     None
 ):

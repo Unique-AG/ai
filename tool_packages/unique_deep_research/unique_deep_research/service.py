@@ -136,6 +136,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "x-user-id": self.user_id,
                 "x-assistant-id": self.event.payload.assistant_id,
                 "x-chat-id": self.chat_id,
+                "x-service-id": "assistants-core",
             }
         )
 
