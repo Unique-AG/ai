@@ -96,7 +96,7 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
     _TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_BASE + _TOOL_DESCRIPTION_FILES_SUFFIX
 ).strip()
 
-# Default prompt since code-execution fences went GA (UN-25450).
+# Used when the code-execution fence feature flag (UN-17972) is enabled.
 # The frontend derives the artifact title from the filename itself, so the
 # LLM no longer needs to produce a markdown heading before the sandbox link.
 #

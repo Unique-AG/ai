@@ -194,7 +194,7 @@ class TestConfigPassthrough:
         )
 
         custom_code_display_config = ShowExecutedCodePostprocessorConfig(
-            remove_from_history=False
+            sleep_time_before_display=1.5
         )
         ci_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=custom_code_display_config
@@ -216,6 +216,27 @@ class TestConfigPassthrough:
             mgr.add_postprocessor.call_args_list[0][0][0]
         )
         assert postprocessor._config is custom_code_display_config
+
+    @pytest.mark.ai
+    def test_show_executed_code_postprocessor_receives_company_id(self):
+        """ShowExecutedCodePostprocessor must receive company_id for fence FF checks (UN-17972)."""
+        mgr = _make_postprocessor_manager()
+
+        _register_code_interpreter_postprocessors(
+            tools=[_make_code_interpreter_tool()],
+            postprocessor_manager=mgr,
+            client=MagicMock(),
+            content_service=MagicMock(),
+            user_id="u1",
+            company_id="company-fence",
+            chat_id="ch1",
+            chat_service=MagicMock(),
+        )
+
+        postprocessor: ShowExecutedCodePostprocessor = (
+            mgr.add_postprocessor.call_args_list[0][0][0]
+        )
+        assert postprocessor._company_id == "company-fence"
 
     @pytest.mark.ai
     def test_display_files_postprocessor_receives_client_and_company_id(self):
@@ -260,12 +281,12 @@ class TestFirstMatchWins:
 
         first_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=ShowExecutedCodePostprocessorConfig(
-                remove_from_history=False
+                sleep_time_before_display=0.1
             )
         )
         second_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=ShowExecutedCodePostprocessorConfig(
-                remove_from_history=True
+                sleep_time_before_display=9.9
             )
         )
         mgr = _make_postprocessor_manager()
@@ -287,7 +308,7 @@ class TestFirstMatchWins:
         postprocessor: ShowExecutedCodePostprocessor = (
             mgr.add_postprocessor.call_args_list[0][0][0]
         )
-        assert postprocessor._config is first_config.executed_code_display_config
+        assert postprocessor._config.sleep_time_before_display == 0.1
 
     @pytest.mark.ai
     def test_skips_disabled_tool_and_uses_next_enabled_code_interpreter(self):
@@ -298,12 +319,12 @@ class TestFirstMatchWins:
 
         disabled_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=ShowExecutedCodePostprocessorConfig(
-                remove_from_history=True
+                sleep_time_before_display=9.9
             )
         )
         enabled_config = CodeInterpreterExtendedConfig(
             executed_code_display_config=ShowExecutedCodePostprocessorConfig(
-                remove_from_history=False
+                sleep_time_before_display=0.5
             )
         )
         mgr = _make_postprocessor_manager()
@@ -325,4 +346,4 @@ class TestFirstMatchWins:
         postprocessor: ShowExecutedCodePostprocessor = (
             mgr.add_postprocessor.call_args_list[0][0][0]
         )
-        assert postprocessor._config is enabled_config.executed_code_display_config
+        assert postprocessor._config.sleep_time_before_display == 0.5
