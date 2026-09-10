@@ -22,7 +22,8 @@ from unique_search_proxy_core.search_engines.config_types import SearchRequest
 from unique_search_proxy_client.web.api.v1.openapi_examples import (
     SEARCH_OPENAPI_EXAMPLES,
 )
-from unique_search_proxy_client.web.core.client import get_http_client_pool
+from unique_search_proxy_client.web.context import get_request_context
+from unique_search_proxy_client.web.core.client import get_http_client_registry
 from unique_search_proxy_client.web.core.search_engines import (
     get_search_engine_service,
 )
@@ -67,10 +68,11 @@ async def search(
     _LOGGER.info("search start engine=%s timeout=%ss", engine_id, timeout)
 
     try:
-        pool = get_http_client_pool(request.app)
+        registry = get_http_client_registry(request.app)
+        client = await registry.client_for(get_request_context())
         engine = get_search_engine_service(
             SearchEngineType(engine_id) if isinstance(engine, str) else engine,
-            http_client=pool.client,
+            http_client=client,
         )
         async with asyncio.timeout(timeout):
             raw, curated = await engine.search(body)

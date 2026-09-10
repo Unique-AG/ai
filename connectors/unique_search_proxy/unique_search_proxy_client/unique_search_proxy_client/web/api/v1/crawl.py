@@ -20,7 +20,8 @@ from unique_search_proxy_core.schema import (
 from unique_search_proxy_client.web.api.v1.openapi_examples import (
     CRAWL_OPENAPI_EXAMPLES,
 )
-from unique_search_proxy_client.web.core.client import get_http_client_pool
+from unique_search_proxy_client.web.context import get_request_context
+from unique_search_proxy_client.web.core.client import get_http_client_registry
 from unique_search_proxy_client.web.core.crawlers.factory import get_crawler_service
 from unique_search_proxy_client.web.core.crawlers.pinned_egress import (
     PinnedEgressCrawler,
@@ -84,7 +85,12 @@ async def crawl(
 
     try:
         async with asyncio.timeout(timeout):
-            gate = await apply_url_safety_gate(body.urls)
+            registry = get_http_client_registry(request.app)
+            client = await registry.client_for(get_request_context())
+            gate = await apply_url_safety_gate(
+                body.urls,
+                redirect_http_client=client,
+            )
             if not gate.allowed_targets:
                 duration = time.perf_counter() - started
                 record_crawl_success(
@@ -119,8 +125,7 @@ async def crawl(
                 },
             )
 
-            pool = get_http_client_pool(request.app)
-            crawler = get_crawler_service(crawler_id, http_client=pool.client)
+            crawler = get_crawler_service(crawler_id, http_client=client)
             if isinstance(crawler, PinnedEgressCrawler):
                 crawler_results = await crawler.crawl_pinned(
                     crawl_body,

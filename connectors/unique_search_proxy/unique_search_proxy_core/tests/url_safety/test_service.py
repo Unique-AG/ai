@@ -90,7 +90,9 @@ class TestValidateUrlsWithRedirects:
 
         assert len(targets) == 1
         assert targets[0].normalized_url == "https://example.com/page"
-        mock_client.head.assert_called_once_with("https://example.com/page")
+        assert mock_client.head.call_count == 1
+        assert mock_client.head.call_args.args == ("https://example.com/page",)
+        assert mock_client.head.call_args.kwargs["follow_redirects"] is False
 
 
 class TestValidateUrlsIndividually:

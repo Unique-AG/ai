@@ -16,7 +16,9 @@ from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     aclose_private_endpoint_http_client,
 )
-from unique_search_proxy_client.web.core.client.service import create_http_client_pool
+from unique_search_proxy_client.web.core.client.service import (
+    create_http_client_registry,
+)
 from unique_search_proxy_client.web.core.providers import register_builtin_providers
 from unique_search_proxy_client.web.error_handlers import register_exception_handlers
 from unique_search_proxy_client.web.logging_config import (
@@ -58,13 +60,13 @@ async def lifespan(app: FastAPI):
     _LOGGER.info("Starting Unique Search Proxy...")
     log_startup_settings_report(_LOGGER)
     await maybe_cleanup_auto_provisioned_bing_agents_on_start()
-    pool = await create_http_client_pool()
-    app.state.http_client_pool = pool
+    registry = await create_http_client_registry()
+    app.state.http_client_registry = registry
     try:
         yield
     finally:
         await aclose_private_endpoint_http_client()
-        await pool.aclose()
+        await registry.aclose()
         _LOGGER.info("Shutting down Unique Search Proxy...")
 
 
