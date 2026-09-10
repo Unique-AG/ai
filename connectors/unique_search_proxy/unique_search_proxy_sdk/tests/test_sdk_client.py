@@ -28,17 +28,17 @@ async def sdk_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[UniqueSearchProxyClient]:
     from unique_search_proxy_client.web.app import create_app
-    from unique_search_proxy_client.web.core.client.service import HttpClientPool
+    from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 
-    async def mock_create_pool() -> HttpClientPool:
+    async def mock_create_registry() -> HttpClientRegistry:
         http_client = httpx.AsyncClient(
             transport=httpx.MockTransport(lambda _: httpx.Response(404)),
         )
-        return HttpClientPool(client=http_client)
+        return HttpClientRegistry.fixed(http_client)
 
     monkeypatch.setattr(
-        "unique_search_proxy_client.web.app.create_http_client_pool",
-        mock_create_pool,
+        "unique_search_proxy_client.web.app.create_http_client_registry",
+        mock_create_registry,
     )
     app = create_app()
     async with app.router.lifespan_context(app):
