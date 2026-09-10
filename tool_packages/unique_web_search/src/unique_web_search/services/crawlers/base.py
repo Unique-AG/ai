@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Generic, TypeVar
 
+import httpx
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig
 from unique_search_proxy_core.url_safety import (
@@ -45,11 +48,35 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
             return await self._proxy_crawl(urls)
 
         try:
-            targets = await UrlSafetyService.validate_batch_urls(urls)
+            async with self._legacy_http_client() as http_client:
+                targets = await UrlSafetyService.validate_batch_urls(
+                    urls,
+                    redirect_http_client=http_client,
+                )
+                if http_client is not None:
+                    return await self._legacy_crawl_with_http_client(
+                        targets,
+                        http_client,
+                    )
+                return await self._legacy_crawl(targets)
         except CrawlTargetValidationError as exc:
             for target in exc.blocked_targets:
                 crawl_blocked.labels(reason_category=target.category).inc()
             raise
+
+    @asynccontextmanager
+    async def _legacy_http_client(
+        self,
+    ) -> AsyncIterator[httpx.AsyncClient | None]:
+        """Yield a caller-owned client when safety probes and crawl must share it."""
+        yield None
+
+    async def _legacy_crawl_with_http_client(
+        self,
+        targets: list[ResolvedCrawlTarget],
+        http_client: httpx.AsyncClient,
+    ) -> list[str]:
+        """Use the default legacy implementation when no client hook is needed."""
         return await self._legacy_crawl(targets)
 
     async def _proxy_crawl(self, urls: list[str]) -> list[str]:

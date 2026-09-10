@@ -80,6 +80,10 @@ Proxy vs legacy is transparent to executors.
 - `SEARCH_PROXY_BASE_URL` — enables the Search Proxy client
 - Provider API keys (on the proxy pod when proxy is enabled; otherwise on assistants-core for legacy)
 - Search / crawler / content-processing settings via `WebSearchConfig`
+- `PER_USER_PROXY_COMPANY_IDS` — JSON list of company IDs whose legacy Basic
+  crawler must use per-user corporate proxy authentication
+- `PER_USER_PROXY_PASSWORD` — secret placeholder password paired with the
+  client-provided external user ID for gated legacy crawls
 
 ## Dependency management (uv.lock + min/latest testing)
 

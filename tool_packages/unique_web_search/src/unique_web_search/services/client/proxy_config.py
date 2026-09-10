@@ -1,8 +1,9 @@
 import logging
 from functools import partial
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Proxy, Timeout
 from pydantic import BaseModel
+from unique_search_proxy_core.context import RequestContext
 
 from unique_web_search.settings import env_settings
 
@@ -117,3 +118,38 @@ async_client = partial(
     trust_env=_client_kwargs.trust_env,
     cert=_client_kwargs.cert,
 )
+
+
+def build_legacy_crawl_client(
+    request_context: RequestContext,
+    *,
+    timeout: float | Timeout | None = None,
+) -> AsyncClient:
+    """Build the direct-crawl client, adding per-user proxy auth when gated."""
+    if not env_settings.per_user_proxy_enabled_for(request_context.company_id):
+        return async_client(timeout=timeout)
+
+    raw_external_user_id = request_context.external_user_id
+    if raw_external_user_id is None or not raw_external_user_id.strip():
+        raise ValueError(
+            "External user ID is required for per-user proxy authentication"
+        )
+
+    password = env_settings.per_user_proxy_password
+    if password is None:
+        raise ValueError(
+            "Per-user proxy password must be configured when per-user proxy "
+            "authentication is enabled"
+        )
+
+    proxy = Proxy(
+        url=_build_proxy_url_with_tls(),
+        auth=(raw_external_user_id.strip(), password.get_secret_value()),
+        headers=env_settings.proxy_headers or None,
+    )
+    return AsyncClient(
+        proxy=proxy,
+        verify=env_settings.proxy_ssl_ca_bundle_path or True,
+        trust_env=False,
+        timeout=timeout,
+    )
