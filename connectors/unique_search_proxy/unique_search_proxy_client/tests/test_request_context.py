@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from unique_search_proxy_core.context import (
     CHAT_ID_HEADER,
     COMPANY_ID_HEADER,
+    EXTERNAL_USER_ID_HEADER,
     LOCAL_REQUEST_CONTEXT,
     USER_ID_HEADER,
     RequestContext,
@@ -14,12 +15,14 @@ from unique_search_proxy_core.context import (
 from unique_search_proxy_core.schema import ProxyErrorCode
 
 from unique_search_proxy_client.web.app import create_app
+from unique_search_proxy_client.web.context import get_request_context
 from unique_search_proxy_client.web.settings.app import AppSettings
 
 _CONTEXT_HEADER_NAMES = (
     COMPANY_ID_HEADER,
     USER_ID_HEADER,
     CHAT_ID_HEADER,
+    EXTERNAL_USER_ID_HEADER,
 )
 
 
@@ -28,11 +31,13 @@ def _context_headers(
     company_id: str = "company-1",
     user_id: str = "user-1",
     chat_id: str = "chat-1",
+    external_user_id: str = "jsmith",
 ) -> dict[str, str]:
     return RequestContext(
         company_id=company_id,
         user_id=user_id,
         chat_id=chat_id,
+        external_user_id=external_user_id,
     ).to_headers()
 
 
@@ -88,10 +93,13 @@ class TestRequestContextMiddleware:
             GoogleSearchRequest,
         )
 
+        observed_contexts: list[RequestContext] = []
+
         async def fake_search(
             self: object,
             request: GoogleSearchRequest,
         ) -> tuple[SearchEngineRaw, WebSearchResults]:
+            observed_contexts.append(get_request_context())
             return SearchEngineRaw(pages=[]), WebSearchResults(
                 results=[
                     WebSearchResult(url="https://example.com", title="t", snippet="s"),
@@ -110,6 +118,7 @@ class TestRequestContextMiddleware:
         )
         assert response.status_code == 200
         assert response.json()["engine"] == "google"
+        assert observed_contexts[0].external_user_id == "jsmith"
 
     def test_missing_headers_accepted_when_enforcement_disabled(
         self,
@@ -220,4 +229,5 @@ class TestRequestContextOpenAPI:
             COMPANY_ID_HEADER: LOCAL_REQUEST_CONTEXT.company_id,
             USER_ID_HEADER: LOCAL_REQUEST_CONTEXT.user_id,
             CHAT_ID_HEADER: LOCAL_REQUEST_CONTEXT.chat_id,
+            EXTERNAL_USER_ID_HEADER: LOCAL_REQUEST_CONTEXT.external_user_id,
         }

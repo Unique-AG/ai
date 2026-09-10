@@ -115,6 +115,11 @@ library extension hooks (base.externalService.*.ext).
 {{- if .Values.httpClient.connection.proxyPassword }}
 {{ include "base.valueSource.env" (dict "name" "HTTP_CLIENT_PROXY_PASSWORD" "src" .Values.httpClient.connection.proxyPassword "ctx" .) }}
 {{- end }}
+- name: HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS
+  value: {{ .Values.httpClient.connection.perUserProxyCompanyIds | toJson | quote }}
+{{- if .Values.httpClient.connection.perUserProxyPassword }}
+{{ include "base.valueSource.env" (dict "name" "HTTP_CLIENT_PER_USER_PROXY_PASSWORD" "src" .Values.httpClient.connection.perUserProxyPassword "ctx" .) }}
+{{- end }}
 {{- if .Values.httpClient.connection.proxySslCertPath }}
 - name: HTTP_CLIENT_PROXY_SSL_CERT_PATH
   value: {{ .Values.httpClient.connection.proxySslCertPath | quote }}
@@ -129,6 +134,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .Values.httpClient.tuning.maxKeepaliveConnections | quote }}
+- name: HTTP_CLIENT_PER_USER_PROXY_CLIENT_CACHE_SIZE
+  value: {{ .Values.httpClient.tuning.perUserProxyClientCacheSize | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -257,6 +264,11 @@ library extension hooks (base.externalService.*.ext).
 {{- if .ctx.Values.httpClient.connection.proxyPassword }}
 {{ include "base.valueSource.env" (dict "name" "HTTP_CLIENT_PROXY_PASSWORD" "src" .ctx.Values.httpClient.connection.proxyPassword "ctx" .ctx) }}
 {{- end }}
+- name: HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS
+  value: {{ .ctx.Values.httpClient.connection.perUserProxyCompanyIds | toJson | quote }}
+{{- if .ctx.Values.httpClient.connection.perUserProxyPassword }}
+{{ include "base.valueSource.env" (dict "name" "HTTP_CLIENT_PER_USER_PROXY_PASSWORD" "src" .ctx.Values.httpClient.connection.perUserProxyPassword "ctx" .ctx) }}
+{{- end }}
 {{- if .ctx.Values.httpClient.connection.proxySslCertPath }}
 - name: HTTP_CLIENT_PROXY_SSL_CERT_PATH
   value: {{ .ctx.Values.httpClient.connection.proxySslCertPath | quote }}
@@ -271,6 +283,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .ctx.Values.httpClient.tuning.maxKeepaliveConnections | quote }}
+- name: HTTP_CLIENT_PER_USER_PROXY_CLIENT_CACHE_SIZE
+  value: {{ .ctx.Values.httpClient.tuning.perUserProxyClientCacheSize | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -410,7 +424,7 @@ library extension hooks (base.externalService.*.ext).
 {{- if and .ctx.Values.firecrawl .ctx.Values.firecrawl.enabled -}}
 {{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault "fields" (list .ctx.Values.firecrawl.connection.apiKey)) }}
 {{- end -}}
-{{- if or .ctx.Values.httpClient.connection.proxyUsername .ctx.Values.httpClient.connection.proxyPassword -}}
-{{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault "fields" (list .ctx.Values.httpClient.connection.proxyUsername .ctx.Values.httpClient.connection.proxyPassword)) }}
+{{- if or .ctx.Values.httpClient.connection.proxyUsername .ctx.Values.httpClient.connection.proxyPassword .ctx.Values.httpClient.connection.perUserProxyPassword -}}
+{{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault "fields" (list .ctx.Values.httpClient.connection.proxyUsername .ctx.Values.httpClient.connection.proxyPassword .ctx.Values.httpClient.connection.perUserProxyPassword)) }}
 {{- end -}}
 {{- end -}}

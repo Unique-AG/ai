@@ -348,6 +348,7 @@ class TestRequestContextHeaders:
         from unique_search_proxy_core.context import (
             CHAT_ID_HEADER,
             COMPANY_ID_HEADER,
+            EXTERNAL_USER_ID_HEADER,
             USER_ID_HEADER,
             RequestContext,
         )
@@ -358,12 +359,14 @@ class TestRequestContextHeaders:
             company_id="company-1",
             user_id="user-1",
             chat_id="chat-1",
+            external_user_id="jsmith",
         )
         transport = OpenapiTransport("http://test", context=context)
         headers = transport.openapi.get_async_httpx_client().headers
         assert headers[COMPANY_ID_HEADER] == "company-1"
         assert headers[USER_ID_HEADER] == "user-1"
         assert headers[CHAT_ID_HEADER] == "chat-1"
+        assert headers[EXTERNAL_USER_ID_HEADER] == "jsmith"
 
     @pytest.mark.ai
     async def test_v1_post_forwards_non_local_context(self) -> None:
@@ -374,6 +377,7 @@ class TestRequestContextHeaders:
         from unique_search_proxy_core.context import (
             CHAT_ID_HEADER,
             COMPANY_ID_HEADER,
+            EXTERNAL_USER_ID_HEADER,
             USER_ID_HEADER,
             RequestContext,
         )
@@ -394,6 +398,7 @@ class TestRequestContextHeaders:
             company_id="company-1",
             user_id="user-1",
             chat_id="chat-1",
+            external_user_id="jsmith",
         )
         http = httpx.AsyncClient(
             transport=httpx.MockTransport(handler),
@@ -413,3 +418,4 @@ class TestRequestContextHeaders:
         assert captured[COMPANY_ID_HEADER] == "company-1"
         assert captured[USER_ID_HEADER] == "user-1"
         assert captured[CHAT_ID_HEADER] == "chat-1"
+        assert captured[EXTERNAL_USER_ID_HEADER] == "jsmith"

@@ -1,15 +1,73 @@
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 
 from unique_web_search.invocation_stats import collector
-from unique_web_search.service import WebSearchTool
+from unique_web_search.service import WebSearchTool, _external_user_id_from_metadata
 from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
+
+
+@pytest.mark.ai
+class TestSearchProxyExternalUserIdContext:
+    def test_reads_external_user_id_from_current_stamped_metadata_field(self) -> None:
+        assert _external_user_id_from_metadata({"userName": "jsmith"}) == "jsmith"
+        assert _external_user_id_from_metadata({"userName": " jsmith "}) == "jsmith"
+
+    @pytest.mark.parametrize(
+        "user_metadata",
+        [None, {}, {"userName": ""}, {"userName": "   "}, {"userName": 123}],
+    )
+    def test_omits_invalid_or_missing_external_user_id_metadata(
+        self,
+        user_metadata: dict[str, object] | None,
+    ) -> None:
+        assert _external_user_id_from_metadata(user_metadata) is None
+
+    def test_tool_context_carries_external_user_id_to_proxy_services(
+        self,
+        mock_web_search_config_v1: Mock,
+    ) -> None:
+        event = Mock()
+        event.company_id = "company-1"
+        event.user_id = "user-1"
+        event.payload.chat_id = "chat-1"
+        event.payload.user_metadata = {"userName": "jsmith"}
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool._event = event
+        tool._language_model_service = Mock()
+        tool._chat_service = Mock()
+        tool._chat_service.get_full_history.return_value = []
+
+        with (
+            patch("unique_web_search.service.Tool.__init__", return_value=None),
+            patch("unique_web_search.service.ChunkRelevancySorter"),
+            patch(
+                "unique_web_search.service.get_search_engine_service"
+            ) as get_search_engine_service,
+            patch(
+                "unique_web_search.service.get_crawler_service"
+            ) as get_crawler_service,
+            patch("unique_web_search.service.ContentProcessor"),
+        ):
+            WebSearchTool.__init__(tool, mock_web_search_config_v1)
+
+        assert tool.request_context.external_user_id == "jsmith"
+        get_search_engine_service.assert_called_once_with(
+            mock_web_search_config_v1.search_engine_config,
+            tool.language_model_service,
+            request_context=tool.request_context,
+        )
+        get_crawler_service.assert_called_once_with(
+            mock_web_search_config_v1.crawler_config,
+            request_context=tool.request_context,
+        )
 
 
 class TestWebSearchToolDescription:

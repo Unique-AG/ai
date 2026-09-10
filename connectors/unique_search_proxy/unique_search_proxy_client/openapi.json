@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Unique Search Proxy",
-    "description": "Unified web egress proxy for search engines and crawlers. Use **Try it out** on `/v1/search` and `/v1/crawl` \u2014 pick an example from the request-body dropdown (snippets-only Google search, crawl with HTML markdown, etc.). `/v1/*` routes accept tenant context headers (`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`; defaults `local` in Swagger). Requires provider env vars (e.g. `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls.",
+    "description": "Unified web egress proxy for search engines and crawlers. Use **Try it out** on `/v1/search` and `/v1/crawl` \u2014 pick an example from the request-body dropdown (snippets-only Google search, crawl with HTML markdown, etc.). `/v1/*` routes accept tenant context headers (`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`, and optional `x-unique-external-user-id`; internal ID headers default `local` in Swagger). Requires provider env vars (e.g. `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls.",
     "version": "0.2.0"
   },
   "paths": {
@@ -97,6 +97,24 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-external-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
+            },
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "responses": {
@@ -166,6 +184,24 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-external-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
+            },
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "requestBody": {
@@ -302,6 +338,24 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-external-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
+            },
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "requestBody": {
@@ -409,6 +463,24 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-external-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
+            },
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "requestBody": {
@@ -514,6 +586,24 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-external-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client-provided identity for per-user egress authentication.",
+              "title": "X-Unique-External-User-Id"
+            },
+            "description": "Client-provided identity for per-user egress authentication."
           }
         ],
         "requestBody": {

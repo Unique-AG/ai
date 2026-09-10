@@ -2,7 +2,10 @@ import json
 
 import pytest
 
-from unique_search_proxy_client.web.core.client.service import build_proxy_config
+from unique_search_proxy_client.web.core.client.service import (
+    build_per_user_async_client,
+    build_proxy_config,
+)
 from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
     ProxyAuthMode,
@@ -25,6 +28,9 @@ class TestHttpClientSettings:
         assert settings.pool_timeout_seconds == 30.0
         assert settings.max_connections == 100
         assert settings.proxy_headers == {}
+        assert settings.per_user_proxy_company_ids == []
+        assert settings.per_user_proxy_password is None
+        assert settings.per_user_proxy_client_cache_size == 128
 
     @pytest.mark.ai
     def test_proxy_auth_mode_literal(self) -> None:
@@ -41,6 +47,25 @@ class TestHttpClientSettings:
         settings = get_http_client_settings()
         assert settings.pool_timeout_seconds == 45.0
         assert settings.max_connections == 50
+
+    @pytest.mark.ai
+    def test_loads_per_user_proxy_configuration(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv(
+            "HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS",
+            '["company-1", "company-2"]',
+        )
+        monkeypatch.setenv("HTTP_CLIENT_PER_USER_PROXY_PASSWORD", "placeholder")
+        monkeypatch.setenv("HTTP_CLIENT_PER_USER_PROXY_CLIENT_CACHE_SIZE", "64")
+
+        settings = get_http_client_settings()
+
+        assert settings.per_user_proxy_enabled_for("company-1")
+        assert settings.per_user_proxy_password is not None
+        assert settings.per_user_proxy_password.get_secret_value() == "placeholder"
+        assert settings.per_user_proxy_client_cache_size == 64
 
     @pytest.mark.ai
     def test_loads_proxy_secrets_from_env(
@@ -72,6 +97,40 @@ class TestHttpClientSettings:
         )
         config = build_proxy_config(settings)
         assert config.headers == {"Proxy-Authorization": "Bearer secret-token"}
+
+    @pytest.mark.ai
+    def test_build_per_user_client_accepts_empty_placeholder_password(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        captured: dict[str, object] = {}
+
+        class FakeProxy:
+            def __init__(self, **kwargs: object) -> None:
+                captured.update(kwargs)
+
+        class FakeClient:
+            def __init__(self, **_kwargs: object) -> None:
+                pass
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.client.service.httpx.Proxy",
+            FakeProxy,
+        )
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.client.service.AsyncClient",
+            FakeClient,
+        )
+        settings = HttpClientSettings(
+            proxy_host="proxy.example.com",
+            proxy_port=8080,
+            per_user_proxy_password=LogSecretStr(""),
+        )
+
+        build_per_user_async_client("client-user", settings=settings)
+
+        assert captured["url"] == "http://proxy.example.com:8080"
+        assert captured["auth"] == ("client-user", "")
 
 
 class TestHttpClientSecretFormatting:

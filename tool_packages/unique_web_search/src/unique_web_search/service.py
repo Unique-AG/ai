@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from datetime import datetime
 from time import time
 
@@ -57,6 +58,18 @@ from unique_web_search.utils import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _external_user_id_from_metadata(
+    user_metadata: Mapping[str, object] | None,
+) -> str | None:
+    """Map the current stamped metadata field to the client egress identity."""
+    external_user_id = (
+        user_metadata.get("userName") if user_metadata is not None else None
+    )
+    if not isinstance(external_user_id, str) or not external_user_id.strip():
+        return None
+    return external_user_id.strip()
+
+
 class WebSearchTool(Tool[WebSearchConfig]):
     name = "WebSearch"
 
@@ -80,6 +93,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
             company_id=self.event.company_id,
             user_id=self.event.user_id,
             chat_id=self.event.payload.chat_id,
+            external_user_id=_external_user_id_from_metadata(
+                self.event.payload.user_metadata
+            ),
         )
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,

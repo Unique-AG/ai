@@ -36,6 +36,7 @@ class ProxyConfig(BaseModel):
             "pool_timeout_seconds",
             "max_connections",
             "max_keepalive_connections",
+            "per_user_proxy_client_cache_size",
         ],
     },
 )
@@ -54,12 +55,32 @@ class HttpClientSettings(BaseSettings):
     proxy_ssl_ca_bundle_path: str | None = None
     proxy_username: LogSecretStr | None = None
     proxy_password: LogSecretStr | None = None
+    per_user_proxy_company_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Company IDs whose crawl egress must authenticate to the proxy "
+            "with the request's external user ID."
+        ),
+        json_schema_extra={"helm": {"overridable": True}},
+    )
+    per_user_proxy_password: LogSecretStr | None = Field(
+        default=None,
+        description=(
+            "Deployment-configured placeholder password paired with per-user "
+            "proxy identities. An explicit empty string is valid."
+        ),
+    )
     proxy_ssl_cert_path: str | None = None
     proxy_ssl_key_path: str | None = None
 
     pool_timeout_seconds: float = 30.0
     max_connections: int = 100
     max_keepalive_connections: int = 20
+    per_user_proxy_client_cache_size: int = Field(default=128, ge=1)
+
+    def per_user_proxy_enabled_for(self, company_id: str) -> bool:
+        """Return whether a company requires per-user crawl egress."""
+        return company_id in self.per_user_proxy_company_ids
 
 
 def get_http_client_settings() -> HttpClientSettings:

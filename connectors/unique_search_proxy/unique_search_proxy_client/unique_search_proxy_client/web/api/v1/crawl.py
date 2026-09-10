@@ -4,9 +4,12 @@ import asyncio
 import logging
 import time
 
+import httpx
 from fastapi import APIRouter, Body, Request
+from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.config_types import CrawlRequest
 from unique_search_proxy_core.errors import (
+    BadRequestProxyError,
     ProxyError,
     UpstreamTimeoutError,
     attach_request_context,
@@ -20,7 +23,11 @@ from unique_search_proxy_core.schema import (
 from unique_search_proxy_client.web.api.v1.openapi_examples import (
     CRAWL_OPENAPI_EXAMPLES,
 )
-from unique_search_proxy_client.web.core.client import get_http_client_pool
+from unique_search_proxy_client.web.context import get_request_context
+from unique_search_proxy_client.web.core.client import (
+    get_http_client_pool,
+    get_per_user_proxy_client_cache,
+)
 from unique_search_proxy_client.web.core.crawlers.factory import get_crawler_service
 from unique_search_proxy_client.web.core.crawlers.pinned_egress import (
     PinnedEgressCrawler,
@@ -63,6 +70,22 @@ def _url_outcomes(results: list[CrawlUrlResult]) -> list[tuple[str, str, str]]:
     return outcomes
 
 
+async def _http_client_for_crawl(
+    request: Request,
+    crawler_id: str,
+) -> httpx.AsyncClient:
+    pool = get_http_client_pool(request.app)
+    per_user_cache = get_per_user_proxy_client_cache(request.app)
+    context = get_request_context()
+    if not per_user_cache.enabled_for(context.company_id):
+        return pool.client
+    if crawler_id != CrawlerType.BASIC.value:
+        raise BadRequestProxyError(
+            "Per-user proxy authentication is only supported by the Basic crawler"
+        )
+    return await per_user_cache.get_client(context)
+
+
 @router.post(
     "/crawl",
     response_model=CrawlResponse,
@@ -84,7 +107,11 @@ async def crawl(
 
     try:
         async with asyncio.timeout(timeout):
-            gate = await apply_url_safety_gate(body.urls)
+            http_client = await _http_client_for_crawl(request, crawler_id)
+            gate = await apply_url_safety_gate(
+                body.urls,
+                redirect_http_client=http_client,
+            )
             if not gate.allowed_targets:
                 duration = time.perf_counter() - started
                 record_crawl_success(
@@ -119,8 +146,7 @@ async def crawl(
                 },
             )
 
-            pool = get_http_client_pool(request.app)
-            crawler = get_crawler_service(crawler_id, http_client=pool.client)
+            crawler = get_crawler_service(crawler_id, http_client=http_client)
             if isinstance(crawler, PinnedEgressCrawler):
                 crawler_results = await crawler.crawl_pinned(
                     crawl_body,
