@@ -41,7 +41,9 @@ def _context(
 
 
 def _registry(settings: HttpClientSettings) -> HttpClientRegistry:
-    return HttpClientRegistry(settings=settings, resolver=resolver_from_settings(settings))
+    return HttpClientRegistry(
+        settings=settings, resolver=resolver_from_settings(settings)
+    )
 
 
 @pytest.mark.ai

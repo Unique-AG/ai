@@ -434,7 +434,9 @@ class TestGoogleSearchEndpoint:
 
         pool_transport = httpx.MockTransport(handler)
 
-        from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
+        from unique_search_proxy_client.web.core.client.service import (
+            HttpClientRegistry,
+        )
 
         async def mock_create_registry() -> HttpClientRegistry:
             client = httpx.AsyncClient(transport=pool_transport)
@@ -500,7 +502,9 @@ class TestGoogleSearchEndpoint:
 
         pool_transport = httpx.MockTransport(handler)
 
-        from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
+        from unique_search_proxy_client.web.core.client.service import (
+            HttpClientRegistry,
+        )
 
         async def mock_create_registry() -> HttpClientRegistry:
             client = httpx.AsyncClient(transport=pool_transport)

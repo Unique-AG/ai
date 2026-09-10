@@ -15,7 +15,6 @@ from unique_search_proxy_core.schema import ProxyErrorCode
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.client.service import (
     HttpClientRegistry,
-    ProxiedRoute,
 )
 from unique_search_proxy_client.web.settings.client import HttpClientSettings
 from unique_search_proxy_client.web.settings.secret_str import LogSecretStr

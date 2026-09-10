@@ -1,6 +1,6 @@
 from unique_search_proxy_client.web.core.client.credentials import (
-    ProxyCredentials,
     ProxyCredentialResolver,
+    ProxyCredentials,
     SettingsProxyCredentials,
     UserMetadataProxyCredentials,
     resolver_from_settings,

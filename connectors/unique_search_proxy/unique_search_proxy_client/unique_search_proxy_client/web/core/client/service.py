@@ -15,8 +15,8 @@ from httpx import AsyncClient
 from unique_search_proxy_core.context import RequestContext
 
 from unique_search_proxy_client.web.core.client.credentials import (
-    ProxyCredentials,
     ProxyCredentialResolver,
+    ProxyCredentials,
     SettingsProxyCredentials,
     resolver_from_settings,
 )

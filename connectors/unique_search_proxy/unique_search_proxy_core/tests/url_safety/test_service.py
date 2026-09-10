@@ -95,7 +95,6 @@ class TestValidateUrlsWithRedirects:
         assert mock_client.head.call_args.kwargs["follow_redirects"] is False
 
 
-
 class TestValidateUrlsIndividually:
     @pytest.fixture(autouse=True)
     def _use_fake_public_dns(self, fake_public_dns: None) -> None:
