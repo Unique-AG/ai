@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.36.0...unique-user-memory-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **user-memory:** add Prometheus observability [UN-24886] ([#2418](https://github.com/Unique-AG/ai/issues/2418)) ([ce02e4a](https://github.com/Unique-AG/ai/commit/ce02e4a62d9034ec930b8a4c65e41b1f2f5db2af))
+* **user-memory:** restrict profile content to the signed-in user's CID/PII [UN-24886] ([#2385](https://github.com/Unique-AG/ai/issues/2385)) ([1c23c80](https://github.com/Unique-AG/ai/commit/1c23c80c2c5e7a834946c9611ddcd487a186d523))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.34.0...unique-user-memory-v2026.36.0) (2026-08-31)
 
 

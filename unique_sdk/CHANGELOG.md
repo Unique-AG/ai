@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.36.0...unique-sdk-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **sdk:** add chat ID to ingestion state updates ([#2396](https://github.com/Unique-AG/ai/issues/2396)) ([de19225](https://github.com/Unique-AG/ai/commit/de1922545dff3158e3614e2b0a06acbffc90a570))
+* **toolkit:** add optional userAbortedAt on magic table sheet [UN-25482] ([#2404](https://github.com/Unique-AG/ai/issues/2404)) ([5eb2ddc](https://github.com/Unique-AG/ai/commit/5eb2ddc0921abe2984f0746a95ed6dc6a867e498))
+
+
+### Bug Fixes
+
+* **sdk:** exit non-zero on schedule CLI API errors ([#2408](https://github.com/Unique-AG/ai/issues/2408)) ([959b207](https://github.com/Unique-AG/ai/commit/959b207698f388d4167b89ea89b36538ccaa4496))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.34.0...unique-sdk-v2026.36.0) (2026-08-31)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.36.0...unique-search-proxy-sdk-v2026.38.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **search-proxy:** rework Bing grounding params as fixed admin values [UN-24652] ([#2397](https://github.com/Unique-AG/ai/issues/2397)) ([38edc46](https://github.com/Unique-AG/ai/commit/38edc465bc526ee7ab5568abce97985a87795ea8))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
 ## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.34.0...unique-search-proxy-sdk-v2026.36.0) (2026-08-31)
 
 
