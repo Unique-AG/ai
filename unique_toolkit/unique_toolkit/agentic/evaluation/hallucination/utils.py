@@ -203,23 +203,8 @@ def _compose_msgs(
     )
     system_msg = LanguageModelSystemMessage(content=system_msg_content)
 
-    # Render user message.
-    #
-    # The conversation section is conditioned on there actually being history,
-    # not merely on has_context. The template guards it with
-    # `{% if history_messages_text %}`, and get_joined_history_texts returns
-    # the placeholder "<No conversation texts provided>" when there is none.
-    # That placeholder is truthy, so the guard never fired and every caller
-    # that evaluates a single turn shipped a section reading:
-    #
-    #     Conversation:
-    #     '''
-    #     <No conversation texts provided>
-    #     '''
-    #
-    # while the system prompt tells the model it will receive "a conversation
-    # between a user and an agent". Passing None instead lets the guard do
-    # what it was written to do.
+    # Render user message. Pass history text only when history exists so the
+    # template can omit an empty conversation section.
     user_msg_content = render_template(
         user_template,
         input_text=input.input_text,
