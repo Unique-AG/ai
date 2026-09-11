@@ -1224,3 +1224,67 @@ def test_get_msgs__ignores_context_images__when_model_lacks_vision() -> None:
     # Assert
     assert result.root[0].content == no_context_result.root[0].content
     assert isinstance(result.root[1].content, str)
+
+
+@pytest.mark.unit
+def test_compose_msgs__omits_conversation_section__when_history_is_empty():
+    """A single-turn evaluation must not be shown an empty conversation.
+
+    The template guards the section with `{% if history_messages_text %}`,
+    and the getter returns a truthy placeholder when there is no history, so
+    the guard used to never fire: every caller evaluating one turn shipped a
+    `Conversation:` section whose body said there was no conversation, while
+    the system prompt announced one.
+    """
+    msgs = _compose_msgs(
+        EvaluationMetricInput(
+            input_text="What is the policy rate?",
+            context_texts=["The policy rate is 0.25%."],
+            history_messages=[],
+            output_text="0.25%.",
+        ),
+        HallucinationConfig(),
+        has_context=True,
+    )
+
+    user_content = msgs.root[-1].content
+    assert isinstance(user_content, str)
+    assert "Conversation:" not in user_content
+    assert "<No conversation texts provided>" not in user_content
+    # The references the model does have must still be there.
+    assert "The policy rate is 0.25%." in user_content
+
+
+@pytest.mark.unit
+def test_compose_msgs__keeps_conversation_section__when_history_is_present():
+    msgs = _compose_msgs(
+        EvaluationMetricInput(
+            input_text="And in March?",
+            context_texts=["The March rate was 0.50%."],
+            history_messages=[
+                ChatMessage(
+                    id="msg_1",
+                    chat_id="chat_1",
+                    previous_message_id=None,
+                    role=LanguageModelMessageRole.USER,
+                    text="What is the policy rate?",
+                ),
+                ChatMessage(
+                    id="msg_2",
+                    chat_id="chat_1",
+                    previous_message_id="msg_1",
+                    role=LanguageModelMessageRole.ASSISTANT,
+                    text="0.25%.",
+                ),
+            ],
+            output_text="0.50%.",
+        ),
+        HallucinationConfig(),
+        has_context=True,
+    )
+
+    user_content = msgs.root[-1].content
+    assert isinstance(user_content, str)
+    assert "Conversation:" in user_content
+    assert "What is the policy rate?" in user_content
+    assert "<No conversation texts provided>" not in user_content
