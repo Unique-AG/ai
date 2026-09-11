@@ -39,6 +39,10 @@ Agentic Tables work through an event-driven architecture. When users interact wi
     - Triggered when a user marks a sheet as completed
     - Use this for final validation, archival, or triggering downstream processes
 
+6. **`STOP`**
+    - Triggered when a user stops an in-progress refresh
+    - Use this to abort work and unlock the sheet
+
 Here's how the event flow works:
 
 ```mermaid
