@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import typer
 from unique_sdk import Space
@@ -14,6 +14,7 @@ from unique_sdk.cli.config import Config
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
 from uqadm.space.export_yaml import dump_space_snapshot_yaml
+from uqadm.space.migrate import plain_json_value
 
 
 def export_format_for_output_path(path: Path) -> Literal["json", "yaml"]:
@@ -52,9 +53,12 @@ def cmd_export(
         echo_credential_debug_if_auth_failure(cfg, exc, label="space export")
         sys.exit(1)
 
-    normalized: dict[str, Any] = json.loads(
-        json.dumps(payload, sort_keys=True, default=str)
-    )
+    # UniqueObject is a dict subclass; walk it explicitly so nested model-picker
+    # entries stay mappings instead of relying on json.dumps(default=str).
+    normalized = plain_json_value(payload)
+    if not isinstance(normalized, dict):
+        typer.echo("export failed: space payload was not a mapping", err=True)
+        sys.exit(1)
 
     if output is None:
         text = json.dumps(normalized, indent=2, sort_keys=True)
