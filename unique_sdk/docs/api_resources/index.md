@@ -10,6 +10,7 @@ This section contains documentation for all API resources available in the Uniqu
 - [Briefing API](briefing.md) - Assistant briefing upsert (PUT by assistant id)
 - [ChatCompletion API](chat_completion.md) - Chat completion functionality
 - [Content API](content.md) - Content management operations
+- [Context Memory API](context_memory.md) - Persistent user context memory management
 - [Embeddings API](embeddings.md) - Vector embeddings for semantic search
 - [Folder API](folder.md) - Folder management operations
 - [Group API](group.md) - User group management and configurations
