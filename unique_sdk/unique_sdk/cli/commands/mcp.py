@@ -21,6 +21,8 @@ from unique_sdk.cli.commands._citation_manifest import (
 )
 from unique_sdk.cli.formatting import format_mcp_response
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
+from unique_sdk.cli.workspace import unique_dir as workspace_unique_dir
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -643,7 +645,9 @@ def _annotate_mcp_results_for_citations(
     merge for title-less items only). Best-effort — returns ``[]`` on any failure
     (the tool result is unaffected; only the citation Sources block is skipped).
     """
-    refs_log_path = refs_log_path or (Path.cwd() / _MCP_REFS_LOG_RELATIVE_PATH)
+    refs_log_path = refs_log_path or workspace_manifest_path(
+        _MCP_REFS_LOG_RELATIVE_PATH
+    )
     annotated: list[tuple[int, dict[str, Any]]] = []
     try:
         items = _extract_mcp_citation_items(
@@ -792,12 +796,13 @@ def _append_mcp_output_manifest(
     call when the write fails.
 
     ``output_path`` is the full path of the ``mcp-output.jsonl`` manifest. It
-    defaults to ``Path.cwd() / .unique / mcp-output.jsonl`` so the CLI flow
-    (where cwd is the agent workspace) is unchanged; callers that run outside
-    the workspace cwd (e.g. the in-process tools-mode proxy) pass it explicitly.
+    defaults to ``<workspace root>/.unique/mcp-output.jsonl``; callers outside
+    the workspace (e.g. the in-process tools-mode proxy) pass it explicitly.
     """
     try:
-        refs_log_path = output_path or (Path.cwd() / _MCP_OUTPUT_LOG_RELATIVE_PATH)
+        refs_log_path = output_path or workspace_manifest_path(
+            _MCP_OUTPUT_LOG_RELATIVE_PATH
+        )
         _append_turn_refs_manifest_entry(
             refs_log_path,
             {
@@ -945,7 +950,7 @@ def cmd_mcp(
         response,
         tool_name=name,
         server_name=server_name,
-        unique_dir=Path.cwd() / ".unique",
+        unique_dir=workspace_unique_dir(),
         formatted_text=formatted,
         reference_mapping=state.mcp_tool_reference_mappings.get(name),
     )
