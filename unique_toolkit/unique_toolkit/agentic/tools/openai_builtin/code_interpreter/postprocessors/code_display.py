@@ -37,7 +37,7 @@ class ShowExecutedCodePostprocessorConfig(BaseModel):
     model_config = get_configuration_dict()
     enable: bool = Field(
         default=True,
-        description="Enable display of executed code before the assistant message",
+        description="Show the executed source code to the user",
     )
     remove_from_history: SkipJsonSchema[bool] = (
         Field(  # At the moment, it's not possible to keep executed code in the history
