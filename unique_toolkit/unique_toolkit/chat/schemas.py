@@ -192,6 +192,12 @@ class MessageLogStatus(StrEnum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    """The user pressed Stop while this thinking/tool step was in flight.
+
+    Use ``FAILED`` for system-side interruption (timeout, truncation, terminal
+    backend failure), not for user-initiated cancellation.
+    """
 
 
 class MessageExecutionStatus(StrEnum):

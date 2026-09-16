@@ -49,6 +49,7 @@ from unique_toolkit.chat.functions import (
     get_message_tools,
     get_message_tools_async,
     get_selection_from_history,
+    mark_turn_system_interrupted_async,
     modify_message,
     modify_message_assessment,
     modify_message_assessment_async,
@@ -381,6 +382,36 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at or False,
+        )
+
+    async def mark_turn_system_interrupted_async(self) -> ChatMessage:
+        """Marks the current turn as system-interrupted.
+
+        Persists ``turnInterruptionReason = SYSTEM_INTERRUPTED`` on the current
+        chat context's originating USER message via a dedicated
+        service-authenticated node-chat endpoint.
+
+        Call this only for system-side unexpected endings: timeout, truncation,
+        terminal backend failure, and equivalents. Do not call it for
+        user-initiated cancellation or normal completion.
+
+        The operation is idempotent and never overwrites ``userAbortedAt``: if
+        the user pressed Stop and the system interruption race, the user stop
+        wins and this call is a server-side no-op.
+
+        Returns:
+            ChatMessage: The USER message anchoring the turn.
+
+        Raises:
+            Exception: If the request fails. Callers invoking this from
+                failure-handling paths should treat it as best-effort.
+
+        """
+        return await mark_turn_system_interrupted_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
         )
 
     def modify_assistant_message(
