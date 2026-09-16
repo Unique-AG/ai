@@ -203,7 +203,8 @@ def _compose_msgs(
     )
     system_msg = LanguageModelSystemMessage(content=system_msg_content)
 
-    # Render user message
+    # Render user message. Pass history text only when history exists so the
+    # template can omit an empty conversation section.
     user_msg_content = render_template(
         user_template,
         input_text=input.input_text,
@@ -211,7 +212,7 @@ def _compose_msgs(
         if has_context
         else None,
         history_messages_text=input.get_joined_history_texts(tag_name="conversation")
-        if has_context
+        if has_context and input.history_messages
         else None,
         output_text=input.output_text,
     )
