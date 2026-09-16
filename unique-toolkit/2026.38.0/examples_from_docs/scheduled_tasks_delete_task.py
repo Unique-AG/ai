@@ -1,0 +1,25 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+
+# %%
+
+
+from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.experimental.resources.scheduled_task import Cron, ScheduledTasks
+
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
+task = scheduled_tasks.create(
+    cron_expression=Cron.WEEKDAYS_9AM,
+    assistant_id="assistant_daily_report",
+    prompt="Summarise yesterday's key events and email me the briefing.",
+)
+
+print(task.id, task.cron_expression, task.enabled)
+ack = scheduled_tasks.delete(task_id=task.id)
+assert ack.deleted is True
