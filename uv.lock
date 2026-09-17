@@ -110,6 +110,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "respx" },
     { name = "ruff" },
 ]
@@ -149,6 +150,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.0.0,<8" },
     { name = "pytest-mock", specifier = ">=3.14.0,<4" },
     { name = "python-dotenv", specifier = ">=1.1.0,<2" },
+    { name = "pyyaml", specifier = ">=6.0,<7" },
     { name = "respx", specifier = ">=0.22,<0.23" },
     { name = "ruff", specifier = ">=0.14.2" },
 ]

@@ -118,6 +118,51 @@ jobs:
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}"
 
+  changelog:
+    name: Changelog Fragment
+    # Bot PRs (release-please, dev bumps, dependabot/renovate) never carry a
+    # client-facing change, so they are skipped rather than labelled.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.actor != 'release-please[bot]'
+      && github.actor != 'dependabot[bot]'
+      && github.actor != 'renovate[bot]'
+      && !startsWith(github.head_ref, 'release-please--')
+      && !startsWith(github.head_ref, 'chore/bump-dev-')
+      && !startsWith(github.head_ref, 'dependabot/')
+      && !startsWith(github.head_ref, 'renovate/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      # Fragments are copied verbatim into Unique-AG/monorepo by its
+      # "Release · Sync AI Versions" workflow and batched into the platform
+      # release notes there — without one, this PR never shows up in them.
+      # Rollout: set the repository variable CHANGELOG_CHECK_ENFORCE=true to
+      # make a missing fragment fail the PR; until then it only warns.
+      - name: Check for a changelog fragment
+        env:
+          CHANGIE_CHECK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CHANGIE_CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHANGIE_CHECK_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          ENFORCE: ${{ vars.CHANGELOG_CHECK_ENFORCE }}
+        run: |
+          if bash .github/scripts/changelog-check.sh 2> /tmp/changie-check.err; then
+            cat /tmp/changie-check.err >&2
+            exit 0
+          fi
+          cat /tmp/changie-check.err >&2
+          MESSAGE="$(tr '\n' ' ' < /tmp/changie-check.err)"
+          if [[ "$ENFORCE" == "true" ]]; then
+            echo "::error::${MESSAGE}"
+            exit 1
+          fi
+          echo "::warning::${MESSAGE} (warn-only until the repository variable CHANGELOG_CHECK_ENFORCE is set to true)"
+
   release-lineage:
     name: Release Branch Lineage
     if: >-
@@ -140,7 +185,7 @@ jobs:
 
   status:
     name: Gatekeeper
-    needs: [detect-changes, lint, test, types, coverage, deps, containerize, helm-lint, config, pr-title, no-manual-release, release-lineage]
+    needs: [detect-changes, lint, test, types, coverage, deps, containerize, helm-lint, config, pr-title, no-manual-release, changelog, release-lineage]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -160,6 +205,7 @@ jobs:
           CONFIG: ${{ needs.config.result }}
           PR_TITLE: ${{ needs.pr-title.result }}
           NO_MANUAL_RELEASE: ${{ needs.no-manual-release.result }}
+          CHANGELOG: ${{ needs.changelog.result }}
           RELEASE_LINEAGE: ${{ needs.release-lineage.result }}
         run: |
           echo "=== CI Status Summary ==="
@@ -174,6 +220,7 @@ jobs:
           echo "config: $CONFIG"
           echo "pr-title: $PR_TITLE"
           echo "no-manual-release: $NO_MANUAL_RELEASE"
+          echo "changelog: $CHANGELOG"
           echo "release-lineage: $RELEASE_LINEAGE"
           echo "========================="
 
@@ -181,7 +228,7 @@ jobs:
 
           # Required checks (skipped is OK for when no packages changed or merge_group).
           # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
-          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "containerize:$CONTAINERIZE" "helm-lint:$HELM_LINT" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE" "release-lineage:$RELEASE_LINEAGE"; do
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "containerize:$CONTAINERIZE" "helm-lint:$HELM_LINT" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE" "changelog:$CHANGELOG" "release-lineage:$RELEASE_LINEAGE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then

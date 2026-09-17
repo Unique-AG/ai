@@ -40,9 +40,9 @@ jobs:
 
       - name: Run Python unit tests
         run: |
-          # Resolver tests need only stdlib; rewriter tests need tomlkit.
-          # One venv for both keeps the step simple.
-          uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
+          # Resolver tests need only stdlib; rewriter tests need tomlkit;
+          # changelog_new tests need pyyaml. One venv for all keeps the step simple.
+          uv run --quiet --no-project --with 'tomlkit==0.14.0' --with 'pyyaml>=6.0,<7' -- \
             python3 -m unittest discover \
               --start-directory .github/scripts/tests \
               --pattern 'test_*.py' \
