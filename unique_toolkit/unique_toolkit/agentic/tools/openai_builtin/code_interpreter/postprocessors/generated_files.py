@@ -711,9 +711,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HTML rendered as HtmlRendering block unless the dedicated html-fence FF
-            # is on (enable_html_with_fence_un_17927). Default keeps HtmlRendering.
-            elif is_html and not self._html_fence_ff_on:
+            # HTML uses HtmlRendering unless BOTH the fence config and the
+            # html-fence FF are on (htmlWithSource needs both).
+            elif is_html and not (self._html_fence_ff_on and self._fence_enabled):
                 loop_response.message.text, replaced = _replace_container_html_citation(
                     text=loop_response.message.text or "",
                     filename=filename,
@@ -721,8 +721,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # Non-HTML files, or HTML when self._html_fence_ff_on → inline content link for
-            # subsequent fence injection (htmlWithSource / imgWithSource / fileWithSource)
+            # Non-HTML files, or HTML when both fence switches are on → inline
+            # content link for subsequent fence injection
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text or "",

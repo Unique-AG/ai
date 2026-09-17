@@ -2057,6 +2057,42 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
     assert "HtmlRendering" not in message.text
 
 
+@pytest.mark.ai
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fence_ff_on_but_fence_disabled() -> (
+    None
+):
+    """
+    Purpose: HTML falls back to HtmlRendering when the html-fence FF is on but
+    enable_code_execution_fence is off.
+    Why this matters: htmlWithSource injection only runs when fences are enabled.
+    Without this guard the sandbox link becomes a bare <sup>N</sup> with no
+    ContentReference and no fence — the HTML is unreachable to the user.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"page.html": "cid_page"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[page.html](sandbox:/mnt/data/page.html)",
+        references=refs,
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+
+    _set_gen_files_feature_flags(proc, fence_enabled=False, html_fence_ff_on=True)
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert "HtmlRendering" in message.text
+    assert "unique://content/cid_page" in message.text
+    assert "htmlWithSource" not in message.text
+    assert "<sup>" not in message.text
+    assert len(refs) == 0
+
+
 # ---------------------------------------------------------------------------
 # _download_and_upload_container_files_to_knowledge_base — retry behaviour
 # ---------------------------------------------------------------------------
