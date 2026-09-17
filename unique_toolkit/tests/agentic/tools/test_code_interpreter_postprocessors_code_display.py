@@ -13,7 +13,6 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
 
 def _build_code_display_postprocessor(
     config: ShowExecutedCodePostprocessorConfig,
-    company_id: str | None = None,
 ) -> ShowExecutedCodePostprocessor:
     """Build a postprocessor for `apply_postprocessing_to_response` tests.
 
@@ -21,7 +20,7 @@ def _build_code_display_postprocessor(
     is False on the config (the fence itself shows the code). Tests exercising
     the display path therefore build configs with the fence disabled.
     """
-    return ShowExecutedCodePostprocessor(config=config, company_id=company_id)
+    return ShowExecutedCodePostprocessor(config=config)
 
 
 @pytest.mark.ai
@@ -161,7 +160,7 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__no_
     # Arrange
     config = ShowExecutedCodePostprocessorConfig(enable_code_execution_fence=True)
     postprocessor = _build_code_display_postprocessor(
-        config=config, company_id="company-123"
+        config=config
     )
 
     message = SimpleNamespace(text="Existing answer.")
@@ -224,7 +223,7 @@ async def test_show_executed_code_postprocessor__run__no_op__when_fence_enabled(
 
     config = ShowExecutedCodePostprocessorConfig(enable_code_execution_fence=True)
     postprocessor = ShowExecutedCodePostprocessor(
-        config=config, company_id="company-123"
+        config=config
     )
     loop_response = SimpleNamespace(code_interpreter_calls=[])
 
@@ -245,7 +244,7 @@ async def test_show_executed_code_postprocessor__run__sleeps__when_fence_disable
     Setup summary: Config with fence disabled; assert sleep called with configured delay.
     """
     config = ShowExecutedCodePostprocessorConfig(enable_code_execution_fence=False)
-    postprocessor = ShowExecutedCodePostprocessor(config=config, company_id=None)
+    postprocessor = ShowExecutedCodePostprocessor(config=config)
     loop_response = SimpleNamespace(code_interpreter_calls=[])
 
     with patch(
@@ -324,7 +323,7 @@ def test_show_executed_code_postprocessor__disabled_when_enable_false_even_if_fe
         enable=False, enable_code_execution_fence=False
     )
     postprocessor = _build_code_display_postprocessor(
-        config=config, company_id="company-123"
+        config=config
     )
 
     message = SimpleNamespace(text="Existing answer.")

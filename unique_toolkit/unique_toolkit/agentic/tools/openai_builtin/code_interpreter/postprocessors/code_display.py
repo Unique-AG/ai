@@ -54,13 +54,9 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
     def __init__(
         self,
         config: ShowExecutedCodePostprocessorConfig,
-        company_id: str | None = None,
     ):
         super().__init__(self.__class__.__name__)
         self._config = config
-        # Kept for backwards compatibility; no longer used since the fence
-        # feature flag (UN-17972) became a plain config switch.
-        self._company_id = company_id
         # When fences are enabled, the fence itself shows the executed code,
         # so this legacy <details> display must stay off.
         self._is_enabled = config.enable and not config.enable_code_execution_fence
