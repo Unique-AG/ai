@@ -10,6 +10,7 @@ from typing import Any
 import unique_sdk
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.metadata_filter import MetadataFilter
+from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
 _UPLOADED_CONFIG_FILENAME = ".unique-uploaded.json"
@@ -120,7 +121,7 @@ def _load_chat_file_content_ids() -> set[str]:
     documents, so they must stay readable regardless of the per-message KB
     scope filter. Returns an empty set when the manifest is absent or invalid.
     """
-    path = Path.cwd() / _CHAT_FILES_MANIFEST_PATH
+    path = workspace_manifest_path(_CHAT_FILES_MANIFEST_PATH)
     if not path.is_file():
         return set()
     try:

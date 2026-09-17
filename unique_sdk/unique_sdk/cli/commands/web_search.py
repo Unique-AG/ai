@@ -35,6 +35,7 @@ from unique_sdk.cli.commands.web_search_config import (
     load_overrides,
 )
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,7 +111,9 @@ def _annotate_web_results_for_citations(
     (UN-23356). The on-screen result still shows the error text so the
     agent can react to the failed fetch.
     """
-    refs_log_path = refs_log_path or (Path.cwd() / _WEB_REFS_LOG_RELATIVE_PATH)
+    refs_log_path = refs_log_path or workspace_manifest_path(
+        _WEB_REFS_LOG_RELATIVE_PATH
+    )
     with _locked_turn_refs_manifest(
         refs_log_path, lock_filename=_WEB_REFS_LOCK_FILENAME
     ):

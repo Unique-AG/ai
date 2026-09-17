@@ -26,6 +26,7 @@ from unique_sdk.cli.commands._citation_manifest import (
     _read_turn_refs_manifest,
 )
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 DEFAULT_LIMIT = 200
 
@@ -283,7 +284,7 @@ def cmd_search(
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"{SEARCH_ERROR_PREFIX} {e}"
 
-    log_path = refs_log_path or (Path.cwd() / _REFS_LOG_RELATIVE_PATH)
+    log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
     try:
         return _format_results_with_citations(results, refs_log_path=log_path)
     except UnsafeRefsLogPathError as exc:
@@ -346,7 +347,7 @@ def cmd_uploaded_search(
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"{UPLOADED_SEARCH_ERROR_PREFIX} {e}"
 
-    log_path = refs_log_path or (Path.cwd() / _REFS_LOG_RELATIVE_PATH)
+    log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
     try:
         return _format_results_with_citations(results, refs_log_path=log_path)
     except UnsafeRefsLogPathError as exc:
