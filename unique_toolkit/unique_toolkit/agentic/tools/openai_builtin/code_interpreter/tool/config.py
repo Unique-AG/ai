@@ -96,9 +96,9 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
     _TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_BASE + _TOOL_DESCRIPTION_FILES_SUFFIX
 ).strip()
 
-# Used when the code-execution fence feature flag (UN-17972) is enabled.
-# The frontend derives the artifact title from the filename itself, so the
-# LLM no longer needs to produce a markdown heading before the sandbox link.
+# Default system prompt. The frontend derives the artifact title from the
+# filename itself, so the LLM does not need to produce a markdown heading
+# before the sandbox link.
 #
 # UN-19711 / Horizon follow-up: The HTML rules in the fence prompt reduce iframe height
 # collapse when chat auto-measures the embedded document. Remaining gaps belong in the
