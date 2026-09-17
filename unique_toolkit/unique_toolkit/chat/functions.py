@@ -188,6 +188,46 @@ async def modify_message_async(
         raise e
 
 
+async def mark_turn_system_interrupted_async(
+    user_id: str,
+    company_id: str,
+    chat_id: str,
+    user_message_id: str,
+) -> ChatMessage:
+    """Marks the turn anchored on *user_message_id* as system-interrupted.
+
+    Persists ``turnInterruptionReason = SYSTEM_INTERRUPTED`` on the originating
+    USER message via a dedicated service-authenticated node-chat endpoint. The
+    server guarantees idempotency and never overwrites ``userAbortedAt`` (a
+    user-initiated stop wins if both race).
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        chat_id (str): The chat ID.
+        user_message_id (str): The originating USER message of the turn.
+
+    Returns:
+        ChatMessage: The USER message after the update (unchanged if the call
+            was a no-op due to idempotency or a racing user stop).
+
+    Raises:
+        Exception: If the request fails.
+
+    """
+    try:
+        message = await unique_sdk.Message.mark_turn_system_interrupted_async(
+            user_id=user_id,
+            company_id=company_id,
+            id=user_message_id,
+            chatId=chat_id,
+        )
+        return ChatMessage(**message)
+    except Exception as e:
+        _LOGGER.error(f"Failed to mark turn as system-interrupted: {e}")
+        raise e
+
+
 def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
     return [
         {
