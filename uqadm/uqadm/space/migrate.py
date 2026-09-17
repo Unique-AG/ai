@@ -79,15 +79,7 @@ def _as_switchable_model_entries(models: Any) -> list[Any]:
 def switchable_language_model_params_from_source(
     models: Any,
 ) -> list[dict[str, Any]]:
-    """Map export snapshot model-picker entries to Space API payloads.
-
-    Shared by ``space migrate`` and ``space upsert`` so both commands emit the
-    same create/update payload. Clean GET entries (displayName, languageModel,
-    temperature, additionalLLMOptions) are forwarded unchanged. Extra snapshot
-    keys such as ``object`` or ``id`` are dropped: unique-api create/update uses
-    ``forbidNonWhitelisted``, and those keys 400 the request so the list never
-    lands on the destination.
-    """
+    """Keep allowed model-picker fields; drop extra snapshot keys unique-api rejects."""
     out: list[dict[str, Any]] = []
     for model in _as_switchable_model_entries(models):
         if not isinstance(model, dict):
