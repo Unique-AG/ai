@@ -49,13 +49,13 @@ from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamRe
 GENERATED_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.is_flag_enabled"
 
 
-def _set_gen_files_feature_flags(
+def _set_gen_files_fence_state(
     proc: DisplayCodeInterpreterFilesPostProcessor,
     *,
     fence_enabled: bool = False,
     html_fence_ff_on: bool = False,
 ) -> None:
-    """Seed fence state on the instance.
+    """Seed fence config and html-fence FF state on the instance.
 
     Fence rendering is a plain config switch resolved in `__init__`; the HTML
     fence flag is resolved asynchronously in `run()` (always awaited before
@@ -1835,7 +1835,7 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string() -
         references=[],
     )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
-    _set_gen_files_feature_flags(proc)
+    _set_gen_files_fence_state(proc)
     proc.apply_postprocessing_to_response(loop)
     assert msg.text == ""
 
@@ -1868,7 +1868,7 @@ def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_fi
         container_files=[],
         code_interpreter_calls=[],
     )
-    _set_gen_files_feature_flags(proc, fence_enabled=True)
+    _set_gen_files_fence_state(proc, fence_enabled=True)
     proc.apply_postprocessing_to_response(loop_response)
     assert message.references == []
 
@@ -1898,7 +1898,7 @@ def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file() ->
         container_files=[],
         code_interpreter_calls=[],
     )
-    _set_gen_files_feature_flags(proc)
+    _set_gen_files_fence_state(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert len(message.references) == 1
     ref = message.references[0]
@@ -1940,7 +1940,7 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved() -> Non
         container_files=[],
         code_interpreter_calls=[],
     )
-    _set_gen_files_feature_flags(proc)
+    _set_gen_files_fence_state(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert len(message.references) == 2
     source_ids = {r.source_id for r in message.references}
@@ -1971,7 +1971,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
         code_interpreter_calls=[],
     )
 
-    _set_gen_files_feature_flags(proc)
+    _set_gen_files_fence_state(proc)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -2009,7 +2009,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_e
     # apply_postprocessing_to_response is called.
     proc._container_files = _container_files(loop_response)
 
-    _set_gen_files_feature_flags(proc, fence_enabled=True)
+    _set_gen_files_fence_state(proc, fence_enabled=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -2047,7 +2047,7 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
     # apply_postprocessing_to_response is called.
     proc._container_files = _container_files(loop_response)
 
-    _set_gen_files_feature_flags(proc, fence_enabled=True, html_fence_ff_on=True)
+    _set_gen_files_fence_state(proc, fence_enabled=True, html_fence_ff_on=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -2082,7 +2082,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fe
         code_interpreter_calls=[],
     )
 
-    _set_gen_files_feature_flags(proc, fence_enabled=False, html_fence_ff_on=True)
+    _set_gen_files_fence_state(proc, fence_enabled=False, html_fence_ff_on=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -3542,7 +3542,7 @@ def test_apply_postprocessing__no_dangling_notice__when_link_is_encoded() -> Non
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"sales report.csv": "cid_sales"}
-    _set_gen_files_feature_flags(proc, fence_enabled=False)
+    _set_gen_files_fence_state(proc, fence_enabled=False)
 
     message = SimpleNamespace(
         text="See [report](sandbox:/mnt/data/sales%20report.csv).",
