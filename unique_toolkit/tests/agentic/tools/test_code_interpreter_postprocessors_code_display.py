@@ -29,7 +29,8 @@ def test_show_executed_code_postprocessor_config__has_defaults__when_constructed
 ):
     """
     Purpose: Verify ShowExecutedCodePostprocessorConfig defaults for enable,
-    enable_code_execution_fence, remove_from_history, and sleep_time.
+    enable_code_execution_fence, enable_html_with_fence, remove_from_history,
+    and sleep_time.
     Why this matters: Ensures safe defaults for history, display timing, and enablement.
     Setup summary: Instantiate config with no args; assert default field values.
     """
@@ -39,6 +40,7 @@ def test_show_executed_code_postprocessor_config__has_defaults__when_constructed
     # Assert
     assert config.enable is True
     assert config.enable_code_execution_fence is True
+    assert config.enable_html_with_fence is True
     assert config.remove_from_history is True
     assert config.sleep_time_before_display == 0.2
 

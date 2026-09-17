@@ -258,6 +258,40 @@ class TestConfigPassthrough:
         assert display_files_pp._fence_enabled is False
 
     @pytest.mark.ai
+    def test_display_files_postprocessor_receives_html_fence_config(self):
+        """The enable_html_with_fence config value must be threaded through.
+
+        The field lives on the code-display config, but only the files
+        postprocessor reads it (UN-17927).
+        """
+        from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+            ShowExecutedCodePostprocessorConfig,
+        )
+
+        ci_config = CodeInterpreterExtendedConfig(
+            executed_code_display_config=ShowExecutedCodePostprocessorConfig(
+                enable_html_with_fence=False
+            )
+        )
+        mgr = _make_postprocessor_manager()
+
+        _register_code_interpreter_postprocessors(
+            tools=[_make_code_interpreter_tool(config=ci_config)],
+            postprocessor_manager=mgr,
+            client=MagicMock(),
+            content_service=MagicMock(),
+            user_id="u1",
+            company_id="c1",
+            chat_id="ch1",
+            chat_service=MagicMock(),
+        )
+
+        display_files_pp: DisplayCodeInterpreterFilesPostProcessor = (
+            mgr.add_postprocessor.call_args_list[1][0][0]
+        )
+        assert display_files_pp._html_fence_enabled is False
+
+    @pytest.mark.ai
     def test_display_files_postprocessor_receives_client_and_company_id(self):
         """DisplayCodeInterpreterFilesPostProcessor must receive the client and company_id."""
         mgr = _make_postprocessor_manager()

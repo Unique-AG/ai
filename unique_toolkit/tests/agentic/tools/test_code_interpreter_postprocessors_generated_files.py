@@ -43,27 +43,22 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
 )
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.experimental.resources.feature_flags import COMPANY_ID_PLACEHOLDER
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
-
-GENERATED_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.is_flag_enabled"
 
 
 def _set_gen_files_fence_state(
     proc: DisplayCodeInterpreterFilesPostProcessor,
     *,
     fence_enabled: bool = False,
-    html_fence_ff_on: bool = False,
+    html_fence_enabled: bool = False,
 ) -> None:
-    """Seed fence config and html-fence FF state on the instance.
+    """Seed both fence config switches on the instance.
 
-    Fence rendering is a plain config switch resolved in `__init__`; the HTML
-    fence flag is resolved asynchronously in `run()` (always awaited before
-    `apply_postprocessing_to_response`). Unit tests exercising
-    `apply_postprocessing_to_response` directly seed both here.
+    Both are plain config values resolved in `__init__`. Unit tests exercising
+    `apply_postprocessing_to_response` directly set them here.
     """
     proc._fence_enabled = fence_enabled
-    proc._html_fence_ff_on = html_fence_ff_on
+    proc._html_fence_enabled = html_fence_enabled
 
 
 class _MockStreamResponse:
@@ -553,16 +548,12 @@ def _container_files(response) -> list[CodeInterpreterContainerFile]:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_display_files_postprocessor__run__uses_placeholder__when_no_company_id() -> (
-    None
-):
+async def test_display_files_postprocessor__run__succeeds__when_no_company_id() -> None:
     """
-    Purpose: Verify run() doesn't crash when constructed without a company_id, and
-    passes COMPANY_ID_PLACEHOLDER to is_flag_enabled instead of an empty string.
-    Why this matters: is_flag_enabled() raises on an empty company_id; the old
-    `self._company_id or ""` would crash the whole turn instead of resolving the flag.
-    Setup summary: Construct with company_id=None; assert run() completes and the
-    html-fence FF check was called with COMPANY_ID_PLACEHOLDER, not "".
+    Purpose: Verify run() doesn't crash when constructed without a company_id.
+    Why this matters: Both fence switches are config values now, so run() must not
+    depend on a company_id to resolve them.
+    Setup summary: Construct with company_id=None; assert run() completes.
     """
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     client = MagicMock()
@@ -576,16 +567,9 @@ async def test_display_files_postprocessor__run__uses_placeholder__when_no_compa
         user_id=None,
         chat_id=None,
     )
-    mock_is_flag_enabled = AsyncMock(return_value=False)
     response = _make_response([], [])
 
-    with patch(GENERATED_FILES_FF, mock_is_flag_enabled):
-        await proc.run(response)
-
-    assert mock_is_flag_enabled.await_count == 1
-    for _, kwargs in mock_is_flag_enabled.await_args_list:
-        assert kwargs["company_id"] == COMPANY_ID_PLACEHOLDER
-        assert kwargs["company_id"] != ""
+    await proc.run(response)
 
 
 @pytest.mark.ai
@@ -1955,7 +1939,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
     """
     Purpose: HTML uses HtmlRendering when the code-execution fence FF is off.
     Why this matters: Default path — HtmlRendering is the correct output when the
-    code-execution fence feature is disabled (html_fence FF is irrelevant here).
+    code-execution fence is disabled (the html-fence switch is irrelevant here).
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"report.html": "cid_html"}
@@ -1981,14 +1965,14 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
 
 
 @pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_enabled_but_html_fence_ff_off() -> (
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_enabled_but_html_fence_disabled() -> (
     None
 ):
     """
-    Purpose: HTML still uses HtmlRendering when the fence FF is on but the html-fence FF
-    (enable_html_with_fence_un_17927) is off (the default).
-    Why this matters: The html-fence FF defaults to False so existing deployments are
-    unaffected when they turn on the code-execution fence FF.
+    Purpose: HTML still uses HtmlRendering when the code-execution fence is on but
+    the `enable_html_with_fence` config switch is off.
+    Why this matters: Deployments can turn HTML cards off on their own, without
+    losing the code-execution fence for other file types.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -2020,13 +2004,13 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_e
 
 
 @pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_ffs_on() -> (
+def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_switches_on() -> (
     None
 ):
     """
     Purpose: HTML uses htmlWithSource fence injection when BOTH the code-execution
-    fence FF and the html-fence FF (enable_html_with_fence_un_17927) are on.
-    Why this matters: The html-fence FF is the opt-in gate for the new behavior.
+    fence and the `enable_html_with_fence` config switch are on.
+    Why this matters: This is the main HTML path once both switches are enabled.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -2047,7 +2031,7 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
     # apply_postprocessing_to_response is called.
     proc._container_files = _container_files(loop_response)
 
-    _set_gen_files_fence_state(proc, fence_enabled=True, html_fence_ff_on=True)
+    _set_gen_files_fence_state(proc, fence_enabled=True, html_fence_enabled=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -2058,7 +2042,7 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
 
 
 @pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fence_ff_on_but_fence_disabled() -> (
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fence_enabled_but_fence_disabled() -> (
     None
 ):
     """
@@ -2082,7 +2066,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fe
         code_interpreter_calls=[],
     )
 
-    _set_gen_files_fence_state(proc, fence_enabled=False, html_fence_ff_on=True)
+    _set_gen_files_fence_state(proc, fence_enabled=False, html_fence_enabled=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True

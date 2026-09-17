@@ -41,6 +41,14 @@ class ShowExecutedCodePostprocessorConfig(BaseModel):
             "and hide the legacy collapsible code block below."
         ),
     )
+    enable_html_with_fence: bool = Field(
+        default=True,
+        description=(
+            "Show generated HTML files as interactive cards with a built-in code "
+            "view instead of a plain rendered HTML block. Needs the code "
+            "execution fence to be on as well."
+        ),
+    )
     remove_from_history: SkipJsonSchema[bool] = (
         Field(  # At the moment, it's not possible to keep executed code in the history
             default=True,

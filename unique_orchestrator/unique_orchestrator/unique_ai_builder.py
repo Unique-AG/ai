@@ -521,6 +521,9 @@ def _register_code_interpreter_postprocessors(
             code_execution_fence_enabled=(
                 code_interpreter_config.executed_code_display_config.enable_code_execution_fence
             ),
+            html_with_fence_enabled=(
+                code_interpreter_config.executed_code_display_config.enable_html_with_fence
+            ),
         )
     )
 
