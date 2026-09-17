@@ -216,6 +216,71 @@ def test_switchable_language_model_params_strips_export_only_fields() -> None:
     ]
 
 
+def test_switchable_language_model_params_unwraps_data_envelope() -> None:
+    from uqadm.space.migrate import switchable_language_model_params_from_source
+
+    models = switchable_language_model_params_from_source(
+        {
+            "object": "list",
+            "data": [
+                {
+                    "displayName": "GPT-4o",
+                    "languageModel": "AZURE_GPT_4o_2024_0806",
+                }
+            ],
+        }
+    )
+    assert models == [
+        {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+    ]
+
+
+def test_switchable_language_model_params_accepts_single_mapping() -> None:
+    from uqadm.space.migrate import switchable_language_model_params_from_source
+
+    models = switchable_language_model_params_from_source(
+        {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"}
+    )
+    assert models == [
+        {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+    ]
+
+
+def test_switchable_language_model_params_skips_non_model_mapping() -> None:
+    from uqadm.space.migrate import switchable_language_model_params_from_source
+
+    assert switchable_language_model_params_from_source({"object": "list"}) == []
+
+
+def test_switchable_language_model_params_skips_non_dict_entries() -> None:
+    from uqadm.space.migrate import switchable_language_model_params_from_source
+
+    models = switchable_language_model_params_from_source(
+        [
+            "skip-me",
+            {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+        ]
+    )
+    assert models == [
+        {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+    ]
+
+
+def test_switchable_language_model_params_skips_incomplete_entries() -> None:
+    from uqadm.space.migrate import switchable_language_model_params_from_source
+
+    models = switchable_language_model_params_from_source(
+        [
+            {"displayName": "NoModel"},
+            {"languageModel": "AZURE_GPT_4o_2024_0806"},
+            {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+        ]
+    )
+    assert models == [
+        {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+    ]
+
+
 def test_switchable_language_model_params_accepts_dict_subclass_entries() -> None:
     from uqadm.space.migrate import switchable_language_model_params_from_source
 
@@ -374,6 +439,42 @@ def test_migrate_and_export_upsert_emit_same_model_switching_params() -> None:
                 "chat_template_kwargs": {"enable_thinking": False}
             },
         },
+    ]
+
+
+def test_build_create_params_forwards_model_list_without_toggle() -> None:
+    from uqadm.space.migrate import build_create_params
+
+    params = build_create_params(
+        {
+            "name": "S",
+            "fallbackModule": "fm",
+            "modules": [],
+            "switchableLanguageModels": [
+                {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+            ],
+        }
+    )
+    assert "allowModelSwitching" not in params
+    assert params["switchableLanguageModels"] == [
+        {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+    ]
+
+
+def test_build_update_kwargs_forwards_model_list_without_toggle() -> None:
+    from uqadm.space.migrate import build_update_kwargs
+
+    kwargs = build_update_kwargs(
+        {
+            "name": "S",
+            "switchableLanguageModels": [
+                {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+            ],
+        }
+    )
+    assert "allowModelSwitching" not in kwargs
+    assert kwargs["switchableLanguageModels"] == [
+        {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
     ]
 
 
