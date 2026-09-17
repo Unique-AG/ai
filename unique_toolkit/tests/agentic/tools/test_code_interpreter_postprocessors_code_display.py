@@ -159,9 +159,7 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__no_
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig(enable_code_execution_fence=True)
-    postprocessor = _build_code_display_postprocessor(
-        config=config
-    )
+    postprocessor = _build_code_display_postprocessor(config=config)
 
     message = SimpleNamespace(text="Existing answer.")
     code_call = SimpleNamespace(code="print(1)")
@@ -222,9 +220,7 @@ async def test_show_executed_code_postprocessor__run__no_op__when_fence_enabled(
     import asyncio
 
     config = ShowExecutedCodePostprocessorConfig(enable_code_execution_fence=True)
-    postprocessor = ShowExecutedCodePostprocessor(
-        config=config
-    )
+    postprocessor = ShowExecutedCodePostprocessor(config=config)
     loop_response = SimpleNamespace(code_interpreter_calls=[])
 
     with patch.object(asyncio, "sleep") as mock_sleep:
@@ -322,9 +318,7 @@ def test_show_executed_code_postprocessor__disabled_when_enable_false_even_if_fe
     config = ShowExecutedCodePostprocessorConfig(
         enable=False, enable_code_execution_fence=False
     )
-    postprocessor = _build_code_display_postprocessor(
-        config=config
-    )
+    postprocessor = _build_code_display_postprocessor(config=config)
 
     message = SimpleNamespace(text="Existing answer.")
     code_call = SimpleNamespace(code="print(1)")
