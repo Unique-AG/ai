@@ -52,16 +52,17 @@ GENERATED_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpret
 def _set_gen_files_feature_flags(
     proc: DisplayCodeInterpreterFilesPostProcessor,
     *,
-    fence_ff_on: bool = False,
+    fence_enabled: bool = False,
     html_fence_ff_on: bool = False,
 ) -> None:
-    """Seed flag state on the instance, as `run()` would after awaiting it.
+    """Seed fence state on the instance.
 
-    Production resolves both flags asynchronously in `run()` (always awaited
-    before `apply_postprocessing_to_response`), so unit tests exercising
-    `apply_postprocessing_to_response` directly seed the post-`run()` state.
+    Fence rendering is a plain config switch resolved in `__init__`; the HTML
+    fence flag is resolved asynchronously in `run()` (always awaited before
+    `apply_postprocessing_to_response`). Unit tests exercising
+    `apply_postprocessing_to_response` directly seed both here.
     """
-    proc._fence_ff_on = fence_ff_on
+    proc._fence_enabled = fence_enabled
     proc._html_fence_ff_on = html_fence_ff_on
 
 
@@ -560,8 +561,8 @@ async def test_display_files_postprocessor__run__uses_placeholder__when_no_compa
     passes COMPANY_ID_PLACEHOLDER to is_flag_enabled instead of an empty string.
     Why this matters: is_flag_enabled() raises on an empty company_id; the old
     `self._company_id or ""` would crash the whole turn instead of resolving the flag.
-    Setup summary: Construct with company_id=None; assert run() completes and both FF
-    checks were called with COMPANY_ID_PLACEHOLDER, not "".
+    Setup summary: Construct with company_id=None; assert run() completes and the
+    html-fence FF check was called with COMPANY_ID_PLACEHOLDER, not "".
     """
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     client = MagicMock()
@@ -581,7 +582,7 @@ async def test_display_files_postprocessor__run__uses_placeholder__when_no_compa
     with patch(GENERATED_FILES_FF, mock_is_flag_enabled):
         await proc.run(response)
 
-    assert mock_is_flag_enabled.await_count == 2
+    assert mock_is_flag_enabled.await_count == 1
     for _, kwargs in mock_is_flag_enabled.await_args_list:
         assert kwargs["company_id"] == COMPANY_ID_PLACEHOLDER
         assert kwargs["company_id"] != ""
@@ -1867,7 +1868,7 @@ def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_fi
         container_files=[],
         code_interpreter_calls=[],
     )
-    _set_gen_files_feature_flags(proc, fence_ff_on=True)
+    _set_gen_files_feature_flags(proc, fence_enabled=True)
     proc.apply_postprocessing_to_response(loop_response)
     assert message.references == []
 
@@ -1980,7 +1981,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
 
 
 @pytest.mark.ai
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_on_but_html_fence_ff_off() -> (
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_enabled_but_html_fence_ff_off() -> (
     None
 ):
     """
@@ -2008,7 +2009,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
     # apply_postprocessing_to_response is called.
     proc._container_files = _container_files(loop_response)
 
-    _set_gen_files_feature_flags(proc, fence_ff_on=True)
+    _set_gen_files_feature_flags(proc, fence_enabled=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -2046,7 +2047,7 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
     # apply_postprocessing_to_response is called.
     proc._container_files = _container_files(loop_response)
 
-    _set_gen_files_feature_flags(proc, fence_ff_on=True, html_fence_ff_on=True)
+    _set_gen_files_feature_flags(proc, fence_enabled=True, html_fence_ff_on=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -3505,7 +3506,7 @@ def test_apply_postprocessing__no_dangling_notice__when_link_is_encoded() -> Non
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"sales report.csv": "cid_sales"}
-    _set_gen_files_feature_flags(proc, fence_ff_on=False)
+    _set_gen_files_feature_flags(proc, fence_enabled=False)
 
     message = SimpleNamespace(
         text="See [report](sandbox:/mnt/data/sales%20report.csv).",

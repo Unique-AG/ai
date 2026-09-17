@@ -376,6 +376,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
+        code_execution_fence_enabled: bool = True,
     ) -> None:
         super().__init__(self.__class__.__name__)
 
@@ -404,8 +405,11 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._file_size_map: dict[str, int] = {}
         self._container_files: list[CodeInterpreterContainerFile] = []
 
+        # Fence rendering is a plain config switch now (was FF UN-17972). The
+        # value lives on ShowExecutedCodePostprocessorConfig ("Code display" on
+        # the config page) and is passed in by the orchestrator.
+        self._fence_enabled = code_execution_fence_enabled
         # Resolved in run() (before apply_postprocessing_to_response) since flag evaluation is async.
-        self._fence_ff_on = False
         self._html_fence_ff_on = False
 
     def _build_retry(self) -> AsyncRetrying:
@@ -511,12 +515,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
         run_t0 = time.monotonic()
         self._log.info("run() started — fetching and uploading code interpreter files")
 
-        self._fence_ff_on = await is_flag_enabled(
-            FeatureFlagNames.enable_code_execution_fence_un_17972,
-            company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
-        )
-        # htmlWithSource requires BOTH the fence FF and the HTML-fence FF on; default
-        # (FF off) keeps HtmlRendering, so existing deployments are unaffected.
+        # htmlWithSource requires BOTH the fence config and the HTML-fence FF on;
+        # default (FF off) keeps HtmlRendering, so existing deployments are unaffected.
         self._html_fence_ff_on = await is_flag_enabled(
             FeatureFlagNames.enable_html_with_fence_un_17927,
             company_id=self._company_id or COMPANY_ID_PLACEHOLDER,
@@ -668,9 +668,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
     ) -> bool:
         apply_t0 = time.monotonic()
         self._log.info(
-            "apply_postprocessing started — %d file(s) in content_map, fence_ff=%s",
+            "apply_postprocessing started — %d file(s) in content_map, fence_enabled=%s",
             len(self._content_map),
-            self._fence_ff_on,
+            self._fence_enabled,
         )
 
         if loop_response.message.references is None:
@@ -729,7 +729,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     filename=filename,
                     content_id=content_id,
                     ref_number=ref_number,
-                    use_content_link=self._fence_ff_on,
+                    use_content_link=self._fence_enabled,
                 )
                 changed |= replaced
 
@@ -746,7 +746,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             # HtmlRendering and htmlWithSource both embed contentId directly — no ContentReference needed
             is_html_rendered = is_html
-            if replaced and not (is_image or is_html_rendered or self._fence_ff_on):
+            if replaced and not (is_image or is_html_rendered or self._fence_enabled):
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
@@ -765,7 +765,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             error_files,
         )
 
-        if self._fence_ff_on:
+        if self._fence_enabled:
             code_blocks = _build_code_blocks(
                 loop_response,
                 self._content_map,
@@ -1503,7 +1503,7 @@ def _warn_unmatched_code_blocks(
 ) -> None:
     """Warn for files that were uploaded but could not be matched to any code block.
 
-    When the fence feature flag is on, every uploaded file should map to a code block
+    When fence rendering is enabled, every uploaded file should map to a code block
     via its /mnt/data/<filename> path so it can receive a fence.  If a file is not
     matched (e.g. the LLM used a variable for the output path rather than a literal
     string) it falls back to a plain unique://content/ link with no code context.
@@ -1634,10 +1634,10 @@ def _replace_container_file_citation(
 ) -> tuple[str, bool]:
     """Replace a sandbox file link with either an inline content link or a superscript ref.
 
-    When the fence feature flag is on (use_content_link=True), the sandbox link is
-    replaced with [filename](unique://content/{id}) so the subsequent fence injection
-    step can locate and wrap it. When the flag is off (use_content_link=False), the
-    original pre-fence behaviour is restored: the link is replaced with <sup>N</sup>
+    When fence rendering is enabled in the config (use_content_link=True), the sandbox
+    link is replaced with [filename](unique://content/{id}) so the subsequent fence
+    injection step can locate and wrap it. When it is disabled (use_content_link=False),
+    the original pre-fence behaviour is restored: the link is replaced with <sup>N</sup>
     and the file remains accessible via the references panel.
     """
     file_markdown = _sandbox_link_pattern(filename)
