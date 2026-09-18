@@ -53,6 +53,55 @@ def match_modules_by_name(
     return pairs, unmatched_names
 
 
+def plain_json_value(value: Any) -> Any:
+    """Copy mappings/lists to plain JSON-friendly containers (UniqueObject → dict)."""
+    if isinstance(value, dict):
+        return {k: plain_json_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [plain_json_value(item) for item in value]
+    return value
+
+
+def _as_switchable_model_entries(models: Any) -> list[Any]:
+    if models is None:
+        return []
+    if isinstance(models, list):
+        return list(models)
+    if isinstance(models, dict):
+        data = models.get("data")
+        if isinstance(data, list):
+            return list(data)
+        if "displayName" in models and "languageModel" in models:
+            return [models]
+    return []
+
+
+def switchable_language_model_params_from_source(
+    models: Any,
+) -> list[dict[str, Any]]:
+    """Keep allowed model-picker fields; drop extra snapshot keys unique-api rejects."""
+    out: list[dict[str, Any]] = []
+    for model in _as_switchable_model_entries(models):
+        if not isinstance(model, dict):
+            continue
+        display_name = model.get("displayName")
+        language_model = model.get("languageModel")
+        if display_name is None or language_model is None:
+            continue
+        item: dict[str, Any] = {
+            "displayName": display_name,
+            "languageModel": plain_json_value(language_model),
+        }
+        if model.get("temperature") is not None:
+            item["temperature"] = model["temperature"]
+        if model.get("additionalLLMOptions") is not None:
+            item["additionalLLMOptions"] = plain_json_value(
+                model["additionalLLMOptions"]
+            )
+        out.append(item)
+    return out
+
+
 def assistant_prompt_params_from_source(
     prompts: list[dict[str, Any]] | None,
 ) -> list[dict[str, Any]]:
@@ -106,9 +155,17 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
     # (defaulting to an empty list), mirroring build_update_kwargs.
     if src.get("allowModelSwitching") is not None:
         params["allowModelSwitching"] = src["allowModelSwitching"]
-        params["switchableLanguageModels"] = src.get("switchableLanguageModels") or []
+        params["switchableLanguageModels"] = (
+            switchable_language_model_params_from_source(
+                src.get("switchableLanguageModels")
+            )
+        )
     elif "switchableLanguageModels" in src:
-        params["switchableLanguageModels"] = src["switchableLanguageModels"]
+        params["switchableLanguageModels"] = (
+            switchable_language_model_params_from_source(
+                src["switchableLanguageModels"]
+            )
+        )
     if src.get("assistantPrompts"):
         params["assistantPrompts"] = assistant_prompt_params_from_source(
             src["assistantPrompts"]
@@ -160,9 +217,17 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
     # migrated, sync the list too (defaulting to an empty list).
     if src.get("allowModelSwitching") is not None:
         kwargs["allowModelSwitching"] = src["allowModelSwitching"]
-        kwargs["switchableLanguageModels"] = src.get("switchableLanguageModels") or []
+        kwargs["switchableLanguageModels"] = (
+            switchable_language_model_params_from_source(
+                src.get("switchableLanguageModels")
+            )
+        )
     elif "switchableLanguageModels" in src:
-        kwargs["switchableLanguageModels"] = src["switchableLanguageModels"]
+        kwargs["switchableLanguageModels"] = (
+            switchable_language_model_params_from_source(
+                src["switchableLanguageModels"]
+            )
+        )
     if "assistantPrompts" in src:
         kwargs["assistantPrompts"] = assistant_prompt_params_from_source(
             src["assistantPrompts"]
