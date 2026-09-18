@@ -66,7 +66,7 @@ from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporterConfig,
 )
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_51
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
 from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
@@ -141,7 +141,7 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         description="The project name as optained from spaces 2.0",
     )
 
-    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_51)
 
     allow_model_switching: bool = Field(
         default=False,
