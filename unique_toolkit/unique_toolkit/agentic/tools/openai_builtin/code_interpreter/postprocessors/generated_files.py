@@ -380,7 +380,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._chat_service = chat_service
         self._client = client
         self._config = config
-        self._company_id = company_id
 
         if self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")

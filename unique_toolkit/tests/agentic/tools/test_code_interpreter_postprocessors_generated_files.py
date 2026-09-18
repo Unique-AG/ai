@@ -573,6 +573,29 @@ async def test_display_files_postprocessor__run__succeeds__when_no_company_id() 
 
 
 @pytest.mark.ai
+def test_display_files_postprocessor__init__scopes_short_term_memory__to_company_id() -> (
+    None
+):
+    """
+    Purpose: Verify company_id is only used to scope the short-term memory manager.
+    Why this matters: The postprocessor must not keep the company_id around, but it
+    still needs it to keep chat files out of other chats.
+    Setup summary: Patch the memory-manager factory; assert the call args and that
+    no company_id attribute is set.
+    """
+    with patch.object(gen_mod, "_init_short_term_memory_manager") as mock_init:
+        proc = _make_display_files_postprocessor(company_id="co-test")
+
+    mock_init.assert_called_once_with(
+        company_id="co-test",
+        user_id="u1",
+        chat_id="ch1",
+    )
+    assert proc._short_term_memory_manager is mock_init.return_value
+    assert not hasattr(proc, "_company_id")
+
+
+@pytest.mark.ai
 def test_build_code_blocks__maps_single_block_to_single_file__when_path_matches() -> (
     None
 ):
