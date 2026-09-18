@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.38.0...uqadm-v2026.40.0) (2026-09-18)
+
+
+### Bug Fixes
+
+* **uqadm:** keep switchable models on export then upsert [UN-25884] ([#2448](https://github.com/Unique-AG/ai/issues/2448)) ([084c8a7](https://github.com/Unique-AG/ai/commit/084c8a7a85e6d2309f6e6f7168f52352768c1cec))
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
 ## [2026.38.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.36.0...uqadm-v2026.38.0) (2026-09-10)
 
 

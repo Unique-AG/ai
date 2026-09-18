@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.38.0...unique-toolkit-v2026.40.0) (2026-09-18)
+
+
+### Features
+
+* **code-interpreter:** turn fence feature flag into config ([#2457](https://github.com/Unique-AG/ai/issues/2457)) ([2de750d](https://github.com/Unique-AG/ai/commit/2de750ddab97a44be3945a1eb26288793b4860ab))
+* **code-interpreter:** turn HTML fence feature flag into config [UN-17927] ([#2459](https://github.com/Unique-AG/ai/issues/2459)) ([e2d1ec1](https://github.com/Unique-AG/ai/commit/e2d1ec15a7cc9774b2c99dd7af67183fa2a63aee))
+* **toolkit:** add system-interrupted turn marker and CANCELLED log status [UN-24137] ([#2455](https://github.com/Unique-AG/ai/issues/2455)) ([45ed838](https://github.com/Unique-AG/ai/commit/45ed83849b5cdcff50565da4ce7e783e43690294))
+* **toolkit:** use generic code display enable label [UN-25902] ([#2449](https://github.com/Unique-AG/ai/issues/2449)) ([c3d4d1a](https://github.com/Unique-AG/ai/commit/c3d4d1a1f434853a649acf82d15f6ae0998caad3))
+
+
+### Bug Fixes
+
+* **evaluation:** omit the conversation section when there is no history ([#2447](https://github.com/Unique-AG/ai/issues/2447)) ([b6f94c1](https://github.com/Unique-AG/ai/commit/b6f94c1123e24a575f376d87ef41c621fe13c7e9))
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
 ## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.36.0...unique-toolkit-v2026.38.0) (2026-09-10)
 
 

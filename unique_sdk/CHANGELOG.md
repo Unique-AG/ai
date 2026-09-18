@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.38.0...unique-sdk-v2026.40.0) (2026-09-18)
+
+
+### Features
+
+* **sdk:** add context memory resource ([#2453](https://github.com/Unique-AG/ai/issues/2453)) ([3cab893](https://github.com/Unique-AG/ai/commit/3cab8936a9ba8bf4eed76ba43c2ea87fcefb3323))
+* **toolkit:** add system-interrupted turn marker and CANCELLED log status [UN-24137] ([#2455](https://github.com/Unique-AG/ai/issues/2455)) ([45ed838](https://github.com/Unique-AG/ai/commit/45ed83849b5cdcff50565da4ce7e783e43690294))
+
+
+### Bug Fixes
+
+* **cli:** anchor citation manifests to the workspace root [UN-25672] ([#2451](https://github.com/Unique-AG/ai/issues/2451)) ([412fa81](https://github.com/Unique-AG/ai/commit/412fa81343039c44b2108b4e59d7aaf8d87cb8c3))
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
 ## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.36.0...unique-sdk-v2026.38.0) (2026-09-10)
 
 
