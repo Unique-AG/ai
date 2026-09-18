@@ -507,7 +507,6 @@ def _register_code_interpreter_postprocessors(
     postprocessor_manager.add_postprocessor(
         ShowExecutedCodePostprocessor(
             config=code_interpreter_config.executed_code_display_config,
-            company_id=company_id,
         )
     )
     postprocessor_manager.add_postprocessor(
@@ -519,6 +518,9 @@ def _register_code_interpreter_postprocessors(
             company_id=company_id,
             chat_id=chat_id,
             chat_service=chat_service,
+            code_execution_fence_enabled=(
+                code_interpreter_config.executed_code_display_config.enable_code_execution_fence
+            ),
         )
     )
 
