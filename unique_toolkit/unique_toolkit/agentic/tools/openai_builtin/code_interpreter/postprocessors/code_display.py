@@ -45,8 +45,9 @@ class ShowExecutedCodePostprocessorConfig(BaseModel):
         default=True,
         description=(
             "Show generated HTML files as interactive cards with a built-in code "
-            "view instead of a plain rendered HTML block. Needs the code "
-            "execution fence to be on as well."
+            "view instead of a plain rendered HTML block. Has no effect on its "
+            "own: 'enable_code_execution_fence' must be on as well. While that "
+            "switch is off, HTML files stay a plain rendered HTML block."
         ),
     )
     remove_from_history: SkipJsonSchema[bool] = (
