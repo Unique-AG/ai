@@ -47,6 +47,7 @@ magic-table-specific fields. Chat-only fields such as `user_message` and
 | `unique.magic-table.sheet-completed` | Triggered when the sheet is marked as completed | `MagicTableSheetCompletedPayload` | **Base attributes** (see above)<br><br>**Metadata:** `SheetCompletedMetadata` (see Metadata Attributes section below) |
 | `unique.magic-table.library-sheet-row.verified` | Triggered when a row in a "Library" sheet is verified | `MagicTableLibrarySheetRowVerifiedPayload` | **Base attributes** (see above)<br><br>**Metadata:** `LibrarySheetRowVerifiedMetadata` (see Metadata Attributes section below) |
 | `unique.magic-table.sheet-created` | Triggered when a new sheet is created | `MagicTableSheetCreatedPayload` | **Base attributes** (see above)<br><br>**Metadata:** `SheetCreatedMetadata` (see Metadata Attributes section below) |
+| `unique.magic-table.stop` | Triggered when the user stops an in-progress refresh | `MagicTableStopPayload` | **Base attributes** (see above)<br><br>**Metadata:** `StopMetadata` (see Metadata Attributes section below) |
 
 ## Metadata Attributes
 
@@ -112,6 +113,16 @@ Used by `MagicTableLibrarySheetRowVerifiedPayload`.
 ### SheetCreatedMetadata
 
 Used by `MagicTableSheetCreatedPayload`.
+
+**Inherits from:** `BaseMetadata`
+
+**Attributes:**
+
+- Only includes the base attributes from `BaseMetadata` (no additional attributes)
+
+### StopMetadata
+
+Used by `MagicTableStopPayload`.
 
 **Inherits from:** `BaseMetadata`
 

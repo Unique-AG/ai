@@ -17,9 +17,11 @@ from unique_toolkit.agentic_table.schemas import (
     MagicTableRerunRowPayload,
     MagicTableRerunRowsPayload,
     MagicTableSheet,
+    MagicTableStopPayload,
     RerunRowMetadata,
     RerunRowsMetadata,
     SheetType,
+    StopMetadata,
 )
 
 
@@ -821,6 +823,95 @@ class TestRerunEventDiscrimination:
     def test_rerun_rows_event_type_wire_value(self):
         """Test that the bulk event name matches the platform contract."""
         assert MagicTableEventTypes.RERUN_ROWS == "unique.magic-table.rerun-rows"
+
+
+class TestMagicTableStopEvent:
+    """Parse and discriminate the user-stop magic-table webhook."""
+
+    @pytest.mark.ai
+    def test_stop_event_type__matches_platform_contract__wire_value(self):
+        """
+        Purpose: STOP event name matches the platform webhook contract.
+        Why this matters: Subscribers and publishers must agree on unique.magic-table.stop.
+        Setup summary: Compare MagicTableEventTypes.STOP to the expected wire string.
+        """
+        assert MagicTableEventTypes.STOP == "unique.magic-table.stop"
+
+    @pytest.mark.ai
+    def test_stop_action__matches_platform_contract__wire_value(self):
+        """
+        Purpose: STOP action discriminator matches the platform payload contract.
+        Why this matters: MagicTableEvent routes on action; a mismatch would fail to parse.
+        Setup summary: Compare MagicTableAction.STOP to the expected wire string.
+        """
+        assert MagicTableAction.STOP == "Stop"
+
+    @pytest.mark.ai
+    def test_stop_payload__creates_event__with_base_metadata(self):
+        """
+        Purpose: MagicTableStopPayload accepts StopMetadata with no extra fields.
+        Why this matters: The stop webhook only needs the shared envelope plus base metadata.
+        Setup summary: Construct a payload and assert action and metadata types.
+        """
+        payload = MagicTableStopPayload(
+            name="rfp_agent",
+            sheet_name="Test Sheet",
+            action=MagicTableAction.STOP,
+            chat_id="chat-1",
+            assistant_id="asst-1",
+            table_id="table-1",
+            metadata=StopMetadata(),
+        )
+        assert payload.action == MagicTableAction.STOP
+        assert isinstance(payload.metadata, StopMetadata)
+
+    @pytest.mark.ai
+    def test_stop_payload__round_trips__camel_case_json(self):
+        """
+        Purpose: Stop payloads deserialize from camelCase JSON.
+        Why this matters: Node-chat webhooks send camelCase; parse failure would drop the stop.
+        Setup summary: Validate JSON with action Stop and empty metadata.
+        """
+        payload = MagicTableStopPayload.model_validate_json(
+            """{
+                "name": "rfp_agent",
+                "sheetName": "Test Sheet",
+                "action": "Stop",
+                "chatId": "chat-1",
+                "assistantId": "asst-1",
+                "tableId": "table-1",
+                "metadata": {}
+            }"""
+        )
+        assert payload.action == MagicTableAction.STOP
+        assert payload.table_id == "table-1"
+
+    @pytest.mark.ai
+    def test_stop_event__resolves_to_stop_payload__when_action_is_stop(self):
+        """
+        Purpose: A stop webhook parses as MagicTableStopPayload via the action discriminator.
+        Why this matters: Without union membership the event would fail validation.
+        Setup summary: Validate a MagicTableEvent JSON envelope and assert payload type.
+        """
+        event = MagicTableEvent.model_validate_json(
+            """{
+                "id": "evt-1",
+                "event": "unique.magic-table.stop",
+                "userId": "user-1",
+                "companyId": "company-1",
+                "payload": {
+                    "name": "rfp_agent",
+                    "sheetName": "Test Sheet",
+                    "action": "Stop",
+                    "chatId": "chat-1",
+                    "assistantId": "asst-1",
+                    "tableId": "table-1",
+                    "metadata": {}
+                }
+            }"""
+        )
+        assert event.event == MagicTableEventTypes.STOP
+        assert isinstance(event.payload, MagicTableStopPayload)
 
 
 def _minimal_sheet_payload(**overrides: object) -> dict[str, object]:

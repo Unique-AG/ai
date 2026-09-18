@@ -98,6 +98,7 @@ classDiagram
     MagicTableBasePayload <|-- MagicTableLibrarySheetRowVerifiedPayload
     MagicTableBasePayload <|-- MagicTableRerunRowPayload
     MagicTableBasePayload <|-- MagicTableRerunRowsPayload
+    MagicTableBasePayload <|-- MagicTableStopPayload
 ```
 
 ### Chat
@@ -132,4 +133,5 @@ The Agentic Table interface triggers the following events:
 | `unique.magic-table.sheet-created` | Triggered when a new sheet is created | `MagicTableEvent` | `MagicTableSheetCreatedPayload` |
 | `unique.magic-table.rerun-row` | Triggered when a row is re-run (e.g. after its sources change) | `MagicTableEvent` | `MagicTableRerunRowPayload` |
 | `unique.magic-table.rerun-rows` | Triggered when a selection of rows is re-run; one event carries all of them and the sheet is locked once for the whole batch | `MagicTableEvent` | `MagicTableRerunRowsPayload` |
+| `unique.magic-table.stop` | Triggered when the user stops an in-progress refresh | `MagicTableEvent` | `MagicTableStopPayload` |
 
