@@ -58,6 +58,7 @@ class MCP(APIResource["MCP"]):
         messageId: str
         chatId: str
         arguments: dict[str, Any]
+        assistantId: NotRequired[str | None]
 
     # Response fields.
     #
