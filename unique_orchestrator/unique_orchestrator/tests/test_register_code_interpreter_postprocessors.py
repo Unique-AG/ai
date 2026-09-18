@@ -314,9 +314,11 @@ class TestConfigPassthrough:
             mgr.add_postprocessor.call_args_list[1][0][0]
         )
         assert pp._client is client
-        assert pp._company_id == "company-99"
         # All three IDs were passed, so short-term memory manager is initialised
         assert pp._short_term_memory_manager is not None
+        # The postprocessor does not keep the company_id; it only scopes the memory.
+        memory_service = pp._short_term_memory_manager._short_term_memory_service
+        assert memory_service.company_id == "company-99"
 
 
 # ---------------------------------------------------------------------------
