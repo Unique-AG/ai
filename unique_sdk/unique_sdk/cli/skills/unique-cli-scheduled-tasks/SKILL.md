@@ -28,6 +28,8 @@ Manage cron-tab style scheduled tasks that trigger an assistant on a recurring s
 | `0 9 * * 1-5` | "every weekday (Mon-Fri) at 9:00 AM" |
 | `0 0 * * *` | "every day at midnight" |
 | `0 8 1 * *` | "on the 1st of every month at 8:00 AM" |
+| `0 8 L * *` | "on the last day of every month at 8:00 AM" |
+| `0 8 30 * *` | "on the 30th of every month at 8:00 AM — on the last day in February" |
 | `30 17 * * 5` | "every Friday at 5:30 PM" |
 | `0 */2 * * *` | "every 2 hours" |
 | `0 9 * * 1` | "every Monday at 9:00 AM" |
@@ -40,6 +42,34 @@ Manage cron-tab style scheduled tasks that trigger an assistant on a recurring s
 - If the user says "every morning at 9" → use `0 9 * * *` but tell them "Scheduled to run **every day at 9:00 AM**."
 - Include the day-of-week names (Mon, Tue, etc.) rather than numbers.
 - Use 12-hour format with AM/PM for times when talking to the user.
+- Always tell the user the **name** you gave the task when you create or rename it, e.g.
+  "Done — I created **Daily sales report**, running every weekday at 9:00 AM."
+
+## Monthly schedules and the last day of the month (critical)
+
+**Write monthly schedules only as `minute hour day * *`**, where `day` is `1`–`30` or the `L`
+token. In that form — and *only* in that form — a day the month does not have moves to the
+month's last day instead of being skipped. A day list (`0 8 29,30,31 * *`), a range, a step or
+a month restriction (`0 8 31 1,7 *`) falls outside that handling and **will** skip short
+months, after you have told the user it would not.
+
+**Rules:**
+- **Never tell the user a month will be skipped.** In the supported form it is not — the run
+  moves to that month's last day.
+- For **"the last day of every month"**, and for **"the 31st"**, use the `L` token:
+  `0 8 L * *`. `L` means the last day of whichever month it is, so it runs in all 12 months:
+  31 January, 28 (or 29) February, 31 March, 30 April, and so on. Prefer `L` over `31` — it
+  says what it means and is unambiguous in every month.
+- When the user asks for **the 29th or 30th**, keep that day (`0 8 30 * *`) and spell out
+  February: "…on the **30th of every month** — in February it runs on the **last day** of the
+  month."
+- Never put `L` anywhere but the day-of-month field, and never combine it with a list, range
+  or step.
+- The platform supports **daily, weekday, weekly and monthly** schedules. If the user asks for
+  something outside that — a yearly date such as a birthday, "every two weeks", or a one-off
+  reminder — say so plainly and offer the closest supported schedule. Do **not** invent a cron
+  expression that pins the month (`0 7 18 11 *`) to fake it: it will run, but the schedule
+  editor cannot display or edit it afterwards.
 
 ## Timezone handling (critical)
 
@@ -90,6 +120,10 @@ Before running `schedule create`, **resolve / ask the user**:
    - **Continue an existing chat** — the user must provide a chat ID (starts with `chat_`). Pass it via `--chat-id`.
 4. **When should it run?** — Ask in plain language (e.g. "every weekday at 9 AM"). Convert to a UTC cron expression.
 5. **Prompt text** — what the assistant should do on each trigger.
+6. **Name** — **you write it, do not ask for it.** Derive a short, descriptive label from the
+   prompt (a few words, title-style, e.g. "Daily sales report", "Weekly pipeline review").
+   Pass it as `--name`. Keep it **at most 128 characters** — a longer name is rejected and the
+   whole `schedule create` fails. Tell the user what you called it when you confirm.
 
 Only pass `--chat-id` when the user explicitly wants to continue a specific chat. Otherwise leave it out.
 
@@ -111,7 +145,7 @@ Only pass `--chat-id` when the user explicitly wants to continue a specific chat
 unique-cli schedule list
 ```
 
-Output shows a table with status, cron expression, assistant, prompt snippet, task ID, and last run time.
+Output shows a table with status, name, cron expression, assistant, prompt snippet, task ID, and last run time. A task saved without a name shows its prompt snippet in the name column.
 
 ## Get Task Details
 
@@ -133,7 +167,8 @@ ask the user to provide one.
 unique-cli schedule create \
   --cron "0 9 * * 1-5" \
   --assistant "$UNIQUE_ASSISTANT_ID" \
-  --prompt "Generate the daily sales report and email it to the team"
+  --prompt "Generate the daily sales report and email it to the team" \
+  --name "Daily sales report"
 ```
 
 ### Continue an existing chat
@@ -143,7 +178,8 @@ unique-cli schedule create \
   --cron "0 9 * * 1-5" \
   --assistant "$UNIQUE_ASSISTANT_ID" \
   --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
-  --prompt "Append today's numbers to the running report"
+  --prompt "Append today's numbers to the running report" \
+  --name "Running report top-up"
 ```
 
 ### Create options
@@ -153,6 +189,7 @@ unique-cli schedule create \
 | `--cron` | `-c` | Yes | 5-field cron expression |
 | `--assistant` | `-a` | Yes | Assistant ID to execute (starts with `assistant_`). **Always pass `"$UNIQUE_ASSISTANT_ID"`** — never ask the user. |
 | `--prompt` | `-p` | Yes | Prompt text sent each run |
+| `--name` | `-n` | No | Short label shown in the UI (≤128 chars). **Always pass one** — you generate it; without it the UI falls back to the prompt text |
 | `--chat-id` | | No | Continue an existing chat (starts with `chat_`; **omit for new chat each run**) |
 | `--disabled` | | No | Create in disabled state |
 
@@ -166,6 +203,9 @@ The user will describe schedules in plain language. Translate silently:
 | "every weekday at 9 AM" / "every morning Mon–Fri" | `0 9 * * 1-5` |
 | "every day at midnight" | `0 0 * * *` |
 | "first of every month at 8 AM" | `0 8 1 * *` |
+| "the 31st of every month at 8 AM" | `0 8 L * *` (the 31st means the last day) |
+| "the 30th of every month at 8 AM" | `0 8 30 * *` (February runs on its last day) |
+| "last day of every month at 8 AM" | `0 8 L * *` |
 | "every Friday at 5:30 PM" | `30 17 * * 5` |
 | "every 2 hours" | `0 */2 * * *` |
 | "twice a day at 9 AM and 5 PM, weekdays" | `0 9,17 * * 1-5` |
@@ -178,7 +218,7 @@ The user will describe schedules in plain language. Translate silently:
 ```
 ┌───────────── minute (0–59)
 │ ┌───────────── hour (0–23)
-│ │ ┌───────────── day of month (1–31)
+│ │ ┌───────────── day of month (1–31, or L for the last day)
 │ │ │ ┌───────────── month (1–12)
 │ │ │ │ ┌───────────── day of week (0–7, 0 and 7 = Sunday)
 │ │ │ │ │
@@ -212,6 +252,7 @@ unique-cli schedule update <task_id> --chat-id none
 | `--cron` | `-c` | Updated cron expression |
 | `--assistant` | `-a` | Updated assistant ID (starts with `assistant_`) |
 | `--prompt` | `-p` | Updated prompt text |
+| `--name` | `-n` | Updated label (`none` to clear it and fall back to the prompt) |
 | `--chat-id` | | Updated chat ID (starts with `chat_`; `none` to clear) |
 | `--enable` | | Enable the task |
 | `--disable` | | Disable the task |
@@ -241,10 +282,11 @@ Run:
 unique-cli schedule create \
   -c "0 7 * * 1-5" \
   -a "$UNIQUE_ASSISTANT_ID" \
-  -p "Generate the daily sales report and email it to the team"
+  -p "Generate the daily sales report and email it to the team" \
+  -n "Daily sales report"
 ```
 
-Respond: "Done — I scheduled **this assistant** to run your daily sales report **every weekday (Mon–Fri) at 9:00 AM your time (Europe/Zurich)**. That's 7:00 AM UTC. A new chat will be created for each run. Note: when clocks change for daylight saving, the task will shift by one hour in your local time."
+Respond: "Done — I created **Daily sales report**, running **every weekday (Mon–Fri) at 9:00 AM your time (Europe/Zurich)**. That's 7:00 AM UTC. A new chat will be created for each run. Note: when clocks change for daylight saving, the task will shift by one hour in your local time."
 
 ### Set up a recurring task that continues the same chat
 
@@ -258,10 +300,11 @@ unique-cli schedule create \
   -c "0 7 * * 1-5" \
   -a "$UNIQUE_ASSISTANT_ID" \
   --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
-  -p "Append today's numbers to the running report"
+  -p "Append today's numbers to the running report" \
+  -n "Running report top-up"
 ```
 
-Respond: "Done — scheduled **this assistant** to run **every weekday (Mon–Fri) at 9:00 AM your time** (7:00 AM UTC), continuing chat `chat_b7ze6mpv0edy324yhjj1d92t`."
+Respond: "Done — I created **Running report top-up**, running **every weekday (Mon–Fri) at 9:00 AM your time** (7:00 AM UTC), continuing chat `chat_b7ze6mpv0edy324yhjj1d92t`."
 
 ### Pause and resume a task
 
@@ -316,6 +359,7 @@ task = unique_sdk.ScheduledTask.create(
     cronExpression="0 9 * * 1-5",
     assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
     prompt="Generate daily report",
+    name="Daily report",
 )
 
 # Create (continue existing chat)

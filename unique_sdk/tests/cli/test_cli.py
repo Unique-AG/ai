@@ -381,6 +381,7 @@ class TestClickCLI:
     def test_schedule_get(self, mock: MagicMock) -> None:
         task = MagicMock()
         task.id = "task_1"
+        task.name = None
         task.cronExpression = "0 9 * * 1-5"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
@@ -408,6 +409,7 @@ class TestClickCLI:
     def test_schedule_create(self, mock: MagicMock) -> None:
         task = MagicMock()
         task.id = "task_new"
+        task.name = None
         task.cronExpression = "0 9 * * 1-5"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
@@ -459,6 +461,7 @@ class TestClickCLI:
     def test_schedule_create_disabled(self, mock: MagicMock) -> None:
         task = MagicMock()
         task.id = "task_new"
+        task.name = None
         task.cronExpression = "0 9 * * 1-5"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
@@ -487,10 +490,65 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "Created" in result.output
 
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create_with_name(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_new"
+        task.name = "Daily sales report"
+        task.cronExpression = "0 9 * * 1-5"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = True
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "create",
+                "-c",
+                "0 9 * * 1-5",
+                "-a",
+                "ast_1",
+                "-p",
+                "Report",
+                "-n",
+                "Daily sales report",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock.call_args[1]["name"] == "Daily sales report"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_clear_name(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_1"
+        task.name = None
+        task.cronExpression = "0 9 * * 1-5"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = True
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "update", "task_1", "--name", "none"])
+        assert result.exit_code == 0
+        assert mock.call_args[1]["name"] is None
+
     @patch("unique_sdk.ScheduledTask.modify")
     def test_schedule_update(self, mock: MagicMock) -> None:
         task = MagicMock()
         task.id = "task_1"
+        task.name = None
         task.cronExpression = "0 9 * * 1-5"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"

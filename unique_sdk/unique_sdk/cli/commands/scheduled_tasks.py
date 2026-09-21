@@ -47,6 +47,7 @@ def cmd_schedule_create(
     assistant_id: str,
     prompt: str,
     *,
+    name: str | None = None,
     chat_id: str | None = None,
     enabled: bool = True,
 ) -> str:
@@ -58,6 +59,8 @@ def cmd_schedule_create(
             "prompt": prompt,
             "enabled": enabled,
         }
+        if name is not None:
+            params["name"] = name
         if chat_id is not None:
             params["chatId"] = chat_id
 
@@ -79,6 +82,7 @@ def cmd_schedule_update(
     cron: str | None = None,
     assistant_id: str | None = None,
     prompt: str | None = None,
+    name: str | None = None,
     chat_id: str | None = None,
     enabled: bool | None = None,
 ) -> str:
@@ -91,6 +95,9 @@ def cmd_schedule_update(
             params["assistantId"] = assistant_id
         if prompt is not None:
             params["prompt"] = prompt
+        # Empty string is the caller's "clear it" sentinel, sent to the API as null.
+        if name is not None:
+            params["name"] = name if name != "" else None
         if chat_id is not None:
             params["chatId"] = chat_id if chat_id != "" else None
         if enabled is not None:

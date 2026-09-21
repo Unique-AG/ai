@@ -32,6 +32,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         cronExpression: str
         assistantId: str
         prompt: str
+        name: NotRequired[str]
         chatId: NotRequired[str | None]
         enabled: NotRequired[bool]
 
@@ -39,6 +40,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         cronExpression: NotRequired[str]
         assistantId: NotRequired[str]
         prompt: NotRequired[str]
+        name: NotRequired[str | None]
         chatId: NotRequired[str | None]
         enabled: NotRequired[bool]
 
@@ -51,6 +53,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
 
     id: str
     object: str
+    name: str | None
     cronExpression: str
     assistantId: str
     assistantName: str | None

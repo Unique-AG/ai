@@ -1023,6 +1023,12 @@ def schedule_get(ctx: click.Context, task_id: str) -> None:
     help="Prompt text sent to the assistant on each trigger.",
 )
 @click.option(
+    "--name",
+    "-n",
+    default=None,
+    help="Short label for the task, shown in the UI. Falls back to the prompt if omitted.",
+)
+@click.option(
     "--chat-id",
     default=None,
     help="Optional chat ID to continue. If omitted, a new chat is created each run.",
@@ -1039,6 +1045,7 @@ def schedule_create(
     cron: str,
     assistant_id: str,
     prompt: str,
+    name: str | None,
     chat_id: str | None,
     disabled: bool,
 ) -> None:
@@ -1058,7 +1065,8 @@ def schedule_create(
       unique-cli schedule create \\
         --cron "0 9 * * 1-5" \\
         --assistant clx1abc2d0001abcdef123456 \\
-        --prompt "Generate the daily sales report"
+        --prompt "Generate the daily sales report" \\
+        --name "Daily sales report"
 
       unique-cli schedule create \\
         -c "*/15 * * * *" -a clx1abc -p "Check inbox" --disabled
@@ -1068,6 +1076,7 @@ def schedule_create(
         cron=cron,
         assistant_id=assistant_id,
         prompt=prompt,
+        name=name,
         chat_id=chat_id,
         enabled=not disabled,
     )
@@ -1083,6 +1092,7 @@ def schedule_create(
     "--assistant", "-a", "assistant_id", default=None, help="Updated assistant ID."
 )
 @click.option("--prompt", "-p", default=None, help="Updated prompt text.")
+@click.option("--name", "-n", default=None, help="Updated label (use 'none' to clear).")
 @click.option("--chat-id", default=None, help="Updated chat ID (use 'none' to clear).")
 @click.option("--enable", is_flag=True, default=False, help="Enable the task.")
 @click.option("--disable", is_flag=True, default=False, help="Disable the task.")
@@ -1093,6 +1103,7 @@ def schedule_update(
     cron: str | None,
     assistant_id: str | None,
     prompt: str | None,
+    name: str | None,
     chat_id: str | None,
     enable: bool,
     disable: bool,
@@ -1109,6 +1120,7 @@ def schedule_update(
       unique-cli schedule update clx3ghi4f --disable
       unique-cli schedule update clx3ghi4f --enable --prompt "New prompt"
       unique-cli schedule update clx3ghi4f --chat-id none
+      unique-cli schedule update clx3ghi4f --name "Monthly summary"
     """
     if enable and disable:
         click.echo(
@@ -1126,12 +1138,17 @@ def schedule_update(
     if chat_id and chat_id.lower() == "none":
         resolved_chat_id = ""
 
+    resolved_name = name
+    if name and name.lower() == "none":
+        resolved_name = ""
+
     output = cmd_schedule_update(
         LazyState.get(ctx),
         task_id,
         cron=cron,
         assistant_id=assistant_id,
         prompt=prompt,
+        name=resolved_name,
         chat_id=resolved_chat_id,
         enabled=enabled,
     )

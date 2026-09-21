@@ -441,9 +441,10 @@ class TestShellMcp:
         assert "MCP tool call: tool" in out
 
 
-def _scheduled_task() -> MagicMock:
+def _scheduled_task(name: str | None = None) -> MagicMock:
     task = MagicMock()
     task.id = "task_abc"
+    task.name = name
     task.cronExpression = "0 9 * * 1-5"
     task.assistantId = "ast_123"
     task.assistantName = "Bot"
@@ -502,6 +503,23 @@ class TestShellSchedule:
             'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Report" --chat-id chat_1 --disabled',
         )
         assert "Created" in out
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create_with_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task(name="Daily sales report")
+        out = _capture(
+            _shell(),
+            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Generate report" '
+            '-n "Daily sales report"',
+        )
+        assert "Created" in out
+        assert mock.call_args[1]["name"] == "Daily sales report"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_clear_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task()
+        _capture(_shell(), "schedule update task_abc --name none")
+        assert mock.call_args[1]["name"] is None
 
     def test_schedule_create_unknown_option(self) -> None:
         out = _capture(
