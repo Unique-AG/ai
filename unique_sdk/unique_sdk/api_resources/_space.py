@@ -238,6 +238,16 @@ class Space(APIResource["Space"]):
         title: str
         assistantId: str
 
+    class UpdateChatParams(RequestOptions):
+        """
+        Parameters for renaming a chat.
+
+        Attributes:
+            title: New chat title. Must be a non-empty string.
+        """
+
+        title: str
+
     class ChatResult(TypedDict):
         id: str
         title: str | None
@@ -428,6 +438,50 @@ class Space(APIResource["Space"]):
             await cls._static_request_async(
                 "post",
                 "/space/chat",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def update_chat(
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        **params: Unpack["Space.UpdateChatParams"],
+    ) -> "Space.ChatResult":
+        """
+        Rename a chat in a space.
+        """
+        return cast(
+            "Space.ChatResult",
+            cls._static_request(
+                "patch",
+                f"/space/chat/{chat_id}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_chat_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        **params: Unpack["Space.UpdateChatParams"],
+    ) -> "Space.ChatResult":
+        """
+        Async rename a chat in a space.
+        """
+        return cast(
+            "Space.ChatResult",
+            await cls._static_request_async(
+                "patch",
+                f"/space/chat/{chat_id}",
                 user_id,
                 company_id,
                 params=params,
