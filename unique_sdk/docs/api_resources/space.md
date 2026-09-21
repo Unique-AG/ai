@@ -544,6 +544,32 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     print(chat["id"], chat["createdAt"])
     ```
 
+??? example "`unique_sdk.Space.update_chat` - Rename a chat"
+
+    Rename an existing chat (conversation thread). Corresponds to `PATCH /public/space/chat/{chatId}` on the node-chat public API. The chat must belong to the calling user.
+
+    **Parameters:**
+
+    - `chat_id` (str, required) - Chat ID to rename
+    - `title` (str, required) - New chat title (non-empty)
+
+    **Returns:**
+
+    Returns a [`ChatResult`](#chatresult) object with the updated title.
+
+    **Example:**
+
+    ```python
+    chat = unique_sdk.Space.update_chat(
+        user_id=user_id,
+        company_id=company_id,
+        chat_id="chat_dejfhe729br398",
+        title="Q3 Financial Analysis",
+    )
+
+    print(chat["title"])
+    ```
+
 ??? example "`unique_sdk.Space.get_chat_messages` - Get paginated messages"
 
     !!! info "Compatibility"
@@ -1075,7 +1101,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `object` (Literal["chat"]) - Object type discriminator
 
-    **Returned by:** `Space.create_chat()`, `Space.create_chat_async()`
+    **Returned by:** `Space.create_chat()`, `Space.create_chat_async()`, `Space.update_chat()`, `Space.update_chat_async()`
 
 #### DeleteChatResponse {#deletechatresponse}
 
