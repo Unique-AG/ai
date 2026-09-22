@@ -1940,9 +1940,12 @@ def _scheduled_task_obj(
     assistant_name: str = "Report Bot",
     prompt: str = "Generate report",
     enabled: bool = True,
+    name: str | None = None,
 ) -> MagicMock:
     task = MagicMock()
     task.id = task_id
+    # Set after construction: `MagicMock(name=...)` would name the mock, not the attribute.
+    task.name = name
     task.object = "scheduled_task"
     task.cronExpression = cron
     task.assistantId = assistant_id
@@ -2020,6 +2023,43 @@ class TestScheduledTasks:
         assert "Created" in result
         call_kwargs = mock.call_args[1]
         assert call_kwargs["chatId"] == "chat_456"
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_create_with_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(name="Daily sales report")
+        result = cmd_schedule_create(
+            _state(),
+            cron="0 9 * * 1-5",
+            assistant_id="ast_123",
+            prompt="Generate report",
+            name="Daily sales report",
+        )
+        assert "Created" in result
+        assert mock.call_args[1]["name"] == "Daily sales report"
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_create_without_name_omits_the_field(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj()
+        cmd_schedule_create(
+            _state(),
+            cron="0 9 * * 1-5",
+            assistant_id="ast_123",
+            prompt="Generate report",
+        )
+        assert "name" not in mock.call_args[1]
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(name="Renamed")
+        cmd_schedule_update(_state(), "task_abc", name="Renamed")
+        assert mock.call_args[1]["name"] == "Renamed"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_clear_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj()
+        # The shell and Click layers translate a literal 'none' into this empty string.
+        cmd_schedule_update(_state(), "task_abc", name="")
+        assert mock.call_args[1]["name"] is None
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_create_disabled(self, mock: MagicMock) -> None:

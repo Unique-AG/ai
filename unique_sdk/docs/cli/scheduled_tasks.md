@@ -21,8 +21,8 @@ unique-cli schedule list
 /> schedule list
 1 scheduled task(s):
 
-STATUS  CRON           ASSISTANT     PROMPT               ID          LAST RUN
-on      0 9 * * 1-5    Report Bot    Generate the daily…  task_abc    2026-04-01 09:00
+STATUS  NAME                CRON           ASSISTANT     PROMPT               ID          LAST RUN
+on      Daily sales report  0 9 * * 1-5    Report Bot    Generate the daily…  task_abc    2026-04-01 09:00
 ```
 
 ---
@@ -51,6 +51,7 @@ unique-cli schedule get task_abc123
 
 ```
 ID:         task_abc123
+Name:       Daily sales report
 Cron:       0 9 * * 1-5
 Assistant:  Report Bot (assistant_cvj3fd7x8hpt1hfp0akqu1rq)
 Chat ID:    (new chat each run)
@@ -70,7 +71,7 @@ Create a new scheduled task.
 **Synopsis:**
 
 ```
-schedule create --cron <expr> --assistant <id> --prompt <text> [--chat-id <id>] [--disabled]
+schedule create --cron <expr> --assistant <id> --prompt <text> [--name <text>] [--chat-id <id>] [--disabled]
 ```
 
 **Options:**
@@ -80,6 +81,7 @@ schedule create --cron <expr> --assistant <id> --prompt <text> [--chat-id <id>] 
 | `--cron` | `-c` | Yes | 5-field cron expression (UTC) |
 | `--assistant` | `-a` | Yes | Assistant ID to execute (starts with `assistant_`) |
 | `--prompt` | `-p` | Yes | Prompt text sent each run |
+| `--name` | `-n` | No | Short label shown in the UI, at most 128 characters. Falls back to the prompt when omitted. |
 | `--chat-id` | | No | Continue an existing chat (starts with `chat_`). Omit for a new chat each run. |
 | `--disabled` | | No | Create in a disabled state |
 
@@ -90,7 +92,8 @@ schedule create --cron <expr> --assistant <id> --prompt <text> [--chat-id <id>] 
 unique-cli schedule create \
   --cron "0 9 * * 1-5" \
   --assistant assistant_cvj3fd7x8hpt1hfp0akqu1rq \
-  --prompt "Generate the daily sales report"
+  --prompt "Generate the daily sales report" \
+  --name "Daily sales report"
 
 # Continue an existing chat
 unique-cli schedule create \
@@ -108,10 +111,11 @@ unique-cli schedule create \
 **Interactive shell:**
 
 ```
-/> schedule create -c "0 9 * * 1-5" -a assistant_cvj3fd7x8hpt1hfp0akqu1rq -p "Daily report"
+/> schedule create -c "0 9 * * 1-5" -a assistant_cvj3fd7x8hpt1hfp0akqu1rq -p "Daily report" -n "Daily report"
 Created scheduled task task_abc123
 
 ID:         task_abc123
+Name:       Daily sales report
 Cron:       0 9 * * 1-5
 ...
 ```
@@ -141,6 +145,7 @@ schedule update <task_id> [options]
 | `--cron` | `-c` | Updated cron expression |
 | `--assistant` | `-a` | Updated assistant ID (starts with `assistant_`) |
 | `--prompt` | `-p` | Updated prompt text |
+| `--name` | `-n` | Updated label. Use `none` to clear it and fall back to the prompt. |
 | `--chat-id` | | Updated chat ID (starts with `chat_`). Use `none` to clear. |
 | `--enable` | | Enable the task |
 | `--disable` | | Disable the task |

@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 from unique_sdk.cli.formatting import (
     format_content_info,
     format_folder_info,
@@ -190,9 +192,11 @@ def _task(
     prompt: str = "Generate report",
     enabled: bool = True,
     last_run: str | None = None,
+    name: str | None = None,
 ) -> MagicMock:
     t = MagicMock()
     t.id = task_id
+    t.name = name
     t.cronExpression = cron
     t.assistantId = assistant_id
     t.assistantName = assistant_name
@@ -230,6 +234,41 @@ class TestFormatScheduledTask:
     def test_with_last_run(self) -> None:
         result = format_scheduled_task(_task(last_run="2026-04-01T09:00:00Z"))
         assert "2026-04-01 09:00" in result
+
+
+class TestFormatScheduledTaskName:
+    def test_name_is_shown(self) -> None:
+        result = format_scheduled_task(_task(name="Daily sales report"))
+        assert "Daily sales report" in result
+
+    def test_missing_name_shows_the_fallback_note(self) -> None:
+        result = format_scheduled_task(_task())
+        assert "(falls back to prompt)" in result
+
+    @pytest.mark.ai
+    def test_none_name_does_not_crash_column_padding(self) -> None:
+        """Purpose: Unnamed tasks store name as None, not a missing attribute.
+
+        Why this matters: getattr's default only applies when the attribute is
+        absent. Passing None into _pad_columns raises TypeError on len(None)
+        and crashes `schedule get` / create / update output.
+
+        Setup summary: Format a task whose name is explicitly None and assert
+        the prompt fallback is shown instead of crashing.
+        """
+        result = format_scheduled_task(_task(name=None))
+        assert "(falls back to prompt)" in result
+        assert "None" not in result.split("Name:")[1].splitlines()[0]
+
+    def test_table_has_a_name_column(self) -> None:
+        result = format_scheduled_tasks([_task(name="Daily sales report")])
+        assert "NAME" in result
+        assert "Daily sales report" in result
+
+    def test_table_falls_back_to_the_prompt_snippet(self) -> None:
+        result = format_scheduled_tasks([_task(prompt="Generate report")])
+        # Twice: once in the NAME column via the fallback, once in the PROMPT column.
+        assert result.count("Generate report") == 2
 
 
 class TestFormatScheduledTasks:
