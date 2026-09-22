@@ -51,6 +51,7 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_8,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5,
+            LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5_5,
             LanguageModelName.ANTHROPIC_CLAUDE_FABLE_5,
             LanguageModelName.GEMINI_2_0_FLASH,
             LanguageModelName.GEMINI_2_5_FLASH,
@@ -134,6 +135,7 @@ class TestLanguageModelInfos:
             LanguageModelName.VERTEX_CLAUDE_OPUS_4_7,
             LanguageModelName.VERTEX_CLAUDE_OPUS_4_8,
             LanguageModelName.VERTEX_CLAUDE_OPUS_5,
+            LanguageModelName.VERTEX_CLAUDE_OPUS_5_5,
             LanguageModelName.VERTEX_CLAUDE_FABLE_5,
         ]
         assert len(models) == len(expected_models)
