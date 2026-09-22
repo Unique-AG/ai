@@ -113,15 +113,15 @@ def test_cmd_mcp_truncates_large_output(tmp_path: Path) -> None:
 
 # ── Refs manifest / citations (UN-21285) ─────────────────────────────────────
 #
-# One source per retrieved item — a *title* describing what was retrieved (no
-# URL). Titles come from (in order) a per-tool ``reference_mapping``, then
-# resource_link names, then a JSON-title heuristic over text blocks — the
-# heuristic tolerates a non-JSON preamble and unwraps a container key
-# (``{"issues": [...]}``) so each record becomes its own reference; falls back
-# to a title-less tool chip when the result has no recognizable title.
+# One source per retrieved item. Titles come from (in order) a per-tool
+# ``reference_mapping``, then resource_link names, then a JSON-title heuristic
+# over text blocks. The heuristic tolerates a non-JSON preamble and unwraps a
+# container key (``{"issues": [...]}``) so each record becomes its own
+# reference. An http(s) field on that record is stored as ``url``. A result
+# with no recognizable title is still recorded and labelled with the tool name.
 
 
-def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
+def test_resource_link_item_has_title_and_url(tmp_path: Path) -> None:
     response = _FakeMCPResponse(
         content=[
             {
@@ -144,13 +144,14 @@ def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
             "snippet": "Why retrieval fails",
             "details": None,
             "text": "Why retrieval fails",
+            "url": "https://kb.example.com/doc/9",
         }
     ]
     assert "[mcpsource1] RAG Retrieval Baseline" in out
     assert "https://" not in out  # no URL leaked into the Sources block or body
 
 
-def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
+def test_json_in_text_yields_title_and_url(tmp_path: Path) -> None:
     # Atlassian-style: a JSON record in a text block → title only.
     body = json.dumps(
         {"title": "RAG Retrieval Baseline", "webUrl": "https://confluence/x/2295"}
@@ -160,7 +161,7 @@ def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
 
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert refs[0]["title"] == "RAG Retrieval Baseline"
-    assert "url" not in refs[0]
+    assert refs[0]["url"] == "https://confluence/x/2295"
 
 
 def test_json_in_text_unwraps_wrapped_array_into_items(tmp_path: Path) -> None:
@@ -530,8 +531,8 @@ def test_different_tools_same_title_get_distinct_numbers(tmp_path: Path) -> None
 
 
 def test_titleless_result_falls_back_to_tool_chip(tmp_path: Path) -> None:
-    # No resource blocks, no JSON title → one title-less chip (runner names it
-    # after the tool). No URL is recorded.
+    # No resource blocks and no JSON title: one untitled row, labelled with
+    # the tool name in the Sources block. No URL is recorded.
     response = _FakeMCPResponse(content=[{"type": "text", "text": "status: ok"}])
     _run("mcp__crm__update", response)
 
@@ -734,6 +735,7 @@ def test_record_mcp_citations_writes_both_manifests_under_unique_dir(
             "snippet": "Why retrieval fails",
             "details": None,
             "text": "Why retrieval fails",
+            "url": "https://kb.example.com/doc/9",
         }
     ]
     assert output == [
