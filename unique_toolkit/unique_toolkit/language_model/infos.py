@@ -113,6 +113,7 @@ class LanguageModelName(StrEnum):
     GROK_4_1_FAST_REASONING = "litellm:grok-4-1-fast-reasoning"
     GROK_4_5 = "litellm:grok-4-5"
     GROK_4_6 = "litellm:grok-4-6"
+    GROK_4_7 = "litellm:grok-4-7"
     LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
@@ -2319,6 +2320,34 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, day=1),
                     published_at=date(2026, 8, 12),
+                    supported_reasoning_efforts=["low", "medium", "high", "xhigh"],
+                    default_options={"reasoning_effort": "high"},
+                )
+            case LanguageModelName.GROK_4_7:
+                # Specs from https://docs.x.ai/developers/models/grok-4.7
+                # Knowledge cutoff from https://docs.x.ai/developers/models
+                # Published 2026-09-21: https://vercel.com/changelog/grok-4-7-now-available-and-40-off-on-ai-gateway-fx-eve
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.XAI,
+                    version="grok-4.7",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 500_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(480_000 * 0.9),
+                        token_limit_output=int(480_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2026, 5, day=1),
+                    published_at=date(2026, 9, day=21),
                     supported_reasoning_efforts=["low", "medium", "high", "xhigh"],
                     default_options={"reasoning_effort": "high"},
                 )
