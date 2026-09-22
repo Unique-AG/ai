@@ -160,7 +160,7 @@ def format_scheduled_task(task: ScheduledTask) -> str:
     enabled_str = "yes" if getattr(task, "enabled", False) else "no"
     rows = [
         ["ID:", getattr(task, "id", "?")],
-        ["Name:", getattr(task, "name", "(falls back to prompt)")],
+        ["Name:", getattr(task, "name", None) or "(falls back to prompt)"],
         ["Cron:", getattr(task, "cronExpression", "?")],
         [
             "Assistant:",

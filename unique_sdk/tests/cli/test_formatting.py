@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 from unique_sdk.cli.formatting import (
     format_content_info,
     format_folder_info,
@@ -242,6 +244,21 @@ class TestFormatScheduledTaskName:
     def test_missing_name_shows_the_fallback_note(self) -> None:
         result = format_scheduled_task(_task())
         assert "(falls back to prompt)" in result
+
+    @pytest.mark.ai
+    def test_none_name_does_not_crash_column_padding(self) -> None:
+        """Purpose: Unnamed tasks store name as None, not a missing attribute.
+
+        Why this matters: getattr's default only applies when the attribute is
+        absent. Passing None into _pad_columns raises TypeError on len(None)
+        and crashes `schedule get` / create / update output.
+
+        Setup summary: Format a task whose name is explicitly None and assert
+        the prompt fallback is shown instead of crashing.
+        """
+        result = format_scheduled_task(_task(name=None))
+        assert "(falls back to prompt)" in result
+        assert "None" not in result.split("Name:")[1].splitlines()[0]
 
     def test_table_has_a_name_column(self) -> None:
         result = format_scheduled_tasks([_task(name="Daily sales report")])
