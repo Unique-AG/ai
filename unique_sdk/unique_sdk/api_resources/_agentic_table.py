@@ -302,6 +302,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         rowOrders: list[int]
         status: RowVerificationStatus
         locked: NotRequired[bool]
+        emitLibrarySheetVerifiedEvent: NotRequired[bool]
 
     class CreateSheet(RequestOptions):
         """Body for `POST /magic-table` (create a new sheet in a space)."""

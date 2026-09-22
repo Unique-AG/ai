@@ -356,6 +356,7 @@ Work with intelligent tables that support:
     - `rowOrders` (List[int], required) - List of row indices to update (0-based)
     - `status` (RowVerificationStatus, required) - Verification status: `"NEEDS_REVIEW"`, `"READY_FOR_VERIFICATION"`, or `"VERIFIED"`
     - `locked` (bool, optional) - Row lock flag (defaults are applied server-side when omitted)
+    - `emitLibrarySheetVerifiedEvent` (bool, optional) - On library sheets, whether marking rows `VERIFIED` starts a `LIBRARY_SHEET_ROW_VERIFIED` run that ingests the rows. Set `False` when the caller has already ingested them. Defaults to `True` server-side when omitted; only send it to backends that support the field, since older servers reject it with a 400.
 
     **Returns:**
 

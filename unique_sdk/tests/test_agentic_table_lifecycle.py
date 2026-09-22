@@ -11,6 +11,7 @@ import pytest
 from unique_sdk.api_resources._agentic_table import (
     AgenticTable,
     MagicTableArtifactType,
+    RowVerificationStatus,
 )
 
 pytestmark = pytest.mark.ai
@@ -186,3 +187,48 @@ async def test_delete_sheet_metadata_deletes_by_id(mock_request):
         USER_ID,
         COMPANY_ID,
     )
+
+
+async def test_bulk_update_status_sends_emit_library_sheet_verified_event_when_set(
+    mock_request,
+):
+    mock_request.return_value = {"status": True}
+
+    await AgenticTable.bulk_update_status(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        rowOrders=[0, 1],
+        status=RowVerificationStatus.VERIFIED,
+        emitLibrarySheetVerifiedEvent=False,
+    )
+
+    mock_request.assert_awaited_once_with(
+        "post",
+        f"/magic-table/{TABLE_ID}/rows/bulk-update-status",
+        USER_ID,
+        COMPANY_ID,
+        {
+            "tableId": TABLE_ID,
+            "rowOrders": [0, 1],
+            "status": RowVerificationStatus.VERIFIED,
+            "emitLibrarySheetVerifiedEvent": False,
+        },
+    )
+
+
+async def test_bulk_update_status_omits_emit_library_sheet_verified_event_by_default(
+    mock_request,
+):
+    mock_request.return_value = {"status": True}
+
+    await AgenticTable.bulk_update_status(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        rowOrders=[0],
+        status=RowVerificationStatus.VERIFIED,
+    )
+
+    body = mock_request.await_args.args[4]
+    assert "emitLibrarySheetVerifiedEvent" not in body

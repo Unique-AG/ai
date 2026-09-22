@@ -653,6 +653,8 @@ class AgenticTableService:
         row_orders: list[int],
         status: RowVerificationStatus,
         locked: bool | None = None,
+        *,
+        emit_library_sheet_verified_event: bool | None = None,
     ):
         """Update the verification status of multiple rows at once.
 
@@ -660,24 +662,27 @@ class AgenticTableService:
             row_orders: The row indexes to update.
             status: The verification status to set (``NEEDS_REVIEW``, etc.; matches public API).
             locked: When set, forwarded as ``locked`` on ``POST .../rows/bulk-update-status``.
+            emit_library_sheet_verified_event: When set, forwarded as
+                ``emitLibrarySheetVerifiedEvent``. ``False`` marks the rows without
+                starting a ``LIBRARY_SHEET_ROW_VERIFIED`` run on library sheets; use it
+                when the caller has already ingested the rows. ``None`` omits the field
+                and keeps the server default (``True``). Servers that predate the field
+                reject it with a 400, so only set it against a backend that supports it.
         """
-        if locked is None:
-            await AgenticTable.bulk_update_status(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                rowOrders=row_orders,
-                status=status,
-            )
-        else:
-            await AgenticTable.bulk_update_status(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                rowOrders=row_orders,
-                status=status,
-                locked=locked,
-            )
+        params: AgenticTable.BulkUpdateStatus = {
+            "tableId": self.table_id,
+            "rowOrders": row_orders,
+            "status": status,
+        }
+        if locked is not None:
+            params["locked"] = locked
+        if emit_library_sheet_verified_event is not None:
+            params["emitLibrarySheetVerifiedEvent"] = emit_library_sheet_verified_event
+        await AgenticTable.bulk_update_status(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            **params,
+        )
 
     async def import_questions_and_sources(
         self,
