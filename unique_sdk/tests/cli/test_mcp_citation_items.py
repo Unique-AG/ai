@@ -133,6 +133,26 @@ def test_markdown_title_url_list_yields_one_row_per_page(tmp_path: Path) -> None
     ]
 
 
+def test_indented_url_without_list_marker_stays_one_row(tmp_path: Path) -> None:
+    unique_dir = tmp_path / ".unique"
+    body = "See the guide\n  https://example.com/docs/auth\n"
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+
+    record_mcp_citations(
+        response,
+        tool_name="search_pages",
+        server_name="docs",
+        unique_dir=unique_dir,
+        formatted_text=body,
+    )
+
+    rows = _refs(unique_dir)
+    assert len(rows) == 1
+    assert rows[0]["title"] is None
+    assert rows[0]["text"] == body
+    assert "url" not in rows[0]
+
+
 def test_titleless_row_is_labelled_with_the_tool_name(tmp_path: Path) -> None:
     unique_dir = tmp_path / ".unique"
     response = _FakeMCPResponse(content=[{"type": "text", "text": "status: ok"}])

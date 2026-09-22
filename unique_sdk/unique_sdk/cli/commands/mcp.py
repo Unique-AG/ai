@@ -43,9 +43,10 @@ _MCP_OUTPUT_TEXT_CHAR_LIMIT = 200_000
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
 # (UN-21285). One entry per retrieved item: a short *title* describing what was
-# retrieved (no URL — those are technical/misleading). The runner labels the
-# chip with that title + the MCP tool name; falls back to the tool alone when
-# the result carries no recognizable title.
+# retrieved, plus that item's own http(s) link when the tool result includes
+# one. The link is stored on the row and is not copied into the Sources block.
+# The runner labels the chip with that title + the MCP tool name; falls back
+# to the tool alone when the result carries no recognizable title.
 _MCP_REFS_LOG_RELATIVE_PATH = Path(".unique") / "mcp-refs.jsonl"
 _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 # Persistent per-chat seed for ``[mcpsourceN]`` numbering. The SI runner wipes
@@ -72,9 +73,10 @@ _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
 # inspected only after these miss.
 _URL_KEYS = ("url", "uri", "href", "webUrl", "web_url", "outlookWebLink", "link")
 
-# Markdown list item: a title line followed by an indented http(s) URL.
+# Markdown list item: a bullet or numbered title, then an indented http(s) URL.
+# A list marker is required so a prose line above an indented link is not a hit.
 _MARKDOWN_TITLE_URL = re.compile(
-    r"(?m)^(?:[-*]\s+|\d+\.\s+)?(.+?)\n[ \t]+(https?://\S+)\s*$"
+    r"(?m)^(?:[-*]\s+|\d+\.\s+)(.+?)\n[ \t]+(https?://\S+)\s*$"
 )
 
 # Keys an MCP tool's JSON result commonly uses for the optional "details" line
@@ -591,11 +593,13 @@ def _extract_mcp_citation_items(
     destructuring of a list result); when it yields nothing we fall back to the
     generic heuristic: MCP ``resource_link`` names (spec-native) or a best-effort
     JSON-title heuristic over text blocks (for tools like Atlassian that return
-    JSON-in-text). Typed content blocks from an MCP client library are
+    JSON-in-text), or a markdown list that pairs a title with an indented
+    http(s) URL. Typed content blocks from an MCP client library are
     normalized to dicts first so a list result is not collapsed to one
-    title-less chip. No URLs are extracted: the chip is display-only. Falls
-    back to a single title-less item (the runner names it after the tool) when
-    the result carries no recognizable title.
+    title-less chip. An http(s) link on a record is stored on the row and is
+    not copied into the Sources block. Falls back to a single title-less item
+    (the runner names it after the tool) when the result carries no
+    recognizable title.
 
     ``text`` is the item's underlying retrieved text (the serialized record, a
     fetched document body, or — for the title-less fallback — ``fallback_text``,

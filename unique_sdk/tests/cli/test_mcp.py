@@ -152,7 +152,7 @@ def test_resource_link_item_has_title_and_url(tmp_path: Path) -> None:
 
 
 def test_json_in_text_yields_title_and_url(tmp_path: Path) -> None:
-    # Atlassian-style: a JSON record in a text block → title only.
+    # Atlassian-style: a JSON record in a text block yields a title and its link.
     body = json.dumps(
         {"title": "RAG Retrieval Baseline", "webUrl": "https://confluence/x/2295"}
     )
