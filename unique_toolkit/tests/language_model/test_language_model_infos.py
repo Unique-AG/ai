@@ -109,6 +109,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
+            LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH,
             LanguageModelName.LITELLM_GLM_5_1,
             LanguageModelName.LITELLM_GLM_5_2,
             LanguageModelName.LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH,

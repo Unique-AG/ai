@@ -141,6 +141,7 @@ class LanguageModelName(StrEnum):
     LITELLM_DEEPSEEK_R1 = "litellm:deepseek-r1"
     LITELLM_DEEPSEEK_V3 = "litellm:deepseek-v3-1"
     LITELLM_DEEPSEEK_V4_PRO = "litellm:deepseek-v4-pro"
+    LITELLM_DEEPSEEK_V4_1_FLASH = "litellm:deepseek-v4-1-flash"
     LITELLM_GLM_5_1 = "litellm:glm-5.1"
     LITELLM_GLM_5_2 = "litellm:glm-5.2"
     LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH = "litellm:phoeniqs-deepseek-v4-flash"
@@ -3040,6 +3041,30 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=1_000_000, token_limit_output=384_000
                     ),
                     published_at=date(2026, 1, 1),
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.DEEPSEEK,
+                    version="deepseek-v4-1-flash",
+                    encoder_name=EncoderName.DEEPSEEK,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    # 1M context and 384K max output. Alibaba Model Studio lists
+                    # max input 1_000_000 and max output 393_216; Together serves
+                    # maxTokens 384_000.
+                    # https://www.alibabacloud.com/help/en/model-studio/deepseek-v4-1-flash
+                    # https://pi.dev/models/together/deepseek-ai-deepseek-v4-1-flash
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000, token_limit_output=384_000
+                    ),
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_GLM_5_1:
