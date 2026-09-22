@@ -318,7 +318,7 @@ def _titles_from_markdown_list(text: str) -> list[dict[str, Any]]:
 
     Returns [] when no pair is found.
     """
-    if not isinstance(text, str) or not text.strip():
+    if not text.strip():
         return []
     items: list[dict[str, Any]] = []
     for match in _MARKDOWN_TITLE_URL.finditer(text):
