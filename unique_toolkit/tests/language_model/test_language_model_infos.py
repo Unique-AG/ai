@@ -91,6 +91,8 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
             LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
             LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+            LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
+            LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
             LanguageModelName.LITELLM_OPENAI_GPT_5,
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
@@ -108,6 +110,8 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
             LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
@@ -292,6 +296,45 @@ class TestLanguageModelInfos:
         assert model.info_cutoff_at == date(2026, 4, 30)
         assert model.token_limits.token_limit_input == 922_000
         assert model.token_limits.token_limit_output == 128_000
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("model_name", "info_cutoff_at"),
+        [
+            (LanguageModelName.AZURE_GPT_6_LUNA_2026_0922, date(2026, 5, 18)),
+            (LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA, date(2026, 5, 18)),
+            (LanguageModelName.AZURE_GPT_6_SOL_2026_0922, date(2026, 4, 20)),
+            (LanguageModelName.LITELLM_OPENAI_GPT_6_SOL, date(2026, 4, 20)),
+        ],
+    )
+    def test_gpt_6_luna_and_sol_match_published_limits(
+        self, model_name, info_cutoff_at
+    ):
+        """
+        Purpose: GPT-6 Luna and Sol registry facts match the published cards.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff
+        and sizes requests from token_limits.
+        Setup summary: Load each Luna and Sol LanguageModelInfo and assert the
+        Azure 922k/128k window, the 2026-09-22 version, and the model cutoff.
+        Sources:
+        https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
+        https://developers.openai.com/api/docs/models/gpt-6-luna
+        https://developers.openai.com/api/docs/models/gpt-6-sol
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.info_cutoff_at == info_cutoff_at
+        assert model.published_at == date(2026, 9, 22)
+        assert model.version == "2026-09-22"
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+        ]
 
 
 class TestLoadLanguageModelInfosFromEnv:

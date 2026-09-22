@@ -66,6 +66,8 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_56_TERRA_2026_0709 = "AZURE_GPT_56_TERRA_2026_0709"
     AZURE_GPT_56_LUNA_2026_0709 = "AZURE_GPT_56_LUNA_2026_0709"
     AZURE_GPT_6_ASTRA_2026_0903 = "AZURE_GPT_6_ASTRA_2026_0903"
+    AZURE_GPT_6_LUNA_2026_0922 = "AZURE_GPT_6_LUNA_2026_0922"
+    AZURE_GPT_6_SOL_2026_0922 = "AZURE_GPT_6_SOL_2026_0922"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -132,6 +134,8 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_56_TERRA = "litellm:openai-gpt-5-6-terra"
     LITELLM_OPENAI_GPT_56_LUNA = "litellm:openai-gpt-5-6-luna"
     LITELLM_OPENAI_GPT_6_ASTRA = "litellm:openai-gpt-6-astra"
+    LITELLM_OPENAI_GPT_6_LUNA = "litellm:openai-gpt-6-luna"
+    LITELLM_OPENAI_GPT_6_SOL = "litellm:openai-gpt-6-sol"
     LITELLM_OPENAI_O1 = "litellm:openai-o1"
     LITELLM_OPENAI_O3 = "litellm:openai-o3"
     LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
@@ -228,6 +232,8 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_56_TERRA_2026_0709
             | LMN.AZURE_GPT_56_LUNA_2026_0709
             | LMN.AZURE_GPT_6_ASTRA_2026_0903
+            | LMN.AZURE_GPT_6_LUNA_2026_0922
+            | LMN.AZURE_GPT_6_SOL_2026_0922
             | LMN.AZURE_MODEL_ROUTER_2025_1118
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
@@ -246,6 +252,8 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_GPT_56_TERRA
             | LMN.LITELLM_OPENAI_GPT_56_LUNA
             | LMN.LITELLM_OPENAI_GPT_6_ASTRA
+            | LMN.LITELLM_OPENAI_GPT_6_LUNA
+            | LMN.LITELLM_OPENAI_GPT_6_SOL
             | LMN.LITELLM_OPENAI_O1
             | LMN.LITELLM_OPENAI_O3
             | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
@@ -1280,6 +1288,49 @@ class LanguageModelInfo(BaseModel):
                         "reasoning_effort": "low",
                     },
                     supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
+                )
+            case (
+                LanguageModelName.AZURE_GPT_6_LUNA_2026_0922
+                | LanguageModelName.AZURE_GPT_6_SOL_2026_0922
+            ):
+                info_cutoff_at = {
+                    LanguageModelName.AZURE_GPT_6_LUNA_2026_0922: date(2026, 5, 18),
+                    LanguageModelName.AZURE_GPT_6_SOL_2026_0922: date(2026, 4, 20),
+                }[model_name]
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
+                    version="2026-09-22",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=info_cutoff_at,
+                    published_at=date(2026, 9, 22),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                    supported_reasoning_efforts=[
+                        "none",
                         "low",
                         "medium",
                         "high",
@@ -2851,6 +2902,49 @@ class LanguageModelInfo(BaseModel):
                         "reasoning_effort": "low",
                     },
                     supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
+                )
+            case (
+                LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA
+                | LanguageModelName.LITELLM_OPENAI_GPT_6_SOL
+            ):
+                info_cutoff_at = {
+                    LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA: date(2026, 5, 18),
+                    LanguageModelName.LITELLM_OPENAI_GPT_6_SOL: date(2026, 4, 20),
+                }[model_name]
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
+                    version="2026-09-22",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=info_cutoff_at,
+                    published_at=date(2026, 9, 22),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                    supported_reasoning_efforts=[
+                        "none",
                         "low",
                         "medium",
                         "high",
