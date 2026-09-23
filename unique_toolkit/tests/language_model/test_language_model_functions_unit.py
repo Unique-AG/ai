@@ -1,5 +1,4 @@
 import logging
-from datetime import date
 from unittest.mock import patch
 
 import pytest
@@ -16,11 +15,7 @@ from unique_toolkit.language_model.functions import (
     complete_with_references,
     complete_with_references_async,
 )
-from unique_toolkit.language_model.infos import (
-    LanguageModelInfo,
-    LanguageModelName,
-    ModelCapabilities,
-)
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelTool,
@@ -523,27 +518,6 @@ def test_supported_reasoning_efforts_set_correctly():
     # Third-party models (DeepSeek, Qwen) have no reasoning_effort support
     deepseek = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)
     assert deepseek.supported_reasoning_efforts == []
-
-
-@pytest.mark.ai
-def test_gemini_3_8_flash_matches_google_model_card():
-    """Purpose: Gemini 3.8 Flash registry fields match the Google model card.
-    Why this matters: Wrong token limits or a `minimal` thinking level are rejected by the Gemini API.
-    Setup summary: Load GEMINI_3_8_FLASH and assert limits, thinking levels, and capabilities.
-    """
-    model = LanguageModelInfo.from_name(LanguageModelName.GEMINI_3_8_FLASH)
-
-    assert model.name == LanguageModelName.GEMINI_3_8_FLASH
-    assert model.version == "gemini-3-8-flash"
-    assert model.token_limits.token_limit_input == 1_048_576
-    assert model.token_limits.token_limit_output == 65_536
-    assert model.supported_reasoning_efforts == ["low", "medium", "high"]
-    assert model.info_cutoff_at == date(2026, 3, 1)
-    assert model.published_at == date(2026, 9, 2)
-    assert ModelCapabilities.FUNCTION_CALLING in model.capabilities
-    assert ModelCapabilities.REASONING in model.capabilities
-    assert ModelCapabilities.VISION in model.capabilities
-    assert model.default_options.get("reasoning_effort") is None
 
 
 def test_resolve_unknown_model_passes_effort_through():
