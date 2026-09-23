@@ -22,8 +22,7 @@ def _config_env_key(server_name: str | None, config_model: type) -> str:
     Example: ``mcp-search`` + ``SearchToolConfig``
     → ``UNIQUE_MCP_TOOL_MCP_SEARCH_SEARCH_TOOL_CONFIG``
 
-    A missing server name omits that segment:
-    ``SearchToolConfig`` → ``UNIQUE_MCP_TOOL_SEARCH_TOOL_CONFIG``.
+    A missing server name omits that segment.
     """
     config_name = re.sub(r"Config$", "", config_model.__name__)
     # NOTE: simple lookbehind regex — consecutive uppercase (e.g. "URL") becomes
