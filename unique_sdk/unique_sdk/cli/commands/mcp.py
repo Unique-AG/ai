@@ -43,9 +43,10 @@ _MCP_OUTPUT_TEXT_CHAR_LIMIT = 200_000
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
 # (UN-21285). One entry per retrieved item: a short *title* describing what was
-# retrieved (no URL — those are technical/misleading). The runner labels the
-# chip with that title + the MCP tool name; falls back to the tool alone when
-# the result carries no recognizable title.
+# retrieved, plus that item's own http(s) link when the tool result includes
+# one. The link is stored on the row and is not copied into the Sources block.
+# The runner labels the chip with that title + the MCP tool name; falls back
+# to the tool alone when the result carries no recognizable title.
 _MCP_REFS_LOG_RELATIVE_PATH = Path(".unique") / "mcp-refs.jsonl"
 _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 # Persistent per-chat seed for ``[mcpsourceN]`` numbering. The SI runner wipes
@@ -67,6 +68,16 @@ _MCP_REF_TEXT_CHAR_LIMIT = 100_000
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
+
+# Preferred keys for a record's own http(s) link. Any other string field is
+# inspected only after these miss.
+_URL_KEYS = ("url", "uri", "href", "webUrl", "web_url", "outlookWebLink", "link")
+
+# Markdown list item: a bullet or numbered title, then an indented http(s) URL.
+# A list marker is required so a prose line above an indented link is not a hit.
+_MARKDOWN_TITLE_URL = re.compile(
+    r"(?m)^(?:[-*]\s+|\d+\.\s+)(.+?)\n[ \t]+(https?://\S+)\s*$"
+)
 
 # Keys an MCP tool's JSON result commonly uses for the optional "details" line
 # (UN-22310) — e.g. a date and an author such as "10/10/2026 - Jamie Dimon".
@@ -247,6 +258,35 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _is_http_url(value: object) -> str | None:
+    """Return ``value`` when it is an http(s) URL, else None."""
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    if stripped.startswith("https://") or stripped.startswith("http://"):
+        return stripped
+    return None
+
+
+def _url_from_item(obj: dict[str, Any]) -> str | None:
+    """First http(s) field on a record. Preferred keys, then any string field."""
+    for key in _URL_KEYS:
+        url = _is_http_url(obj.get(key))
+        if url:
+            return url
+    for value in obj.values():
+        url = _is_http_url(value)
+        if url:
+            return url
+    return None
+
+
+def _with_url(item: dict[str, Any], url: str | None) -> dict[str, Any]:
+    if url:
+        item["url"] = url
+    return item
+
+
 def _titles_from_json(text: str) -> list[dict[str, Any]]:
     """Best-effort: pull a human title out of a JSON result, e.g. an Atlassian
     page/issue returned as JSON-in-text. Tolerates a non-JSON preamble before
@@ -262,13 +302,41 @@ def _titles_from_json(text: str) -> list[dict[str, Any]]:
         title = _title_from_json(entry)
         if title:
             items.append(
-                {
-                    "title": title,
-                    "snippet": None,
-                    "details": _details_from_json(entry),
-                    "text": _record_text(entry),
-                }
+                _with_url(
+                    {
+                        "title": title,
+                        "snippet": None,
+                        "details": _details_from_json(entry),
+                        "text": _record_text(entry),
+                    },
+                    _url_from_item(entry),
+                )
             )
+    return items
+
+
+def _titles_from_markdown_list(text: str) -> list[dict[str, Any]]:
+    """One item per markdown list entry that pairs a title with an http(s) URL.
+
+    Returns [] when no pair is found.
+    """
+    if not text.strip():
+        return []
+    items: list[dict[str, Any]] = []
+    for match in _MARKDOWN_TITLE_URL.finditer(text):
+        title = match.group(1).strip().lstrip("-* ").strip()
+        url = _is_http_url(match.group(2))
+        if not title or not url:
+            continue
+        items.append(
+            {
+                "title": title,
+                "snippet": None,
+                "details": None,
+                "text": match.group(0).strip(),
+                "url": url,
+            }
+        )
     return items
 
 
@@ -310,6 +378,26 @@ def _render_title_template(template: str, record: dict[str, Any]) -> str | None:
     return rendered or None
 
 
+def _as_content_dict(block: Any) -> dict[str, Any] | None:
+    """Normalize an MCP content block to a dict.
+
+    Client libraries often hand back typed objects (``mcp.types.TextContent``)
+    with the same fields as the wire dict. Only known attribute names are
+    copied so a hostile object cannot inject unexpected keys.
+    """
+    if isinstance(block, dict):
+        return block
+    block_type = getattr(block, "type", None)
+    if not isinstance(block_type, str) or not block_type.strip():
+        return None
+    out: dict[str, Any] = {"type": block_type}
+    for key in ("text", "name", "description", "uri"):
+        value = getattr(block, key, None)
+        if value is not None:
+            out[key] = value
+    return out
+
+
 def _mapped_records(response: Any, list_path: str | None) -> list[Any]:
     """Locate the records a reference mapping applies to, preferring the
     MCP-native ``structuredContent`` then any JSON-in-text block (preamble
@@ -326,8 +414,9 @@ def _mapped_records(response: Any, list_path: str | None) -> list[Any]:
     if structured is not None:
         sources.append(structured)
     for block in getattr(response, "content", None) or []:
-        if isinstance(block, dict) and block.get("type") == "text":
-            parsed = _loads_embedded_json(block.get("text") or "")
+        normalized = _as_content_dict(block)
+        if normalized is not None and normalized.get("type") == "text":
+            parsed = _loads_embedded_json(normalized.get("text") or "")
             if parsed is not None:
                 sources.append(parsed)
 
@@ -363,8 +452,9 @@ def _first_text_title(response: Any, max_chars: int) -> str | None:
     """Title from the first non-empty line of the first text block — for a
     non-JSON result such as a fetched Markdown document (e.g. ``read_doc``)."""
     for block in getattr(response, "content", None) or []:
-        if isinstance(block, dict) and block.get("type") == "text":
-            title = _leading_title_line(block.get("text"), max_chars)
+        normalized = _as_content_dict(block)
+        if normalized is not None and normalized.get("type") == "text":
+            title = _leading_title_line(normalized.get("text"), max_chars)
             if title:
                 return title
     return None
@@ -375,9 +465,10 @@ def _all_text_blocks(response: Any) -> str | None:
     result (e.g. a fetched document) recorded as that item's ground truth."""
     texts: list[str] = []
     for block in getattr(response, "content", None) or []:
-        if not isinstance(block, dict) or block.get("type") != "text":
+        normalized = _as_content_dict(block)
+        if normalized is None or normalized.get("type") != "text":
             continue
-        text = block.get("text")
+        text = normalized.get("text")
         if isinstance(text, str) and text.strip():
             texts.append(text)
     return "\n\n".join(texts) or None
@@ -412,6 +503,7 @@ def _extract_with_reference_mapping(
     # points at the text field within each item (e.g. ``content``); leave unset
     # when each item is itself a plain string.
     title_text_path = mapping.get("titleTextPath") or mapping.get("title_text_path")
+    url_path = mapping.get("urlPath") or mapping.get("url_path")
     try:
         title_max_chars = int(
             mapping.get("titleMaxChars")
@@ -449,13 +541,22 @@ def _extract_with_reference_mapping(
             if details_path and is_dict
             else None
         )
+        url = None
+        if is_dict:
+            if url_path:
+                url = _is_http_url(_get_by_dotted_path(record, url_path))
+            if not url:
+                url = _url_from_item(record)
         items.append(
-            {
-                "title": title,
-                "snippet": None,
-                "details": str(details).strip() if details else None,
-                "text": _record_text(record),
-            }
+            _with_url(
+                {
+                    "title": title,
+                    "snippet": None,
+                    "details": str(details).strip() if details else None,
+                    "text": _record_text(record),
+                },
+                url,
+            )
         )
     if items:
         return items
@@ -492,9 +593,13 @@ def _extract_mcp_citation_items(
     destructuring of a list result); when it yields nothing we fall back to the
     generic heuristic: MCP ``resource_link`` names (spec-native) or a best-effort
     JSON-title heuristic over text blocks (for tools like Atlassian that return
-    JSON-in-text). No URLs are extracted — the chip is display-only. Falls back
-    to a single title-less item (the runner names it after the tool) when the
-    result carries no recognizable title.
+    JSON-in-text), or a markdown list that pairs a title with an indented
+    http(s) URL. Typed content blocks from an MCP client library are
+    normalized to dicts first so a list result is not collapsed to one
+    title-less chip. An http(s) link on a record is stored on the row and is
+    not copied into the Sources block. Falls back to a single title-less item
+    (the runner names it after the tool) when the result carries no
+    recognizable title.
 
     ``text`` is the item's underlying retrieved text (the serialized record, a
     fetched document body, or — for the title-less fallback — ``fallback_text``,
@@ -511,23 +616,39 @@ def _extract_mcp_citation_items(
     items: list[dict[str, Any]] = []
 
     for block in content:
-        if not isinstance(block, dict):
+        normalized = _as_content_dict(block)
+        if normalized is None:
             continue
-        if block.get("type") == "resource_link":
-            name = (block.get("name") or "").strip()
+        if normalized.get("type") == "resource_link":
+            name = (normalized.get("name") or "").strip()
             if name:
                 items.append(
-                    {
-                        "title": name,
-                        "snippet": _snippet(block.get("description")),
-                        "text": block.get("description") or None,
-                    }
+                    _with_url(
+                        {
+                            "title": name,
+                            "snippet": _snippet(normalized.get("description")),
+                            "text": normalized.get("description") or None,
+                        },
+                        _is_http_url(normalized.get("uri")),
+                    )
                 )
 
     if not items:
         for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                items.extend(_titles_from_json(block.get("text") or ""))
+            normalized = _as_content_dict(block)
+            if normalized is not None and normalized.get("type") == "text":
+                items.extend(_titles_from_json(normalized.get("text") or ""))
+
+    if not items:
+        for block in content:
+            normalized = _as_content_dict(block)
+            if normalized is not None and normalized.get("type") == "text":
+                items.extend(_titles_from_markdown_list(normalized.get("text") or ""))
+
+    if not items and fallback_text:
+        items.extend(_titles_from_json(fallback_text))
+        if not items:
+            items.extend(_titles_from_markdown_list(fallback_text))
 
     if not items:
         # No recognizable title — one chip named after the tool itself.
@@ -696,6 +817,9 @@ def _annotate_mcp_results_for_citations(
                         "details": item.get("details"),
                         "text": _ref_text(item),
                     }
+                    item_url = item.get("url")
+                    if isinstance(item_url, str) and item_url:
+                        manifest_entry["url"] = item_url
                     try:
                         _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
                     except (UnsafeRefsLogPathError, OSError) as exc:
@@ -716,6 +840,10 @@ def _annotate_mcp_results_for_citations(
                     new_details = item.get("details")
                     if stored is not None and new_details and not stored.get("details"):
                         stored["details"] = new_details
+                        needs_rewrite = True
+                    new_url = item.get("url")
+                    if stored is not None and new_url and not stored.get("url"):
+                        stored["url"] = new_url
                         needs_rewrite = True
                     # ``text`` upgrades to the longer capture: the common turn
                     # is a search (small per-record JSON) followed by a full
@@ -759,7 +887,7 @@ def _citation_sources_block(
     Rendered *before* the tool output (leading block, not a trailing footer):
     the agent harness spills oversized tool results to a file wholesale, and a
     partial or programmatic read of that file only reliably sees the head — a
-    trailing marker list would be exactly what such reads miss (UN-22309).
+    trailing marker list would be exactly what such reads miss.
 
     Each line names the ``tool_name`` alongside the marker so the model has a
     stronger anchor than a bare integer: ``{title} — {tool_name}`` when the item
