@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
 from typing import TYPE_CHECKING
 
 from httpx import AsyncClient
@@ -11,10 +10,7 @@ from unique_search_proxy_core.http_client import (
     EgressRoute,
     HttpClientRegistry,
     ProxiedRoute,
-    resolver_from_settings,
-)
-from unique_search_proxy_core.http_client import (
-    async_client_factory as _async_client_factory,
+    ProxyIdentity,
 )
 from unique_search_proxy_core.http_client import (
     build_async_client as _build_async_client,
@@ -22,11 +18,7 @@ from unique_search_proxy_core.http_client import (
 from unique_search_proxy_core.http_client import (
     build_route as _build_route,
 )
-from unique_search_proxy_core.http_client.credentials import ProxyCredentials
 
-from unique_search_proxy_client.web.core.client.credentials import (
-    resolver_from_settings as client_resolver_from_settings,
-)
 from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
     http_client_settings,
@@ -42,35 +34,23 @@ def _settings() -> HttpClientSettings:
 
 def build_route(
     settings: HttpClientSettings,
-    credentials: ProxyCredentials,
+    identity: ProxyIdentity,
 ) -> EgressRoute:
-    return _build_route(settings, credentials)
+    return _build_route(settings, identity)
 
 
 def build_async_client(
     settings: HttpClientSettings,
-    credentials: ProxyCredentials,
+    identity: ProxyIdentity,
     *,
     timeout: float,
 ) -> AsyncClient:
-    return _build_async_client(settings, credentials, timeout=timeout)
-
-
-def async_client_factory(
-    *,
-    settings: HttpClientSettings | None = None,
-    timeout: float | None = None,
-) -> partial[AsyncClient]:
-    return _async_client_factory(settings or _settings(), timeout=timeout)
+    return _build_async_client(settings, identity, timeout=timeout)
 
 
 async def create_http_client_registry() -> HttpClientRegistry:
     """Create the application-owned HTTP client registry."""
-    settings = _settings()
-    return HttpClientRegistry(
-        settings=settings,
-        resolver=client_resolver_from_settings(settings),
-    )
+    return HttpClientRegistry(settings=_settings())
 
 
 def get_http_client_registry(app: FastAPI) -> HttpClientRegistry:
@@ -93,12 +73,10 @@ __all__ = [
     "HttpClientPool",
     "HttpClientRegistry",
     "ProxiedRoute",
-    "async_client_factory",
     "build_async_client",
     "build_route",
     "create_http_client_pool",
     "create_http_client_registry",
     "get_http_client_pool",
     "get_http_client_registry",
-    "resolver_from_settings",
 ]

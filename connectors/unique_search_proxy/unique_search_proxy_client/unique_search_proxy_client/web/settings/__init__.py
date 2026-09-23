@@ -5,7 +5,6 @@ from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
     ProxyAuthMode,
     ProxyProtocol,
-    ProxyUsernameSource,
     get_http_client_settings,
     http_client_settings,
 )
@@ -15,7 +14,6 @@ __all__ = [
     "HttpClientSettings",
     "ProxyAuthMode",
     "ProxyProtocol",
-    "ProxyUsernameSource",
     "get_http_client_settings",
     "http_client_settings",
 ]
