@@ -456,6 +456,13 @@ def test_resource_link_text_is_none_when_no_description(tmp_path: Path) -> None:
     assert refs[0]["text"] is None
 
 
+def test_cmd_mcp_stops_a_runaway_output_at_the_guard(tmp_path: Path) -> None:
+    big = "x" * (mcp_cmd._MCP_TEXT_GUARD_CHARS + 10)
+    _run("mcp__kb__search", _FakeMCPResponse(), formatted=big)
+    text = _lines(tmp_path, _OUTPUT_MANIFEST)[0]["text"]
+    assert len(text) == mcp_cmd._MCP_TEXT_GUARD_CHARS
+
+
 def test_ref_text_is_recorded_whole(tmp_path: Path) -> None:
     unique_dir = tmp_path / ".unique"
     doc = "# Big Doc\n" + "x" * 5_000_000
