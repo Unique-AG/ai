@@ -217,12 +217,18 @@ class UniqueShell(cmd.Cmd):
     def do_ls(self, arg: str) -> None:
         """List folders and files in a directory.
 
-        Usage: ls [target]
+        Usage: ls [target] [--skip N]
 
         Without arguments, lists the current directory. With an argument,
         lists the specified folder (by name, path, or scope ID).
 
         Output columns: TYPE  NAME  ID  SIZE  UPDATED
+
+        Options:
+          --skip <N>    Skip this many folders and files (page offset)
+
+        A listing returns one page of folders and one page of files. A larger
+        folder ends its output with the range shown and the next-page command.
 
         Examples:
           /Reports> ls
@@ -232,9 +238,34 @@ class UniqueShell(cmd.Cmd):
 
           /> ls /Reports/Q1
           /> ls scope_abc123
+          /> ls /Reports --skip 50
         """
-        target = arg.strip() or None
-        self._print(cmd_ls(self.state, target))
+        try:
+            parts = shlex.split(arg)
+        except ValueError as e:
+            self._print(f"ls: {e}")
+            return
+
+        target_parts: list[str] = []
+        skip = 0
+        i = 0
+        while i < len(parts):
+            if parts[i] in ("--skip", "-s") and i + 1 < len(parts):
+                try:
+                    skip = int(parts[i + 1])
+                except ValueError:
+                    self._print(f"Invalid skip: {parts[i + 1]}")
+                    return
+                i += 2
+            else:
+                # Joined rather than taken as a single token so an unquoted
+                # folder name containing spaces keeps working.
+                target_parts.append(parts[i])
+                i += 1
+
+        target = " ".join(target_parts) or None
+        # No prefix: the next-page hint must be runnable as typed in the REPL.
+        self._print(cmd_ls(self.state, target, skip, command_prefix=""))
 
     # -- Folder operations --
 

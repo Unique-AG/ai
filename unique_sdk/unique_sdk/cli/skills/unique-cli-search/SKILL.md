@@ -32,7 +32,7 @@ Use `read` after a `ls` or `search` surfaces a content ID and you need to go dee
 
 Search the Unique knowledge base using combined vector + full-text search via the `unique-cli search` command. Every invocation wraps each result in a `<sourceN>...</sourceN>` block and records a per-turn citation manifest at `.unique/kb-search-refs.jsonl`, so any fact you cite as `[sourceN]` is rendered with a footnote and a clickable reference chip in the chat UI.
 
-> **Limitation:** Excel (`.xlsx`/`.xls`), CSV (`.csv`), and image files are **not** full-text indexed. They will not appear in search results. To find these files, use the `unique-cli-file-management` skill and browse folders with `unique-cli ls` to locate them by name.
+> **Limitation:** Excel (`.xlsx`/`.xls`), CSV (`.csv`), and image files are **not** full-text indexed. They will not appear in search results. To find these files, use the `unique-cli-file-management` skill and browse folders with `unique-cli ls` to locate them by name. `ls` lists one page of files per call and prints a `Showing files 1-50 of N.` notice when there are more — page through with `--skip` (using the offset the notice gives you) before reporting such a file as absent, since `search` cannot cover what the listing missed.
 
 
 ## Basic Search

@@ -5,6 +5,8 @@ from __future__ import annotations
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
@@ -124,6 +126,48 @@ class TestShellNavigation:
         }
         out = _capture(_shell(), "ls /Reports")
         assert "0 folder(s), 0 file(s)" in out
+
+
+class TestShellLsPagination:
+    """REPL `ls` flag parsing. See UN-24303."""
+
+    @pytest.mark.parametrize(
+        ("line", "expected"),
+        [
+            ("ls", (None, 0)),
+            ("ls /Reports --skip 100", ("/Reports", 100)),
+            ("ls -s 50", (None, 50)),
+            ('ls "/A B/C"', ("/A B/C", 0)),
+            # Regression for the switch to shlex: an unquoted name with spaces
+            # used to be passed through whole and must stay that way.
+            ("ls My Reports --skip 10", ("My Reports", 10)),
+        ],
+    )
+    @patch("unique_sdk.cli.shell.cmd_ls", return_value="")
+    def test_parsing(
+        self,
+        mock_ls: MagicMock,
+        line: str,
+        expected: tuple[str | None, int],
+    ) -> None:
+        _capture(_shell(), line)
+        assert mock_ls.call_args.args[1:] == expected
+        # No prefix: the next-page hint must be runnable as typed in the REPL.
+        assert mock_ls.call_args.kwargs["command_prefix"] == ""
+
+    @pytest.mark.parametrize(
+        ("line", "expected"),
+        [("ls --skip abc", "Invalid skip: abc"), ('ls "/Unclosed', "ls: ")],
+    )
+    @patch("unique_sdk.cli.shell.cmd_ls")
+    def test_bad_input_reported(
+        self,
+        mock_ls: MagicMock,
+        line: str,
+        expected: str,
+    ) -> None:
+        assert expected in _capture(_shell(), line)
+        mock_ls.assert_not_called()
 
 
 class TestShellFolderOps:

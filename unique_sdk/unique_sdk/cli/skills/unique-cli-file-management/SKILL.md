@@ -42,6 +42,9 @@ unique-cli ls /Reports/Q1
 # List by scope ID
 unique-cli ls scope_abc123
 
+# List the next page when the output says files were truncated
+unique-cli ls /Reports/Q1 --skip 50
+
 # Create a folder
 unique-cli mkdir Q2
 
@@ -87,6 +90,32 @@ unique-cli rm cont_abc123
 unique-cli mv report.pdf "Annual Report 2025.pdf"
 ```
 
+## Listing Large Folders
+
+`ls` returns one page of folders and one page of files per call (currently 50 of
+each). When a folder holds more, the output says so and gives you the next
+command — take the offset from that notice rather than assuming a page size:
+
+```
+3 folder(s), 50 of 212 file(s)
+Showing files 1-50 of 212.
+Next page: unique-cli ls /Reports/Q1 --skip 50
+```
+
+**Never conclude a file is absent from a listing that carries a `Showing ...`
+notice.** Page through with `--skip` until the notice stops appearing, or the
+answer "that file is not in this folder" may simply be wrong. This matters most
+for Excel (`.xlsx`/`.xls`), CSV, and image files, where `ls` is the only way to
+find them — they are not full-text indexed, so `search` cannot confirm what `ls`
+missed.
+
+`50 of 212 file(s)` means 50 were listed out of 212 that exist; a plain
+`12 file(s)` means the listing is complete. `--skip` past the end reports the real
+totals instead of looking like an empty folder.
+
+To see just the first entries, pipe the output — only what you pipe enters your
+context: `unique-cli ls /Reports | head -20`.
+
 ## Path & ID Formats
 
 | Format | Example | Resolves to |
@@ -125,8 +154,10 @@ done
 ### List and download all files from a folder
 
 ```bash
-# First list to see what's there
+# First list to see what's there. If the output ends in a "Showing ..." notice,
+# keep paging with --skip before deciding you have seen the whole folder.
 unique-cli ls /Reports/Q1
+unique-cli ls /Reports/Q1 --skip 50
 
 # Download specific files
 unique-cli download "annual.pdf" ./downloads/
