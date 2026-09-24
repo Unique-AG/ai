@@ -31,12 +31,8 @@ _LOGGER = logging.getLogger(__name__)
 # information (UN-21951). Carries *text only* — no source numbers/markers
 # (referencing is UN-21285, tracked separately).
 _MCP_OUTPUT_LOG_RELATIVE_PATH = Path(".unique") / "mcp-output.jsonl"
-# Writer-side cap so a single huge/raw tool result cannot bloat the manifest.
-# This manifest is the groundedness check's source of truth, so the cap sits
-# above the largest judge window (about 1M tokens). The runner trims the judge
-# payload to the judge model's input limit, so this cap must never cut text
-# the judge could read. At the previous 200k, a 123-email search kept only
-# its first dozen emails, and later cited emails had no ground truth (UN-26481).
+# Above the largest judge window, so a row is never cut below what the
+# judge can read.
 _MCP_OUTPUT_TEXT_CHAR_LIMIT = 4_000_000
 
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
@@ -57,12 +53,8 @@ _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 # behavior (forward/backward compatible).
 _MCP_REFS_SEED_FILENAME = "mcp-refs-seed.json"
 _MCP_SNIPPET_CHAR_LIMIT = 300
-# Writer-side cap on the per-item ``text`` recorded in the refs manifest — the
-# cited item's underlying text, consumed by the runner's hallucination check to
-# ground each ``[mcpsourceN]`` citation on what was actually retrieved
-# (UN-22762). Same bound as ``_MCP_OUTPUT_TEXT_CHAR_LIMIT``: a title-less item
-# carries the whole tool output, and the runner trims by the judge window
-# (UN-26481).
+# Cap on a cited item's text in the refs manifest. A title-less item carries
+# the whole tool output, so it gets the same bound.
 _MCP_REF_TEXT_CHAR_LIMIT = _MCP_OUTPUT_TEXT_CHAR_LIMIT
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
