@@ -9,6 +9,7 @@ from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     MistralLoopIterationRunner,
     PlanningMiddleware,
+    PromptForcedToolLoopIterationRunner,
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
     ResponsesLoopIterationRunner,
@@ -52,9 +53,16 @@ def build_loop_iteration_runner(
     )
     family = get_model_family(str(config.space.language_model))
 
-    if family == "qwen":
+    if not config.space.language_model.supports_forced_tool_choice:
+        # The model returns HTTP 400 for a named or "any" tool_choice, so the
+        # tool is requested in the prompt instead. Checked before the family
+        # runners because that failure is hard.
+        runner: LoopIterationRunner = PromptForcedToolLoopIterationRunner(
+            config=base_config
+        )
+    elif family == "qwen":
         qwen_cfg = config.agent.experimental.loop_configuration.model_specific.qwen
-        runner: LoopIterationRunner = QwenLoopIterationRunner(
+        runner = QwenLoopIterationRunner(
             config=BasicLoopIterationRunnerConfig(
                 max_loop_iterations=qwen_cfg.max_loop_iterations
             ),
