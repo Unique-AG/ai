@@ -31,9 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 # information (UN-21951). Carries *text only* — no source numbers/markers
 # (referencing is UN-21285, tracked separately).
 _MCP_OUTPUT_LOG_RELATIVE_PATH = Path(".unique") / "mcp-output.jsonl"
-# Runaway guard only: four times the largest judge window (about 1M
-# tokens), so text the judge could read is never cut. The runner's judge
-# budget trims by tokens.
+# Runaway guard, four times the largest judge window; the runner trims by tokens.
 _MCP_TEXT_GUARD_CHARS = 16_000_000
 
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
@@ -709,9 +707,7 @@ def _item_dedup_key(tool_name: str, item: dict[str, Any]) -> str:
     hashing the text keeps them as separate sources instead of collapsing onto
     one number (identical bodies still merge). NOTE: this intentionally weakens
     the search-then-fetch text-upgrade merge for title-less items only — titled
-    items still merge by title as before. The hash covers the guarded text,
-    the same text the manifest stores, so a later call rebuilding the key
-    from the manifest still matches.
+    items still merge by title as before.
     """
     title = item.get("title")
     if isinstance(title, str) and title.strip():
