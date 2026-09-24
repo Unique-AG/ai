@@ -31,9 +31,6 @@ _LOGGER = logging.getLogger(__name__)
 # information (UN-21951). Carries *text only* — no source numbers/markers
 # (referencing is UN-21285, tracked separately).
 _MCP_OUTPUT_LOG_RELATIVE_PATH = Path(".unique") / "mcp-output.jsonl"
-# Above the largest judge window, so a row is never cut below what the
-# judge can read.
-_MCP_OUTPUT_TEXT_CHAR_LIMIT = 4_000_000
 
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
@@ -53,9 +50,6 @@ _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 # behavior (forward/backward compatible).
 _MCP_REFS_SEED_FILENAME = "mcp-refs-seed.json"
 _MCP_SNIPPET_CHAR_LIMIT = 300
-# Cap on a cited item's text in the refs manifest. A title-less item carries
-# the whole tool output, so it gets the same bound.
-_MCP_REF_TEXT_CHAR_LIMIT = _MCP_OUTPUT_TEXT_CHAR_LIMIT
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
@@ -712,30 +706,21 @@ def _item_dedup_key(tool_name: str, item: dict[str, Any]) -> str:
     one number (identical bodies still merge). NOTE: this intentionally weakens
     the search-then-fetch text-upgrade merge for title-less items only — titled
     items still merge by title as before.
-
-    The text is capped at ``_MCP_REF_TEXT_CHAR_LIMIT`` BEFORE hashing — the same
-    cap the manifest stores under ``text``. Without it, the first call (live,
-    full-length item text) and a later call rebuilding this key from the
-    truncated manifest entry would hash to different values, so an oversized
-    title-less result would be re-assigned a duplicate ``[mcpsourceN]`` instead
-    of deduping.
     """
     title = item.get("title")
     if isinstance(title, str) and title.strip():
         return f"title:{tool_name}:{title.strip()}"
-    capped_text = (item.get("text") or "")[:_MCP_REF_TEXT_CHAR_LIMIT]
-    text_hash = hashlib.sha256(capped_text.encode("utf-8")).hexdigest()[:12]
+    text = item.get("text") or ""
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
     return f"tool:{tool_name}:{text_hash}"
 
 
 def _ref_text(item: dict[str, Any]) -> str | None:
-    """The item's underlying text for the manifest, capped at
-    ``_MCP_REF_TEXT_CHAR_LIMIT`` (single write-side cap shared by all
-    extraction modes)."""
+    """The item's underlying text for the manifest, stored whole."""
     text = item.get("text")
     if not isinstance(text, str) or not text:
         return None
-    return text[:_MCP_REF_TEXT_CHAR_LIMIT]
+    return text
 
 
 def _annotate_mcp_results_for_citations(
@@ -927,7 +912,7 @@ def _append_mcp_output_manifest(
             {
                 "toolName": name,
                 "serverName": server_name,
-                "text": text[:_MCP_OUTPUT_TEXT_CHAR_LIMIT],
+                "text": text,
             },
         )
     except (UnsafeRefsLogPathError, OSError) as exc:

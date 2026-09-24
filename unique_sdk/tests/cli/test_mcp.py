@@ -104,11 +104,11 @@ def test_cmd_mcp_writes_output_manifest(tmp_path: Path) -> None:
     assert entries[0]["text"] == "ACME revenue: 1M"
 
 
-def test_cmd_mcp_truncates_large_output(tmp_path: Path) -> None:
-    big = "x" * (mcp_cmd._MCP_OUTPUT_TEXT_CHAR_LIMIT + 500)
+def test_cmd_mcp_records_large_output_whole(tmp_path: Path) -> None:
+    big = "x" * 5_000_000
     _run("mcp__kb__search", _FakeMCPResponse(), formatted=big)
     text = _lines(tmp_path, _OUTPUT_MANIFEST)[0]["text"]
-    assert len(text) == mcp_cmd._MCP_OUTPUT_TEXT_CHAR_LIMIT
+    assert text == big
 
 
 # ── Refs manifest / citations (UN-21285) ─────────────────────────────────────
@@ -456,9 +456,9 @@ def test_resource_link_text_is_none_when_no_description(tmp_path: Path) -> None:
     assert refs[0]["text"] is None
 
 
-def test_ref_text_truncated_to_writer_cap(tmp_path: Path) -> None:
+def test_ref_text_is_recorded_whole(tmp_path: Path) -> None:
     unique_dir = tmp_path / ".unique"
-    doc = "# Big Doc\n" + "x" * (mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT + 500)
+    doc = "# Big Doc\n" + "x" * 5_000_000
     response = _FakeMCPResponse(content=[{"type": "text", "text": doc}])
     record_mcp_citations(
         response,
@@ -469,7 +469,7 @@ def test_ref_text_truncated_to_writer_cap(tmp_path: Path) -> None:
         reference_mapping={"titleFromText": True},
     )
     refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
-    assert len(refs[0]["text"]) == mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT
+    assert refs[0]["text"] == doc
 
 
 def test_large_search_output_is_recorded_whole(tmp_path: Path) -> None:
@@ -967,11 +967,9 @@ def test_titleless_identical_text_still_merges(tmp_path: Path) -> None:
 def test_titleless_oversized_identical_text_merges_across_calls(
     tmp_path: Path,
 ) -> None:
-    # Bugbot regression: the dedup key must hash the CAPPED text so the second
-    # call (rebuilding the key from the truncated manifest entry) still matches
-    # the first (full live text). An oversized identical title-less body must
-    # merge onto one source, not be re-assigned a duplicate number.
-    big = "x" * (mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT + 50)
+    # The second call rebuilds the key from the manifest entry, so an
+    # oversized identical title-less body must merge onto one source.
+    big = "x" * 5_000_000
     for _ in range(2):
         _run(
             "mcp__crm__update",
