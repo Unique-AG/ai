@@ -1,0 +1,25 @@
+{
+  "name": "mcp-dashboard-contracts",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "generate": "node helpers/contracts/generate.mjs",
+    "generate:check": "node helpers/contracts/generate.mjs && git diff --exit-code -- datasets",
+    "dev:account-review": "scripts/dev-account-review.sh",
+    "build:account-review:live": "npm --prefix datasets/account_review/astro run build:live",
+    "build:account-review:preview": "npm --prefix datasets/account_review/astro run build:preview",
+    "build:account-review:live-local": "npm --prefix datasets/account_review/astro run build:live-local",
+    "build:account-review": "npm --prefix datasets/account_review/astro run build",
+    "check:account-review": "npm --prefix datasets/account_review/astro run check"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "@typespec/compiler": "1.14.0",
+    "@typespec/http": "1.14.0",
+    "@typespec/openapi3": "1.14.0",
+    "@typespec/rest": "0.84.0",
+    "typescript": "5.9.3",
+    "zod": "3.25.76"
+  }
+}

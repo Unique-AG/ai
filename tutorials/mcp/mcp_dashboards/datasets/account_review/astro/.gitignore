@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.astro/
+src/data/mock.json
+__pycache__/
+
+# Built from src/host/ by scripts/build-hosts.mjs; never edit in place.
+public/mock-host.js
+public/mcp-live-host.js
+
+# `npm run screenshot` regenerates both of these on every run.
+screenshots/*
+!screenshots/console.png
+!screenshots/client.png

@@ -1,0 +1,25 @@
+---
+// Ports src/templates/figure_case.html — one reusable, parametrized
+// accordion section. FIG_PREFIX/FIGURE_CLASS are real props instead of
+// __PLACEHOLDER__ tokens.
+import FigureRows from "./FigureRows.astro";
+import Icon from "./Icon.astro";
+
+export interface Props {
+  ruleCode: string;
+  title: string;
+  figureClass: "case-figure" | "case-figure2";
+  figPrefix: "fig" | "perf";
+}
+const { ruleCode, title, figureClass, figPrefix } = Astro.props;
+---
+
+<details class={`card sec ${figureClass}`} data-rule={ruleCode} open>
+  <summary class="sec-sum">
+    <span class="sec-chev"><Icon name="chevron-right" size={16} /></span>
+    <h2>{title}</h2>
+  </summary>
+  <div class="sec-body">
+    <FigureRows prefix={figPrefix} />
+  </div>
+</details>

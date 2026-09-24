@@ -1,0 +1,8 @@
+{
+  "mcp_server": "mcp_o5hm2tnffldai4n7m2vym7cb",
+  "mcp_local_url": "http://127.0.0.1:8004/mcp",
+  "rm_name": "Elena",
+  "page_title": "Account Review console",
+  "poll_ms": 15000,
+  "connectors_online": 3
+}

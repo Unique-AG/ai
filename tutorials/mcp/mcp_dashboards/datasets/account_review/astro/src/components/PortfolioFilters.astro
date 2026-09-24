@@ -1,0 +1,52 @@
+---
+// Search + dropdown filters for the portfolio table.
+// Local hosts merge values into `list_clients` via `data-unique-filter-bar`.
+// Platform live has no filter-bar host, so selects also drive CSS `:has(option:checked)`
+// rules in styles.css (status / risk / due). Search still needs a host and is
+// omitted from the live build.
+import Icon from "./Icon.astro";
+import { getMode } from "../lib/mode";
+
+const mode = getMode();
+const showSearch = mode !== "live";
+---
+
+<div class="portfolio-toolbar" data-unique-filter-bar="clientsLive">
+  {
+    showSearch && (
+      <label class="portfolio-search">
+        <Icon name="search" class="portfolio-search-icon" size={16} />
+        <input
+          type="search"
+          class="portfolio-search-input"
+          placeholder="Filter by client name or ID"
+          data-unique-filter-search
+          autocomplete="off"
+        />
+      </label>
+    )
+  }
+  <select class="portfolio-filter" data-unique-filter-field="status" aria-label="Filter by status">
+    <option value="">Status</option>
+    <option value="Screening hit">Screening hit</option>
+    <option value="Deadline approaching">Deadline approaching</option>
+    <option value="Limit exceeded">Limit exceeded</option>
+    <option value="Review required">Review required</option>
+    <option value="Regulatory breach">Regulatory breach</option>
+    <option value="Regulatory change">Regulatory change</option>
+    <option value="Escalated">Escalated</option>
+    <option value="Compliant">Compliant</option>
+  </select>
+  <select class="portfolio-filter" data-unique-filter-field="risk_level" aria-label="Filter by risk">
+    <option value="">Risk</option>
+    <option value="High">High</option>
+    <option value="Medium">Medium</option>
+    <option value="Low">Low</option>
+  </select>
+  <select class="portfolio-filter" data-unique-filter-due aria-label="Filter by due date">
+    <option value="">Due Date</option>
+    <option value="urgent">Urgent</option>
+    <option value="scheduled">Scheduled</option>
+    <option value="none">No due date</option>
+  </select>
+</div>

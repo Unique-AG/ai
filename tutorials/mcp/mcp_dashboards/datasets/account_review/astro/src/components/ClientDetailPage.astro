@@ -1,0 +1,149 @@
+---
+// The `:target`-routed client detail page: top-left back control, smart-action
+// banner, header, the 8 always-visible profile sections, and any case-specific
+// figures. One `<template data-unique-item>` in index.astro's clientPages
+// DataList renders one of these per client row (see that file's big comment on
+// why clientPages is a sibling of, not nested in, .view-main).
+import CaseActionBar from "./CaseActionBar.astro";
+import CaseFigure from "./CaseFigure.astro";
+import FieldGrid from "./FieldGrid.astro";
+import FigureRows from "./FigureRows.astro";
+import Icon from "./Icon.astro";
+import Section from "./Section.astro";
+import {
+  docsKycFields,
+  executiveSummaryFields,
+  historyFields,
+  holdingsFields,
+  identityFields,
+  suitabilityFields,
+} from "../data/clientSections";
+import type { CasePair } from "../lib/cases";
+import { clientRow } from "../lib/contract";
+
+export interface Props {
+  /** (rule_code, case) pairs from lib/cases.ts's rulePairs — one entry per rule_code a case covers. */
+  pairs: CasePair[];
+}
+
+const { pairs } = Astro.props;
+---
+
+<main
+  class="detail view-client"
+  {...clientRow.attr("id", "client_dom_id")}
+  {...clientRow.attr("data-rule", "case_action.rule_code")}
+  {...clientRow.key("id")}
+>
+  <a class="btn btn-back detail-back" href="#top" aria-label="Back to console">
+    <Icon name="chevron-left" size={18} />
+  </a>
+
+  <section
+    class="crit-banner actionbar"
+    {...clientRow.attr("data-status", "case_action.status")}
+    {...clientRow.attr("data-rule", "case_action.rule_code")}
+    {...clientRow.attr("data-criticality", "compliance.criticality")}
+  >
+    <span class="cb-icon" aria-hidden="true">
+      <Icon name="alert-circle" size={14} />
+    </span>
+    <p class="cb-l">
+      {pairs.map(([ruleCode, c]) =>
+        c.banner_headline ? <strong class="cb-src cb-src-case" data-rule={ruleCode} /> : null
+      )}
+      <strong class="cb-src cb-src-fallback" {...clientRow.field("case_action.title")} />
+      <span class="cb-sep"> — </span>
+      <span class="cb-issue" {...clientRow.field("case_action.open_issue")} />.
+      {pairs.map(([ruleCode, c]) => <CaseActionBar ruleCode={ruleCode} useCase={c} />)}
+    </p>
+    <label class="cb-x" aria-label="Dismiss">
+      <input type="checkbox" class="banner-dismiss" />
+      ×
+    </label>
+  </section>
+
+  <header class="detail-head" {...clientRow.attr("data-criticality", "compliance.criticality")}>
+    <div class="dh-id">
+      <span class="avatar avatar-lg avatar-from-name" {...clientRow.field("identity.name")} />
+      <div>
+        <h1 {...clientRow.field("identity.name")} />
+        <p class="small muted">
+          <code {...clientRow.field("identity.reference")} /> · <span class="case-badge" {...clientRow.attr("data-rule", "case_action.rule_code")} />
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <!--
+    Folds start collapsed except Executive summary (always useful triage).
+    cases.json `open_sections` force-opens the fold(s) that matter for the
+    row's rule_code via renderOpenSectionsCss — everything else stays folded
+    until the RM opens it.
+  -->
+  <Section dataKey="exec-summary" title="Executive summary" open>
+    <span slot="meta" class="sec-meta case-badge" {...clientRow.attr("data-rule", "case_action.rule_code")} />
+    <div class="tags">
+      <span class="tag" {...clientRow.field("identity.segment")} />
+      <span class="tag"><span {...clientRow.field("compliance.risk_profile")} /> profile</span>
+      <span class="tag" {...clientRow.field("case_action.rule_code")} />
+    </div>
+    <p class="summary">
+      <span {...clientRow.field("case_action.open_issue")} />. Recommended action:
+      <span {...clientRow.field("case_action.recommended_action")} />
+    </p>
+    <FieldGrid fields={executiveSummaryFields} />
+  </Section>
+
+  <Section dataKey="identity" title="Client identity">
+    <span slot="meta" class="sec-meta">Identity &amp; contact</span>
+    <FieldGrid fields={identityFields} />
+  </Section>
+
+  <Section dataKey="history" title="History">
+    <span slot="meta" class="sec-meta">Next <span {...clientRow.field("review_schedule.next_review_due")} /></span>
+    <FieldGrid fields={historyFields} />
+  </Section>
+
+  <Section dataKey="docs-kyc" title="Documents and KYC">
+    <span slot="meta" class="sec-meta">AML / KYC · client record</span>
+    <FieldGrid fields={docsKycFields} />
+    <div class="docrow">
+      <span class="doc" {...clientRow.field("compliance.documents_on_file")} />
+    </div>
+  </Section>
+
+  <Section dataKey="portfolio-mandate" title="Portfolio and Mandate">
+    <span slot="meta" class="sec-meta" {...clientRow.field("compliance.mandate_type")} />
+    <FigureRows prefix="mand" class="mandate-figure" />
+  </Section>
+
+  <Section dataKey="portfolio-performance" title="Portfolio Performance and Benchmark">
+    <FigureRows prefix="perf" />
+  </Section>
+
+  <Section dataKey="holdings-categorization" title="Holdings and Categorization">
+    <FieldGrid fields={holdingsFields} />
+    <FigureRows prefix="hold" class="holdings-figure" style="margin-top: 14px" />
+  </Section>
+
+  <Section dataKey="suitability-profile" title="Suitability Profile">
+    <span slot="meta" class="sec-meta" {...clientRow.field("compliance.risk_tolerance")} />
+    <FieldGrid fields={suitabilityFields} />
+  </Section>
+
+  <!--
+    Case figure(s): only doc-expiry, adverse-media and sow-refresh
+    still use this — the other three cases' figures were promoted
+    to the always-visible generic sections above.
+  -->
+  {
+    pairs.map(([ruleCode, c]) => (
+      <>
+        {c.figure_title && <CaseFigure ruleCode={ruleCode} title={c.figure_title} figureClass="case-figure" figPrefix="fig" />}
+        {c.figure2_title && <CaseFigure ruleCode={ruleCode} title={c.figure2_title} figureClass="case-figure2" figPrefix="perf" />}
+      </>
+    ))
+  }
+
+</main>
