@@ -219,6 +219,7 @@ pdb:
 grafana:
   dashboards:
     enabled: true
+    folder: connectors
     replacements:
       '%%PROMETHEUS_UID%%': prometheus
 
