@@ -472,6 +472,24 @@ def test_ref_text_truncated_to_writer_cap(tmp_path: Path) -> None:
     assert len(refs[0]["text"]) == mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT
 
 
+def test_large_search_output_is_recorded_whole(tmp_path: Path) -> None:
+    """A 123-email search result must keep every email for the judge (UN-26481)."""
+    unique_dir = tmp_path / ".unique"
+    output = "email body. " * 100_000
+    response = _FakeMCPResponse(content=[{"type": "text", "text": output}])
+    record_mcp_citations(
+        response,
+        tool_name="search_emails",
+        server_name="outlook",
+        unique_dir=unique_dir,
+        formatted_text=output,
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert refs[0]["text"] == output
+    outputs = _unique_lines(unique_dir, "mcp-output.jsonl")
+    assert outputs[0]["text"] == output
+
+
 def test_dedup_backfills_longer_text_from_later_call(tmp_path: Path) -> None:
     # Search first (small serialized record), then a full fetch of the same
     # titled item: the dedup reuses source 1 and upgrades its text to the
