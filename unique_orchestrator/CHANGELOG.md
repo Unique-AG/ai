@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.38.0...unique-orchestrator-v2026.40.0) (2026-09-24)
+
+
+### Features
+
+* **code-interpreter:** turn fence feature flag into config ([#2457](https://github.com/Unique-AG/ai/issues/2457)) ([2de750d](https://github.com/Unique-AG/ai/commit/2de750ddab97a44be3945a1eb26288793b4860ab))
+* **code-interpreter:** turn HTML fence feature flag into config [UN-17927] ([#2459](https://github.com/Unique-AG/ai/issues/2459)) ([e2d1ec1](https://github.com/Unique-AG/ai/commit/e2d1ec15a7cc9774b2c99dd7af67183fa2a63aee))
+* **toolkit:** add gpt-6-luna and gpt-6-sol model info ([#2477](https://github.com/Unique-AG/ai/issues/2477)) ([d6daaa0](https://github.com/Unique-AG/ai/commit/d6daaa00f4ff472928e7546862e21b985e2ade0d))
+
+
+### Bug Fixes
+
+* **orchestrator:** stop forcing tool_choice on Opus 5.5 ([#2487](https://github.com/Unique-AG/ai/issues/2487)) ([d788578](https://github.com/Unique-AG/ai/commit/d7885789a99e1ad1026e4809c91a0908d963aa8f))
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
 ## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.36.0...unique-orchestrator-v2026.38.0) (2026-09-10)
 
 
