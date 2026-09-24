@@ -1413,3 +1413,92 @@ class TestShellElicit:
         kw = mock.call_args[1]
         assert kw["action"] == "ACCEPT"
         assert kw["content"] == '{"a":1}'
+
+
+def test_format_api_error_surfaces_platform_detail() -> None:
+    """A terse backend code must not arrive with the diagnosis stripped off."""
+    from unique_sdk.cli.commands.elicitation import _format_api_error
+
+    error = unique_sdk.APIError(
+        "FAILED_TO_CREATE_ELICITATION",
+        http_status=400,
+        code="BAD_REQUEST",
+        json_body={"message": "schema is required when mode is FORM"},
+        headers={"request-id": "req_abc123"},
+    )
+
+    rendered = _format_api_error(error)
+
+    assert "FAILED_TO_CREATE_ELICITATION" in rendered
+    assert "status=400" in rendered
+    assert "code=BAD_REQUEST" in rendered
+    # The request id is what makes the matching backend log line findable.
+    assert "request_id=req_abc123" in rendered
+    assert "schema is required when mode is FORM" in rendered
+
+
+def test_format_api_error_without_detail_stays_terse() -> None:
+    from unique_sdk.cli.commands.elicitation import _format_api_error
+
+    rendered = _format_api_error(unique_sdk.APIError("BOOM"))
+
+    assert rendered == "elicit: BOOM"
+
+
+def test_format_api_error_truncates_huge_bodies() -> None:
+    from unique_sdk.cli.commands.elicitation import _format_api_error
+
+    # UniqueError only decodes http_body when it is bytes (a str body is
+    # dropped), which is what the HTTP client actually supplies.
+    rendered = _format_api_error(unique_sdk.APIError("BOOM", http_body=b"x" * 5000))
+
+    assert "…(truncated)" in rendered
+    assert len(rendered) < 1200
+
+
+def test_format_api_error_survives_header_mapping_in_json_body() -> None:
+    """`interpret_response` puts rheaders in the json_body position.
+
+    A non-dict Mapping (requests' CaseInsensitiveDict, httpx.Headers) must
+    neither crash `json.dumps` nor get printed as if it were a body.
+    """
+    from collections.abc import Mapping
+
+    from unique_sdk.cli.commands.elicitation import _format_api_error
+
+    class _Headers(Mapping[str, str]):
+        def __init__(self, data: dict[str, str]) -> None:
+            self._data = data
+
+        def __getitem__(self, key: str) -> str:
+            return self._data[key]
+
+        def __iter__(self):
+            return iter(self._data)
+
+        def __len__(self) -> int:
+            return len(self._data)
+
+    headers = _Headers({"authorization": "Bearer sekret", "x-req": "1"})
+    error = unique_sdk.APIError(
+        "Invalid response body from API", http_status=502, json_body=headers
+    )
+
+    rendered = _format_api_error(error)
+
+    assert rendered.startswith("elicit: Invalid response body from API")
+    assert "status=502" in rendered
+    # No crash, and nothing from the header mapping leaks into the line.
+    assert "detail=" not in rendered
+    assert "sekret" not in rendered
+
+
+def test_format_api_error_renders_dict_body_with_unserialisable_values() -> None:
+    from unique_sdk.cli.commands.elicitation import _format_api_error
+
+    rendered = _format_api_error(
+        unique_sdk.APIError("BOOM", json_body={"at": object()})
+    )
+
+    assert "detail=" in rendered
+    assert "BOOM" in rendered
