@@ -19,6 +19,7 @@ from unique_toolkit.agentic.loop_runner.runners.prompt_forced_tool import (
     PromptForcedToolLoopIterationRunner,
 )
 from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -50,6 +51,9 @@ def create_mock_tool(name: str) -> MagicMock:
 
 def _user_messages(content: str = "Hello") -> LanguageModelMessages:
     return LanguageModelMessages(root=[LanguageModelUserMessage(content=content)])
+
+
+OPUS_5_5 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5_5)
 
 
 @pytest.fixture
@@ -106,7 +110,7 @@ class TestPromptForcedToolIteration:
         await runner(
             iteration_index=0,
             messages=messages,
-            model="litellm:anthropic-claude-opus-5-5",
+            model=OPUS_5_5,
             streaming_handler=mock_streaming_handler,
             tool_choices=tool_choices,
             tools=[create_mock_tool("SearchTool")],
@@ -144,7 +148,7 @@ class TestPromptForcedToolIteration:
         await runner(
             iteration_index=0,
             messages=_user_messages(),
-            model="litellm:anthropic-claude-opus-5-5",
+            model=OPUS_5_5,
             streaming_handler=mock_streaming_handler,
             tool_choices=tool_choices,
             tools=[create_mock_tool("Tool1"), create_mock_tool("Tool2")],
@@ -190,7 +194,7 @@ class TestPromptForcedToolIteration:
         await runner(
             iteration_index=1,
             messages=_user_messages(),
-            model="litellm:anthropic-claude-opus-5-5",
+            model=OPUS_5_5,
             streaming_handler=mock_streaming_handler,
             tool_choices=tool_choices,
             tools=[create_mock_tool("SearchTool")],

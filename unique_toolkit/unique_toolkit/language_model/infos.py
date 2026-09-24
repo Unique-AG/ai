@@ -372,6 +372,10 @@ class LanguageModelInfo(BaseModel):
 
     supported_reasoning_efforts: list[ReasoningEffort] | None = None
 
+    # False for models that return HTTP 400 when tool_choice is a named tool or
+    # "any". Only "auto" and "none" are accepted there.
+    supports_forced_tool_choice: bool = True
+
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
     def get_encoder(self) -> TypeEncoder:
@@ -2028,6 +2032,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2026, 6, 1),
                     published_at=date(2026, 9, 22),
                     supported_reasoning_efforts=[],
+                    supports_forced_tool_choice=False,
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_FABLE_5
