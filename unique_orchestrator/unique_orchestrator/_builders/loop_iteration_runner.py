@@ -9,6 +9,7 @@ from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     MistralLoopIterationRunner,
     PlanningMiddleware,
+    PromptForcedToolLoopIterationRunner,
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
     ResponsesLoopIterationRunner,
@@ -64,6 +65,8 @@ def build_loop_iteration_runner(
         )
     elif family == "mistral":
         runner = MistralLoopIterationRunner(config=base_config)
+    elif family == "prompt_forced_tool":
+        runner = PromptForcedToolLoopIterationRunner(config=base_config)
     else:
         runner = BasicLoopIterationRunner(config=base_config)
 

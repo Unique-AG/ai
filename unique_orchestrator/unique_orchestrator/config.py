@@ -223,9 +223,23 @@ UniqueAISpaceConfig.model_rebuild()
 
 _MODEL_FAMILIES = ("qwen", "mistral")
 
+# Models that reject tool_choice types "tool" and "any". Match the full version
+# token so claude-opus-5 and claude-fable-5 keep named tool choices.
+_PROMPT_FORCED_TOOL_MARKERS = ("opus-5-5", "fable-5-1")
+
 
 def get_model_family(model_name: str) -> str | None:
+    """Return the loop-runner family for a model name, if one is special-cased.
+
+    Args:
+        model_name (str): Model id, such as ``litellm:anthropic-claude-opus-5-5``.
+
+    Returns:
+        str | None: ``prompt_forced_tool``, ``qwen``, ``mistral``, or None.
+    """
     name = model_name.lower()
+    if any(marker in name for marker in _PROMPT_FORCED_TOOL_MARKERS):
+        return "prompt_forced_tool"
     for family in _MODEL_FAMILIES:
         if family in name:
             return family

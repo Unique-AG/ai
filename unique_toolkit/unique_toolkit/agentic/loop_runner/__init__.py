@@ -21,6 +21,7 @@ from unique_toolkit.agentic.loop_runner.runners import (
     BasicLoopIterationRunner,
     BasicLoopIterationRunnerConfig,
     MistralLoopIterationRunner,
+    PromptForcedToolLoopIterationRunner,
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "BasicLoopIterationRunnerConfig",
     "BasicLoopIterationRunner",
     "MistralLoopIterationRunner",
+    "PromptForcedToolLoopIterationRunner",
     "QwenLoopIterationRunner",
     "handle_forced_tools_iteration",
     "handle_last_iteration",
