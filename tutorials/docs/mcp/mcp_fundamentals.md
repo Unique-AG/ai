@@ -95,6 +95,8 @@ Metadata provides additional context:
 - **Type annotations**: Using Pydantic and typing for precise schemas
 - **Parameter descriptions**: Helps LLMs understand when to use each parameter
 
+Unique also uses the protocol `_meta` field (namespaced `unique.app/…`) to advertise admin config schemas and context requirements on `tools/list`, then receive those values on `tools/call`. See [MCP `_meta` convention](mcp_meta.md).
+
 ### Tool Execution
 When a tool is called:
 1. Parameters are validated against the schema

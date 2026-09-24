@@ -20,6 +20,9 @@ Learn how to implement Google OAuth authentication for your MCP server.
 ### [Unique credentials ↔ Tools](mcp_search.md)
 Understand how to connect Unique AI credentials with MCP tools for secure access.
 
+### [MCP `_meta` convention](mcp_meta.md)
+How Unique uses the MCP `_meta` field to advertise config schemas and context requirements, then inject them on `tools/call`.
+
 ### [Using MCP Tools in Unique AI](mcp_unique_ai.md)
 Discover how to use MCP tools within the Unique AI platform.
 
