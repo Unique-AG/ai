@@ -26,6 +26,7 @@ from unique_web_search.services.executors.v3.schema import (
     Command,
     WebSearchV3ToolParameters,
 )
+from unique_web_search.services.search_engine import resolve_search_engine_mode
 
 _DISPLAY_NAME_SUFFIX = {
     Command.SEARCH: " - Searching",
@@ -41,20 +42,29 @@ class WebSearchV3Strategy(WebSearchModeStrategy):
         self, ctx: WebSearchToolContext
     ) -> WebSearchToolParametersType:
         """Build the V3 tool schema, grafting exposed knobs onto SearchPayload."""
-        return WebSearchV3ToolParameters.with_exposed_params(ctx.exposed_params_cls)
+        engine_mode = resolve_search_engine_mode(ctx.search_engine_config)
+        return WebSearchV3ToolParameters.with_search_engine_mode(
+            engine_mode,
+            ctx.exposed_params_cls,
+        )
 
     def tool_description(self, ctx: WebSearchToolContext) -> str:
         """Render the V3 tool description with the live schema hint."""
+        engine_mode = resolve_search_engine_mode(ctx.search_engine_config)
         return Template(self.mode_config.tool_description).render(
+            search_engine_mode=engine_mode.value,
             tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(
                 ctx.exposed_params_cls,
+                mode=engine_mode,
             ),
         )
 
     def system_prompt(self, ctx: WebSearchToolContext) -> str:
-        """Render the V3 system prompt with the current date string."""
+        """Render the V3 system prompt for the active engine mode and date."""
+        engine_mode = resolve_search_engine_mode(ctx.search_engine_config)
         return Template(self.mode_config.tool_description_for_system_prompt).render(
             date_string=ctx.date_string,
+            search_engine_mode=engine_mode.value,
         )
 
     def format_information_for_system_prompt(self, *, default: str) -> str:

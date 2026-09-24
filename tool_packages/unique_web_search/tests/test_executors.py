@@ -918,6 +918,10 @@ class TestWebSearchV3ExecutorSearch:
         result = await executor.run()
 
         mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
+        mock_executor_dependencies["search_service"].search.assert_awaited_once_with(
+            "nvidia coverage",
+            params=None,
+        )
         assert len(result) == 2
         first = json.loads(result[0].text)
         assert first["url"] == "https://example.com/page1"

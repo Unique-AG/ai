@@ -1,14 +1,14 @@
-Use `WebSearch` for up-to-date information from the web. It exposes two capabilities, picked per call via `command`. Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations — use **parallel** `search` calls when several facets are independent (one short `query` per call, not one long query).
+Use `WebSearch` for up-to-date information from the web. It exposes two capabilities, picked per call via `command`. {% if search_engine_mode == "agent" %}Each invocation performs **one** operation. For `search`, provide one comprehensive natural-language research request that preserves the user's full intent, context, and constraints. Do not condense it into keywords; the agent-based search engine performs query planning and source diversification internally.{% else %}Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations — use **parallel** `search` calls when several facets are independent (one short `query` per call, not one long query).{% endif %}
 
 ### `phase` — research phase (required on every call)
 
 Set **`phase`** on each WebSearch invocation (replaces the old `objective` field):
 
-- **`exploratory`** — sense what exists on the web and what is closest to the user's ask. Use broad, short mapping queries. Typical at the start of a complex task or when scoping an entity.
-- **`target`** — pursue one specific facet named in `payload.gap` with a precise, short `payload.query`. Use for verifiable facts (revenue, ownership, officers, filings).
+- **`exploratory`** — sense what exists on the web and what is closest to the user's ask. {% if search_engine_mode == "agent" %}Use a broad natural-language research request that retains the user's relevant context and constraints.{% else %}Use broad, short mapping queries.{% endif %} Typical at the start of a complex task or when scoping an entity.
+- **`target`** — pursue one specific facet named in `payload.gap` with {% if search_engine_mode == "agent" %}a complete natural-language `payload.query` that preserves the user's intent, context, and constraints{% else %}a precise, short `payload.query`{% endif %}. Use for verifiable facts (revenue, ownership, officers, filings).
 - **`redirect`** — last resort when the exact facet is not on the public web. Search for **related, attributable** context (sector, peers, parent company, adjacent news). Label results as related, not confirmed; never invent figures or ownership.
 
-**`payload.gap`** — one atomic facet per call (not the whole user question). **`payload.query`** — ~3–8 keywords only; decompose multi-facet asks into parallel `search` calls instead of one bloated query.
+**`payload.gap`** — one atomic facet per call (not the whole user question). {% if search_engine_mode == "agent" %}**`payload.query`** — one comprehensive natural-language research request; preserve the user's intent, context, and constraints instead of reducing the request to keywords.{% else %}**`payload.query`** — ~3–8 keywords only; decompose multi-facet asks into parallel `search` calls instead of one bloated query.{% endif %}
 
 #### `command: "search"` — search the web
 
@@ -40,7 +40,7 @@ Use it when:
 ### Balance exploration and exploitation
 
 - **Explore first.** Start with `command: "search"` to get a cheap, high-level read of candidate pages. Cover one `gap` per call.
-- **Refine, don't escalate prematurely.** If the first search did not fill the `gap`, issue another `command: "search"` with a refined query (different keywords, narrower entity, different timeframe) before reaching for `read_urls`.
+- **Refine, don't escalate prematurely.** If the first search did not fill the `gap`, issue another `command: "search"` with {% if search_engine_mode == "agent" %}a refined natural-language request (clarified intent or context, narrower entity, different timeframe){% else %}a refined query (different keywords, narrower entity, different timeframe){% endif %} before reaching for `read_urls`.
 - **Exploit when snippets aren't enough.** Switch to `command: "read_urls"` when snippets paraphrase / hedge, or the task needs exact figures, quotes, regulatory text, specs, or canonical-source content. Pick **1-3 high-signal URLs** from the most recent SERP — complementary domains preferred.
 - **User-provided URLs go straight to fetch.** If the user pasted URL(s), the first call should be `command: "read_urls"`. Do not "search" for a URL the user already supplied.
 - **Latency is a fair trade.** `read_urls` takes longer than `search`. That latency is acceptable on complex queries where the user expects depth — give them the answer that's actually grounded. Don't fetch when a snippet already answers the question; don't refuse to fetch when the snippet doesn't.
@@ -55,7 +55,7 @@ Use this pattern when the user needs **multiple facts about an entity** (ownersh
 
 ### WebSearch — When public evidence is missing or indirect
 
-- **Do not stop** after one empty or weak SERP for a gap. Refine the query (keywords, entity disambiguation, registry/filing terms, language) before marking a gap **Not found**.
+- **Do not stop** after one empty or weak SERP for a gap. {% if search_engine_mode == "agent" %}Refine the natural-language request while retaining the user's intent and constraints (clarify entity, registry/filing context, timeframe, or language){% else %}Refine the query (keywords, entity disambiguation, registry/filing terms, language){% endif %} before marking a gap **Not found**.
 - If the **exact** fact is not published on the open web, still surface **related, attributable context** from search results: sector, approximate scale, parent/subsidiary links, adjacent filings, news mentioning the person or company, comparable peers. Label these clearly as **related, not confirmed** for the original ask.
 - **Never invent** figures, ownership percentages, or ultimate-beneficial-owner claims. **Never** present related context as if it answered the exact question.
 
