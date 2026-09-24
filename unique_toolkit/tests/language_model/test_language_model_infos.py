@@ -63,6 +63,7 @@ class TestLanguageModelInfos:
             LanguageModelName.GEMINI_2_5_PRO_PREVIEW_0605,
             LanguageModelName.GEMINI_3_1_PRO_PREVIEW,
             LanguageModelName.GEMINI_3_6_FLASH,
+            LanguageModelName.GEMINI_3_8_FLASH,
             LanguageModelName.GEMINI_3_FLASH_PREVIEW,
             LanguageModelName.GEMINI_3_PRO_PREVIEW,
             LanguageModelName.GROK_4_1_FAST_NON_REASONING,
