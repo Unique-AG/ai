@@ -496,6 +496,25 @@ def test_citation_text_past_the_turn_budget_keeps_the_chip(
     assert refs[2]["text"] is None
 
 
+def test_a_budget_cut_title_less_item_keeps_its_number(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 10)
+    unique_dir = tmp_path / ".unique"
+    body = "plain body " * 10
+    for _ in range(2):
+        record_mcp_citations(
+            _FakeMCPResponse(content=[{"type": "text", "text": body}]),
+            tool_name="search",
+            server_name="docs",
+            unique_dir=unique_dir,
+            formatted_text=body,
+        )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert len(refs) == 1
+    assert len(refs[0]["text"]) == 10
+
+
 def test_ref_text_is_recorded_whole(tmp_path: Path) -> None:
     unique_dir = tmp_path / ".unique"
     doc = "# Big Doc\n" + "x" * 5_000_000

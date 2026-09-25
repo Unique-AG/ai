@@ -787,10 +787,11 @@ def _annotate_mcp_results_for_citations(
             numbers_by_key: dict[str, int] = {}
             for entry in entries:
                 if isinstance(entry.get("sourceNumber"), int):
-                    stored_tool = entry.get("toolName") or tool_name
-                    numbers_by_key[_item_dedup_key(stored_tool, entry)] = entry[
-                        "sourceNumber"
-                    ]
+                    stored_key = entry.get("dedupKey")
+                    if not isinstance(stored_key, str):
+                        stored_tool = entry.get("toolName") or tool_name
+                        stored_key = _item_dedup_key(stored_tool, entry)
+                    numbers_by_key[stored_key] = entry["sourceNumber"]
             entries_by_number = {
                 entry["sourceNumber"]: entry
                 for entry in entries
@@ -807,6 +808,9 @@ def _annotate_mcp_results_for_citations(
                 source_number = numbers_by_key.get(key)
                 if source_number is None:
                     source_number = max(_next_mcp_source_number(entries), seed + 1)
+                    full_text = _ref_text(item) or ""
+                    entry_text = _within_bytes(full_text, text_room)
+                    text_room -= _utf8_size(entry_text)
                     manifest_entry = {
                         "sourceNumber": source_number,
                         "toolName": tool_name,
@@ -814,9 +818,11 @@ def _annotate_mcp_results_for_citations(
                         "title": item.get("title"),
                         "snippet": item.get("snippet"),
                         "details": item.get("details"),
-                        "text": _within_bytes(_ref_text(item) or "", text_room) or None,
+                        "text": entry_text or None,
                     }
-                    text_room -= _utf8_size(manifest_entry["text"] or "")
+                    # Budget-cut text no longer hashes to the key, so it is kept.
+                    if entry_text != full_text:
+                        manifest_entry["dedupKey"] = key
                     item_url = item.get("url")
                     if isinstance(item_url, str) and item_url:
                         manifest_entry["url"] = item_url
