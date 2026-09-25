@@ -466,13 +466,34 @@ def test_cmd_mcp_stops_a_runaway_output_at_the_guard(tmp_path: Path) -> None:
 def test_cmd_mcp_stops_output_at_the_turn_budget(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_OUTPUT_BUDGET_CHARS", 150)
-    for _ in range(3):
-        _run("mcp__kb__search", _FakeMCPResponse(), formatted="x" * 60)
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 250)
+    for _ in range(4):
+        _run("mcp__kb__search", _FakeMCPResponse(), formatted="ü" * 60)
     rows = _lines(tmp_path, _OUTPUT_MANIFEST)
-    assert len(rows) == 2
-    assert rows[0]["text"] == "x" * 60
-    assert len(rows[1]["text"]) < 60
+    assert rows[0]["text"] == "ü" * 60
+    assert len(rows[-1]["text"]) < 60
+
+
+def test_citation_text_past_the_turn_budget_keeps_the_chip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 100)
+    unique_dir = tmp_path / ".unique"
+    for number in range(1, 4):
+        doc = f"# Doc {number}\n" + "x" * 60
+        record_mcp_citations(
+            _FakeMCPResponse(content=[{"type": "text", "text": doc}]),
+            tool_name="read_doc",
+            server_name="docs",
+            unique_dir=unique_dir,
+            formatted_text=doc,
+            reference_mapping={"titleFromText": True},
+        )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert [ref["title"] for ref in refs] == ["Doc 1", "Doc 2", "Doc 3"]
+    assert refs[0]["text"] == "# Doc 1\n" + "x" * 60
+    assert 0 < len(refs[1]["text"]) < 68
+    assert refs[2]["text"] is None
 
 
 def test_ref_text_is_recorded_whole(tmp_path: Path) -> None:
