@@ -1,7 +1,10 @@
 import pytest
 from pydantic import ValidationError
 from unique_toolkit._common.utils.jinja.utils import validate_template_placeholders
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_GPT_51,
+    DEFAULT_GPT_4o,
+)
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
@@ -15,7 +18,7 @@ def valid_config():
 
 def test_default_config_values(valid_config):
     """Test that default values are set correctly."""
-    assert valid_config.language_model.name == DEFAULT_GPT_4o
+    assert valid_config.language_model.name == DEFAULT_GPT_51
     assert valid_config.number_of_questions == 3
     assert valid_config.adapt_to_language is True
     assert isinstance(valid_config.examples, list)
@@ -25,7 +28,7 @@ def test_default_config_values(valid_config):
 
 def test_use_structured_output_property(valid_config):
     """Test the use_structured_output property."""
-    # Test with default model (GPT-4o) which supports structured output
+    # Test with default model (GPT-5.1) which supports structured output
     assert valid_config.use_structured_output is True
 
     # Test that the property checks for STRUCTURED_OUTPUT capability
