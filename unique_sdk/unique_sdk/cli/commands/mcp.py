@@ -33,6 +33,8 @@ _LOGGER = logging.getLogger(__name__)
 _MCP_OUTPUT_LOG_RELATIVE_PATH = Path(".unique") / "mcp-output.jsonl"
 # Runaway guard, four times the largest judge window; the runner trims by tokens.
 _MCP_TEXT_GUARD_CHARS = 16_000_000
+# Total tool output recorded in one turn, about 16 judge windows.
+_MCP_TURN_OUTPUT_BUDGET_CHARS = 64_000_000
 
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
@@ -909,12 +911,17 @@ def _append_mcp_output_manifest(
         refs_log_path = output_path or workspace_manifest_path(
             _MCP_OUTPUT_LOG_RELATIVE_PATH
         )
+        recorded = refs_log_path.stat().st_size if refs_log_path.is_file() else 0
+        room = _MCP_TURN_OUTPUT_BUDGET_CHARS - recorded
+        if room <= 0:
+            _LOGGER.warning("mcp: turn output budget spent, row skipped")
+            return
         _append_turn_refs_manifest_entry(
             refs_log_path,
             {
                 "toolName": name,
                 "serverName": server_name,
-                "text": text[:_MCP_TEXT_GUARD_CHARS],
+                "text": text[: min(room, _MCP_TEXT_GUARD_CHARS)],
             },
         )
     except (UnsafeRefsLogPathError, OSError) as exc:

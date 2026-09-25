@@ -463,6 +463,18 @@ def test_cmd_mcp_stops_a_runaway_output_at_the_guard(tmp_path: Path) -> None:
     assert len(text) == mcp_cmd._MCP_TEXT_GUARD_CHARS
 
 
+def test_cmd_mcp_stops_output_at_the_turn_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_OUTPUT_BUDGET_CHARS", 150)
+    for _ in range(3):
+        _run("mcp__kb__search", _FakeMCPResponse(), formatted="x" * 60)
+    rows = _lines(tmp_path, _OUTPUT_MANIFEST)
+    assert len(rows) == 2
+    assert rows[0]["text"] == "x" * 60
+    assert len(rows[1]["text"]) < 60
+
+
 def test_ref_text_is_recorded_whole(tmp_path: Path) -> None:
     unique_dir = tmp_path / ".unique"
     doc = "# Big Doc\n" + "x" * 5_000_000
