@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.40.0...unique-search-proxy-v2026.42.0) (2026-09-25)
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
 ## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.38.0...unique-search-proxy-v2026.40.0) (2026-09-24)
 
 
