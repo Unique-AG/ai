@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.38.0...unique-sdk-v2026.40.0) (2026-09-24)
+
+
+### Features
+
+* **agentic_table:** support emitLibrarySheetVerifiedEvent on bulk row status updates [UN-26243] ([#2474](https://github.com/Unique-AG/ai/issues/2474)) ([25f90d7](https://github.com/Unique-AG/ai/commit/25f90d7fded0dd33028cca206e22e705fef6c332))
+* **sdk:** add context memory resource ([#2453](https://github.com/Unique-AG/ai/issues/2453)) ([3cab893](https://github.com/Unique-AG/ai/commit/3cab8936a9ba8bf4eed76ba43c2ea87fcefb3323))
+* **sdk:** Have scheduled task skill set name and use L for last day of the month [UN-26193] ([#2464](https://github.com/Unique-AG/ai/issues/2464)) ([ef94971](https://github.com/Unique-AG/ai/commit/ef9497114bfe1602631572694de94e1e8ff9db43))
+* **toolkit:** add system-interrupted turn marker and CANCELLED log status [UN-24137] ([#2455](https://github.com/Unique-AG/ai/issues/2455)) ([45ed838](https://github.com/Unique-AG/ai/commit/45ed83849b5cdcff50565da4ce7e783e43690294))
+* **unique_sdk:** add Space.update_chat to rename a chat [UN-25189] ([#2465](https://github.com/Unique-AG/ai/issues/2465)) ([f8b016d](https://github.com/Unique-AG/ai/commit/f8b016d96f7ce0cbfc3e5070334d7a26fa865cf9))
+
+
+### Bug Fixes
+
+* **cli:** anchor citation manifests to the workspace root [UN-25672] ([#2451](https://github.com/Unique-AG/ai/issues/2451)) ([412fa81](https://github.com/Unique-AG/ai/commit/412fa81343039c44b2108b4e59d7aaf8d87cb8c3))
+* **sdk:** cite each MCP item and keep its link ([#2473](https://github.com/Unique-AG/ai/issues/2473)) ([40b9c65](https://github.com/Unique-AG/ai/commit/40b9c653b7106806a0cfa639a3124b17a100eef6))
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
 ## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.36.0...unique-sdk-v2026.38.0) (2026-09-10)
 
 
