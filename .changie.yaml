@@ -1,0 +1,56 @@
+# Client-facing changelog fragments (Changie schema, https://changie.dev).
+#
+# The configuration below mirrors `.changie.yaml` in Unique-AG/monorepo and
+# MUST stay identical to it: fragments written here are copied unchanged into the
+# monorepo's `.changelog/unreleased/` by its "Release · Sync AI Versions"
+# workflow and batched into the platform release notes there. Package
+# `CHANGELOG.md` files are still owned by release-please and are unrelated.
+#
+# Create a fragment with `uv run poe changelog-new ...` (see
+# `.claude/skills/changelog-fragment/SKILL.md`).
+changesDir: .changelog
+unreleasedDir: unreleased
+headerPath: header.tpl.md
+changelogPath: CHANGELOG.md
+versionExt: md
+versionFormat: '## {{.Version}} - {{.Time.Format "2006-01-02"}}'
+componentFormat: '### {{.Component}}'
+kindFormat: '#### {{.Kind}}'
+changeFormat: '- ({{.Custom.Audience}}): {{.Body}}{{if .Custom.Ticket}} ({{.Custom.Ticket}}){{end}}'
+fragmentFileFormat: '{{.Kind | lower}}-{{.Component | replace " " "-" | replace "/" "-" | lower}}-{{.Time.Format "20060102-150405"}}'
+kinds:
+  - label: Added
+  - label: Changed
+  - label: Fixed
+  - label: Removed
+  - label: Security
+components:
+  - Administration / Governance
+  - API / SDK
+  - Chat Experience
+  - Conduct
+  - Connectors
+  - Infrastructure
+  - MCP
+  - Pod AT
+  - Pod KYC
+  - Pod RM
+  - RAG
+  - Web Search
+custom:
+  - key: Audience
+    label: Who is this change relevant for
+    type: enum
+    enumOptions:
+      - user
+      - admin
+      - operator
+  - key: Ticket
+    label: Related Jira ticket(s), e.g. UN-12345 (comma-separate for multiple)
+    type: string
+    optional: true
+newlines:
+  afterChangelogHeader: 1
+  beforeChangelogVersion: 1
+  beforeComponent: 1
+  afterChange: 0

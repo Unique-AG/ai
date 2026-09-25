@@ -64,6 +64,9 @@ Gather context without asking the user for manual inputs first:
 - Diff summary (key files or areas changed)
 - Existing remote tracking state
 
+### Step 1b: Changelog fragment
+If the diff changes user-visible behaviour of a published package and no new `.changelog/unreleased/*.yaml` is in the diff, add one with the `changelog-fragment` skill (`uv run poe changelog-new ...`) before opening the PR — the `Changelog Fragment` CI job requires it and it is the only way the change reaches the platform release notes. For refactors, tooling, tests or docs, plan to apply the `no-changelog` label (`gh pr create --label no-changelog`).
+
 ### Step 2: Extract issue refs from branch and commits
 Parse issue identifiers from branch names and commit messages. Prefer existing refs over asking the user.
 
