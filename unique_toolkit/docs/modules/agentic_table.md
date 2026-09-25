@@ -25,6 +25,7 @@ The following payload schemas correspond to the events listed above:
 ::: unique_toolkit.agentic_table.schemas.MagicTableSheetCompletedPayload
 ::: unique_toolkit.agentic_table.schemas.MagicTableLibrarySheetRowVerifiedPayload
 ::: unique_toolkit.agentic_table.schemas.MagicTableSheetCreatedPayload
+::: unique_toolkit.agentic_table.schemas.MagicTableStopPayload
 
 ## Supporting Schemas
 
@@ -33,6 +34,7 @@ The following payload schemas correspond to the events listed above:
 ::: unique_toolkit.agentic_table.schemas.SheetCompletedMetadata
 
 ::: unique_toolkit.agentic_table.schemas.SheetCreatedMetadata
+::: unique_toolkit.agentic_table.schemas.StopMetadata
 ::: unique_toolkit.agentic_table.schemas.LibrarySheetRowVerifiedMetadata
 ::: unique_toolkit.agentic_table.schemas.LibrarySheetRowVerifiedRow
 ::: unique_toolkit.agentic_table.schemas.ArtifactData

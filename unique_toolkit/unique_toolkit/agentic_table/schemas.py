@@ -50,6 +50,7 @@ class MagicTableEventTypes(StrEnum):
     SHEET_CREATED = "unique.magic-table.sheet-created"
     RERUN_ROW = "unique.magic-table.rerun-row"
     RERUN_ROWS = "unique.magic-table.rerun-rows"
+    STOP = "unique.magic-table.stop"
 
 
 class BaseMetadata(BaseModel):
@@ -348,6 +349,19 @@ class MagicTableRerunRowsPayload(
 ): ...
 
 
+########## Stop Payload ##########
+
+
+class StopMetadata(BaseMetadata):
+    """Metadata for a user-initiated stop of an in-progress magic-table run."""
+
+
+class MagicTableStopPayload(
+    MagicTableBasePayload[Literal[MagicTableAction.STOP], StopMetadata]
+):
+    """Payload for ``unique.magic-table.stop`` when the user stops a refresh."""
+
+
 ########### Magic Table Event definition ###########
 
 
@@ -360,6 +374,7 @@ PayloadTypes = (
     | MagicTableSheetCreatedPayload
     | MagicTableRerunRowPayload
     | MagicTableRerunRowsPayload
+    | MagicTableStopPayload
 )
 
 MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]

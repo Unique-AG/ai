@@ -138,6 +138,12 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
 
             # Here you can call a handler function that will handle the sheet completion event.
 
+        elif event.payload.action == MagicTableAction.STOP:
+            # This event is triggered when the user stops an in-progress refresh.
+            #
+            # Payload type (MagicTableStopPayload):
+            logger.info(f"Stop requested: {event.payload.sheet_name}")
+
         elif event.payload.action == MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED:
             # This event is triggered when a row in a "Library" sheet is verified.
             # This is a special sheet type and is only relevant within the context of Rfp Agent.
