@@ -1,4 +1,4 @@
-"""Search and crawl routes resolve egress through the credential-keyed registry."""
+"""Search and crawl routes resolve egress through the identity-keyed registry."""
 
 from __future__ import annotations
 
@@ -19,20 +19,24 @@ from unique_search_proxy_client.web.core.client.service import (
 from unique_search_proxy_client.web.settings.client import HttpClientSettings
 from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
-_GATED_COMPANY = "company-a"
-_UNGATED_COMPANY = "company-z"
+_COMPANY = "company-a"
+_UID_HEADER = "X-Unique-End-User-Id"
 _HTML_PAGE = "<html><head><title>T</title></head><body><h1>Hello</h1></body></html>"
 
 
 @dataclass
 class _Egress:
-    """Records which proxy username each outbound request used."""
+    """Records the proxy identity behind each outbound request."""
 
-    by_username: list[tuple[str, httpx.Request]] = field(default_factory=list)
+    calls: list[tuple[str, str, httpx.Request]] = field(default_factory=list)
+
+    @property
+    def end_user_ids(self) -> list[str]:
+        return [end_user_id for _user, end_user_id, _request in self.calls]
 
     @property
     def usernames(self) -> list[str]:
-        return [username for username, _request in self.by_username]
+        return [username for username, _uid, _request in self.calls]
 
 
 def _page_response(request: httpx.Request) -> httpx.Response:
@@ -55,24 +59,23 @@ def client(
     monkeypatch: pytest.MonkeyPatch,
     egress: _Egress,
 ) -> Generator[TestClient, Any, None]:
-    gated_settings = HttpClientSettings(
+    settings = HttpClientSettings(
         proxy_auth_mode="username_password",
         proxy_host="proxy.example.com",
         proxy_port=8080,
         proxy_username=LogSecretStr("technical"),
         proxy_password=LogSecretStr(""),
-        proxy_username_source="user_metadata",
-        per_user_proxy_company_ids=[_GATED_COMPANY],
+        proxy_user_id_header=_UID_HEADER,
     )
 
     def tracking_build(
         settings: HttpClientSettings,
-        credentials: Any,
+        identity: Any,
         *,
         timeout: float,
     ) -> httpx.AsyncClient:
         def handler(request: httpx.Request) -> httpx.Response:
-            egress.by_username.append((credentials.username, request))
+            egress.calls.append((identity.username, identity.end_user_id, request))
             return _page_response(request)
 
         return httpx.AsyncClient(transport=httpx.MockTransport(handler))
@@ -83,14 +86,7 @@ def client(
     )
 
     async def create_registry() -> HttpClientRegistry:
-        from unique_search_proxy_client.web.core.client.credentials import (
-            resolver_from_settings,
-        )
-
-        return HttpClientRegistry(
-            settings=gated_settings,
-            resolver=resolver_from_settings(gated_settings),
-        )
+        return HttpClientRegistry(settings=settings)
 
     monkeypatch.setattr(
         "unique_search_proxy_client.web.app.create_http_client_registry",
@@ -132,45 +128,31 @@ def _crawl(
 
 
 @pytest.mark.ai
-def test_gated_company_crawls_as_the_end_user(
+def test_crawl_attributes_egress_to_the_end_user(
     client: TestClient,
     egress: _Egress,
 ) -> None:
     response = _crawl(
         client,
-        company_id=_GATED_COMPANY,
+        company_id=_COMPANY,
         user_metadata={"userName": "u12345"},
     )
 
     assert response.status_code == 200
-    assert set(egress.usernames) == {"u12345"}
-
-
-@pytest.mark.ai
-def test_ungated_company_uses_settings_credentials(
-    client: TestClient,
-    egress: _Egress,
-) -> None:
-    response = _crawl(
-        client,
-        company_id=_UNGATED_COMPANY,
-        user_metadata={"userName": "u12345"},
-    )
-
-    assert response.status_code == 200
+    assert set(egress.end_user_ids) == {"u12345"}
     assert set(egress.usernames) == {"technical"}
 
 
 @pytest.mark.ai
-def test_gated_company_without_identity_fails_closed(
+def test_request_without_identity_fails_closed(
     client: TestClient,
     egress: _Egress,
 ) -> None:
-    response = _crawl(client, company_id=_GATED_COMPANY, user_metadata={})
+    response = _crawl(client, company_id=_COMPANY, user_metadata={})
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == ProxyErrorCode.VALIDATION_ERROR.value
-    assert egress.by_username == []
+    assert egress.calls == []
 
 
 @pytest.mark.ai
@@ -191,18 +173,18 @@ def test_redirect_probe_and_fetch_share_identity(
 
     response = _crawl(
         client,
-        company_id=_GATED_COMPANY,
+        company_id=_COMPANY,
         user_metadata={"userName": "u12345"},
     )
 
     assert response.status_code == 200
-    methods = {request.method for _username, request in egress.by_username}
+    methods = {request.method for _user, _uid, request in egress.calls}
     assert methods == {"HEAD", "GET"}
-    assert set(egress.usernames) == {"u12345"}
+    assert set(egress.end_user_ids) == {"u12345"}
 
 
 @pytest.mark.ai
-def test_search_also_uses_the_end_user_identity(
+def test_search_also_attributes_the_end_user(
     client: TestClient,
     egress: _Egress,
     monkeypatch: pytest.MonkeyPatch,
@@ -242,9 +224,9 @@ def test_search_also_uses_the_end_user_identity(
     response = client.post(
         "/v1/search",
         json={"query": "unique ai", "engine": "google", "timeout": 10},
-        headers=_headers(_GATED_COMPANY, {"userName": "u12345"}),
+        headers=_headers(_COMPANY, {"userName": "u12345"}),
     )
 
     assert response.status_code == 200
     assert captured
-    assert "u12345" in egress.usernames
+    assert "u12345" in egress.end_user_ids

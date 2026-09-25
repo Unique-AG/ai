@@ -1,7 +1,7 @@
 """Process-wide HTTP client registry for the web-search tool's direct egress path.
 
 Clients are created lazily on first use via ``client_for`` / the registry — never
-at import time — so per-user proxy configs without a settings username can load.
+at import time — so a process can load before any proxy identity is resolvable.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.http_client import (
     HttpClientRegistry,
     ProxySettings,
-    resolver_from_settings,
 )
 
 from unique_web_search.settings import env_settings
@@ -39,9 +38,8 @@ def proxy_settings_from_env() -> ProxySettings:
         proxy_password=SecretStr(env_settings.proxy_password or ""),
         proxy_ssl_cert_path=env_settings.proxy_ssl_cert_path,
         proxy_ssl_key_path=env_settings.proxy_ssl_key_path,
-        proxy_username_source=env_settings.proxy_username_source,
-        proxy_username_metadata_field=env_settings.proxy_username_metadata_field,
-        per_user_proxy_company_ids=env_settings.per_user_proxy_company_ids,
+        proxy_user_id_header=env_settings.proxy_user_id_header,
+        proxy_user_id_metadata_field=env_settings.proxy_user_id_metadata_field,
         http_client_cache_size=env_settings.http_client_cache_size,
     )
 
@@ -50,11 +48,7 @@ def get_http_client_registry() -> HttpClientRegistry:
     """Return the process-wide registry for direct (non-proxy-service) egress."""
     global _registry
     if _registry is None:
-        settings = proxy_settings_from_env()
-        _registry = HttpClientRegistry(
-            settings=settings,
-            resolver=resolver_from_settings(settings),
-        )
+        _registry = HttpClientRegistry(settings=proxy_settings_from_env())
     return _registry
 
 

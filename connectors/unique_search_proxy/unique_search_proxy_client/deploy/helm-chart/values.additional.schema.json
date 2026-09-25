@@ -476,20 +476,13 @@
               "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_KEY_PATH.",
               "$ref": "#/$defs/valueSourceString"
             },
-            "proxyUsernameSource": {
-              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME_SOURCE.",
+            "proxyUserIdHeader": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USER_ID_HEADER.",
               "$ref": "#/$defs/valueSourceString"
             },
-            "proxyUsernameMetadataField": {
-              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME_METADATA_FIELD.",
+            "proxyUserIdMetadataField": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USER_ID_METADATA_FIELD.",
               "$ref": "#/$defs/valueSourceString"
-            },
-            "perUserProxyCompanyIds": {
-              "description": "Maps to env var HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS.",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
             }
           }
         },
