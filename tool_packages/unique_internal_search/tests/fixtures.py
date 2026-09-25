@@ -38,6 +38,23 @@ def mock_chunk_relevancy_sorter() -> ChunkRelevancySorter:
     return sorter
 
 
+@pytest.fixture(autouse=True)
+def _default_selected_uploaded_files_flag_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Default FEATURE_FLAG_ENABLE_SELECTED_UPLOADED_FILES_UN_18215 to off.
+
+    is_flag_enabled hits the real FeatureFlagClient, which raises without
+    CONFIGURATION_BACKEND_URL configured. Tests that care about the flag
+    being on patch unique_internal_search.service.is_flag_enabled themselves;
+    this keeps the rest working the way the old env-default (off) did.
+    """
+    monkeypatch.setattr(
+        "unique_internal_search.service.is_flag_enabled",
+        AsyncMock(return_value=False),
+    )
+
+
 @pytest.fixture
 def base_internal_search_config() -> InternalSearchConfig:
     """Create a base InternalSearchConfig for testing."""

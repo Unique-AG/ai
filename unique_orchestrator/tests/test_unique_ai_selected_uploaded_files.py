@@ -22,8 +22,6 @@ def _make_unique_ai(
 ) -> UniqueAI:
     from unique_orchestrator.unique_ai import UniqueAI
 
-    monkeypatch.setattr("unique_orchestrator.utils.feature_flags", MagicMock())
-
     mock_tool_manager = MagicMock()
     mock_tool_manager.get_tool_prompts.return_value = []
     mock_tool_manager.filter_tool_calls.return_value = []
