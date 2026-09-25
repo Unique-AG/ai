@@ -85,7 +85,18 @@ INSERT INTO customer_book_cashflows
   ('GS-T-9024-MSFT',         'MSFT',  'USD', 'AC-4471', 'Goldman Sachs',  'BUY',          '2026-05-23', '2026-05-26',  12948000.00),
   ('JPM-C-9025-JPY',         'NTT',   'JPY', 'AC-4471', 'JPMorgan',       'BUY TO COVER', '2026-05-22', '2026-05-27', 144300000.00),
   ('MS-EXEC-9026-MS',        'XOM',   'USD', 'AC-4471', 'Morgan Stanley', 'BUY',          '2026-05-23', '2026-05-26',   8662000.00),
-  ('MS-EXEC-9027-MS',        'CRM',   'USD', 'AC-4471', 'Morgan Stanley', 'BUY',          '2026-05-23', '2026-05-26',   5261000.00);
+  ('MS-EXEC-9027-MS',        'CRM',   'USD', 'AC-4471', 'Morgan Stanley', 'BUY',          '2026-05-23', '2026-05-26',   5261000.00),
+  -- Derivatives: cash flows from FX options (premiums) and Total Return Swaps (reset /
+  -- funding legs). Same reconciliation semantics — a premium or swap-leg payment is just
+  -- a cash flow with a counterparty, ccy, direction and value date.
+  --  11. FX option premium paid (clean email match on trade_date)
+  --  12. FX option premium in JPY — email arrives 150,000 short (sales margin) -> drift break
+  --  13. TRS equity-leg reset receipt (clean email match on settl_date)
+  --  14. TRS funding-leg payment in USD — email confirms in GBP -> ccy-mismatch break
+  ('UBS-OPT-77012',          'EURUSD 3M CALL K=1.0850',        'USD', 'AC-4471', 'UBS',            'BUY',  '2026-05-23', '2026-05-27',   -845000.00),
+  ('GS-OPT-77104',           'USDJPY 6M PUT K=152.00',         'JPY', 'AC-4471', 'Goldman Sachs',  'BUY',  '2026-05-23', '2026-05-27', -98500000.00),
+  ('MS-TRS-2026-5501',       'TRS SX5E TOTAL RETURN LEG',      'EUR', 'AC-4471', 'Morgan Stanley', 'SELL', '2026-05-23', '2026-05-29',   2184500.00),
+  ('BARC-TRS-2026-5502',     'TRS SPX FUNDING LEG SOFR+85bp',  'USD', 'AC-4471', 'Barclays Plaza', 'BUY',  '2026-05-23', '2026-05-29',   -412750.00);
 
 -- -------------------------------------------------------------------------
 -- Seed: counterparty (email) cash flows (6 rows)
@@ -106,4 +117,13 @@ INSERT INTO counterparty_email_cashflows
   (  4415300.00, 'USD', 'Barclays Plaza', 'SHORT SELL',   '2026-05-23', 'em-barclays-001'),
   ( -1737300.00, 'EUR', 'Morgan Stanley', 'BUY',          '2026-05-23', 'em-ms-401'),
   (   555000.00, 'USD', 'JPMorgan',       'BUY',          '2026-05-23', 'em-orphan-jpm'),
-  ( -7901300.00, 'USD', 'Goldman Sachs',  'BUY TO COVER', '2026-05-30', 'em-date-mismatch');
+  ( -7901300.00, 'USD', 'Goldman Sachs',  'BUY TO COVER', '2026-05-30', 'em-date-mismatch'),
+  -- Derivative confirmations:
+  --   7. FX option premium — exact match for UBS-OPT-77012 (trade_date)
+  --   8. FX option premium 150,000 JPY short vs GS-OPT-77104 (tol ~9,850) -> amount drift
+  --   9. TRS reset receipt — exact match for MS-TRS-2026-5501 (settl_date)
+  --  10. TRS funding leg confirmed in GBP (book leg is USD) -> ccy mismatch, missing FX leg
+  (  -845000.00, 'USD', 'UBS',            'BUY',          '2026-05-23', 'em-ubs-fxopt-9101'),
+  (-98350000.00, 'JPY', 'Goldman Sachs',  'BUY',          '2026-05-23', 'em-gs-fxopt-9102'),
+  (  2184500.00, 'EUR', 'Morgan Stanley', 'SELL',         '2026-05-29', 'em-ms-trs-9103'),
+  (  -412750.00, 'GBP', 'Barclays Plaza', 'BUY',          '2026-05-29', 'em-barc-trs-9104');

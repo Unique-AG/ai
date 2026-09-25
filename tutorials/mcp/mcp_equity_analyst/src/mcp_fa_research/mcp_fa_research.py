@@ -1,0 +1,1487 @@
+"""mcp_fa_research.py — the FA (fundamental analyst) research demo MCP server.
+
+Synthetic data layer for the Exane BNPP CIB sell-side research demo ("fa-demo"):
+the analyst cockpit feeds (coverage roster, per-name dossier, 07:00 morning brief
+with the profit-warning cascade, action inbox, agenda, jobs) plus the mock
+market-data connectors (consensus / price / our-estimates — à la the RM demo's
+mock FactSet/CapIQ pulls). ALL DATA IS SYNTHETIC — DEMO USE ONLY.
+
+Read-only by design: analyst state (thesis, interaction log, note history) is
+persisted by the coverage-dossier skill in the Knowledge Base, not here. Live
+quotes come from the separate yahoo-finance connector.
+
+Built like the other demo servers (mcp_trade_reconciliation / rm_mcps): a
+standalone FastMCP HTTP server; OAuth (Zitadel) is OPTIONAL — when the upstream
+env vars are absent the server runs OPEN (no per-user login; fine for synthetic,
+read-only demo data).
+
+Run locally:   uv run python src/mcp_fa_research/mcp_fa_research.py
+MCP endpoint:  http://127.0.0.1:8005/mcp
+"""
+
+import json
+import os
+import sys
+from typing import Annotated
+
+from dotenv import load_dotenv
+from fastapi.responses import JSONResponse
+from fastmcp import FastMCP
+from pydantic import Field
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+
+import chart_pack
+import env_state
+import note_pack
+import scenario_engine
+import seed
+
+load_dotenv()
+
+PORT = int(os.getenv("PORT", "8005"))
+
+
+def build_auth():
+    """Zitadel OAuth proxy — only when UPSTREAM_CLIENT_ID / UPSTREAM_CLIENT_SECRET /
+    ZITADEL_URL are ALL set; otherwise None (open server). Same pattern as the RM
+    Agent and trade-reconciliation MCPs."""
+    upstream_client_id = os.getenv("UPSTREAM_CLIENT_ID")
+    upstream_client_secret = os.getenv("UPSTREAM_CLIENT_SECRET")
+    zitadel_url = os.getenv("ZITADEL_URL")
+    if not (upstream_client_id and upstream_client_secret and zitadel_url):
+        return None
+
+    from fastmcp.server.auth.oauth_proxy import OAuthProxy
+    from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
+
+    base_url = sys.argv[1] if len(sys.argv) > 1 else os.getenv(
+        "BASE_URL_ENV", f"http://localhost:{PORT}"
+    )
+    token_verifier = IntrospectionTokenVerifier(
+        introspection_url=f"{zitadel_url}/oauth/v2/introspect",
+        client_id=upstream_client_id,
+        client_secret=upstream_client_secret,
+        client_auth_method="client_secret_basic",
+    )
+    return OAuthProxy(
+        upstream_authorization_endpoint=f"{zitadel_url}/oauth/v2/authorize",
+        upstream_token_endpoint=f"{zitadel_url}/oauth/v2/token",
+        upstream_client_id=upstream_client_id,
+        upstream_client_secret=upstream_client_secret,
+        upstream_revocation_endpoint=f"{zitadel_url}/oauth/v2/revoke",
+        token_verifier=token_verifier,
+        base_url=base_url,
+        redirect_path=None,
+        issuer_url=None,
+        service_documentation_url=None,
+        allowed_client_redirect_uris=None,
+        valid_scopes=["email", "openid", "profile"],
+        forward_pkce=True,
+        token_endpoint_auth_method="client_secret_post",
+        extra_authorize_params=None,
+        extra_token_params=None,
+    )
+
+
+class AdvertisePostAuthOnly(BaseHTTPMiddleware):
+    """Advertise only client_secret_post in the OAuth discovery metadata.
+
+    FastMCP's token endpoint (as of 3.4.4) only parses client credentials from
+    the request body, yet its metadata also advertises client_secret_basic.
+    The MCP TypeScript SDK prefers client_secret_basic when advertised, so
+    token exchanges from Unique's platform fail with 401 "Missing client_id".
+    Dropping basic from the advertised methods steers the SDK to
+    client_secret_post, which works. Inert while the server runs OPEN (no
+    OAuth → no /.well-known routes). Same fix as mcp_trade_reconciliation.
+    """
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if not request.url.path.startswith("/.well-known/"):
+            return response
+        body = b"".join([chunk async for chunk in response.body_iterator])
+        try:
+            data = json.loads(body)
+            for key in (
+                "token_endpoint_auth_methods_supported",
+                "revocation_endpoint_auth_methods_supported",
+            ):
+                if isinstance(data.get(key), list) and "client_secret_post" in data[key]:
+                    data[key] = ["client_secret_post"]
+            body = json.dumps(data).encode()
+        except (ValueError, TypeError):
+            pass
+        headers = dict(response.headers)
+        headers.pop("content-length", None)
+        return Response(
+            content=body,
+            status_code=response.status_code,
+            headers=headers,
+            media_type=response.media_type,
+        )
+
+
+class EnvPathMiddleware:
+    """Environment rides on the URL PATH (à la the RM Agent MCPs): ``/<env>/mcp`` and
+    ``/<env>/admin`` select that env's demo state; bare ``/mcp`` & ``/admin`` = the
+    default env. The middleware records the env for this request (ContextVar + request
+    scope) and rewrites the path so FastMCP still routes ``/mcp`` / ``/admin``."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http":
+            segments = [s for s in scope.get("path", "").split("/") if s]
+            env = segments[0] if (segments and env_state.is_env_segment(segments[0])) else ""
+            env_state.set_url_env(env)
+            if env:
+                new_path = "/" + "/".join(segments[1:])
+                scope = dict(scope, path=new_path or "/",
+                             raw_path=(new_path or "/").encode(), fa_env=env)
+        await self.app(scope, receive, send)
+
+
+custom_middleware = [
+    Middleware(EnvPathMiddleware),
+    Middleware(
+        CORSMiddleware,
+        allow_credentials=True,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    ),
+    Middleware(AdvertisePostAuthOnly),
+]
+
+mcp = FastMCP("FA Research", auth=build_auth())
+
+# Mutable demo state is PER ENVIRONMENT (env_state.STATES), selected by the URL path
+# segment and materialized lazily from seed.baseline(). Reset_Demo_Data / the console
+# reset restore the active env; a restart clears every env. In-memory by design.
+seed.register_state_resolver(env_state.state)
+env_state.materialize_known()
+
+_get_state = env_state.state
+_reset_state = env_state.reset
+
+_TICKER = Annotated[str, Field(description="Ticker, Bloomberg code or company name "
+                                           "(e.g. MC.PA, MC FP, LVMH).")]
+
+
+def _unknown(raw: str) -> str:
+    return json.dumps({
+        "error": f"unknown name: {raw!r}",
+        "covered": [f'{c["name"]} ({c["ticker"]})' for c in seed.COVERAGE],
+    })
+
+
+def _ccy_fmt(v, ccy):
+    sym = {"EUR": "\u20ac", "CHF": "CHF ", "USD": "$", "GBP": "\u00a3"}.get(ccy, "")
+    return f"{sym}{v:,.0f}" if isinstance(v, (int, float)) else str(v)
+
+
+def _cockpit_row(c: dict) -> dict:
+    """Coverage row + display-ready fields so the cockpit canvas stays declarative:
+    labels, direction flags, and an openDocument payload for the name's PRECOMPUTED
+    review (nightly build)."""
+    row = json.loads(json.dumps(c))
+    ov = seed.current_overnight().get(c["ticker"])
+    tp = (ov or {}).get("new_target_price") or c["target_price"]
+    up = (ov or {}).get("new_upside_pct") if (ov and ov.get("new_upside_pct") is not None) else c["upside_pct"]
+    row["tp_label"] = _ccy_fmt(tp, c["ccy"])
+    row["upside_label"] = f"{up:+.1f}%"
+    row["premarket_label"] = f"{c['premarket_pct']:+.1f}%"
+    row["premarket_dir"] = "dn" if c["premarket_pct"] < -0.05 else ("up" if c["premarket_pct"] > 0.05 else "flat")
+    row["pills_text"] = "  ".join(pl["label"] for pl in c.get("pills", []))
+    row["status_payload"] = json.dumps({"prompt": (
+        f"What is behind the status \"{c['status']}\" for {c['name']} ({c['ticker']})? "
+        f"Show the backing items — note drafts, control-queue entries, open reviews — "
+        f"from get_dossier and get_control_queue, with dates and what is still pending.")})
+    env = env_state.current_env()
+    cid = (seed.REVIEW_IDS_BY_ENV.get(env) or {}).get(c["ticker"], "")
+    row["review_content_id"] = cid
+    row["open_review_payload"] = seed.review_open_payload(env, c["ticker"])
+    if ov:
+        row["overnight"] = {"severity": ov["severity"], "headline": ov["headline"],
+                            "valuation_impact": ov["valuation_impact"],
+                            "new_target_price": ov.get("new_target_price")}
+    return row
+
+
+@mcp.tool(name="get_coverage", title="Coverage roster",
+          description="The analyst's covered names with rating, single target price + "
+                      "upside % (house style), last price, workflow status pills, next "
+                      "catalyst, and each name's OVERNIGHT move (headline + valuation "
+                      "impact + revised target price where it changed). Returns "
+                      "{as_of, count, rows:[…]}. SYNTHETIC demo data.")
+def get_coverage() -> str:
+    rows = [_cockpit_row(c) for c in seed.current_coverage()]
+    return json.dumps({"as_of": seed.AS_OF, "count": len(rows), "rows": rows})
+
+
+@mcp.tool(name="get_dossier", title="Coverage dossier (summary)",
+          description="Per-name coverage dossier summary: thesis, estimates vs consensus "
+                      "line, interaction log, note history — plus the roster row (rating, "
+                      "target price, next catalyst). The deep, persistent record lives in "
+                      "the KB via the coverage-dossier skill. SYNTHETIC demo data.")
+def get_dossier(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    row = next(c for c in seed.current_coverage() if c["ticker"] == t)
+    d = seed.current_dossiers()[t]
+    ov = seed.current_overnight().get(t)
+    nh_rows = []
+    for x in d["note_history"]:
+        ts, sep, label = x.partition(" · ")
+        nh_rows.append({"key": x, "ts": ts if sep else "",
+                        "label": label if sep else x})
+    return json.dumps({**row, **d,
+                       "overnight": ov,
+                       # display-ready shapes for the live review cards
+                       "thesis_bullets": [{"text": b.strip()}
+                                          for b in d["thesis"].split(";") if b.strip()],
+                       "note_history_rows": nh_rows,
+                       "interaction_log_text": " · ".join(d["interaction_log"]),
+                       "note_history_text": " · ".join(d["note_history"])})
+
+
+@mcp.tool(name="get_morning_brief", title="Morning brief (07:00)",
+          description="The overnight run the analyst reviews pre-open: one item per covered "
+                      "name that moved — what-changed / so-what (valuation impact) / "
+                      "suggested skill + action, with an `acknowledged` flag and `severity` "
+                      "(alert/positive/watch/info). The LVMH profit-warning item includes "
+                      "the prepared reaction cascade (model → valuation → morning-meeting "
+                      "note → buy-side email + priority call list). Drafts only — nothing "
+                      "is sent. SYNTHETIC demo data.")
+def get_morning_brief() -> str:
+    items = []
+    for it in env_state.state()["brief"]:
+        d = json.loads(json.dumps(it))
+        d["severity_label"] = {"alert": "ALERT", "positive": "UPSIDE",
+                               "watch": "WATCH", "info": "NOTE"}[d["severity"]]
+        d["name_label"] = ("European Luxury · all covered names" if d["ticker"] == "SECTOR"
+                           else f"{d['name']} · {d['ticker']}")
+        d["cascade_text"] = "\n".join(f"{s['step']}.  {s['label']}" for s in d.get("cascade", []))
+        d["call_list_text"] = " \u00b7 ".join(
+            f"{c['account']}{(' \u2014 ' + c['priority']) if c['priority'] else ''}"
+            for c in d.get("call_list", []))
+        d["ack_args"] = json.dumps({"ticker": d["ticker"]})
+        d["ack_label"] = "\u2713 reviewed" if d.get("acknowledged") else "mark reviewed"
+        d["action_payload"] = json.dumps({"prompt": f"{d['suggested_action']} for {d['name']} "
+                                          f"({d['ticker']}) \u2014 use the {d['suggested_skill']} skill."})
+        items.append(d)
+    return json.dumps({"generated_at": env_state.state()["generated_at"], "count": len(items), "items": items})
+
+
+@mcp.tool(name="acknowledge_alert", title="Acknowledge an overnight item",
+          description="Mark an overnight morning-brief item as reviewed/handled by the "
+                      "analyst (by ticker/name, or 'SECTOR' for the macro item). Mutates "
+                      "demo state; Reset_Demo_Data restores it. Returns the updated item.")
+def acknowledge_alert(ticker: _TICKER) -> str:
+    key = "SECTOR" if (ticker or "").strip().upper() == "SECTOR" else seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    for item in env_state.state()["brief"]:
+        if item["ticker"] == key:
+            item["acknowledged"] = True
+            return json.dumps({"acknowledged": True, "item": item})
+    return json.dumps({"error": f"no overnight item for {key}",
+                       "in_brief": [i["ticker"] for i in env_state.state()["brief"]]})
+
+
+@mcp.tool(name="get_action_inbox", title="Action inbox (drafts)",
+          description="Emails the agent has drafted replies for (desk, buy-side, IR), each "
+                      "with a `reviewed` flag. Drafts only — the analyst reviews and sends. "
+                      "Returns {count, drafts:[…]}. SYNTHETIC demo data.")
+def get_action_inbox() -> str:
+    drafts = []
+    for d0 in env_state.state()["inbox"]:
+        d = json.loads(json.dumps(d0))
+        d["review_payload"] = json.dumps({"prompt": f"Open the draft reply to {d['from']} "
+                                          f"({d['subject']}) for my review \u2014 do not send anything."})
+        drafts.append(d)
+    return json.dumps({"count": len(drafts), "drafts": drafts})
+
+
+@mcp.tool(name="get_agenda", title="Agenda (roadshows & meetings)",
+          description="This week's agenda: investor roadshows (analyst-led marketing) and "
+                      "corporate roadshows (analyst-organised for issuer management). "
+                      "Returns {count, events:[…]}. SYNTHETIC demo data.")
+def get_agenda() -> str:
+    events = []
+    for e0 in seed.AGENDA:
+        e = json.loads(json.dumps(e0))
+        e["action_payload"] = json.dumps({"prompt": f"Prepare the {e['title']} ({e['role']}) \u2014 "
+                                          f"{e['action']} \u2014 use the roadshow-ir-prep skill."})
+        events.append(e)
+    return json.dumps({"count": len(events), "events": events})
+
+
+@mcp.tool(name="get_jobs", title="Jobs & notifications",
+          description="Background jobs with their schedule: run_at (when the job runs, "
+                      "Zurich time) and recurrence ('once' — the default, a single run — "
+                      "or 'daily'), plus status and display-ready when_label. Due jobs "
+                      "EXECUTE: the desk-brief job (executor sdk_regen) really rebuilds "
+                      "and uploads the coverage dashboards via the Unique SDK — last_run "
+                      "carries per-document progress and the generated files with their "
+                      "content ids; other jobs simulate. Schedules are editable in the "
+                      "demo console. Also returns notifications. SYNTHETIC demo data.")
+def get_jobs() -> str:
+    jobs = json.loads(json.dumps(env_state.state()["jobs"]["jobs"]))
+    for jb in jobs:
+        rec = jb.get("recurrence") or "once"
+        jb["recurrence"] = rec
+        lr = jb.get("last_run") or {}
+        run_at = jb.get("run_at") or ""
+        if jb.get("status") == "running":
+            prog = (f"{lr.get('done', 0)}/{lr['total']} docs"
+                    if lr.get("kind") == "sdk_regen" and lr.get("total") else "running…")
+            jb["when_label"] = f"started {run_at} · {prog}" if run_at else prog
+        else:
+            verb = "ran" if jb.get("status") == "done" else "runs"
+            docs = (f" · {len(lr['files'])} docs" if lr.get("files")
+                    else f" · {lr['summary_short']}" if lr.get("summary_short") else "")
+            jb["when_label"] = f"{verb} {run_at}{docs} · {rec}" if run_at else rec
+    notif = env_state.state()["jobs"].get("notification") or ""
+    return json.dumps({"count": len(jobs), "jobs": jobs,
+                       "notifications": [{"text": notif}] if notif else []})
+
+
+@mcp.tool(name="get_consensus", title="Sell-side consensus snapshot (mock)",
+          description="Mock consensus connector (IBES/Refinitiv-style): analyst count, "
+                      "EPS mean/high/low, revenue, margin, ratings split, mean target "
+                      "price. Available for names with a seeded snapshot. SYNTHETIC.")
+def get_consensus(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    snap = seed.CONSENSUS.get(t)
+    if not snap:
+        return json.dumps({"ticker": t, "note": "no consensus snapshot seeded for this name",
+                           "available": sorted(seed.CONSENSUS)})
+    return json.dumps({"ticker": t, **snap})
+
+
+@mcp.tool(name="get_estimates", title="Our estimates vs consensus (mock)",
+          description="Mock estimates connector: our numbers vs consensus per metric with "
+                      "deltas, and the house stance line. Available for names with seeded "
+                      "estimates. SYNTHETIC demo data.")
+def get_estimates(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    est = seed.OUR_ESTIMATES.get(t)
+    if not est:
+        return json.dumps({"ticker": t, "note": "no estimates seeded for this name",
+                           "available": sorted(seed.OUR_ESTIMATES)})
+    return json.dumps({"ticker": t, **est})
+
+
+@mcp.tool(name="get_price", title="Price indication (mock)",
+          description="Mock price connector: last close + synthetic pre-market indication "
+                      "per covered name. For LIVE quotes use the yahoo-finance connector; "
+                      "this exists so models/notes work without it. SYNTHETIC.")
+def get_price(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    c = next(x for x in seed.current_coverage() if x["ticker"] == t)
+    return json.dumps({"ticker": t, "name": c["name"], "ccy": c["ccy"],
+                       "last_close": c["price"], "premarket_pct": c["premarket_pct"],
+                       "note": "SYNTHETIC indication — use the yahoo-finance connector "
+                               "for live quotes."})
+
+
+@mcp.tool(name="get_scenarios", title="Scenario analysis (what-if, mock)",
+          description="The analyst's scenario analysis for a covered name — what-if cases "
+                      "(e.g. a currency shock, China recovery timing, destocking duration) "
+                      "with the assumption, EPS and target-price impact vs the base case, "
+                      "OUR hypothesis and a probability. This is the buy-side / roadshow "
+                      "material ('send me your scenario analysis with your hypotheses'). "
+                      "Available for names with seeded scenarios. SYNTHETIC demo data.")
+def get_scenarios(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    scen = env_state.state().get("scenarios") or seed.SCENARIOS
+    sc = scen.get(t)
+    if not sc:
+        return json.dumps({"ticker": t, "note": "no scenario analysis seeded for this name",
+                           "available": sorted(scen)})
+    return json.dumps({"ticker": t, **sc})
+
+
+@mcp.tool(name="compute_scenario", title="Scenario engine (what-if, computed)",
+          description="COMPUTE a what-if scenario for a covered name — the analyst's "
+                      "hypotheses with machine arithmetic: give an FX move (e.g. "
+                      "fx_eur_move_pct=5 for a 5% EUR/CHF appreciation vs the revenue "
+                      "basket), a China recovery timing (none | q2_26 | q4_26 | fy27) "
+                      "and/or a cognac destocking end (h1_26 base | h2_26 | fy27, LVMH "
+                      "only), and the engine cascades it through per-name exposures "
+                      "(currency mix, EPS beta, hedge roll-off, China gearing) to revenue "
+                      "/ EBIT / EPS deltas per year, new EPS levels, a target-price "
+                      "bridge and a rating read — with the full assumption_trail so every "
+                      "number is explainable. Axes combine. Calibrated to reproduce the "
+                      "seeded get_scenarios hypothesis cases. Use for buy-side questions "
+                      "('what if the euro moves 5%?'), roadshow prep and scenario packs. "
+                      "SYNTHETIC demo engine.")
+def compute_scenario(
+    ticker: _TICKER,
+    fx_eur_move_pct: Annotated[float, Field(
+        description="Reporting-currency appreciation vs the revenue basket, in % "
+                    "(+5 = EUR/CHF 5% stronger; negative = weaker). Range ±15.",
+        ge=-15, le=15)] = 0.0,
+    china_recovery: Annotated[str, Field(
+        description="China demand recovery timing: none | q2_26 | q4_26 | fy27")] = "none",
+    destocking_end: Annotated[str, Field(
+        description="Cognac destocking end (LVMH only): h1_26 (base) | h2_26 | fy27")] = "h1_26",
+) -> str:
+    return json.dumps(scenario_engine.compute(ticker, fx_eur_move_pct,
+                                              china_recovery, destocking_end))
+
+
+@mcp.tool(name="get_scenario_board", title="Scenario board (Lab presets, computed)",
+          description="The Scenario Lab feed: ~9 PREDEFINED scenario presets (FX ±5%, "
+                      "China recovery timings, cognac destocking cases, combined bull/"
+                      "bear) each COMPUTED at call time by the scenario engine and "
+                      "returned display-ready ({title, tag, eps26/27/28 labels, tp_arrow, "
+                      "tp_delta_label, rating_note, dir, explain_payload}), plus the "
+                      "anticipation grids as bindable rows (fx_rows, china_rows, "
+                      "matrix_rows) and the assumption trail. Built for the script-free "
+                      "Scenario Lab canvas; also useful to summarise the whole scenario "
+                      "space in one call. SYNTHETIC demo data.")
+def get_scenario_board(ticker: _TICKER) -> str:
+    return json.dumps(scenario_engine.board(ticker))
+
+
+@mcp.tool(name="get_financials", title="Multi-year financials & chart series",
+          description="Multi-year key financials (FY2023-28e) + dashboard chart series "
+                      "for a covered name: sales, organic growth, recurring EBIT margin, "
+                      "EPS, DPS, FCF — as a display-ready {header, rows} table plus chart "
+                      "series whose points carry value_label AND precomputed bar geometry "
+                      "(pct height, shared positive/negative scale, actual-vs-estimate "
+                      "kind) so script-free canvases can render Exane-style bar charts "
+                      "from attributes alone. Seeded for ALL 6 covered names. LVMH also "
+                      "carries Wines & Spirits and Selective Retailing series. SYNTHETIC "
+                      "demo data.")
+def get_financials(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    fin = chart_pack.get_financials(t)
+    if not fin:
+        return json.dumps({"ticker": t, "note": "no financials seeded for this name"})
+    return json.dumps(fin)
+
+
+@mcp.tool(name="get_note_pack", title="Note pack (house-format note data)",
+          description="The full numeric backbone for a house-format research NOTE "
+                      "(initiation / revision / flash) on a covered name, DISPLAY-READY: "
+                      "cover header (rating, price, target price, upside), snapshot tables "
+                      "(financials by year, valuation metrics, performance), key financials "
+                      "+ segment details, BNPPE-vs-consensus grid, changes-to-forecasts, "
+                      "DCF model + WACC sensitivity, SOTP, peer group, company profile "
+                      "(management, ownership, calendar), financial-highlights grid and "
+                      "six-charts data. Tables come as {header, rows} — copy them VERBATIM "
+                      "into the note spec for build_exane_note.py; never re-type numbers. "
+                      "Full pack seeded for MC FP; other names return a partial cover-only "
+                      "pack (enough for a flash). SYNTHETIC demo data.")
+def get_note_pack(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    row = next((c for c in seed.current_coverage() if c["ticker"] == t), None)
+    return json.dumps({"ticker": t, **note_pack.get_pack(t, row)})
+
+
+@mcp.tool(name="get_control_queue", title="Pre-publication control queue",
+          description="The maker/checker queue: research products submitted by the "
+                      "analyst (maker) awaiting pre-publication control. Each item: id, "
+                      "title, ticker, kind, submitted_by/at, priority, checklist "
+                      "([{check, state: ok|open|fail}]), status (pending/released/"
+                      "blocked), verdict + verdict_notes once decided. Display-ready "
+                      "fields for the Control Room canvas (checklist_text, status/dir, "
+                      "release_args/block_args). The checker records the decision with "
+                      "record_control_verdict; Reset_Demo_Data restores the queue. "
+                      "SYNTHETIC demo data.")
+def get_control_queue() -> str:
+    items = []
+    for it0 in env_state.state()["control_queue"]:
+        it = json.loads(json.dumps(it0))
+        open_n = sum(1 for c in it["checklist"] if c["state"] != "ok")
+        it["checklist_text"] = "\n".join(
+            f"{'✓' if c['state'] == 'ok' else '◯'}  {c['check']}" for c in it["checklist"])
+        it["open_checks"] = open_n
+        it["open_label"] = ("all checks green" if open_n == 0
+                            else f"{open_n} check(s) still open")
+        it["status_label"] = {"pending": "PENDING CONTROL", "released": "RELEASED",
+                              "blocked": "DO NOT RELEASE"}[it["status"]]
+        it["dir"] = {"pending": "flat", "released": "up", "blocked": "dn"}[it["status"]]
+        it["release_args"] = json.dumps({"item_id": it["id"], "verdict": "RELEASE"})
+        it["block_args"] = json.dumps({"item_id": it["id"], "verdict": "DO_NOT_RELEASE"})
+        it["control_payload"] = json.dumps({"prompt": f"Run pre-publication control on "
+                                            f"'{it['title']}' ({it['id']}) — use the "
+                                            f"pre-publication-control skill: verify every "
+                                            f"checklist point, then record the verdict "
+                                            f"with record_control_verdict."})
+        items.append(it)
+    pending = sum(1 for i in items if i["status"] == "pending")
+    return json.dumps({"count": len(items), "pending": pending, "items": items})
+
+
+_CONTROL_CHECKLISTS = {
+    "note": [
+        "Every figure recomputed vs source",
+        "Single target price + upside % (house style)",
+        "Rating consistency with the published view",
+        "MNPI screen — no non-public information",
+        "Disclosures block present + synthetic marker",
+    ],
+    "pack": [
+        "Engine numbers reproduce the published cases",
+        "Probabilities sum to 100%",
+        "Assumption trail included",
+        "Client-suitability wording (professional investors)",
+    ],
+    "deck": [
+        "Figures match the underlying note/model",
+        "Single target price + upside % (house style)",
+        "Disclosures / synthetic marker on closing slide",
+    ],
+    "email": [
+        "Content matches released research only",
+        "No selective disclosure (same facts as published)",
+        "Recipient suitability (professional investors)",
+    ],
+}
+
+
+@mcp.tool(name="submit_for_control", title="Submit a product for control (maker)",
+          description="The ANALYST (maker) submits a research product to the "
+                      "pre-publication control queue: title, ticker, kind (note | pack "
+                      "| deck | email — selects the standard checklist), priority and "
+                      "optional notes. Returns the created queue item; the checker "
+                      "decides with record_control_verdict. Use after drafting a note/"
+                      "pack/deck the user wants to publish or send. Reset_Demo_Data "
+                      "restores the baseline queue. SYNTHETIC demo data.")
+def submit_for_control(
+    title: Annotated[str, Field(description="Product title, e.g. 'LVMH — results flash'")],
+    ticker: _TICKER = "",
+    kind: Annotated[str, Field(description="note | pack | deck | email")] = "note",
+    priority: Annotated[str, Field(description="e.g. 'URGENT — publish ASAP' or 'Standard'")] = "Standard",
+    notes: Annotated[str, Field(description="Optional maker notes for the checker")] = "",
+) -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    k = kind.strip().lower()
+    if k not in _CONTROL_CHECKLISTS:
+        return json.dumps({"error": f"kind must be one of {sorted(_CONTROL_CHECKLISTS)}"})
+    st = env_state.state()
+    tk = seed.resolve(ticker) or "" if ticker else ""
+    n = 1 + max((int(i["id"].split("-")[1]) for i in st["control_queue"]
+                 if i.get("id", "").startswith("C-")), default=0)
+    # submitted_at MUST stay "YYYY-MM-DD HH:MM" — the control-sweep SLA watchdog
+    # (jobs_engine._control_sweep) parses it to age items into OVERDUE.
+    item = {"id": f"C-{n:03d}", "title": title, "ticker": tk, "kind": k,
+            "submitted_by": "Analyst (maker)", "submitted_via": "agent",
+            "submitted_at": datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%d %H:%M"),
+            "priority": priority, "status": "pending", "verdict": "",
+            "verdict_notes": notes,
+            "checklist": [{"check": c, "state": "open"} for c in _CONTROL_CHECKLISTS[k]]}
+    st["control_queue"].append(item)
+    return json.dumps({"submitted": True, "item": item,
+                       "note": "In the control queue — the checker records the verdict."})
+
+
+@mcp.tool(name="record_control_verdict", title="Record a control verdict",
+          description="The CHECKER's decision on a control-queue item: verdict RELEASE "
+                      "or DO_NOT_RELEASE (+ optional notes, e.g. which check failed). "
+                      "Mutates the queue item's status; fully auditable in the queue; "
+                      "Reset_Demo_Data restores the baseline. Only record a verdict when "
+                      "the user (checker) explicitly decides — never on your own "
+                      "initiative. SYNTHETIC demo data.")
+def record_control_verdict(
+    item_id: Annotated[str, Field(description="Queue item id, e.g. C-001")],
+    verdict: Annotated[str, Field(description="RELEASE or DO_NOT_RELEASE")],
+    notes: Annotated[str, Field(description="Optional checker notes")] = "",
+) -> str:
+    v = verdict.strip().upper().replace(" ", "_")
+    if v not in ("RELEASE", "DO_NOT_RELEASE"):
+        return json.dumps({"error": "verdict must be RELEASE or DO_NOT_RELEASE"})
+    for it in env_state.state()["control_queue"]:
+        if it["id"] == item_id:
+            it["status"] = "released" if v == "RELEASE" else "blocked"
+            it["verdict"] = v
+            it["verdict_notes"] = notes
+            return json.dumps({"recorded": True, "item": it,
+                               "note": "Verdict recorded — auditable in the control queue."})
+    return json.dumps({"error": f"unknown item {item_id}",
+                       "items": [i["id"] for i in env_state.state()["control_queue"]]})
+
+
+@mcp.tool(name="get_emails", title="Mailbox (synthetic)",
+          description="The analyst's synthetic mailbox: desk, buy-side, corporate IR, "
+                      "compliance and internal emails around the demo storyline (LVMH "
+                      "warning day). Each email: id, ts, from_name, from_role, subject, "
+                      "body, ticker, read flag. Editable from the /admin demo-data "
+                      "console; Reset_Demo_Data restores the snapshot. Args: "
+                      "unread_only. SYNTHETIC demo data.")
+def get_emails(unread_only: Annotated[bool, Field(
+        description="Return only unread emails")] = False) -> str:
+    st = env_state.state()
+    emails = [e for e in st["emails"] if (not unread_only or not e.get("read"))]
+    emails = sorted(emails, key=lambda e: e["ts"], reverse=True)
+    return json.dumps({"count": len(emails), "unread": sum(1 for e in st["emails"]
+                                                           if not e.get("read")),
+                       "story_today": st.get("today"), "emails": emails})
+
+
+@mcp.tool(name="get_calendar", title="Calendar (synthetic)",
+          description="The analyst's synthetic calendar: results dates, roadshows, "
+                      "buy-side calls, morning meetings and pre-publication control "
+                      "slots around the demo storyline. Each event: id, date, time, "
+                      "kind (results/roadshow/call/meeting/control), title, ticker, "
+                      "notes. Editable from the /admin demo-data console; "
+                      "Reset_Demo_Data restores the snapshot. SYNTHETIC demo data.")
+def get_calendar() -> str:
+    st = env_state.state()
+    events = sorted(st["calendar"], key=lambda ev: (ev["date"], ev["time"]))
+    return json.dumps({"count": len(events), "story_today": st.get("today"),
+                       "events": events})
+
+
+def _yahoo_quote(symbol: str) -> dict | None:
+    """Fetch one live quote from Yahoo Finance (v8 chart endpoint, no auth). Returns
+    {price, prev_close} or None on any failure — callers fall back to the synthetic seed."""
+    import urllib.request
+
+    url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}"
+           "?range=1d&interval=1d")
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (demo)"})
+    try:
+        with urllib.request.urlopen(req, timeout=4) as r:
+            meta = json.loads(r.read())["chart"]["result"][0]["meta"]
+        price = meta.get("regularMarketPrice")
+        prev = meta.get("chartPreviousClose") or meta.get("previousClose")
+        if price is None or not prev:
+            return None
+        return {"price": float(price), "prev_close": float(prev)}
+    except Exception:
+        return None
+
+
+_MONTHLY_CACHE: dict = {}
+
+
+def _yahoo_monthly(symbol: str) -> list[float] | None:
+    """~24 month-end closes (2y, 1mo interval) from Yahoo's chart endpoint; 1h cache."""
+    import time as _time
+    import urllib.request
+
+    hit = _MONTHLY_CACHE.get(symbol)
+    if hit and _time.time() - hit[0] < 3600:
+        return hit[1]
+    try:
+        url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+               f"?range=2y&interval=1mo")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=4) as r:
+            data = json.loads(r.read().decode())
+        closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+        vals = [round(float(c), 2) for c in closes if c is not None][-24:]
+        if len(vals) >= 6:
+            _MONTHLY_CACHE[symbol] = (_time.time(), vals)
+            return vals
+    except Exception:
+        pass
+    _MONTHLY_CACHE[symbol] = (_time.time(), None)
+    return None
+
+
+def _synthetic_monthly(last: float) -> list[float]:
+    """Deterministic 24-point fallback path ending at the current price."""
+    import math
+    return [round(last * (0.86 + 0.14 * i / 23 + 0.05 * math.sin(i * 1.1)), 2)
+            for i in range(24)]
+
+
+def _spark_uri(closes: list[float], tp: float) -> str:
+    """Thin, appealing sparkline as a base64 SVG data-URI: 24 month-end closes
+    (mint line + soft area) with the 12m TARGET drawn as a red dashed level."""
+    import base64
+
+    w, h, pad = 120, 24, 3
+    lo = min(min(closes), tp)
+    hi = max(max(closes), tp)
+    span = (hi - lo) or 1.0
+    def y(v):
+        return round(pad + (h - 2 * pad) * (1 - (v - lo) / span), 2)
+    xs = [round(pad + (w - 2 * pad) * i / (len(closes) - 1), 2) for i in range(len(closes))]
+    pts = " ".join(f"{x},{y(v)}" for x, v in zip(xs, closes))
+    area = f"{pad},{h - pad} {pts} {w - pad},{h - pad}"
+    ty = y(tp)
+    last_x, last_y = xs[-1], y(closes[-1])
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+        f'viewBox="0 0 {w} {h}">'
+        f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="5" '
+        f'fill="#F4F6F5" stroke="#E7E8E7"/>'
+        f'<polygon points="{area}" fill="#3E8E7E" opacity="0.12"/>'
+        f'<polyline points="{pts}" fill="none" stroke="#3E8E7E" stroke-width="1.4" '
+        f'stroke-linejoin="round" stroke-linecap="round"/>'
+        f'<line x1="{pad}" y1="{ty}" x2="{w - pad}" y2="{ty}" stroke="#B42318" '
+        f'stroke-width="1.2" stroke-dasharray="3,2"/>'
+        f'<circle cx="{last_x}" cy="{last_y}" r="2" fill="#171717"/>'
+        f'</svg>')
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
+
+
+_WEEKLY_CACHE: dict = {}
+
+
+def _yahoo_weekly(symbol: str):
+    """~104 weekly closes over 2y (Yahoo chart endpoint) with their epoch
+    timestamps; 1h cache. Returns (timestamps, closes) or None."""
+    import time as _time
+    import urllib.request
+
+    hit = _WEEKLY_CACHE.get(symbol)
+    if hit and _time.time() - hit[0] < 3600:
+        return hit[1]
+    try:
+        url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+               f"?range=2y&interval=1wk")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=4) as r:
+            data = json.loads(r.read().decode())
+        res = data["chart"]["result"][0]
+        pairs = [(int(t), round(float(c), 2))
+                 for t, c in zip(res["timestamp"],
+                                 res["indicators"]["quote"][0]["close"])
+                 if c is not None]
+        if len(pairs) >= 20:
+            out = ([p[0] for p in pairs], [p[1] for p in pairs])
+            _WEEKLY_CACHE[symbol] = (_time.time(), out)
+            return out
+    except Exception:
+        pass
+    _WEEKLY_CACHE[symbol] = (_time.time(), None)
+    return None
+
+
+def _synthetic_weekly(last: float):
+    """Deterministic ~104-point weekly fallback path ending at the current price."""
+    import math
+    import time as _time
+
+    n = 104
+    now = int(_time.time())
+    ts = [now - (n - 1 - i) * 7 * 86400 for i in range(n)]
+    closes = [round(last * (0.86 + 0.14 * i / (n - 1) + 0.05 * math.sin(i * 0.35)), 2)
+              for i in range(n)]
+    return ts, closes
+
+
+def _chart_uri(ts: list, closes: list, tp: float, tp_label: str,
+               price_label: str) -> str:
+    """Detailed price chart as a base64 SVG data-URI: 2 years of WEEKLY closes
+    (mint line + soft area over gridlines with value/date labels), the 12m
+    TARGET drawn as a red dashed level with its value, and the LAST CLOSE
+    marked with a labelled dot — the sparkline's big sibling on the reviews."""
+    import base64
+    from datetime import datetime, timezone
+
+    w, h = 640, 190
+    l, r, t, b = 14, 56, 16, 26                      # plot insets; right = y-label gutter
+    pw, ph = w - l - r, h - t - b
+    lo = min(min(closes), tp)
+    hi = max(max(closes), tp)
+    padv = (hi - lo) * 0.07 or 1.0
+    lo, hi = lo - padv, hi + padv
+    span = hi - lo
+
+    def x(i):
+        return round(l + pw * i / (len(closes) - 1), 2)
+
+    def y(v):
+        return round(t + ph * (1 - (v - lo) / span), 2)
+
+    fnt = 'font-family="Arial,sans-serif"'
+    fmt = (lambda v: f"{v:,.0f}") if hi >= 200 else (lambda v: f"{v:,.1f}")
+    grid = []
+    for k in range(5):
+        gv = lo + span * k / 4
+        gy = y(gv)
+        grid.append(f'<line x1="{l}" y1="{gy}" x2="{l + pw}" y2="{gy}" '
+                    f'stroke="#E7E8E7" stroke-width="1"/>'
+                    f'<text x="{l + pw + 6}" y="{gy + 3.5}" font-size="10" '
+                    f'fill="#8A8A8A" {fnt}>{fmt(gv)}</text>')
+    for k in range(5):                               # date ticks, ~semi-annual
+        i = round((len(closes) - 1) * k / 4)
+        lab = datetime.fromtimestamp(ts[i], tz=timezone.utc).strftime("%b %y")
+        anch = "start" if k == 0 else ("end" if k == 4 else "middle")
+        grid.append(f'<line x1="{x(i)}" y1="{t}" x2="{x(i)}" y2="{t + ph}" '
+                    f'stroke="#EDEFEE" stroke-width="1"/>'
+                    f'<text x="{x(i)}" y="{h - 8}" font-size="10" fill="#8A8A8A" '
+                    f'{fnt} text-anchor="{anch}">{lab}</text>')
+    pts = " ".join(f"{x(i)},{y(v)}" for i, v in enumerate(closes))
+    area = f"{l},{t + ph} {pts} {l + pw},{t + ph}"
+    ty = y(tp)
+    lx, ly = x(len(closes) - 1), y(closes[-1])
+    tp_ty = ty - 6 if ty > t + 16 else ty + 14       # target label above (or below) its line
+    px_ty = ly - 8 if ly > t + 18 else ly + 16       # price label above (or below) its dot
+    if abs(px_ty - tp_ty) < 12 and abs(lx - (l + pw)) < 160:
+        px_ty = ly + 16 if tp_ty <= ly else ly - 8
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+        f'viewBox="0 0 {w} {h}">'
+        f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="10" '
+        f'fill="#F9FAFA" stroke="#E7E8E7"/>'
+        + "".join(grid) +
+        f'<polygon points="{area}" fill="#3E8E7E" opacity="0.10"/>'
+        f'<polyline points="{pts}" fill="none" stroke="#3E8E7E" stroke-width="1.8" '
+        f'stroke-linejoin="round" stroke-linecap="round"/>'
+        f'<line x1="{l}" y1="{ty}" x2="{l + pw}" y2="{ty}" stroke="#B42318" '
+        f'stroke-width="1.4" stroke-dasharray="5,3"/>'
+        f'<text x="{l + 4}" y="{tp_ty}" font-size="11" font-weight="bold" '
+        f'fill="#B42318" {fnt}>Target {tp_label}</text>'
+        f'<circle cx="{lx}" cy="{ly}" r="3.2" fill="#171717" stroke="#fff" '
+        f'stroke-width="1.2"/>'
+        f'<text x="{min(lx - 7, l + pw - 4)}" y="{px_ty}" font-size="11" '
+        f'font-weight="bold" fill="#171717" {fnt} text-anchor="end">'
+        f'{price_label}</text>'
+        f'</svg>')
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
+
+
+@mcp.tool(name="get_live_quotes", title="Live quotes (Yahoo Finance, formatted)",
+          description="LIVE market quotes for the coverage universe, fetched from Yahoo "
+                      "Finance server-side and returned DISPLAY-READY (price and change% "
+                      "formatted to 2 decimals) — the ONE quote source for every canvas "
+                      "(cockpit ribbon + review quote strips). Optional ticker arg filters "
+                      "to one name. Returns {count, as_of, meta:[{label}], rows:[{ticker, "
+                      "name, symbol, price_label, chg_label, chg_dir, as_of, source, "
+                      "live}]}. as_of = fetch time (Europe/Zurich HH:MM). Falls back to "
+                      "the synthetic seed indication (live: false, source labelled "
+                      "accordingly) for any symbol Yahoo doesn't answer, so displays "
+                      "never die.")
+def get_live_quotes(
+    ticker: Annotated[str, Field(default="", description="Optional — restrict to one "
+                                 "covered name (Bloomberg code, e.g. 'RMS FP').")] = "",
+) -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    as_of = datetime.now(ZoneInfo("Europe/Zurich")).strftime("%H:%M")
+    names = seed.current_coverage()
+    if ticker:
+        t = seed.resolve(ticker)
+        if not t:
+            return _unknown(ticker)
+        names = [c for c in names if c["ticker"] == t]
+    rows = []
+    for c in names:
+        q = _yahoo_quote(c["yahoo"])
+        ov = seed.current_overnight().get(c["ticker"]) or {}
+        tp = ov.get("new_target_price") or c["target_price"]
+        if q:
+            chg = (q["price"] / q["prev_close"] - 1.0) * 100.0
+            row = {"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
+                   "price_label": f"{q['price']:,.2f}", "chg_label": f"{chg:+.2f}",
+                   "chg_dir": "dn" if chg < -0.005 else ("up" if chg > 0.005 else "flat"),
+                   "as_of": as_of, "source": f"Yahoo Finance · {as_of}",
+                   "live": True}
+            ref_price = q["price"]
+        else:
+            row = {"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
+                   "price_label": f"{c['price']:,.2f}",
+                   "chg_label": f"{c['premarket_pct']:+.2f}",
+                   "chg_dir": "dn" if c["premarket_pct"] < 0 else "up",
+                   "as_of": as_of, "source": f"synthetic indication · {as_of}",
+                   "live": False}
+            ref_price = c["price"]
+        row["tp_label"] = _ccy_fmt(tp, c["ccy"])
+        row["tp_vs_price_label"] = f"{(tp / ref_price - 1) * 100:+.1f}%"
+        closes = _yahoo_monthly(c["yahoo"]) or _synthetic_monthly(ref_price)
+        row["spark_uri"] = _spark_uri(closes, tp)
+        row["spark_title"] = (f"{c['name']} — 24 month-end closes (Yahoo) · red = "
+                              f"12m target {row['tp_label']}")
+        wk = _yahoo_weekly(c["yahoo"]) or _synthetic_weekly(ref_price)
+        row["chart_uri"] = _chart_uri(wk[0], wk[1], tp, row["tp_label"],
+                                      row["price_label"])
+        row["chart_title"] = (f"{c['name']} — 2 years of weekly closes (Yahoo) · "
+                              f"red = 12m target {row['tp_label']} · dot = last "
+                              f"close {row['price_label']}")
+        rows.append(row)
+    live_n = sum(1 for r in rows if r["live"])
+    label = (f"LIVE · YAHOO FINANCE · as of {as_of} Zurich" if live_n
+             else f"SYNTHETIC INDICATION · as of {as_of} Zurich")
+    return json.dumps({"count": len(rows), "as_of": as_of,
+                       "meta": [{"label": label}], "rows": rows})
+
+
+@mcp.tool(name="add_analyst_note", title="Add a desk note (any equities)",
+          description="Store an analyst DESK NOTE impacting any combination of covered "
+                      "equities (or SECTOR). Call with the AI summary (1-2 sentences), "
+                      "the original note text, and the impacted tickers (comma-separated "
+                      "Bloomberg codes, e.g. 'MC FP, UHR SW' — or 'SECTOR'). The note "
+                      "appears on the cockpit desk-notes list immediately. Mutates demo "
+                      "state; Reset_Demo_Data clears it. SYNTHETIC demo.")
+def add_analyst_note(
+    summary: Annotated[str, Field(description="1-2 sentence AI summary of the note.")],
+    note: Annotated[str, Field(description="The analyst's original note text.")],
+    tickers: Annotated[str, Field(description="Impacted equities, comma-separated "
+                                  "Bloomberg codes (or 'SECTOR').")],
+) -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    resolved = []
+    for raw in tickers.split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        key = "SECTOR" if raw.upper() == "SECTOR" else seed.resolve(raw)
+        if not key:
+            return _unknown(raw)
+        if key not in resolved:
+            resolved.append(key)
+    if not resolved:
+        return json.dumps({"error": "no tickers given",
+                           "covered": [c["ticker"] for c in seed.COVERAGE] + ["SECTOR"]})
+    notes = env_state.state().setdefault("analyst_notes", [])
+    item = {"id": f"N-{len(notes) + 1:03d}",
+            "ts": datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%d %H:%M"),
+            "summary": summary.strip(), "note": note.strip(), "tickers": resolved}
+    notes.insert(0, item)
+    return json.dumps({"added": True, "item": item, "count": len(notes)})
+
+
+@mcp.tool(name="get_analyst_notes", title="Desk notes",
+          description="The analyst's stored desk notes (newest first): id, ts, AI "
+                      "summary, original text, impacted tickers + display-ready "
+                      "tickers_label. Optional ticker filter (notes touching that "
+                      "name or SECTOR). SYNTHETIC demo state; Reset clears.")
+def get_analyst_notes(
+    ticker: Annotated[str, Field(default="", description="Optional — only notes "
+                                 "impacting this name (or 'SECTOR').")] = "",
+) -> str:
+    notes = json.loads(json.dumps(env_state.state().get("analyst_notes", [])))
+    if ticker:
+        key = "SECTOR" if ticker.strip().upper() == "SECTOR" else seed.resolve(ticker)
+        notes = [n for n in notes if key in n.get("tickers", [])]
+    for n in notes:
+        n["tickers_label"] = " · ".join(n["tickers"])
+    return json.dumps({"count": len(notes), "notes": notes})
+
+
+@mcp.tool(name="update_thesis", title="Update the investment thesis",
+          description="Rewrite a name's INVESTMENT THESIS (semicolon-separated bullet "
+                      "points — each ';' renders as a bullet on the review). Used by the "
+                      "review's 'Edit with AI' control. Mutates per-env demo state; the "
+                      "next dashboard regeneration bakes it in; Reset restores. Returns "
+                      "the updated dossier summary.")
+def update_thesis(
+    ticker: _TICKER,
+    thesis: Annotated[str, Field(description="The revised thesis — short bullet points "
+                                 "separated by '; '.")],
+) -> str:
+    key = seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    d = env_state.state()["dossiers"][key]
+    d["thesis"] = thesis.strip()
+    return json.dumps({"updated": True, "ticker": key, "thesis": d["thesis"],
+                       "note": "The review card is LIVE — it refreshes within a minute "
+                               "(or instantly via the card's ↻ button)."})
+
+
+@mcp.tool(name="add_note_history", title="Add a note-history entry",
+          description="Append a timestamped entry to a name's NOTE HISTORY (the review's "
+                      "'Note history' card), e.g. after publishing/submitting a product. "
+                      "ts defaults to now (Europe/Zurich). Mutates per-env state; Reset "
+                      "restores.")
+def add_note_history(
+    ticker: _TICKER,
+    label: Annotated[str, Field(description="Entry text, e.g. 'First take — published'.")],
+    ts: Annotated[str, Field(default="", description="Optional 'YYYY-MM-DD HH:MM'; "
+                             "default now (Zurich).")] = "",
+) -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    key = seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    stamp = ts.strip() or datetime.now(ZoneInfo("Europe/Zurich")).strftime("%Y-%m-%d %H:%M")
+    d = env_state.state()["dossiers"][key]
+    d["note_history"].append(f"{stamp} · {label.strip()}")
+    return json.dumps({"added": True, "ticker": key, "note_history": d["note_history"]})
+
+
+@mcp.tool(name="update_scenario_case", title="Update a scenario hypothesis",
+          description="Edit ONE scenario hypothesis row for a name (matched by scenario "
+                      "title substring). Editable fields: scenario, assumption, "
+                      "eps_impact, tp_impact, hypothesis, probability. IMPORTANT: when "
+                      "changing shocks, recompute eps/tp via compute_scenario first — "
+                      "never invent numbers. Used by the scenario card's 'Edit with AI'. "
+                      "Mutates per-env state; Reset restores; probabilities should sum "
+                      "to 100%.")
+def update_scenario_case(
+    ticker: _TICKER,
+    scenario_match: Annotated[str, Field(description="Substring of the scenario title "
+                                         "to edit (e.g. 'Currency shock').")],
+    scenario: Annotated[str, Field(default="", description="New title (optional).")] = "",
+    assumption: Annotated[str, Field(default="")] = "",
+    eps_impact: Annotated[str, Field(default="")] = "",
+    tp_impact: Annotated[str, Field(default="")] = "",
+    hypothesis: Annotated[str, Field(default="")] = "",
+    probability: Annotated[str, Field(default="")] = "",
+) -> str:
+    key = seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    sc = env_state.state().get("scenarios", {}).get(key)
+    if not sc:
+        return json.dumps({"error": f"no scenario set for {key}"})
+    row = next((r for r in sc["rows"]
+                if scenario_match.lower() in r["scenario"].lower()), None)
+    if row is None:
+        return json.dumps({"error": f"no scenario matching {scenario_match!r}",
+                           "available": [r["scenario"] for r in sc["rows"]]})
+    for f, v in (("scenario", scenario), ("assumption", assumption),
+                 ("eps_impact", eps_impact), ("tp_impact", tp_impact),
+                 ("hypothesis", hypothesis), ("probability", probability)):
+        if v.strip():
+            row[f] = v.strip()
+    total = sum(float(r["probability"].strip("%")) for r in sc["rows"]
+                if r.get("probability", "").strip().rstrip("%").replace(".", "").isdigit())
+    return json.dumps({"updated": True, "ticker": key, "row": row,
+                       "probability_sum": f"{total:.0f}%",
+                       "note": "The review's scenario card is LIVE — it refreshes within a "
+                               "minute (or instantly via its ↻); the Lab bakes at the "
+                               "next regeneration."})
+
+
+@mcp.tool(name="update_analyst_note", title="Edit or delete a desk note",
+          description="Update a stored desk note by id (summary, note text, tickers) or "
+                      "delete it (delete=true). Used by 'Edit with AI' on the desk-notes "
+                      "list. Mutates per-env state; Reset clears all notes.")
+def update_analyst_note(
+    note_id: Annotated[str, Field(description="The note id, e.g. 'N-001'.")],
+    summary: Annotated[str, Field(default="")] = "",
+    note: Annotated[str, Field(default="")] = "",
+    tickers: Annotated[str, Field(default="", description="Comma-separated Bloomberg "
+                                  "codes or 'SECTOR' (replaces the set).")] = "",
+    delete: Annotated[bool, Field(default=False)] = False,
+) -> str:
+    notes = env_state.state().setdefault("analyst_notes", [])
+    item = next((n for n in notes if n["id"] == note_id), None)
+    if item is None:
+        return json.dumps({"error": f"no note {note_id!r}",
+                           "ids": [n["id"] for n in notes]})
+    if delete:
+        notes.remove(item)
+        return json.dumps({"deleted": True, "id": note_id, "count": len(notes)})
+    if summary.strip():
+        item["summary"] = summary.strip()
+    if note.strip():
+        item["note"] = note.strip()
+    if tickers.strip():
+        resolved = []
+        for raw in tickers.split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            k = "SECTOR" if raw.upper() == "SECTOR" else seed.resolve(raw)
+            if not k:
+                return _unknown(raw)
+            if k not in resolved:
+                resolved.append(k)
+        item["tickers"] = resolved
+    return json.dumps({"updated": True, "item": item})
+
+
+@mcp.tool(name="update_brief_item", title="Edit a morning-brief item",
+          description="Edit an overnight MORNING-BRIEF item (by ticker, or 'SECTOR'). "
+                      "Editable: headline, detail, valuation_impact, severity "
+                      "(alert|positive|watch|info), suggested_action, new_target_price "
+                      "(number or empty to clear). Used by the cockpit's 'Edit with AI'. "
+                      "If numbers change, recompute via compute_scenario first. Mutates "
+                      "per-env state; Reset restores. Returns the updated item.")
+def update_brief_item(
+    ticker: _TICKER,
+    headline: Annotated[str, Field(default="")] = "",
+    detail: Annotated[str, Field(default="")] = "",
+    valuation_impact: Annotated[str, Field(default="")] = "",
+    severity: Annotated[str, Field(default="", description="alert|positive|watch|info")] = "",
+    suggested_action: Annotated[str, Field(default="")] = "",
+    new_target_price: Annotated[str, Field(default="", description="Number, or 'clear'.")] = "",
+) -> str:
+    key = "SECTOR" if (ticker or "").strip().upper() == "SECTOR" else seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    item = next((b for b in env_state.state()["brief"] if b["ticker"] == key), None)
+    if item is None:
+        return json.dumps({"error": f"no brief item for {key}"})
+    if severity.strip():
+        if severity.strip() not in ("alert", "positive", "watch", "info"):
+            return json.dumps({"error": "severity must be alert|positive|watch|info"})
+        item["severity"] = severity.strip()
+    for f, v in (("headline", headline), ("detail", detail),
+                 ("valuation_impact", valuation_impact),
+                 ("suggested_action", suggested_action)):
+        if v.strip():
+            item[f] = v.strip()
+    if new_target_price.strip():
+        if new_target_price.strip().lower() == "clear":
+            item["new_target_price"] = None
+        else:
+            try:
+                item["new_target_price"] = float(new_target_price)
+            except ValueError:
+                return json.dumps({"error": f"bad new_target_price {new_target_price!r}"})
+    return json.dumps({"updated": True, "item": {k: item[k] for k in
+                       ("ticker", "severity", "headline", "valuation_impact")}})
+
+
+@mcp.tool(name="get_dashboard_layout", title="Read a dashboard's section layout",
+          description="Current SECTION LAYOUT of a dashboard: 'review' (the six coverage "
+                      "reviews — applied by the builder at every regeneration) or 'cockpit' "
+                      "(documented sections; the update-dashboard skill materializes cockpit "
+                      "changes in the HTML). Returns {dashboard, sections (canonical keys), "
+                      "default_order, order, hidden}.")
+def get_dashboard_layout(
+    dashboard: Annotated[str, Field(default="review",
+                                    description="'review' or 'cockpit'.")] = "review",
+) -> str:
+    keys = {"review": seed.REVIEW_SECTION_ORDER, "cockpit": seed.COCKPIT_SECTIONS}
+    if dashboard not in keys:
+        return json.dumps({"error": f"unknown dashboard {dashboard!r}",
+                           "available": sorted(keys)})
+    cur = seed.current_layout(dashboard)
+    return json.dumps({"dashboard": dashboard, "sections": keys[dashboard],
+                       "default_order": keys[dashboard],
+                       "order": cur.get("order") or keys[dashboard],
+                       "hidden": cur.get("hidden") or []})
+
+
+@mcp.tool(name="update_dashboard_layout", title="Save a dashboard's section layout",
+          description="Persist a SECTION-ONLY layout change (reorder / hide sections) via "
+                      "MCP — no HTML surgery needed. dashboard='review': applied by the "
+                      "builder at EVERY regeneration (survives the nightly; apply_now "
+                      "regenerates immediately). dashboard='cockpit': stores the layout as "
+                      "the source of truth — the update-dashboard skill must then "
+                      "materialize it in cockpit.html. order/hidden are comma-separated "
+                      "section keys (get_dashboard_layout lists them); omitted sections "
+                      "keep the default order tail. reset=true restores the default. "
+                      "Mutates per-env demo state; Reset_Demo_Data also restores.")
+def update_dashboard_layout(
+    dashboard: Annotated[str, Field(default="review",
+                                    description="'review' or 'cockpit'.")] = "review",
+    order: Annotated[str, Field(default="", description="Comma-separated section keys in "
+                                "the desired order (partial lists allowed — the rest keep "
+                                "the default order after them).")] = "",
+    hidden: Annotated[str, Field(default="", description="Comma-separated section keys to "
+                                 "hide (replaces the hidden set).")] = "",
+    reset: Annotated[bool, Field(default=False, description="Restore the default "
+                                 "layout.")] = False,
+    apply_now: Annotated[bool, Field(default=True, description="review only: regenerate "
+                                     "the review pages immediately in this environment "
+                                     "(~30s in the background).")] = True,
+) -> str:
+    keys = {"review": seed.REVIEW_SECTION_ORDER, "cockpit": seed.COCKPIT_SECTIONS}
+    if dashboard not in keys:
+        return json.dumps({"error": f"unknown dashboard {dashboard!r}",
+                           "available": sorted(keys)})
+    valid = keys[dashboard]
+    lay = env_state.state().setdefault("layout", {})
+    if reset:
+        lay.pop(dashboard, None)
+        eff = {"order": valid, "hidden": []}
+    else:
+        req = [s.strip() for s in order.split(",") if s.strip()]
+        hid = [s.strip() for s in hidden.split(",") if s.strip()]
+        bad = [s for s in req + hid if s not in valid]
+        if bad:
+            return json.dumps({"error": f"unknown section(s): {bad}",
+                               "sections": valid})
+        new_order = (req + [s for s in valid if s not in req]) if req else \
+            (seed.current_layout(dashboard).get("order") or valid)
+        cur_hidden = hid if hidden.strip() else \
+            (seed.current_layout(dashboard).get("hidden") or [])
+        lay[dashboard] = {"order": new_order, "hidden": cur_hidden}
+        eff = lay[dashboard]
+    note = ""
+    if dashboard == "review" and apply_now:
+        import threading
+
+        import nightly
+        env = env_state.current_env()
+        threading.Thread(target=nightly.run_regen, args=(env,), daemon=True).start()
+        note = ("Review pages are regenerating in the background (~30s) — the new "
+                "layout shows on the next open/refresh.")
+    elif dashboard == "review":
+        note = "Applied at the next regeneration (nightly, or run the regen job)."
+    else:
+        note = ("Stored. Now materialize it in cockpit.html via the update-dashboard "
+                "skill (section order/visibility edits, path-upsert, re-apply the "
+                "display title).")
+    return json.dumps({"updated": True, "dashboard": dashboard, **eff, "note": note})
+
+
+@mcp.tool(name="Reset_Demo_Data", title="Reset demo data",
+          description="Restore the FA research demo to its labeled baseline snapshot: "
+                      "morning brief (un-acknowledged), action inbox, jobs, coverage "
+                      "roster, mailbox and calendar — undoing any edits made in the "
+                      "/admin demo-data console. Consensus / estimates / scenarios are "
+                      "static reference data. Use between demo runs for a clean morning. "
+                      "SYNTHETIC demo data.",
+          meta={"unique.app/icon": "rotate-ccw"})
+def reset_demo_data() -> str:
+    st = _reset_state()
+    return json.dumps({
+        "reset": True,
+        "environment": env_state.current_env(),
+        "snapshot": st["snapshot_label"],
+        "brief_items": len(st["brief"]),
+        "inbox_drafts": len(st["inbox"]),
+        "emails": len(st["emails"]),
+        "calendar_events": len(st["calendar"]),
+        "note": "Demo state restored to the baseline snapshot — all console edits undone.",
+    })
+
+
+@mcp.custom_route("/", methods=["GET"])
+async def get_status(request: Request):
+    return JSONResponse({"server": "running", "name": "FA Research",
+                         "demo_data_console": "/admin"})
+
+
+@mcp.custom_route("/favicon.ico", methods=["GET"])
+async def favicon(request: Request):
+    """The shared demo-MCP icon — the admin UI uses the server's favicon as the
+    connector icon (same file as the RM Agent / trade-reconciliation MCPs)."""
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+
+    return FileResponse(Path(__file__).parent / "favicon.ico")
+
+
+
+# ---------------------------------------------------------------------------
+# Per-tool system prompts, surfaced in the admin UI ("Tool Usage Instructions" /
+# "Tool Response Format Instructions") and injected into the agent's tool skill
+# docs. Auto-populated at connector (re)sync via the unique.app/* meta keys —
+# the platform treats server meta as the source of truth on refresh.
+# ---------------------------------------------------------------------------
+TOOL_PROMPTS: dict[str, tuple[str, str]] = {
+    "get_coverage": (
+        "Call FIRST for any question about the covered names, ratings or target prices. "
+        "Data is presenter-editable in the demo console — always re-read, never answer "
+        "from memory. Rows carry open_review_payload to open a name's dashboard.",
+        "Rows are display-ready: cite ticker, rating, tp_label and upside_label verbatim "
+        "(single target price + upside %, Exane house style — never a range)."),
+    "get_dossier": (
+        "The per-name house view: thesis, estimates stance, interaction log, note "
+        "history. Use for 'what is our view / status on X'.",
+        "Thesis is semicolon-separated bullets — render as a bullet list. note_history "
+        "entries are timestamped 'YYYY-MM-DD HH:MM · label' — keep the timestamps."),
+    "get_morning_brief": (
+        "The 07:00 overnight run. Items are severity-ranked (alert > positive > watch > "
+        "info); each carries the impacted equity and a suggested action/skill.",
+        "Lead with severity_label and name_label; cascade_text and call_list_text are "
+        "pre-formatted — quote them as-is."),
+    "acknowledge_alert": (
+        "Mark a brief item as reviewed ONLY after the user says they handled it.",
+        "Returns the updated item — confirm in one short sentence."),
+    "get_action_inbox": (
+        "Prepared reply drafts (buy-side, desk, IR). Nothing is ever auto-sent.",
+        "Quote draft subjects verbatim; remind that sending goes through the user."),
+    "get_agenda": (
+        "This week's roadshows and meetings (who leads, when).",
+        "Cite title · role · when; offer the prep action where present."),
+    "get_jobs": (
+        "Background jobs with schedules (run_at Zurich, recurrence once|daily). The "
+        "desk-brief job REALLY regenerates the dashboards via the Unique SDK; its "
+        "last_run lists every generated document.",
+        "Use when_label verbatim; when asked what a job produced, list last_run.files "
+        "paths (omit content ids unless asked)."),
+    "get_consensus": (
+        "Street numbers (mock IBES-style) per name — the comparison base for our house "
+        "estimates.",
+        "Always cite as_of and analyst count; ratings split is buy/hold/sell."),
+    "get_estimates": (
+        "OUR estimates vs consensus; post-release names also carry the company-printed "
+        "figures. The phase field tells you which table shape applies.",
+        "Reproduce delta labels verbatim (e.g. '−5.1%'); post-release = Ours / "
+        "Consensus / Company three-way."),
+    "get_price": (
+        "Synthetic last-close indication only — prefer get_live_quotes for anything "
+        "the user will read as 'the price now'.",
+        "Label clearly as the storyline indication, not a live quote."),
+    "get_dashboard_layout": (
+        "Read a dashboard's section layout (review/cockpit) before proposing or "
+        "applying layout changes — lists the canonical section keys.",
+        "Show order + hidden as compact lists; mention Reset_Demo_Data restores the "
+        "default."),
+    "update_dashboard_layout": (
+        "THE way to persist section-only dashboard changes (reorder/hide) — use it "
+        "instead of editing HTML whenever the ask is purely about sections. review = "
+        "auto-applied at regeneration; cockpit = also materialize via the "
+        "update-dashboard skill.",
+        "Confirm the effective order/hidden lists and relay the note (background "
+        "regen or skill follow-up)."),
+    "get_live_quotes": (
+        "THE single live-quote source (server-side Yahoo fetch). Optional ticker "
+        "filter. Falls back to the synthetic indication per symbol (live: false). "
+        "Rows also carry chart images: spark_uri (24m sparkline) and chart_uri "
+        "(detailed 2y weekly chart, red target level + last close) — for canvases, "
+        "not for chat.",
+        "price_label/chg_label are pre-formatted (2dp). ALWAYS cite the as_of "
+        "timestamp ('as of HH:MM Zurich') and the source field. Never paste "
+        "spark_uri/chart_uri data-URIs into chat answers."),
+    "get_emails": (
+        "The SYNTHETIC storyline inbox (not the user's real mailbox — that is the "
+        "Outlook MCP). Dates may be rebased; story_today is the demo's 'today'.",
+        "Quote subjects verbatim; flag unread items first."),
+    "get_calendar": (
+        "Storyline events (results, roadshows, control meetings), dates rebased so the "
+        "warning day is always day 0.",
+        "Cite date · time · title; relative wording should key off story_today."),
+    "get_scenarios": (
+        "OUR probabilistic hypothesis cases per name (all six covered). Presenter-"
+        "editable — re-read every time. Each row carries the exact compute_scenario "
+        "args that reproduce it.",
+        "Render as a table: scenario/assumption · EPS · TP · probability · hypothesis; "
+        "probabilities sum to 100%."),
+    "compute_scenario": (
+        "THE what-if engine — use it for EVERY buy-side 'what if' (FX move, China "
+        "timing, destocking). Axes combine. NEVER estimate scenario numbers yourself.",
+        "Walk the assumption_trail step by step; quote the summary line; the TP bridge "
+        "shows old → new with the rating read."),
+    "get_scenario_board": (
+        "One call = the Lab: computed presets + FX/China grids + the FX×China TP "
+        "matrix for a name.",
+        "Preset labels are display-ready; grids are row dicts — quote cells, do not "
+        "recompute."),
+    "get_note_pack": (
+        "The Exane note backbone (snapshot, key financials, segments, consensus "
+        "comparison, forecast changes, DCF, SOTP, peers, highlights). Full pack for "
+        "MC FP; cover-only partials otherwise.",
+        "COPY TABLES VERBATIM into notes/answers — these are the published house "
+        "figures; never recompute or re-round them."),
+    "get_financials": (
+        "FY2023-28e key financials + chart series for all six names (single source "
+        "for models and dashboards).",
+        "Use the key_financials {header, rows} table for prose/notes; chart geometry "
+        "fields (pct, zero_pct) are for canvases — ignore them in text."),
+    "Reset_Demo_Data": (
+        "Only on an explicit user request ('reset the demo') — wipes every edit in "
+        "the ACTIVE environment (coverage, brief, notes, scenarios, control queue).",
+        "Confirm with the restored snapshot label; mention edits are gone."),
+    "get_control_queue": (
+        "The maker/checker queue (pre-publication control). Read it to brief the "
+        "checker; never decide verdicts yourself.",
+        "Per item cite status_label, priority and open_label; checklist_text is "
+        "pre-formatted ✓/◯ lines — quote as-is."),
+    "record_control_verdict": (
+        "Record RELEASE / DO_NOT_RELEASE ONLY when the user explicitly states their "
+        "decision — never infer it from a passed checklist.",
+        "Confirm the item id, the verdict and any notes recorded."),
+    "submit_for_control": (
+        "Maker side: submit a note/pack/deck/email for control after drafting. Ask "
+        "the user for the priority first (one question).",
+        "Return the queue item id and the standard checklist that was attached."),
+    "add_analyst_note": (
+        "Store a desk note: FIRST summarize the user's text in 1-2 sentences, then "
+        "identify the impacted equities from the text (any combination, or SECTOR), "
+        "then call with summary + original note + tickers.",
+        "Confirm the stored id, the summary and the resolved ticker set."),
+    "get_analyst_notes": (
+        "The desk-notes list (newest first), optionally filtered to one name or "
+        "SECTOR.",
+        "Cite summary, tickers_label and ts; the full original text is in note."),
+    "update_analyst_note": (
+        "Edit or delete a stored desk note by id (summary, text, ticker set).",
+        "Confirm what changed (or the deletion) with the note id."),
+    "update_thesis": (
+        "Rewrite a name's investment thesis — short bullet points separated by '; '. "
+        "Used by the review's Edit-with-AI control.",
+        "Confirm the new bullets and remind: the dashboard bakes them at the next "
+        "regeneration (nightly or ↻)."),
+    "add_note_history": (
+        "Append a timestamped entry to a name's note history (e.g. after publishing "
+        "or submitting a product).",
+        "Confirm the entry as stored ('YYYY-MM-DD HH:MM · label')."),
+    "update_scenario_case": (
+        "Edit one scenario hypothesis row (matched by title substring). If the shock "
+        "changes, RECOMPUTE eps/tp with compute_scenario FIRST — never invent "
+        "numbers. Keep probabilities summing to 100%.",
+        "Confirm the updated row and report probability_sum; flag if it is not 100%."),
+    "update_brief_item": (
+        "Edit a morning-brief item (headline, detail, impact, severity, suggested "
+        "action, revised TP). If numbers change, recompute via compute_scenario "
+        "first. Used by the cockpit's Edit-with-AI.",
+        "Confirm the updated item; the cockpit refreshes within ~2 minutes."),
+}
+
+import asyncio as _asyncio  # noqa: E402
+
+for _tool in _asyncio.run(mcp.list_tools()):
+    _pair = TOOL_PROMPTS.get(_tool.name)
+    if _pair:
+        _tool.meta = {**(_tool.meta or {}),
+                      "unique.app/system-prompt": _pair[0],
+                      "unique.app/tool-format-information": _pair[1]}
+
+import admin_ui  # noqa: E402
+import jobs_engine  # noqa: E402
+import nightly  # noqa: E402
+
+admin_ui.register(mcp, _get_state, _reset_state)
+
+
+@mcp.custom_route("/admin/api/nightly", methods=["GET"])
+async def nightly_status(request: Request):
+    return JSONResponse(nightly.NIGHTLY_STATUS)
+
+
+@mcp.custom_route("/admin/api/nightly/run", methods=["POST"])
+async def nightly_run(request: Request):
+    body = await request.json()
+    env = body.get("env") or env_state.current_env()
+    job = body.get("job", "regen")
+    if env not in nightly.SDK_CREDS:
+        return JSONResponse({"error": f"no SDK creds for env {env!r}"}, status_code=400)
+    import anyio
+
+    fn = nightly.run_regen if job == "regen" else nightly.run_verify
+    result = await anyio.to_thread.run_sync(fn, env)
+    return JSONResponse(result)
+
+
+nightly.start()
+jobs_engine.start()
+
+
+def main():
+    mcp.run(
+        transport="http",
+        host="0.0.0.0",
+        port=PORT,
+        log_level="debug",
+        middleware=custom_middleware,
+    )
+
+
+if __name__ == "__main__":
+    main()
