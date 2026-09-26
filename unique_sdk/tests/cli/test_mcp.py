@@ -104,11 +104,11 @@ def test_cmd_mcp_writes_output_manifest(tmp_path: Path) -> None:
     assert entries[0]["text"] == "ACME revenue: 1M"
 
 
-def test_cmd_mcp_truncates_large_output(tmp_path: Path) -> None:
-    big = "x" * (mcp_cmd._MCP_OUTPUT_TEXT_CHAR_LIMIT + 500)
+def test_cmd_mcp_records_large_output_whole(tmp_path: Path) -> None:
+    big = "x" * 5_000_000
     _run("mcp__kb__search", _FakeMCPResponse(), formatted=big)
     text = _lines(tmp_path, _OUTPUT_MANIFEST)[0]["text"]
-    assert len(text) == mcp_cmd._MCP_OUTPUT_TEXT_CHAR_LIMIT
+    assert text == big
 
 
 # ── Refs manifest / citations (UN-21285) ─────────────────────────────────────
@@ -456,9 +456,68 @@ def test_resource_link_text_is_none_when_no_description(tmp_path: Path) -> None:
     assert refs[0]["text"] is None
 
 
-def test_ref_text_truncated_to_writer_cap(tmp_path: Path) -> None:
+def test_cmd_mcp_stops_a_runaway_output_at_the_guard(tmp_path: Path) -> None:
+    big = "x" * (mcp_cmd._MCP_TEXT_GUARD_CHARS + 10)
+    _run("mcp__kb__search", _FakeMCPResponse(), formatted=big)
+    text = _lines(tmp_path, _OUTPUT_MANIFEST)[0]["text"]
+    assert len(text) == mcp_cmd._MCP_TEXT_GUARD_CHARS
+
+
+def test_cmd_mcp_stops_output_at_the_turn_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 250)
+    for _ in range(4):
+        _run("mcp__kb__search", _FakeMCPResponse(), formatted="ü" * 60)
+    rows = _lines(tmp_path, _OUTPUT_MANIFEST)
+    assert rows[0]["text"] == "ü" * 60
+    assert len(rows[-1]["text"]) < 60
+
+
+def test_citation_text_past_the_turn_budget_keeps_the_chip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 100)
     unique_dir = tmp_path / ".unique"
-    doc = "# Big Doc\n" + "x" * (mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT + 500)
+    for number in range(1, 4):
+        doc = f"# Doc {number}\n" + "x" * 60
+        record_mcp_citations(
+            _FakeMCPResponse(content=[{"type": "text", "text": doc}]),
+            tool_name="read_doc",
+            server_name="docs",
+            unique_dir=unique_dir,
+            formatted_text=doc,
+            reference_mapping={"titleFromText": True},
+        )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert [ref["title"] for ref in refs] == ["Doc 1", "Doc 2", "Doc 3"]
+    assert refs[0]["text"] == "# Doc 1\n" + "x" * 60
+    assert 0 < len(refs[1]["text"]) < 68
+    assert refs[2]["text"] is None
+
+
+def test_a_budget_cut_title_less_item_keeps_its_number(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 10)
+    unique_dir = tmp_path / ".unique"
+    body = "plain body " * 10
+    for _ in range(2):
+        record_mcp_citations(
+            _FakeMCPResponse(content=[{"type": "text", "text": body}]),
+            tool_name="search",
+            server_name="docs",
+            unique_dir=unique_dir,
+            formatted_text=body,
+        )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert len(refs) == 1
+    assert len(refs[0]["text"]) == 10
+
+
+def test_ref_text_is_recorded_whole(tmp_path: Path) -> None:
+    unique_dir = tmp_path / ".unique"
+    doc = "# Big Doc\n" + "x" * 5_000_000
     response = _FakeMCPResponse(content=[{"type": "text", "text": doc}])
     record_mcp_citations(
         response,
@@ -469,7 +528,25 @@ def test_ref_text_truncated_to_writer_cap(tmp_path: Path) -> None:
         reference_mapping={"titleFromText": True},
     )
     refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
-    assert len(refs[0]["text"]) == mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT
+    assert refs[0]["text"] == doc
+
+
+def test_large_search_output_is_recorded_whole(tmp_path: Path) -> None:
+    """A 123-email search result must keep every email for the judge (UN-26481)."""
+    unique_dir = tmp_path / ".unique"
+    output = "email body. " * 100_000
+    response = _FakeMCPResponse(content=[{"type": "text", "text": output}])
+    record_mcp_citations(
+        response,
+        tool_name="search_emails",
+        server_name="outlook",
+        unique_dir=unique_dir,
+        formatted_text=output,
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert refs[0]["text"] == output
+    outputs = _unique_lines(unique_dir, "mcp-output.jsonl")
+    assert outputs[0]["text"] == output
 
 
 def test_dedup_backfills_longer_text_from_later_call(tmp_path: Path) -> None:
@@ -949,11 +1026,9 @@ def test_titleless_identical_text_still_merges(tmp_path: Path) -> None:
 def test_titleless_oversized_identical_text_merges_across_calls(
     tmp_path: Path,
 ) -> None:
-    # Bugbot regression: the dedup key must hash the CAPPED text so the second
-    # call (rebuilding the key from the truncated manifest entry) still matches
-    # the first (full live text). An oversized identical title-less body must
-    # merge onto one source, not be re-assigned a duplicate number.
-    big = "x" * (mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT + 50)
+    # The second call rebuilds the key from the manifest entry, so an
+    # oversized identical title-less body must merge onto one source.
+    big = "x" * 5_000_000
     for _ in range(2):
         _run(
             "mcp__crm__update",

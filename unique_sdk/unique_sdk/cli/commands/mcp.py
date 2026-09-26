@@ -31,14 +31,10 @@ _LOGGER = logging.getLogger(__name__)
 # information (UN-21951). Carries *text only* — no source numbers/markers
 # (referencing is UN-21285, tracked separately).
 _MCP_OUTPUT_LOG_RELATIVE_PATH = Path(".unique") / "mcp-output.jsonl"
-# Writer-side cap so a single huge/raw tool result cannot bloat the manifest.
-# This manifest is the groundedness check's source of truth, so the cap is
-# sized against the eval model's context window rather than kept minimal:
-# GPT-4o's 128k-token input fits ~400k chars, and the runner bounds the
-# combined per-turn payload separately (UN-22309). At the previous 50k, a
-# large list result (e.g. a 115k-char Jira search) lost most of its items
-# before the judge saw them, flagging well-grounded answers as hallucinations.
-_MCP_OUTPUT_TEXT_CHAR_LIMIT = 200_000
+# Runaway guard, four times the largest judge window; the runner trims by tokens.
+_MCP_TEXT_GUARD_CHARS = 16_000_000
+# Bytes of tool text each per-turn manifest may hold, about 16 judge windows.
+_MCP_TURN_TEXT_BUDGET_BYTES = 64_000_000
 
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
@@ -58,13 +54,6 @@ _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 # behavior (forward/backward compatible).
 _MCP_REFS_SEED_FILENAME = "mcp-refs-seed.json"
 _MCP_SNIPPET_CHAR_LIMIT = 300
-# Writer-side cap on the per-item ``text`` recorded in the refs manifest — the
-# cited item's underlying text, consumed by the runner's hallucination check to
-# ground each ``[mcpsourceN]`` citation on what was actually retrieved
-# (UN-22762). Half the flat-output cap (``_MCP_OUTPUT_TEXT_CHAR_LIMIT``): one
-# cited item (a page, an issue record) rarely exceeds it, and the eval side
-# bounds the combined cited-text payload separately.
-_MCP_REF_TEXT_CHAR_LIMIT = 100_000
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
@@ -721,30 +710,35 @@ def _item_dedup_key(tool_name: str, item: dict[str, Any]) -> str:
     one number (identical bodies still merge). NOTE: this intentionally weakens
     the search-then-fetch text-upgrade merge for title-less items only — titled
     items still merge by title as before.
-
-    The text is capped at ``_MCP_REF_TEXT_CHAR_LIMIT`` BEFORE hashing — the same
-    cap the manifest stores under ``text``. Without it, the first call (live,
-    full-length item text) and a later call rebuilding this key from the
-    truncated manifest entry would hash to different values, so an oversized
-    title-less result would be re-assigned a duplicate ``[mcpsourceN]`` instead
-    of deduping.
     """
     title = item.get("title")
     if isinstance(title, str) and title.strip():
         return f"title:{tool_name}:{title.strip()}"
-    capped_text = (item.get("text") or "")[:_MCP_REF_TEXT_CHAR_LIMIT]
-    text_hash = hashlib.sha256(capped_text.encode("utf-8")).hexdigest()[:12]
+    text = (item.get("text") or "")[:_MCP_TEXT_GUARD_CHARS]
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
     return f"tool:{tool_name}:{text_hash}"
 
 
 def _ref_text(item: dict[str, Any]) -> str | None:
-    """The item's underlying text for the manifest, capped at
-    ``_MCP_REF_TEXT_CHAR_LIMIT`` (single write-side cap shared by all
-    extraction modes)."""
+    """The item's underlying text for the manifest, up to the runaway guard."""
     text = item.get("text")
     if not isinstance(text, str) or not text:
         return None
-    return text[:_MCP_REF_TEXT_CHAR_LIMIT]
+    return text[:_MCP_TEXT_GUARD_CHARS]
+
+
+def _utf8_size(text: str) -> int:
+    return len(text.encode("utf-8", errors="surrogatepass"))
+
+
+def _within_bytes(text: str, room: int) -> str:
+    """Longest prefix of ``text`` that fits ``room`` UTF-8 bytes."""
+    if room <= 0:
+        return ""
+    encoded = text.encode("utf-8", errors="surrogatepass")
+    if len(encoded) <= room:
+        return text
+    return encoded[:room].decode("utf-8", errors="ignore")
 
 
 def _annotate_mcp_results_for_citations(
@@ -793,21 +787,30 @@ def _annotate_mcp_results_for_citations(
             numbers_by_key: dict[str, int] = {}
             for entry in entries:
                 if isinstance(entry.get("sourceNumber"), int):
-                    stored_tool = entry.get("toolName") or tool_name
-                    numbers_by_key[_item_dedup_key(stored_tool, entry)] = entry[
-                        "sourceNumber"
-                    ]
+                    stored_key = entry.get("dedupKey")
+                    if not isinstance(stored_key, str):
+                        stored_tool = entry.get("toolName") or tool_name
+                        stored_key = _item_dedup_key(stored_tool, entry)
+                    numbers_by_key[stored_key] = entry["sourceNumber"]
             entries_by_number = {
                 entry["sourceNumber"]: entry
                 for entry in entries
                 if isinstance(entry.get("sourceNumber"), int)
             }
             needs_rewrite = False
+            text_room = _MCP_TURN_TEXT_BUDGET_BYTES - sum(
+                _utf8_size(entry["text"])
+                for entry in entries
+                if isinstance(entry.get("text"), str)
+            )
             for item in items:
                 key = _item_dedup_key(tool_name, item)
                 source_number = numbers_by_key.get(key)
                 if source_number is None:
                     source_number = max(_next_mcp_source_number(entries), seed + 1)
+                    full_text = _ref_text(item) or ""
+                    entry_text = _within_bytes(full_text, text_room)
+                    text_room -= _utf8_size(entry_text)
                     manifest_entry = {
                         "sourceNumber": source_number,
                         "toolName": tool_name,
@@ -815,8 +818,11 @@ def _annotate_mcp_results_for_citations(
                         "title": item.get("title"),
                         "snippet": item.get("snippet"),
                         "details": item.get("details"),
-                        "text": _ref_text(item),
+                        "text": entry_text or None,
                     }
+                    # Budget-cut text no longer hashes to the key, so it is kept.
+                    if entry_text != full_text:
+                        manifest_entry["dedupKey"] = key
                     item_url = item.get("url")
                     if isinstance(item_url, str) and item_url:
                         manifest_entry["url"] = item_url
@@ -855,7 +861,13 @@ def _annotate_mcp_results_for_citations(
                         stored_len = (
                             len(stored_text) if isinstance(stored_text, str) else 0
                         )
-                        if len(new_text) > stored_len:
+                        growth = _utf8_size(new_text) - (
+                            _utf8_size(stored_text)
+                            if isinstance(stored_text, str)
+                            else 0
+                        )
+                        if len(new_text) > stored_len and growth <= text_room:
+                            text_room -= growth
                             stored["text"] = new_text
                             needs_rewrite = True
                 annotated.append((source_number, item))
@@ -931,12 +943,19 @@ def _append_mcp_output_manifest(
         refs_log_path = output_path or workspace_manifest_path(
             _MCP_OUTPUT_LOG_RELATIVE_PATH
         )
+        recorded = refs_log_path.stat().st_size if refs_log_path.is_file() else 0
+        text = _within_bytes(
+            text[:_MCP_TEXT_GUARD_CHARS], _MCP_TURN_TEXT_BUDGET_BYTES - recorded
+        )
+        if not text:
+            _LOGGER.warning("mcp: turn output budget spent, row skipped")
+            return
         _append_turn_refs_manifest_entry(
             refs_log_path,
             {
                 "toolName": name,
                 "serverName": server_name,
-                "text": text[:_MCP_OUTPUT_TEXT_CHAR_LIMIT],
+                "text": text,
             },
         )
     except (UnsafeRefsLogPathError, OSError) as exc:
