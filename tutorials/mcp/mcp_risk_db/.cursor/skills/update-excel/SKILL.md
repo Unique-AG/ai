@@ -57,11 +57,12 @@ security add-generic-password -U \
 7. **Wait for health**
    - Poll `https://risk-db-mcp-app.azurewebsites.net/` every 10 seconds for up to 10 minutes.
    - Do not run the QA verification until the endpoint returns HTTP 200 with `{"server":"running","name":"risk-database-mcp"}`.
+   - After health passes, wait another 3 minutes for the refreshed App Service worker and MCP connection to settle before querying QA.
    - Treat timeout or an unexpected health response as a failed deployment and inspect the Azure log stream.
 
 8. **Verify through the QA space**
    - Run `uv run .cursor/skills/update-excel/scripts/verify_qa_space.py`.
-   - The script sends one prompt through the Unique SDK, requires the connected MCP to query `pnl_daily`, and checks the response for the expected `2026-09-22` values.
+   - The script derives the latest date and expected P&L values from the canonical workbook, sends one prompt through the Unique SDK, and requires the connected MCP response to contain those values.
    - If the response reports `MCP server not found`, `session expired`, or requests reconnection, ask the user to open the QA space and manually reconnect the MCP. Wait for confirmation, then rerun the same verification without redeploying or restarting.
    - A non-zero exit code means the deployed MCP was not verified; inspect the response and Azure logs.
 
