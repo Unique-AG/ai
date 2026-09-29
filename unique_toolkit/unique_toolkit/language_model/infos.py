@@ -91,6 +91,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
     ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
     ANTHROPIC_CLAUDE_SONNET_5 = "litellm:anthropic-claude-sonnet-5"
+    ANTHROPIC_CLAUDE_SONNET_5_5 = "litellm:anthropic-claude-sonnet-5-5"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
@@ -160,6 +161,7 @@ class LanguageModelName(StrEnum):
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
     VERTEX_CLAUDE_SONNET_4_6 = "litellm:vertex-claude-sonnet-4-6"
     VERTEX_CLAUDE_SONNET_5 = "litellm:vertex-claude-sonnet-5"
+    VERTEX_CLAUDE_SONNET_5_5 = "litellm:vertex-claude-sonnet-5-5"
     VERTEX_CLAUDE_OPUS_4_6 = "litellm:vertex-claude-opus-4-6"
     VERTEX_CLAUDE_OPUS_4_7 = "litellm:vertex-claude-opus-4-7"
     VERTEX_CLAUDE_OPUS_4_8 = "litellm:vertex-claude-opus-4-8"
@@ -1845,6 +1847,33 @@ class LanguageModelInfo(BaseModel):
                         min_temperature=1.0, max_temperature=1.0
                     ),
                     supported_reasoning_efforts=[],
+                )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5_5
+                | LanguageModelName.VERTEX_CLAUDE_SONNET_5_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-sonnet-5-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        # 1M context / 128K max output. https://platform.claude.com/docs/en/models/sonnet-5-5/overview
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
+                    ),
+                    info_cutoff_at=date(2026, 6, 1),
+                    published_at=date(2026, 9, 28),
+                    supported_reasoning_efforts=[],
+                    supports_forced_tool_choice=False,
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(
