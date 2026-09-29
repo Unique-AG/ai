@@ -113,6 +113,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
@@ -335,6 +336,32 @@ class TestLanguageModelInfos:
             "medium",
             "high",
             "xhigh",
+        ]
+
+    @pytest.mark.ai
+    def test_gpt_61_sol_matches_published_limits(self):
+        """
+        Purpose: GPT-6.1 Sol registry facts match the published card.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff
+        and sizes requests from token_limits.
+        Setup summary: Load the LiteLLM GPT-6.1 Sol LanguageModelInfo.
+        Sources:
+        https://developers.openai.com/api/docs/models/gpt-6.1-sol
+        https://cdn.openai.com/pdf/38e3efcf-545e-44cd-99ec-2b7eb395f4cc/oai_GPT_6_1_Sol.pdf
+        """
+        model = LanguageModelInfo.from_name(LanguageModelName.LITELLM_OPENAI_GPT_61_SOL)
+        assert model.info_cutoff_at == date(2026, 4, 30)
+        assert model.published_at == date(2026, 9, 29)
+        assert model.version == "2026-09-29"
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
         ]
 
 

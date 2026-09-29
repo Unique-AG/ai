@@ -50,6 +50,7 @@ AFFECTED_MODELS = [
     LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
     LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
     LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+    LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
 ]
 
 CODE_INTERPRETER_TOOL = ToolBuildConfig(

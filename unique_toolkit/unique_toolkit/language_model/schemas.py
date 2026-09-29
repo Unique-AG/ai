@@ -793,9 +793,9 @@ class LanguageModelResponse(BaseModel):
 
 
 # The OpenAI SDK's ReasoningEffort type alias is generated from an older OpenAPI spec and is
-# missing values that the API actually supports (e.g. "xhigh", "none"). We define our own
+# missing values that the API actually supports (e.g. "xhigh", "none", "max"). We define our own
 # complete type here as the source of truth.
-ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
 
 # Ordered from lowest to highest reasoning effort. Used wherever effort levels must be
 # compared or ranked (e.g. picking the maximum across multiple skill hints).
@@ -806,18 +806,19 @@ REASONING_EFFORT_ORDER: tuple[ReasoningEffort, ...] = (
     "medium",
     "high",
     "xhigh",
+    "max",
 )
 
 
 def to_reasoning_effort(value: str) -> ReasoningEffort:
     """Narrow a raw string to ReasoningEffort, raising ValueError for unrecognised values."""
     match value:
-        case "none" | "minimal" | "low" | "medium" | "high" | "xhigh":
+        case "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max":
             return value
         case _:
             raise ValueError(
                 f"Unknown reasoning_effort {value!r}. "
-                f"Supported values: none, minimal, low, medium, high, xhigh."
+                f"Supported values: none, minimal, low, medium, high, xhigh, max."
             )
 
 

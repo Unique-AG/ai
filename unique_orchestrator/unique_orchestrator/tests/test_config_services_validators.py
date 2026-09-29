@@ -321,6 +321,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
         ],
     )
     def test_enables_responses_api_for_affected_models(
@@ -354,6 +355,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
         ],
     )
     def test_enables_responses_api_for_affected_models_with_tools(
@@ -396,6 +398,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
         ],
     )
     def test_keeps_responses_api_enabled_when_already_enabled(
