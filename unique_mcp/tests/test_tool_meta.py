@@ -197,6 +197,21 @@ def test_config_env_key_strips_non_ascii() -> None:
     )
 
 
+@pytest.mark.ai
+def test_config_env_key_tool_only() -> None:
+    """Purpose: A missing server name yields UNIQUE_MCP_TOOL_{CONFIG}_CONFIG.
+    Why this matters: Display-name renames must not change the stable env var.
+    Setup summary: SearchToolConfig with no server name; assert the tool-only key.
+    """
+
+    class SearchToolConfig(BaseModel):
+        pass
+
+    assert _config_env_key(None, SearchToolConfig) == (
+        "UNIQUE_MCP_TOOL_SEARCH_TOOL_CONFIG"
+    )
+
+
 class _MockServer:
     def __init__(self, name: str) -> None:
         self.name = name
@@ -232,6 +247,50 @@ def test_get_tool_config_env_var_fallback(monkeypatch: pytest.MonkeyPatch) -> No
     dep = get_tool_config(MyConfig)
     config = _call_dep(dep)
     assert isinstance(config, MyConfig)
+    assert config.value == 42
+
+
+@pytest.mark.ai
+def test_get_tool_config_tool_only_env_var_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: The tool-only env var applies when the server-prefixed var is unset.
+    Why this matters: Deployments can pin config without the FastMCP display name.
+    Setup summary: Set UNIQUE_MCP_TOOL_MY_CONFIG only; assert value 42.
+    """
+
+    class MyConfig(BaseModel):
+        value: int = 7
+
+    server_key = _config_env_key("test-server", MyConfig)
+    tool_key = _config_env_key(None, MyConfig)
+    monkeypatch.delenv(server_key, raising=False)
+    monkeypatch.setenv(tool_key, '{"value": 42}')
+
+    dep = get_tool_config(MyConfig)
+    config = _call_dep(dep)
+    assert config.value == 42
+
+
+@pytest.mark.ai
+def test_get_tool_config_server_prefixed_env_wins_over_tool_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: The server-prefixed env var wins when both keys are set.
+    Why this matters: Existing deployments keep their current override.
+    Setup summary: Set both keys to different values; assert the server-prefixed one.
+    """
+
+    class MyConfig(BaseModel):
+        value: int = 7
+
+    server_key = _config_env_key("test-server", MyConfig)
+    tool_key = _config_env_key(None, MyConfig)
+    monkeypatch.setenv(server_key, '{"value": 42}')
+    monkeypatch.setenv(tool_key, '{"value": 99}')
+
+    dep = get_tool_config(MyConfig)
+    config = _call_dep(dep)
     assert config.value == 42
 
 
