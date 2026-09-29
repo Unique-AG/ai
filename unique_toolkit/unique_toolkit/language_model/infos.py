@@ -166,6 +166,7 @@ class LanguageModelName(StrEnum):
     VERTEX_CLAUDE_OPUS_5 = "litellm:vertex-claude-opus-5"
     VERTEX_CLAUDE_OPUS_5_5 = "litellm:vertex-claude-opus-5-5"
     VERTEX_CLAUDE_FABLE_5 = "litellm:vertex-claude-fable-5"
+    VERTEX_GEMINI_3_8_FLASH = "litellm:vertex-gemini-3-8-flash"
 
 
 class EncoderName(StrEnum):
@@ -2318,6 +2319,33 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 12, 17),
                     supported_reasoning_efforts=[],
+                )
+            case (
+                LanguageModelName.GEMINI_3_8_FLASH
+                | LanguageModelName.VERTEX_GEMINI_3_8_FLASH
+            ):
+                # https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash
+                # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-3.8-flash",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    # Model card lists the latest update as September 2026.
+                    published_at=date(2026, 9, 1),
+                    supported_reasoning_efforts=["low", "medium", "high"],
+                    default_options={"reasoning_effort": "medium"},
                 )
             case LanguageModelName.GEMINI_3_PRO_PREVIEW:
                 return cls(

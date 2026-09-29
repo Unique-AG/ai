@@ -142,6 +142,7 @@ class TestLanguageModelInfos:
             LanguageModelName.VERTEX_CLAUDE_OPUS_5,
             LanguageModelName.VERTEX_CLAUDE_OPUS_5_5,
             LanguageModelName.VERTEX_CLAUDE_FABLE_5,
+            LanguageModelName.VERTEX_GEMINI_3_8_FLASH,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)
