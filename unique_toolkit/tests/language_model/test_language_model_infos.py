@@ -122,6 +122,8 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH,
             LanguageModelName.LITELLM_PHOENIQS_GEMMA_4_31B,
             LanguageModelName.LITELLM_PHOENIQS_GLM_5_2,
+            LanguageModelName.LITELLM_PHOENIQS_GLM_5_3_FLASH,
+            LanguageModelName.LITELLM_PHOENIQS_LLAMA_4_MAVERICK,
             LanguageModelName.LITELLM_KIMI_K2_6,
             LanguageModelName.LITELLM_KIMI_K3,
             LanguageModelName.LITELLM_QWEN_3,
