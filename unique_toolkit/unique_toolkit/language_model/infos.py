@@ -3372,7 +3372,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
-                    family=ModelFamily.LLAMA,
+                    family=ModelFamily.META,
                     version="llama-4-maverick",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
