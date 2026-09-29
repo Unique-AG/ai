@@ -94,6 +94,7 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
             LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
             LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
+            LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
             LanguageModelName.LITELLM_OPENAI_GPT_5,
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
@@ -350,9 +351,15 @@ class TestLanguageModelInfos:
         https://cdn.openai.com/pdf/38e3efcf-545e-44cd-99ec-2b7eb395f4cc/oai_GPT_6_1_Sol.pdf
         """
         model = LanguageModelInfo.from_name(LanguageModelName.LITELLM_OPENAI_GPT_61_SOL)
+        azure = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_61_SOL_2026_0929)
         assert model.info_cutoff_at == date(2026, 4, 30)
+        assert azure.info_cutoff_at == date(2026, 4, 30)
         assert model.published_at == date(2026, 9, 29)
+        assert azure.published_at == date(2026, 9, 29)
         assert model.version == "2026-09-29"
+        assert azure.version == "2026-09-29"
+        assert azure.provider == LanguageModelProvider.AZURE
+        assert model.provider == LanguageModelProvider.LITELLM
         assert model.token_limits.token_limit_input == 922_000
         assert model.token_limits.token_limit_output == 128_000
         assert model.default_options["reasoning_effort"] == "medium"

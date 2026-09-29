@@ -68,6 +68,7 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_6_ASTRA_2026_0903 = "AZURE_GPT_6_ASTRA_2026_0903"
     AZURE_GPT_6_LUNA_2026_0922 = "AZURE_GPT_6_LUNA_2026_0922"
     AZURE_GPT_6_SOL_2026_0922 = "AZURE_GPT_6_SOL_2026_0922"
+    AZURE_GPT_61_SOL_2026_0929 = "AZURE_GPT_61_SOL_2026_0929"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -236,6 +237,7 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_6_ASTRA_2026_0903
             | LMN.AZURE_GPT_6_LUNA_2026_0922
             | LMN.AZURE_GPT_6_SOL_2026_0922
+            | LMN.AZURE_GPT_61_SOL_2026_0929
             | LMN.AZURE_MODEL_ROUTER_2025_1118
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
@@ -2986,14 +2988,23 @@ class LanguageModelInfo(BaseModel):
                         "xhigh",
                     ],
                 )
-            case LanguageModelName.LITELLM_OPENAI_GPT_61_SOL:
+            case (
+                LanguageModelName.AZURE_GPT_61_SOL_2026_0929
+                | LanguageModelName.LITELLM_OPENAI_GPT_61_SOL
+            ):
                 # https://developers.openai.com/api/docs/models/gpt-6.1-sol
-                # Context 1,050,000 with 128,000 max output → 922,000 max input,
-                # matching the GPT-6 Sol window. `none` is not a reasoning effort.
-                # `max` is documented; ReasoningEffort includes it above `xhigh`.
+                # Foundry GA 2026-09-29:
+                # https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-gpt-6-1-sol-in-microsoft-foundry-advanced-intelligence-optimized-for/4560811
+                # Context 1,050,000 with 128,000 max output → 922,000 max input.
+                # `none` is not a reasoning effort. `max` is documented.
+                provider = (
+                    LanguageModelProvider.AZURE
+                    if model_name is LanguageModelName.AZURE_GPT_61_SOL_2026_0929
+                    else LanguageModelProvider.LITELLM
+                )
                 return cls(
                     name=model_name,
-                    provider=LanguageModelProvider.LITELLM,
+                    provider=provider,
                     family=ModelFamily.OPENAI,
                     version="2026-09-29",
                     encoder_name=EncoderName.O200K_BASE,
