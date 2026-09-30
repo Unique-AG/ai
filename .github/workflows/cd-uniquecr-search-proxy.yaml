@@ -1,0 +1,155 @@
+name: "[CD] Search proxy to uniquecr"
+
+# Publish an already-published search-proxy image + chart from GHCR into uniquecr.
+# Does not rebuild. Image component tag only: unique-search-proxy-vYYYY.WW.PATCH
+# (not core/sdk). Environment uniquecr-github-oidc is expected to restrict to that tag.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "CalVer to re-import (e.g. 2026.40.0). Run with --ref unique-search-proxy-v<version>."
+        required: true
+        type: string
+
+jobs:
+  publish-to-uniquecr:
+    # Other packages in the same release cycle publish their own tags; skip those green.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || startsWith(github.event.release.tag_name, 'unique-search-proxy-v')
+    runs-on: ubuntu-latest
+    environment: uniquecr-github-oidc
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    steps:
+      - name: Resolve version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            EXPECTED="unique-search-proxy-v${INPUT_VERSION}"
+            if [[ "$REF_NAME" != "$EXPECTED" ]]; then
+              echo "Refusing: workflow_dispatch must run on --ref ${EXPECTED} (got ${REF_NAME})"
+              exit 1
+            fi
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="${RELEASE_TAG#unique-search-proxy-v}"
+            if [[ -z "$VERSION" || "$VERSION" == "$RELEASE_TAG" ]]; then
+              echo "Could not derive version from tag '${RELEASE_TAG}'"
+              exit 1
+            fi
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Publishing search-proxy ${VERSION} to uniquecr"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - name: Login to Azure (uniquecr OIDC)
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
+        with:
+          client-id: ${{ vars.CLIENT_ID }}
+          tenant-id: ${{ vars.TENANT_ID }}
+          subscription-id: ${{ vars.SUBSCRIPTION_ID }}
+
+      - name: Import image from GHCR into uniquecr
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SOURCE="ghcr.io/unique-ag/ai/search-proxy:${VERSION}"
+          IMAGE="unique-ag/ai/search-proxy:${VERSION}"
+          # Release publish may still be pushing to GHCR; wait rather than rebuild.
+          for attempt in $(seq 1 40); do
+            if az acr import \
+              --name uniquecr \
+              --source "$SOURCE" \
+              --image "$IMAGE" \
+              --username "$GHCR_USER" \
+              --password "$GHCR_TOKEN" \
+              --force; then
+              echo "Imported ${SOURCE} -> uniquecr.azurecr.io/${IMAGE}"
+              exit 0
+            fi
+            echo "Source not ready (attempt ${attempt}/40); waiting 30s..."
+            sleep 30
+          done
+          echo "Timed out waiting for ${SOURCE}"
+          exit 1
+
+      - name: Publish Helm chart to uniquecr
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          TOKEN=$(az acr login --name uniquecr --expose-token --output tsv --query accessToken)
+          echo "::add-mask::$TOKEN"
+          echo "$TOKEN" | helm registry login uniquecr.azurecr.io \
+            --username 00000000-0000-0000-0000-000000000000 \
+            --password-stdin
+
+          DEST="$RUNNER_TEMP/helm-dist"
+          mkdir -p "$DEST"
+          for attempt in $(seq 1 40); do
+            if helm pull "oci://ghcr.io/unique-ag/ai/helm/search-proxy" \
+              --version "$VERSION" \
+              --destination "$DEST"; then
+              break
+            fi
+            if [[ "$attempt" -eq 40 ]]; then
+              echo "Timed out waiting for chart search-proxy:${VERSION} on GHCR"
+              exit 1
+            fi
+            echo "Chart not ready (attempt ${attempt}/40); waiting 30s..."
+            sleep 30
+          done
+
+          TGZ=$(find "$DEST" -maxdepth 1 -name 'search-proxy-*.tgz' | head -n 1)
+          if [[ -z "$TGZ" ]]; then
+            echo "No chart tarball found in ${DEST}"
+            exit 1
+          fi
+          helm push "$TGZ" oci://uniquecr.azurecr.io/helm
+          echo "Pushed $(basename "$TGZ") to oci://uniquecr.azurecr.io/helm"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Sign the digest, not the tags (same as cd-containerize.yaml).
+      - name: Sign imported image by digest
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          az acr login --name uniquecr
+          DIGEST=$(az acr repository show \
+            --name uniquecr \
+            --image "unique-ag/ai/search-proxy:${VERSION}" \
+            --query digest -o tsv)
+          if ! [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "Failed to resolve digest for uniquecr.azurecr.io/unique-ag/ai/search-proxy:${VERSION} (got '${DIGEST}')"
+            exit 1
+          fi
+          IMAGE="uniquecr.azurecr.io/unique-ag/ai/search-proxy:${VERSION}@${DIGEST}"
+          cosign sign --yes "$IMAGE"
+          cosign verify "$IMAGE" \
+            --certificate-identity-regexp="^https://github.com/${{ github.repository }}/\.github/workflows/.*@refs/(heads/main|tags/.*)$" \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com
