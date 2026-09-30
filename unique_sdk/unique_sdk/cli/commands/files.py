@@ -11,7 +11,7 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_content_info
-from unique_sdk.cli.skill_guard import skill_write_denial
+from unique_sdk.cli.skill_guard import skill_read_denial, skill_write_denial
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
@@ -431,6 +431,8 @@ def cmd_download(
     """Download a file by name or content ID."""
     try:
         content_id, display_name = _resolve_content_id(state, name_or_id)
+        if state.is_skill_content_read_denied(content_id):
+            return skill_read_denial("download", display_name)
 
         raw_name = (
             display_name if not display_name.startswith("cont_") else f"{content_id}"

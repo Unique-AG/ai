@@ -10,7 +10,7 @@ from typing import Any
 import unique_sdk
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.metadata_filter import MetadataFilter
-from unique_sdk.cli.skill_guard import SkillGuard
+from unique_sdk.cli.skill_guard import SkillGuard, folder_ids_from_metadata
 from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
@@ -439,6 +439,28 @@ class ShellState:
         if not owner_id.startswith("scope_"):
             return False
         return self.skill_guard.is_folder_write_denied(owner_id, new_file_name=new_name)
+
+    def is_skill_content_read_denied(self, content_id: str) -> bool:
+        """True when *content_id* is part of a protected skill.
+
+        Content owned by a chat instead of a folder is never part of a skill.
+        Fails closed when the content can't be looked up.
+        """
+        info = self._get_content_info(content_id)
+        if not info:
+            return True
+        owner_id = info.get("ownerId") or ""
+        if not owner_id.startswith("scope_"):
+            return False
+        return self.skill_guard.is_folder_hidden(owner_id)
+
+    def is_skill_search_hit_hidden(self, hit: Any) -> bool:
+        """True when a search result sits in a protected skill."""
+        folder_ids = folder_ids_from_metadata(getattr(hit, "metadata", None))
+        if folder_ids:
+            return self.skill_guard.is_folder_path_hidden(folder_ids)
+        content_id = getattr(hit, "id", "") or ""
+        return bool(content_id) and self.is_skill_content_read_denied(content_id)
 
     def resolve_content_title(self, content_id: str) -> str:
         """Human-readable title for a content id, falling back to the id.

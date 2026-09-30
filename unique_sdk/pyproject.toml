@@ -91,7 +91,7 @@ markers = [
     "asyncio: asyncio tests",
     "integration: integration tests that require API access or credentials",
     "serial: tests that must run serially",
-    "skill_guard: CLI tests that exercise the real skill write guard",
+    "skill_guard: CLI tests that exercise the real skill guard",
     "unit: unit tests",
     "verified: AI-generated tests with human verification",
 ]

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -12,12 +13,16 @@ import pytest
 
 import unique_sdk
 from unique_sdk.cli.commands.files import (
+    cmd_download,
     cmd_mv_file,
     cmd_rm,
     cmd_upload,
     is_permission_denied_output,
 )
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.navigation import cmd_ls
+from unique_sdk.cli.commands.read import cmd_read
+from unique_sdk.cli.commands.search import cmd_search
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.skill_guard import SkillGuard, is_skill_marker_name
 from unique_sdk.cli.state import ShellState
@@ -37,6 +42,9 @@ _FOLDERS: dict[str, tuple[str, str | None]] = {
     "scope_theirs": ("their-skill", "scope_theirs_root"),
     "scope_company": ("company-acme", "scope_skills"),
     "scope_shared": ("shared-skill", "scope_company"),
+    "scope_mine_in_company": ("personal-u1", "scope_company"),
+    "scope_mine_in_company_draft": ("draft", "scope_mine_in_company"),
+    "scope_mine_in_skill": ("personal-u1", "scope_bench"),
 }
 
 # content id, key, owner id, folderIdPath
@@ -243,9 +251,21 @@ class TestFolderWrites:
         kb.search.side_effect = unique_sdk.UniqueError("search failed")
         assert SkillGuard(_config()).is_folder_write_denied("scope_docs")
 
-    def test_personal_layer_skips_marker_search(self, kb: _FakeKnowledgeBase) -> None:
+    def test_personal_layer_searches_only_above_the_layer(
+        self, kb: _FakeKnowledgeBase
+    ) -> None:
         assert not SkillGuard(_config()).is_folder_write_denied("scope_mine")
-        kb.search.assert_not_called()
+        assert kb.search.call_count == 1
+        assert _owner_id_filter(kb.search.call_args.kwargs["where"]) == ["scope_skills"]
+
+    @pytest.mark.parametrize(
+        "scope_id", ["scope_mine_in_company_draft", "scope_mine_in_skill"]
+    )
+    def test_nested_personal_folder_is_not_the_personal_layer(
+        self, kb: _FakeKnowledgeBase, scope_id: str
+    ) -> None:
+        guard = SkillGuard(_config())
+        assert guard.is_folder_write_denied(scope_id, new_file_name="SKILL.md")
 
     def test_folder_write_searches_only_the_folder_chain(
         self, kb: _FakeKnowledgeBase
@@ -283,6 +303,40 @@ class TestFolderWrites:
         kb.include_owner_id = False
         guard = SkillGuard(_config())
         assert guard.is_folder_write_denied("scope_kb", include_subtree=True)
+
+
+class TestReads:
+    @pytest.mark.parametrize(
+        ("scope_id", "hidden"),
+        [
+            ("scope_bench", True),
+            ("scope_bench_refs", True),
+            ("scope_theirs", True),
+            ("scope_shared", True),
+            ("scope_mine_in_skill", True),
+            ("scope_mine", False),
+            ("scope_mine_root", False),
+            ("scope_mine_in_company_draft", False),
+            ("scope_docs", False),
+            ("scope_kb", False),
+        ],
+    )
+    def test_folder_hidden_inside_skills(
+        self, kb: _FakeKnowledgeBase, scope_id: str, hidden: bool
+    ) -> None:
+        assert SkillGuard(_config()).is_folder_hidden(scope_id) is hidden
+
+    def test_unknown_folder_is_hidden(self, kb: _FakeKnowledgeBase) -> None:
+        assert SkillGuard(_config()).is_folder_hidden("scope_missing")
+
+    def test_failed_marker_search_hides_the_path(self, kb: _FakeKnowledgeBase) -> None:
+        kb.search.side_effect = unique_sdk.UniqueError("search failed")
+        assert SkillGuard(_config()).is_folder_path_hidden(["scope_kb", "scope_docs"])
+
+    def test_plain_path_checks_no_folder_chain(self, kb: _FakeKnowledgeBase) -> None:
+        guard = SkillGuard(_config())
+        assert not guard.is_folder_path_hidden(["scope_kb", "scope_docs"])
+        kb.folder_get_info.assert_not_called()
 
 
 class TestPathWrites:
@@ -379,3 +433,79 @@ class TestCommands:
             update.return_value = {"id": "scope_mine", "name": "renamed"}
             out = cmd_mvdir(_state(), "scope_mine", "renamed")
         assert out.startswith("Renamed folder")
+
+
+def _hit(content_id: str, folder_id_path: str | None) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=content_id,
+        key=f"{content_id}.md",
+        title=content_id,
+        text="text",
+        metadata={"folderIdPath": folder_id_path} if folder_id_path else None,
+    )
+
+
+class TestReadCommands:
+    def test_search_drops_hits_inside_protected_skills(
+        self, kb: _FakeKnowledgeBase, tmp_path: Path
+    ) -> None:
+        hits = [
+            _hit("cont_bench", "uniquepathid://scope_kb/scope_bench"),
+            _hit(
+                "cont_theirs",
+                "uniquepathid://scope_skills/scope_theirs_root/scope_theirs",
+            ),
+            _hit("cont_shared", None),
+            _hit("cont_mine", "uniquepathid://scope_skills/scope_mine_root/scope_mine"),
+            _hit("cont_report", "uniquepathid://scope_kb/scope_docs"),
+        ]
+        with patch.object(unique_sdk.Search, "create", return_value=hits):
+            out = cmd_search(_state(), "query", refs_log_path=tmp_path / "refs.jsonl")
+        assert "Found 2 result(s)" in out
+        assert "cont_mine" in out
+        assert "cont_report" in out
+        assert "cont_bench" not in out
+        assert "cont_theirs" not in out
+        assert "cont_shared" not in out
+
+    def test_read_skill_file_is_denied(self, kb: _FakeKnowledgeBase) -> None:
+        out = cmd_read(_state(), "cont_bench")
+        assert out.startswith("read: permission denied")
+        assert "workspace" in out
+
+    def test_read_own_personal_skill_file_is_allowed(
+        self, kb: _FakeKnowledgeBase
+    ) -> None:
+        assert not cmd_read(_state(), "cont_mine").startswith("read: permission denied")
+
+    def test_download_skill_file_is_denied(self, kb: _FakeKnowledgeBase) -> None:
+        with patch("unique_sdk.cli.commands.files.download_content") as download:
+            out = cmd_download(_state(), "cont_theirs")
+        assert is_permission_denied_output(out)
+        download.assert_not_called()
+
+    def test_ls_inside_skill_is_denied(self, kb: _FakeKnowledgeBase) -> None:
+        out = cmd_ls(_state("/Knowledge/bench-skill-4", "scope_bench"))
+        assert out.startswith("ls: permission denied")
+
+    def test_ls_hides_skill_child_folders(self, kb: _FakeKnowledgeBase) -> None:
+        children = [
+            {"id": "scope_bench", "name": "bench-skill-4"},
+            {"id": "scope_docs", "name": "Docs"},
+        ]
+        with (
+            patch.object(
+                unique_sdk.Folder,
+                "get_infos",
+                return_value={"folderInfos": children, "totalCount": 2},
+            ),
+            patch.object(
+                unique_sdk.Content,
+                "get_infos",
+                return_value={"contentInfos": [], "totalCount": 0},
+            ),
+        ):
+            out = cmd_ls(_state("/Knowledge", "scope_kb"))
+        assert "Docs" in out
+        assert "bench-skill-4" not in out
+        assert "1 folder(s)" in out
