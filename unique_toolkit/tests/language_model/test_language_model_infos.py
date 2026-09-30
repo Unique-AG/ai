@@ -351,7 +351,9 @@ class TestLanguageModelInfos:
         https://cdn.openai.com/pdf/38e3efcf-545e-44cd-99ec-2b7eb395f4cc/oai_GPT_6_1_Sol.pdf
         """
         model = LanguageModelInfo.from_name(LanguageModelName.LITELLM_OPENAI_GPT_61_SOL)
-        azure = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_61_SOL_2026_0929)
+        azure = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_61_SOL_2026_0929
+        )
         assert model.info_cutoff_at == date(2026, 4, 30)
         assert azure.info_cutoff_at == date(2026, 4, 30)
         assert model.published_at == date(2026, 9, 29)
