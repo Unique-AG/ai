@@ -247,6 +247,21 @@ class TestEventSchemas:
         assert payload.model_choice.display_name == "selected-test-model"
         assert payload.has_model_choice_override is True
 
+    def test_chat_event_payload_tracks_explicit_thinking_level(self) -> None:
+        payload_data = _minimal_chat_event_payload_data()
+        payload_data["thinkingLevel"] = "high"
+
+        payload = ChatEventPayload.model_validate(payload_data)
+
+        assert payload.thinking_level == "high"
+        assert payload.has_thinking_level_override is True
+
+    def test_chat_event_payload_omits_thinking_level_when_absent(self) -> None:
+        payload = ChatEventPayload.model_validate(_minimal_chat_event_payload_data())
+
+        assert payload.thinking_level == ""
+        assert payload.has_thinking_level_override is False
+
     def test_chat_event_payload_deserializes_available_skills(self) -> None:
         json_data = """{
             "name": "unique.chat.external-module.chosen",
