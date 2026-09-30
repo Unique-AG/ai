@@ -1825,7 +1825,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 2, 17),
-                    supported_reasoning_efforts=[],
+                    # Effort includes max. xhigh is not accepted.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high", "max"],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5
@@ -1853,7 +1855,15 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5_5
@@ -1879,7 +1889,15 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 6, 1),
                     published_at=date(2026, 9, 28),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                     supports_forced_tool_choice=False,
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
@@ -1943,7 +1961,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2025, 11, 13),
-                    supported_reasoning_efforts=[],
+                    # https://platform.claude.com/docs/en/build-with-claude/effort
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6
@@ -1967,7 +1987,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2026, 2, 5),
-                    supported_reasoning_efforts=[],
+                    # Effort includes max. xhigh is not accepted.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high", "max"],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7
@@ -1992,7 +2014,15 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 4, 16),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_8
@@ -2017,7 +2047,15 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 5, 28),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5
@@ -2042,7 +2080,15 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 5, 1),
                     published_at=date(2026, 7, 24),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5_5
@@ -2068,7 +2114,15 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 6, 1),
                     published_at=date(2026, 9, 22),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max. API default is medium.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                     supports_forced_tool_choice=False,
                 )
             case (
@@ -2094,7 +2148,15 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 7, 1),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:
                 return cls(
@@ -2283,7 +2345,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2026, 1, 19),
-                    supported_reasoning_efforts=[],
+                    # thinkingLevel is low, medium, or high.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.GEMINI_3_6_FLASH:
                 return cls(
@@ -2305,6 +2369,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 3, day=1),
                     published_at=date(2026, 7, 21),
+                    default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case (
@@ -2335,6 +2400,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 9, 2),
                     # minimal is rejected; default thinking level is medium when unset.
                     # https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash
+                    default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.GEMINI_3_FLASH_PREVIEW:
@@ -2356,7 +2422,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 12, 17),
-                    supported_reasoning_efforts=[],
+                    # thinkingLevel includes minimal. Default when unset is high.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case LanguageModelName.GEMINI_3_PRO_PREVIEW:
                 return cls(
@@ -2377,7 +2445,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 11, 13),
-                    supported_reasoning_efforts=[],
+                    # thinkingLevel is low or high.
+                    default_options={"reasoning_effort": "low"},
+                    supported_reasoning_efforts=["low", "high"],
                 )
             case LanguageModelName.GROK_4_1_FAST_NON_REASONING:
                 return cls(
@@ -2446,6 +2516,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 2, day=1),
                     published_at=date(2026, 7, 16),
+                    default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.GROK_4_6:
@@ -3313,7 +3384,9 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=1_000_000, token_limit_output=384_000
                     ),
                     published_at=date(2026, 1, 1),
-                    supported_reasoning_efforts=[],
+                    # reasoning_effort is high or max.
+                    default_options={"reasoning_effort": "high"},
+                    supported_reasoning_efforts=["high", "max"],
                 )
             case LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH:
                 return cls(
@@ -3337,7 +3410,9 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_000_000, token_limit_output=384_000
                     ),
-                    supported_reasoning_efforts=[],
+                    # Same V4 effort scale as Pro: high or max.
+                    default_options={"reasoning_effort": "high"},
+                    supported_reasoning_efforts=["high", "max"],
                 )
             case LanguageModelName.LITELLM_GLM_5_1:
                 return cls(
@@ -3394,7 +3469,9 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=1_000_000, token_limit_output=1_000_000
                     ),
                     published_at=date(2026, 7, 31),  # HF repo creation date
-                    supported_reasoning_efforts=[],
+                    # Phoeniqs accepts low, high, and max.
+                    default_options={"reasoning_effort": "low"},
+                    supported_reasoning_efforts=["low", "high", "max"],
                 )
             case LanguageModelName.LITELLM_PHOENIQS_GEMMA_4_31B:
                 return cls(
@@ -3433,7 +3510,9 @@ class LanguageModelInfo(BaseModel):
                         2026, 6, 16
                     ),  # HF repo creation date — unlike the
                     # Together AI entry above, not an unsourced placeholder.
-                    supported_reasoning_efforts=[],
+                    # Phoeniqs accepts low and high.
+                    default_options={"reasoning_effort": "low"},
+                    supported_reasoning_efforts=["low", "high"],
                 )
             case LanguageModelName.LITELLM_PHOENIQS_GLM_5_3_FLASH:
                 return cls(
@@ -3516,7 +3595,9 @@ class LanguageModelInfo(BaseModel):
                         token_limit_output=128_000,
                     ),
                     published_at=date(2026, 7, 27),
-                    supported_reasoning_efforts=[],
+                    # reasoning_effort is low, high, or max.
+                    default_options={"reasoning_effort": "low"},
+                    supported_reasoning_efforts=["low", "high", "max"],
                 )
             case LanguageModelName.LITELLM_QWEN_3:
                 return cls(

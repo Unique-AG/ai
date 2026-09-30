@@ -515,7 +515,47 @@ def test_supported_reasoning_efforts_set_correctly():
     o1_mini = LanguageModelInfo.from_name(LanguageModelName.AZURE_o1_MINI_2024_0912)
     assert o1_mini.supported_reasoning_efforts == []
 
-    # Third-party models (DeepSeek, Qwen) have no reasoning_effort support
+    # Extended-thinking Claude models have no effort parameter
+    haiku = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_4_5)
+    assert haiku.supported_reasoning_efforts == []
+
+    opus_45 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_5)
+    assert opus_45.supported_reasoning_efforts == ["low", "medium", "high"]
+    assert opus_45.default_options["reasoning_effort"] == "medium"
+
+    opus_46 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6)
+    assert opus_46.supported_reasoning_efforts == ["low", "medium", "high", "max"]
+
+    sonnet_5 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5)
+    assert sonnet_5.supported_reasoning_efforts == [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+    ]
+    vertex_sonnet_5 = LanguageModelInfo.from_name(
+        LanguageModelName.VERTEX_CLAUDE_SONNET_5
+    )
+    assert (
+        vertex_sonnet_5.supported_reasoning_efforts
+        == sonnet_5.supported_reasoning_efforts
+    )
+
+    gemini_31 = LanguageModelInfo.from_name(LanguageModelName.GEMINI_3_1_PRO_PREVIEW)
+    assert gemini_31.supported_reasoning_efforts == ["low", "medium", "high"]
+
+    gemini_3_pro = LanguageModelInfo.from_name(LanguageModelName.GEMINI_3_PRO_PREVIEW)
+    assert gemini_3_pro.supported_reasoning_efforts == ["low", "high"]
+
+    deepseek_v4 = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_V4_PRO)
+    assert deepseek_v4.supported_reasoning_efforts == ["high", "max"]
+    assert deepseek_v4.default_options["reasoning_effort"] == "high"
+
+    kimi = LanguageModelInfo.from_name(LanguageModelName.LITELLM_KIMI_K3)
+    assert kimi.default_options["reasoning_effort"] == "low"
+
+    # DeepSeek R1 has no reasoning_effort parameter
     deepseek = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)
     assert deepseek.supported_reasoning_efforts == []
 
