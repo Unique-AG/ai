@@ -157,6 +157,8 @@ class LanguageModelName(StrEnum):
     LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH = "litellm:phoeniqs-deepseek-v4-flash"
     LITELLM_PHOENIQS_GEMMA_4_31B = "litellm:phoeniqs-gemma-4-31b"
     LITELLM_PHOENIQS_GLM_5_2 = "litellm:phoeniqs-glm-5.2"
+    LITELLM_PHOENIQS_GLM_5_3_FLASH = "litellm:phoeniqs-glm-5.3-flash"
+    LITELLM_PHOENIQS_LLAMA_4_MAVERICK = "litellm:phoeniqs-llama-4-maverick"
     LITELLM_KIMI_K2_6 = "litellm:kimi-k2.6"
     LITELLM_KIMI_K3 = "litellm:kimi-k3"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
@@ -3431,6 +3433,49 @@ class LanguageModelInfo(BaseModel):
                         2026, 6, 16
                     ),  # HF repo creation date — unlike the
                     # Together AI entry above, not an unsourced placeholder.
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_GLM_5_3_FLASH:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ZAI,
+                    version="glm-5.3-flash",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 1_000_000, we leave 100_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(900_000 * 0.9),
+                        token_limit_output=int(900_000 * 0.1),
+                    ),
+                    published_at=date(2026, 8, 25),  # HF repo creation date
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_LLAMA_4_MAVERICK:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.META,
+                    version="llama-4-maverick",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 1_048_576, we leave 100_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(948_576 * 0.9),
+                        token_limit_output=int(948_576 * 0.1),
+                    ),
+                    published_at=date(2025, 6, 12),  # HF repo creation date
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_KIMI_K2_6:
