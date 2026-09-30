@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,6 +25,7 @@ from unique_sdk.cli.commands.agentic_table_write import (
     cmd_export,
     cmd_import,
     cmd_rerun_row,
+    cmd_set_cell,
 )
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
@@ -885,3 +887,337 @@ def test_missing_status_field_is_not_reported_as_a_rejection() -> None:
     assert is_error_output(out)
     assert "outcome is unknown" in out
     assert "rejected" not in out
+
+
+# -- set-cell --------------------------------------------------------------
+
+
+_CELL = {
+    "sheetId": "mt_1",
+    "rowOrder": 1,
+    "columnOrder": 2,
+    "text": "The management fee is 2%.",
+    "rowLocked": False,
+}
+
+
+def test_cmd_set_cell_human_readable() -> None:
+    with _patch("set_cell", return_value=_CELL) as mock_set:
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            text="The management fee is 2%.",
+        )
+
+    assert "Sheet:" in out and "mt_1" in out
+    assert "Row:" in out and "1" in out
+    assert "Column:" in out and "2" in out
+    assert "The management fee is 2%." in out
+    kwargs = mock_set.await_args.kwargs
+    assert kwargs["user_id"] == "u1"
+    assert kwargs["company_id"] == "c1"
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["rowOrder"] == 1
+    assert kwargs["columnOrder"] == 2
+    assert kwargs["text"] == "The management fee is 2%."
+    assert "logEntries" not in kwargs
+
+
+def test_cmd_set_cell_json() -> None:
+    with _patch("set_cell", return_value=_CELL):
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            text="The management fee is 2%.",
+            output_json=True,
+        )
+
+    assert json.loads(out)["text"] == "The management fee is 2%."
+
+
+def test_cmd_set_cell_from_file(tmp_path: Path) -> None:
+    path = tmp_path / "answer.md"
+    path.write_text("line one\nline two\n", encoding="utf-8")
+
+    with _patch("set_cell", return_value=_CELL) as mock_set:
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            file=str(path),
+        )
+
+    assert mock_set.await_args.kwargs["text"] == "line one\nline two\n"
+    assert "logEntries" not in mock_set.await_args.kwargs
+
+
+def test_cmd_set_cell_from_stdin() -> None:
+    with (
+        _patch("set_cell", return_value=_CELL) as mock_set,
+        patch("unique_sdk.cli.commands.agentic_table_write.sys.stdin") as mock_stdin,
+    ):
+        mock_stdin.read.return_value = "from stdin"
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            stdin=True,
+        )
+
+    assert mock_set.await_args.kwargs["text"] == "from stdin"
+
+
+def test_cmd_set_cell_passes_log_json() -> None:
+    logs = [
+        {
+            "text": "manual fill",
+            "actorType": "USER",
+            "createdAt": "2026-01-02T09:30:00.000Z",
+            "messageId": "msg_1",
+        }
+    ]
+    with _patch("set_cell", return_value=_CELL) as mock_set:
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            text="hi",
+            log_json=json.dumps(logs),
+        )
+
+    assert mock_set.await_args.kwargs["logEntries"] == logs
+
+
+def test_cmd_set_cell_passes_log_file(tmp_path: Path) -> None:
+    logs = [
+        {
+            "text": "from file",
+            "actorType": "ASSISTANT",
+            "createdAt": "2026-01-02T09:30:00.000Z",
+        }
+    ]
+    path = tmp_path / "logs.json"
+    path.write_text(json.dumps(logs), encoding="utf-8")
+
+    with _patch("set_cell", return_value=_CELL) as mock_set:
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            text="hi",
+            log_file=str(path),
+        )
+
+    assert mock_set.await_args.kwargs["logEntries"] == logs
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "needle"),
+    [
+        ({}, "cell text is required"),
+        ({"text": "hi", "file": "x.md"}, "ambiguous input"),
+        ({"text": ""}, "cell text is empty"),
+        (
+            {"text": "hi", "log_json": "[{}"},
+            "log entries must be JSON",
+        ),
+        (
+            {"text": "hi", "log_json": "{}"},
+            "JSON array",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps([{"text": "x", "actorType": "USER"}]),
+            },
+            "createdAt",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps([{"text": "x", "createdAt": "t"}]),
+            },
+            "actorType",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_file": "a.json",
+                "log_json": "[]",
+            },
+            "at most one of --log-file or --log-json",
+        ),
+    ],
+)
+def test_cmd_set_cell_local_errors_do_not_call_api(
+    kwargs: dict[str, object], needle: str
+) -> None:
+    with _patch("set_cell") as mock_set:
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert needle in out
+
+
+def test_cmd_set_cell_maps_403() -> None:
+    with _patch("set_cell", side_effect=UniqueError("Forbidden", http_status=403)):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    assert out == "agentic-table: permission denied"
+    assert is_error_output(out)
+
+
+def test_cmd_set_cell_prefixes_other_api_errors() -> None:
+    with _patch(
+        "set_cell",
+        side_effect=UniqueError(
+            "Agentic Table Row is in a locked or final state, update not allowed",
+            http_status=400,
+        ),
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    assert is_error_output(out)
+    assert "locked or final" in out
+    assert out.startswith("agentic-table:")
+
+
+@patch("unique_sdk.cli.cli.cmd_set_cell")
+def test_cli_set_cell_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "set-cell",
+            "mt_1",
+            "--row",
+            "1",
+            "--col",
+            "2",
+            "--text",
+            "hi",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert result.output.strip() == "ok"
+    assert mock_cmd.call_args.args[1] == "mt_1"  # type: ignore[attr-defined]
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["row_order"] == 1
+    assert kwargs["column_order"] == 2
+    assert kwargs["text"] == "hi"
+
+
+@patch("unique_sdk.cli.cli.cmd_set_cell")
+def test_cli_set_cell_error_exits_non_zero(mock_cmd: object) -> None:
+    mock_cmd.return_value = "agentic-table: permission denied"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "set-cell",
+            "mt_1",
+            "--row",
+            "1",
+            "--col",
+            "2",
+            "--text",
+            "hi",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 1
+    assert result.output.strip() == "agentic-table: permission denied"
+
+
+@patch("unique_sdk.cli.cli.cmd_set_cell")
+def test_cli_set_cell_rejects_negative_row_locally(mock_cmd: object) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "set-cell",
+            "mt_1",
+            "--row",
+            "-1",
+            "--col",
+            "2",
+            "--text",
+            "hi",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+    mock_cmd.assert_not_called()  # type: ignore[attr-defined]
+
+
+@patch("unique_sdk.cli.cli.cmd_set_cell")
+def test_cli_set_cell_allows_header_row_zero(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "set-cell",
+            "mt_1",
+            "--row",
+            "0",
+            "--col",
+            "0",
+            "--text",
+            "Q",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert mock_cmd.call_args.kwargs["row_order"] == 0  # type: ignore[attr-defined]
+
+
+def test_cli_set_cell_help_lists_command() -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "--help"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert "set-cell" in result.output
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "set-cell", "--help"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+    assert result.exit_code == 0
+    assert "--row" in result.output
+    assert "--text" in result.output
+    assert "not a run" in result.output.lower() or "Write text" in result.output

@@ -3,7 +3,7 @@
 !!! warning "Experimental"
     The CLI is experimental and its interface may change in future releases.
 
-Work with Agentic Table (magic table) sheets through the public magic-table API. The **read** commands (`get-sheet`, `get-cell`, `cell-history`, `list-exports`) are **Tier 0**: they never write and never require confirmation. The **write** commands (`create-sheet`, `import`, `export`) drive the full loop — create a sheet, populate it, run the agent, and export the answers. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as `agentic-table: permission denied`.
+Work with Agentic Table (magic table) sheets through the public magic-table API. The **read** commands (`get-sheet`, `get-cell`, `cell-history`, `list-exports`) are **Tier 0**: they never write and never require confirmation. The **write** commands (`create-sheet`, `import`, `rerun-row`, `set-cell`, `export`) create a sheet, populate it, re-answer a row, write one cell, or export. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as `agentic-table: permission denied`.
 
 ## agentic-table get-sheet
 
@@ -281,6 +281,52 @@ Row 4 rerun finished (state: IDLE).
 
 ---
 
+## agentic-table set-cell
+
+Write text into one cell by row and column order. This is not a run: you already have the value. `import` / `rerun-row` start the table agent and do not take answer text. Do not `rerun-row` after a `set-cell` on the same correction — the rerun would overwrite the cell.
+
+`--row` / `--col` are 0-based, the same numbers `get-cell` uses. Row 0 (the header) is allowed. A coordinate with no existing row or column is **created** by the API, so do not invent indexes. Provide exactly one of `--text`, `--file`, or `--stdin`. Empty text is refused locally. Optional log entries are a JSON array of objects with `text`, `actorType` (`USER`, `SYSTEM`, `ASSISTANT`, or `TOOL`), and `createdAt` (ISO-8601, required).
+
+A 403 is reported as `agentic-table: permission denied`. A locked or final-review row is refused by the API. Unlike `import` / `rerun-row`, a write is not blocked while the sheet is `PROCESSING`.
+
+**Synopsis:**
+
+```
+agentic-table set-cell <table_id> --row <N> --col <N> (--text TEXT | --file PATH | --stdin)
+                       [--log-file PATH | --log-json JSON] [--json]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--row` | Row order (0-based, required). 0 is the header |
+| `--col` | Column order (0-based, required) |
+| `--text` | Cell text (exactly one of `--text`, `--file`, `--stdin`) |
+| `--file` | Read cell text from a UTF-8 file |
+| `--stdin` | Read cell text from stdin |
+| `--log-file` | JSON array of log entries |
+| `--log-json` | Inline JSON array of log entries |
+| `--json` | Print the raw cell JSON |
+
+**Example:**
+
+```bash
+unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "The management fee is 2%."
+```
+
+```
+Sheet:   mt_abc123
+Row:     1
+Column:  2
+Locked:  no
+
+Text:
+The management fee is 2%.
+```
+
+---
+
 ## agentic-table export
 
 Generate export artifacts (`FULL_REPORT`, `QUESTIONS`, `AGENTIC_REPORT`). Generation is asynchronous. With `--wait`, the command polls until each requested type is `DONE` and prints the artifact table with the `contentId` to download; an artifact entering `ERROR` fails fast.
@@ -331,4 +377,4 @@ unique-cli agentic-table get-sheet "$SHEET" --cells
 
 Capture the JSON and parse it in two steps rather than piping `create-sheet` straight into `jq`. A shell assignment takes the exit status of the last command in the pipeline, so `SHEET=$(unique-cli ... | jq ...)` reports `jq`'s status and discards the CLI's. Errors go to stderr, so `jq` would read empty input, print nothing and succeed — leaving `$SHEET` empty and the `&&` chain running on against a sheet that was never created. Splitting the assignment puts the CLI's own exit status back in the chain. `set -o pipefail` also works if the recipe runs inside a script you control.
 
-Read the produced answers with `get-sheet --cells` / `get-cell` and download an export via the Content API using the `contentId` shown by `export` / `list-exports`.
+Read the produced answers with `get-sheet --cells` / `get-cell`. Put a known value in one cell with `set-cell` (several cells: several calls). Download an export via the Content API using the `contentId` shown by `export` / `list-exports`.

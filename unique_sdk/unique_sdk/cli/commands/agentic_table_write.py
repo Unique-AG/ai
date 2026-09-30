@@ -5,6 +5,7 @@ The full-loop write slice over the public magic-table API (``2023-12-06``):
 - ``create-sheet`` — create an empty sheet in a space.
 - ``import`` — add questions/sources; adding new questions triggers the agent run.
 - ``rerun-row`` — re-run the agent for a single row.
+- ``set-cell`` — write text into one cell (no run).
 - ``export`` — generate export artifacts (report / question export) and list them.
 
 Together these let an agent build a sheet, run it, and collect the answers it
@@ -35,14 +36,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import time
 from collections.abc import Awaitable, Callable
-from typing import NamedTuple, TypeVar
+from pathlib import Path
+from typing import Literal, NamedTuple, TypeVar, cast
 
 from unique_sdk._error import UniqueError
 from unique_sdk.api_resources._agentic_table import (
     AgenticTable,
     AgenticTableSheetState,
+    LogDetail,
+    LogEntry,
     MagicTableActionResult,
     MagicTableArtifact,
     MagicTableArtifactState,
@@ -57,6 +62,7 @@ from unique_sdk.cli.commands.agentic_table import AGENTIC_TABLE_ERROR_PREFIX
 from unique_sdk.cli.formatting import (
     format_agentic_table_action_result,
     format_agentic_table_artifacts,
+    format_agentic_table_cell,
     format_agentic_table_created_sheet,
 )
 from unique_sdk.cli.state import ShellState
@@ -150,6 +156,161 @@ def _rejected(result: MagicTableActionResult, *, action: str) -> str:
         )
     message = result.get("message") or "no detail returned"
     return f"{AGENTIC_TABLE_ERROR_PREFIX} {action} rejected: {message}"
+
+
+_LOG_ACTOR_TYPES = frozenset({"USER", "SYSTEM", "ASSISTANT", "TOOL"})
+
+
+def _read_cell_text(
+    *,
+    text: str | None,
+    file: str | None,
+    stdin: bool,
+) -> str:
+    """Return cell text from exactly one of ``text``, ``file``, or stdin.
+
+    Raises ``ValueError`` with an unprefixed message when the sources are
+    missing, ambiguous, unreadable, or empty. Whitespace-only text is kept:
+    the API treats it as non-empty.
+    """
+    sources = sum([text is not None, file is not None, stdin])
+    if sources == 0:
+        raise ValueError("cell text is required: pass --text, --file, or --stdin")
+    if sources > 1:
+        raise ValueError(
+            "ambiguous input: provide exactly one of --text, --file, or --stdin"
+        )
+
+    if stdin:
+        body = sys.stdin.read()
+    elif file is not None:
+        try:
+            body = Path(file).read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ValueError(f"could not read --file: {exc}") from exc
+    else:
+        assert text is not None
+        body = text
+
+    if body == "":
+        raise ValueError("cell text is empty")
+    return body
+
+
+def _parse_log_entries(
+    *,
+    log_file: str | None,
+    log_json: str | None,
+) -> list[LogEntry] | None:
+    """Parse optional log entries from a file or an inline JSON array.
+
+    Raises ``ValueError`` with an unprefixed message when both sources are
+    set, JSON is invalid, or a required field is missing. ``None`` means
+    omit ``logEntries`` from the request.
+    """
+    if log_file is not None and log_json is not None:
+        raise ValueError(
+            "ambiguous logs: provide at most one of --log-file or --log-json"
+        )
+    raw: str | None
+    if log_file is not None:
+        try:
+            raw = Path(log_file).read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ValueError(f"could not read --log-file: {exc}") from exc
+    elif log_json is not None:
+        raw = log_json
+    else:
+        return None
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"log entries must be JSON: {exc}") from exc
+
+    if not isinstance(parsed, list):
+        raise ValueError("log entries must be a JSON array")
+
+    entries: list[LogEntry] = []
+    for index, item in enumerate(parsed):
+        if not isinstance(item, dict):
+            raise ValueError(f"logEntries[{index}] must be an object")
+        missing = [key for key in ("text", "actorType", "createdAt") if key not in item]
+        if missing:
+            raise ValueError(
+                f"logEntries[{index}] missing required field(s): {', '.join(missing)}"
+            )
+        actor_raw = item["actorType"]
+        if not isinstance(actor_raw, str) or actor_raw not in _LOG_ACTOR_TYPES:
+            raise ValueError(
+                f"logEntries[{index}] actorType must be one of "
+                f"{', '.join(sorted(_LOG_ACTOR_TYPES))}"
+            )
+        actor = cast(Literal["USER", "SYSTEM", "ASSISTANT", "TOOL"], actor_raw)
+        entry: LogEntry = {
+            "text": str(item["text"]),
+            "actorType": actor,
+            "createdAt": str(item["createdAt"]),
+        }
+        if "messageId" in item and item["messageId"] is not None:
+            entry["messageId"] = str(item["messageId"])
+        if "details" in item and item["details"] is not None:
+            if not isinstance(item["details"], dict):
+                raise ValueError(f"logEntries[{index}] details must be an object")
+            entry["details"] = cast(LogDetail, cast(object, item["details"]))
+        entries.append(entry)
+    return entries
+
+
+def cmd_set_cell(
+    state: ShellState,
+    table_id: str,
+    *,
+    row_order: int,
+    column_order: int,
+    text: str | None = None,
+    file: str | None = None,
+    stdin: bool = False,
+    log_file: str | None = None,
+    log_json: str | None = None,
+    output_json: bool = False,
+) -> str:
+    """Upsert one cell (``POST /magic-table/{id}/cell``).
+
+    Writes the given text at ``(row_order, column_order)``. This is not a
+    run: unlike ``import`` / ``rerun-row`` it does not start the table agent.
+    Row 0 (the header) is allowed. A coordinate with no existing row or
+    column is created by the API.
+    """
+    try:
+        cell_text = _read_cell_text(text=text, file=file, stdin=stdin)
+        log_entries = _parse_log_entries(log_file=log_file, log_json=log_json)
+    except ValueError as exc:
+        return f"{AGENTIC_TABLE_ERROR_PREFIX} {exc}"
+
+    params: AgenticTable.SetCell = {
+        "tableId": table_id,
+        "rowOrder": row_order,
+        "columnOrder": column_order,
+        "text": cell_text,
+    }
+    if log_entries is not None:
+        params["logEntries"] = log_entries
+
+    try:
+        cell = asyncio.run(
+            AgenticTable.set_cell(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                **params,
+            )
+        )
+    except UniqueError as exc:
+        return _error(exc)
+
+    if output_json:
+        return json.dumps(cell, indent=2, default=str)
+    return format_agentic_table_cell(cell)
 
 
 def cmd_create_sheet(
