@@ -10,6 +10,7 @@ from typing import Any
 import unique_sdk
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.metadata_filter import MetadataFilter
+from unique_sdk.cli.skill_guard import SkillGuard
 from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
@@ -180,6 +181,9 @@ class ShellState:
         self.mcp_tool_reference_mappings: dict[str, dict[str, Any]] = (
             _load_mcp_tool_configs()
         )
+        # Independent of scopeIds and metaDataFilter: a skill folder inside the
+        # KB scope is still off limits for writes. See UN-25784.
+        self.skill_guard = SkillGuard(config)
 
     @property
     def uploaded_search_available(self) -> bool:
@@ -419,6 +423,22 @@ class ShellState:
             info = None
         self._content_info_cache[content_id] = info
         return info
+
+    def is_skill_content_write_denied(
+        self, content_id: str, *, new_name: str | None = None
+    ) -> bool:
+        """True when changing *content_id* would change a protected skill.
+
+        Content owned by a chat instead of a folder is never part of a skill.
+        Fails closed when the content can't be looked up.
+        """
+        info = self._get_content_info(content_id)
+        if not info:
+            return True
+        owner_id = info.get("ownerId") or ""
+        if not owner_id.startswith("scope_"):
+            return False
+        return self.skill_guard.is_folder_write_denied(owner_id, new_file_name=new_name)
 
     def resolve_content_title(self, content_id: str) -> str:
         """Human-readable title for a content id, falling back to the id.

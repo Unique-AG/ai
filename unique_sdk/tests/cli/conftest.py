@@ -26,3 +26,28 @@ def _isolated_cwd(
     monkeypatch.setenv("HOME", str(scratch))
     monkeypatch.chdir(scratch)
     return scratch
+
+
+@pytest.fixture(autouse=True)
+def _allow_skill_writes(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Let command tests ignore the skill write guard unless marked ``skill_guard``.
+
+    The guard issues its own ``Content.search`` and ``Folder.get_info`` calls,
+    which command tests don't mock.
+    """
+    if request.node.get_closest_marker("skill_guard") is not None:
+        return
+    from unique_sdk.cli.skill_guard import SkillGuard
+    from unique_sdk.cli.state import ShellState
+
+    monkeypatch.setattr(
+        SkillGuard, "is_folder_write_denied", lambda *_args, **_kwargs: False
+    )
+    monkeypatch.setattr(
+        SkillGuard, "is_path_write_denied", lambda *_args, **_kwargs: False
+    )
+    monkeypatch.setattr(
+        ShellState, "is_skill_content_write_denied", lambda *_args, **_kwargs: False
+    )

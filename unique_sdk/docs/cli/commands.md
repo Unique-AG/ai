@@ -129,6 +129,14 @@ unique-cli ls scope_abc123
 
 ---
 
+## Skill Folders
+
+`upload`, `rm`, `mv`, `mkdir`, `rmdir` and `mvdir` refuse to change a skill. A skill is a folder that holds a `SKILL.md` or `skills.md` file (any case), together with everything inside it. `rmdir` and `mvdir` also refuse a folder that has a skill anywhere below it, and `upload` and `mv` refuse to create a new marker file. Folders inside your own `personal-<userId>` folder are exempt.
+
+The check runs even when no workspace scope is configured. A denial prints `<command>: permission denied: …` and exits non-zero. If the CLI can't look up the skill status, it denies the write.
+
+---
+
 ## Folder Operations
 
 ### mkdir
