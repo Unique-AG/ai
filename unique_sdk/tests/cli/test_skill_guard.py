@@ -66,6 +66,14 @@ _CONTENTS: list[tuple[str, str, str, str | None]] = [
 ]
 
 
+def _owner_id_filter(where: dict[str, Any]) -> list[str] | None:
+    for clause in where.get("AND", []):
+        owner = clause.get("ownerId")
+        if owner is not None:
+            return owner["in_"]
+    return None
+
+
 def _folder_path(scope_id: str) -> str:
     name, parent = _FOLDERS[scope_id]
     return f"{_folder_path(parent) if parent else ''}/{name}"
@@ -79,16 +87,20 @@ class _FakeKnowledgeBase:
     search: MagicMock = field(default_factory=MagicMock)
     folder_get_info: MagicMock = field(default_factory=MagicMock)
 
-    def search_results(self, **_kwargs: Any) -> list[dict[str, Any]]:
+    include_owner_id: bool = True
+
+    def search_results(self, **kwargs: Any) -> list[dict[str, Any]]:
+        owner_ids = _owner_id_filter(kwargs["where"])
         return [
             {
                 "id": content_id,
                 "key": key,
-                "ownerId": owner_id,
+                **({"ownerId": owner_id} if self.include_owner_id else {}),
                 "metadata": {"folderIdPath": folder_id_path} if folder_id_path else {},
             }
             for content_id, key, owner_id, folder_id_path in self.contents
             if key.lower().endswith(("skill.md", "skills.md"))
+            and (owner_ids is None or owner_id in owner_ids)
         ]
 
     def folder_info(self, **params: Any) -> dict[str, Any]:
@@ -231,18 +243,37 @@ class TestFolderWrites:
         kb.search.side_effect = unique_sdk.UniqueError("search failed")
         assert SkillGuard(_config()).is_folder_write_denied("scope_docs")
 
-    def test_no_markers_skips_folder_lookups(self, kb: _FakeKnowledgeBase) -> None:
-        kb.contents = [c for c in kb.contents if c[0] == "cont_report"]
-        assert not SkillGuard(_config()).is_folder_write_denied("scope_docs")
-        kb.folder_get_info.assert_not_called()
+    def test_personal_layer_skips_marker_search(self, kb: _FakeKnowledgeBase) -> None:
+        assert not SkillGuard(_config()).is_folder_write_denied("scope_mine")
+        kb.search.assert_not_called()
 
-    def test_markers_are_searched_once_per_process(
+    def test_folder_write_searches_only_the_folder_chain(
+        self, kb: _FakeKnowledgeBase
+    ) -> None:
+        SkillGuard(_config()).is_folder_write_denied("scope_docs")
+        assert kb.search.call_count == 1
+        where = kb.search.call_args.kwargs["where"]
+        assert _owner_id_filter(where) == ["scope_docs", "scope_kb"]
+
+    def test_company_wide_markers_are_searched_once_per_process(
         self, kb: _FakeKnowledgeBase
     ) -> None:
         guard = SkillGuard(_config())
-        guard.is_folder_write_denied("scope_docs")
-        guard.is_folder_write_denied("scope_bench")
-        assert kb.search.call_count == 1
+        guard.is_folder_write_denied("scope_docs", include_subtree=True)
+        guard.is_folder_write_denied("scope_kb", include_subtree=True)
+        company_wide = [
+            call
+            for call in kb.search.call_args_list
+            if _owner_id_filter(call.kwargs["where"]) is None
+        ]
+        assert len(company_wide) == 1
+
+    def test_subtree_check_uses_folder_id_path_without_owner_id(
+        self, kb: _FakeKnowledgeBase
+    ) -> None:
+        kb.include_owner_id = False
+        guard = SkillGuard(_config())
+        assert guard.is_folder_write_denied("scope_kb", include_subtree=True)
 
 
 class TestPathWrites:

@@ -32,11 +32,7 @@ def _isolated_cwd(
 def _allow_skill_writes(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Let command tests ignore the skill write guard unless marked ``skill_guard``.
-
-    The guard issues its own ``Content.search`` and ``Folder.get_info`` calls,
-    which command tests don't mock.
-    """
+    """Skip the skill write guard unless the test is marked ``skill_guard``."""
     if request.node.get_closest_marker("skill_guard") is not None:
         return
     from unique_sdk.cli.skill_guard import SkillGuard

@@ -1,12 +1,5 @@
-"""Deny knowledge-base writes that would change a skill outside the caller's personal layer.
-
-A skill is a folder that holds a ``skill.md`` or ``skills.md`` marker file. Every
-folder at or below it belongs to that skill. Agents change skills only through the
-``create-skill`` and ``edit-skill`` skills, which write to ``personal-<userId>``.
-
-This guard is advisory: the agent can call the API without the CLI. It gives the
-model a clear denial instead of a silent overwrite of a shared skill.
-"""
+"""Deny CLI writes into skill folders (a ``skill.md``/``skills.md`` marker at or above
+the folder) outside the caller's ``personal-<userId>`` layer."""
 
 from __future__ import annotations
 
@@ -56,18 +49,12 @@ class _FolderNode:
 @dataclass(frozen=True)
 class _SkillMarker:
     skill_folder_id: str
-    # The skill folder and its ancestors, from ``folderIdPath``. Empty when the
-    # content has no ``folderIdPath``; the chain is then looked up on demand.
+    # Empty when the content has no ``folderIdPath``; looked up on demand.
     folder_ids: frozenset[str]
 
 
 class SkillGuard:
-    """Answers whether a write to a folder would change a protected skill.
-
-    Caches folder lookups and the caller's visible skill markers for the life of
-    the process, so one CLI command costs one marker search plus one folder
-    lookup per ancestor.
-    """
+    """Answers whether a write to a folder would change a protected skill."""
 
     def __init__(self, config: Config) -> None:
         self._config = config
@@ -131,27 +118,25 @@ class SkillGuard:
         include_subtree: bool,
         new_file_name: str | None,
     ) -> bool:
-        creates_marker = new_file_name is not None and is_skill_marker_name(
-            new_file_name
-        )
-        markers = self._skill_markers()
-        if not markers and not creates_marker:
-            return False
-
         chain = self._folder_chain(scope_id)
         if any(node.name == self._personal_folder_name for node in chain):
             return False
-        if creates_marker:
+        if new_file_name is not None and is_skill_marker_name(new_file_name):
             return True
-
-        chain_ids = {node.scope_id for node in chain}
-        if any(marker.skill_folder_id in chain_ids for marker in markers):
+        if self._has_marker_in([node.scope_id for node in chain]):
             return True
         if include_subtree:
             return any(
-                scope_id in self._marker_folder_ids(marker) for marker in markers
+                scope_id in self._marker_folder_ids(marker)
+                for marker in self._all_skill_markers()
             )
         return False
+
+    def _has_marker_in(self, folder_ids: list[str]) -> bool:
+        results = self._search_markers({"ownerId": {"in_": folder_ids}})
+        return any(
+            is_skill_marker_name(content.get("key") or "") for content in results
+        )
 
     def _marker_folder_ids(self, marker: _SkillMarker) -> frozenset[str]:
         if marker.folder_ids:
@@ -187,24 +172,33 @@ class SkillGuard:
         self._folders[scope_id] = node
         return node
 
-    def _skill_markers(self) -> tuple[_SkillMarker, ...]:
-        if self._markers is not None:
-            return self._markers
-        results = unique_sdk.Content.search(
+    def _search_markers(
+        self, where: unique_sdk.Content.ContentWhereInput | None = None
+    ) -> list[unique_sdk.Content]:
+        key_filter: unique_sdk.Content.ContentWhereInput = {
+            "OR": [{"key": {"endsWith": suffix}} for suffix in _MARKER_KEY_SUFFIXES]
+        }
+        clauses = [key_filter] if where is None else [key_filter, where]
+        return unique_sdk.Content.search(
             user_id=self._config.user_id,
             company_id=self._config.company_id,
-            where={
-                "OR": [{"key": {"endsWith": suffix}} for suffix in _MARKER_KEY_SUFFIXES]
-            },
+            where={"AND": clauses},
         )
+
+    def _all_skill_markers(self) -> tuple[_SkillMarker, ...]:
+        """Every marker the caller can read. Only subtree checks need this."""
+        if self._markers is not None:
+            return self._markers
         markers: list[_SkillMarker] = []
-        for content in results:
-            owner_id = content.get("ownerId") or ""
-            if not owner_id.startswith("scope_"):
-                continue
+        for content in self._search_markers():
             if not is_skill_marker_name(content.get("key") or ""):
                 continue
             path_ids = _folder_ids_from_metadata(content.get("metadata"))
+            owner_id = content.get("ownerId") or ""
+            if not owner_id.startswith("scope_"):
+                if not path_ids:
+                    continue
+                owner_id = path_ids[-1]
             markers.append(
                 _SkillMarker(
                     skill_folder_id=owner_id,
