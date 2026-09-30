@@ -194,11 +194,9 @@ class SkillGuard:
             if not is_skill_marker_name(content.get("key") or ""):
                 continue
             path_ids = _folder_ids_from_metadata(content.get("metadata"))
-            owner_id = content.get("ownerId") or ""
+            owner_id = content.get("ownerId") or (path_ids[-1] if path_ids else "")
             if not owner_id.startswith("scope_"):
-                if not path_ids:
-                    continue
-                owner_id = path_ids[-1]
+                continue
             markers.append(
                 _SkillMarker(
                     skill_folder_id=owner_id,

@@ -268,6 +268,15 @@ class TestFolderWrites:
         ]
         assert len(company_wide) == 1
 
+    def test_chat_marker_with_folder_id_path_is_not_a_skill(
+        self, kb: _FakeKnowledgeBase
+    ) -> None:
+        kb.contents = [
+            ("cont_chat", "SKILL.md", "chat_1", "uniquepathid://scope_kb/scope_docs")
+        ]
+        guard = SkillGuard(_config())
+        assert not guard.is_folder_write_denied("scope_kb", include_subtree=True)
+
     def test_subtree_check_uses_folder_id_path_without_owner_id(
         self, kb: _FakeKnowledgeBase
     ) -> None:
