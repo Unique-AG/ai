@@ -3363,7 +3363,10 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000, token_limit_output=1_000_000
+                        # Context window is 1_000_000, we leave 100_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(900_000 * 0.9),
+                        token_limit_output=int(900_000 * 0.1),
                     ),
                     published_at=date(2026, 8, 25),  # HF repo creation date
                     supported_reasoning_efforts=[],
@@ -3381,7 +3384,10 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                     ],
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_048_576, token_limit_output=1_048_576
+                        # Context window is 1_048_576, we leave 100_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(948_576 * 0.9),
+                        token_limit_output=int(948_576 * 0.1),
                     ),
                     published_at=date(2025, 6, 12),  # HF repo creation date
                     supported_reasoning_efforts=[],
