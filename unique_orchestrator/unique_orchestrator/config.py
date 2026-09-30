@@ -530,6 +530,7 @@ GPT_FRONTIER_MODELS: frozenset[LanguageModelName] = frozenset(
         LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
         LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
         LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
+        LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
         LanguageModelName.LITELLM_OPENAI_GPT_55,
         LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
         LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
@@ -538,6 +539,7 @@ GPT_FRONTIER_MODELS: frozenset[LanguageModelName] = frozenset(
         LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
         LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
         LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+        LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
     }
 )
 
