@@ -170,6 +170,7 @@ class LanguageModelName(StrEnum):
     VERTEX_CLAUDE_OPUS_5 = "litellm:vertex-claude-opus-5"
     VERTEX_CLAUDE_OPUS_5_5 = "litellm:vertex-claude-opus-5-5"
     VERTEX_CLAUDE_FABLE_5 = "litellm:vertex-claude-fable-5"
+    VERTEX_GEMINI_3_8_FLASH = "litellm:vertex-gemini-3-8-flash"
 
 
 class EncoderName(StrEnum):
@@ -2304,7 +2305,10 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 7, 21),
                     supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
-            case LanguageModelName.GEMINI_3_8_FLASH:
+            case (
+                LanguageModelName.GEMINI_3_8_FLASH
+                | LanguageModelName.VERTEX_GEMINI_3_8_FLASH
+            ):
                 return cls(
                     name=model_name,
                     capabilities=[
