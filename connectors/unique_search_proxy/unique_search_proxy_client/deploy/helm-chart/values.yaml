@@ -157,9 +157,7 @@ httpClient:
   connection:
     proxyAuthMode: none
     proxyProtocol: http
-    proxyUsernameSource: settings
-    proxyUsernameMetadataField: userName
-    perUserProxyCompanyIds: []
+    proxyUserIdMetadataField: userName
     # proxyUsername: <fromSecret or fromSecretProvider>
     # proxyPassword: <fromSecret or fromSecretProvider>
   tuning:

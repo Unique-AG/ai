@@ -1,9 +1,6 @@
 from unique_search_proxy_client.web.core.client.credentials import (
-    ProxyCredentialResolver,
-    ProxyCredentials,
-    SettingsProxyCredentials,
-    UserMetadataProxyCredentials,
-    resolver_from_settings,
+    ProxyIdentity,
+    resolve_identity,
 )
 from unique_search_proxy_client.web.core.client.service import (
     DirectRoute,
@@ -11,7 +8,6 @@ from unique_search_proxy_client.web.core.client.service import (
     HttpClientPool,
     HttpClientRegistry,
     ProxiedRoute,
-    async_client_factory,
     build_async_client,
     build_route,
     create_http_client_pool,
@@ -24,7 +20,6 @@ from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
     ProxyAuthMode,
     ProxyProtocol,
-    ProxyUsernameSource,
     http_client_settings,
 )
 
@@ -37,13 +32,8 @@ __all__ = [
     "HttpClientSettings",
     "ProxiedRoute",
     "ProxyAuthMode",
-    "ProxyCredentials",
-    "ProxyCredentialResolver",
+    "ProxyIdentity",
     "ProxyProtocol",
-    "ProxyUsernameSource",
-    "SettingsProxyCredentials",
-    "UserMetadataProxyCredentials",
-    "async_client_factory",
     "build_async_client",
     "build_route",
     "create_http_client_pool",
@@ -51,5 +41,5 @@ __all__ = [
     "get_http_client_pool",
     "get_http_client_registry",
     "http_client_settings",
-    "resolver_from_settings",
+    "resolve_identity",
 ]
