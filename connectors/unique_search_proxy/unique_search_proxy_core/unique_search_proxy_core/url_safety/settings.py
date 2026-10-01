@@ -1,14 +1,30 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from logging import getLogger
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from unique_search_proxy_core.http_client.settings import ProxySettings
 
 _LOGGER = getLogger(__name__)
 
 
+class UrlSafetyMode(StrEnum):
+    APPLICATION = "APPLICATION"
+    TRUSTED_CORPORATE_PROXY = "TRUSTED_CORPORATE_PROXY"
+
+
 class UrlSafetySettings(BaseSettings):
-    enabled: bool = True
+    mode: UrlSafetyMode = Field(
+        default=UrlSafetyMode.APPLICATION,
+        description=(
+            "Where SSRF protection is enforced. TRUSTED_CORPORATE_PROXY bypasses "
+            "application URL checks and requires every request to use the configured "
+            "corporate proxy."
+        ),
+    )
     resolve_redirects: bool = True
     allowed_schemes: list[str] = ["http", "https"]
     localhost_hosts: list[str] = [
@@ -35,5 +51,41 @@ class UrlSafetySettings(BaseSettings):
     )
 
 
+def validate_url_safety_proxy_configuration(
+    url_safety: UrlSafetySettings,
+    proxy: ProxySettings,
+) -> None:
+    """Reject trusted-proxy mode unless every request uses a configured proxy."""
+    if url_safety.mode is not UrlSafetyMode.TRUSTED_CORPORATE_PROXY:
+        return
+
+    if (
+        not proxy.proxy_host
+        or proxy.proxy_port is None
+        or not 1 <= proxy.proxy_port <= 65535
+    ):
+        raise ValueError(
+            "URL safety mode TRUSTED_CORPORATE_PROXY requires a non-empty "
+            "proxy_host and a valid proxy_port",
+        )
+
+    uses_authenticated_proxy = proxy.proxy_auth_mode != "none"
+    uses_proxy_for_every_user = (
+        proxy.proxy_username_source == "user_metadata"
+        and not proxy.per_user_proxy_company_ids
+    )
+    if not uses_authenticated_proxy and not uses_proxy_for_every_user:
+        raise ValueError(
+            "URL safety mode TRUSTED_CORPORATE_PROXY requires every request to use "
+            "the corporate proxy",
+        )
+
+    if proxy.proxy_auth_mode == "ssl_tls" and proxy.proxy_ssl_cert_path is None:
+        raise ValueError(
+            "URL safety mode TRUSTED_CORPORATE_PROXY with ssl_tls authentication "
+            "requires proxy_ssl_cert_path",
+        )
+
+
 url_safety_settings = UrlSafetySettings()
-_LOGGER.info("URL Safety is enabled: %s", url_safety_settings.enabled)
+_LOGGER.info("URL safety mode: %s", url_safety_settings.mode)

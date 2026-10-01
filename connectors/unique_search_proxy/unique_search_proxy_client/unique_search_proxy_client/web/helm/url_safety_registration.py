@@ -70,7 +70,7 @@ def configure_url_safety_helm_model(model: type[UrlSafetySettings]) -> None:
     _assign_field_helm_flags(
         model,
         {
-            "enabled": {"block_level": True},
+            "mode": {"block_level": True},
             # Expose these lists to overlays so customer-managed tenants can tune
             # SSRF guardrails per environment. Overlays replace the whole list.
             "allowed_schemes": {"overridable": True},

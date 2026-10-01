@@ -38,11 +38,7 @@ def test_all_registry_groups_have_helm_keys() -> None:
 
 
 def test_provider_groups_are_gated_but_always_on_config_is_not() -> None:
-    """The helm gate is opt-out: providers gated, always-on config not.
-
-    This is the chart-only ``enabled`` gate, distinct from a group's real runtime
-    activation field (e.g. urlSafety.enabled).
-    """
+    """The Helm gate is opt-out: providers are gated, core config is not."""
     gated = {g.helm_key: g.gated for g in helm_generated_groups()}
     assert gated["httpClient"] is False
     assert gated["urlSafety"] is False
@@ -58,11 +54,13 @@ def test_generated_schema_contains_all_provider_blocks() -> None:
         assert group.helm_key in properties
         block = properties[group.helm_key]
         if not group.gated:
-            # Non-gated groups get no synthetic ``enabled`` helm gate. A real
-            # activation field (urlSafety.enabled) still appears; httpClient has
-            # none.
+            # Non-gated groups get no synthetic ``enabled`` Helm gate.
             if group.helm_key == "urlSafety":
-                assert block["properties"]["enabled"]["default"] is True
+                assert block["properties"]["mode"]["default"] == "APPLICATION"
+                assert block["properties"]["mode"]["enum"] == [
+                    "APPLICATION",
+                    "TRUSTED_CORPORATE_PROXY",
+                ]
                 assert "connection" not in block["properties"]
                 assert "redirects" in block["properties"]
                 assert "network" in block["properties"]

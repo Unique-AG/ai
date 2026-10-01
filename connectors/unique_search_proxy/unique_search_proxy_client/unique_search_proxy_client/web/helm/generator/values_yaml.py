@@ -84,15 +84,14 @@ class _SectionBlock:
 class _GroupBlock:
     """One top-level ``values.yaml`` block rendered for a settings group.
 
-    ``enabled_literal`` is the default of a group's real, block-level ``enabled``
-    field (its runtime activation, e.g. ``urlSafety.enabled``) when it has one.
-    ``gated`` controls the *synthetic* helm gate: a gated group with no real
-    ``enabled`` field still gets an ``enabled: false`` toggle in the chart.
+    ``block_rows`` contains real top-level runtime settings such as
+    ``urlSafety.mode``. ``gated`` controls the synthetic provider
+    ``enabled: false`` toggle.
     """
 
     helm_key: str
     gated: bool
-    enabled_literal: str | None
+    block_rows: tuple[_ValueRow, ...]
     sections: tuple[_SectionBlock, ...]
 
 
@@ -147,16 +146,7 @@ def _section_rows(fields: tuple) -> tuple[_ValueRow, ...]:
 
 def _group_block(group: HelmSettingsGroup) -> _GroupBlock:
     fields = iter_helm_fields(group.model, env_prefix=group.env_prefix)
-
-    # A real, runtime ``enabled`` field is modelled block-level (e.g.
-    # urlSafety.enabled → URL_SAFETY_ENABLED) and is rendered regardless of the
-    # helm gate. The synthetic ``enabled: false`` (driven by ``gated`` in the
-    # template) is only emitted for gated groups that have no such field.
-    enabled_literal = None
-    for block_field in block_level_fields(fields):
-        default = literal_default_for_values(block_field)
-        if default is not None:
-            enabled_literal = _yaml_scalar(default)
+    block_rows = _section_rows(block_level_fields(fields))
 
     sections = tuple(
         _SectionBlock(name, _section_rows(section_fields))
@@ -165,7 +155,7 @@ def _group_block(group: HelmSettingsGroup) -> _GroupBlock:
     return _GroupBlock(
         helm_key=group.helm_key or "",
         gated=group.gated,
-        enabled_literal=enabled_literal,
+        block_rows=block_rows,
         sections=sections,
     )
 

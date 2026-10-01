@@ -137,8 +137,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .Values.httpClient.tuning.maxKeepaliveConnections | quote }}
-- name: URL_SAFETY_ENABLED
-  value: {{ .Values.urlSafety.enabled | quote }}
+- name: URL_SAFETY_MODE
+  value: {{ .Values.urlSafety.mode | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
   value: {{ .Values.urlSafety.redirects.resolveRedirects | quote }}
 - name: URL_SAFETY_ALLOWED_SCHEMES
@@ -287,8 +287,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .ctx.Values.httpClient.tuning.maxKeepaliveConnections | quote }}
-- name: URL_SAFETY_ENABLED
-  value: {{ .ctx.Values.urlSafety.enabled | quote }}
+- name: URL_SAFETY_MODE
+  value: {{ .ctx.Values.urlSafety.mode | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
   value: {{ .ctx.Values.urlSafety.redirects.resolveRedirects | quote }}
 - name: URL_SAFETY_ALLOWED_SCHEMES

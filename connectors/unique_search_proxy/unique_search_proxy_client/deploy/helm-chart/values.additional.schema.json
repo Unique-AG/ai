@@ -522,9 +522,14 @@
       "additionalProperties": false,
       "description": "URL Safety configuration. Generated from UrlSafetySettings (URL_SAFETY_* env vars).",
       "properties": {
-        "enabled": {
-          "type": "boolean",
-          "default": true
+        "mode": {
+          "type": "string",
+          "default": "APPLICATION",
+          "enum": [
+            "APPLICATION",
+            "TRUSTED_CORPORATE_PROXY"
+          ],
+          "description": "Maps to env var URL_SAFETY_MODE."
         },
         "redirects": {
           "type": "object",

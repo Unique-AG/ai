@@ -14,6 +14,10 @@ from unique_search_proxy_core.http_client import (
     ProxySettings,
     resolver_from_settings,
 )
+from unique_search_proxy_core.url_safety import (
+    url_safety_settings,
+    validate_url_safety_proxy_configuration,
+)
 
 from unique_web_search.settings import env_settings
 
@@ -51,6 +55,7 @@ def get_http_client_registry() -> HttpClientRegistry:
     global _registry
     if _registry is None:
         settings = proxy_settings_from_env()
+        validate_url_safety_proxy_configuration(url_safety_settings, settings)
         _registry = HttpClientRegistry(
             settings=settings,
             resolver=resolver_from_settings(settings),

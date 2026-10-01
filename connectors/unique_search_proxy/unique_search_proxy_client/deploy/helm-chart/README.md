@@ -93,7 +93,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | serviceAccount.enabled | bool | `true` |  |
 | tavily.connection.apiEndpoint | string | `"https://api.tavily.com"` |  |
 | tavily.enabled | bool | `false` |  |
-| urlSafety.enabled | bool | `true` |  |
+| urlSafety.mode | string | `"APPLICATION"` |  |
 | urlSafety.network.allowedSchemes[0] | string | `"http"` |  |
 | urlSafety.network.allowedSchemes[1] | string | `"https"` |  |
 | urlSafety.network.clusterLocalSuffix | string | `".cluster.local"` |  |

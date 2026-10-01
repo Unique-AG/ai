@@ -164,7 +164,7 @@ def test_crawl_url_safety__gate_respects_request_timeout(
 
 
 @pytest.mark.ai
-def test_crawl_url_safety__disabled_bypasses_gate(
+def test_crawl_url_safety__trusted_proxy_mode_bypasses_gate(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -173,7 +173,11 @@ def test_crawl_url_safety__disabled_bypasses_gate(
     monkeypatch.setattr(
         service_module,
         "url_safety_settings",
-        service_module.url_safety_settings.model_copy(update={"enabled": False}),
+        service_module.url_safety_settings.model_copy(
+            update={
+                "mode": service_module.UrlSafetyMode.TRUSTED_CORPORATE_PROXY,
+            },
+        ),
     )
 
     response = client.post(
