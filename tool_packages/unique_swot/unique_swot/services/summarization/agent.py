@@ -5,6 +5,7 @@ from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_swot.invocation_stats import record_language_model_response
 from unique_swot.services.summarization.config import SummarizationConfig
 
 _LOGGER = getLogger(__name__)
@@ -48,6 +49,11 @@ class SummarizationAgent:
             response = await self._llm_service.complete_async(
                 model_name=self._llm.name,
                 messages=messages,
+            )
+            record_language_model_response(
+                model_name=self._llm.name,
+                response=response,
+                source="swot.summarization",
             )
 
             if not isinstance(response.choices[0].message.content, str):

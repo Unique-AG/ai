@@ -38,6 +38,7 @@ async def test_generate_structured_output_retries_and_succeeds(monkeypatch):
         llm=_build_llm(),
         output_model=DummyOutput,
         llm_service=llm_service,
+        source="swot.test",
     )
 
     assert isinstance(result, DummyOutput)
@@ -58,6 +59,7 @@ async def test_generate_structured_output_returns_none_after_max_retries():
         llm=_build_llm(),
         output_model=DummyOutput,
         llm_service=llm_service,
+        source="swot.test",
     )
 
     assert result is None
