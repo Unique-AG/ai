@@ -488,7 +488,11 @@ class TestReadCommands:
         out = cmd_ls(_state("/Knowledge/bench-skill-4", "scope_bench"))
         assert out.startswith("ls: permission denied")
 
-    def test_ls_hides_skill_child_folders(self, kb: _FakeKnowledgeBase) -> None:
+    @pytest.mark.parametrize("include_owner_id", [True, False])
+    def test_ls_hides_skill_child_folders(
+        self, kb: _FakeKnowledgeBase, include_owner_id: bool
+    ) -> None:
+        kb.include_owner_id = include_owner_id
         children = [
             {"id": "scope_bench", "name": "bench-skill-4"},
             {"id": "scope_docs", "name": "Docs"},

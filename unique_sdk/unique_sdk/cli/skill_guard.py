@@ -114,7 +114,7 @@ class SkillGuard:
         if not folder_ids:
             return list(folders)
         skill_folder_ids = {
-            content.get("ownerId")
+            _marker_owner_id(content)
             for content in self._search_markers({"ownerId": {"in_": folder_ids}})
             if is_skill_marker_name(content.get("key") or "")
         }
@@ -271,7 +271,7 @@ class SkillGuard:
             if not is_skill_marker_name(content.get("key") or ""):
                 continue
             path_ids = folder_ids_from_metadata(content.get("metadata"))
-            owner_id = content.get("ownerId") or (path_ids[-1] if path_ids else "")
+            owner_id = _marker_owner_id(content)
             if not owner_id.startswith("scope_"):
                 continue
             markers.append(
@@ -284,6 +284,12 @@ class SkillGuard:
             )
         self._markers = tuple(markers)
         return self._markers
+
+
+def _marker_owner_id(content: unique_sdk.Content) -> str:
+    """The marker's folder: ``ownerId``, else the last ``folderIdPath`` segment."""
+    path_ids = folder_ids_from_metadata(content.get("metadata"))
+    return content.get("ownerId") or (path_ids[-1] if path_ids else "")
 
 
 def folder_ids_from_metadata(metadata: object) -> list[str]:
