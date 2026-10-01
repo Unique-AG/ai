@@ -26,12 +26,7 @@ def _is_forced_function_choice(
 
 
 def _is_hosted_tool(tool: LanguageModelToolDescription | ToolParam) -> bool:
-    """Hosted tools (e.g. ``code_interpreter``) run on OpenAI's side.
-
-    Function tools are either ``LanguageModelToolDescription`` or a
-    ``ToolParam`` dict with ``type == "function"``. Every other ``ToolParam``
-    is a hosted tool.
-    """
+    """Return whether OpenAI executes the tool."""
     if isinstance(tool, LanguageModelToolDescription):
         return False
     return tool.get("type") != "function"
@@ -41,13 +36,7 @@ def _tools_for_forced_choice(
     tools: Sequence[LanguageModelToolDescription | ToolParam] | None,
     tool_choice: response_create_params.ToolChoice,
 ) -> list[LanguageModelToolDescription | ToolParam] | None:
-    """Drop hosted tools from a request that forces a function.
-
-    The Responses API only accepts ``tool_choice: "auto"`` when a hosted tool
-    such as ``code_interpreter`` is in ``tools``. A forced function next to a
-    hosted tool returns HTTP 400 on GPT-5 and later. The next loop iteration
-    sends no ``tool_choice``, so the hosted tool is offered again there.
-    """
+    """Drop hosted tools from requests that force a function tool."""
     if tools is None or not _is_forced_function_choice(tool_choice):
         return list(tools) if tools is not None else None
 
@@ -55,8 +44,7 @@ def _tools_for_forced_choice(
     dropped = len(tools) - len(remaining)
     if dropped > 0:
         _LOGGER.info(
-            "Dropped %d hosted tool(s) from the forced tool request; "
-            "the Responses API rejects a named tool_choice next to hosted tools.",
+            "Dropped %d hosted tool(s) from the forced function request.",
             dropped,
         )
     return remaining
