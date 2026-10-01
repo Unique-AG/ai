@@ -182,12 +182,7 @@ def _parse_log_created_at(raw: object, *, index: int) -> str:
 
 
 def _sheet_column_count(sheet: Mapping[str, object]) -> int:
-    """Return 1 + max header ``columnOrder``, or 0 when no cells are present.
-
-    Zero means the sheet looks empty *or* the header fetch returned nothing.
-    Callers treat that as unknown/empty and refuse writes without
-    ``--allow-create``, rather than skipping the column guard.
-    """
+    """Return 1 + max ``columnOrder`` in the sheet cells, or 0 if none."""
     cells = sheet.get("magicTableCells")
     if not isinstance(cells, list):
         return 0
