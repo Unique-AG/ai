@@ -285,7 +285,7 @@ Row 4 rerun finished (state: IDLE).
 
 Write text into one cell by row and column order. This is not a run: you already have the value. `import` / `rerun-row` start the table agent and do not take answer text. Do not `rerun-row` after a `set-cell` on the same correction — the rerun would overwrite the cell.
 
-`--row` / `--col` are 0-based, the same numbers `get-cell` uses. Row 0 (the header) is allowed. A coordinate with no existing row or column is **created** by the API, so do not invent indexes. Provide exactly one of `--text`, `--file`, or `--stdin`. Empty text is refused locally. Optional log entries are a JSON array of objects with `text`, `actorType` (`USER`, `SYSTEM`, `ASSISTANT`, or `TOOL`), and `createdAt` (ISO-8601, required).
+`--row` / `--col` are 0-based, the same numbers `get-cell` uses. Row 0 (the header) is allowed. A coordinate with no existing row or column is **created** by the API, so do not invent indexes. Provide exactly one of `--text`, `--file`, or `--stdin`. Empty text is refused locally. Optional log entries are a JSON array of objects with `text`, `actorType` (`USER`, `SYSTEM`, `ASSISTANT`, or `TOOL`), and `createdAt` (ISO-8601, required). Those actor and time fields are caller-supplied labels stored with the cell; the API does not bind them to the authenticated user. Agents should omit logs, or use `TOOL` / `ASSISTANT` — not `USER` / `SYSTEM`.
 
 A 403 is reported as `agentic-table: permission denied`. A locked or final-review row is refused by the API. Unlike `import` / `rerun-row`, a write is not blocked while the sheet is `PROCESSING`.
 

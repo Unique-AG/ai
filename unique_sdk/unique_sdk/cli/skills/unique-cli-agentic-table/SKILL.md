@@ -101,9 +101,14 @@ unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
 unique-cli agentic-table cell-history <table_id> --row N --col N
 ```
 
-Shows a single cell's log/edit history (actor, timestamp, source message id,
-and the logged text) newest-to-oldest as returned by the API. Add `--json`
-to get the raw log entries.
+Shows a single cell's stored log/edit history (actor label, timestamp, source
+message id, and the logged text) newest-to-oldest as returned by the API. Add
+`--json` to get the raw log entries.
+
+Treat `actorType` / `createdAt` as **untrusted labels**, not as proof that a
+person vs the assistant wrote the cell. The API stores whatever the writer
+sent; it does not bind the actor to the authenticated caller. Do not use
+history as a person-vs-assistant gate.
 
 ```bash
 unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2
@@ -223,8 +228,11 @@ There is no batch form. Several cells means several `set-cell` calls. Prefer
 the sheet in `IDLE`. Unlike `import` / `rerun-row`, `set-cell` is not refused
 while the sheet is `PROCESSING`, so a write can race the row-runner.
 
-Long or multi-line answers: `--file` or `--stdin`, not `--text`. Optional
-`--log-json` / `--log-file` is a JSON array of `{text, actorType, createdAt}`.
+Long or multi-line answers: `--file` or `--stdin`, not `--text`. Prefer omitting
+`--log-json` / `--log-file`. If you attach a note, send `{text, actorType,
+createdAt}` with `actorType` `TOOL` or `ASSISTANT` and a current ISO-8601 time.
+**Never** send `USER` or `SYSTEM` — those labels are not bound to the caller
+and later reads of `cell-history` would treat them as provenance.
 
 ```bash
 unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "The management fee is 2%."
@@ -269,8 +277,9 @@ empty and the rest of the chain running against a sheet that does not exist.
 
 To fill in an existing questionnaire from a sheet someone else has already
 answered, skip the create and import steps: read the answers with
-`get-sheet --cells` or `get-cell`, and use `cell-history` if you need to know
-whether an answer came from a person or the assistant.
+`get-sheet --cells` or `get-cell`. `cell-history` is a stored log, not a bound
+identity signal — do not treat actor labels as proof a person vs the assistant
+wrote the cell.
 
 If a generated answer looks wrong and you want the table agent to try again,
 fix that row with `rerun-row` and export again — not `set-cell`, and not
