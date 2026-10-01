@@ -302,7 +302,12 @@ class TestProviderRegistry:
         from unique_search_proxy_sdk._transport import OpenapiTransport
 
         client = SearchClient(OpenapiTransport("http://test"))
-        assert set(SEARCH_ENGINE_NAME_TO_CONFIG) == {"google", "brave", "perplexity"}
+        assert set(SEARCH_ENGINE_NAME_TO_CONFIG) == {
+            "google",
+            "brave",
+            "perplexity",
+            "custom_api",
+        }
         for engine in SEARCH_ENGINE_NAME_TO_CONFIG:
             assert hasattr(client, engine)
 

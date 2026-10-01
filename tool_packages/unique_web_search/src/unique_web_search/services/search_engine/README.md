@@ -15,7 +15,7 @@ return await self._legacy_search(...)      # direct provider call from this proc
 |------|---------|-------|--------|
 | **Standard** | Google | yes | yes |
 | **Standard** | Brave, Perplexity | yes | **raises** (proxy-only) |
-| **Standard** | Custom API | never | always |
+| **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
 Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Bing/VertexAI).
@@ -127,13 +127,15 @@ Config: `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityCon
 PERPLEXITY_API_KEY=...
 ```
 
-### Custom API Search (always local)
+### Custom API Search
 
-**Provider:** your REST endpoint · **Never proxy-routed**
+**Provider:** your REST endpoint · **Proxy:** legacy + proxy
 
 Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (`LocalSearchEngineType.CUSTOM_API`)
 
 Response must be JSON with a `results` array of `{url, title, snippet, content?}`.
+In proxy mode, the endpoint is validated against the Search Proxy URL-safety
+policy, DNS is pinned for the outbound request, and redirects are rejected.
 
 ```bash
 CUSTOM_WEB_SEARCH_API_ENDPOINT=https://your-api.example.com/search

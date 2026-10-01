@@ -6,6 +6,13 @@ from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+from unique_search_proxy_core.search_engines.base import SearchEngineType
+from unique_search_proxy_core.search_engines.custom_api.schema import (
+    CustomApiConfig as ProxyCustomApiConfig,
+)
+from unique_search_proxy_core.search_engines.custom_api.schema import (
+    CustomApiSearchRequest,
+)
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.base import (
@@ -64,10 +71,10 @@ ApiRequestMethodType, ApiRequestMethodField = conditional_type(
 )
 
 
-class CustomAPIConfig(BaseModel):
+class CustomAPIConfig(ProxyCustomApiConfig):
     model_config = get_configuration_dict(title="Customized API")
 
-    engine: Literal[LocalSearchEngineType.CUSTOM_API] = LocalSearchEngineType.CUSTOM_API
+    engine: Literal[SearchEngineType.CUSTOM_API] = SearchEngineType.CUSTOM_API
 
     api_endpoint: ApiEndpointType = ApiEndpointField  # type: ignore (Dynamic type generation)
     api_headers: ApiHeadersType = ApiHeadersField  # type: ignore (Dynamic type generation)
@@ -87,6 +94,11 @@ class CustomAPIConfig(BaseModel):
         default=False, description="Whether the search engine requires scraping"
     )
     timeout: int = Field(default=120, description="The timeout of the custom API")
+
+    @classmethod
+    def request_model(cls) -> type[BaseModel]:
+        """Use the proxy's wire contract, excluding tool-only configuration fields."""
+        return CustomApiSearchRequest
 
 
 @register_search_engine(
