@@ -1,5 +1,8 @@
 import logging
+from collections.abc import Sequence
 from typing import Unpack
+
+from openai.types.responses import ToolParam, response_create_params
 
 from unique_toolkit.agentic.loop_runner._responses_stream_handler_utils import (
     responses_stream_response,
@@ -9,10 +12,54 @@ from unique_toolkit.agentic.loop_runner.base import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelTokenUsage,
+    LanguageModelToolDescription,
     ResponsesLanguageModelStreamResponse,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _is_forced_function_choice(
+    tool_choice: response_create_params.ToolChoice,
+) -> bool:
+    return isinstance(tool_choice, dict) and tool_choice.get("type") == "function"
+
+
+def _is_hosted_tool(tool: LanguageModelToolDescription | ToolParam) -> bool:
+    """Hosted tools (e.g. ``code_interpreter``) run on OpenAI's side.
+
+    Function tools are either ``LanguageModelToolDescription`` or a
+    ``ToolParam`` dict with ``type == "function"``. Every other ``ToolParam``
+    is a hosted tool.
+    """
+    if isinstance(tool, LanguageModelToolDescription):
+        return False
+    return tool.get("type") != "function"
+
+
+def _tools_for_forced_choice(
+    tools: Sequence[LanguageModelToolDescription | ToolParam] | None,
+    tool_choice: response_create_params.ToolChoice,
+) -> list[LanguageModelToolDescription | ToolParam] | None:
+    """Drop hosted tools from a request that forces a function.
+
+    The Responses API only accepts ``tool_choice: "auto"`` when a hosted tool
+    such as ``code_interpreter`` is in ``tools``. A forced function next to a
+    hosted tool returns HTTP 400 on GPT-5 and later. The next loop iteration
+    sends no ``tool_choice``, so the hosted tool is offered again there.
+    """
+    if tools is None or not _is_forced_function_choice(tool_choice):
+        return list(tools) if tools is not None else None
+
+    remaining = [tool for tool in tools if not _is_hosted_tool(tool)]
+    dropped = len(tools) - len(remaining)
+    if dropped > 0:
+        _LOGGER.info(
+            "Dropped %d hosted tool(s) from the forced tool request; "
+            "the Responses API rejects a named tool_choice next to hosted tools.",
+            dropped,
+        )
+    return remaining
 
 
 async def handle_responses_last_iteration(
@@ -47,9 +94,16 @@ async def handle_responses_forced_tools_iteration(
     responses: list[ResponsesLanguageModelStreamResponse] = []
 
     for opt in tool_choices:
-        responses.append(
-            await responses_stream_response(loop_runner_kwargs=kwargs, tool_choice=opt)
-        )
+        tools = _tools_for_forced_choice(kwargs.get("tools"), opt)
+        if tools is None:
+            response = await responses_stream_response(
+                loop_runner_kwargs=kwargs, tool_choice=opt
+            )
+        else:
+            response = await responses_stream_response(
+                loop_runner_kwargs=kwargs, tool_choice=opt, tools=tools
+            )
+        responses.append(response)
 
     # Merge responses and refs:
     tool_calls = []
