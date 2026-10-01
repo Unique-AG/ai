@@ -82,7 +82,7 @@ Signature verification is handled by `build_unique_custom_app`.
 
 ## 4. Use it
 
-Send any message in the space. The module replies with the model it resolved
+Send any message in the space. The module replies with its configured model
 and the tools currently connected for you:
 
 ```
@@ -114,8 +114,8 @@ tool call.
 
 - `event.payload.mcp_servers` — servers connected for this user, each with its
   tools. Empty means the user has not connected anything yet.
-- `event.payload.model_choice` — the model the user picked in the composer,
-  when they picked one. It wins over `configuration["languageModel"]`.
+- `event.payload.configuration` — the module configuration from step 1, which
+  is where `languageModel` is read from.
 - `unique_sdk.MCP.call_tool(...)` — runs a tool, addressed by its namespaced
   name, scoped to this chat and assistant message.
 - `ChatService` — writes the reply onto the assistant message the platform

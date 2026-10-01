@@ -22,30 +22,12 @@ import unique_sdk
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_MODEL = "AZURE_GPT_4o_2024_1120"
-
 NOT_CONNECTED_MESSAGE = (
     "No MCP server is connected for you yet.\n\n"
     "The space has MCP tools configured, so the chat shows a **Connect** "
     "banner above the message box. Connect there, then send your message "
     "again."
 )
-
-
-def _resolve_model_name(event: ChatEvent) -> str:
-    """The model to answer with.
-
-    A model the user picked in the composer arrives as `model_choice` and wins.
-    Otherwise use the `languageModel` stored on the module configuration.
-    """
-    if event.payload.has_model_choice_override:
-        return str(event.payload.model_choice.name)
-
-    configured = event.payload.configuration.get("languageModel")
-    if isinstance(configured, str) and configured:
-        return configured
-
-    return FALLBACK_MODEL
 
 
 def _tool_catalog(mcp_servers: list[McpServer]) -> str:
@@ -159,7 +141,7 @@ def handle_event(event: ChatEvent) -> int:
     # No tool call requested: answer with the configured model and show what is
     # wired up, so the example is useful without a live Atlassian or GitHub call.
     catalog = _tool_catalog(mcp_servers)
-    model_name = _resolve_model_name(event)
+    model_name = event.payload.configuration["languageModel"]
 
     messages = (
         OpenAIMessageBuilder()
