@@ -194,7 +194,8 @@ def handle_external_module(event):
 space assigns the servers and handles per-user authentication; connected
 servers then arrive on every event. See
 [`examples/mcp-custom-module`](https://github.com/Unique-AG/ai/tree/main/unique_sdk/examples/mcp-custom-module)
-for the configuration fields and a runnable FastAPI module.
+for the configuration fields and a runnable module, with both a FastAPI
+webhook and an event-socket (SSE) entry point for local development.
 
 ## Best Practices
 

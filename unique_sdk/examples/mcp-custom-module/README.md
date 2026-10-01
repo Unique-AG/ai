@@ -68,17 +68,47 @@ any server that is not. **Reconnect** appears when a session expires mid-chat.
 This module renders none of that. It only sees the result: servers the user has
 connected arrive on the event, and the rest do not.
 
-## 3. Run the app
+## 3. Run it
+
+Both entry points run the same handler. Pick whichever suits your machine.
 
 ```bash
 cd unique_sdk/examples/mcp-custom-module
 cp unique.env.example unique.env   # then fill it in
+```
+
+`unique.env` is read from the working directory, so run from the example root.
+
+### Webhook — `app.py`
+
+```bash
 uv run python -m mcp_custom_module.app
 ```
 
-The app listens on port 5001 and serves the webhook at `/webhook`. Point the
-module's webhook at it; use a tunnel such as ngrok when developing locally.
-Signature verification is handled by `build_unique_custom_app`.
+The platform pushes events to this app. It listens on port 5001 and serves the
+webhook at `/webhook`; point the module's webhook there, using a tunnel such as
+ngrok while developing. `build_unique_custom_app` verifies the signature on
+every request. This is the option to use in production.
+
+### Event socket — `sse.py`
+
+```bash
+uv run python -m mcp_custom_module.sse
+```
+
+This script pulls events instead, over an outbound SSE connection, so it needs
+no public URL and no tunnel — handy on a governed machine that cannot expose a
+port. Set `UNIQUE_AUTH_COMPANY_ID` and `UNIQUE_AUTH_USER_ID`: the stream runs on
+behalf of those credentials.
+
+Also set at least one of `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS` or
+`UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE`. The stream carries every
+`unique.chat.external-module.chosen` event this app can see, and with both
+unset every event is dropped.
+
+**Development only.** The socket has no delivery guarantee and no replay, and
+it closes after about ten minutes. The script reconnects, but events that
+arrive while it is down are lost for good.
 
 ## 4. Use it
 
@@ -109,8 +139,8 @@ tool call.
 
 ## How the handler works
 
-`app.py` is a single `handle_event(event: ChatEvent) -> int` passed to
-`build_unique_custom_app`:
+`handler.py` is a single `handle_event(event: ChatEvent) -> int`, shared by both
+entry points:
 
 - `event.payload.mcp_servers` — servers connected for this user, each with its
   tools. Empty means the user has not connected anything yet.
