@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/scripts/**"
+      - ".claude/skills/changelog-fragment/scripts/changelog_new.py"
       - ".github/workflows/scripts-test.yaml"
       - ".github/actions/get-packages-matrix/package_configuration.json"
   push:
@@ -11,6 +12,7 @@ on:
       - main
     paths:
       - ".github/scripts/**"
+      - ".claude/skills/changelog-fragment/scripts/changelog_new.py"
       - ".github/workflows/scripts-test.yaml"
       - ".github/actions/get-packages-matrix/package_configuration.json"
 

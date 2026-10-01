@@ -1,0 +1,47 @@
+changesDir: .changelog
+unreleasedDir: unreleased
+versionExt: md
+versionFormat: '## {{.Version}} - {{.Time.Format "2006-01-02"}}'
+componentFormat: '### {{.Component}}'
+kindFormat: '#### {{.Kind}}'
+changeFormat: '- AUDIENCE_{{.Custom.Audience | upper}}: [{{.Custom.Package}}] {{.Body}}'
+fragmentFileFormat: '{{.Kind | lower}}-{{.Component | replace " " "-" | replace "/" "-" | lower}}-{{.Time.Format "20060102-150405"}}'
+kinds:
+  - label: Added
+  - label: Changed
+  - label: Fixed
+  - label: Removed
+  - label: Security
+components:
+  - Administration / Governance
+  - API / SDK
+  - Chat Experience
+  - Conduct
+  - Connectors
+  - Infrastructure
+  - MCP
+  - Pod Casey
+  - Pod Ivy
+  - Pod Remy
+  - RAG
+  - Web Search
+custom:
+  - key: Audience
+    label: Who is this change relevant for
+    type: enum
+    enumOptions:
+      - user
+      - admin
+      - operator
+  - key: Package
+    label: Affected ai package(s), release-please component names, e.g. unique-toolkit (comma-separate for multiple)
+    type: string
+  - key: Ticket
+    label: Related Jira ticket(s), e.g. UN-12345 (comma-separate for multiple)
+    type: string
+    optional: true
+newlines:
+  afterChangelogHeader: 1
+  beforeChangelogVersion: 1
+  beforeComponent: 1
+  afterChange: 0
