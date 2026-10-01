@@ -144,11 +144,20 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       statuses: write
+      pull-requests: write
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: .github/scripts/check-gatekeeper.sh
+          sparse-checkout-cone-mode: false
+
       - name: Check results
         id: check
         env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           DETECT_CHANGES: ${{ needs.detect-changes.result }}
           LINT: ${{ needs.lint.result }}
           TEST: ${{ needs.test.result }}
@@ -161,47 +170,19 @@ jobs:
           PR_TITLE: ${{ needs.pr-title.result }}
           NO_MANUAL_RELEASE: ${{ needs.no-manual-release.result }}
           RELEASE_LINEAGE: ${{ needs.release-lineage.result }}
-        run: |
-          echo "=== CI Status Summary ==="
-          echo "detect-changes: $DETECT_CHANGES"
-          echo "lint: $LINT"
-          echo "test: $TEST"
-          echo "types: $TYPES"
-          echo "coverage: $COVERAGE"
-          echo "deps: $DEPS"
-          echo "containerize: $CONTAINERIZE"
-          echo "helm-lint: $HELM_LINT"
-          echo "config: $CONFIG"
-          echo "pr-title: $PR_TITLE"
-          echo "no-manual-release: $NO_MANUAL_RELEASE"
-          echo "release-lineage: $RELEASE_LINEAGE"
-          echo "========================="
-
-          failed=false
-
-          # Required checks (skipped is OK for when no packages changed or merge_group).
-          # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
-          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "containerize:$CONTAINERIZE" "helm-lint:$HELM_LINT" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE" "release-lineage:$RELEASE_LINEAGE"; do
-            name="${check%%:*}"
-            result="${check##*:}"
-            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
-              echo "❌ $name: $result"
-              failed=true
-            fi
-          done
-
-          if [[ "$failed" == "true" ]]; then
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "description=CI checks failed" >> $GITHUB_OUTPUT
-          else
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "description=All CI checks passed" >> $GITHUB_OUTPUT
-          fi
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref || '' }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login || '' }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.fork || false }}
+          MERGE_GROUP_HEAD_REF: ${{ github.event.merge_group.head_ref || '' }}
+        run: bash .github/scripts/check-gatekeeper.sh
 
       - name: Post commit status
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
           STATE: ${{ steps.check.outputs.status }}
           DESCRIPTION: ${{ steps.check.outputs.description }}
         run: |
