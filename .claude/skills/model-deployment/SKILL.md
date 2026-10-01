@@ -154,6 +154,8 @@ Check whether the model already exists in `unique_toolkit/unique_toolkit/languag
 
 Add `LanguageModelName` enum entry and `LanguageModelInfo.from_name()` case. See [TOOLKIT-REGISTRY.md](references/TOOLKIT-REGISTRY.md) for code examples and field reference.
 
+A PR that only adds models (enum entry, info, tests) gets the `no-changelog` label, not a fragment; see `changelog-fragment`.
+
 **Critical:** for `default_options`, use the string `"none"` — never Python `None`. See [LESSONS-LEARNED.md](references/LESSONS-LEARNED.md).
 
 ### C3) PR + release

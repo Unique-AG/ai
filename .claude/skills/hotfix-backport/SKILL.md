@@ -24,6 +24,7 @@ metadata:
    ```bash
    git cherry-pick <sha1> <sha2> ...
    ```
+   Keep any `.changelog/unreleased/*.yaml` fragment from the original PR unchanged (same filename); it is how the release and `main` avoid listing the change twice.
 4. Open a PR targeting `release/YYYY.WW` with a list of backported commits/PRs in the description.
 5. Merge with **Rebase and merge** only (squash is blocked by branch rules).
 

@@ -103,6 +103,8 @@ Produce a ready-to-submit body with:
 
 Do not ask the user to write these sections first. Draft them from repository context, then let the user edit/approve.
 
+In the ai repo, run the `changelog-fragment` decision first: commit a fragment, or plan to add the `no-changelog` label.
+
 ### Step 5: Ask for confirmation (single checkpoint)
 Show the proposed title + body and ask:
 - "Create this PR now with `gh pr create`?"
