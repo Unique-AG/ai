@@ -285,7 +285,7 @@ Row 4 rerun finished (state: IDLE).
 
 Write text into one cell by row and column order. This is not a run: you already have the value. `import` / `rerun-row` start the table agent and do not take answer text. Do not `rerun-row` after a `set-cell` on the same correction — the rerun would overwrite the cell.
 
-`--row` / `--col` are 0-based, the same numbers `get-cell` uses. Row 0 (the header) is allowed. A coordinate with no existing row or column is **refused** unless `--allow-create` (the API would otherwise create it). Provide exactly one of `--text`, `--file`, or `--stdin`. Empty text is refused locally. Optional log entries are a JSON array of objects with `text`, `actorType` (`ASSISTANT` or `TOOL`), and `createdAt` (ISO-8601, required). `USER` / `SYSTEM` are rejected locally. Those actor and time fields are caller-supplied labels stored with the cell; the API does not bind them to the authenticated user.
+`--row` / `--col` are 0-based, the same numbers `get-cell` uses. Row 0 (the header) is allowed. A coordinate with no existing row or column is **refused** unless `--allow-create`, which may add only the next row or column (not a gap). Provide exactly one of `--text`, `--file`, or `--stdin`. Empty text is refused locally. Optional log entries are a JSON array of objects with `text`, `actorType` (`ASSISTANT` or `TOOL`), and `createdAt` (ISO-8601, required). `USER` / `SYSTEM` are rejected locally. Those actor and time fields are caller-supplied labels stored with the cell; the API does not bind them to the authenticated user.
 
 A 403 is reported as `agentic-table: permission denied`. A locked or final-review row is refused by the API. A `PROCESSING` sheet is refused unless `--force`.
 
@@ -307,7 +307,7 @@ agentic-table set-cell <table_id> --row <N> --col <N> (--text TEXT | --file PATH
 | `--stdin` | Read cell text from stdin (refused if stdin is a tty) |
 | `--log-file` | JSON array of log entries |
 | `--log-json` | Inline JSON array of log entries |
-| `--allow-create` | Allow creating a missing row or column |
+| `--allow-create` | Allow creating the next row or column (not a gap) |
 | `--force` | Write even while the sheet is `PROCESSING` |
 | `--json` | Print the raw cell JSON |
 

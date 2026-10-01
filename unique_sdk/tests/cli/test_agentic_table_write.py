@@ -1319,9 +1319,9 @@ def test_cmd_set_cell_refuses_out_of_range_column() -> None:
 
 @pytest.mark.ai
 def test_cmd_set_cell_allow_create_writes_new_column() -> None:
-    """Purpose: --allow-create opts into growing the sheet.
-    Why this matters: Missing coordinates are still a valid API behavior.
-    Setup summary: col 20 with allow_create=True calls set_cell.
+    """Purpose: --allow-create may add only the next column.
+    Why this matters: The API would otherwise create a gap at any index.
+    Setup summary: 4-column sheet, --col 4 with allow_create=True calls set_cell.
     """
     with (
         _patch("get_sheet_data", return_value=_idle_sheet(cols=4)),
@@ -1331,12 +1331,62 @@ def test_cmd_set_cell_allow_create_writes_new_column() -> None:
             _state(),
             "mt_1",
             row_order=1,
+            column_order=4,
+            text="hi",
+            allow_create=True,
+        )
+
+    assert mock_set.await_args.kwargs["columnOrder"] == 4
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_allow_create_refuses_gap_column() -> None:
+    """Purpose: --allow-create still refuses a far-off column.
+    Why this matters: --col 20 on a 4-column sheet would skip columns 4-19.
+    Setup summary: col 20 with allow_create=True; set_cell is not called.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(cols=4)),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
             column_order=20,
             text="hi",
             allow_create=True,
         )
 
-    assert mock_set.await_args.kwargs["columnOrder"] == 20
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "col 20 is too far" in out
+    assert "next column" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_allow_create_refuses_gap_row() -> None:
+    """Purpose: --allow-create still refuses a far-off row.
+    Why this matters: --row 50 on a 5-row sheet would skip rows 5-49.
+    Setup summary: row 50 with allow_create=True; set_cell is not called.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(rows=5)),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=50,
+            column_order=2,
+            text="hi",
+            allow_create=True,
+        )
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "row 50 is too far" in out
+    assert "next row" in out
 
 
 @pytest.mark.ai

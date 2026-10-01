@@ -219,7 +219,9 @@ immediately. It does not start the table agent.
 `--row` / `--col` are the same 0-based numbers as `get-cell`. Row 0 (the
 header) **can** be set. Find coordinates with `get-sheet --cells` or
 `get-cell` first. A coordinate that does not exist is **refused** unless you
-pass `--allow-create` (a typo would otherwise grow the sheet).
+pass `--allow-create` for the **next** row or column only (`--row 5` on a
+5-row sheet). A far-off number (`--row 50`) is still refused: the API would
+create a gap.
 
 There is no batch form. Several cells means several `set-cell` calls. The
 sheet must be `IDLE`; `PROCESSING` is refused unless you pass `--force` (the

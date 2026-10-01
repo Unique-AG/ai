@@ -324,8 +324,9 @@ def cmd_set_cell(
 
     Writes the given text at ``(row_order, column_order)``. This is not a
     run: unlike ``import`` / ``rerun-row`` it does not start the table agent.
-    Row 0 (the header) is allowed. Missing coordinates are created only with
-    ``allow_create``. A ``PROCESSING`` sheet is refused unless ``force``.
+    Row 0 (the header) is allowed. ``allow_create`` may add only the next
+    row or column; a gap is refused. A ``PROCESSING`` sheet is refused
+    unless ``force``.
     """
     try:
         cell_text = _read_cell_text(text=text, file=file, stdin=stdin)
@@ -357,16 +358,29 @@ def cmd_set_cell(
                 f"{AGENTIC_TABLE_ERROR_PREFIX} sheet is PROCESSING; wait for IDLE "
                 "or pass --force"
             )
-        if not allow_create:
-            row_count = sheet.get("magicTableRowCount")
-            if not isinstance(row_count, int):
-                row_count = 0
+        row_count = sheet.get("magicTableRowCount")
+        if not isinstance(row_count, int):
+            row_count = 0
+        column_count = _sheet_column_count(sheet)
+        if allow_create:
+            if row_order > row_count:
+                return (
+                    f"{AGENTIC_TABLE_ERROR_PREFIX} row {row_order} is too far "
+                    f"(sheet has {row_count} rows); --allow-create only adds the next "
+                    "row"
+                )
+            if column_order > column_count:
+                return (
+                    f"{AGENTIC_TABLE_ERROR_PREFIX} col {column_order} is too far "
+                    f"(sheet has {column_count} columns); --allow-create only adds "
+                    "the next column"
+                )
+        else:
             if row_order >= row_count:
                 return (
                     f"{AGENTIC_TABLE_ERROR_PREFIX} row {row_order} is out of range "
                     f"(sheet has {row_count} rows); pass --allow-create to add a row"
                 )
-            column_count = _sheet_column_count(sheet)
             if column_order >= column_count:
                 return (
                     f"{AGENTIC_TABLE_ERROR_PREFIX} col {column_order} is out of range "

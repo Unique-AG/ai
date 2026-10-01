@@ -2767,7 +2767,7 @@ def agentic_table_rerun_row(
     "allow_create",
     is_flag=True,
     default=False,
-    help="Allow creating a missing row or column (default: refuse out of range).",
+    help="Allow creating the next row or column (not a gap).",
 )
 @click.option(
     "--force",
@@ -2800,7 +2800,8 @@ def agentic_table_set_cell(
     This is not a run. Pass the cell value you already have; the API returns
     the updated cell immediately. --row/--col are 0-based like get-cell; row 0
     is the header and is allowed. A missing row or column is refused unless
-    --allow-create. A PROCESSING sheet is refused unless --force. Use
+    --allow-create, which adds only the next index. A PROCESSING sheet is
+    refused unless --force. Use
     rerun-row to have the table agent regenerate an answer from sources.
 
     \b
