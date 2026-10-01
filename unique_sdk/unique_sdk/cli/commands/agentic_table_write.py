@@ -182,7 +182,12 @@ def _parse_log_created_at(raw: object, *, index: int) -> str:
 
 
 def _sheet_column_count(sheet: Mapping[str, object]) -> int:
-    """Return 1 + max header ``columnOrder``, or 0 when the sheet has no cells."""
+    """Return 1 + max header ``columnOrder``, or 0 when no cells are present.
+
+    Zero means the sheet looks empty *or* the header fetch returned nothing.
+    Callers treat that as unknown/empty and refuse writes without
+    ``--allow-create``, rather than skipping the column guard.
+    """
     cells = sheet.get("magicTableCells")
     if not isinstance(cells, list):
         return 0
@@ -355,13 +360,15 @@ def cmd_set_cell(
 
     if not allow_create:
         row_count = sheet.get("magicTableRowCount")
-        if isinstance(row_count, int) and row_order >= row_count:
+        if not isinstance(row_count, int):
+            row_count = 0
+        if row_order >= row_count:
             return (
                 f"{AGENTIC_TABLE_ERROR_PREFIX} row {row_order} is out of range "
                 f"(sheet has {row_count} rows); pass --allow-create to add a row"
             )
         column_count = _sheet_column_count(sheet)
-        if column_count > 0 and column_order >= column_count:
+        if column_order >= column_count:
             return (
                 f"{AGENTIC_TABLE_ERROR_PREFIX} col {column_order} is out of range "
                 f"(sheet has {column_count} columns); pass --allow-create to add a "

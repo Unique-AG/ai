@@ -1339,6 +1339,45 @@ def test_cmd_set_cell_allow_create_writes_new_column() -> None:
     assert mock_set.await_args.kwargs["columnOrder"] == 20
 
 
+@pytest.mark.ai
+def test_cmd_set_cell_refuses_when_header_cells_missing() -> None:
+    """Purpose: An empty cell list still blocks writes without --allow-create.
+    Why this matters: Skipping the column guard when count is 0 let a typo grow the sheet.
+    Setup summary: sheet with rows but no cells; set_cell is not called.
+    """
+    sheet = _idle_sheet(rows=5, cols=0)
+    with (
+        _patch("get_sheet_data", return_value=sheet),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "col 2 is out of range" in out
+    assert "0 columns" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_refuses_when_row_count_missing() -> None:
+    """Purpose: A missing row count is treated as empty, not as unbounded.
+    Why this matters: The previous guard skipped the row check when the field was absent.
+    Setup summary: sheet without magicTableRowCount; set_cell is not called.
+    """
+    sheet = _idle_sheet()
+    del sheet["magicTableRowCount"]
+    with (
+        _patch("get_sheet_data", return_value=sheet),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "row 1 is out of range" in out
+    assert "0 rows" in out
+
+
 @patch("unique_sdk.cli.cli.cmd_set_cell")
 def test_cli_set_cell_wiring(mock_cmd: object) -> None:
     mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
