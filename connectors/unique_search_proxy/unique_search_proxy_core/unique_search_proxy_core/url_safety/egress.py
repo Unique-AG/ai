@@ -1,6 +1,16 @@
 from __future__ import annotations
 
-from unique_search_proxy_core.url_safety.models import ResolvedCrawlTarget
+from collections.abc import Mapping
+
+import httpx
+
+from unique_search_proxy_core.url_safety.models import (
+    BlockedCrawlTarget,
+    CrawlTargetValidationError,
+    ResolvedCrawlTarget,
+)
+from unique_search_proxy_core.url_safety.redirect import redirect_target_url
+from unique_search_proxy_core.url_safety.resolver import resolve_crawl_target
 
 
 def pinned_httpx_get_args(
@@ -18,4 +28,47 @@ def pinned_httpx_get_args(
     return target.request_url, headers, extensions
 
 
-__all__ = ["pinned_httpx_get_args"]
+async def safe_pinned_httpx_get(
+    client: httpx.AsyncClient,
+    target: ResolvedCrawlTarget,
+    *,
+    headers: Mapping[str, str] | None = None,
+    timeout: float | httpx.Timeout,
+    max_redirect_hops: int,
+) -> httpx.Response:
+    """GET a target while validating and DNS-pinning every redirect hop."""
+    if max_redirect_hops < 0:
+        raise ValueError("max_redirect_hops must be non-negative")
+
+    current_target = target
+    for redirects_followed in range(max_redirect_hops + 1):
+        request_url, pin_headers, extensions = pinned_httpx_get_args(current_target)
+        response = await client.get(
+            request_url,
+            headers={**(headers or {}), **pin_headers},
+            extensions=extensions or None,
+            timeout=timeout,
+            follow_redirects=False,
+        )
+
+        next_url = redirect_target_url(response, current_target.normalized_url)
+        if next_url is None:
+            return response
+
+        if redirects_followed == max_redirect_hops:
+            raise CrawlTargetValidationError(
+                [
+                    BlockedCrawlTarget(
+                        hostname=current_target.hostname or None,
+                        category="redirect",
+                        reason="Maximum redirect hop count exceeded",
+                    )
+                ]
+            )
+
+        current_target = await resolve_crawl_target(next_url)
+
+    raise AssertionError("redirect loop must return or raise")
+
+
+__all__ = ["pinned_httpx_get_args", "safe_pinned_httpx_get"]

@@ -164,6 +164,48 @@ async def test_crawl_pinned__fetches_resolved_ip_with_host_and_sni() -> None:
     assert (
         http_client.get.call_args.kwargs["extensions"]["sni_hostname"] == "example.com"
     )
+    assert http_client.get.call_args.kwargs["follow_redirects"] is False
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__blocks_private_redirect_from_real_get() -> None:
+    response = httpx.Response(
+        302,
+        headers={"Location": "http://127.0.0.1/admin"},
+        request=httpx.Request("GET", "https://93.184.216.34/start"),
+    )
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.return_value = response
+
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+    allowed_targets = [
+        AllowedCrawlTarget(
+            display_url="https://example.com/start",
+            resolved=ResolvedCrawlTarget(
+                normalized_url="https://example.com/start",
+                hostname="example.com",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ),
+    ]
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, allowed_targets)
+
+    assert len(results) == 1
+    assert results[0].error is not None
+    assert results[0].error.code == ProxyErrorCode.FORBIDDEN_TARGET.value
+    assert http_client.get.call_count == 1
+    assert http_client.get.call_args.kwargs["follow_redirects"] is False
 
 
 @pytest.mark.ai
