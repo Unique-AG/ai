@@ -333,43 +333,6 @@ def cmd_set_cell(
     except ValueError as exc:
         return f"{AGENTIC_TABLE_ERROR_PREFIX} {exc}"
 
-    try:
-        sheet = asyncio.run(
-            AgenticTable.get_sheet_data(
-                user_id=state.config.user_id,
-                company_id=state.config.company_id,
-                tableId=table_id,
-                includeCells=True,
-                includeRowCount=True,
-                rowOrders=[0],
-            )
-        )
-    except UniqueError as exc:
-        return _error(exc)
-
-    if sheet["state"] == AgenticTableSheetState.PROCESSING and not force:
-        return (
-            f"{AGENTIC_TABLE_ERROR_PREFIX} sheet is PROCESSING; wait for IDLE "
-            "or pass --force"
-        )
-
-    if not allow_create:
-        row_count = sheet.get("magicTableRowCount")
-        if not isinstance(row_count, int):
-            row_count = 0
-        if row_order >= row_count:
-            return (
-                f"{AGENTIC_TABLE_ERROR_PREFIX} row {row_order} is out of range "
-                f"(sheet has {row_count} rows); pass --allow-create to add a row"
-            )
-        column_count = _sheet_column_count(sheet)
-        if column_order >= column_count:
-            return (
-                f"{AGENTIC_TABLE_ERROR_PREFIX} col {column_order} is out of range "
-                f"(sheet has {column_count} columns); pass --allow-create to add a "
-                "column"
-            )
-
     params: AgenticTable.SetCell = {
         "tableId": table_id,
         "rowOrder": row_order,
@@ -379,20 +342,50 @@ def cmd_set_cell(
     if log_entries is not None:
         params["logEntries"] = log_entries
 
-    try:
-        cell = asyncio.run(
-            AgenticTable.set_cell(
-                user_id=state.config.user_id,
-                company_id=state.config.company_id,
-                **params,
-            )
+    async def _run() -> str:
+        # GET + POST in one loop; a second asyncio.run closes the HTTP client.
+        sheet = await AgenticTable.get_sheet_data(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            tableId=table_id,
+            includeCells=True,
+            includeRowCount=True,
+            rowOrders=[0],
         )
+        if sheet["state"] == AgenticTableSheetState.PROCESSING and not force:
+            return (
+                f"{AGENTIC_TABLE_ERROR_PREFIX} sheet is PROCESSING; wait for IDLE "
+                "or pass --force"
+            )
+        if not allow_create:
+            row_count = sheet.get("magicTableRowCount")
+            if not isinstance(row_count, int):
+                row_count = 0
+            if row_order >= row_count:
+                return (
+                    f"{AGENTIC_TABLE_ERROR_PREFIX} row {row_order} is out of range "
+                    f"(sheet has {row_count} rows); pass --allow-create to add a row"
+                )
+            column_count = _sheet_column_count(sheet)
+            if column_order >= column_count:
+                return (
+                    f"{AGENTIC_TABLE_ERROR_PREFIX} col {column_order} is out of range "
+                    f"(sheet has {column_count} columns); pass --allow-create to add a "
+                    "column"
+                )
+        cell = await AgenticTable.set_cell(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            **params,
+        )
+        if output_json:
+            return json.dumps(cell, indent=2, default=str)
+        return format_agentic_table_cell(cell)
+
+    try:
+        return asyncio.run(_run())
     except UniqueError as exc:
         return _error(exc)
-
-    if output_json:
-        return json.dumps(cell, indent=2, default=str)
-    return format_agentic_table_cell(cell)
 
 
 def cmd_create_sheet(
