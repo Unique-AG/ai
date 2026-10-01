@@ -7,7 +7,9 @@ from unique_search_proxy_core.http_client.client import (
     ProxiedRoute,
     async_client_factory,
     build_async_client,
+    build_direct_async_client,
     build_route,
+    requires_proxied_egress,
 )
 from unique_search_proxy_core.http_client.credentials import (
     ProxyCredentialResolver,
@@ -42,8 +44,10 @@ __all__ = [
     "UserMetadataProxyCredentials",
     "async_client_factory",
     "build_async_client",
+    "build_direct_async_client",
     "build_route",
     "read_secret",
     "read_secret_mapping",
+    "requires_proxied_egress",
     "resolver_from_settings",
 ]

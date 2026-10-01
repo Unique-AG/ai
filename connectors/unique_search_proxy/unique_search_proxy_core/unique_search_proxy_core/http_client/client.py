@@ -52,6 +52,19 @@ class ProxiedRoute:
 EgressRoute = DirectRoute | ProxiedRoute
 
 
+def build_direct_async_client(
+    *,
+    verify: bool | str = True,
+    timeout: float = 30.0,
+) -> AsyncClient:
+    """Build an explicitly direct client for non-DLP private-endpoint traffic."""
+    return AsyncClient(
+        verify=verify,
+        trust_env=True,
+        timeout=timeout,
+    )
+
+
 def _get_proxy_host_and_port(settings: ProxySettings) -> tuple[str, int]:
     proxy_host = settings.proxy_host
     proxy_port = settings.proxy_port
@@ -139,6 +152,14 @@ def build_route(
             )
         case _:
             raise ValueError(f"Invalid proxy auth mode: {auth_mode}")
+
+
+def requires_proxied_egress(
+    settings: ProxySettings,
+    credentials: ProxyCredentials,
+) -> bool:
+    """Return whether the resolved request must use the configured forward proxy."""
+    return isinstance(build_route(settings, credentials), ProxiedRoute)
 
 
 def build_async_client(
@@ -300,6 +321,11 @@ class HttpClientRegistry:
             await evicted.aclose()
         return client
 
+    def requires_proxied_egress(self, context: RequestContext) -> bool:
+        """Return whether ``context`` resolves to a corporate-proxy route."""
+        credentials = self._resolver.resolve(context)
+        return requires_proxied_egress(self._settings, credentials)
+
     @property
     def is_open(self) -> bool:
         """Whether the registry can still serve clients."""
@@ -334,5 +360,7 @@ __all__ = [
     "ProxiedRoute",
     "async_client_factory",
     "build_async_client",
+    "build_direct_async_client",
     "build_route",
+    "requires_proxied_egress",
 ]

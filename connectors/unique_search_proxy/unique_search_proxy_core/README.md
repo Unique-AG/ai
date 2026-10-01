@@ -6,7 +6,10 @@ Part of [Unique Search Proxy](../README.md) · PyPI: `unique-search-proxy-core`
 
 ## 1. What this package is
 
-**Core is the contract layer.** It defines every shared type — deployment configs, HTTP request/response shapes, error codes, and LLM tool schemas — without importing FastAPI, httpx pools, or provider SDKs.
+**Core is the contract layer.** It defines every shared type — deployment
+configs, HTTP request/response shapes, error codes, LLM tool schemas, and the
+provider-agnostic `HttpClientRegistry` used for corporate-proxy egress. It does
+not import FastAPI or provider SDKs.
 
 Install it anywhere you need to **describe** or **validate** proxy behaviour: the proxy server, the HTTP SDK, assistants-core tool manifests, deployment UIs.
 
@@ -20,7 +23,9 @@ Install it anywhere you need to **describe** or **validate** proxy behaviour: th
 
 ## 2. Role in the system
 
-Core sits at the centre of **Path A** (schema & config). It is imported by both the proxy pod and caller services; it never makes HTTP calls itself.
+Core sits at the centre of **Path A** (schema & config). It is imported by both
+the proxy pod and caller services. Its HTTP module constructs and owns shared
+clients, while provider calls remain in those consumers.
 
 ```mermaid
 flowchart TB

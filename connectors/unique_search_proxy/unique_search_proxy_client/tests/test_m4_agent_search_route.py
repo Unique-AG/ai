@@ -73,6 +73,8 @@ class TestAgentSearchRoute:
         body = resp.json()
         assert body["answer"] == "done"
         assert body["engine"] == "bing"
+        assert get_service.call_args.kwargs["http_client"] is not None
+        assert get_service.call_args.kwargs["egress_requires_proxy"] is False
 
     @pytest.mark.ai
     def test_agent_search_accepts_bing_grounding_knobs(

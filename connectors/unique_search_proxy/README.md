@@ -16,6 +16,13 @@ Platform services need web search, grounded agent research, and URL crawling —
 | Tool schemas drift from runtime behaviour | **Core** defines contracts once; server and SDK share them |
 | Assistants need open-web egress | Assistants reach only `search-proxy`; providers from one pod |
 
+For DLP-routed deployments, provider adapters receive a request-scoped client
+from `HttpClientRegistry`. Standard search, VertexAI, and every crawler support
+that route. Bing agent search fails closed when corporate-proxy egress is
+required because Azure Foundry management calls use a separate azure-core
+transport. The provider discovery endpoint reports registration, not this
+compatibility distinction.
+
 The proxy exposes three **capabilities**:
 
 1. **Standard search** — query a search engine, get normalised results (`google`, `brave`, `perplexity`)

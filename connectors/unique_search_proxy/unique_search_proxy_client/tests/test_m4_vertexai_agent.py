@@ -33,6 +33,20 @@ class _Chunk:
 
 class TestVertexAIAgentSearchService:
     @pytest.mark.ai
+    def test_injects_shared_client_for_corporate_proxy(self) -> None:
+        shared_client = MagicMock()
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.vertexai.service.get_vertex_client",
+            return_value=MagicMock(),
+        ) as get_vertex_client:
+            VertexAIAgentSearchService(
+                http_client=shared_client,
+                egress_requires_proxy=True,
+            )
+
+        get_vertex_client.assert_called_once_with(shared_client)
+
+    @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_search_streams_answer(self) -> None:
         async def fake_stream(**_kwargs: Any):

@@ -102,19 +102,24 @@ OpenAPI spec: `openapi.json` (input for [SDK codegen](../unique_search_proxy_sdk
 
 ### 5.1 Summary
 
-| Provider | Type | Upstream | Credentials |
-|----------|------|----------|-------------|
-| Google | Search | Custom Search JSON API | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
-| Brave | Search | Brave Search API | `BRAVE_SEARCH_API_KEY` |
-| Perplexity | Search | Perplexity API | `PERPLEXITY_SEARCH_API_KEY` |
-| Bing | Agent | Azure AI Projects grounding | `BING_AGENT_*` |
-| VertexAI | Agent | Google GenAI + grounding | `VERTEXAI_AGENT_*` or ADC |
-| Basic | Crawl | Direct httpx + HTML/PDF processors | (none) |
-| Tavily | Crawl | Tavily extract API | `TAVILY_API_KEY` |
-| Jina | Crawl | Jina Reader API | `JINA_API_KEY` |
-| Firecrawl | Crawl | Firecrawl scrape (with polling) | `FIRECRAWL_API_KEY` |
+| Provider | Type | Upstream | DLP-routed | Credentials |
+|----------|------|----------|------------|-------------|
+| Google | Search | Custom Search JSON API | yes | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
+| Brave | Search | Brave Search API | yes | `BRAVE_SEARCH_API_KEY` |
+| Perplexity | Search | Perplexity API | yes | `PERPLEXITY_SEARCH_API_KEY` |
+| Bing | Agent | Azure AI Projects grounding | **no; rejected when required** | `BING_AGENT_*` |
+| VertexAI | Agent | Google GenAI + grounding | yes | `VERTEXAI_AGENT_*` or ADC |
+| Basic | Crawl | Direct httpx + HTML/PDF processors | yes | (none) |
+| Tavily | Crawl | Tavily extract API | yes | `TAVILY_API_KEY` |
+| Jina | Crawl | Jina Reader API | yes | `JINA_API_KEY` |
+| Firecrawl | Crawl | Firecrawl scrape (with polling) | yes | `FIRECRAWL_API_KEY` |
 
-Unconfigured providers return **503** `ENGINE_NOT_CONFIGURED` with missing env var names. `GET /v1/configuration/providers` lists what is registered in the running pod.
+All `yes` rows use the request-scoped `HttpClientRegistry` client for provider
+traffic. Bing fails closed because Azure Foundry management calls use an
+azure-core transport that cannot consume that client. Unconfigured providers
+return **503** `ENGINE_NOT_CONFIGURED` with missing env var names.
+`GET /v1/configuration/providers` lists what is registered in the running pod;
+registration does not imply DLP compatibility.
 
 ### 5.2 Search (`POST /v1/search`)
 

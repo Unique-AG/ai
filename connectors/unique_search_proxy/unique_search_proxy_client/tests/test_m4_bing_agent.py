@@ -19,7 +19,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     bing_agent_name,
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
-from unique_search_proxy_core.errors import EngineNotConfiguredError
+from unique_search_proxy_core.errors import EngineNotConfiguredError, UpstreamError
 
 from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
     cleanup_auto_provisioned_bing_agents,
@@ -151,6 +151,14 @@ def bing_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class TestBingAgentSearchService:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_rejects_corporate_proxy_before_sdk_calls(self) -> None:
+        service = BingAgentSearchService(egress_requires_proxy=True)
+
+        with pytest.raises(UpstreamError, match="Azure Foundry management"):
+            await service.search(_bing_request())
+
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_search_returns_answer_and_raw(self, bing_env: None) -> None:

@@ -12,6 +12,7 @@ from azure.ai.projects.models import (
     BingGroundingTool,
     PromptAgentDefinition,
 )
+from httpx import AsyncClient
 from openai.types.responses import ResponseStreamEvent
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
 from openai.types.responses.response_output_item_done_event import (
@@ -140,6 +141,7 @@ def _is_missing_agent_error(exc: BaseException, *, agent_name: str) -> bool:
 async def stream_bing_grounding_agent(
     project_client: AIProjectClient,
     *,
+    http_client: AsyncClient | None = None,
     query: str,
     model: str,
     instructions: str,
@@ -158,7 +160,10 @@ async def stream_bing_grounding_agent(
         instructions=instructions,
         grounding=grounding,
     )
-    openai_client = get_openai_client(project_client)
+    openai_client = get_openai_client(
+        project_client,
+        http_client=http_client,
+    )
 
     try:
         stream = await _create_responses_stream(

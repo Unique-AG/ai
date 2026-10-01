@@ -11,7 +11,9 @@ _RESOLVE_TARGET = (
     "unique_search_proxy_core.url_safety.service.resolver.resolve_crawl_target"
 )
 
-_REDIRECT_HTTPX = "unique_search_proxy_core.url_safety.redirect.httpx.AsyncClient"
+_REDIRECT_HTTPX = (
+    "unique_search_proxy_core.url_safety.redirect.build_direct_async_client"
+)
 
 
 class TestValidateUrls:

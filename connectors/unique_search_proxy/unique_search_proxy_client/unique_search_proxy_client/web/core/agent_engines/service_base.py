@@ -20,8 +20,10 @@ class AgentSearchEngineService(
         self,
         *,
         http_client: AsyncClient | None = None,
+        egress_requires_proxy: bool = False,
     ) -> None:
         super().__init__(http_client=http_client)
+        self._egress_requires_proxy = egress_requires_proxy
 
     @property
     def mode(self) -> str:

@@ -59,6 +59,12 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
         self,
         request: BingAgentSearchRequest,  # type: ignore[override]
     ) -> AsyncIterator[AgentSearchStreamEvent]:
+        if self._egress_requires_proxy:
+            raise UpstreamError(
+                "Bing agent search is unavailable with corporate-proxy egress "
+                "because Azure Foundry management traffic cannot use the shared "
+                "HTTP client"
+            )
         bing_agent_credentials.check_credentials()
         creds = bing_agent_credentials
 
@@ -83,6 +89,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                 ) as project_client:
                     async for delta, raw_event in stream_bing_grounding_agent(
                         project_client,
+                        http_client=self._http_client,
                         query=request.query,
                         model=read_secret(creds.bing_agent_model),
                         instructions=instructions,

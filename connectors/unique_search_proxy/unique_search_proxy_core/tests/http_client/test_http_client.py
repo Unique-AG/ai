@@ -8,12 +8,14 @@ from pydantic import SecretStr
 from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.errors import ValidationProxyError
 from unique_search_proxy_core.http_client import (
+    DirectRoute,
     HttpClientRegistry,
     ProxiedRoute,
     ProxySettings,
     SettingsProxyCredentials,
     UserMetadataProxyCredentials,
     build_route,
+    requires_proxied_egress,
     resolver_from_settings,
 )
 
@@ -71,6 +73,21 @@ class TestCoreHttpClient:
             resolver_from_settings(_settings()),
             UserMetadataProxyCredentials,
         )
+
+    def test_requires_proxied_egress_matches_resolved_route(self) -> None:
+        settings = _settings()
+        credentials = UserMetadataProxyCredentials(settings).resolve(_context())
+
+        assert requires_proxied_egress(settings, credentials)
+
+    def test_anonymous_none_mode_is_direct(self) -> None:
+        settings = ProxySettings(proxy_auth_mode="none")
+        credentials = SettingsProxyCredentials(settings).resolve(_context())
+
+        route = build_route(settings, credentials)
+
+        assert isinstance(route, DirectRoute)
+        assert not requires_proxied_egress(settings, credentials)
 
     async def test_registry_isolates_users(self) -> None:
         settings = _settings()

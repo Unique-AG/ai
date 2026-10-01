@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 
 import httpx
 
+from unique_search_proxy_core.http_client import build_direct_async_client
 from unique_search_proxy_core.url_safety.models import (
     BlockedCrawlTarget,
     CrawlTargetValidationError,
@@ -38,11 +39,7 @@ async def _redirect_probe_client(
     if http_client is not None:
         yield http_client
         return
-    async with httpx.AsyncClient(
-        follow_redirects=False,
-        timeout=timeout,
-        headers={"User-Agent": _REDIRECT_PROBE_USER_AGENT},
-    ) as client:
+    async with build_direct_async_client(timeout=timeout) as client:
         yield client
 
 

@@ -23,13 +23,20 @@ def get_agent_engine_service(
     engine: AgentEngineType,
     *,
     http_client: AsyncClient | None = None,
+    egress_requires_proxy: bool = False,
 ) -> AgentSearchEngine[Any]:
     """Instantiate an agent search engine by registered id."""
     match engine:
         case AgentEngineType.BING:
-            return BingAgentSearchService(http_client=http_client)
+            return BingAgentSearchService(
+                http_client=http_client,
+                egress_requires_proxy=egress_requires_proxy,
+            )
         case AgentEngineType.VERTEXAI:
-            return VertexAIAgentSearchService(http_client=http_client)
+            return VertexAIAgentSearchService(
+                http_client=http_client,
+                egress_requires_proxy=egress_requires_proxy,
+            )
         case _:
             msg = f"Unsupported agent engine: {engine}"
             raise ValueError(msg)

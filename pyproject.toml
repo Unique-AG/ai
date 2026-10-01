@@ -142,6 +142,7 @@ members = [
 # package directory.
 [tool.poe.tasks]
 check-imports = "lint-imports --config unique_toolkit/pyproject.toml"
+check-search-proxy-egress = "python3 .github/scripts/check_bare_httpx_async_client.py"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

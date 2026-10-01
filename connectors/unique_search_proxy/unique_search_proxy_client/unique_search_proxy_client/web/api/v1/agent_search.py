@@ -23,9 +23,11 @@ from unique_search_proxy_core.schema import (
     ProxyErrorCode,
 )
 
+from unique_search_proxy_client.web.context import get_request_context
 from unique_search_proxy_client.web.core.agent_engines.factory import (
     get_agent_engine_service,
 )
+from unique_search_proxy_client.web.core.client import get_http_client_registry
 from unique_search_proxy_client.web.monitoring.metrics import (
     record_agent_search_error,
     record_agent_search_success,
@@ -84,8 +86,12 @@ async def agent_search(
     )
 
     try:
+        registry = get_http_client_registry(request.app)
+        context = get_request_context()
         engine_service = get_agent_engine_service(
             AgentEngineType(engine_id) if isinstance(engine, str) else engine,
+            http_client=await registry.client_for(context),
+            egress_requires_proxy=registry.requires_proxied_egress(context),
         )
         async with asyncio.timeout(timeout):
             result = await engine_service.search(body)
@@ -162,8 +168,12 @@ async def agent_search_stream(
     )
 
     try:
+        registry = get_http_client_registry(request.app)
+        context = get_request_context()
         engine_service = get_agent_engine_service(
             AgentEngineType(engine_id) if isinstance(engine, str) else engine,
+            http_client=await registry.client_for(context),
+            egress_requires_proxy=registry.requires_proxied_egress(context),
         )
     except Exception as exc:
         record_agent_search_error(engine_id, "INTERNAL_ERROR", 0.0)

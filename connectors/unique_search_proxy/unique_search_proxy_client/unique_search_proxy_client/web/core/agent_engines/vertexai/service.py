@@ -42,7 +42,11 @@ class VertexAIAgentSearchService(
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._client = get_vertex_client()
+        if self._egress_requires_proxy and self._http_client is None:
+            raise UpstreamError(
+                "VertexAI corporate-proxy egress requires a shared HTTP client"
+            )
+        self._client = get_vertex_client(self._http_client)
 
     async def search(self, request: VertexAIAgentSearchRequest) -> AgentSearchResponse:  # type: ignore[override]
         response: AgentSearchResponse | None = None

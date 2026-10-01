@@ -11,7 +11,9 @@ from unique_search_proxy_core.url_safety import (
 )
 from unique_search_proxy_core.url_safety import redirect as redirect_module
 
-_REDIRECT_HTTPX = "unique_search_proxy_core.url_safety.redirect.httpx.AsyncClient"
+_REDIRECT_HTTPX = (
+    "unique_search_proxy_core.url_safety.redirect.build_direct_async_client"
+)
 
 
 class TestResolveRedirectChain:
@@ -61,12 +63,9 @@ class TestResolveRedirectChain:
             timeout=redirect_module.url_safety_settings.redirect_timeout_seconds,
             headers={"User-Agent": redirect_module._REDIRECT_PROBE_USER_AGENT},
         )
-        _, kwargs = mock_client_cls.call_args
-        assert (
-            kwargs["headers"]["User-Agent"]
-            == redirect_module._REDIRECT_PROBE_USER_AGENT
+        mock_client_cls.assert_called_once_with(
+            timeout=redirect_module.url_safety_settings.redirect_timeout_seconds
         )
-        assert not kwargs["headers"]["User-Agent"].startswith("python-httpx")
 
     @pytest.mark.ai
     @pytest.mark.asyncio
