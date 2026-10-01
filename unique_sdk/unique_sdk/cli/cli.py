@@ -2763,6 +2763,20 @@ def agentic_table_rerun_row(
     help="Inline JSON array of log entries (text, actorType, createdAt).",
 )
 @click.option(
+    "--allow-create",
+    "allow_create",
+    is_flag=True,
+    default=False,
+    help="Allow creating a missing row or column (default: refuse out of range).",
+)
+@click.option(
+    "--force",
+    "force",
+    is_flag=True,
+    default=False,
+    help="Write even while the sheet is PROCESSING.",
+)
+@click.option(
     "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
 )
 @click.pass_context
@@ -2776,6 +2790,8 @@ def agentic_table_set_cell(
     stdin: bool,
     log_file: str | None,
     log_json: str | None,
+    allow_create: bool,
+    force: bool,
     output_json: bool,
 ) -> None:
     """Write text into one cell by row and column order.
@@ -2783,13 +2799,14 @@ def agentic_table_set_cell(
     \b
     This is not a run. Pass the cell value you already have; the API returns
     the updated cell immediately. --row/--col are 0-based like get-cell; row 0
-    is the header and is allowed. A missing row or column is created. Use
+    is the header and is allowed. A missing row or column is refused unless
+    --allow-create. A PROCESSING sheet is refused unless --force. Use
     rerun-row to have the table agent regenerate an answer from sources.
 
     \b
     Provide exactly one of --text, --file, or --stdin. Long or multi-line
     answers belong in a file or stdin. Optional --log-file / --log-json is a
-    JSON array of {text, actorType, createdAt}.
+    JSON array of {text, actorType, createdAt} with actorType TOOL or ASSISTANT.
 
     \b
     Examples:
@@ -2808,6 +2825,8 @@ def agentic_table_set_cell(
             stdin=stdin,
             log_file=log_file,
             log_json=log_json,
+            allow_create=allow_create,
+            force=force,
             output_json=output_json,
         ),
         is_error=_is_agentic_table_error_output,

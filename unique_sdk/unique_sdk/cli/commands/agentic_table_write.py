@@ -38,7 +38,8 @@ import asyncio
 import json
 import sys
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, NamedTuple, TypeVar, cast
 
@@ -158,7 +159,41 @@ def _rejected(result: MagicTableActionResult, *, action: str) -> str:
     return f"{AGENTIC_TABLE_ERROR_PREFIX} {action} rejected: {message}"
 
 
-_LOG_ACTOR_TYPES = frozenset({"USER", "SYSTEM", "ASSISTANT", "TOOL"})
+# unique-cli is primarily agent-driven: USER/SYSTEM would be spoofable
+# provenance on cell-history, so only ASSISTANT and TOOL are accepted here.
+_LOG_ACTOR_TYPES = frozenset({"ASSISTANT", "TOOL"})
+_LOG_FILE_ERRORS = (OSError, UnicodeDecodeError)
+
+
+def _parse_log_created_at(raw: object, *, index: int) -> str:
+    """Return *raw* if it is an ISO-8601 timestamp string.
+
+    ``Z`` is accepted as UTC. Non-strings and unparseable values fail locally
+    so they never become cell-history labels.
+    """
+    if not isinstance(raw, str):
+        raise ValueError(f"logEntries[{index}] createdAt must be an ISO-8601 string")
+    candidate = raw[:-1] + "+00:00" if raw.endswith("Z") else raw
+    try:
+        datetime.fromisoformat(candidate)
+    except ValueError as exc:
+        raise ValueError(f"logEntries[{index}] createdAt must be ISO-8601") from exc
+    return raw
+
+
+def _sheet_column_count(sheet: Mapping[str, object]) -> int:
+    """Return 1 + max header ``columnOrder``, or 0 when the sheet has no cells."""
+    cells = sheet.get("magicTableCells")
+    if not isinstance(cells, list):
+        return 0
+    orders = [
+        order
+        for cell in cells
+        if isinstance(cell, dict)
+        for order in [cell.get("columnOrder")]
+        if isinstance(order, int)
+    ]
+    return max(orders) + 1 if orders else 0
 
 
 def _read_cell_text(
@@ -170,8 +205,8 @@ def _read_cell_text(
     """Return cell text from exactly one of ``text``, ``file``, or stdin.
 
     Raises ``ValueError`` with an unprefixed message when the sources are
-    missing, ambiguous, unreadable, or empty. Whitespace-only text is kept:
-    the API treats it as non-empty.
+    missing, ambiguous, unreadable, empty, or a TTY. Whitespace-only text is
+    kept: the API treats it as non-empty.
     """
     sources = sum([text is not None, file is not None, stdin])
     if sources == 0:
@@ -182,11 +217,13 @@ def _read_cell_text(
         )
 
     if stdin:
+        if sys.stdin.isatty():
+            raise ValueError("stdin is a tty: pipe input or use --text / --file")
         body = sys.stdin.read()
     elif file is not None:
         try:
             body = Path(file).read_text(encoding="utf-8")
-        except OSError as exc:
+        except _LOG_FILE_ERRORS as exc:
             raise ValueError(f"could not read --file: {exc}") from exc
     else:
         assert text is not None
@@ -216,7 +253,7 @@ def _parse_log_entries(
     if log_file is not None:
         try:
             raw = Path(log_file).read_text(encoding="utf-8")
-        except OSError as exc:
+        except _LOG_FILE_ERRORS as exc:
             raise ValueError(f"could not read --log-file: {exc}") from exc
     elif log_json is not None:
         raw = log_json
@@ -246,14 +283,20 @@ def _parse_log_entries(
                 f"logEntries[{index}] actorType must be one of "
                 f"{', '.join(sorted(_LOG_ACTOR_TYPES))}"
             )
+        text_raw = item["text"]
+        if not isinstance(text_raw, str):
+            raise ValueError(f"logEntries[{index}] text must be a string")
         actor = cast(Literal["USER", "SYSTEM", "ASSISTANT", "TOOL"], actor_raw)
         entry: LogEntry = {
-            "text": str(item["text"]),
+            "text": text_raw,
             "actorType": actor,
-            "createdAt": str(item["createdAt"]),
+            "createdAt": _parse_log_created_at(item["createdAt"], index=index),
         }
-        if "messageId" in item and item["messageId"] is not None:
-            entry["messageId"] = str(item["messageId"])
+        message_id = item.get("messageId")
+        if message_id is not None:
+            if not isinstance(message_id, str):
+                raise ValueError(f"logEntries[{index}] messageId must be a string")
+            entry["messageId"] = message_id
         if "details" in item and item["details"] is not None:
             if not isinstance(item["details"], dict):
                 raise ValueError(f"logEntries[{index}] details must be an object")
@@ -273,20 +316,57 @@ def cmd_set_cell(
     stdin: bool = False,
     log_file: str | None = None,
     log_json: str | None = None,
+    allow_create: bool = False,
+    force: bool = False,
     output_json: bool = False,
 ) -> str:
     """Upsert one cell (``POST /magic-table/{id}/cell``).
 
     Writes the given text at ``(row_order, column_order)``. This is not a
     run: unlike ``import`` / ``rerun-row`` it does not start the table agent.
-    Row 0 (the header) is allowed. A coordinate with no existing row or
-    column is created by the API.
+    Row 0 (the header) is allowed. Missing coordinates are created only with
+    ``allow_create``. A ``PROCESSING`` sheet is refused unless ``force``.
     """
     try:
         cell_text = _read_cell_text(text=text, file=file, stdin=stdin)
         log_entries = _parse_log_entries(log_file=log_file, log_json=log_json)
     except ValueError as exc:
         return f"{AGENTIC_TABLE_ERROR_PREFIX} {exc}"
+
+    try:
+        sheet = asyncio.run(
+            AgenticTable.get_sheet_data(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                tableId=table_id,
+                includeCells=True,
+                includeRowCount=True,
+                rowOrders=[0],
+            )
+        )
+    except UniqueError as exc:
+        return _error(exc)
+
+    if sheet["state"] == AgenticTableSheetState.PROCESSING and not force:
+        return (
+            f"{AGENTIC_TABLE_ERROR_PREFIX} sheet is PROCESSING; wait for IDLE "
+            "or pass --force"
+        )
+
+    if not allow_create:
+        row_count = sheet.get("magicTableRowCount")
+        if isinstance(row_count, int) and row_order >= row_count:
+            return (
+                f"{AGENTIC_TABLE_ERROR_PREFIX} row {row_order} is out of range "
+                f"(sheet has {row_count} rows); pass --allow-create to add a row"
+            )
+        column_count = _sheet_column_count(sheet)
+        if column_count > 0 and column_order >= column_count:
+            return (
+                f"{AGENTIC_TABLE_ERROR_PREFIX} col {column_order} is out of range "
+                f"(sheet has {column_count} columns); pass --allow-create to add a "
+                "column"
+            )
 
     params: AgenticTable.SetCell = {
         "tableId": table_id,

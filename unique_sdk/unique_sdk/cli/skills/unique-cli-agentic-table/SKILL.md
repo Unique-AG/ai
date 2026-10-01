@@ -29,10 +29,8 @@ Commands fall into two groups:
 
   `create-sheet`, `import`, and `export` only add. `rerun-row` asks the table
   agent to regenerate one **row** from sources (no text from you). `set-cell`
-  writes **your** text into one cell immediately — it is not a run. Do not
-  follow `set-cell` with `rerun-row` on the same correction: the rerun would
-  overwrite what you just wrote. Name the row (and column, for `set-cell`)
-  when you report back.
+  writes **your** text into one cell immediately — it is not a run. Name the
+  row (and column, for `set-cell`) when you report back.
 
   Some rows are protected. A locked or final-review row rejects both
   `set-cell` and `rerun-row`. That is deliberate — do not route around it.
@@ -180,8 +178,7 @@ unique-cli agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <s
 Use this to redo one **generated** answer. **Re-importing a question will not
 redo it** — import is delta-based and skips questions the sheet already has.
 `rerun-row` starts the table agent for that row; you do not pass the answer
-text. If you already have the wording, use `set-cell` instead — and do not
-`rerun-row` afterwards, or the agent will overwrite it.
+text. If you already have the wording, use `set-cell` instead.
 
 `<row_order>` uses **the same numbering as `--row` on `get-cell` / `set-cell`**:
 row 0 is the header, data rows start at 1. So the row you inspected with
@@ -221,18 +218,17 @@ immediately. It does not start the table agent.
 
 `--row` / `--col` are the same 0-based numbers as `get-cell`. Row 0 (the
 header) **can** be set. Find coordinates with `get-sheet --cells` or
-`get-cell` first. **Do not invent a column or row:** a coordinate that does
-not exist is **created**, so a typo grows the sheet.
+`get-cell` first. A coordinate that does not exist is **refused** unless you
+pass `--allow-create` (a typo would otherwise grow the sheet).
 
-There is no batch form. Several cells means several `set-cell` calls. Prefer
-the sheet in `IDLE`. Unlike `import` / `rerun-row`, `set-cell` is not refused
-while the sheet is `PROCESSING`, so a write can race the row-runner.
+There is no batch form. Several cells means several `set-cell` calls. The
+sheet must be `IDLE`; `PROCESSING` is refused unless you pass `--force` (the
+row-runner can overwrite the cell).
 
 Long or multi-line answers: `--file` or `--stdin`, not `--text`. Prefer omitting
 `--log-json` / `--log-file`. If you attach a note, send `{text, actorType,
 createdAt}` with `actorType` `TOOL` or `ASSISTANT` and a current ISO-8601 time.
-**Never** send `USER` or `SYSTEM` — those labels are not bound to the caller
-and later reads of `cell-history` would treat them as provenance.
+`USER` and `SYSTEM` are rejected by the CLI.
 
 ```bash
 unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "The management fee is 2%."
@@ -283,8 +279,7 @@ wrote the cell.
 
 If a generated answer looks wrong and you want the table agent to try again,
 fix that row with `rerun-row` and export again — not `set-cell`, and not
-re-import. If you already have the wording to put in a cell, use `set-cell`
-and do not `rerun-row` after it.
+re-import.
 
 ## Rules
 

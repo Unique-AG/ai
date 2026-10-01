@@ -285,15 +285,15 @@ Row 4 rerun finished (state: IDLE).
 
 Write text into one cell by row and column order. This is not a run: you already have the value. `import` / `rerun-row` start the table agent and do not take answer text. Do not `rerun-row` after a `set-cell` on the same correction — the rerun would overwrite the cell.
 
-`--row` / `--col` are 0-based, the same numbers `get-cell` uses. Row 0 (the header) is allowed. A coordinate with no existing row or column is **created** by the API, so do not invent indexes. Provide exactly one of `--text`, `--file`, or `--stdin`. Empty text is refused locally. Optional log entries are a JSON array of objects with `text`, `actorType` (`USER`, `SYSTEM`, `ASSISTANT`, or `TOOL`), and `createdAt` (ISO-8601, required). Those actor and time fields are caller-supplied labels stored with the cell; the API does not bind them to the authenticated user. Agents should omit logs, or use `TOOL` / `ASSISTANT` — not `USER` / `SYSTEM`.
+`--row` / `--col` are 0-based, the same numbers `get-cell` uses. Row 0 (the header) is allowed. A coordinate with no existing row or column is **refused** unless `--allow-create` (the API would otherwise create it). Provide exactly one of `--text`, `--file`, or `--stdin`. Empty text is refused locally. Optional log entries are a JSON array of objects with `text`, `actorType` (`ASSISTANT` or `TOOL`), and `createdAt` (ISO-8601, required). `USER` / `SYSTEM` are rejected locally. Those actor and time fields are caller-supplied labels stored with the cell; the API does not bind them to the authenticated user.
 
-A 403 is reported as `agentic-table: permission denied`. A locked or final-review row is refused by the API. Unlike `import` / `rerun-row`, a write is not blocked while the sheet is `PROCESSING`.
+A 403 is reported as `agentic-table: permission denied`. A locked or final-review row is refused by the API. A `PROCESSING` sheet is refused unless `--force`.
 
 **Synopsis:**
 
 ```
 agentic-table set-cell <table_id> --row <N> --col <N> (--text TEXT | --file PATH | --stdin)
-                       [--log-file PATH | --log-json JSON] [--json]
+                       [--log-file PATH | --log-json JSON] [--allow-create] [--force] [--json]
 ```
 
 **Options:**
@@ -304,9 +304,11 @@ agentic-table set-cell <table_id> --row <N> --col <N> (--text TEXT | --file PATH
 | `--col` | Column order (0-based, required) |
 | `--text` | Cell text (exactly one of `--text`, `--file`, `--stdin`) |
 | `--file` | Read cell text from a UTF-8 file |
-| `--stdin` | Read cell text from stdin |
+| `--stdin` | Read cell text from stdin (refused if stdin is a tty) |
 | `--log-file` | JSON array of log entries |
 | `--log-json` | Inline JSON array of log entries |
+| `--allow-create` | Allow creating a missing row or column |
+| `--force` | Write even while the sheet is `PROCESSING` |
 | `--json` | Print the raw cell JSON |
 
 **Example:**

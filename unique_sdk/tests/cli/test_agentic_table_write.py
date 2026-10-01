@@ -901,8 +901,30 @@ _CELL = {
 }
 
 
+def _idle_sheet(
+    *, rows: int = 5, cols: int = 4, state: str = "IDLE"
+) -> dict[str, object]:
+    """Minimal GET /magic-table payload for set-cell guardrails."""
+    return {
+        "sheetId": "mt_1",
+        "name": "Due Diligence Q1",
+        "state": state,
+        "createdBy": "u1",
+        "companyId": "c1",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "magicTableRowCount": rows,
+        "magicTableCells": [
+            {"rowOrder": 0, "columnOrder": col, "text": f"c{col}"}
+            for col in range(cols)
+        ],
+    }
+
+
 def test_cmd_set_cell_human_readable() -> None:
-    with _patch("set_cell", return_value=_CELL) as mock_set:
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()) as mock_get,
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
         out = cmd_set_cell(
             _state(),
             "mt_1",
@@ -915,6 +937,7 @@ def test_cmd_set_cell_human_readable() -> None:
     assert "Row:" in out and "1" in out
     assert "Column:" in out and "2" in out
     assert "The management fee is 2%." in out
+    assert mock_get.await_args.kwargs["rowOrders"] == [0]
     kwargs = mock_set.await_args.kwargs
     assert kwargs["user_id"] == "u1"
     assert kwargs["company_id"] == "c1"
@@ -926,7 +949,10 @@ def test_cmd_set_cell_human_readable() -> None:
 
 
 def test_cmd_set_cell_json() -> None:
-    with _patch("set_cell", return_value=_CELL):
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL),
+    ):
         out = cmd_set_cell(
             _state(),
             "mt_1",
@@ -943,7 +969,10 @@ def test_cmd_set_cell_from_file(tmp_path: Path) -> None:
     path = tmp_path / "answer.md"
     path.write_text("line one\nline two\n", encoding="utf-8")
 
-    with _patch("set_cell", return_value=_CELL) as mock_set:
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
         cmd_set_cell(
             _state(),
             "mt_1",
@@ -958,9 +987,11 @@ def test_cmd_set_cell_from_file(tmp_path: Path) -> None:
 
 def test_cmd_set_cell_from_stdin() -> None:
     with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
         _patch("set_cell", return_value=_CELL) as mock_set,
         patch("unique_sdk.cli.commands.agentic_table_write.sys.stdin") as mock_stdin,
     ):
+        mock_stdin.isatty.return_value = False
         mock_stdin.read.return_value = "from stdin"
         cmd_set_cell(
             _state(),
@@ -973,16 +1004,69 @@ def test_cmd_set_cell_from_stdin() -> None:
     assert mock_set.await_args.kwargs["text"] == "from stdin"
 
 
+@pytest.mark.ai
+def test_cmd_set_cell_stdin_tty_does_not_call_api() -> None:
+    """Purpose: A TTY stdin must fail locally instead of blocking.
+    Why this matters: Agents in a sandbox hang forever on sys.stdin.read().
+    Setup summary: isatty True; neither get_sheet_data nor set_cell is called.
+    """
+    with (
+        _patch("get_sheet_data") as mock_get,
+        _patch("set_cell") as mock_set,
+        patch("unique_sdk.cli.commands.agentic_table_write.sys.stdin") as mock_stdin,
+    ):
+        mock_stdin.isatty.return_value = True
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            stdin=True,
+        )
+
+    mock_get.assert_not_called()
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "tty" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_non_utf8_file_is_prefixed(tmp_path: Path) -> None:
+    """Purpose: Non-UTF-8 --file is reported as a read error.
+    Why this matters: UnicodeDecodeError subclasses ValueError and used to skip the prefix.
+    Setup summary: Latin-1 bytes; set_cell is not called.
+    """
+    path = tmp_path / "answer.bin"
+    path.write_bytes(b"caf\xe9")
+
+    with _patch("get_sheet_data") as mock_get, _patch("set_cell") as mock_set:
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            file=str(path),
+        )
+
+    mock_get.assert_not_called()
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "could not read --file" in out
+
+
 def test_cmd_set_cell_passes_log_json() -> None:
     logs = [
         {
             "text": "manual fill",
-            "actorType": "USER",
+            "actorType": "TOOL",
             "createdAt": "2026-01-02T09:30:00.000Z",
             "messageId": "msg_1",
         }
     ]
-    with _patch("set_cell", return_value=_CELL) as mock_set:
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
         cmd_set_cell(
             _state(),
             "mt_1",
@@ -1006,7 +1090,10 @@ def test_cmd_set_cell_passes_log_file(tmp_path: Path) -> None:
     path = tmp_path / "logs.json"
     path.write_text(json.dumps(logs), encoding="utf-8")
 
-    with _patch("set_cell", return_value=_CELL) as mock_set:
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
         cmd_set_cell(
             _state(),
             "mt_1",
@@ -1036,16 +1123,72 @@ def test_cmd_set_cell_passes_log_file(tmp_path: Path) -> None:
         (
             {
                 "text": "hi",
-                "log_json": json.dumps([{"text": "x", "actorType": "USER"}]),
+                "log_json": json.dumps([{"text": "x", "actorType": "TOOL"}]),
             },
             "createdAt",
         ),
         (
             {
                 "text": "hi",
-                "log_json": json.dumps([{"text": "x", "createdAt": "t"}]),
+                "log_json": json.dumps(
+                    [{"text": "x", "createdAt": "2026-01-02T09:30:00.000Z"}]
+                ),
             },
             "actorType",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [
+                        {
+                            "text": "x",
+                            "actorType": "USER",
+                            "createdAt": "2026-01-02T09:30:00.000Z",
+                        }
+                    ]
+                ),
+            },
+            "actorType",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [
+                        {
+                            "text": "x",
+                            "actorType": "SYSTEM",
+                            "createdAt": "2026-01-02T09:30:00.000Z",
+                        }
+                    ]
+                ),
+            },
+            "actorType",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [
+                        {
+                            "text": None,
+                            "actorType": "TOOL",
+                            "createdAt": "2026-01-02T09:30:00.000Z",
+                        }
+                    ]
+                ),
+            },
+            "text must be a string",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [{"text": "x", "actorType": "TOOL", "createdAt": "t"}]
+                ),
+            },
+            "createdAt must be ISO-8601",
         ),
         (
             {
@@ -1060,7 +1203,7 @@ def test_cmd_set_cell_passes_log_file(tmp_path: Path) -> None:
 def test_cmd_set_cell_local_errors_do_not_call_api(
     kwargs: dict[str, object], needle: str
 ) -> None:
-    with _patch("set_cell") as mock_set:
+    with _patch("get_sheet_data") as mock_get, _patch("set_cell") as mock_set:
         out = cmd_set_cell(
             _state(),
             "mt_1",
@@ -1069,25 +1212,48 @@ def test_cmd_set_cell_local_errors_do_not_call_api(
             **kwargs,  # type: ignore[arg-type]
         )
 
+    mock_get.assert_not_called()
     mock_set.assert_not_called()
     assert is_error_output(out)
     assert needle in out
 
 
 def test_cmd_set_cell_maps_403() -> None:
-    with _patch("set_cell", side_effect=UniqueError("Forbidden", http_status=403)):
+    with (
+        _patch("get_sheet_data", side_effect=UniqueError("Forbidden", http_status=403)),
+        _patch("set_cell") as mock_set,
+    ):
         out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
 
+    mock_set.assert_not_called()
     assert out == "agentic-table: permission denied"
     assert is_error_output(out)
 
 
+@pytest.mark.ai
+def test_cmd_set_cell_maps_set_cell_403() -> None:
+    """Purpose: 403 from the write itself still collapses to permission denied.
+    Why this matters: Sheet read can succeed while the cell write is denied.
+    Setup summary: get_sheet_data succeeds; set_cell raises 403.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", side_effect=UniqueError("Forbidden", http_status=403)),
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    assert out == "agentic-table: permission denied"
+
+
 def test_cmd_set_cell_prefixes_other_api_errors() -> None:
-    with _patch(
-        "set_cell",
-        side_effect=UniqueError(
-            "Agentic Table Row is in a locked or final state, update not allowed",
-            http_status=400,
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch(
+            "set_cell",
+            side_effect=UniqueError(
+                "Agentic Table Row is in a locked or final state, update not allowed",
+                http_status=400,
+            ),
         ),
     ):
         out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
@@ -1095,6 +1261,82 @@ def test_cmd_set_cell_prefixes_other_api_errors() -> None:
     assert is_error_output(out)
     assert "locked or final" in out
     assert out.startswith("agentic-table:")
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_refuses_processing_without_force() -> None:
+    """Purpose: PROCESSING sheets are refused unless --force.
+    Why this matters: A write can be overwritten by the row-runner.
+    Setup summary: get_sheet_data returns PROCESSING; set_cell is not called.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(state="PROCESSING")),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "PROCESSING" in out
+    assert "--force" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_force_writes_while_processing() -> None:
+    """Purpose: --force opts into writing during PROCESSING.
+    Why this matters: Callers who accept the race still need an escape hatch.
+    Setup summary: PROCESSING sheet plus force=True calls set_cell.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(state="PROCESSING")),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
+        out = cmd_set_cell(
+            _state(), "mt_1", row_order=1, column_order=2, text="hi", force=True
+        )
+
+    mock_set.assert_called_once()
+    assert "The management fee is 2%." in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_refuses_out_of_range_column() -> None:
+    """Purpose: A typo'd --col is refused unless --allow-create.
+    Why this matters: The API would otherwise silently grow the sheet.
+    Setup summary: 4-column sheet, --col 20; set_cell is not called.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(cols=4)),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=20, text="hi")
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "col 20 is out of range" in out
+    assert "--allow-create" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_allow_create_writes_new_column() -> None:
+    """Purpose: --allow-create opts into growing the sheet.
+    Why this matters: Missing coordinates are still a valid API behavior.
+    Setup summary: col 20 with allow_create=True calls set_cell.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(cols=4)),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=20,
+            text="hi",
+            allow_create=True,
+        )
+
+    assert mock_set.await_args.kwargs["columnOrder"] == 20
 
 
 @patch("unique_sdk.cli.cli.cmd_set_cell")
@@ -1125,6 +1367,8 @@ def test_cli_set_cell_wiring(mock_cmd: object) -> None:
     assert kwargs["row_order"] == 1
     assert kwargs["column_order"] == 2
     assert kwargs["text"] == "hi"
+    assert kwargs["allow_create"] is False
+    assert kwargs["force"] is False
 
 
 @patch("unique_sdk.cli.cli.cmd_set_cell")
@@ -1220,4 +1464,4 @@ def test_cli_set_cell_help_lists_command() -> None:
     assert result.exit_code == 0
     assert "--row" in result.output
     assert "--text" in result.output
-    assert "not a run" in result.output.lower() or "Write text" in result.output
+    assert "This is not a run" in result.output
