@@ -1,0 +1,186 @@
+# Cross-IdP resource pipeline — Docker Compose stack.
+#
+#   • Dex  — consumer IdP  (lightweight OIDC, static users)
+#   • Keycloak — producer IdP  (enterprise-grade, token exchange + federation)
+#
+# All containers share the `pipeline` network so they address each other by
+# service name (dex:5556, keycloak:8080, producer:8001, consumer:8002).
+# The `demo` service runs the end-to-end script and exits.
+#
+# Run:
+#   docker compose -f compose/docker-compose.yml up --build
+# Watch the demo:
+#   docker compose -f compose/docker-compose.yml logs -f demo
+
+networks:
+  pipeline:
+
+services:
+
+  # ─────────────────────────────────────────────────────────────────── #
+  #  Dex — consumer IdP                                                  #
+  # ─────────────────────────────────────────────────────────────────── #
+  dex:
+    image: ghcr.io/dexidp/dex:v2.41.1
+    command: dex serve /etc/dex/config.yaml
+    volumes:
+      - ./dex/config.yaml:/etc/dex/config.yaml:ro
+    ports:
+      - "5556:5556"
+    networks:
+      - pipeline
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5556/.well-known/openid-configuration"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ─────────────────────────────────────────────────────────────────── #
+  #  Keycloak — producer IdP                                             #
+  # ─────────────────────────────────────────────────────────────────── #
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2.5
+    command: >
+      start-dev
+      --features=token-exchange,admin-fine-grained-authz:v1
+      --import-realm
+      --hostname=http://keycloak:8080
+      --hostname-strict=false
+      --http-enabled=true
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+    volumes:
+      - ./keycloak/producer-realm.json:/opt/keycloak/data/import/producer-realm.json:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - pipeline
+    depends_on:
+      dex:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "{ printf 'GET /realms/producer HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&0; head -1 | grep -q 'HTTP/1.1 200'; } 0<>/dev/tcp/localhost/8080"
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 90s
+
+  # ─────────────────────────────────────────────────────────────────── #
+  #  Keycloak post-import setup (FGAP v1 token-exchange permissions)      #
+  # ─────────────────────────────────────────────────────────────────── #
+  keycloak-setup:
+    image: quay.io/keycloak/keycloak:26.2.5
+    entrypoint: ["/bin/bash", "/opt/keycloak/configure-realm.sh"]
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+    volumes:
+      - ./keycloak/configure-realm.sh:/opt/keycloak/configure-realm.sh:ro
+    networks:
+      - pipeline
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: "no"
+
+  # ─────────────────────────────────────────────────────────────────── #
+  #  Producer MCP server                                                 #
+  # ─────────────────────────────────────────────────────────────────── #
+  producer:
+    build:
+      context: ..
+      dockerfile: compose/Dockerfile
+    command: python -m mcp_resource_sharing.producer.server
+    env_file: .env
+    environment:
+      # Point at Keycloak inside the Docker network.
+      RP_PRODUCER_IDP_ISSUER: "http://keycloak:8080/realms/producer"
+      RP_PRODUCER_IDP_JWKS_URI: "http://keycloak:8080/realms/producer/protocol/openid-connect/certs"
+      RP_PRODUCER_BASE_URL: "http://producer:8001"
+    ports:
+      - "8001:8001"
+    networks:
+      - pipeline
+    depends_on:
+      keycloak-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8001/.well-known/oauth-protected-resource/mcp")
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # ─────────────────────────────────────────────────────────────────── #
+  #  Consumer MCP server                                                 #
+  # ─────────────────────────────────────────────────────────────────── #
+  consumer:
+    build:
+      context: ..
+      dockerfile: compose/Dockerfile
+    command: python -m mcp_resource_sharing.consumer.server
+    env_file: .env
+    environment:
+      # Point at Dex inside the Docker network.
+      RP_CONSUMER_IDP_ISSUER: "http://dex:5556"
+      RP_CONSUMER_IDP_JWKS_URI: "http://dex:5556/keys"
+      RP_CONSUMER_BASE_URL: "http://consumer:8002"
+      # Dex issues tokens with aud=<client_id>, not the canonical MCP URL.
+      # Override the audience check to match what Dex actually puts in `aud`.
+      RP_CONSUMER_AUDIENCE: "alice-desktop-app"
+      RP_CONSUMER_ALLOWED_PRODUCERS: "http://producer:8001/mcp"
+    ports:
+      - "8002:8002"
+    networks:
+      - pipeline
+    depends_on:
+      dex:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8002/.well-known/oauth-protected-resource/mcp")
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # ─────────────────────────────────────────────────────────────────── #
+  #  Demo runner — runs the end-to-end scenario and exits                #
+  # ─────────────────────────────────────────────────────────────────── #
+  demo:
+    build:
+      context: ..
+      dockerfile: compose/Dockerfile
+    command: python -m mcp_resource_sharing.demo.run_demo
+    env_file: .env
+    environment:
+      RP_PRODUCER_IDP_ISSUER: "http://keycloak:8080/realms/producer"
+      RP_PRODUCER_IDP_JWKS_URI: "http://keycloak:8080/realms/producer/protocol/openid-connect/certs"
+      RP_PRODUCER_BASE_URL: "http://producer:8001"
+      RP_CONSUMER_IDP_ISSUER: "http://dex:5556"
+      RP_CONSUMER_IDP_JWKS_URI: "http://dex:5556/keys"
+      RP_CONSUMER_BASE_URL: "http://consumer:8002"
+      RP_CONSUMER_AUDIENCE: "alice-desktop-app"
+      RP_CONSUMER_ALLOWED_PRODUCERS: "http://producer:8001/mcp"
+      DEX_TOKEN_URL: "http://dex:5556/token"
+    networks:
+      - pipeline
+    depends_on:
+      producer:
+        condition: service_healthy
+      consumer:
+        condition: service_healthy
+      keycloak-setup:
+        condition: service_completed_successfully
