@@ -280,6 +280,7 @@ def cmd_search(
             company_id=state.config.company_id,
             **search_params,
         )
+        results = [hit for hit in results if not state.is_skill_search_hit_hidden(hit)]
 
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"{SEARCH_ERROR_PREFIX} {e}"

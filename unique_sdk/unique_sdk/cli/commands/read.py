@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Any
 
 import unique_sdk
+from unique_sdk.cli.skill_guard import skill_read_denial
 from unique_sdk.cli.state import ShellState
 
 READ_ERROR_PREFIX = "read:"
@@ -103,6 +104,8 @@ def cmd_read(
             f"task scope ({state.scope_denial_hint()}). Use 'unique-cli search' "
             "or 'ls' within that scope instead."
         )
+    if state.is_skill_content_read_denied(cont_id):
+        return skill_read_denial("read", cont_id)
 
     try:
         results = unique_sdk.Content.search(
