@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.40.0...unique-toolkit-v2026.42.0) (2026-10-02)
+
+
+### Features
+
+* **toolkit:** add claude-sonnet-5-5 model info ([#2495](https://github.com/Unique-AG/ai/issues/2495)) ([884c946](https://github.com/Unique-AG/ai/commit/884c94672806beed1b0c6cc839df497bcd4d27f2))
+* **toolkit:** add gemini-3-8-flash model info ([#2494](https://github.com/Unique-AG/ai/issues/2494)) ([2ce7577](https://github.com/Unique-AG/ai/commit/2ce7577fccf17d4c6aa2dceb56fedbbf253a0bb4))
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([7d4e315](https://github.com/Unique-AG/ai/commit/7d4e315423ff1d12759dd07f096095f93d74570e))
+* **toolkit:** add Phoeniqs GLM 5.3 Flash and Llama 4 Maverick [UN-26735] ([#2493](https://github.com/Unique-AG/ai/issues/2493)) ([8a04a9b](https://github.com/Unique-AG/ai/commit/8a04a9b5014f787c6d6e3a19bd950237c8ec815e))
+* **toolkit:** keep the chat event thinking level ([#2505](https://github.com/Unique-AG/ai/issues/2505)) ([61a10d3](https://github.com/Unique-AG/ai/commit/61a10d3f5213cb0a3d9847bb4f5b5517f1762504))
+* **toolkit:** record reasoning efforts for non-OpenAI models ([#2502](https://github.com/Unique-AG/ai/issues/2502)) ([81164b1](https://github.com/Unique-AG/ai/commit/81164b1b80d9f42f98cc2e6b21bd22e0c52eafb5))
+
+
+### Bug Fixes
+
+* **toolkit:** drop hosted tools from forced Responses requests ([#2510](https://github.com/Unique-AG/ai/issues/2510)) ([d3510ce](https://github.com/Unique-AG/ai/commit/d3510ce7d90da10097205dd439dc22a517e4832c))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
 ## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.38.0...unique-toolkit-v2026.40.0) (2026-09-24)
 
 
