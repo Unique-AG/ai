@@ -252,7 +252,11 @@ class AgenticTableService:
         return MagicTableCell.model_validate(cell_data)
 
     async def set_multiple_cells(
-        self, cells: list[MagicTableCell], batch_size: int = 4000
+        self,
+        cells: list[MagicTableCell],
+        batch_size: int = 4000,
+        *,
+        overwrite_library_rows: bool | None = None,
     ):
         """
         Sets the values of multiple cells in the Agentic Table.
@@ -260,6 +264,14 @@ class AgenticTableService:
         Args:
             cells (list[MagicTableCell]): The cells to set sorted by row and column.
             batch_size (int): Number of cells to set in a single request.
+            overwrite_library_rows (bool | None): When set, forwarded as
+                ``overwriteLibraryRows``. ``True`` lets updates to existing cells on
+                library-sheet rows go through instead of being dropped; the server
+                only honors it on library sheets, for rows where the caller can read
+                every sheet named in the row's ``sourceSheetId`` metadata. Locked rows still
+                need unlocking first (``update_row_verification_status`` with
+                ``locked=False``). ``None`` omits the field; servers that predate
+                it reject it with a 400.
         """
         for i in range(0, len(cells), batch_size):
             batch = cells[i : i + batch_size]
@@ -275,6 +287,7 @@ class AgenticTableService:
                     )
                     for cell in batch
                 ],
+                overwriteLibraryRows=overwrite_library_rows,
             )
 
     async def set_activity(
@@ -874,6 +887,114 @@ class AgenticTableService:
         )
         if not result.get("status"):
             raise Exception(result.get("message") or "Failed to create row metadata")
+
+    async def update_row_metadata(
+        self,
+        metadata_id: str,
+        entry: RowMetadataEntryInput,
+    ) -> None:
+        """Update a single row metadata entry, addressed by its id.
+
+        Args:
+            metadata_id (str): The ``id`` of the row metadata entry to update.
+            entry (RowMetadataEntryInput): The new key, value and filter flag.
+
+        Raises:
+            Exception: If the API reports a non-success status.
+        """
+        result = await AgenticTable.update_row_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            metadataId=metadata_id,
+            key=entry.key,
+            value=entry.value,
+            exactFilter=entry.exact_filter,
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to update row metadata")
+
+    async def delete_row_metadata(self, metadata_id: str) -> None:
+        """Delete a single row metadata entry, addressed by its id.
+
+        Raises:
+            Exception: If the API reports a non-success status.
+        """
+        result = await AgenticTable.delete_row_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            metadataId=metadata_id,
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to delete row metadata")
+
+    async def replace_row_metadata(
+        self,
+        row: int,
+        entries: list[RowMetadataEntryInput],
+        row_id: str | None = None,
+        existing: list[RowMetadataEntry] | None = None,
+    ) -> None:
+        """Set row metadata by key, replacing values that differ.
+
+        For each entry: a key the row lacks is created; a key the row holds with
+        a different value or filter flag is updated in place; a key that already
+        matches is left alone. If the row holds the key more than once, one entry
+        is kept and the others are deleted, so the key ends up with exactly the
+        given value. Keys not in ``entries`` are not touched.
+
+        Args:
+            row (int): The row index (row order).
+            entries (list[RowMetadataEntryInput]): Key/value entries to set. Keys
+                must be unique. Empty is a no-op.
+            row_id (str | None): The backend row id, used when creating keys.
+            existing (list[RowMetadataEntry] | None): The row's current metadata,
+                when the caller already read it (e.g. ``get_sheet`` with
+                ``include_row_metadata=True``). When ``None``, the row's metadata
+                and id are read with ``get_cell``.
+
+        Raises:
+            ValueError: If ``entries`` repeats a key, or a key must be created
+                and the row id cannot be resolved.
+            Exception: If the API reports a non-success status.
+        """
+        if not entries:
+            return
+        keys = [entry.key for entry in entries]
+        if len(set(keys)) != len(keys):
+            raise ValueError(f"Duplicate row metadata keys in {keys}")
+        if existing is None:
+            cell = await self.get_cell(row, 0, include_row_metadata=True)
+            existing = cell.row_metadata
+            row_id = row_id or cell.row_id
+
+        existing_by_key: dict[str, list[RowMetadataEntry]] = {}
+        for current in existing:
+            existing_by_key.setdefault(current.key, []).append(current)
+
+        to_create: list[RowMetadataEntryInput] = []
+        for entry in entries:
+            matches = existing_by_key.get(entry.key)
+            if not matches:
+                to_create.append(entry)
+                continue
+            keep = next(
+                (
+                    m
+                    for m in matches
+                    if m.value == entry.value and m.exact_filter == entry.exact_filter
+                ),
+                None,
+            )
+            if keep is None:
+                keep = matches[0]
+                await self.update_row_metadata(keep.id, entry)
+            for duplicate in matches:
+                if duplicate.id != keep.id:
+                    await self.delete_row_metadata(duplicate.id)
+
+        await self.create_row_metadata(row, to_create, row_id=row_id)
 
     async def delete_sheet_metadata(self, metadata_id: str) -> None:
         """Delete a sheet metadata entry by its id.

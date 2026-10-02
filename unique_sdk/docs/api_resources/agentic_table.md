@@ -95,6 +95,7 @@ Work with intelligent tables that support:
 
     - `tableId` (str, required) - Table/sheet ID
     - `cells` (List[AgenticTableCell], required) - List of cell objects to update. Each cell should have `rowOrder`, `columnOrder`, and `text`.
+    - `overwriteLibraryRows` (bool, optional) - On library sheets, apply updates to existing cells instead of dropping them. Only honored for rows where the caller can read every sheet named in the row's `sourceSheetId` metadata; rows without that metadata are left unchanged. Locked rows must be unlocked first with `bulk_update_status(locked=False)`. Omitted when `None`; only send it to backends that support the field, since older servers reject it with a 400.
 
     **Returns:**
 
@@ -341,6 +342,43 @@ Work with intelligent tables that support:
         selected=True,  # optional
         selectionMethod="MANUAL",  # optional
         agreementStatus="MATCH"  # optional
+    )
+    ```
+
+??? example "`unique_sdk.AgenticTable.update_row_metadata` / `delete_row_metadata` - Change one row metadata entry"
+
+    Update or delete a single row metadata entry, addressed by its `id` (the `id` on a `rowMetadata` entry returned with `includeRowMetadata`).
+
+    **Parameters:**
+
+    - `tableId` (str, required) - Table/sheet ID
+    - `metadataId` (str, required) - Row metadata entry ID
+    - `key` (str, required for update) - Metadata key
+    - `value` (str, required for update) - Metadata value
+    - `exactFilter` (bool, optional, update only) - Whether the entry is used for strict filtering
+
+    **Returns:**
+
+    Returns a `{status, message?}` result.
+
+    **Example:**
+
+    ```python
+    await unique_sdk.AgenticTable.update_row_metadata(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        metadataId="meta_xyz",
+        key="client",
+        value="UBP",
+        exactFilter=True,
+    )
+
+    await unique_sdk.AgenticTable.delete_row_metadata(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        metadataId="meta_xyz",
     )
     ```
 

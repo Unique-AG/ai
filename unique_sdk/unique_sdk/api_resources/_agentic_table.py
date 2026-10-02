@@ -348,6 +348,19 @@ class AgenticTable(APIResource["AgenticTable"]):
         rowId: str
         entries: list[MagicTableMetadataEntry]
 
+    class UpdateRowMetadata(RequestOptions):
+        """Body for `POST /magic-table/{tableId}/row/metadata/{metadataId}` (update one row metadata entry).
+
+        The entry is addressed by its own id (``id`` on a ``rowMetadata`` entry),
+        not by row or key.
+        """
+
+        tableId: str
+        metadataId: str
+        key: str
+        value: str
+        exactFilter: NotRequired[bool]
+
     @classmethod
     async def set_cell(
         cls,
@@ -505,10 +518,19 @@ class AgenticTable(APIResource["AgenticTable"]):
         company_id: str,
         tableId: str,
         cells: list[AgenticTableCell],
+        overwriteLibraryRows: bool | None = None,
     ) -> ColumnMetadataUpdateStatus:
+        """Upsert cells (`POST /magic-table/{tableId}/cells/bulk-upsert`).
+
+        ``overwriteLibraryRows=True`` asks the server to apply updates to existing
+        cells on library-sheet rows, which it otherwise drops for assistant
+        writes. The server only honors it on library sheets, for rows where the
+        caller can read every sheet named in the row's ``sourceSheetId`` metadata.
+        ``None`` omits the field; servers that predate it reject it with a 400.
+        """
         url = f"/magic-table/{tableId}/cells/bulk-upsert"
         try:
-            params_api = {
+            params_api: dict[str, Any] = {
                 "cells": [
                     {
                         "rowOrder": cell["rowOrder"],
@@ -520,6 +542,8 @@ class AgenticTable(APIResource["AgenticTable"]):
             }
         except Exception as e:
             raise ValueError(f"Invalid data or missing required fields: {e}")
+        if overwriteLibraryRows is not None:
+            params_api["overwriteLibraryRows"] = overwriteLibraryRows
         return cast(
             "ColumnMetadataUpdateStatus",
             await cls._static_request_async(
@@ -717,6 +741,48 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+            ),
+        )
+
+    @classmethod
+    async def update_row_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.UpdateRowMetadata"],
+    ) -> MagicTableActionResult:
+        """Update one row metadata entry (`POST /magic-table/{tableId}/row/metadata/{metadataId}`)."""
+        url = f"/magic-table/{params['tableId']}/row/metadata/{params['metadataId']}"
+        params.pop("tableId")
+        params.pop("metadataId")
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def delete_row_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        metadataId: str,
+    ) -> MagicTableActionResult:
+        """Delete one row metadata entry (`DELETE /magic-table/{tableId}/row/metadata/{metadataId}`)."""
+        url = f"/magic-table/{tableId}/row/metadata/{metadataId}"
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "delete",
+                url,
+                user_id,
+                company_id,
             ),
         )
 
