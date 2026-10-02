@@ -164,7 +164,7 @@ def test_crawl_url_safety__gate_respects_request_timeout(
 
 
 @pytest.mark.ai
-def test_crawl_url_safety__trusted_proxy_mode_bypasses_gate(
+def test_crawl_url_safety__disabled_with_proxy_mode_bypasses_gate(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -175,7 +175,7 @@ def test_crawl_url_safety__trusted_proxy_mode_bypasses_gate(
         "url_safety_settings",
         service_module.url_safety_settings.model_copy(
             update={
-                "mode": service_module.UrlSafetyMode.TRUSTED_CORPORATE_PROXY,
+                "mode": (service_module.UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
             },
         ),
     )

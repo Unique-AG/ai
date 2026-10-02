@@ -2314,7 +2314,7 @@
           "default": "APPLICATION",
           "enum": [
             "APPLICATION",
-            "TRUSTED_CORPORATE_PROXY"
+            "DISABLED_WITH_CORPORATE_PROXY"
           ],
           "description": "Maps to env var URL_SAFETY_MODE."
         },

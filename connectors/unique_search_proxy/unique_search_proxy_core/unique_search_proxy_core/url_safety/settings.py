@@ -13,16 +13,17 @@ _LOGGER = getLogger(__name__)
 
 class UrlSafetyMode(StrEnum):
     APPLICATION = "APPLICATION"
-    TRUSTED_CORPORATE_PROXY = "TRUSTED_CORPORATE_PROXY"
+    DISABLED_WITH_CORPORATE_PROXY = "DISABLED_WITH_CORPORATE_PROXY"
 
 
 class UrlSafetySettings(BaseSettings):
     mode: UrlSafetyMode = Field(
         default=UrlSafetyMode.APPLICATION,
         description=(
-            "Where SSRF protection is enforced. TRUSTED_CORPORATE_PROXY bypasses "
-            "application URL checks and requires every request to use the configured "
-            "corporate proxy."
+            "APPLICATION enforces SSRF protection in the application. "
+            "DISABLED_WITH_CORPORATE_PROXY bypasses application URL checks and "
+            "requires every request to use the configured corporate proxy; the "
+            "application does not verify the proxy's URL-safety policy."
         ),
     )
     resolve_redirects: bool = True
@@ -55,8 +56,8 @@ def validate_url_safety_proxy_configuration(
     url_safety: UrlSafetySettings,
     proxy: ProxySettings,
 ) -> None:
-    """Reject trusted-proxy mode unless every request uses a configured proxy."""
-    if url_safety.mode is not UrlSafetyMode.TRUSTED_CORPORATE_PROXY:
+    """Reject disabled mode unless every request uses a configured proxy."""
+    if url_safety.mode is not UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY:
         return
 
     if (
@@ -65,7 +66,7 @@ def validate_url_safety_proxy_configuration(
         or not 1 <= proxy.proxy_port <= 65535
     ):
         raise ValueError(
-            "URL safety mode TRUSTED_CORPORATE_PROXY requires a non-empty "
+            "URL safety mode DISABLED_WITH_CORPORATE_PROXY requires a non-empty "
             "proxy_host and a valid proxy_port",
         )
 
@@ -76,14 +77,14 @@ def validate_url_safety_proxy_configuration(
     )
     if not uses_authenticated_proxy and not uses_proxy_for_every_user:
         raise ValueError(
-            "URL safety mode TRUSTED_CORPORATE_PROXY requires every request to use "
-            "the corporate proxy",
+            "URL safety mode DISABLED_WITH_CORPORATE_PROXY requires every request "
+            "to use the corporate proxy",
         )
 
     if proxy.proxy_auth_mode == "ssl_tls" and proxy.proxy_ssl_cert_path is None:
         raise ValueError(
-            "URL safety mode TRUSTED_CORPORATE_PROXY with ssl_tls authentication "
-            "requires proxy_ssl_cert_path",
+            "URL safety mode DISABLED_WITH_CORPORATE_PROXY with ssl_tls "
+            "authentication requires proxy_ssl_cert_path",
         )
 
 

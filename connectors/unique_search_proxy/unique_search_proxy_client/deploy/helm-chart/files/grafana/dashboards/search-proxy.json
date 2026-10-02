@@ -442,7 +442,7 @@
       "id": 13,
       "type": "stat",
       "title": "Application URL safety",
-      "description": "Red means application-level SSRF checks are disabled and enforcement is delegated to the configured trusted corporate proxy. The worst state across selected instances is shown.",
+      "description": "Red means application-level SSRF checks are disabled and a corporate proxy is configured. The application does not verify the proxy's URL-safety policy. The worst state across selected instances is shown.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
       "gridPos": { "h": 3, "w": 4, "x": 20, "y": 5 },
       "fieldConfig": {
@@ -454,7 +454,7 @@
             {
               "type": "value",
               "options": {
-                "0": { "color": "red", "index": 0, "text": "DISABLED — TRUSTED PROXY" },
+                "0": { "color": "red", "index": 0, "text": "DISABLED — PROXY CONFIGURED" },
                 "1": { "color": "green", "index": 1, "text": "ENABLED" }
               }
             }

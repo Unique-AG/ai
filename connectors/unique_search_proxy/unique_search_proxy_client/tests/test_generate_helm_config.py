@@ -59,7 +59,7 @@ def test_generated_schema_contains_all_provider_blocks() -> None:
                 assert block["properties"]["mode"]["default"] == "APPLICATION"
                 assert block["properties"]["mode"]["enum"] == [
                     "APPLICATION",
-                    "TRUSTED_CORPORATE_PROXY",
+                    "DISABLED_WITH_CORPORATE_PROXY",
                 ]
                 assert "connection" not in block["properties"]
                 assert "redirects" in block["properties"]

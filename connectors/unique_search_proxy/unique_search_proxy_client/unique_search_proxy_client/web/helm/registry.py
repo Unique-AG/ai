@@ -91,7 +91,7 @@ def _url_safety_settings_group() -> HelmSettingsGroup:
         helm_key=URL_SAFETY_HELM_KEY,
         kind="urlSafety",
         # URL safety is always configured. Its real runtime mode selects whether
-        # application checks or a trusted corporate proxy enforce SSRF policy.
+        # application checks or a configured corporate proxy handle URL safety.
         gated=False,
     )
 

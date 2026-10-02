@@ -126,14 +126,14 @@ class TestHttpClientSettings:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_registry_startup__trusted_mode_without_proxy__fails(
+    async def test_registry_startup__disabled_mode_without_proxy__fails(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """
         Purpose: Verify the Search Proxy fails startup for an unsafe URL safety mode.
         Why this matters: A missing corporate proxy must not silently disable SSRF checks.
-        Setup summary: Select trusted mode with direct egress and create the registry.
+        Setup summary: Disable checks with direct egress and create the registry.
         """
         from unique_search_proxy_core.url_safety import (
             UrlSafetyMode,
@@ -145,7 +145,7 @@ class TestHttpClientSettings:
         monkeypatch.setattr(
             service_module,
             "url_safety_settings",
-            UrlSafetySettings(mode=UrlSafetyMode.TRUSTED_CORPORATE_PROXY),
+            UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
         )
         monkeypatch.setattr(service_module, "_settings", HttpClientSettings)
 

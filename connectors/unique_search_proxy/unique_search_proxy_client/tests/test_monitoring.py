@@ -33,9 +33,7 @@ class TestMetricsEndpoint:
         body = resp.text
         assert "python_http_requests_total" in body
         assert "unique_search_proxy" in body
-        assert (
-            "unique_search_proxy_url_safety_application_checks_enabled 1.0" in body
-        )
+        assert "unique_search_proxy_url_safety_application_checks_enabled 1.0" in body
 
     @pytest.mark.ai
     def test_metrics_disabled_returns_404(
@@ -59,14 +57,14 @@ class TestMetricsEndpoint:
         assert "ENGINE_NOT_CONFIGURED" in metrics
 
     @pytest.mark.ai
-    def test_metrics_highlight_trusted_proxy_mode(
+    def test_metrics_highlight_disabled_with_proxy_mode(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv("PROMETHEUS_ENABLED", "true")
         monkeypatch.setattr(
             "unique_search_proxy_client.web.monitoring.setup.url_safety_settings",
-            UrlSafetySettings(mode=UrlSafetyMode.TRUSTED_CORPORATE_PROXY),
+            UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
         )
 
         response = TestClient(create_app()).get("/metrics")

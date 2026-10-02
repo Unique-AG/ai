@@ -43,7 +43,7 @@ class UrlSafetyService:
         *,
         redirect_http_client: httpx.AsyncClient | None = None,
     ) -> list[UrlSafetyOutcome]:
-        if url_safety_settings.mode is UrlSafetyMode.TRUSTED_CORPORATE_PROXY:
+        if url_safety_settings.mode is UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY:
             return [
                 UrlSafetyOutcome(url=url, resolved=bypass_crawl_target(url))
                 for url in urls

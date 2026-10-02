@@ -17,13 +17,13 @@ def test_http_client_module_does_not_init_registry_on_import() -> None:
 
 
 @pytest.mark.ai
-def test_http_client_registry__trusted_mode_without_proxy__fails(
+def test_http_client_registry__disabled_mode_without_proxy__fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Purpose: Verify direct web-search egress rejects an unconfigured trusted proxy.
+    Purpose: Verify direct web-search egress rejects disabled checks without a proxy.
     Why this matters: The legacy tool path must not bypass SSRF checks without a proxy.
-    Setup summary: Select trusted mode, return direct proxy settings, and initialize.
+    Setup summary: Disable checks, return direct proxy settings, and initialize.
     """
     module = importlib.import_module("unique_web_search.services.client.http_client")
     from unique_search_proxy_core.http_client import ProxySettings
@@ -36,7 +36,7 @@ def test_http_client_registry__trusted_mode_without_proxy__fails(
     monkeypatch.setattr(
         module,
         "url_safety_settings",
-        UrlSafetySettings(mode=UrlSafetyMode.TRUSTED_CORPORATE_PROXY),
+        UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
     )
     monkeypatch.setattr(module, "proxy_settings_from_env", ProxySettings)
 

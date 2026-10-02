@@ -342,14 +342,14 @@ class TestBasicCrawlerCrawlUrl:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_validate_urls__returns_bypass_targets__in_trusted_proxy_mode(
+    async def test_validate_urls__returns_bypass_targets__when_disabled_with_proxy(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """
-        Purpose: Verify trusted-proxy mode returns pass-through targets without DNS pinning.
+        Purpose: Verify disabled-with-proxy mode bypasses DNS pinning.
         Why this matters: The corporate proxy must receive the original hostname.
-        Setup summary: Select trusted-proxy mode and assert the request URL is unchanged.
+        Setup summary: Disable application checks and assert the URL is unchanged.
         """
         import unique_search_proxy_core.url_safety.service as service_module
         from unique_search_proxy_core.url_safety import UrlSafetyService
@@ -359,7 +359,9 @@ class TestBasicCrawlerCrawlUrl:
             "url_safety_settings",
             service_module.url_safety_settings.model_copy(
                 update={
-                    "mode": service_module.UrlSafetyMode.TRUSTED_CORPORATE_PROXY,
+                    "mode": (
+                        service_module.UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY
+                    ),
                 },
             ),
         )
