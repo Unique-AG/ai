@@ -190,6 +190,13 @@ def handle_external_module(event):
     )
 ```
 
+**MCP tools:** a module can call the MCP tools configured on its space. The
+space assigns the servers and handles per-user authentication; connected
+servers then arrive on every event. See
+[`examples/mcp-custom-module`](https://github.com/Unique-AG/ai/tree/main/unique_sdk/examples/mcp-custom-module)
+for the configuration fields and a runnable module, with both a FastAPI
+webhook and an event-socket (SSE) entry point for local development.
+
 ## Best Practices
 
 ??? example "Use Async Processing for Long Operations"
