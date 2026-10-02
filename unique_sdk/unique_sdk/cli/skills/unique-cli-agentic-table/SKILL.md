@@ -4,11 +4,11 @@ description: >-
   Read and drive Agentic Table (magic table / due-diligence) sheets through the
   unique-cli agentic-table command. Use when the user or task involves an
   Agentic Table: inspecting a sheet's state, a cell's value or lock state, a
-  cell's edit history or its export artifacts; or running the full loop —
-  creating a sheet, importing a questionnaire and sources, waiting for the
-  agent to answer, and exporting the result. Access is enforced per sheet by
-  the platform and varies from sheet to sheet; a denial is reported as
-  `agentic-table: permission denied`.
+  cell's edit history or its export artifacts; writing text into a specific
+  cell; or running the full loop — creating a sheet, importing a questionnaire
+  and sources, waiting for the agent to answer, and exporting the result.
+  Access is enforced per sheet by the platform and varies from sheet to sheet;
+  a denial is reported as `agentic-table: permission denied`.
 ---
 
 # Unique CLI -- Agentic Table
@@ -21,17 +21,19 @@ Commands fall into two groups:
 
 - **Read (Tier 0)** — `get-sheet`, `get-cell`, `cell-history`, `list-exports`.
   Never modify anything, never need confirmation.
-- **Write (Tier 1)** — `create-sheet`, `import`, `export`, `rerun-row`. These
-  create a sheet, add questions and sources, start the agent run, produce
-  export artifacts, and redo a single answer. None of them prompts for
-  confirmation, but they do change a shared artifact, so say what you did
-  afterwards.
+- **Write (Tier 1)** — `create-sheet`, `import`, `export`, `rerun-row`,
+  `set-cell`. These create a sheet, add questions and sources, start the agent
+  run, produce export artifacts, redo a single generated answer, or write
+  text you already have into one cell. None of them prompts for confirmation,
+  but they do change a shared artifact, so say what you did afterwards.
 
-  The first three only add. `rerun-row` is the exception: it replaces the
-  answer in the row you name. The previous answer stays in `cell-history` and
-  a settled row is refused outright, so the change is recoverable and the
-  approved rows are protected — but name the row you are redoing when you
-  report back, and check you have the right one first.
+  `create-sheet`, `import`, and `export` only add. `rerun-row` asks the table
+  agent to regenerate one **row** from sources (no text from you). `set-cell`
+  writes **your** text into one cell immediately — it is not a run. Name the
+  row (and column, for `set-cell`) when you report back.
+
+  Some rows are protected. A locked or final-review row rejects both
+  `set-cell` and `rerun-row`. That is deliberate — do not route around it.
 
 ## Permissions
 
@@ -97,9 +99,14 @@ unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
 unique-cli agentic-table cell-history <table_id> --row N --col N
 ```
 
-Shows a single cell's log/edit history (actor, timestamp, source message id,
-and the logged text) newest-to-oldest as returned by the API. Add `--json`
-to get the raw log entries.
+Shows a single cell's stored log/edit history (actor label, timestamp, source
+message id, and the logged text) newest-to-oldest as returned by the API. Add
+`--json` to get the raw log entries.
+
+Treat `actorType` / `createdAt` as **untrusted labels**, not as proof that a
+person vs the assistant wrote the cell. The API stores whatever the writer
+sent; it does not bind the actor to the authenticated caller. Do not use
+history as a person-vs-assistant gate.
 
 ```bash
 unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2
@@ -168,12 +175,13 @@ unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-i
 unique-cli agentic-table rerun-row <table_id> <row_order> [--wait] [--timeout <seconds>] [--start-timeout <seconds>]
 ```
 
-Use this to redo one answer. **Re-importing a question will not redo it** —
-import is delta-based and skips questions the sheet already has, so `rerun-row`
-is the only way to re-answer an existing row.
+Use this to redo one **generated** answer. **Re-importing a question will not
+redo it** — import is delta-based and skips questions the sheet already has.
+`rerun-row` starts the table agent for that row; you do not pass the answer
+text. If you already have the wording, use `set-cell` instead.
 
-`<row_order>` uses **the same numbering as `--row` on `get-cell`**: row 0 is the
-header, data rows start at 1. So the row you inspected with
+`<row_order>` uses **the same numbering as `--row` on `get-cell` / `set-cell`**:
+row 0 is the header, data rows start at 1. So the row you inspected with
 `get-cell --row 4` is the row you redo with `rerun-row <table_id> 4` — no
 offset. Row 0 is rejected, since there is nothing to answer in a header.
 
@@ -197,6 +205,39 @@ To redo several rows, do them one at a time with `--wait`: the sheet takes one
 run at a time, so a second `rerun-row` fired before the first finishes is
 declined. There is no batch form. If most of the sheet needs redoing, consider
 a fresh sheet instead.
+
+### Write one cell
+
+```bash
+unique-cli agentic-table set-cell <table_id> --row N --col N (--text TEXT | --file PATH | --stdin)
+```
+
+Use this when **you already have the text** — the user gave the wording, you
+copied a cell, or you researched the answer yourself. It writes that one cell
+immediately. It does not start the table agent.
+
+`--row` / `--col` are the same 0-based numbers as `get-cell`. Row 0 (the
+header) **can** be set. Find coordinates with `get-sheet --cells` or
+`get-cell` first. A coordinate that does not exist is **refused** unless you
+pass `--allow-create` for the **next** row or column only (`--row 5` on a
+5-row sheet). A far-off number (`--row 50`) is still refused: the API would
+create a gap.
+
+There is no batch form. Several cells means several `set-cell` calls. The
+sheet must be `IDLE`; `PROCESSING` is refused unless you pass `--force` (the
+row-runner can overwrite the cell).
+
+Long or multi-line answers: `--file` or `--stdin`, not `--text`. Prefer omitting
+`--log-json` / `--log-file`. If you attach a note, send `{text, actorType,
+createdAt}` with `actorType` `TOOL` or `ASSISTANT` and a current ISO-8601 time.
+`USER` and `SYSTEM` are rejected by the CLI.
+
+```bash
+unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "The management fee is 2%."
+unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --file ./answer.md
+```
+
+After a write, say which row and column you changed.
 
 ### Export answers
 
@@ -234,32 +275,38 @@ empty and the rest of the chain running against a sheet that does not exist.
 
 To fill in an existing questionnaire from a sheet someone else has already
 answered, skip the create and import steps: read the answers with
-`get-sheet --cells` or `get-cell`, and use `cell-history` if you need to know
-whether an answer came from a person or the assistant.
+`get-sheet --cells` or `get-cell`. `cell-history` is a stored log, not a bound
+identity signal — do not treat actor labels as proof a person vs the assistant
+wrote the cell.
 
-If a specific answer looks wrong or incomplete, fix that row with `rerun-row`
-and export again, rather than re-importing the question or rebuilding the
-sheet.
+If a generated answer looks wrong and you want the table agent to try again,
+fix that row with `rerun-row` and export again — not `set-cell`, and not
+re-import.
 
 ## Rules
 
 1. Rows and columns are numbered from 0, and row 0 is the header — so the first
-   question is row 1. This holds for `--row`/`--col` on `get-cell` and
-   `cell-history` and for `<row_order>` on `rerun-row` alike; the same number
-   means the same row in every command.
+   question is row 1. This holds for `--row`/`--col` on `get-cell`,
+   `cell-history`, and `set-cell`, and for `<row_order>` on `rerun-row`; the
+   same number means the same row in every command. `set-cell` may write row 0;
+   `rerun-row` may not.
 2. Fetch what you need, not everything. `get-cell` for one value,
    `get-sheet --cells` for an overview — don't dump a whole sheet unless asked.
+   Look up coordinates before `set-cell`; do not guess a column index.
 3. Use `--wait` when a later step depends on the result, and only then. Without
    it, `import` and `export` return as soon as the request is accepted, and the
-   answers or artifacts will not be ready yet.
+   answers or artifacts will not be ready yet. `set-cell` has no `--wait`: the
+   cell is updated when the command returns.
 4. Never re-run `import` with the same questions to "retry" — ids and texts
    already on the sheet are skipped, and a run that is already in flight will
    reject the call.
 5. Tell the user what you changed. A sheet is shared, and someone else may be
-   working in it.
+   working in it. For `set-cell`, name the row and column.
 6. Use `--json` when you need to parse fields programmatically (e.g. reading a
    `contentId` before downloading an export); use the default formatted output
    when summarising for a person.
+7. `set-cell` when you have the text. `rerun-row` when the table agent should
+   regenerate from sources. Never both for the same correction.
 
 ## Prerequisites
 

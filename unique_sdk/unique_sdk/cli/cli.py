@@ -23,6 +23,7 @@ from unique_sdk.cli.commands.agentic_table_write import (
     cmd_export,
     cmd_import,
     cmd_rerun_row,
+    cmd_set_cell,
 )
 from unique_sdk.cli.commands.browser import (
     cmd_browser_action,
@@ -2304,9 +2305,9 @@ Work with Agentic Table (magic table) sheets over the public magic-table API.
 \b
 Reads (get-sheet / get-cell / cell-history / list-exports) are Tier 0: no
 confirmation, no side effects. Writes (create-sheet / import / rerun-row /
-export) build and run a sheet — the full loop of create, populate, run, and
-export, plus re-answering a single row. Every
-call is scoped to the current user/company; sheet-role access (Owner / Can
+set-cell / export) build and run a sheet — the full loop of create, populate,
+run, and export — plus re-answering a single row or writing one cell's text.
+Every call is scoped to the current user/company; sheet-role access (Owner / Can
 manage / Can edit) is enforced server-side and a denial is reported as
 `agentic-table: permission denied`.
 
@@ -2322,6 +2323,7 @@ Write subcommands:
   create-sheet   Create a new sheet in a space
   import         Import questions/sources (adding questions triggers the run)
   rerun-row      Re-run the agent for a single row (import cannot redo a row)
+  set-cell       Write text into one cell by row/column order (no run)
   export         Generate export artifacts (report / question export)
 
 \b
@@ -2329,6 +2331,7 @@ Examples:
   unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
   unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ"
   unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src --wait
+  unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "Fee is 2%."
   unique-cli agentic-table export mt_abc123 --type FULL_REPORT --wait
 """
 
@@ -2704,6 +2707,127 @@ def agentic_table_rerun_row(
             wait=wait,
             timeout=timeout,
             start_timeout=start_timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="set-cell")
+@click.argument("table_id")
+@click.option(
+    "--row",
+    "row_order",
+    type=click.IntRange(min=0),
+    required=True,
+    help="Row order (0-based; 0 is the header).",
+)
+@click.option(
+    "--col",
+    "column_order",
+    type=click.IntRange(min=0),
+    required=True,
+    help="Column order (0-based).",
+)
+@click.option(
+    "--text",
+    "text",
+    default=None,
+    help="Cell text (exactly one of --text, --file, --stdin).",
+)
+@click.option(
+    "--file",
+    "file",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Read cell text from a UTF-8 file.",
+)
+@click.option(
+    "--stdin",
+    "stdin",
+    is_flag=True,
+    default=False,
+    help="Read cell text from stdin.",
+)
+@click.option(
+    "--log-file",
+    "log_file",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="JSON array of log entries (text, actorType, createdAt).",
+)
+@click.option(
+    "--log-json",
+    "log_json",
+    default=None,
+    help="Inline JSON array of log entries (text, actorType, createdAt).",
+)
+@click.option(
+    "--allow-create",
+    "allow_create",
+    is_flag=True,
+    default=False,
+    help="Allow creating the next row or column (not a gap).",
+)
+@click.option(
+    "--force",
+    "force",
+    is_flag=True,
+    default=False,
+    help="Write even while the sheet is PROCESSING.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_set_cell(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    column_order: int,
+    text: str | None,
+    file: str | None,
+    stdin: bool,
+    log_file: str | None,
+    log_json: str | None,
+    allow_create: bool,
+    force: bool,
+    output_json: bool,
+) -> None:
+    """Write text into one cell by row and column order.
+
+    \b
+    This is not a run. Pass the cell value you already have; the API returns
+    the updated cell immediately. --row/--col are 0-based like get-cell; row 0
+    is the header and is allowed. A missing row or column is refused unless
+    --allow-create, which adds only the next index. A PROCESSING sheet is
+    refused unless --force. Use
+    rerun-row to have the table agent regenerate an answer from sources.
+
+    \b
+    Provide exactly one of --text, --file, or --stdin. Long or multi-line
+    answers belong in a file or stdin. Optional --log-file / --log-json is a
+    JSON array of {text, actorType, createdAt} with actorType TOOL or ASSISTANT.
+
+    \b
+    Examples:
+      unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "Fee is 2%."
+      unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --file ./answer.md
+      unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --stdin < answer.md
+    """
+    emit(
+        cmd_set_cell(
+            LazyState.get(ctx),
+            table_id,
+            row_order=row_order,
+            column_order=column_order,
+            text=text,
+            file=file,
+            stdin=stdin,
+            log_file=log_file,
+            log_json=log_json,
+            allow_create=allow_create,
+            force=force,
             output_json=output_json,
         ),
         is_error=_is_agentic_table_error_output,
