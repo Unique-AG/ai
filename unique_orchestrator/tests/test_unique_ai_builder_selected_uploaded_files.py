@@ -80,9 +80,9 @@ class TestBuildCommonSelectedUploadedFiles:
             f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
-        mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(
+            f"{UTILS_MODULE}.is_flag_enabled", AsyncMock(return_value=True)
+        )
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="a"), MagicMock(id="c")]
@@ -113,9 +113,9 @@ class TestBuildCommonSelectedUploadedFiles:
             f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
-        mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(
+            f"{UTILS_MODULE}.is_flag_enabled", AsyncMock(return_value=True)
+        )
 
         event = _make_event(additional_parameters=None)
 
@@ -142,9 +142,9 @@ class TestBuildCommonSelectedUploadedFiles:
             f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
-        mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(
+            f"{UTILS_MODULE}.is_flag_enabled", AsyncMock(return_value=True)
+        )
 
         additional = MagicMock()
         additional.selected_uploaded_files = []
@@ -175,9 +175,9 @@ class TestBuildCommonSelectedUploadedFiles:
             f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
-        mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
-        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(
+            f"{UTILS_MODULE}.is_flag_enabled", AsyncMock(return_value=False)
+        )
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="a")]
@@ -207,9 +207,9 @@ class TestBuildCommonSelectedUploadedFiles:
             f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
-        mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(
+            f"{UTILS_MODULE}.is_flag_enabled", AsyncMock(return_value=True)
+        )
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="y")]
@@ -238,9 +238,9 @@ class TestBuildCommonSelectedUploadedFiles:
         mock_chat_service = _make_chat_service_mock([])
         monkeypatch.setattr(f"{MODULE}.ChatService", lambda event: mock_chat_service)
 
-        mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
-        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(
+            f"{UTILS_MODULE}.is_flag_enabled", AsyncMock(return_value=False)
+        )
 
         event = _make_event(additional_parameters=None)
 
