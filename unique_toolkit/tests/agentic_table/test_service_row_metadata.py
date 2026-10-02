@@ -213,7 +213,7 @@ def _patch_writes():
 
 
 @pytest.mark.asyncio
-async def test_replace_row_metadata_updates_changed_creates_missing_skips_equal():
+async def test_set_row_metadata_by_key_updates_changed_creates_missing_skips_equal():
     service = _service()
     existing = [
         _entry("m-client", "client", "Mercer"),
@@ -222,7 +222,7 @@ async def test_replace_row_metadata_updates_changed_creates_missing_skips_equal(
     ]
     p_update, p_delete, p_create = _patch_writes()
     with p_update as mock_update, p_delete as mock_delete, p_create as mock_create:
-        await service.replace_row_metadata(
+        await service.set_row_metadata_by_key(
             4,
             [
                 RowMetadataEntryInput(key="client", value="UBP"),
@@ -245,11 +245,11 @@ async def test_replace_row_metadata_updates_changed_creates_missing_skips_equal(
 
 
 @pytest.mark.asyncio
-async def test_replace_row_metadata_updates_when_only_exact_filter_changes():
+async def test_set_row_metadata_by_key_updates_when_only_exact_filter_changes():
     service = _service()
     p_update, p_delete, p_create = _patch_writes()
     with p_update as mock_update, p_delete, p_create as mock_create:
-        await service.replace_row_metadata(
+        await service.set_row_metadata_by_key(
             4,
             [RowMetadataEntryInput(key="client", value="UBP", exact_filter=True)],
             row_id="row-9",
@@ -261,7 +261,7 @@ async def test_replace_row_metadata_updates_when_only_exact_filter_changes():
 
 
 @pytest.mark.asyncio
-async def test_replace_row_metadata_keeps_matching_duplicate_and_deletes_rest():
+async def test_set_row_metadata_by_key_keeps_matching_duplicate_and_deletes_rest():
     # A key held twice would leave a stale value searchable after re-add.
     service = _service()
     existing = [
@@ -270,7 +270,7 @@ async def test_replace_row_metadata_keeps_matching_duplicate_and_deletes_rest():
     ]
     p_update, p_delete, p_create = _patch_writes()
     with p_update as mock_update, p_delete as mock_delete, p_create:
-        await service.replace_row_metadata(
+        await service.set_row_metadata_by_key(
             4,
             [RowMetadataEntryInput(key="client", value="UBP")],
             row_id="row-9",
@@ -283,7 +283,7 @@ async def test_replace_row_metadata_keeps_matching_duplicate_and_deletes_rest():
 
 
 @pytest.mark.asyncio
-async def test_replace_row_metadata_updates_first_duplicate_when_none_match():
+async def test_set_row_metadata_by_key_updates_first_duplicate_when_none_match():
     service = _service()
     existing = [
         _entry("m-a", "client", "Mercer"),
@@ -291,7 +291,7 @@ async def test_replace_row_metadata_updates_first_duplicate_when_none_match():
     ]
     p_update, p_delete, p_create = _patch_writes()
     with p_update as mock_update, p_delete as mock_delete, p_create:
-        await service.replace_row_metadata(
+        await service.set_row_metadata_by_key(
             4,
             [RowMetadataEntryInput(key="client", value="UBP")],
             row_id="row-9",
@@ -303,7 +303,7 @@ async def test_replace_row_metadata_updates_first_duplicate_when_none_match():
 
 
 @pytest.mark.asyncio
-async def test_replace_row_metadata_reads_row_when_existing_not_given():
+async def test_set_row_metadata_by_key_reads_row_when_existing_not_given():
     service = _service()
     cell = MagicTableCell(
         sheetId="t1",
@@ -322,7 +322,7 @@ async def test_replace_row_metadata_reads_row_when_existing_not_given():
         p_delete,
         p_create as mock_create,
     ):
-        await service.replace_row_metadata(
+        await service.set_row_metadata_by_key(
             4,
             [
                 RowMetadataEntryInput(key="client", value="UBP"),
@@ -336,10 +336,10 @@ async def test_replace_row_metadata_reads_row_when_existing_not_given():
 
 
 @pytest.mark.asyncio
-async def test_replace_row_metadata_rejects_duplicate_input_keys():
+async def test_set_row_metadata_by_key_rejects_duplicate_input_keys():
     service = _service()
     with pytest.raises(ValueError, match="Duplicate"):
-        await service.replace_row_metadata(
+        await service.set_row_metadata_by_key(
             4,
             [
                 RowMetadataEntryInput(key="client", value="UBP"),
@@ -350,10 +350,85 @@ async def test_replace_row_metadata_rejects_duplicate_input_keys():
 
 
 @pytest.mark.asyncio
-async def test_replace_row_metadata_noop_on_empty():
+async def test_set_row_metadata_by_key_noop_on_empty():
     service = _service()
     with patch.object(AgenticTableService, "get_cell", new=AsyncMock()) as mock_get:
-        await service.replace_row_metadata(4, [])
+        await service.set_row_metadata_by_key(4, [])
+    mock_get.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_set_row_metadata_by_key_deletes_dropped_managed_keys():
+    # A dropped tag left on a library row would still filter InternalSearch.
+    service = _service()
+    existing = [
+        _entry("m-client", "client", "UBP"),
+        _entry("m-strategy-1", "strategy", "CGM"),
+        _entry("m-strategy-2", "strategy", "Growth"),
+        _entry("m-source", "sourceSheetId", "sheet-1"),
+    ]
+    p_update, p_delete, p_create = _patch_writes()
+    with p_update as mock_update, p_delete as mock_delete, p_create as mock_create:
+        await service.set_row_metadata_by_key(
+            4,
+            [RowMetadataEntryInput(key="client", value="UBP")],
+            row_id="row-9",
+            existing=existing,
+            managed_keys={"client", "strategy", "validAsOf"},
+        )
+
+    mock_update.assert_not_awaited()
+    mock_create.assert_not_awaited()
+    deleted = {call.kwargs["metadataId"] for call in mock_delete.await_args_list}
+    assert deleted == {"m-strategy-1", "m-strategy-2"}
+
+
+@pytest.mark.asyncio
+async def test_set_row_metadata_by_key_empty_entries_clear_managed_keys():
+    service = _service()
+    existing = [
+        _entry("m-client", "client", "UBP"),
+        _entry("m-source", "sourceSheetId", "sheet-1"),
+    ]
+    p_update, p_delete, p_create = _patch_writes()
+    with p_update, p_delete as mock_delete, p_create as mock_create:
+        await service.set_row_metadata_by_key(
+            4, [], row_id="row-9", existing=existing, managed_keys={"client"}
+        )
+
+    mock_delete.assert_awaited_once()
+    assert mock_delete.await_args.kwargs["metadataId"] == "m-client"
+    mock_create.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_set_row_metadata_by_key_without_managed_keys_keeps_other_keys():
+    service = _service()
+    p_update, p_delete, p_create = _patch_writes()
+    with p_update, p_delete as mock_delete, p_create:
+        await service.set_row_metadata_by_key(
+            4,
+            [RowMetadataEntryInput(key="client", value="UBP")],
+            row_id="row-9",
+            existing=[
+                _entry("m-client", "client", "UBP"),
+                _entry("m-strategy", "strategy", "CGM"),
+            ],
+        )
+
+    mock_delete.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_set_row_metadata_by_key_rejects_entry_outside_managed_keys():
+    service = _service()
+    with patch.object(AgenticTableService, "get_cell", new=AsyncMock()) as mock_get:
+        with pytest.raises(ValueError, match="not in managed_keys"):
+            await service.set_row_metadata_by_key(
+                4,
+                [RowMetadataEntryInput(key="region", value="EU")],
+                managed_keys={"client"},
+            )
     mock_get.assert_not_awaited()
 
 

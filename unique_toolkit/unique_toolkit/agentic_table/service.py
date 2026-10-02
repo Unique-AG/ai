@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from collections.abc import Collection
 from datetime import datetime
 from typing import Any, NamedTuple, cast
 
@@ -929,41 +930,56 @@ class AgenticTableService:
         if not result.get("status"):
             raise Exception(result.get("message") or "Failed to delete row metadata")
 
-    async def replace_row_metadata(
+    async def set_row_metadata_by_key(
         self,
         row: int,
         entries: list[RowMetadataEntryInput],
         row_id: str | None = None,
         existing: list[RowMetadataEntry] | None = None,
+        managed_keys: Collection[str] | None = None,
     ) -> None:
-        """Set row metadata by key, replacing values that differ.
+        """Merge row metadata by key, and optionally remove keys the caller owns.
 
         For each entry: a key the row lacks is created; a key the row holds with
         a different value or filter flag is updated in place; a key that already
         matches is left alone. If the row holds the key more than once, one entry
         is kept and the others are deleted, so the key ends up with exactly the
-        given value. Keys not in ``entries`` are not touched.
+        given value.
+
+        Keys not in ``entries`` are only removed when listed in ``managed_keys``.
+        This is not a full replace: rows also carry metadata the caller does not
+        own (e.g. the ``sourceSheetId`` stamp that library overwrites are checked
+        against), which must survive.
 
         Args:
             row (int): The row index (row order).
             entries (list[RowMetadataEntryInput]): Key/value entries to set. Keys
-                must be unique. Empty is a no-op.
+                must be unique.
             row_id (str | None): The backend row id, used when creating keys.
             existing (list[RowMetadataEntry] | None): The row's current metadata,
                 when the caller already read it (e.g. ``get_sheet`` with
                 ``include_row_metadata=True``). When ``None``, the row's metadata
                 and id are read with ``get_cell``.
+            managed_keys (Collection[str] | None): Keys the caller owns. Every
+                entry key must be in it. Any of these keys missing from
+                ``entries`` is deleted from the row, duplicates included. ``None``
+                deletes nothing beyond duplicates of keys in ``entries``.
 
         Raises:
-            ValueError: If ``entries`` repeats a key, or a key must be created
-                and the row id cannot be resolved.
+            ValueError: If ``entries`` repeats a key, an entry key is not in
+                ``managed_keys``, or a key must be created and the row id cannot
+                be resolved.
             Exception: If the API reports a non-success status.
         """
-        if not entries:
-            return
         keys = [entry.key for entry in entries]
         if len(set(keys)) != len(keys):
             raise ValueError(f"Duplicate row metadata keys in {keys}")
+        if managed_keys is not None:
+            unmanaged = sorted(set(keys) - set(managed_keys))
+            if unmanaged:
+                raise ValueError(f"Row metadata keys {unmanaged} not in managed_keys")
+        if not entries and not managed_keys:
+            return
         if existing is None:
             cell = await self.get_cell(row, 0, include_row_metadata=True)
             existing = cell.row_metadata
@@ -993,6 +1009,10 @@ class AgenticTableService:
             for duplicate in matches:
                 if duplicate.id != keep.id:
                     await self.delete_row_metadata(duplicate.id)
+
+        for key in set(managed_keys or ()) - set(keys):
+            for stale in existing_by_key.get(key, []):
+                await self.delete_row_metadata(stale.id)
 
         await self.create_row_metadata(row, to_create, row_id=row_id)
 
