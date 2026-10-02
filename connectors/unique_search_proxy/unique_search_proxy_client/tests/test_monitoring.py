@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from unique_search_proxy_core.url_safety import UrlSafetyMode, UrlSafetySettings
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.settings.monitoring import get_prometheus_settings
@@ -32,6 +33,9 @@ class TestMetricsEndpoint:
         body = resp.text
         assert "python_http_requests_total" in body
         assert "unique_search_proxy" in body
+        assert (
+            "unique_search_proxy_url_safety_application_checks_enabled 1.0" in body
+        )
 
     @pytest.mark.ai
     def test_metrics_disabled_returns_404(
@@ -53,6 +57,25 @@ class TestMetricsEndpoint:
         metrics = client.get("/metrics").text
         assert "unique_search_proxy_proxy_errors_total" in metrics
         assert "ENGINE_NOT_CONFIGURED" in metrics
+
+    @pytest.mark.ai
+    def test_metrics_highlight_trusted_proxy_mode(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("PROMETHEUS_ENABLED", "true")
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.monitoring.setup.url_safety_settings",
+            UrlSafetySettings(mode=UrlSafetyMode.TRUSTED_CORPORATE_PROXY),
+        )
+
+        response = TestClient(create_app()).get("/metrics")
+
+        assert response.status_code == 200
+        assert (
+            "unique_search_proxy_url_safety_application_checks_enabled 0.0"
+            in response.text
+        )
 
 
 class TestPrometheusSettings:

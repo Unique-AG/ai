@@ -93,6 +93,12 @@ crawl_blocked_total = m.counter(
     "Crawl targets blocked by URL safety policy",
     ["reason_category"],
 )
+url_safety_application_checks_enabled = m.gauge(
+    "url_safety_application_checks_enabled",
+    "Whether application-level URL safety checks are enabled (1) or delegated "
+    "to a trusted corporate proxy (0)",
+    [],
+)
 
 agent_search_duration_seconds = m.histogram(
     "agent_search_duration_seconds",
@@ -180,6 +186,12 @@ def record_crawl_blocked(reason_category: str, count: int = 1) -> None:
     if not _metrics_enabled():
         return
     crawl_blocked_total.labels(reason_category=reason_category).inc(count)
+
+
+def set_url_safety_application_checks_enabled(enabled: bool) -> None:
+    if not _metrics_enabled():
+        return
+    url_safety_application_checks_enabled.set(int(enabled))
 
 
 def record_agent_search_success(engine: str, duration_seconds: float) -> None:
