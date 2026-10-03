@@ -8,6 +8,7 @@ persistence, KB content resolution) was extracted from the tool class into
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from unique_toolkit.agentic.tools.openai_builtin import (
@@ -20,9 +21,13 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder import
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._container import (
     check_container_exists,
     create_container,
+    wait_until_container_live,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._files import (
+    UPLOAD_CONNECT_TIMEOUT_SECONDS,
+    UPLOAD_READ_TIMEOUT_SECONDS,
     FailedFileUpload,
+    build_upload_client,
     check_file_already_uploaded,
     describe_upload_error,
     resolve_kb_contents,
@@ -38,6 +43,18 @@ from unique_toolkit.content.schemas import Content
 async def _build_via_builder(**kwargs) -> OpenAICodeInterpreterTool:
     """Call CodeInterpreterBuilder with build_tool's historical signature."""
     return await CodeInterpreterBuilder(**kwargs).build()
+
+
+def _mock_client() -> MagicMock:
+    """AsyncOpenAI stand-in whose ``with_options`` returns itself.
+
+    ``upload_file_to_container`` derives a fail-fast client via
+    ``client.with_options(...)`` (UN-25045); returning the same mock keeps the
+    ``client.containers.files.create`` stubs in these tests observable.
+    """
+    client = MagicMock()
+    client.with_options.return_value = client
+    return client
 
 
 @pytest.mark.ai
@@ -122,7 +139,7 @@ async def test_upload_files_to_container__downloads_and_creates__when_file_not_i
     openai_file = MagicMock()
     openai_file.path = "/mnt/data/data.csv"
     files_create = AsyncMock(return_value=openai_file)
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = files_create
 
     result, updated, _ = await upload_files_to_container(
@@ -163,7 +180,7 @@ async def test_upload_files_to_container__retries_download__after_transient_erro
     openai_file = MagicMock()
     openai_file.path = "/mnt/data/f.bin"
     files_create = AsyncMock(return_value=openai_file)
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = files_create
 
     result, updated, _ = await upload_files_to_container(
@@ -204,7 +221,7 @@ async def test_upload_files_to_container__deduplicates_by_content_id__when_dupli
     openai_file = MagicMock()
     openai_file.path = "/mnt/data/dup.csv"
     files_create = AsyncMock(return_value=openai_file)
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = files_create
 
     result, updated, _ = await upload_files_to_container(
@@ -255,7 +272,7 @@ async def test_upload_files_to_container__skips_upload__when_filepath_already_in
     cached = Content(id="cont_cached", key="cached.csv")
     content_service = MagicMock()
     content_service.download_content_to_bytes_async = AsyncMock()
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = AsyncMock()
 
     result, updated, _ = await upload_files_to_container(
@@ -284,7 +301,7 @@ async def test_upload_file_to_container__returns_new_file_id__on_successful_uplo
     content_service.download_content_to_bytes_async = AsyncMock(return_value=b"data")
     openai_file = MagicMock()
     openai_file.path = "/mnt/data/new.csv"
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = AsyncMock(return_value=openai_file)
 
     filepath = await upload_file_to_container(
@@ -526,7 +543,7 @@ async def test_check_container_exists__returns_true__when_status_is_live(
     memory = CodeExecutionShortTermMemorySchema(container_id="ctr_live")
     container = MagicMock()
     container.status = status
-    client = MagicMock()
+    client = _mock_client()
     client.containers.retrieve = AsyncMock(return_value=container)
 
     result = await check_container_exists(client=client, memory=memory)
@@ -552,7 +569,7 @@ async def test_check_container_exists__returns_false__when_not_found() -> None:
         response=Response(404, request=Request("GET", "https://x")),
         body=None,
     )
-    client = MagicMock()
+    client = _mock_client()
     client.containers.retrieve = AsyncMock(side_effect=not_found)
 
     result = await check_container_exists(client=client, memory=memory)
@@ -570,7 +587,7 @@ async def test_check_container_exists__returns_false__when_status_is_not_live() 
     memory = CodeExecutionShortTermMemorySchema(container_id="ctr_expired")
     container = MagicMock()
     container.status = "expired"
-    client = MagicMock()
+    client = _mock_client()
     client.containers.retrieve = AsyncMock(return_value=container)
 
     result = await check_container_exists(client=client, memory=memory)
@@ -595,8 +612,10 @@ async def test_create_container__uses_scoped_name_and_expires_after() -> None:
     """
     container = MagicMock()
     container.id = "ctr_created"
-    client = MagicMock()
+    container.status = "running"
+    client = _mock_client()
     client.containers.create = AsyncMock(return_value=container)
+    client.containers.retrieve = AsyncMock()
 
     result = await create_container(
         client=client,
@@ -611,6 +630,190 @@ async def test_create_container__uses_scoped_name_and_expires_after() -> None:
         name="code_execution_company-1_user-1_chat-1",
         expires_after={"anchor": "last_active_at", "minutes": 15},
     )
+    # Already live on create: no readiness polling (UN-25045).
+    client.containers.retrieve.assert_not_awaited()
+
+
+# ============================================================================
+# Tests for container readiness wait after create (UN-25045)
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_create_container__polls_until_live__when_created_container_not_yet_active() -> (
+    None
+):
+    """
+    Purpose: Verify that when ``containers.create`` returns a container that is not yet
+    ``active``/``running``, ``create_container`` polls ``containers.retrieve`` until it is,
+    and only then returns the id.
+    Why this matters: Uploading into a container straight after create is the path that
+    hung for 10 minutes in prod (UN-25045); waiting for a live status first avoids
+    uploading into a container Azure has not finished provisioning.
+    """
+    created = MagicMock()
+    created.id = "ctr_pending"
+    created.status = "pending"
+    still_pending = MagicMock()
+    still_pending.status = "pending"
+    now_active = MagicMock()
+    now_active.status = "active"
+
+    client = _mock_client()
+    client.containers.create = AsyncMock(return_value=created)
+    client.containers.retrieve = AsyncMock(side_effect=[still_pending, now_active])
+
+    with patch(
+        "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._container.asyncio.sleep",
+        AsyncMock(),
+    ):
+        result = await create_container(
+            client=client,
+            chat_id="chat-1",
+            user_id="user-1",
+            company_id="company-1",
+            expires_after_minutes=15,
+        )
+
+    assert result == "ctr_pending"
+    assert client.containers.retrieve.await_count == 2
+    client.containers.retrieve.assert_awaited_with("ctr_pending")
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_wait_until_container_live__gives_up_after_deadline__without_raising(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify the readiness wait is best-effort: when the container never becomes
+    live before the deadline, it logs a warning and returns instead of raising.
+    Why this matters: A slow status transition must never fail the tool build — the
+    upload retry (fail-fast timeout + tenacity) is the real safety net.
+    """
+    pending = MagicMock()
+    pending.status = "pending"
+    client = _mock_client()
+    client.containers.retrieve = AsyncMock(return_value=pending)
+
+    with (
+        patch(
+            "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._container.asyncio.sleep",
+            AsyncMock(),
+        ),
+        caplog.at_level(
+            "WARNING",
+            logger="unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._container",
+        ),
+    ):
+        await wait_until_container_live(
+            client=client,
+            container_id="ctr_slow",
+            initial_status="pending",
+            timeout_seconds=0.0,
+        )
+
+    assert client.containers.retrieve.await_count == 0
+    assert any(
+        "did not become live" in record.message and "ctr_slow" in record.message
+        for record in caplog.records
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_wait_until_container_live__returns_on_retrieve_error__without_raising() -> (
+    None
+):
+    """
+    Purpose: Verify a failing ``containers.retrieve`` during the readiness wait is
+    swallowed (logged) so the caller proceeds to the upload.
+    """
+    client = _mock_client()
+    client.containers.retrieve = AsyncMock(side_effect=RuntimeError("boom"))
+
+    with patch(
+        "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._container.asyncio.sleep",
+        AsyncMock(),
+    ):
+        await wait_until_container_live(
+            client=client,
+            container_id="ctr_err",
+            initial_status="pending",
+        )
+
+    client.containers.retrieve.assert_awaited_once_with("ctr_err")
+
+
+# ============================================================================
+# Tests for fail-fast upload client (UN-25045)
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_build_upload_client__disables_sdk_retries_and_caps_timeouts() -> None:
+    """
+    Purpose: Verify the upload client variant disables SDK-internal retries and uses
+    a bounded httpx timeout instead of the 600s default.
+    Why this matters: With SDK defaults a hung ``POST /containers/{id}/files`` cost a
+    full 10 minutes before the SDK's own retry succeeded (UN-25045). tenacity must be
+    the single retry owner, and the read timeout must stay above node-chat's ~95s
+    worst case so we never double-upload while node-chat is still retrying.
+    """
+    client = MagicMock()
+
+    build_upload_client(client)
+
+    client.with_options.assert_called_once()
+    kwargs = client.with_options.call_args.kwargs
+    assert kwargs["max_retries"] == 0
+    timeout = kwargs["timeout"]
+    assert isinstance(timeout, httpx.Timeout)
+    assert timeout.connect == UPLOAD_CONNECT_TIMEOUT_SECONDS
+    assert timeout.read == UPLOAD_READ_TIMEOUT_SECONDS
+    assert timeout.write == UPLOAD_READ_TIMEOUT_SECONDS
+    assert UPLOAD_READ_TIMEOUT_SECONDS > 95
+    assert UPLOAD_READ_TIMEOUT_SECONDS < 600
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_file_to_container__retries_upload__after_api_timeout() -> None:
+    """
+    Purpose: Verify that when ``containers.files.create`` times out once
+    (``APITimeoutError``), tenacity retries and the second attempt's result is used.
+    Why this matters: This is the UN-25045 hung-first-upload case — with the fail-fast
+    client the first attempt now fails in ~2 minutes at most and the retry (which
+    succeeds in ~1s in prod) completes the upload.
+    """
+    from openai import APITimeoutError
+
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(return_value=b"data")
+    openai_file = MagicMock()
+    openai_file.id = "cfile_ok"
+    openai_file.path = "/mnt/data/slow.csv"
+    client = _mock_client()
+    client.containers.files.create = AsyncMock(
+        side_effect=[
+            APITimeoutError(request=httpx.Request("POST", "https://x")),
+            openai_file,
+        ]
+    )
+
+    filepath = await upload_file_to_container(
+        client=client,
+        content_id="cont_slow",
+        filename="slow.csv",
+        content_service=content_service,
+        container_id="ctr_timeout",
+    )
+
+    assert filepath == "/mnt/data/slow.csv"
+    assert client.containers.files.create.await_count == 2
+    # Retries come from tenacity, not the SDK.
+    assert client.with_options.call_args.kwargs["max_retries"] == 0
 
 
 # ============================================================================
@@ -647,7 +850,7 @@ async def test_upload_files_to_container__isolates_failures__one_file_fails_othe
     content_service.download_content_to_bytes_async = AsyncMock(side_effect=download)
     openai_file = MagicMock()
     openai_file.path = "/mnt/data/good.csv"
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = AsyncMock(return_value=openai_file)
 
     result, updated, failed_uploads = await upload_files_to_container(
@@ -693,7 +896,7 @@ async def test_upload_files_to_container__reports_413_as_file_too_large__in_fail
         response=Response(413, request=Request("POST", "https://x")),
         body=None,
     )
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = AsyncMock(side_effect=too_large_error)
 
     result, updated, failed_uploads = await upload_files_to_container(
@@ -765,7 +968,7 @@ async def test_upload_files_to_container__returns_updated_false__when_all_files_
     b = Content(id="cont_b", key="b.csv")
     content_service = MagicMock()
     content_service.download_content_to_bytes_async = AsyncMock()
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = AsyncMock()
 
     result, updated, _ = await upload_files_to_container(
@@ -1026,7 +1229,7 @@ async def test_build_tool__deduplicates_chat_and_kb_overlap__uploads_each_conten
 
     openai_file = MagicMock()
     openai_file.path = "/mnt/data/shared.csv"
-    client = MagicMock()
+    client = _mock_client()
     client.containers.files.create = AsyncMock(return_value=openai_file)
 
     memory_loaded = CodeExecutionShortTermMemorySchema(
