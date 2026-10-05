@@ -3,7 +3,7 @@ from datetime import datetime
 from time import time
 
 from typing_extensions import override
-from unique_search_proxy_core.context import RequestContext
+from unique_search_proxy_core.context import EntryPoint, RequestContext
 from unique_search_proxy_core.param_policy.exposable_config import (
     ExposableParamsConfig,
 )
@@ -81,6 +81,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             user_id=self.event.user_id,
             chat_id=self.event.payload.chat_id,
             user_metadata=self.event.payload.user_metadata or {},
+            entry_point=EntryPoint.CHAT_TOOL,
         )
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,

@@ -6,6 +6,11 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from langchain_core.runnables import RunnableConfig
+from unique_search_proxy_core.context import (
+    LOCAL_REQUEST_CONTEXT,
+    EntryPoint,
+    RequestContext,
+)
 
 from unique_deep_research.config import UniqueEngine
 from unique_deep_research.unique_custom.tools import (
@@ -808,3 +813,42 @@ async def test_web_search__uses_snippet_label__not_content_label() -> None:
     # Assert
     assert "Snippet: This is the snippet text" in result
     assert "content: This is the snippet text" not in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("with_context", [True, False])
+async def test_web_search__passes_request_context__to_search_engine_service(
+    with_context: bool,
+) -> None:
+    """
+    Purpose: Verify web_search hands the configured request context to the search engine.
+    Why this matters: Search-proxy attributes the search from this context, and falls back to local without it.
+    Setup summary: Mock the engine factory, run with and without a context in configurable.
+    """
+    # Arrange
+    request_context = RequestContext(
+        company_id="1",
+        user_id="2",
+        chat_id="chat",
+        entry_point=EntryPoint.DEEP_RESEARCH,
+    )
+    config = _make_web_search_config()
+    if with_context:
+        config["configurable"]["request_context"] = request_context
+    mock_search_service = AsyncMock()
+    mock_search_service.search = AsyncMock(return_value=[])
+
+    # Act
+    with (
+        patch(
+            "unique_deep_research.unique_custom.tools.get_search_engine_service",
+            return_value=mock_search_service,
+        ) as mock_factory,
+        patch("unique_deep_research.unique_custom.tools.write_tool_message_log"),
+    ):
+        await web_search.ainvoke({"query": "test query"}, config)
+
+    # Assert
+    expected = request_context if with_context else LOCAL_REQUEST_CONTEXT
+    assert mock_factory.call_args.kwargs["request_context"] == expected

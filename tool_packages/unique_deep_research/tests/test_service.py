@@ -1285,6 +1285,7 @@ async def test_deep_research_tool__custom_research__returns_processed_result__wh
     mock_event.payload.user_message.text = "Test request"
     mock_event.payload.user_message.original_text = "Test request"
     mock_event.payload.message_execution_id = None
+    mock_event.payload.user_metadata = {"key": "value"}
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
@@ -1332,6 +1333,57 @@ async def test_deep_research_tool__custom_research__returns_processed_result__wh
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_deep_research_tool__custom_research__passes_deep_research_request_context__to_agent() -> (
+    None
+):
+    """
+    Purpose: Verify the agent config carries the real identity and the deep_research entry point.
+    Why this matters: Search-proxy attributes Deep Research searches from this context.
+    Setup summary: Run custom_research with a mocked agent, inspect the config it was invoked with.
+    """
+    # Arrange
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_event.payload.user_metadata = {"userName": "u12345"}
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                with patch("unique_deep_research.service.custom_agent") as mock_agent:
+                    with patch(
+                        "unique_deep_research.service.validate_and_map_citations"
+                    ) as mock_validate:
+                        tool = DeepResearchTool(
+                            DeepResearchToolConfig(), mock_event, Mock()
+                        )
+                        mock_agent.ainvoke = AsyncMock(
+                            return_value={"final_report": "Test research report"}
+                        )
+                        mock_validate.return_value = ("Processed report", [])
+                        tool.chat_service.modify_assistant_message_async = AsyncMock()
+
+                        # Act
+                        await tool.custom_research("test brief")
+
+    # Assert
+    request_context = mock_agent.ainvoke.call_args.kwargs["config"]["configurable"][
+        "request_context"
+    ]
+    assert request_context.company_id == "test-company"
+    assert request_context.user_id == "test-user"
+    assert request_context.chat_id == "test-chat"
+    assert request_context.user_metadata == {"userName": "u12345"}
+    assert request_context.to_headers()["x-unique-entry-point"] == "deep_research"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_deep_research_tool__custom_research__returns_empty_result__when_no_final_report() -> (
     None
 ):
@@ -1350,6 +1402,7 @@ async def test_deep_research_tool__custom_research__returns_empty_result__when_n
     mock_event.payload.user_message.text = "Test request"
     mock_event.payload.user_message.original_text = "Test request"
     mock_event.payload.message_execution_id = None
+    mock_event.payload.user_metadata = {"key": "value"}
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
@@ -1399,6 +1452,7 @@ async def test_deep_research_tool__custom_research__propagates_exception__when_e
     mock_event.payload.user_message.text = "Test request"
     mock_event.payload.user_message.original_text = "Test request"
     mock_event.payload.message_execution_id = None
+    mock_event.payload.user_metadata = {"key": "value"}
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
@@ -1451,6 +1505,7 @@ async def test_deep_research_tool__custom_research__records_web_search_stats__on
     mock_event.payload.user_message.text = "Test request"
     mock_event.payload.user_message.original_text = "Test request"
     mock_event.payload.message_execution_id = None
+    mock_event.payload.user_metadata = {"key": "value"}
     mock_progress_reporter = Mock()
 
     async def _ainvoke_records_usage_then_fails(*_args, **_kwargs):
