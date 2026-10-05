@@ -482,7 +482,7 @@
       "title": "Application URL safety",
       "description": "Red means application-level SSRF checks are disabled and URL safety is delegated to a configured corporate proxy. The worst state across selected instances is shown.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 8 },
+      "gridPos": { "h": 3, "w": 4, "x": 0, "y": 8 },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
