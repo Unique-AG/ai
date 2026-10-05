@@ -171,6 +171,86 @@ async def test_create_row_metadata_posts_entries_to_row_url(mock_request):
     )
 
 
+async def test_update_row_metadata_posts_entry_to_metadata_url(mock_request):
+    mock_request.return_value = {"status": True}
+
+    await AgenticTable.update_row_metadata(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        metadataId="meta_1",
+        key="client",
+        value="UBP",
+        exactFilter=True,
+    )
+
+    mock_request.assert_awaited_once_with(
+        "post",
+        f"/magic-table/{TABLE_ID}/row/metadata/meta_1",
+        USER_ID,
+        COMPANY_ID,
+        {"key": "client", "value": "UBP", "exactFilter": True},
+    )
+
+
+async def test_delete_row_metadata_deletes_by_id(mock_request):
+    mock_request.return_value = {"status": True}
+
+    await AgenticTable.delete_row_metadata(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        metadataId="meta_1",
+    )
+
+    mock_request.assert_awaited_once_with(
+        "delete",
+        f"/magic-table/{TABLE_ID}/row/metadata/meta_1",
+        USER_ID,
+        COMPANY_ID,
+    )
+
+
+async def test_set_multiple_cells_sends_overwrite_library_rows_when_set(
+    mock_request,
+):
+    mock_request.return_value = {"status": True}
+
+    await AgenticTable.set_multiple_cells(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        cells=[{"rowOrder": 1, "columnOrder": 2, "text": "answer"}],
+        overwriteLibraryRows=True,
+    )
+
+    mock_request.assert_awaited_once_with(
+        "post",
+        f"/magic-table/{TABLE_ID}/cells/bulk-upsert",
+        USER_ID,
+        COMPANY_ID,
+        params={
+            "cells": [{"rowOrder": 1, "columnOrder": 2, "data": "answer"}],
+            "overwriteLibraryRows": True,
+        },
+    )
+
+
+async def test_set_multiple_cells_omits_overwrite_library_rows_by_default(
+    mock_request,
+):
+    mock_request.return_value = {"status": True}
+
+    await AgenticTable.set_multiple_cells(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        cells=[{"rowOrder": 1, "columnOrder": 2, "text": "answer"}],
+    )
+
+    assert "overwriteLibraryRows" not in mock_request.await_args.kwargs["params"]
+
+
 async def test_delete_sheet_metadata_deletes_by_id(mock_request):
     mock_request.return_value = {"status": True}
 
