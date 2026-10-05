@@ -10,7 +10,6 @@ from unique_search_proxy_core.url_safety.service import UrlSafetyService
 from unique_search_proxy_core.url_safety.settings import (
     UrlSafetySettings,
     url_safety_settings,
-    validate_url_safety_proxy_configuration,
 )
 
 __all__ = [
@@ -23,5 +22,4 @@ __all__ = [
     "bypass_crawl_target",
     "pinned_httpx_get_args",
     "url_safety_settings",
-    "validate_url_safety_proxy_configuration",
 ]

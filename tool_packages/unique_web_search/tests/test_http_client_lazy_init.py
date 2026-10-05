@@ -26,12 +26,13 @@ def test_http_client_registry__disabled_mode_without_proxy__fails(
     Setup summary: Disable checks, return direct proxy settings, and initialize.
     """
     module = importlib.import_module("unique_web_search.services.client.http_client")
+    import unique_search_proxy_core.http_client.client as core_client_module
     from unique_search_proxy_core.http_client import ProxySettings
     from unique_search_proxy_core.url_safety import UrlSafetySettings
 
     monkeypatch.setattr(module, "_registry", None)
     monkeypatch.setattr(
-        module,
+        core_client_module,
         "url_safety_settings",
         UrlSafetySettings(enabled=False),
     )

@@ -23,10 +23,6 @@ from unique_search_proxy_core.http_client import (
     build_route as _build_route,
 )
 from unique_search_proxy_core.http_client.credentials import ProxyCredentials
-from unique_search_proxy_core.url_safety import (
-    url_safety_settings,
-    validate_url_safety_proxy_configuration,
-)
 
 from unique_search_proxy_client.web.core.client.credentials import (
     resolver_from_settings as client_resolver_from_settings,
@@ -71,7 +67,6 @@ def async_client_factory(
 async def create_http_client_registry() -> HttpClientRegistry:
     """Create the application-owned HTTP client registry."""
     settings = _settings()
-    validate_url_safety_proxy_configuration(url_safety_settings, settings)
     return HttpClientRegistry(
         settings=settings,
         resolver=client_resolver_from_settings(settings),

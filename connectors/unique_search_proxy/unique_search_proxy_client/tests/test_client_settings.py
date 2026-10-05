@@ -135,6 +135,7 @@ class TestHttpClientSettings:
         Why this matters: A missing corporate proxy must not silently disable SSRF checks.
         Setup summary: Disable checks with direct egress and create the registry.
         """
+        import unique_search_proxy_core.http_client.client as core_client_module
         from unique_search_proxy_core.url_safety import (
             UrlSafetySettings,
         )
@@ -142,7 +143,7 @@ class TestHttpClientSettings:
         import unique_search_proxy_client.web.core.client.service as service_module
 
         monkeypatch.setattr(
-            service_module,
+            core_client_module,
             "url_safety_settings",
             UrlSafetySettings(enabled=False),
         )
