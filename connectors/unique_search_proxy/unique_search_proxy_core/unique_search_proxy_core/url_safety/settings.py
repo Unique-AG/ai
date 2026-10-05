@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from logging import getLogger
-
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-_LOGGER = getLogger(__name__)
 
 
 class UrlSafetySettings(BaseSettings):
-    enabled: bool = True
+    enabled: bool = Field(
+        default=True,
+        description=(
+            "Whether the application enforces URL-safety checks. Setting this to "
+            "false bypasses application checks and requires every request to use "
+            "a configured corporate proxy; the application does not verify the "
+            "proxy's URL-safety policy."
+        ),
+    )
     resolve_redirects: bool = True
     allowed_schemes: list[str] = ["http", "https"]
     localhost_hosts: list[str] = [
@@ -36,4 +41,3 @@ class UrlSafetySettings(BaseSettings):
 
 
 url_safety_settings = UrlSafetySettings()
-_LOGGER.info("URL Safety is enabled: %s", url_safety_settings.enabled)

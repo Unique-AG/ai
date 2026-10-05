@@ -4,9 +4,13 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
+from unique_search_proxy_core.url_safety import url_safety_settings
 
 import unique_search_proxy_client.web.settings.monitoring as monitoring_settings
-from unique_search_proxy_client.web.monitoring.metrics import HTTP_LATENCY_BUCKETS
+from unique_search_proxy_client.web.monitoring.metrics import (
+    HTTP_LATENCY_BUCKETS,
+    set_url_safety_application_checks_enabled,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,5 +54,6 @@ def setup_prometheus(app: FastAPI) -> bool:
             media_type="text/plain; version=0.0.4; charset=utf-8",
         )
 
+    set_url_safety_application_checks_enabled(url_safety_settings.enabled)
     _LOGGER.info("Prometheus metrics enabled at /metrics")
     return True
