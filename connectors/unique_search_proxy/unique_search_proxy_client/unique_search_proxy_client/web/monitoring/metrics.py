@@ -96,7 +96,7 @@ crawl_blocked_total = m.counter(
 url_safety_application_checks_enabled = m.gauge(
     "url_safety_application_checks_enabled",
     "Whether application-level URL safety checks are enabled (1) or delegated "
-    "to a configured corporate proxy with unverified policy (0)",
+    "to a configured corporate proxy (0)",
     [],
 )
 

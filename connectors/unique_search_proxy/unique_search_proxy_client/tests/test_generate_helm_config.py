@@ -81,6 +81,21 @@ def test_generated_schema_contains_all_provider_blocks() -> None:
             assert "allOf" in block
 
 
+def test_dashboard_keeps_blocked_url_count_and_url_safety_state() -> None:
+    dashboard = json.loads(
+        (
+            CHART_DIR / "files" / "grafana" / "dashboards" / "search-proxy.json"
+        ).read_text()
+    )
+    panels = {panel["title"]: panel for panel in dashboard["panels"]}
+
+    blocked_query = panels["URLs blocked (safety)"]["targets"][0]["expr"]
+    state_query = panels["Application URL safety"]["targets"][0]["expr"]
+
+    assert "unique_search_proxy_crawl_blocked_total" in blocked_query
+    assert "unique_search_proxy_url_safety_application_checks_enabled" in state_query
+
+
 def test_generated_template_env_vars_match_pydantic_names() -> None:
     template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
     for group in generated_groups_tuple():

@@ -150,7 +150,7 @@ class TestHttpClientSettings:
 
         with pytest.raises(
             ValueError,
-            match="URL_SAFETY_ENABLED=false is incompatible with direct egress",
+            match="no usable corporate proxy endpoint is configured",
         ):
             await service_module.create_http_client_registry()
 

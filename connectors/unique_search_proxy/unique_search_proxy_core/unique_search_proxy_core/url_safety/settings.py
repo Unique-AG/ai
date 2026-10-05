@@ -8,6 +8,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from unique_search_proxy_core.http_client.settings import ProxySettings
 
 _LOGGER = getLogger(__name__)
+_PROXY_REMEDIATION = (
+    "Either set URL_SAFETY_ENABLED=true to enable application URL-safety checks, "
+    "or configure an authenticated corporate proxy for all egress."
+)
 
 
 class UrlSafetySettings(BaseSettings):
@@ -60,8 +64,10 @@ def validate_url_safety_proxy_configuration(
         or not 1 <= proxy.proxy_port <= 65535
     ):
         raise ValueError(
-            "URL_SAFETY_ENABLED=false is incompatible with direct egress: "
-            "configure a non-empty proxy_host and a valid proxy_port",
+            "URL_SAFETY_ENABLED=false disables application URL-safety checks, "
+            "but no usable corporate proxy endpoint is configured: proxy_host "
+            "must be non-empty and proxy_port must be between 1 and 65535. "
+            + _PROXY_REMEDIATION,
         )
 
     uses_authenticated_proxy = proxy.proxy_auth_mode != "none"
@@ -71,15 +77,17 @@ def validate_url_safety_proxy_configuration(
     )
     if not uses_authenticated_proxy and not uses_proxy_for_every_user:
         raise ValueError(
-            "URL_SAFETY_ENABLED=false requires every request to use the "
-            "authenticated corporate proxy; direct or partially proxied egress "
-            "is incompatible",
+            "URL_SAFETY_ENABLED=false disables application URL-safety checks, "
+            "but the current proxy settings do not route every request through "
+            "an authenticated corporate proxy. Direct or partially proxied "
+            "egress is incompatible. " + _PROXY_REMEDIATION,
         )
 
     if proxy.proxy_auth_mode == "ssl_tls" and proxy.proxy_ssl_cert_path is None:
         raise ValueError(
-            "URL_SAFETY_ENABLED=false with ssl_tls proxy authentication requires "
-            "proxy_ssl_cert_path",
+            "URL_SAFETY_ENABLED=false disables application URL-safety checks, "
+            "but SSL/TLS proxy authentication is missing proxy_ssl_cert_path. "
+            + _PROXY_REMEDIATION,
         )
 
 
@@ -88,7 +96,8 @@ if url_safety_settings.enabled:
     _LOGGER.info("Application URL safety checks are enabled")
 else:
     _LOGGER.warning(
-        "Application URL safety checks are disabled via URL_SAFETY_ENABLED=false; "
-        "startup requires all egress to use a configured corporate proxy whose "
-        "URL-safety policy is not verified by the application"
+        "Application URL safety checks are disabled because "
+        "URL_SAFETY_ENABLED=false. All egress must use a configured corporate "
+        "proxy. Note: the corporate proxy URL-safety policy is not verified by "
+        "the application."
     )

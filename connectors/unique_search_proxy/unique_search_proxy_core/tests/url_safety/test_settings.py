@@ -57,11 +57,33 @@ def test_validate_proxy_configuration__disabled_mode_requires_proxy_endpoint() -
     """
     with pytest.raises(
         ValueError,
-        match="URL_SAFETY_ENABLED=false is incompatible with direct egress",
-    ):
+        match="no usable corporate proxy endpoint is configured",
+    ) as exc_info:
         validate_url_safety_proxy_configuration(
             UrlSafetySettings(enabled=False),
             ProxySettings(),
+        )
+
+    message = str(exc_info.value)
+    assert "URL_SAFETY_ENABLED=true" in message
+    assert "configure an authenticated corporate proxy for all egress" in message
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("proxy_port", [0, 65536])
+def test_validate_proxy_configuration__disabled_mode_rejects_invalid_port(
+    proxy_port: int,
+) -> None:
+    """Proxy ports must use the standard TCP/UDP range of 1 through 65535."""
+    with pytest.raises(ValueError, match="proxy_port must be between 1 and 65535"):
+        validate_url_safety_proxy_configuration(
+            UrlSafetySettings(enabled=False),
+            ProxySettings(
+                proxy_auth_mode="username_password",
+                proxy_host="proxy.example.com",
+                proxy_port=proxy_port,
+                proxy_username="service-user",
+            ),
         )
 
 
@@ -74,7 +96,7 @@ def test_validate_proxy_configuration__disabled_mode_rejects_direct_route() -> N
     """
     with pytest.raises(
         ValueError,
-        match="URL_SAFETY_ENABLED=false requires every request",
+        match="do not route every request through",
     ):
         validate_url_safety_proxy_configuration(
             UrlSafetySettings(enabled=False),
@@ -116,7 +138,7 @@ def test_validate_proxy_configuration__disabled_mode_rejects_partial_tenant_prox
     """
     with pytest.raises(
         ValueError,
-        match="URL_SAFETY_ENABLED=false requires every request",
+        match="do not route every request through",
     ):
         validate_url_safety_proxy_configuration(
             UrlSafetySettings(enabled=False),
@@ -157,7 +179,7 @@ def test_validate_proxy_configuration__disabled_ssl_mode_requires_certificate() 
     """
     with pytest.raises(
         ValueError,
-        match="URL_SAFETY_ENABLED=false with ssl_tls proxy authentication",
+        match="SSL/TLS proxy authentication is missing proxy_ssl_cert_path",
     ):
         validate_url_safety_proxy_configuration(
             UrlSafetySettings(enabled=False),
