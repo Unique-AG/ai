@@ -8,6 +8,7 @@ from unique_search_proxy_core.url_safety.models import (
     BlockedCrawlTarget,
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
+    bypass_crawl_target,
 )
 from unique_search_proxy_core.url_safety.redirect import redirect_target_url
 from unique_search_proxy_core.url_safety.resolver import resolve_crawl_target
@@ -35,8 +36,9 @@ async def safe_pinned_httpx_get(
     headers: Mapping[str, str] | None = None,
     timeout: float | httpx.Timeout,
     max_redirect_hops: int,
+    enforce_url_safety: bool,
 ) -> httpx.Response:
-    """GET a target while validating and DNS-pinning every redirect hop."""
+    """GET a target, applying the original target's safety mode to redirects."""
     if max_redirect_hops < 0:
         raise ValueError("max_redirect_hops must be non-negative")
 
@@ -66,7 +68,11 @@ async def safe_pinned_httpx_get(
                 ]
             )
 
-        current_target = await resolve_crawl_target(next_url)
+        current_target = (
+            await resolve_crawl_target(next_url)
+            if enforce_url_safety
+            else bypass_crawl_target(next_url)
+        )
 
     raise AssertionError("redirect loop must return or raise")
 

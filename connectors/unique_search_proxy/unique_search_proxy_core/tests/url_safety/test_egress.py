@@ -6,6 +6,7 @@ import pytest
 from unique_search_proxy_core.url_safety import (
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
+    bypass_crawl_target,
     pinned_httpx_get_args,
     safe_pinned_httpx_get,
 )
@@ -75,6 +76,7 @@ async def test_safe_pinned_httpx_get__validates_and_repins_each_redirect(
             headers={"User-Agent": "safe-crawler"},
             timeout=10.0,
             max_redirect_hops=2,
+            enforce_url_safety=True,
         )
 
     assert response.status_code == 200
@@ -126,6 +128,7 @@ async def test_safe_pinned_httpx_get__blocks_private_redirect_before_request() -
                 target,
                 timeout=10.0,
                 max_redirect_hops=10,
+                enforce_url_safety=True,
             )
 
     assert len(requests) == 1
@@ -158,8 +161,47 @@ async def test_safe_pinned_httpx_get__blocks_redirects_beyond_limit(
                 target,
                 timeout=10.0,
                 max_redirect_hops=1,
+                enforce_url_safety=True,
             )
 
     assert len(requests) == 2
     assert exc_info.value.blocked_targets[0].category == "redirect"
     assert "Maximum redirect hop count" in exc_info.value.blocked_targets[0].reason
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_safe_pinned_httpx_get__bypasses_redirect_policy_when_disabled() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(
+                302,
+                headers={"Location": "http://127.0.0.1/internal"},
+            )
+        return httpx.Response(200, text="internal")
+
+    target = bypass_crawl_target("https://public.example.com/start")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        response = await safe_pinned_httpx_get(
+            client,
+            target,
+            headers={"User-Agent": "trusted-proxy-crawler"},
+            timeout=10.0,
+            max_redirect_hops=1,
+            enforce_url_safety=False,
+        )
+
+    assert response.status_code == 200
+    assert [str(request.url) for request in requests] == [
+        "https://public.example.com/start",
+        "http://127.0.0.1/internal",
+    ]
+    assert [request.headers["Host"] for request in requests] == [
+        "public.example.com",
+        "127.0.0.1",
+    ]
+    assert all("sni_hostname" not in request.extensions for request in requests)

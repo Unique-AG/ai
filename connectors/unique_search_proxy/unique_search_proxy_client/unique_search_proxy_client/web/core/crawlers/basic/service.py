@@ -113,6 +113,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     headers={"User-Agent": random_user_agent()},
                     timeout=Timeout(timeout),
                     max_redirect_hops=url_safety_settings.max_redirect_hops,
+                    enforce_url_safety=url_safety_settings.enabled,
                 )
             except CrawlTargetValidationError as exc:
                 blocked = exc.blocked_targets[0]

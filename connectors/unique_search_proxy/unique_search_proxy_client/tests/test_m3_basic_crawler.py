@@ -8,7 +8,10 @@ from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.config_types import parse_crawl_request
 from unique_search_proxy_core.schema import ProxyErrorCode
-from unique_search_proxy_core.url_safety import ResolvedCrawlTarget
+from unique_search_proxy_core.url_safety import (
+    ResolvedCrawlTarget,
+    bypass_crawl_target,
+)
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.crawlers.basic.service import (
@@ -206,6 +209,59 @@ async def test_crawl_pinned__blocks_private_redirect_from_real_get() -> None:
     assert results[0].error.code == ProxyErrorCode.FORBIDDEN_TARGET.value
     assert http_client.get.call_count == 1
     assert http_client.get.call_args.kwargs["follow_redirects"] is False
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__delegates_private_redirect_to_trusted_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "url_safety_settings",
+        service_module.url_safety_settings.model_copy(update={"enabled": False}),
+    )
+
+    redirect_response = httpx.Response(
+        302,
+        headers={"Location": "http://127.0.0.1/internal"},
+        request=httpx.Request("GET", "https://public.example.com/start"),
+    )
+    final_response = httpx.Response(
+        200,
+        text="internal content",
+        headers={"content-type": "text/plain"},
+        request=httpx.Request("GET", "http://127.0.0.1/internal"),
+    )
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.side_effect = [redirect_response, final_response]
+
+    request = parse_crawl_request(
+        {
+            "urls": ["https://public.example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+    allowed_targets = [
+        AllowedCrawlTarget(
+            display_url="https://public.example.com/start",
+            resolved=bypass_crawl_target("https://public.example.com/start"),
+        ),
+    ]
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, allowed_targets)
+
+    assert len(results) == 1
+    assert results[0].error is None
+    assert results[0].raw == "internal content"
+    assert http_client.get.call_count == 2
+    assert http_client.get.call_args_list[1].args[0] == "http://127.0.0.1/internal"
+    assert http_client.get.call_args_list[1].kwargs["extensions"] is None
+    assert "Host" not in http_client.get.call_args_list[1].kwargs["headers"]
 
 
 @pytest.mark.ai
