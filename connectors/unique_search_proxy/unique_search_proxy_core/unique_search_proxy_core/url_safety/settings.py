@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from enum import StrEnum
 from logging import getLogger
 
 from pydantic import Field
@@ -11,19 +10,14 @@ from unique_search_proxy_core.http_client.settings import ProxySettings
 _LOGGER = getLogger(__name__)
 
 
-class UrlSafetyMode(StrEnum):
-    APPLICATION = "APPLICATION"
-    DISABLED_WITH_CORPORATE_PROXY = "DISABLED_WITH_CORPORATE_PROXY"
-
-
 class UrlSafetySettings(BaseSettings):
-    mode: UrlSafetyMode = Field(
-        default=UrlSafetyMode.APPLICATION,
+    enabled: bool = Field(
+        default=True,
         description=(
-            "APPLICATION enforces SSRF protection in the application. "
-            "DISABLED_WITH_CORPORATE_PROXY bypasses application URL checks and "
-            "requires every request to use the configured corporate proxy; the "
-            "application does not verify the proxy's URL-safety policy."
+            "Whether the application enforces URL-safety checks. Setting this to "
+            "false bypasses application checks and requires every request to use "
+            "a configured corporate proxy; the application does not verify the "
+            "proxy's URL-safety policy."
         ),
     )
     resolve_redirects: bool = True
@@ -56,8 +50,8 @@ def validate_url_safety_proxy_configuration(
     url_safety: UrlSafetySettings,
     proxy: ProxySettings,
 ) -> None:
-    """Reject disabled mode unless every request uses a configured proxy."""
-    if url_safety.mode is not UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY:
+    """Reject disabled application checks without compatible proxy routing."""
+    if url_safety.enabled:
         return
 
     if (
@@ -66,8 +60,8 @@ def validate_url_safety_proxy_configuration(
         or not 1 <= proxy.proxy_port <= 65535
     ):
         raise ValueError(
-            "URL safety mode DISABLED_WITH_CORPORATE_PROXY requires a non-empty "
-            "proxy_host and a valid proxy_port",
+            "URL_SAFETY_ENABLED=false is incompatible with direct egress: "
+            "configure a non-empty proxy_host and a valid proxy_port",
         )
 
     uses_authenticated_proxy = proxy.proxy_auth_mode != "none"
@@ -77,16 +71,24 @@ def validate_url_safety_proxy_configuration(
     )
     if not uses_authenticated_proxy and not uses_proxy_for_every_user:
         raise ValueError(
-            "URL safety mode DISABLED_WITH_CORPORATE_PROXY requires every request "
-            "to use the corporate proxy",
+            "URL_SAFETY_ENABLED=false requires every request to use the "
+            "authenticated corporate proxy; direct or partially proxied egress "
+            "is incompatible",
         )
 
     if proxy.proxy_auth_mode == "ssl_tls" and proxy.proxy_ssl_cert_path is None:
         raise ValueError(
-            "URL safety mode DISABLED_WITH_CORPORATE_PROXY with ssl_tls "
-            "authentication requires proxy_ssl_cert_path",
+            "URL_SAFETY_ENABLED=false with ssl_tls proxy authentication requires "
+            "proxy_ssl_cert_path",
         )
 
 
 url_safety_settings = UrlSafetySettings()
-_LOGGER.info("URL safety mode: %s", url_safety_settings.mode)
+if url_safety_settings.enabled:
+    _LOGGER.info("Application URL safety checks are enabled")
+else:
+    _LOGGER.warning(
+        "Application URL safety checks are disabled via URL_SAFETY_ENABLED=false; "
+        "startup requires all egress to use a configured corporate proxy whose "
+        "URL-safety policy is not verified by the application"
+    )

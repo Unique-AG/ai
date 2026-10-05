@@ -210,7 +210,15 @@ Settings use pydantic-settings with per-provider env vars. Copy `.env.example` t
 | VertexAI agent | `VERTEXAI_AGENT_` | `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (optional) |
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
+| URL safety | `URL_SAFETY_` | `URL_SAFETY_ENABLED` |
 | Container | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL` |
+
+`URL_SAFETY_ENABLED` defaults to `true` when unset. Setting it to `false`
+disables application-level SSRF checks and is accepted only when every request
+uses a configured authenticated corporate proxy; incompatible direct or partial
+proxy routing fails during startup. The application cannot verify that the
+proxy implements equivalent URL-safety controls, so this state is highlighted
+in the Prometheus metric and Grafana dashboard.
 
 With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct metric aggregation.
 

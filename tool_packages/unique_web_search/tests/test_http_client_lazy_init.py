@@ -27,18 +27,18 @@ def test_http_client_registry__disabled_mode_without_proxy__fails(
     """
     module = importlib.import_module("unique_web_search.services.client.http_client")
     from unique_search_proxy_core.http_client import ProxySettings
-    from unique_search_proxy_core.url_safety import (
-        UrlSafetyMode,
-        UrlSafetySettings,
-    )
+    from unique_search_proxy_core.url_safety import UrlSafetySettings
 
     monkeypatch.setattr(module, "_registry", None)
     monkeypatch.setattr(
         module,
         "url_safety_settings",
-        UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+        UrlSafetySettings(enabled=False),
     )
     monkeypatch.setattr(module, "proxy_settings_from_env", ProxySettings)
 
-    with pytest.raises(ValueError, match="proxy_host"):
+    with pytest.raises(
+        ValueError,
+        match="URL_SAFETY_ENABLED=false is incompatible with direct egress",
+    ):
         module.get_http_client_registry()

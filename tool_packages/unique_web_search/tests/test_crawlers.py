@@ -342,12 +342,12 @@ class TestBasicCrawlerCrawlUrl:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_validate_urls__returns_bypass_targets__when_disabled_with_proxy(
+    async def test_validate_urls__returns_bypass_targets__when_checks_disabled(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """
-        Purpose: Verify disabled-with-proxy mode bypasses DNS pinning.
+        Purpose: Verify disabled application checks bypass DNS pinning.
         Why this matters: The corporate proxy must receive the original hostname.
         Setup summary: Disable application checks and assert the URL is unchanged.
         """
@@ -358,11 +358,7 @@ class TestBasicCrawlerCrawlUrl:
             service_module,
             "url_safety_settings",
             service_module.url_safety_settings.model_copy(
-                update={
-                    "mode": (
-                        service_module.UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY
-                    ),
-                },
+                update={"enabled": False},
             ),
         )
 

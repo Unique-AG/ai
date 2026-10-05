@@ -15,10 +15,7 @@ from unique_search_proxy_core.url_safety.models import (
     bypass_crawl_target,
 )
 from unique_search_proxy_core.url_safety.policy import validate_target_cheap
-from unique_search_proxy_core.url_safety.settings import (
-    UrlSafetyMode,
-    url_safety_settings,
-)
+from unique_search_proxy_core.url_safety.settings import url_safety_settings
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +40,7 @@ class UrlSafetyService:
         *,
         redirect_http_client: httpx.AsyncClient | None = None,
     ) -> list[UrlSafetyOutcome]:
-        if url_safety_settings.mode is UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY:
+        if not url_safety_settings.enabled:
             return [
                 UrlSafetyOutcome(url=url, resolved=bypass_crawl_target(url))
                 for url in urls

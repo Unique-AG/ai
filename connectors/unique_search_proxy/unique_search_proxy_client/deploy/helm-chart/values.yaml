@@ -169,7 +169,7 @@ httpClient:
     maxKeepaliveConnections: 20
 
 urlSafety:
-  mode: APPLICATION
+  enabled: true
   redirects:
     resolveRedirects: true
     maxRedirectHops: 10

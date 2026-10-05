@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from enum import Enum
 from typing import Any
 
 from unique_search_proxy_client.web.helm.generator.introspect import (
@@ -84,33 +83,25 @@ def _required_when_enabled_allof(
     ]
 
 
-def _block_level_property(field: HelmFieldSpec) -> dict[str, Any]:
-    default = field.default
-    if isinstance(default, bool):
-        prop: dict[str, Any] = {"type": "boolean"}
-    elif isinstance(default, int):
-        prop = {"type": "integer"}
-    elif isinstance(default, float):
-        prop = {"type": "number"}
-    else:
-        prop = {"type": "string"}
-
-    if isinstance(default, (str, int, float, bool)):
-        prop["default"] = default
-    if isinstance(default, Enum):
-        prop["enum"] = [member.value for member in type(default)]
-    prop["description"] = f"Maps to env var {field.env_var}."
-    return prop
+def _block_level_enabled_default(fields: tuple[HelmFieldSpec, ...]) -> bool | None:
+    """Default of a real, block-level ``enabled`` field, if the group has one."""
+    for block_field in block_level_fields(fields):
+        default = block_field.default
+        return default if isinstance(default, bool) else True
+    return None
 
 
 def _group_schema(group: HelmSettingsGroup) -> dict[str, Any]:
     fields = iter_helm_fields(group.model, env_prefix=group.env_prefix)
-    properties = {
-        field.helm_name: _block_level_property(field)
-        for field in block_level_fields(fields)
-    }
+    properties: dict[str, Any] = {}
 
-    if group.gated:
+    # A real, runtime ``enabled`` field (block-level) is the group's activation
+    # and always appears. Otherwise a gated group gets a synthetic ``enabled``
+    # gate; a non-gated group with no such field (e.g. httpClient) gets neither.
+    enabled_default = _block_level_enabled_default(fields)
+    if enabled_default is not None:
+        properties["enabled"] = {"type": "boolean", "default": enabled_default}
+    elif group.gated:
         properties["enabled"] = {"type": "boolean", "default": False}
 
     for section_name, section_fields in group_fields_by_section(fields):

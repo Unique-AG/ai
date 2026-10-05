@@ -136,7 +136,6 @@ class TestHttpClientSettings:
         Setup summary: Disable checks with direct egress and create the registry.
         """
         from unique_search_proxy_core.url_safety import (
-            UrlSafetyMode,
             UrlSafetySettings,
         )
 
@@ -145,11 +144,14 @@ class TestHttpClientSettings:
         monkeypatch.setattr(
             service_module,
             "url_safety_settings",
-            UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+            UrlSafetySettings(enabled=False),
         )
         monkeypatch.setattr(service_module, "_settings", HttpClientSettings)
 
-        with pytest.raises(ValueError, match="proxy_host"):
+        with pytest.raises(
+            ValueError,
+            match="URL_SAFETY_ENABLED=false is incompatible with direct egress",
+        ):
             await service_module.create_http_client_registry()
 
     @pytest.mark.ai

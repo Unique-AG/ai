@@ -2,38 +2,37 @@ import pytest
 
 from unique_search_proxy_core.http_client import ProxySettings
 from unique_search_proxy_core.url_safety import (
-    UrlSafetyMode,
     UrlSafetySettings,
     validate_url_safety_proxy_configuration,
 )
 
 
 @pytest.mark.ai
-def test_url_safety_mode__defaults_to_application() -> None:
+def test_url_safety_enabled__defaults_to_true() -> None:
     """
     Purpose: Verify application URL checks remain the default.
     Why this matters: Deployments must be protected without additional configuration.
-    Setup summary: Construct default settings and assert application mode.
+    Setup summary: Construct default settings and assert checks are enabled.
     """
     settings = UrlSafetySettings()
 
-    assert settings.mode is UrlSafetyMode.APPLICATION
+    assert settings.enabled is True
 
 
 @pytest.mark.ai
-def test_url_safety_mode__loads_disabled_with_proxy_from_env(
+def test_url_safety_enabled__loads_false_from_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Purpose: Verify disabled-with-proxy mode can be selected by environment.
+    Purpose: Verify application checks can be disabled by environment.
     Why this matters: Customer deployments configure this security boundary through Helm.
-    Setup summary: Set URL_SAFETY_MODE and assert enum parsing.
+    Setup summary: Set URL_SAFETY_ENABLED and assert boolean parsing.
     """
-    monkeypatch.setenv("URL_SAFETY_MODE", "DISABLED_WITH_CORPORATE_PROXY")
+    monkeypatch.setenv("URL_SAFETY_ENABLED", "false")
 
     settings = UrlSafetySettings()
 
-    assert settings.mode is UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY
+    assert settings.enabled is False
 
 
 @pytest.mark.ai
@@ -44,7 +43,7 @@ def test_validate_proxy_configuration__application_mode_allows_direct_egress() -
     Setup summary: Validate default URL safety and proxy settings without an exception.
     """
     validate_url_safety_proxy_configuration(
-        UrlSafetySettings(mode=UrlSafetyMode.APPLICATION),
+        UrlSafetySettings(enabled=True),
         ProxySettings(),
     )
 
@@ -56,9 +55,12 @@ def test_validate_proxy_configuration__disabled_mode_requires_proxy_endpoint() -
     Why this matters: URL checks must never be bypassed while traffic leaves directly.
     Setup summary: Disable checks without proxy host or port and assert failure.
     """
-    with pytest.raises(ValueError, match="proxy_host"):
+    with pytest.raises(
+        ValueError,
+        match="URL_SAFETY_ENABLED=false is incompatible with direct egress",
+    ):
         validate_url_safety_proxy_configuration(
-            UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+            UrlSafetySettings(enabled=False),
             ProxySettings(),
         )
 
@@ -70,9 +72,12 @@ def test_validate_proxy_configuration__disabled_mode_rejects_direct_route() -> N
     Why this matters: The current no-auth route uses direct egress despite endpoint values.
     Setup summary: Configure an unused endpoint and assert fail-closed validation.
     """
-    with pytest.raises(ValueError, match="every request"):
+    with pytest.raises(
+        ValueError,
+        match="URL_SAFETY_ENABLED=false requires every request",
+    ):
         validate_url_safety_proxy_configuration(
-            UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+            UrlSafetySettings(enabled=False),
             ProxySettings(
                 proxy_host="proxy.example.com",
                 proxy_port=8080,
@@ -90,7 +95,7 @@ def test_validate_proxy_configuration__disabled_mode_accepts_authenticated_proxy
     Setup summary: Configure username/password proxy settings and assert validation passes.
     """
     validate_url_safety_proxy_configuration(
-        UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+        UrlSafetySettings(enabled=False),
         ProxySettings(
             proxy_auth_mode="username_password",
             proxy_host="proxy.example.com",
@@ -109,9 +114,12 @@ def test_validate_proxy_configuration__disabled_mode_rejects_partial_tenant_prox
     Why this matters: Non-allowlisted tenants would otherwise use unvalidated direct egress.
     Setup summary: Configure per-user proxying for one tenant and assert failure.
     """
-    with pytest.raises(ValueError, match="every request"):
+    with pytest.raises(
+        ValueError,
+        match="URL_SAFETY_ENABLED=false requires every request",
+    ):
         validate_url_safety_proxy_configuration(
-            UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+            UrlSafetySettings(enabled=False),
             ProxySettings(
                 proxy_username_source="user_metadata",
                 proxy_host="proxy.example.com",
@@ -131,7 +139,7 @@ def test_validate_proxy_configuration__disabled_mode_accepts_global_user_proxy()
     Setup summary: Configure user-metadata proxying for all tenants and assert success.
     """
     validate_url_safety_proxy_configuration(
-        UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+        UrlSafetySettings(enabled=False),
         ProxySettings(
             proxy_username_source="user_metadata",
             proxy_host="proxy.example.com",
@@ -147,9 +155,12 @@ def test_validate_proxy_configuration__disabled_ssl_mode_requires_certificate() 
     Why this matters: Disabled mode must not defer broken proxy configuration to a request.
     Setup summary: Select SSL proxy auth without a certificate and assert failure.
     """
-    with pytest.raises(ValueError, match="proxy_ssl_cert_path"):
+    with pytest.raises(
+        ValueError,
+        match="URL_SAFETY_ENABLED=false with ssl_tls proxy authentication",
+    ):
         validate_url_safety_proxy_configuration(
-            UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+            UrlSafetySettings(enabled=False),
             ProxySettings(
                 proxy_auth_mode="ssl_tls",
                 proxy_host="proxy.example.com",

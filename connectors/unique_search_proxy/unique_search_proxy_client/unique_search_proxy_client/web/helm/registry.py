@@ -90,8 +90,8 @@ def _url_safety_settings_group() -> HelmSettingsGroup:
         env_prefix=URL_SAFETY_ENV_PREFIX,
         helm_key=URL_SAFETY_HELM_KEY,
         kind="urlSafety",
-        # URL safety is always configured. Its real runtime mode selects whether
-        # application checks or a configured corporate proxy handle URL safety.
+        # urlSafety has its own real ``enabled`` field (URL_SAFETY_ENABLED); it is
+        # not wrapped in a synthetic helm gate.
         gated=False,
     )
 

@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from unique_search_proxy_core.url_safety import UrlSafetyMode, UrlSafetySettings
+from unique_search_proxy_core.url_safety import UrlSafetySettings
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.settings.monitoring import get_prometheus_settings
@@ -57,14 +57,14 @@ class TestMetricsEndpoint:
         assert "ENGINE_NOT_CONFIGURED" in metrics
 
     @pytest.mark.ai
-    def test_metrics_highlight_disabled_with_proxy_mode(
+    def test_metrics_highlight_disabled_application_checks(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv("PROMETHEUS_ENABLED", "true")
         monkeypatch.setattr(
             "unique_search_proxy_client.web.monitoring.setup.url_safety_settings",
-            UrlSafetySettings(mode=UrlSafetyMode.DISABLED_WITH_CORPORATE_PROXY),
+            UrlSafetySettings(enabled=False),
         )
 
         response = TestClient(create_app()).get("/metrics")
