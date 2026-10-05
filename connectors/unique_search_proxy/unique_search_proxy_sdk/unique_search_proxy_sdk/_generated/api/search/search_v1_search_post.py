@@ -23,6 +23,7 @@ def _get_kwargs(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
     if not isinstance(x_unique_company_id, Unset):
@@ -33,6 +34,9 @@ def _get_kwargs(
 
     if not isinstance(x_unique_chat_id, Unset):
         headers["x-unique-chat-id"] = x_unique_chat_id
+
+    if not isinstance(x_unique_entry_point, Unset):
+        headers["x-unique-entry-point"] = x_unique_entry_point
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -94,6 +98,7 @@ def sync_detailed(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
 ) -> Response[HTTPValidationError | SearchResponse]:
     """Run a search engine with a typed call payload
 
@@ -101,6 +106,8 @@ def sync_detailed(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_entry_point (str | Unset): Service where the search entered the platform.
+            Default: 'unknown'.
         body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
             PerplexitySearchRequest):
 
@@ -117,6 +124,7 @@ def sync_detailed(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
+        x_unique_entry_point=x_unique_entry_point,
     )
 
     response = client.get_httpx_client().request(
@@ -136,6 +144,7 @@ def sync(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
 ) -> HTTPValidationError | SearchResponse | None:
     """Run a search engine with a typed call payload
 
@@ -143,6 +152,8 @@ def sync(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_entry_point (str | Unset): Service where the search entered the platform.
+            Default: 'unknown'.
         body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
             PerplexitySearchRequest):
 
@@ -160,6 +171,7 @@ def sync(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
+        x_unique_entry_point=x_unique_entry_point,
     ).parsed
 
 
@@ -173,6 +185,7 @@ async def asyncio_detailed(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
 ) -> Response[HTTPValidationError | SearchResponse]:
     """Run a search engine with a typed call payload
 
@@ -180,6 +193,8 @@ async def asyncio_detailed(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_entry_point (str | Unset): Service where the search entered the platform.
+            Default: 'unknown'.
         body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
             PerplexitySearchRequest):
 
@@ -196,6 +211,7 @@ async def asyncio_detailed(
         x_unique_company_id=x_unique_company_id,
         x_unique_user_id=x_unique_user_id,
         x_unique_chat_id=x_unique_chat_id,
+        x_unique_entry_point=x_unique_entry_point,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -213,6 +229,7 @@ async def asyncio(
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
 ) -> HTTPValidationError | SearchResponse | None:
     """Run a search engine with a typed call payload
 
@@ -220,6 +237,8 @@ async def asyncio(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_entry_point (str | Unset): Service where the search entered the platform.
+            Default: 'unknown'.
         body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
             PerplexitySearchRequest):
 
@@ -238,5 +257,6 @@ async def asyncio(
             x_unique_company_id=x_unique_company_id,
             x_unique_user_id=x_unique_user_id,
             x_unique_chat_id=x_unique_chat_id,
+            x_unique_entry_point=x_unique_entry_point,
         )
     ).parsed

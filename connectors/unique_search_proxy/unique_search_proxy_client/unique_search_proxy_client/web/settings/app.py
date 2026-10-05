@@ -15,6 +15,7 @@ APP_ENV_PREFIX = ""
 )
 class AppSettings(BaseSettings):
     require_context_headers: bool = True
+    reject_unattributed_requests: bool = False
 
 
 def get_app_settings() -> AppSettings:

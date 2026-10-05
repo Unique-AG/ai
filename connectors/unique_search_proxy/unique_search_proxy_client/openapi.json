@@ -97,6 +97,18 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
           }
         ],
         "responses": {
@@ -166,6 +178,18 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
           }
         ],
         "requestBody": {
@@ -305,6 +329,18 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
           }
         ],
         "requestBody": {
@@ -412,6 +448,18 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
           }
         ],
         "requestBody": {
@@ -517,6 +565,18 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
           }
         ],
         "requestBody": {

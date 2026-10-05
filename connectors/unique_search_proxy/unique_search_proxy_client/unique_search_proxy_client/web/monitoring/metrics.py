@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from unique_search_proxy_core.context import RequestContext
 from unique_toolkit.monitoring import MetricNamespace
 
 m = MetricNamespace("unique_search_proxy")
@@ -117,6 +118,17 @@ agent_search_errors_total = m.counter(
     ["engine", "error_code"],
 )
 
+requests_total = m.counter(
+    "requests_total",
+    "Attributed requests that reached a handler",
+    ["company_id", "entry_point", "endpoint", "provider", "status"],
+)
+unattributed_requests_total = m.counter(
+    "unattributed_requests_total",
+    "Requests without a numeric company and user id",
+    ["entry_point"],
+)
+
 proxy_errors_total = m.counter(
     "proxy_errors_total",
     "Top-level API errors returned to clients",
@@ -190,3 +202,22 @@ def record_agent_search_error(
 
 def record_proxy_error(error_code: str) -> None:
     proxy_errors_total.labels(error_code=error_code).inc()
+
+
+def record_request(
+    context: RequestContext,
+    endpoint: str,
+    provider: str,
+    status: str,
+) -> None:
+    requests_total.labels(
+        company_id=context.company_id if context.is_attributed else "unattributed",
+        entry_point=context.entry_point.value,
+        endpoint=endpoint,
+        provider=provider,
+        status=status,
+    ).inc()
+
+
+def record_unattributed_request(entry_point: str) -> None:
+    unattributed_requests_total.labels(entry_point=entry_point).inc()

@@ -40,6 +40,7 @@ from unique_search_proxy_client.web.monitoring.metrics import (
 from unique_search_proxy_client.web.settings.request_limits import (
     request_limits_settings,
 )
+from unique_search_proxy_client.web.usage import record_request_usage
 
 router = APIRouter(tags=["crawl"])
 _LOGGER = logging.getLogger(__name__)
@@ -96,6 +97,7 @@ async def crawl(
     crawler_id = body.crawler
     timeout = min(body.timeout, request_limits_settings.max_timeout_seconds)
     started = time.perf_counter()
+    succeeded = False
     _LOGGER.info(
         "crawl start crawler=%s urls=%d timeout=%ss",
         crawler_id,
@@ -155,6 +157,7 @@ async def crawl(
                 )
             else:
                 crawler_results = await crawler.crawl(crawl_body)
+        succeeded = True
     except TimeoutError as exc:
         record_crawl_error(
             crawler_id,
@@ -198,6 +201,14 @@ async def crawl(
             (time.perf_counter() - started) * 1000,
         )
         raise
+    finally:
+        record_request_usage(
+            "crawl",
+            crawler_id,
+            units=len(body.urls),
+            succeeded=succeeded,
+            started=started,
+        )
 
     duration = time.perf_counter() - started
     record_crawl_success(crawler_id, len(body.urls), duration)
