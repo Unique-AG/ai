@@ -58,16 +58,17 @@ class OpenapiTransport:
         """Per-request context kwargs for the generated ``/v1`` route helpers.
 
         The generated helpers default ``x_unique_company_id`` / ``x_unique_user_id``
-        / ``x_unique_chat_id`` to ``"local"`` and always attach them as request
-        headers. In httpx, request headers win over the client-level default
-        headers, so relying on the client-level context alone silently resets a
-        non-local context to ``"local"`` on every call. Forwarding these keeps the
-        transport's context authoritative.
+        / ``x_unique_chat_id`` to ``"local"`` and ``x_unique_entry_point`` to
+        ``"unknown"``, and always attach them as request headers. In httpx,
+        request headers win over the client-level default headers, so relying on
+        the client-level context alone silently resets a non-local context on every
+        call. Forwarding these keeps the transport's context authoritative.
         """
         return {
             "x_unique_company_id": self._context.company_id,
             "x_unique_user_id": self._context.user_id,
             "x_unique_chat_id": self._context.chat_id,
+            "x_unique_entry_point": self._context.entry_point.value,
         }
 
     async def aclose(self) -> None:

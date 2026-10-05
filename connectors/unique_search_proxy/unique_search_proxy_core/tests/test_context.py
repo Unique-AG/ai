@@ -9,9 +9,11 @@ import pytest
 from unique_search_proxy_core.context import (
     CHAT_ID_HEADER,
     COMPANY_ID_HEADER,
+    ENTRY_POINT_HEADER,
     LOCAL_REQUEST_CONTEXT,
     USER_ID_HEADER,
     USER_METADATA_HEADER,
+    EntryPoint,
     RequestContext,
 )
 
@@ -136,3 +138,69 @@ class TestRequestContext:
         assert context.user_id == "local"
         assert context.chat_id == "local"
         assert context.user_metadata == {}
+
+
+@pytest.mark.ai
+class TestEntryPointAndAttribution:
+    def test_unknown_entry_point_emits_no_header(self) -> None:
+        headers = LOCAL_REQUEST_CONTEXT.to_headers()
+        assert ENTRY_POINT_HEADER not in headers
+
+    def test_entry_point_round_trips_through_headers(self) -> None:
+        context = RequestContext(
+            company_id="1",
+            user_id="2",
+            chat_id="chat-1",
+            entry_point=EntryPoint.CHAT_TOOL,
+        )
+        headers = context.to_headers()
+        assert headers[ENTRY_POINT_HEADER] == "chat_tool"
+        restored = RequestContext.from_headers(headers, fallback=LOCAL_REQUEST_CONTEXT)
+        assert restored.entry_point is EntryPoint.CHAT_TOOL
+
+    @pytest.mark.parametrize("raw", ["not-a-service", "", "CHAT_TOOL "])
+    def test_unrecognised_entry_point_becomes_unknown(self, raw: str) -> None:
+        context = RequestContext.from_headers(
+            {ENTRY_POINT_HEADER: raw},
+            fallback=LOCAL_REQUEST_CONTEXT,
+        )
+        assert context.entry_point is EntryPoint.UNKNOWN
+
+    def test_absent_entry_point_uses_fallback(self) -> None:
+        fallback = RequestContext(
+            company_id="local",
+            user_id="local",
+            chat_id="local",
+            entry_point=EntryPoint.DEEP_RESEARCH,
+        )
+        context = RequestContext.from_headers({}, fallback=fallback)
+        assert context.entry_point is EntryPoint.DEEP_RESEARCH
+
+    @pytest.mark.parametrize(
+        ("company_id", "user_id", "invalid"),
+        [
+            ("123456789012345678", "987654321098765432", []),
+            ("local", "123", [COMPANY_ID_HEADER]),
+            ("123", "", [USER_ID_HEADER]),
+            ("company-1", "user-1", [COMPANY_ID_HEADER, USER_ID_HEADER]),
+            ("１２３", "123", [COMPANY_ID_HEADER]),
+        ],
+    )
+    def test_is_attributed_requires_numeric_company_and_user(
+        self,
+        company_id: str,
+        user_id: str,
+        invalid: list[str],
+    ) -> None:
+        context = RequestContext(
+            company_id=company_id,
+            user_id=user_id,
+            chat_id="local",
+        )
+        assert context.invalid_identity_headers == invalid
+        assert context.is_attributed == (not invalid)
+
+    def test_unknown_entry_point_still_counts_as_attributed(self) -> None:
+        context = RequestContext(company_id="1", user_id="2", chat_id="local")
+        assert context.entry_point is EntryPoint.UNKNOWN
+        assert context.is_attributed

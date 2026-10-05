@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from unique_search_proxy_core.context import (
     CHAT_ID_HEADER,
     COMPANY_ID_HEADER,
+    ENTRY_POINT_HEADER,
     LOCAL_REQUEST_CONTEXT,
     USER_ID_HEADER,
     RequestContext,
@@ -20,6 +21,7 @@ _CONTEXT_HEADER_NAMES = (
     COMPANY_ID_HEADER,
     USER_ID_HEADER,
     CHAT_ID_HEADER,
+    ENTRY_POINT_HEADER,
 )
 
 
@@ -220,4 +222,5 @@ class TestRequestContextOpenAPI:
             COMPANY_ID_HEADER: LOCAL_REQUEST_CONTEXT.company_id,
             USER_ID_HEADER: LOCAL_REQUEST_CONTEXT.user_id,
             CHAT_ID_HEADER: LOCAL_REQUEST_CONTEXT.chat_id,
+            ENTRY_POINT_HEADER: LOCAL_REQUEST_CONTEXT.entry_point.value,
         }
