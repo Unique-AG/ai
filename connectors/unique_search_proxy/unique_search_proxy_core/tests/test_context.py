@@ -11,6 +11,7 @@ from unique_search_proxy_core.context import (
     COMPANY_ID_HEADER,
     ENTRY_POINT_HEADER,
     LOCAL_REQUEST_CONTEXT,
+    SERVICE_ID_HEADER,
     USER_ID_HEADER,
     USER_METADATA_HEADER,
     EntryPoint,
@@ -204,3 +205,21 @@ class TestEntryPointAndAttribution:
         context = RequestContext(company_id="1", user_id="2", chat_id="local")
         assert context.entry_point is EntryPoint.UNKNOWN
         assert context.is_attributed
+
+    @pytest.mark.parametrize(
+        ("headers", "caller"),
+        [
+            ({SERVICE_ID_HEADER: "node-chat"}, "node-chat"),
+            ({SERVICE_ID_HEADER: ""}, "unknown"),
+            ({}, "unknown"),
+        ],
+    )
+    def test_caller_is_read_from_service_id_header_but_never_sent(
+        self,
+        headers: dict[str, str],
+        caller: str,
+    ) -> None:
+        context = RequestContext.from_headers(headers, fallback=LOCAL_REQUEST_CONTEXT)
+        assert context.caller == caller
+        assert context.is_attributed == LOCAL_REQUEST_CONTEXT.is_attributed
+        assert SERVICE_ID_HEADER not in context.to_headers()
