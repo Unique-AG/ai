@@ -25,6 +25,7 @@ class UsageRecord(BaseModel):
     user_id: str
     chat_id: str
     entry_point: EntryPoint
+    caller: str
     endpoint: Literal["search", "agent_search", "crawl"]
     provider: str
     units: int

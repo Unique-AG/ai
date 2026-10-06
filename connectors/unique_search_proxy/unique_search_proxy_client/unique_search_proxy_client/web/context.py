@@ -18,6 +18,7 @@ _CONTEXT_FIELDS: Final[tuple[str, ...]] = (
     "user_id",
     "chat_id",
     "entry_point",
+    "caller",
 )
 
 

@@ -18,13 +18,13 @@ _APP_LOGGER_NAMES = (
 _CONTEXT_LOG_FORMAT = (
     "%(levelprefix)s "
     "company=%(company_id)s user=%(user_id)s chat=%(chat_id)s "
-    "entry=%(entry_point)s %(message)s"
+    "entry=%(entry_point)s caller=%(caller)s %(message)s"
 )
 
 _ACCESS_CONTEXT_LOG_FORMAT = (
     "%(levelprefix)s "
     "company=%(company_id)s user=%(user_id)s chat=%(chat_id)s "
-    "entry=%(entry_point)s "
+    "entry=%(entry_point)s caller=%(caller)s "
     '%(client_addr)s - "%(request_line)s" %(status_code)s'
 )
 

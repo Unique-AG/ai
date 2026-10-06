@@ -30,12 +30,12 @@ class TestLoggingConfig:
         assert config["formatters"]["default"]["fmt"] == (
             "%(levelprefix)s "
             "company=%(company_id)s user=%(user_id)s chat=%(chat_id)s "
-            "entry=%(entry_point)s %(message)s"
+            "entry=%(entry_point)s caller=%(caller)s %(message)s"
         )
         assert config["formatters"]["access"]["fmt"] == (
             "%(levelprefix)s "
             "company=%(company_id)s user=%(user_id)s chat=%(chat_id)s "
-            "entry=%(entry_point)s "
+            "entry=%(entry_point)s caller=%(caller)s "
             '%(client_addr)s - "%(request_line)s" %(status_code)s'
         )
         assert config["handlers"]["default"]["filters"] == ["request_context"]
@@ -62,6 +62,7 @@ class TestLoggingConfig:
                 user_id="2",
                 chat_id="chat-1",
                 entry_point=EntryPoint.CHAT_TOOL,
+                caller="node-chat",
             ),
         )
         try:
@@ -71,3 +72,4 @@ class TestLoggingConfig:
             reset_request_context(token)
 
         assert record.entry_point == "chat_tool"
+        assert record.caller == "node-chat"

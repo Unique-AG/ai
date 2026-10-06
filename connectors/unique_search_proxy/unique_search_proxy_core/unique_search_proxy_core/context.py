@@ -15,6 +15,7 @@ USER_ID_HEADER = "x-unique-user-id"
 CHAT_ID_HEADER = "x-unique-chat-id"
 USER_METADATA_HEADER = "x-unique-user-metadata"
 ENTRY_POINT_HEADER = "x-unique-entry-point"
+SERVICE_ID_HEADER = "x-service-id"
 
 _CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
     ("company_id", COMPANY_ID_HEADER),
@@ -51,6 +52,8 @@ class RequestContext(BaseModel):
     user_id: str
     chat_id: str
     entry_point: EntryPoint = EntryPoint.UNKNOWN
+    # Calling service from ``x-service-id``; logged only, never enforced.
+    caller: str = "unknown"
     user_metadata: dict[str, Any] = Field(default_factory=dict)
 
     @property
@@ -120,6 +123,7 @@ class RequestContext(BaseModel):
                 ENTRY_POINT_HEADER.lower(),
                 fallback.entry_point,
             ),
+            caller=normalized.get(SERVICE_ID_HEADER) or fallback.caller,
             user_metadata=_parse_user_metadata(
                 normalized.get(USER_METADATA_HEADER),
                 fallback=fallback.user_metadata,
@@ -165,6 +169,7 @@ __all__ = [
     "EntryPoint",
     "LOCAL_REQUEST_CONTEXT",
     "RequestContext",
+    "SERVICE_ID_HEADER",
     "USER_ID_HEADER",
     "USER_METADATA_HEADER",
 ]

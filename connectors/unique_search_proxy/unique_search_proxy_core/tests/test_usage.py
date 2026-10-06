@@ -19,6 +19,7 @@ def _record(**overrides: object) -> UsageRecord:
         "user_id": "2",
         "chat_id": "chat-1",
         "entry_point": EntryPoint.PUBLIC_API,
+        "caller": "node-chat",
         "endpoint": "search",
         "provider": "google",
         "units": 1,
@@ -44,6 +45,7 @@ def test_record_usage_emits_one_json_line_with_fixed_fields(
         "user_id",
         "chat_id",
         "entry_point",
+        "caller",
         "endpoint",
         "provider",
         "units",
@@ -52,6 +54,7 @@ def test_record_usage_emits_one_json_line_with_fixed_fields(
     }
     assert payload["event"] == "web_search_usage"
     assert payload["entry_point"] == "public_api"
+    assert payload["caller"] == "node-chat"
 
 
 def test_each_record_gets_its_own_request_id() -> None:
