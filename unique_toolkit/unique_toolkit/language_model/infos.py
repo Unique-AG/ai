@@ -115,6 +115,7 @@ class LanguageModelName(StrEnum):
     GEMINI_3_8_FLASH = "litellm:gemini-3-8-flash"
     GEMINI_3_FLASH_PREVIEW = "litellm:gemini-3-flash-preview"
     GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
+    GEMINI_4_ARGON = "litellm:gemini-4-argon"
     GROK_4_1_FAST_NON_REASONING = "litellm:grok-4-1-fast-non-reasoning"
     GROK_4_1_FAST_REASONING = "litellm:grok-4-1-fast-reasoning"
     GROK_4_5 = "litellm:grok-4-5"
@@ -2448,6 +2449,43 @@ class LanguageModelInfo(BaseModel):
                     # thinkingLevel is low or high.
                     default_options={"reasoning_effort": "low"},
                     supported_reasoning_efforts=["low", "high"],
+                )
+            # Day-0 placeholder so the model can be selected before general
+            # availability. Limits, cutoff, thinking levels, and the API model
+            # id are provisional. Update this entry from the official model
+            # card once Argon is published.
+            case LanguageModelName.GEMINI_4_ARGON:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-4-argon",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # GraphWalks evaluates contexts from 256k through 1M tokens.
+                        # https://deepmind.google/models/gemini/
+                        token_limit_input=1_048_576,
+                        token_limit_output=65_536,
+                    ),
+                    # Google has not published a knowledge cutoff for Argon.
+                    info_cutoff_at=None,
+                    # https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/
+                    published_at=date(2026, 9, 30),
+                    # thinkingLevel is recommended for Gemini 3 and later. Argon is
+                    # not yet on the public thinking-level table; evals use the
+                    # highest thinking setting. Mirror Gemini 3.8 Flash (low,
+                    # medium, high; medium default) until Argon docs land.
+                    # https://ai.google.dev/gemini-api/docs/thinking
+                    # https://deepmind.google/models/evals-methodology/gemini-4-argon
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.GROK_4_1_FAST_NON_REASONING:
                 return cls(
