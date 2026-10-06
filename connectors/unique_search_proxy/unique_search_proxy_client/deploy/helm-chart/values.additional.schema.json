@@ -580,6 +580,24 @@
           }
         }
       }
+    },
+    "networkPolicy": {
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "allowWorldEgress": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow ports 443 and 80 to the internet. Set false only with a corporate proxy."
+        },
+        "allowDisabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow networkPolicy.enabled=false. Set only if another control restricts who can reach search-proxy."
+        }
+      }
     }
   }
 }

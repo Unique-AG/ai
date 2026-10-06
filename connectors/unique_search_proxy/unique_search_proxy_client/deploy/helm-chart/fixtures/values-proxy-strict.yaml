@@ -1,0 +1,20 @@
+# Overlay fixture: strict mode, all crawl traffic through a corporate proxy (no real secrets).
+networkPolicy:
+  allowWorldEgress: false
+
+urlSafety:
+  enabled: false
+
+httpClient:
+  connection:
+    proxyAuthMode: username_password
+    proxyHost: proxy.corp.example
+    proxyPort: 3128
+    proxyUsername:
+      fromSecret:
+        name: search-proxy-secrets
+        key: HTTP_CLIENT_PROXY_USERNAME
+    proxyPassword:
+      fromSecret:
+        name: search-proxy-secrets
+        key: HTTP_CLIENT_PROXY_PASSWORD

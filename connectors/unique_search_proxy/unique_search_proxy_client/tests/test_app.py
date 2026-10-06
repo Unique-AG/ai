@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from unique_search_proxy_client.web.app import HealthCheckFilter, create_app
+from unique_search_proxy_client.web.settings.app import AppSettings
 
 
 @pytest.fixture
@@ -18,6 +19,34 @@ class TestHealthEndpoint:
         resp = client.get("/health")
         assert resp.status_code == 200
         assert resp.json() == {"status": "healthy"}
+
+
+class TestApiDocs:
+    DOC_PATHS = ("/docs", "/redoc", "/openapi.json")
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize("path", DOC_PATHS)
+    def test_docs_hidden_by_default(
+        self, monkeypatch: pytest.MonkeyPatch, path: str
+    ) -> None:
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.app.app_settings",
+            AppSettings(expose_docs=False),
+        )
+        with TestClient(create_app()) as test_client:
+            assert test_client.get(path).status_code == 404
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize("path", DOC_PATHS)
+    def test_docs_served_when_exposed(
+        self, monkeypatch: pytest.MonkeyPatch, path: str
+    ) -> None:
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.app.app_settings",
+            AppSettings(expose_docs=True),
+        )
+        with TestClient(create_app()) as test_client:
+            assert test_client.get(path).status_code == 200
 
 
 class TestV1SearchEndpoint:

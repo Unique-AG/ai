@@ -223,9 +223,28 @@ grafana:
       '%%PROMETHEUS_UID%%': prometheus
 
 # ── NetworkPolicy ─────────────────────────────────────────────────────────────
+# search-proxy has no caller authentication: this policy is what limits who can
+# reach it. Requires Cilium (flavor: kubernetes is not supported by this chart).
 networkPolicy:
-  enabled: false
+  # -- Rendering fails when false unless `allowDisabled` is true.
+  enabled: true
+  # -- Set true only if another control restricts who can reach search-proxy.
+  allowDisabled: false
   flavor: cilium
   enableDefaultDeny:
     ingress: true
     egress: true
+  baseline:
+    prometheus:
+      namespace: system
+  # -- Allow ports 443 and 80 to the internet for crawling. Set false only with a corporate proxy, so the network enforces that all traffic goes through it.
+  allowWorldEgress: true
+
+# ── Callers ───────────────────────────────────────────────────────────────────
+# Every caller reaches search-proxy through assistants-core. Override the
+# namespace where it does not run in `chat`.
+internalServices:
+  dependents:
+    assistantsCore:
+      name: assistants-core
+      namespace: chat

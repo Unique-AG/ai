@@ -4,11 +4,20 @@
 
 Dedicated Helm chart for the Unique search proxy connector
 
+## Network access
+
+search-proxy has no caller authentication. It is internal-only: do not add an Ingress, Gateway route or any other route to it. The Cilium network policy is the only control on who can reach it, so it is on by default.
+
+- Ingress is limited to Prometheus (namespace `system`) and assistants-core, which every caller goes through. assistants-core is expected in the `chat` namespace. Where it runs elsewhere, set `internalServices.dependents.assistantsCore.namespace`. Add further callers as extra `internalServices.dependents` entries.
+- Egress is limited to DNS, the FQDNs of the enabled providers, the corporate proxy host and port when `httpClient.connection.proxyHost` and `proxyPort` are set (an in-cluster proxy is not covered), and ports 443 and 80 to the internet for crawling. A tenant that must send all traffic through a proxy sets `networkPolicy.allowWorldEgress: false` (this requires the proxy host and port), and should also set `urlSafety.enabled: false`. Agent search (Bing, Vertex AI) then needs its Entra and GCP login hosts added as FQDN rules in the overlay. `urlSafety` rejects internal crawl targets.
+- `networkPolicy.enabled: false` fails the render unless `networkPolicy.allowDisabled: true` is also set. Set that only when another control restricts who can reach search-proxy.
+- Cilium is required. On a cluster without the Cilium CRDs the install fails. That is intended (fail-closed). `flavor: kubernetes` is not supported by this chart.
+
 ## Requirements
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://ghcr.io/unique-ag/helm | base | 0.1.0-eeb8aa |
+| oci://ghcr.io/unique-ag/helm | base | 0.1.0-7ddb46 |
 
 ## Values
 
@@ -49,13 +58,18 @@ Dedicated Helm chart for the Unique search proxy connector
 | image.repository | string | `"unique-ag/ai/search-proxy"` |  |
 | image.tag | string | `"2026.40.0"` |  |
 | image.useDigest | bool | `false` |  |
+| internalServices.dependents.assistantsCore.name | string | `"assistants-core"` |  |
+| internalServices.dependents.assistantsCore.namespace | string | `"chat"` |  |
 | jina.connection.apiDomain | string | `"jina.ai"` |  |
 | jina.connection.deployment | string | `"global"` |  |
 | jina.enabled | bool | `false` |  |
 | nameOverride | string | `"search-proxy"` |  |
+| networkPolicy.allowDisabled | bool | `false` | Set true only if another control restricts who can reach search-proxy. |
+| networkPolicy.allowWorldEgress | bool | `true` | Allow ports 443 and 80 to the internet for crawling. Set false only with a corporate proxy, so the network enforces that all traffic goes through it. |
+| networkPolicy.baseline.prometheus.namespace | string | `"system"` |  |
 | networkPolicy.enableDefaultDeny.egress | bool | `true` |  |
 | networkPolicy.enableDefaultDeny.ingress | bool | `true` |  |
-| networkPolicy.enabled | bool | `false` |  |
+| networkPolicy.enabled | bool | `true` | Rendering fails when false unless `allowDisabled` is true. |
 | networkPolicy.flavor | string | `"cilium"` |  |
 | pdb.maxUnavailable | string | `"30%"` |  |
 | perplexitySearch.connection.apiEndpoint | string | `"https://api.perplexity.ai/search"` |  |

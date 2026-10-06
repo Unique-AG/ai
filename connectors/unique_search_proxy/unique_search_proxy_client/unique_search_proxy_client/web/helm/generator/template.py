@@ -7,6 +7,7 @@ from unique_search_proxy_client.web.helm.generator.introspect import (
 from unique_search_proxy_client.web.helm.metadata import (
     EgressDomainWildcard,
     EgressEndpointField,
+    EgressProxyHost,
 )
 from unique_search_proxy_client.web.helm.registry import HelmSettingsGroup
 
@@ -199,20 +200,96 @@ def _emit_domain_wildcard_egress(
     ]
 
 
+def _proxy_values_paths(
+    group: HelmSettingsGroup, egress: EgressProxyHost
+) -> tuple[str, str] | None:
+    host = _find_helm_field(group, egress.host_field)
+    port = _find_helm_field(group, egress.port_field)
+    if host is None or port is None:
+        return None
+    root = f".Values.{group.helm_key}"
+    return (
+        f"{root}.{host.section}.{host.helm_name}",
+        f"{root}.{port.section}.{port.helm_name}",
+    )
+
+
+def _emit_proxy_host_egress(
+    group: HelmSettingsGroup,
+    egress: EgressProxyHost,
+) -> list[str]:
+    paths = _proxy_values_paths(group, egress)
+    if paths is None:
+        return []
+
+    host, port = paths
+    ipv4_octet = r"(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})"
+    return [
+        f"{{{{ if and {host} {port} }}}}",
+        f"{{{{- $host := {host} -}}}}",
+        f"{{{{- $port := {port} -}}}}",
+        r'{{- if not (and (kindIs "string" $host) (regexMatch "^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$" $host)) -}}',
+        '{{- fail "httpClient.connection.proxyHost must be a plain hostname or IPv4 address (no scheme, port, path or IPv6 literal)." -}}',
+        "{{- end -}}",
+        '{{- if not (regexMatch "^[0-9]+$" (toString $port)) -}}',
+        '{{- fail "httpClient.connection.proxyPort must be a number." -}}',
+        "{{- else if or (lt (int $port) 1) (gt (int $port) 65535) -}}",
+        '{{- fail "httpClient.connection.proxyPort must be between 1 and 65535." -}}',
+        "{{- end -}}",
+        f'{{{{- if regexMatch "^({ipv4_octet}\\\\.){{3}}{ipv4_octet}$" $host }}}}',
+        "- toCIDR:",
+        '  - {{ printf "%s/32" $host | quote }}',
+        "{{- else }}",
+        '{{- if regexMatch "^[0-9.]+$" $host -}}',
+        '{{- fail "httpClient.connection.proxyHost is not a valid IPv4 address." -}}',
+        "{{- end }}",
+        "- toFQDNs:",
+        "  - matchName: {{ $host | quote }}",
+        "{{- end }}",
+        "  toPorts:",
+        "  - ports:",
+        "    - port: {{ $port | quote }}",
+        "      protocol: TCP",
+        "{{- end }}",
+    ]
+
+
 def _emit_egress_block(group: HelmSettingsGroup) -> list[str]:
     egress = group.egress
     if isinstance(egress, EgressEndpointField):
         return _emit_endpoint_field_egress(group, egress)
     if isinstance(egress, EgressDomainWildcard):
         return _emit_domain_wildcard_egress(group, egress)
+    if isinstance(egress, EgressProxyHost):
+        return _emit_proxy_host_egress(group, egress)
     return []
+
+
+_WORLD_EGRESS_BLOCK = [
+    '{{ if ne ((.Values.networkPolicy).allowWorldEgress | toString) "false" }}',
+    "- toEntities:",
+    "  - world",
+    "  toPorts:",
+    "  - ports:",
+    '    - port: "443"',
+    "      protocol: TCP",
+    '    - port: "80"',
+    "      protocol: TCP",
+    "{{- end }}",
+]
+
+
+def _egress_active_check(group: HelmSettingsGroup) -> str:
+    if isinstance(group.egress, EgressProxyHost):
+        paths = _proxy_values_paths(group, group.egress)
+        if paths is not None:
+            return f"(and {paths[0]} {paths[1]})"
+    return f"(and .Values.{group.helm_key} .Values.{group.helm_key}.enabled)"
 
 
 def _emit_has_rules_block(groups: tuple[HelmSettingsGroup, ...]) -> list[str]:
     checks = [
-        f"(and .Values.{group.helm_key} .Values.{group.helm_key}.enabled)"
-        for group in groups
-        if group.egress is not None
+        _egress_active_check(group) for group in groups if group.egress is not None
     ]
     if not checks:
         return ["{{/* no auto egress rules */}}"]
@@ -282,6 +359,7 @@ def render_generated_template(groups: tuple[HelmSettingsGroup, ...]) -> str:
     )
     for group in groups:
         lines.extend(_emit_egress_block(group))
+    lines.extend(_WORLD_EGRESS_BLOCK)
     lines.append("{{- end -}}")
     lines.append("")
 

@@ -1,0 +1,8 @@
+{{- /* Hand-written render guards (not generated). Each fails the render on an unsafe config. */ -}}
+{{- $np := .Values.networkPolicy | default dict }}
+{{- if not (or $np.enabled (eq (toString $np.allowDisabled) "true")) }}
+{{- fail "search-proxy: networkPolicy is off. It has no caller auth; set networkPolicy.allowDisabled=true only if another control restricts who can reach it." }}
+{{- end }}
+{{- if and (eq (toString $np.allowWorldEgress) "false") (not (and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort)) }}
+{{- fail "search-proxy: networkPolicy.allowWorldEgress=false needs httpClient.connection.proxyHost and proxyPort, otherwise direct crawling cannot work." }}
+{{- end }}
