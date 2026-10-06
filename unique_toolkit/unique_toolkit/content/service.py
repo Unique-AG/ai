@@ -480,6 +480,7 @@ class ContentService:
         self,
         where: dict[str, Any],
         chat_id: str | None = None,
+        include_failed_content: bool = False,
     ) -> list[Content]:
         """
         Performs a search in the knowledge base by filter (and not a smilarity search)
@@ -487,6 +488,8 @@ class ContentService:
 
         Args:
             where (dict): The search criteria.
+            chat_id (str | None): Chat to scope the search to; defaults to the service's chat.
+            include_failed_content (bool): Also return content whose ingestion failed.
 
         Returns:
             list[Content]: The search results.
@@ -498,18 +501,22 @@ class ContentService:
             company_id=self._company_id,
             chat_id=chat_id,
             where=where,
+            include_failed_content=include_failed_content,
         )
 
     async def search_contents_async(
         self,
         where: dict[str, Any],
         chat_id: str | None = None,
+        include_failed_content: bool = False,
     ) -> list[Content]:
         """
         Performs an asynchronous search for content files in the knowledge base by filter.
 
         Args:
             where (dict): The search criteria.
+            chat_id (str | None): Chat to scope the search to; defaults to the service's chat.
+            include_failed_content (bool): Also return content whose ingestion failed.
 
         Returns:
             list[Content]: The search results.
@@ -521,6 +528,7 @@ class ContentService:
             company_id=self._company_id,
             chat_id=chat_id,
             where=where,
+            include_failed_content=include_failed_content,
         )
 
     def search_content_on_chat(self, chat_id: str) -> list[Content]:

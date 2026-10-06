@@ -265,6 +265,90 @@ class TestContentIsExpired:
 
 
 # ---------------------------------------------------------------------------
+# Content ingestion-state helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+class TestContentIngestionStateHelpers:
+    @pytest.mark.parametrize(
+        "state",
+        ["FAILED", "FAILED_PARSING", "FAILED_MALWARE_FOUND", "FAILED_EMBEDDING"],
+    )
+    def test__has_ingestion_failed__true_for_failed_states(self, state):
+        """
+        Purpose: Verify every FAILED* ingestion state is recognised as a failure.
+        Why this matters: The platform encodes failure reasons as FAILED_<reason>;
+                          all of them mean the content is not searchable.
+        Setup summary: Content with a FAILED* state; assert True.
+        """
+        assert make_content(ingestion_state=state).has_ingestion_failed() is True
+
+    @pytest.mark.parametrize("state", [None, "FINISHED", "QUEUED", "RE_EMBEDDING"])
+    def test__has_ingestion_failed__false_otherwise(self, state):
+        """
+        Purpose: Verify non-failure states (and unknown state) are not flagged.
+        Why this matters: Content must not be reported as failed when it is fine
+                          or when the state is simply unknown.
+        Setup summary: Content with a non-FAILED state; assert False.
+        """
+        assert make_content(ingestion_state=state).has_ingestion_failed() is False
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "QUEUED",
+            "MALWARE_SCANNING",
+            "METADATA_VALIDATION",
+            "INGESTION_READING",
+            "INGESTION_CHUNKING",
+            "INGESTION_EMBEDDING",
+            "RETRYING",
+        ],
+    )
+    def test__is_ingestion_in_progress__true_for_pending_states(self, state):
+        """
+        Purpose: Verify all pre-FINISHED pipeline states count as in progress.
+        Why this matters: Content in these states has no searchable chunks yet.
+        Setup summary: Content with a pending state; assert True.
+        """
+        assert make_content(ingestion_state=state).is_ingestion_in_progress() is True
+
+    @pytest.mark.parametrize(
+        "state", [None, "FINISHED", "FAILED_PARSING", "RE_EMBEDDING"]
+    )
+    def test__is_ingestion_in_progress__false_otherwise(self, state):
+        """
+        Purpose: Verify finished, failed, post-finish, and unknown states are not pending.
+        Why this matters: Post-FINISHED maintenance states (e.g. RE_EMBEDDING) keep
+                          the content searchable and must not be reported as pending.
+        Setup summary: Content with a non-pending state; assert False.
+        """
+        assert make_content(ingestion_state=state).is_ingestion_in_progress() is False
+
+    @pytest.mark.parametrize(
+        "state", ["FAILED_MALWARE_FOUND", "FAILED_MALWARE_SCAN_TIMEOUT"]
+    )
+    def test__is_quarantined__true_for_malware_states(self, state):
+        """
+        Purpose: Verify malware-related failures mark the file as quarantined.
+        Why this matters: Quarantined blobs cannot be downloaded, so the file must
+                          not be offered to the code execution container either.
+        Setup summary: Content with a malware failure state; assert True.
+        """
+        assert make_content(ingestion_state=state).is_quarantined() is True
+
+    @pytest.mark.parametrize("state", [None, "FINISHED", "FAILED_PARSING", "QUEUED"])
+    def test__is_quarantined__false_otherwise(self, state):
+        """
+        Purpose: Verify non-malware states (incl. other failures) are not quarantined.
+        Why this matters: A parsing failure still leaves the raw file downloadable.
+        Setup summary: Content with a non-malware state; assert False.
+        """
+        assert make_content(ingestion_state=state).is_quarantined() is False
+
+
+# ---------------------------------------------------------------------------
 # ContentChunk.to_reference
 # ---------------------------------------------------------------------------
 

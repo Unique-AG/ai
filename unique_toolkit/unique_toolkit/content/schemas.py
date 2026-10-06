@@ -200,6 +200,48 @@ class Content(BaseModel):
             timezone.utc
         )
 
+    def has_ingestion_failed(self) -> bool:
+        """Whether the platform reported a failed ingestion for this content.
+
+        All failure states of the platform's ``IngestionState`` enum share the
+        ``FAILED`` prefix (e.g. ``FAILED_PARSING``, ``FAILED_MALWARE_FOUND``).
+        """
+        return self.ingestion_state is not None and self.ingestion_state.startswith(
+            "FAILED"
+        )
+
+    def is_ingestion_in_progress(self) -> bool:
+        """Whether the content is still being ingested and is not yet searchable."""
+        return self.ingestion_state in _INGESTION_IN_PROGRESS_STATES
+
+    def is_quarantined(self) -> bool:
+        """Whether the underlying file is quarantined and cannot be downloaded.
+
+        Malware scanning failures keep the content record but block access to
+        the stored file, so it can neither be searched nor processed.
+        """
+        return self.ingestion_state in _INGESTION_QUARANTINED_STATES
+
+
+_INGESTION_IN_PROGRESS_STATES: frozenset[str] = frozenset(
+    {
+        "QUEUED",
+        "MALWARE_SCANNING",
+        "METADATA_VALIDATION",
+        "INGESTION_READING",
+        "INGESTION_CHUNKING",
+        "INGESTION_EMBEDDING",
+        "RETRYING",
+    }
+)
+
+_INGESTION_QUARANTINED_STATES: frozenset[str] = frozenset(
+    {
+        "FAILED_MALWARE_FOUND",
+        "FAILED_MALWARE_SCAN_TIMEOUT",
+    }
+)
+
 
 class ContentReference(BaseModel):
     model_config = model_config
