@@ -42,7 +42,8 @@ def serialize_uploaded_file_for_history(
     Every upload is listed, including images and files that were not (or not
     yet, or unsuccessfully) ingested. "Not ingested" only means the file cannot
     be searched with UploadedSearchTool; the raw file is still available to the
-    code execution container when that tool is active.
+    code execution container when that tool is active. Failed uploads are
+    neither attached nor copied into the code execution container.
     """
     if load_code_execution_metadata(content) is not None:
         return None
@@ -60,10 +61,12 @@ def serialize_uploaded_file_for_history(
     not_searchable = (
         "; not searchable using UploadedSearchTool" if uploaded_search_available else ""
     )
+    if content.has_ingestion_failed():
+        lines.append(f"- Ingestion failed ({content.ingestion_state}){not_searchable}")
+        return "\n".join(lines)
+
     if is_image:
         lines.append("- Attached to this message as an image")
-    elif content.has_ingestion_failed():
-        lines.append(f"- Ingestion failed ({content.ingestion_state}){not_searchable}")
     elif content.is_ingestion_in_progress():
         not_yet_searchable = (
             "; not yet searchable using UploadedSearchTool"
@@ -76,7 +79,7 @@ def serialize_uploaded_file_for_history(
     elif uploaded_search_available:
         lines.append("- Searchable using UploadedSearchTool")
 
-    if code_interpreter_available and not content.is_quarantined():
+    if code_interpreter_available:
         lines.append(
             "- Available for processing in the code execution container "
             f"(/mnt/data/{content.key})"

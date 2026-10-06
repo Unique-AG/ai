@@ -326,27 +326,6 @@ class TestContentIngestionStateHelpers:
         """
         assert make_content(ingestion_state=state).is_ingestion_in_progress() is False
 
-    @pytest.mark.parametrize(
-        "state", ["FAILED_MALWARE_FOUND", "FAILED_MALWARE_SCAN_TIMEOUT"]
-    )
-    def test__is_quarantined__true_for_malware_states(self, state):
-        """
-        Purpose: Verify malware-related failures mark the file as quarantined.
-        Why this matters: Quarantined blobs cannot be downloaded, so the file must
-                          not be offered to the code execution container either.
-        Setup summary: Content with a malware failure state; assert True.
-        """
-        assert make_content(ingestion_state=state).is_quarantined() is True
-
-    @pytest.mark.parametrize("state", [None, "FINISHED", "FAILED_PARSING", "QUEUED"])
-    def test__is_quarantined__false_otherwise(self, state):
-        """
-        Purpose: Verify non-malware states (incl. other failures) are not quarantined.
-        Why this matters: A parsing failure still leaves the raw file downloadable.
-        Setup summary: Content with a non-malware state; assert False.
-        """
-        assert make_content(ingestion_state=state).is_quarantined() is False
-
 
 # ---------------------------------------------------------------------------
 # ContentChunk.to_reference

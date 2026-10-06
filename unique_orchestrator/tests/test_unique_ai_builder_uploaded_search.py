@@ -416,7 +416,7 @@ class TestSerializeUploadedFileForHistory:
             "(/mnt/data/numbers.xlsx)"
         )
 
-    def test_failed_ingestion_reports_state_and_keeps_code_execution(self) -> None:
+    def test_failed_ingestion_reports_state_without_code_execution(self) -> None:
         content = Content(
             id="cont_1",
             key="report.pdf",
@@ -431,28 +431,25 @@ class TestSerializeUploadedFileForHistory:
 
         assert result == (
             "User uploaded file: report.pdf (cont_1)\n"
-            "- Ingestion failed (FAILED_PARSING); not searchable using UploadedSearchTool\n"
-            "- Available for processing in the code execution container "
-            "(/mnt/data/report.pdf)"
+            "- Ingestion failed (FAILED_PARSING); not searchable using UploadedSearchTool"
         )
 
-    def test_quarantined_file_is_not_offered_to_code_execution(self) -> None:
+    def test_failed_image_is_not_described_as_attached(self) -> None:
         content = Content(
-            id="cont_1",
-            key="report.pdf",
+            id="cont_img",
+            key="chart.png",
             ingestion_state="FAILED_MALWARE_FOUND",
         )
 
         result = serialize_uploaded_file_for_history(
             content,
-            uploaded_search_available=True,
+            uploaded_search_available=False,
             code_interpreter_available=True,
         )
 
         assert result == (
-            "User uploaded file: report.pdf (cont_1)\n"
-            "- Ingestion failed (FAILED_MALWARE_FOUND); "
-            "not searchable using UploadedSearchTool"
+            "User uploaded image: chart.png (cont_img)\n"
+            "- Ingestion failed (FAILED_MALWARE_FOUND)"
         )
 
     def test_ingestion_in_progress(self) -> None:

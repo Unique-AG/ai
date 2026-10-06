@@ -214,14 +214,6 @@ class Content(BaseModel):
         """Whether the content is still being ingested and is not yet searchable."""
         return self.ingestion_state in _INGESTION_IN_PROGRESS_STATES
 
-    def is_quarantined(self) -> bool:
-        """Whether the underlying file is quarantined and cannot be downloaded.
-
-        Malware scanning failures keep the content record but block access to
-        the stored file, so it can neither be searched nor processed.
-        """
-        return self.ingestion_state in _INGESTION_QUARANTINED_STATES
-
 
 _INGESTION_IN_PROGRESS_STATES: frozenset[str] = frozenset(
     {
@@ -232,13 +224,6 @@ _INGESTION_IN_PROGRESS_STATES: frozenset[str] = frozenset(
         "INGESTION_CHUNKING",
         "INGESTION_EMBEDDING",
         "RETRYING",
-    }
-)
-
-_INGESTION_QUARANTINED_STATES: frozenset[str] = frozenset(
-    {
-        "FAILED_MALWARE_FOUND",
-        "FAILED_MALWARE_SCAN_TIMEOUT",
     }
 )
 
