@@ -213,6 +213,69 @@ async def test_crawl_pinned__blocks_private_redirect_from_real_get() -> None:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_crawl_pinned__isolates_malformed_redirect_to_affected_url() -> None:
+    async def get(
+        _url: str,
+        *,
+        headers: dict[str, str],
+        **_kwargs: object,
+    ) -> httpx.Response:
+        if headers["Host"] == "malformed.example":
+            return httpx.Response(
+                302,
+                headers={"Location": "http://[::1"},
+            )
+        return httpx.Response(
+            200,
+            text="valid content",
+            headers={"content-type": "text/plain"},
+        )
+
+    request = parse_crawl_request(
+        {
+            "urls": [
+                "https://malformed.example/start",
+                "https://valid.example/start",
+            ],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+    allowed_targets = [
+        AllowedCrawlTarget(
+            display_url="https://malformed.example/start",
+            resolved=ResolvedCrawlTarget(
+                normalized_url="https://malformed.example/start",
+                hostname="malformed.example",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ),
+        AllowedCrawlTarget(
+            display_url="https://valid.example/start",
+            resolved=ResolvedCrawlTarget(
+                normalized_url="https://valid.example/start",
+                hostname="valid.example",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ),
+    ]
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.side_effect = get
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, allowed_targets)
+
+    malformed_result, valid_result = results
+    assert malformed_result.error is not None
+    assert malformed_result.error.code == ProxyErrorCode.FORBIDDEN_TARGET.value
+    assert valid_result.error is None
+    assert valid_result.raw == "valid content"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_crawl_pinned__delegates_private_redirect_to_trusted_proxy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

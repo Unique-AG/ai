@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -53,7 +54,22 @@ async def safe_pinned_httpx_get(
             follow_redirects=False,
         )
 
-        next_url = redirect_target_url(response, current_target.normalized_url)
+        try:
+            next_url = redirect_target_url(response, current_target.normalized_url)
+            if next_url is not None:
+                parsed_next_url = urlsplit(next_url)
+                _ = parsed_next_url.hostname
+                _ = parsed_next_url.port
+        except ValueError as exc:
+            raise CrawlTargetValidationError(
+                [
+                    BlockedCrawlTarget(
+                        hostname=current_target.hostname or None,
+                        category="redirect",
+                        reason="Redirect target URL is missing or malformed",
+                    )
+                ]
+            ) from exc
         if next_url is None:
             return response
 

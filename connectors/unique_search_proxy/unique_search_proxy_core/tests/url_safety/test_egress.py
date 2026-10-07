@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 import httpx
 import pytest
 
@@ -134,6 +136,38 @@ async def test_safe_pinned_httpx_get__blocks_private_redirect_before_request() -
     assert len(requests) == 1
     assert exc_info.value.blocked_targets[0].hostname == "127.0.0.1"
     assert exc_info.value.blocked_targets[0].category == "private"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("location", ["http://[::1", "http://example.com:invalid"])
+async def test_safe_pinned_httpx_get__blocks_malformed_redirect(location: str) -> None:
+    target = ResolvedCrawlTarget(
+        normalized_url="https://example.com/start",
+        hostname="example.com",
+        resolved_ip="93.184.216.34",
+        used_dns_resolution=True,
+    )
+    client = AsyncMock(spec=httpx.AsyncClient)
+    client.get.return_value = httpx.Response(
+        302,
+        headers={"Location": location},
+    )
+
+    with pytest.raises(CrawlTargetValidationError) as exc_info:
+        await safe_pinned_httpx_get(
+            client,
+            target,
+            timeout=10.0,
+            max_redirect_hops=10,
+            enforce_url_safety=True,
+        )
+
+    client.get.assert_awaited_once()
+    blocked_target = exc_info.value.blocked_targets[0]
+    assert blocked_target.hostname == "example.com"
+    assert blocked_target.category == "redirect"
+    assert blocked_target.reason == "Redirect target URL is missing or malformed"
 
 
 @pytest.mark.ai
