@@ -33,6 +33,7 @@ _ATTRIBUTED = RequestContext(
     company_id="123456789012345678",
     user_id="987654321098765432",
     chat_id="chat-1",
+    message_id="msg-1",
     entry_point=EntryPoint.PUBLIC_API,
 )
 
@@ -97,6 +98,17 @@ class TestUnattributedRequests:
             _sample("unattributed_requests_total", entry_point="chat_tool")
             == before + 1
         )
+
+    def test_configuration_route_skips_attribution_check(
+        self,
+        client: TestClient,
+    ) -> None:
+        before = _sample("unattributed_requests_total", entry_point="unknown")
+
+        response = client.get("/v1/configuration/providers")
+
+        assert response.status_code == 200
+        assert _sample("unattributed_requests_total", entry_point="unknown") == before
 
     def test_attributed_request_is_not_counted(
         self,
@@ -174,6 +186,7 @@ class TestUsageRecording:
             "chat-1",
         )
         assert record.entry_point is EntryPoint.PUBLIC_API
+        assert record.message_id == "msg-1"
         assert (record.endpoint, record.provider, record.units) == (
             "search",
             "google",
@@ -224,7 +237,7 @@ class TestUsageRecording:
 
         assert _sample("requests_total", **labels) == before + 1
 
-    def test_crawl_counts_submitted_urls_and_all_blocked_is_error(
+    def test_crawl_with_every_url_blocked_records_zero_units(
         self,
         client: TestClient,
         usage_records: list[UsageRecord],
@@ -243,8 +256,8 @@ class TestUsageRecording:
         assert response.status_code == 200
         [record] = usage_records
         assert (record.endpoint, record.provider) == ("crawl", CrawlerType.BASIC.value)
-        assert record.units == 2
-        assert record.status == "error"
+        assert record.units == 0
+        assert record.status == "success"
         assert "127.0.0.1" not in record.model_dump_json()
 
     def test_agent_search_records_one_unit(

@@ -10,6 +10,7 @@ from unique_search_proxy_core.context import (
     COMPANY_ID_HEADER,
     ENTRY_POINT_HEADER,
     LOCAL_REQUEST_CONTEXT,
+    MESSAGE_ID_HEADER,
     USER_ID_HEADER,
 )
 
@@ -43,6 +44,13 @@ async def document_request_context_headers(
             description="Service where the search entered the platform.",
         ),
     ] = LOCAL_REQUEST_CONTEXT.entry_point.value,
+    x_unique_message_id: Annotated[
+        str | None,
+        Header(
+            alias=MESSAGE_ID_HEADER,
+            description="Message identifier, reserved for analytics.",
+        ),
+    ] = None,
 ) -> None:
     """Declare context headers on /v1 routes for Swagger; enforcement is in middleware."""
     return None

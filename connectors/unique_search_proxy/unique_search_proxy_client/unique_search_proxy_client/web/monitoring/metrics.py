@@ -120,7 +120,7 @@ agent_search_errors_total = m.counter(
 
 requests_total = m.counter(
     "requests_total",
-    "Attributed requests that reached a handler",
+    "Requests that reached a handler (company_id is 'unattributed' without numeric ids)",
     ["company_id", "entry_point", "endpoint", "provider", "status"],
 )
 unattributed_requests_total = m.counter(

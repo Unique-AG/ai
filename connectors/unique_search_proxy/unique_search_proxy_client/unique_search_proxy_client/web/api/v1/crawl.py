@@ -78,6 +78,7 @@ async def crawl(
     timeout = body.timeout
     started = time.perf_counter()
     succeeded = False
+    units = 0
     _LOGGER.info(
         "crawl start crawler=%s urls=%d timeout=%ss",
         crawler_id,
@@ -93,7 +94,9 @@ async def crawl(
                 body.urls,
                 redirect_http_client=client,
             )
+            units = len(gate.allowed_targets)
             if not gate.allowed_targets:
+                succeeded = True
                 duration = time.perf_counter() - started
                 record_crawl_success(
                     crawler_id,
@@ -183,7 +186,7 @@ async def crawl(
         record_request_usage(
             "crawl",
             crawler_id,
-            units=len(body.urls),
+            units=units,
             succeeded=succeeded,
             started=started,
         )

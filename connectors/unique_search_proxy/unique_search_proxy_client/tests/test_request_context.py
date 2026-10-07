@@ -9,6 +9,7 @@ from unique_search_proxy_core.context import (
     COMPANY_ID_HEADER,
     ENTRY_POINT_HEADER,
     LOCAL_REQUEST_CONTEXT,
+    MESSAGE_ID_HEADER,
     USER_ID_HEADER,
     RequestContext,
 )
@@ -22,6 +23,7 @@ _CONTEXT_HEADER_NAMES = (
     USER_ID_HEADER,
     CHAT_ID_HEADER,
     ENTRY_POINT_HEADER,
+    MESSAGE_ID_HEADER,
 )
 
 
@@ -223,4 +225,5 @@ class TestRequestContextOpenAPI:
             USER_ID_HEADER: LOCAL_REQUEST_CONTEXT.user_id,
             CHAT_ID_HEADER: LOCAL_REQUEST_CONTEXT.chat_id,
             ENTRY_POINT_HEADER: LOCAL_REQUEST_CONTEXT.entry_point.value,
+            MESSAGE_ID_HEADER: None,
         }

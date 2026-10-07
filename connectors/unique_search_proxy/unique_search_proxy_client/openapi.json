@@ -109,6 +109,24 @@
               "title": "X-Unique-Entry-Point"
             },
             "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "responses": {
@@ -190,6 +208,24 @@
               "title": "X-Unique-Entry-Point"
             },
             "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -338,6 +374,24 @@
               "title": "X-Unique-Entry-Point"
             },
             "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -457,6 +511,24 @@
               "title": "X-Unique-Entry-Point"
             },
             "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -574,6 +646,24 @@
               "title": "X-Unique-Entry-Point"
             },
             "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {

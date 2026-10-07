@@ -24,6 +24,7 @@ class UsageRecord(BaseModel):
     company_id: str
     user_id: str
     chat_id: str
+    message_id: str | None = None
     entry_point: EntryPoint
     caller: str
     endpoint: Literal["search", "agent_search", "crawl"]
