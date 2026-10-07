@@ -18,7 +18,8 @@ class UsageRecord(BaseModel):
     """Who triggered a billable provider operation. Never holds queries or URLs."""
 
     event: Literal["web_search_usage"] = "web_search_usage"
-    # Take the trace id from unique_toolkit.monitoring.tracing once the proxy adopts tracing.
+    # Unique per usage line, not joinable to other log lines yet. Take the trace id
+    # from unique_toolkit.monitoring.tracing once the proxy adopts tracing.
     request_id: str = Field(default_factory=lambda: str(uuid4()))
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     company_id: str

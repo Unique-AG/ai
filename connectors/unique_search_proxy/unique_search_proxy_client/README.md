@@ -111,7 +111,7 @@ A request whose company or user id is not numeric (`local`, blank, junk) is unat
 
 `/v1/search`, `/v1/agent-search` (sync and stream) and `/v1/crawl` write one JSON usage line per request (`event="web_search_usage"`) and increment `unique_search_proxy_requests_total{company_id, entry_point, endpoint, provider, status}`. `company_id` is `unattributed` unless both ids are numeric. The line holds no query text or URLs.
 
-`units` is 1 per search or agent search. For a crawl it is the number of URLs that passed URL safety, so 0 when nothing reached the provider.
+`units` is 1 per search or agent search. For a crawl it is the number of URLs that passed URL safety, so 0 when nothing reached the provider. Failed and timed-out requests keep their units, so filter on `status` when counting billable work.
 
 The usage line goes through its own logger (`unique_search_proxy_core.usage`) with a bare message format, fixed at INFO, so Loki `| json` can parse it regardless of `LOG_LEVEL`. Nothing verifies these headers: any in-cluster caller can set them.
 
