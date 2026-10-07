@@ -300,16 +300,20 @@ class TestContentIngestionStateHelpers:
             "QUEUED",
             "MALWARE_SCANNING",
             "METADATA_VALIDATION",
+            "CHECKING_INTEGRITY",
+            "EXTRACTING_METADATA",
             "INGESTION_READING",
             "INGESTION_CHUNKING",
             "INGESTION_EMBEDDING",
+            "RE_INGESTING",
             "RETRYING",
         ],
     )
     def test__is_ingestion_in_progress__true_for_pending_states(self, state):
         """
-        Purpose: Verify all pre-FINISHED pipeline states count as in progress.
-        Why this matters: Content in these states has no searchable chunks yet.
+        Purpose: Verify all pre-FINISHED pipeline states (and re-ingestion) count as in progress.
+        Why this matters: Content in these states has no searchable chunks yet, so
+                          is_ingested(default_if_unknown=True) must not be consulted.
         Setup summary: Content with a pending state; assert True.
         """
         assert make_content(ingestion_state=state).is_ingestion_in_progress() is True

@@ -79,11 +79,10 @@ def serialize_uploaded_file_for_history(
     elif uploaded_search_available:
         lines.append("- Searchable using UploadedSearchTool")
 
+    # The container path is only known after upload (it may carry a prefix),
+    # so it is not guessed here; the code execution tool prompt lists it.
     if code_interpreter_available:
-        lines.append(
-            "- Available for processing in the code execution container "
-            f"(/mnt/data/{content.key})"
-        )
+        lines.append("- Available for processing in the code execution container")
     return "\n".join(lines)
 
 

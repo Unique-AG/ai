@@ -220,9 +220,12 @@ _INGESTION_IN_PROGRESS_STATES: frozenset[str] = frozenset(
         "QUEUED",
         "MALWARE_SCANNING",
         "METADATA_VALIDATION",
+        "CHECKING_INTEGRITY",
+        "EXTRACTING_METADATA",
         "INGESTION_READING",
         "INGESTION_CHUNKING",
         "INGESTION_EMBEDDING",
+        "RE_INGESTING",
         "RETRYING",
     }
 )

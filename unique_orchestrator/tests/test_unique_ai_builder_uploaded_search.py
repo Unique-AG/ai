@@ -343,8 +343,7 @@ class TestSerializeUploadedFileForHistory:
         assert result == (
             "User uploaded file: report.pdf (cont_1)\n"
             "- Searchable using UploadedSearchTool\n"
-            "- Available for processing in the code execution container "
-            "(/mnt/data/report.pdf)"
+            "- Available for processing in the code execution container"
         )
 
     def test_ingested_file_without_tools_has_only_header(self) -> None:
@@ -376,8 +375,7 @@ class TestSerializeUploadedFileForHistory:
         assert result == (
             "User uploaded file: report.pdf (cont_1)\n"
             "- Not ingested; not searchable using UploadedSearchTool\n"
-            "- Available for processing in the code execution container "
-            "(/mnt/data/report.pdf)"
+            "- Available for processing in the code execution container"
         )
 
     def test_non_ingested_file_without_uploaded_search_omits_tool_name(self) -> None:
@@ -412,8 +410,7 @@ class TestSerializeUploadedFileForHistory:
         assert result == (
             "User uploaded file: numbers.xlsx (cont_1)\n"
             "- Not ingested; not searchable using UploadedSearchTool\n"
-            "- Available for processing in the code execution container "
-            "(/mnt/data/numbers.xlsx)"
+            "- Available for processing in the code execution container"
         )
 
     def test_failed_ingestion_reports_state_without_code_execution(self) -> None:
@@ -452,11 +449,20 @@ class TestSerializeUploadedFileForHistory:
             "- Ingestion failed (FAILED_MALWARE_FOUND)"
         )
 
-    def test_ingestion_in_progress(self) -> None:
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "INGESTION_EMBEDDING",
+            "CHECKING_INTEGRITY",
+            "EXTRACTING_METADATA",
+            "RE_INGESTING",
+        ],
+    )
+    def test_ingestion_in_progress(self, state: str) -> None:
         content = Content(
             id="cont_1",
             key="report.pdf",
-            ingestion_state="INGESTION_EMBEDDING",
+            ingestion_state=state,
         )
 
         result = serialize_uploaded_file_for_history(
@@ -500,8 +506,7 @@ class TestSerializeUploadedFileForHistory:
         assert result == (
             "User uploaded image: chart.png (cont_img)\n"
             "- Attached to this message as an image\n"
-            "- Available for processing in the code execution container "
-            "(/mnt/data/chart.png)"
+            "- Available for processing in the code execution container"
         )
 
     def test_expired_file_only_reports_expiry(self) -> None:
@@ -929,8 +934,7 @@ def test_build_history_manager_uses_final_tool_availability(
     assert file_content_serializer(Content(id="cont_1", key="report.pdf")) == (
         "User uploaded file: report.pdf (cont_1)\n"
         "- Searchable using UploadedSearchTool\n"
-        "- Available for processing in the code execution container "
-        "(/mnt/data/report.pdf)"
+        "- Available for processing in the code execution container"
     )
 
 
