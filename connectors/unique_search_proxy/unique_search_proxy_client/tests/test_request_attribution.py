@@ -117,8 +117,13 @@ class TestUnattributedRequests:
     ) -> None:
         before = _sample("unattributed_requests_total", entry_point="public_api")
 
-        client.post("/v1/search", headers=_ATTRIBUTED.to_headers(), json=_SEARCH_BODY)
+        response = client.post(
+            "/v1/search",
+            headers=_ATTRIBUTED.to_headers(),
+            json=_SEARCH_BODY,
+        )
 
+        assert response.status_code == 200
         assert (
             _sample("unattributed_requests_total", entry_point="public_api") == before
         )
@@ -211,7 +216,7 @@ class TestUsageRecording:
             json=_SEARCH_BODY,
         )
 
-        assert response.status_code != 200
+        assert response.status_code == 503
         [record] = usage_records
         assert record.status == "error"
 
