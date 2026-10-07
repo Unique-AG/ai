@@ -129,7 +129,8 @@ class RequestContext(BaseModel):
                 fallback.entry_point,
             ),
             caller=normalized.get(SERVICE_ID_HEADER) or fallback.caller,
-            message_id=normalized.get(MESSAGE_ID_HEADER) or fallback.message_id,
+            message_id=str(normalized.get(MESSAGE_ID_HEADER) or "").strip()
+            or fallback.message_id,
             user_metadata=_parse_user_metadata(
                 normalized.get(USER_METADATA_HEADER),
                 fallback=fallback.user_metadata,

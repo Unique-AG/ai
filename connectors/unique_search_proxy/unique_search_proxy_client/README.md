@@ -96,6 +96,25 @@ Built-in providers register in `register_builtin_providers()` during `create_app
 
 OpenAPI spec: `openapi.json` (input for [SDK codegen](../unique_search_proxy_sdk/README.md)).
 
+### 4.1 Request context and usage
+
+`/v1/*` routes read these headers into a request context that prefixes every log line:
+
+| Header | Required | Use |
+|--------|----------|-----|
+| `x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id` | Yes (`REQUIRE_CONTEXT_HEADERS`, default `true`) | Tenant identity |
+| `x-unique-entry-point` | No, defaults to `unknown` | Where the request entered the platform (`chat_tool`, `public_api`, `conduct`, ...) |
+| `x-unique-message-id` | No | Reserved for analytics; recorded in the usage line only |
+| `x-service-id` | No, defaults to `unknown` | Calling service; logged as `caller=`, never enforced |
+
+A request whose company or user id is not numeric (`local`, blank, junk) is unattributed: it logs a warning and increments `unique_search_proxy_unattributed_requests_total{entry_point}`. Set `REJECT_UNATTRIBUTED_REQUESTS=true` to return 400 instead. `/v1/configuration/*` skips this check.
+
+`/v1/search`, `/v1/agent-search` (sync and stream) and `/v1/crawl` write one JSON usage line per request (`event="web_search_usage"`) and increment `unique_search_proxy_requests_total{company_id, entry_point, endpoint, provider, status}`. `company_id` is `unattributed` unless both ids are numeric. The line holds no query text or URLs.
+
+`units` is 1 per search or agent search. For a crawl it is the number of URLs that passed URL safety, so 0 when nothing reached the provider.
+
+The usage line goes through its own logger (`unique_search_proxy_core.usage`) with a bare message format, fixed at INFO, so Loki `| json` can parse it regardless of `LOG_LEVEL`. Nothing verifies these headers: any in-cluster caller can set them.
+
 ---
 
 ## 5. Providers
@@ -209,6 +228,7 @@ Settings use pydantic-settings with per-provider env vars. Copy `.env.example` t
 | Bing agent | `BING_AGENT_` | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING`, optional `BING_AGENT_CLEANUP_ON_START`, `BING_AGENT_DEFAULT_MARKET` |
 | VertexAI agent | `VERTEXAI_AGENT_` | `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (optional) |
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
+| Request context | (none) | `REQUIRE_CONTEXT_HEADERS`, `REJECT_UNATTRIBUTED_REQUESTS` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
 | URL safety | `URL_SAFETY_` | `URL_SAFETY_ENABLED` |
 | Container | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL` |

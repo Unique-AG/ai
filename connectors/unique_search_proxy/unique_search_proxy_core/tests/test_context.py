@@ -152,6 +152,14 @@ class TestEntryPointAndAttribution:
         restored = RequestContext.from_headers(headers, fallback=LOCAL_REQUEST_CONTEXT)
         assert restored.message_id == "msg-1"
 
+    @pytest.mark.parametrize("raw", ["", "   "])
+    def test_blank_message_id_header_uses_fallback(self, raw: str) -> None:
+        context = RequestContext.from_headers(
+            {MESSAGE_ID_HEADER: raw},
+            fallback=LOCAL_REQUEST_CONTEXT,
+        )
+        assert context.message_id is None
+
     def test_unknown_entry_point_emits_no_header(self) -> None:
         headers = LOCAL_REQUEST_CONTEXT.to_headers()
         assert ENTRY_POINT_HEADER not in headers
