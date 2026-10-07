@@ -57,6 +57,14 @@ class ProxiedRoute:
 EgressRoute = DirectRoute | ProxiedRoute
 
 
+@dataclass(frozen=True)
+class ResolvedEgress:
+    """HTTP client and route resolved from one request credential set."""
+
+    http_client: AsyncClient
+    route: EgressRoute
+
+
 def _get_proxy_host_and_port(settings: ProxySettings) -> tuple[str, int]:
     proxy_host = settings.proxy_host
     proxy_port = settings.proxy_port
@@ -314,20 +322,22 @@ class HttpClientRegistry:
             fixed_client=client,
         )
 
-    async def client_for(self, context: RequestContext) -> AsyncClient:
-        """Return the cached client for the request's resolved credentials."""
-        if self._fixed_client is not None:
-            return self._fixed_client
+    async def egress_for(self, context: RequestContext) -> ResolvedEgress:
+        """Return the cached client and route for one credential resolution."""
         if self._closed:
             raise RuntimeError("HTTP client registry is closed")
 
         credentials = self._resolver.resolve(context)
+        route = build_route(self._settings, credentials)
+        if self._fixed_client is not None:
+            return ResolvedEgress(http_client=self._fixed_client, route=route)
+
         evicted: AsyncClient | None = None
         async with self._lock:
             cached = self._clients.get(credentials)
             if cached is not None:
                 self._clients.move_to_end(credentials)
-                return cached
+                return ResolvedEgress(http_client=cached, route=route)
 
             client = build_async_client(
                 self._settings,
@@ -350,7 +360,11 @@ class HttpClientRegistry:
 
         if evicted is not None:
             await evicted.aclose()
-        return client
+        return ResolvedEgress(http_client=client, route=route)
+
+    async def client_for(self, context: RequestContext) -> AsyncClient:
+        """Return the cached client for the request's resolved credentials."""
+        return (await self.egress_for(context)).http_client
 
     @property
     def is_open(self) -> bool:
@@ -384,6 +398,7 @@ __all__ = [
     "EgressRoute",
     "HttpClientRegistry",
     "ProxiedRoute",
+    "ResolvedEgress",
     "async_client_factory",
     "build_async_client",
     "build_route",

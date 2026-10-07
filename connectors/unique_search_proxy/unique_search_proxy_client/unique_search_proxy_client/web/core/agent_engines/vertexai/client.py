@@ -7,6 +7,8 @@ from base64 import b64decode
 from google.auth import load_credentials_from_dict
 from google.genai._api_client import BaseApiClient
 from google.genai.client import AsyncClient
+from google.genai.types import HttpOptions
+from httpx import AsyncClient as HttpxAsyncClient
 
 from unique_search_proxy_client.web.settings.providers.vertexai_agent import (
     vertexai_agent_credentials,
@@ -19,7 +21,9 @@ from unique_search_proxy_client.web.settings.secret_str import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_base_api_client_from_service_account() -> BaseApiClient:
+def _get_base_api_client_from_service_account(
+    http_client: HttpxAsyncClient | None = None,
+) -> BaseApiClient:
     if not is_secret_configured(vertexai_agent_credentials.service_account_credentials):
         msg = (
             "VERTEXAI_AGENT_CREDENTIAL_TYPE is 'service_account' but "
@@ -43,20 +47,28 @@ def _get_base_api_client_from_service_account() -> BaseApiClient:
         vertexai=True,
         credentials=credentials,
         project=project_id,
+        http_options=HttpOptions(httpx_async_client=http_client),
     )
 
 
-def _get_base_api_client_from_adc() -> BaseApiClient:
-    return BaseApiClient(vertexai=True)
+def _get_base_api_client_from_adc(
+    http_client: HttpxAsyncClient | None = None,
+) -> BaseApiClient:
+    return BaseApiClient(
+        vertexai=True,
+        http_options=HttpOptions(httpx_async_client=http_client),
+    )
 
 
-def get_vertex_client() -> AsyncClient:
+def get_vertex_client(
+    http_client: HttpxAsyncClient | None = None,
+) -> AsyncClient:
     if vertexai_agent_credentials.credential_type == "service_account":
         _LOGGER.info("Using explicit service account credentials for VertexAI agent")
-        base_api_client = _get_base_api_client_from_service_account()
+        base_api_client = _get_base_api_client_from_service_account(http_client)
     else:
         _LOGGER.info("Using workload identity (ADC) for VertexAI agent")
-        base_api_client = _get_base_api_client_from_adc()
+        base_api_client = _get_base_api_client_from_adc(http_client)
     return AsyncClient(api_client=base_api_client)
 
 

@@ -20,6 +20,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.errors import EngineNotConfiguredError
+from unique_search_proxy_core.http_client import DirectRoute
 
 from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
     cleanup_auto_provisioned_bing_agents,
@@ -56,6 +57,13 @@ def _bing_request(**fields: Any) -> BingAgentSearchRequest:
 
 def _grounding(**overrides: Any) -> BingGroundingConfiguration:
     return BingGroundingConfiguration(**{"fetch_size": 5, **overrides})
+
+
+def _bing_service() -> BingAgentSearchService:
+    return BingAgentSearchService(
+        http_client=MagicMock(),
+        egress_route=DirectRoute(verify=True, trust_env=False, headers={}),
+    )
 
 
 async def _fake_stream(
@@ -165,17 +173,17 @@ class TestBingAgentSearchService:
             patch(
                 "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
                 return_value=mock_credential,
-            ),
+            ) as get_credentials,
             patch(
                 "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
                 return_value=mock_client,
-            ),
+            ) as get_project_client,
             patch(
                 "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
                 side_effect=_fake_stream,
-            ),
+            ) as stream_bing_grounding_agent,
         ):
-            service = BingAgentSearchService()
+            service = _bing_service()
             result = await service.search(_bing_request())
 
         assert result.answer == "agent answer text"
@@ -185,6 +193,12 @@ class TestBingAgentSearchService:
         mock_credential.__aexit__.assert_awaited()
         mock_client.__aenter__.assert_awaited()
         mock_client.__aexit__.assert_awaited()
+        azure_transport = get_credentials.call_args.kwargs["transport"]
+        assert get_project_client.call_args.kwargs["transport"] is azure_transport
+        assert (
+            stream_bing_grounding_agent.call_args.kwargs["http_client"]
+            is service._http_client
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -226,7 +240,7 @@ class TestBingAgentSearchService:
                 side_effect=_recording_stream,
             ),
         ):
-            await BingAgentSearchService().search(
+            await _bing_service().search(
                 _bing_request(market="fr-CH", freshness="Week"),
             )
 
@@ -287,7 +301,7 @@ class TestBingAgentSearchService:
                 side_effect=_recording_stream,
             ),
         ):
-            await BingAgentSearchService().search(
+            await _bing_service().search(
                 _bing_request(market=requested_market),
             )
 
@@ -305,7 +319,7 @@ class TestBingAgentSearchService:
             "unique_search_proxy_client.web.core.agent_engines.bing.service.bing_agent_credentials",
             bing_agent._get_bing_agent_credentials(),
         )
-        service = BingAgentSearchService()
+        service = _bing_service()
         with pytest.raises(EngineNotConfiguredError):
             await service.search(_bing_request())
 
@@ -553,6 +567,30 @@ class TestCreateAndStreamOptimistic:
 
 
 class TestPrivateEndpointHttpClientReuse:
+    @pytest.mark.ai
+    def test_public_endpoint_uses_supplied_httpx_client(
+        self, bing_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT", "false")
+        from unique_search_proxy_client.web.settings.providers import bing_agent
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.client.bing_agent_credentials",
+            bing_agent._get_bing_agent_credentials(),
+        )
+        project_client = MagicMock()
+        project_client.get_openai_client = MagicMock(return_value=MagicMock())
+        http_client = MagicMock()
+
+        get_openai_client_from_client_module(
+            project_client,
+            http_client=http_client,
+        )
+
+        project_client.get_openai_client.assert_called_once_with(
+            http_client=http_client,
+        )
+
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_private_endpoint_reuses_shared_httpx_client(

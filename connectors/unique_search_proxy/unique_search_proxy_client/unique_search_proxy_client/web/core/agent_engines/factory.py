@@ -17,19 +17,27 @@ from unique_search_proxy_client.web.core.agent_engines.vertexai.service import (
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
+    from unique_search_proxy_core.http_client import EgressRoute
 
 
 def get_agent_engine_service(
     engine: AgentEngineType,
     *,
     http_client: AsyncClient | None = None,
+    egress_route: EgressRoute | None = None,
 ) -> AgentSearchEngine[Any]:
     """Instantiate an agent search engine by registered id."""
     match engine:
         case AgentEngineType.BING:
-            return BingAgentSearchService(http_client=http_client)
+            return BingAgentSearchService(
+                http_client=http_client,
+                egress_route=egress_route,
+            )
         case AgentEngineType.VERTEXAI:
-            return VertexAIAgentSearchService(http_client=http_client)
+            return VertexAIAgentSearchService(
+                http_client=http_client,
+                egress_route=egress_route,
+            )
         case _:
             msg = f"Unsupported agent engine: {engine}"
             raise ValueError(msg)

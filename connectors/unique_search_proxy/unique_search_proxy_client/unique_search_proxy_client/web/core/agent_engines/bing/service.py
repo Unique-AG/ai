@@ -21,6 +21,7 @@ from unique_search_proxy_core.schema import (
 )
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
+    bing_azure_transport,
     get_credentials,
     get_project_client,
 )
@@ -61,6 +62,10 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
     ) -> AsyncIterator[AgentSearchStreamEvent]:
         bing_agent_credentials.check_credentials()
         creds = bing_agent_credentials
+        http_client = self._http_client
+        egress_route = self._egress_route
+        if http_client is None or egress_route is None:
+            raise RuntimeError("HTTP client and egress route are required for Bing")
 
         answer_parts: list[str] = []
         raw_chunks: list[dict] = []
@@ -76,23 +81,26 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                 market=resolve_market(request.market),
                 freshness=request.freshness,
             )
-            async with get_credentials() as credential:
-                async with get_project_client(
-                    credential,
-                    endpoint=read_secret(creds.endpoint),
-                ) as project_client:
-                    async for delta, raw_event in stream_bing_grounding_agent(
-                        project_client,
-                        query=request.query,
-                        model=read_secret(creds.bing_agent_model),
-                        instructions=instructions,
-                        grounding=grounding,
-                    ):
-                        if delta:
-                            answer_parts.append(delta)
-                            yield AgentSearchDelta(text=delta)
-                        if raw_event:
-                            raw_chunks.append(raw_event)
+            async with bing_azure_transport(egress_route) as azure_transport:
+                async with get_credentials(transport=azure_transport) as credential:
+                    async with get_project_client(
+                        credential,
+                        endpoint=read_secret(creds.endpoint),
+                        transport=azure_transport,
+                    ) as project_client:
+                        async for delta, raw_event in stream_bing_grounding_agent(
+                            project_client,
+                            http_client=http_client,
+                            query=request.query,
+                            model=read_secret(creds.bing_agent_model),
+                            instructions=instructions,
+                            grounding=grounding,
+                        ):
+                            if delta:
+                                answer_parts.append(delta)
+                                yield AgentSearchDelta(text=delta)
+                            if raw_event:
+                                raw_chunks.append(raw_event)
         except Exception as exc:
             raise UpstreamError(
                 f"Bing agent search failed: {exc}",

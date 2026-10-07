@@ -42,7 +42,7 @@ class VertexAIAgentSearchService(
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._client = get_vertex_client()
+        self._client = get_vertex_client(self._http_client)
 
     async def search(self, request: VertexAIAgentSearchRequest) -> AgentSearchResponse:  # type: ignore[override]
         response: AgentSearchResponse | None = None

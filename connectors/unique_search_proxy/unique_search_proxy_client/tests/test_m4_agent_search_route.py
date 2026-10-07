@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -73,6 +74,9 @@ class TestAgentSearchRoute:
         body = resp.json()
         assert body["answer"] == "done"
         assert body["engine"] == "bing"
+        factory_kwargs = get_service.call_args.kwargs
+        assert isinstance(factory_kwargs["http_client"], httpx.AsyncClient)
+        assert factory_kwargs["egress_route"] is not None
 
     @pytest.mark.ai
     def test_agent_search_accepts_bing_grounding_knobs(

@@ -101,6 +101,21 @@ class TestCoreHttpClient:
         finally:
             await registry.aclose()
 
+    async def test_registry_resolves_matching_client_and_route(self) -> None:
+        settings = _settings()
+        registry = HttpClientRegistry(
+            settings=settings,
+            resolver=resolver_from_settings(settings),
+        )
+        try:
+            egress = await registry.egress_for(_context("u1"))
+
+            assert isinstance(egress.route, ProxiedRoute)
+            assert egress.route.proxy.auth == ("u1", "")
+            assert await registry.client_for(_context("u1")) is egress.http_client
+        finally:
+            await registry.aclose()
+
     def test_registry_constructs_without_settings_username(self) -> None:
         settings = _settings(proxy_username=None)
         registry = HttpClientRegistry(
