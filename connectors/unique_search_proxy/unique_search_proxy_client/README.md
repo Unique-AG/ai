@@ -220,6 +220,11 @@ proxy routing fails during startup. The application cannot verify that the
 proxy implements equivalent URL-safety controls, so this state is highlighted
 in the Prometheus metric and Grafana dashboard.
 
+`URL_SAFETY_TRUSTED_PRIVATE_HOSTS` is a JSON array of exact operator-approved
+hostnames or IPs that may use RFC 1918 or IPv6 unique-local addresses. It does
+not permit localhost or cloud metadata targets and does not configure network
+routing or private DNS.
+
 With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct metric aggregation.
 
 ---

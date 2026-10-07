@@ -27,6 +27,13 @@ class UrlSafetySettings(BaseSettings):
         "metadata.azure.internal",
         "metadata.google.internal",
     ]
+    trusted_private_hosts: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Exact operator-approved hostnames or IPs that may resolve to RFC 1918 "
+            "or IPv6 unique-local addresses."
+        ),
+    )
     cluster_local_suffix: str = ".cluster.local"
     service_suffix: str = ".svc"
     max_redirect_hops: int = 10

@@ -147,6 +147,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.urlSafety.network.localhostHosts | toJson | quote }}
 - name: URL_SAFETY_METADATA_HOSTS
   value: {{ .Values.urlSafety.network.metadataHosts | toJson | quote }}
+- name: URL_SAFETY_TRUSTED_PRIVATE_HOSTS
+  value: {{ .Values.urlSafety.network.trustedPrivateHosts | toJson | quote }}
 - name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
   value: {{ .Values.urlSafety.network.clusterLocalSuffix | quote }}
 - name: URL_SAFETY_SERVICE_SUFFIX
@@ -297,6 +299,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.urlSafety.network.localhostHosts | toJson | quote }}
 - name: URL_SAFETY_METADATA_HOSTS
   value: {{ .ctx.Values.urlSafety.network.metadataHosts | toJson | quote }}
+- name: URL_SAFETY_TRUSTED_PRIVATE_HOSTS
+  value: {{ .ctx.Values.urlSafety.network.trustedPrivateHosts | toJson | quote }}
 - name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
   value: {{ .ctx.Values.urlSafety.network.clusterLocalSuffix | quote }}
 - name: URL_SAFETY_SERVICE_SUFFIX

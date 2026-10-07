@@ -34,9 +34,8 @@ class CustomApiConfig(ExposableParamsConfig):
     )
     api_endpoint: str = Field(
         default="https://api.example.com/search",
-        min_length=1,
         title="API endpoint",
-        description="Public HTTP(S) endpoint called by Search Proxy.",
+        description="HTTP(S) endpoint called by Search Proxy.",
     )
     api_headers: str = Field(
         default='{"Content-Type": "application/json"}',
@@ -60,8 +59,6 @@ class CustomApiConfig(ExposableParamsConfig):
     )
     timeout: int = Field(
         default=120,
-        ge=1,
-        le=600,
         description="Custom API request timeout in seconds.",
     )
 

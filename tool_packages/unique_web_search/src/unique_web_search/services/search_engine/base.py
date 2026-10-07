@@ -88,6 +88,14 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         """Whether the search engine requires scraping."""
         return False
 
+    async def _proxy_routing_enabled(self) -> bool:
+        """Whether this engine may use Search Proxy for the current request."""
+        return True
+
+    @property
+    def _standard_proxy_client_timeout(self) -> float:
+        return _STANDARD_PROXY_TIMEOUT
+
     @property
     def _proxy_engine(self) -> ProxyEngineType | None:
         """The proxy engine id for this config, or ``None`` if not proxy-supported."""
@@ -103,7 +111,11 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     ) -> list[WebSearchResult]:
         """Search the web for the given query using the search engine."""
         proxy_engine = self._proxy_engine
-        if search_proxy_client_enabled and proxy_engine is not None:
+        if (
+            search_proxy_client_enabled
+            and proxy_engine is not None
+            and await self._proxy_routing_enabled()
+        ):
             return await self._proxy_search(query, params, proxy_engine)
         return await self._legacy_search(query=query, params=params)
 
@@ -138,7 +150,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         invocation.pop("engine", None)
         invocation.pop("query", None)
         async with open_search_proxy_client(
-            timeout=_STANDARD_PROXY_TIMEOUT,
+            timeout=self._standard_proxy_client_timeout,
             context=self._request_context,
         ) as client:
             response = await client.search.search(

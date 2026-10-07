@@ -221,7 +221,12 @@ def test_url_safety_lists_are_overridable_in_chart() -> None:
 
     schema = json.loads((CHART_DIR / "values.additional.schema.json").read_text())
     network = schema["properties"]["urlSafety"]["properties"]["network"]["properties"]
-    for key in ("allowedSchemes", "localhostHosts", "metadataHosts"):
+    for key in (
+        "allowedSchemes",
+        "localhostHosts",
+        "metadataHosts",
+        "trustedPrivateHosts",
+    ):
         assert network[key]["type"] == "array"
         assert network[key]["items"] == {"type": "string"}
 

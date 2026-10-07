@@ -1,20 +1,27 @@
 import json
-from typing import Any, Literal, TypeVar, override
+import logging
+from typing import Any, TypeVar, override
 
 from httpx import AsyncClient
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
-from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiConfig as ProxyCustomApiConfig,
 )
 from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiSearchRequest,
 )
+from unique_search_proxy_core.url_safety import (
+    CrawlTargetValidationError,
+    UrlSafetyService,
+)
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 
+from unique_web_search.metrics import custom_api_url_safety_report
 from unique_web_search.services.search_engine.base import (
     LocalSearchEngineType,
     SearchEngine,
@@ -26,6 +33,8 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResults,
 )
 from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD, env_settings
+
+_LOGGER = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -74,8 +83,6 @@ ApiRequestMethodType, ApiRequestMethodField = conditional_type(
 class CustomAPIConfig(ProxyCustomApiConfig):
     model_config = get_configuration_dict(title="Customized API")
 
-    engine: Literal[SearchEngineType.CUSTOM_API] = SearchEngineType.CUSTOM_API
-
     api_endpoint: ApiEndpointType = ApiEndpointField  # type: ignore (Dynamic type generation)
     api_headers: ApiHeadersType = ApiHeadersField  # type: ignore (Dynamic type generation)
     api_additional_query_params: ApiAdditionalQueryParamsType = (  # type: ignore (Dynamic type generation)
@@ -94,6 +101,38 @@ class CustomAPIConfig(ProxyCustomApiConfig):
         default=False, description="Whether the search engine requires scraping"
     )
     timeout: int = Field(default=120, description="The timeout of the custom API")
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_operator_config_overrides(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        operator_values = {
+            "apiEndpoint": env_settings.custom_web_search_api_endpoint,
+            "apiHeaders": env_settings.custom_web_search_api_headers,
+            "apiAdditionalQueryParams": (
+                env_settings.custom_web_search_api_additional_query_params
+            ),
+            "apiAdditionalBodyParams": (
+                env_settings.custom_web_search_api_additional_body_params
+            ),
+            "apiRequestMethod": env_settings.custom_web_search_api_method,
+        }
+        aliases = {
+            "apiEndpoint": "api_endpoint",
+            "apiHeaders": "api_headers",
+            "apiAdditionalQueryParams": "api_additional_query_params",
+            "apiAdditionalBodyParams": "api_additional_body_params",
+            "apiRequestMethod": "api_request_method",
+        }
+        for alias, operator_value in operator_values.items():
+            if operator_value is None:
+                continue
+            supplied_value = value.get(alias, value.get(aliases[alias], operator_value))
+            if supplied_value != operator_value:
+                raise ValueError(f"{alias} is managed by the deployment")
+        return value
 
     @classmethod
     def request_model(cls) -> type[BaseModel]:
@@ -119,6 +158,17 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
         self.api_endpoint = config.api_endpoint
         self.is_configured = True  # No possibility to check if the API is configured from our side. So we assume it is configured.
 
+    async def _proxy_routing_enabled(self) -> bool:
+        return await is_flag_enabled(
+            FeatureFlagNames.enable_custom_api_search_proxy_un_26736,
+            company_id=self._request_context.company_id,
+            user_id=self._request_context.user_id,
+        )
+
+    @property
+    def _standard_proxy_client_timeout(self) -> float:
+        return float(self.config.timeout) + 5.0
+
     @override
     async def _legacy_search(
         self,
@@ -126,10 +176,10 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
         params: ExposedParams | None,
     ) -> list[WebSearchResult]:
         del params
+        await self._report_url_safety()
         params_dict, body = self._prepare_request_params_and_body(query)
-        async_client_params = self._client_config | {
-            "timeout": self.config.timeout,
-        }
+        async_client_params: dict[str, Any] = dict(self._client_config)
+        async_client_params["timeout"] = self.config.timeout
         async with AsyncClient(**async_client_params) as client:
             response = await client.request(
                 method=self._request_method,
@@ -146,6 +196,36 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
 
         validated_response = WebSearchResults.model_validate(response.json())
         return validated_response.results
+
+    async def _report_url_safety(self) -> None:
+        try:
+            await UrlSafetyService.resolve_crawl_target(self.config.api_endpoint)
+        except CrawlTargetValidationError as exc:
+            reason_category = exc.blocked_targets[0].category
+            custom_api_url_safety_report.labels(
+                outcome="would_block",
+                reason_category=reason_category,
+            ).inc()
+            _LOGGER.warning(
+                "Custom API URL safety report-only block company_id=%s category=%s",
+                self._request_context.company_id,
+                reason_category,
+            )
+        except Exception as exc:
+            custom_api_url_safety_report.labels(
+                outcome="validation_error",
+                reason_category="unexpected",
+            ).inc()
+            _LOGGER.warning(
+                "Custom API URL safety report failed company_id=%s error_type=%s",
+                self._request_context.company_id,
+                type(exc).__name__,
+            )
+        else:
+            custom_api_url_safety_report.labels(
+                outcome="allowed",
+                reason_category="none",
+            ).inc()
 
     @property
     def requires_scraping(self) -> bool:

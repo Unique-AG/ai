@@ -24,8 +24,7 @@ class CustomApiSearchRequest:
         query (str): Search query string
         engine (Literal['custom_api'] | Unset): Provider discriminator; must be `custom_api` for this config. Default:
             'custom_api'.
-        api_endpoint (str | Unset): Public HTTP(S) endpoint called by Search Proxy. Default:
-            'https://api.example.com/search'.
+        api_endpoint (str | Unset): HTTP(S) endpoint called by Search Proxy. Default: 'https://api.example.com/search'.
         api_headers (str | Unset): JSON object containing headers sent to the custom API. Default: '{\\"Content-Type\\":
             \\"application/json\\"}'.
         api_additional_query_params (str | Unset): JSON object merged into the custom API query parameters. Default:

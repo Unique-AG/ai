@@ -5,11 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
-from unique_search_proxy_core.errors import (
-    BadRequestProxyError,
-    ForbiddenTargetError,
-    UpstreamError,
-)
+from unique_search_proxy_core.errors import ForbiddenTargetError
 from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiRequestMethod,
     CustomApiSearchRequest,
@@ -155,70 +151,24 @@ class TestCustomApiSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_search__rejects_host_header_override(self) -> None:
+    async def test_search__accepts_legacy_curated_response_alias(self) -> None:
         async with httpx.AsyncClient(
             transport=httpx.MockTransport(
-                lambda _request: httpx.Response(200, json={"results": []}),
+                lambda _request: httpx.Response(
+                    200,
+                    json={
+                        "curated": [
+                            {
+                                "url": "https://result.example.com",
+                                "title": "Result",
+                                "snippet": "Snippet",
+                            }
+                        ]
+                    },
+                ),
             ),
         ) as client:
             service = CustomApiSearchService(http_client=client)
-            with pytest.raises(BadRequestProxyError, match="controlled"):
-                await service.search(
-                    _custom_api_request(apiHeaders='{"Host": "internal.local"}'),
-                )
+            _raw, curated = await service.search(_custom_api_request())
 
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_search__rejects_credentials_in_endpoint_url(self) -> None:
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(
-                lambda _request: httpx.Response(200, json={"results": []}),
-            ),
-        ) as client:
-            service = CustomApiSearchService(http_client=client)
-            with pytest.raises(BadRequestProxyError, match="provided in headers"):
-                await service.search(
-                    _custom_api_request(
-                        apiEndpoint="https://user:password@api.example.com/search",
-                    ),
-                )
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_search__fails_closed_when_url_safety_is_disabled(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        import unique_search_proxy_client.web.core.search_engines.custom_api.service as service_module
-
-        monkeypatch.setattr(
-            service_module,
-            "url_safety_settings",
-            service_module.url_safety_settings.model_copy(update={"enabled": False}),
-        )
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(
-                lambda _request: httpx.Response(200, json={"results": []}),
-            ),
-        ) as client:
-            service = CustomApiSearchService(http_client=client)
-            with pytest.raises(ForbiddenTargetError, match="unavailable"):
-                await service.search(_custom_api_request())
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_search__limits_response_size(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        import unique_search_proxy_client.web.core.search_engines.custom_api.service as service_module
-
-        monkeypatch.setattr(service_module, "_MAX_CUSTOM_API_RESPONSE_BYTES", 8)
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(
-                lambda _request: httpx.Response(200, content=b'{"results":[]}'),
-            ),
-        ) as client:
-            service = CustomApiSearchService(http_client=client)
-            with pytest.raises(UpstreamError, match="size limit"):
-                await service.search(_custom_api_request())
+        assert curated.results[0].url == "https://result.example.com"

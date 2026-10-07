@@ -187,6 +187,7 @@ urlSafety:
       - 169.254.170.2
       - metadata.azure.internal
       - metadata.google.internal
+    trustedPrivateHosts: []
     clusterLocalSuffix: .cluster.local
     serviceSuffix: .svc
 # @helm-gen:end providers

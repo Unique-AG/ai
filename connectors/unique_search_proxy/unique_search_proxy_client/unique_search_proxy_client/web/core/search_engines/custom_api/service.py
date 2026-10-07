@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
-from urllib.parse import urlsplit
 
 import httpx
 from pydantic import ValidationError
@@ -27,7 +26,6 @@ from unique_search_proxy_core.url_safety import (
     UrlSafetyService,
     pinned_httpx_get_args,
 )
-from unique_search_proxy_core.url_safety.settings import url_safety_settings
 
 from unique_search_proxy_client.web.core.provider_response import (
     raise_for_upstream_response,
@@ -39,18 +37,6 @@ from unique_search_proxy_client.web.core.search_engines.service_base import (
 
 _LOGGER = logging.getLogger(__name__)
 _CUSTOM_API_PROVIDER_LABEL = "Custom API"
-_MAX_CUSTOM_API_RESPONSE_BYTES = 10 * 1024 * 1024
-_FORBIDDEN_REQUEST_HEADERS = frozenset(
-    {
-        "connection",
-        "content-length",
-        "host",
-        "proxy-authenticate",
-        "proxy-authorization",
-        "transfer-encoding",
-        "upgrade",
-    }
-)
 
 
 def _parse_json_object(value: str, *, field_name: str) -> dict[str, Any]:
@@ -71,23 +57,7 @@ def _parse_headers(value: str) -> dict[str, str]:
         isinstance(key, str) and isinstance(item, str) for key, item in parsed.items()
     ):
         raise BadRequestProxyError("apiHeaders keys and values must be strings")
-    forbidden = sorted(
-        name for name in parsed if name.lower() in _FORBIDDEN_REQUEST_HEADERS
-    )
-    if forbidden:
-        raise BadRequestProxyError(
-            "apiHeaders contains fields controlled by Search Proxy",
-            details=[{"header": name} for name in forbidden],
-        )
     return parsed
-
-
-def _validate_endpoint(endpoint: str) -> None:
-    parsed = urlsplit(endpoint)
-    if parsed.username is not None or parsed.password is not None:
-        raise BadRequestProxyError(
-            "Custom API endpoint credentials must be provided in headers",
-        )
 
 
 class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
@@ -107,11 +77,7 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
         if client is None:
             raise RuntimeError("HTTP client is required for Custom API search")
 
-        if not url_safety_settings.enabled:
-            raise ForbiddenTargetError(
-                "Custom API is unavailable while URL safety is disabled",
-            )
-        _validate_endpoint(request.api_endpoint)
+        # Admin configuration must not grant access to unapproved private targets.
         try:
             resolved_target = await UrlSafetyService.resolve_crawl_target(
                 request.api_endpoint,
@@ -145,7 +111,7 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
             body["query"] = request.query
 
         try:
-            async with client.stream(
+            response = await client.request(
                 method=request.api_request_method.value,
                 url=request_url,
                 headers=headers,
@@ -154,22 +120,7 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
                 extensions=extensions or None,
                 timeout=request.timeout,
                 follow_redirects=False,
-            ) as streaming_response:
-                chunks: list[bytes] = []
-                response_size = 0
-                async for chunk in streaming_response.aiter_bytes():
-                    response_size += len(chunk)
-                    if response_size > _MAX_CUSTOM_API_RESPONSE_BYTES:
-                        raise UpstreamError(
-                            "Custom API response exceeded the size limit",
-                        )
-                    chunks.append(chunk)
-                response = httpx.Response(
-                    status_code=streaming_response.status_code,
-                    headers=streaming_response.headers,
-                    content=b"".join(chunks),
-                    request=streaming_response.request,
-                )
+            )
         except httpx.TimeoutException as exc:
             raise UpstreamTimeoutError(
                 f"Custom API search timed out after {request.timeout}s",
@@ -195,8 +146,13 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
         if not isinstance(payload, dict):
             raise UpstreamError("Custom API response must be a JSON object")
 
+        normalized_payload = (
+            {"results": payload["curated"]}
+            if "results" not in payload and "curated" in payload
+            else payload
+        )
         try:
-            curated = WebSearchResults.model_validate(payload)
+            curated = WebSearchResults.model_validate(normalized_payload)
         except ValidationError as exc:
             raise UpstreamError("Custom API returned an invalid result schema") from exc
 

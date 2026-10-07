@@ -133,9 +133,13 @@ PERPLEXITY_API_KEY=...
 
 Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (`LocalSearchEngineType.CUSTOM_API`)
 
-Response must be JSON with a `results` array of `{url, title, snippet, content?}`.
-In proxy mode, the endpoint is validated against the Search Proxy URL-safety
-policy, DNS is pinned for the outbound request, and redirects are rejected.
+Response must be JSON with a `results` or legacy `curated` array of
+`{url, title, snippet, content?}`. When
+`FEATURE_FLAG_ENABLE_CUSTOM_API_SEARCH_PROXY_UN_26736` is enabled, the endpoint
+is validated against the Search Proxy URL-safety policy, DNS is pinned, and
+redirects are rejected. Exact private hosts can be operator-approved with
+`URL_SAFETY_TRUSTED_PRIVATE_HOSTS`; use the same value in assistants-core for
+accurate report-only metrics before proxy routing is enabled.
 
 ```bash
 CUSTOM_WEB_SEARCH_API_ENDPOINT=https://your-api.example.com/search

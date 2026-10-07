@@ -1408,9 +1408,8 @@
           },
           "apiEndpoint": {
             "type": "string",
-            "minLength": 1,
             "title": "API endpoint",
-            "description": "Public HTTP(S) endpoint called by Search Proxy.",
+            "description": "HTTP(S) endpoint called by Search Proxy.",
             "default": "https://api.example.com/search"
           },
           "apiHeaders": {
@@ -1439,8 +1438,6 @@
           },
           "timeout": {
             "type": "integer",
-            "maximum": 600.0,
-            "minimum": 1.0,
             "title": "Timeout",
             "description": "Custom API request timeout in seconds.",
             "default": 120

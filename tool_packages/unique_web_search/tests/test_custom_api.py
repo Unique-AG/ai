@@ -1,8 +1,14 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from pydantic import ValidationError
 from unique_search_proxy_core.context import RequestContext
+from unique_search_proxy_core.url_safety import (
+    BlockedCrawlTarget,
+    CrawlTargetValidationError,
+)
 
+import unique_web_search.services.search_engine.custom_api as custom_api_module
 from unique_web_search.services.search_engine.custom_api import (
     CustomAPI,
     CustomAPIConfig,
@@ -57,6 +63,10 @@ class TestCustomApiProxySearch:
             patch(
                 "unique_web_search.services.search_engine.custom_api.AsyncClient"
             ) as direct_client,
+            patch(
+                "unique_web_search.services.search_engine.custom_api.is_flag_enabled",
+                AsyncMock(return_value=True),
+            ) as proxy_flag,
         ):
             proxy_client = AsyncMock()
             proxy_client.search.search = proxy_search
@@ -65,7 +75,12 @@ class TestCustomApiProxySearch:
             results = await search.search("test query")
 
         direct_client.assert_not_called()
-        open_proxy.assert_called_once_with(timeout=30.0, context=request_context)
+        proxy_flag.assert_awaited_once_with(
+            "FEATURE_FLAG_ENABLE_CUSTOM_API_SEARCH_PROXY_UN_26736",
+            company_id="company-1",
+            user_id="user-1",
+        )
+        open_proxy.assert_called_once_with(timeout=50.0, context=request_context)
         proxy_search.assert_awaited_once()
         invocation = proxy_search.await_args.kwargs
         assert invocation["engine"] == "custom_api"
@@ -85,3 +100,75 @@ class TestCustomApiProxySearch:
                 snippet="Snippet",
             )
         ]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__uses_legacy_path_when_proxy_flag_is_disabled(self) -> None:
+        search = CustomAPI(CustomAPIConfig())
+        legacy_search = AsyncMock(return_value=[])
+        search._legacy_search = legacy_search
+
+        with (
+            patch(
+                "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+                True,
+            ),
+            patch(
+                "unique_web_search.services.search_engine.custom_api.is_flag_enabled",
+                AsyncMock(return_value=False),
+            ),
+        ):
+            await search.search("test query")
+
+        legacy_search.assert_awaited_once_with(query="test query", params=None)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_report_url_safety__records_would_block_without_raising(self) -> None:
+        request_context = RequestContext(
+            company_id="company-1",
+            user_id="user-1",
+            chat_id="chat-1",
+        )
+        search = CustomAPI(
+            CustomAPIConfig(api_endpoint="http://10.0.0.1/search"),
+            request_context=request_context,
+        )
+        validation_error = CrawlTargetValidationError(
+            [
+                BlockedCrawlTarget(
+                    hostname="10.0.0.1",
+                    category="private",
+                    reason="private target",
+                )
+            ]
+        )
+
+        with (
+            patch(
+                "unique_web_search.services.search_engine.custom_api."
+                "UrlSafetyService.resolve_crawl_target",
+                AsyncMock(side_effect=validation_error),
+            ),
+            patch(
+                "unique_web_search.services.search_engine.custom_api."
+                "custom_api_url_safety_report"
+            ) as report_metric,
+        ):
+            await search._report_url_safety()
+
+        report_metric.labels.assert_called_once_with(
+            outcome="would_block",
+            reason_category="private",
+        )
+        report_metric.labels.return_value.inc.assert_called_once_with()
+
+
+def test_custom_api_config__rejects_deployment_endpoint_override() -> None:
+    with patch.object(
+        custom_api_module.env_settings,
+        "custom_web_search_api_endpoint",
+        "https://operator.example.com/search",
+    ):
+        with pytest.raises(ValidationError, match="managed by the deployment"):
+            CustomAPIConfig(api_endpoint="https://caller.example.com/search")
