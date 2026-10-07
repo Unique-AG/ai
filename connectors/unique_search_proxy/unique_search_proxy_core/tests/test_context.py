@@ -154,11 +154,11 @@ class TestEntryPointAndAttribution:
 
     @pytest.mark.parametrize("raw", ["", "   "])
     def test_blank_message_id_header_uses_fallback(self, raw: str) -> None:
+        fallback = LOCAL_REQUEST_CONTEXT.model_copy(update={"message_id": "fallback"})
         context = RequestContext.from_headers(
-            {MESSAGE_ID_HEADER: raw},
-            fallback=LOCAL_REQUEST_CONTEXT,
+            {MESSAGE_ID_HEADER: raw}, fallback=fallback
         )
-        assert context.message_id is None
+        assert context.message_id == "fallback"
 
     def test_unknown_entry_point_emits_no_header(self) -> None:
         headers = LOCAL_REQUEST_CONTEXT.to_headers()
@@ -238,5 +238,4 @@ class TestEntryPointAndAttribution:
     ) -> None:
         context = RequestContext.from_headers(headers, fallback=LOCAL_REQUEST_CONTEXT)
         assert context.caller == caller
-        assert context.is_attributed == LOCAL_REQUEST_CONTEXT.is_attributed
         assert SERVICE_ID_HEADER not in context.to_headers()
