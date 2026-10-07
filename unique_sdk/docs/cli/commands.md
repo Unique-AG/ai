@@ -131,7 +131,7 @@ unique-cli ls scope_abc123
 
 ## Skill Folders
 
-A skill is a folder that holds a `SKILL.md` or `skills.md` file (any case), together with everything inside it. The CLI keeps skills out of the knowledge base commands. Conduct already loads the skills a turn may use into the workspace.
+A skill is a folder that holds a `SKILL.md` or `skills.md` file (any case), together with everything inside it. The CLI keeps skills out of the knowledge base commands.
 
 - `search` drops results inside a skill. `ls` hides skill folders and refuses to list inside one. `read` and `download` refuse skill files.
 - `upload`, `rm`, `mv`, `mkdir`, `rmdir` and `mvdir` refuse to change a skill. `rmdir` and `mvdir` also refuse a folder that has a skill anywhere below it, and `upload` and `mv` refuse to create a new marker file.

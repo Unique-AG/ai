@@ -7,7 +7,7 @@ from typing import Any
 import unique_sdk
 from unique_sdk.cli.formatting import format_ls
 from unique_sdk.cli.metadata_filter import _collect_filter_targets
-from unique_sdk.cli.skill_guard import skill_read_denial
+from unique_sdk.cli.skill_guard import skill_denial
 from unique_sdk.cli.state import ShellState
 
 
@@ -45,7 +45,7 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                 f"({state.scope_denial_hint()})."
             )
         if scope_id is not None and state.skill_guard.is_folder_hidden(scope_id):
-            return skill_read_denial("ls", target or state.cwd)
+            return skill_denial("ls", target or state.cwd)
 
         # At root with a per-message KB scope (e.g. an Agentic Table column's
         # scope_rules), show only the in-scope folders and explicitly-scoped

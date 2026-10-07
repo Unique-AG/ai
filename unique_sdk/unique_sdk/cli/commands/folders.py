@@ -6,7 +6,7 @@ import os
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_folder_info
-from unique_sdk.cli.skill_guard import skill_write_denial
+from unique_sdk.cli.skill_guard import skill_denial
 from unique_sdk.cli.state import ShellState
 
 
@@ -61,7 +61,7 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
             f"({state.scope_denial_hint()})."
         )
     if state.skill_guard.is_path_write_denied(full_path):
-        return skill_write_denial("mkdir", full_path)
+        return skill_denial("mkdir", full_path)
     try:
         result = unique_sdk.Folder.create_paths(
             user_id=state.config.user_id,
@@ -94,7 +94,7 @@ def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
             f"({state.scope_denial_hint()})."
         )
     if state.skill_guard.is_folder_write_denied(scope_id, include_subtree=True):
-        return skill_write_denial("rmdir", target)
+        return skill_denial("rmdir", target)
     try:
         if target.startswith("scope_"):
             unique_sdk.Folder.delete(
@@ -135,7 +135,7 @@ def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
             f"({state.scope_denial_hint()})."
         )
     if state.skill_guard.is_folder_write_denied(scope_id, include_subtree=True):
-        return skill_write_denial("mvdir", old_name)
+        return skill_denial("mvdir", old_name)
     try:
         if old_name.startswith("scope_"):
             result = unique_sdk.Folder.update(

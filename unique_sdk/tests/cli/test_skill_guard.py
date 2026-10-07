@@ -394,7 +394,7 @@ class TestCommands:
         with patch("unique_sdk.cli.commands.files.upload_file") as upload:
             out = cmd_upload(_state(), str(local), "scope_bench")
         assert is_permission_denied_output(out)
-        assert "edit-skill" in out
+        assert "outside your personal skills" in out
         upload.assert_not_called()
 
     def test_upload_marker_into_plain_folder_is_denied(
@@ -500,7 +500,7 @@ class TestReadCommands:
     def test_read_skill_file_is_denied(self, kb: _FakeKnowledgeBase) -> None:
         out = cmd_read(_state(), "cont_bench")
         assert out.startswith("read: permission denied")
-        assert "workspace" in out
+        assert "outside your personal skills" in out
 
     def test_read_own_personal_skill_file_is_allowed(
         self, kb: _FakeKnowledgeBase

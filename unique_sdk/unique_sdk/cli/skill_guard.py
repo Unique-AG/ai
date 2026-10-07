@@ -1,13 +1,13 @@
 """Keep CLI reads and writes out of skill folders (a ``skill.md``/``skills.md`` marker
 at or above the folder) outside the caller's personal skills
-(``<home>/skills-conduct/space-<spaceId>``). Conduct loads the skills a turn may use
-into the workspace, so the agent never needs them from the knowledge base."""
+(``<home>/skills-conduct/space-<spaceId>``)."""
 
 from __future__ import annotations
 
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 import unique_sdk
@@ -27,11 +27,14 @@ _MARKER_KEY_SUFFIXES = tuple(
 _FOLDER_ID_PATH_PREFIX = "uniquepathid://"
 _MAX_FOLDER_DEPTH = 64
 
-# Same names as Conduct's ``conduct/contract/user_home.py`` and node-ingestion.
-_PERSONAL_SKILLS_FOLDER_NAME = "skills-conduct"
-_PERSONAL_SKILLS_SPACE_PREFIX = "space-"
-_USER_HOME_ROOT_NAME = "home"
-_LEGACY_USER_HOME_PREFIX = "home-"
+
+class PersonalSkillsFolder(StrEnum):
+    """Folder names in ``/home/<UserName>/skills-conduct/space-<spaceId>``."""
+
+    HOME_ROOT = "home"
+    LEGACY_HOME_PREFIX = "home-"
+    SKILLS = "skills-conduct"
+    SPACE_PREFIX = "space-"
 
 
 def is_skill_marker_name(name: str) -> bool:
@@ -40,21 +43,11 @@ def is_skill_marker_name(name: str) -> bool:
     return bool(_MARKER_NAME_RE.match(base))
 
 
-def skill_write_denial(command: str, target: str) -> str:
+def skill_denial(command: str, target: str) -> str:
     """Denial text in the ``<command>: permission denied`` shape the CLI exits on."""
     return (
         f"{command}: permission denied: {target} is part of a skill outside your "
-        "personal skills, or its skill status could not be checked. Change skills "
-        "only with the create-skill or edit-skill skills."
-    )
-
-
-def skill_read_denial(command: str, target: str) -> str:
-    """Denial text in the ``<command>: permission denied`` shape the CLI exits on."""
-    return (
-        f"{command}: permission denied: {target} is part of a skill outside your "
-        "personal skills, or its skill status could not be checked. The skills "
-        "you can use are already in your workspace."
+        "personal skills, or its skill status could not be checked."
     )
 
 
@@ -200,13 +193,13 @@ class SkillGuard:
     def _is_in_own_personal_layer(self, chain: list[_FolderNode]) -> bool:
         """True inside ``<home>/skills-conduct/space-<spaceId>``.
 
-        node-ingestion resolves no other user's home for the caller, so a home in
-        the chain is the caller's own. node-ingestion re-checks the owner on write.
+        The API resolves no other user's home for the caller, so a home in the
+        chain is the caller's own. The API re-checks the owner on write.
         """
         return any(
-            node.name.startswith(_PERSONAL_SKILLS_SPACE_PREFIX)
+            node.name.startswith(PersonalSkillsFolder.SPACE_PREFIX)
             and len(chain) > index + 2
-            and chain[index + 1].name == _PERSONAL_SKILLS_FOLDER_NAME
+            and chain[index + 1].name == PersonalSkillsFolder.SKILLS
             and self._is_own_home(chain[index + 2 :])
             for index, node in enumerate(chain)
         )
@@ -215,10 +208,13 @@ class SkillGuard:
         """``/home/<UserName>``, or the legacy root ``/home-<userId>``."""
         home, *above = chain_from_home
         if not above:
-            return home.name == f"{_LEGACY_USER_HOME_PREFIX}{self._config.user_id}"
+            return (
+                home.name
+                == f"{PersonalSkillsFolder.LEGACY_HOME_PREFIX}{self._config.user_id}"
+            )
         return (
             len(above) == 1
-            and above[0].name == _USER_HOME_ROOT_NAME
+            and above[0].name == PersonalSkillsFolder.HOME_ROOT
             and above[0].parent_id is None
         )
 
