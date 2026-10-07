@@ -25,6 +25,7 @@ def record_request_usage(
             company_id=context.company_id,
             user_id=context.user_id,
             chat_id=context.chat_id,
+            message_id=context.message_id,
             entry_point=context.entry_point,
             caller=context.caller,
             endpoint=endpoint,

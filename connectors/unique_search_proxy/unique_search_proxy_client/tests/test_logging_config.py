@@ -55,6 +55,17 @@ class TestLoggingConfig:
         assert not logger.propagate
 
     @pytest.mark.ai
+    def test_usage_line_is_bare_and_not_filtered_by_log_level(
+        self,
+        capfd: pytest.CaptureFixture[str],
+    ) -> None:
+        configure_logging("error")
+
+        logging.getLogger("unique_search_proxy_core.usage").info('{"event": "x"}')
+
+        assert capfd.readouterr().err == '{"event": "x"}\n'
+
+    @pytest.mark.ai
     def test_request_context_filter_adds_entry_point_to_records(self) -> None:
         token = bind_request_context(
             RequestContext(

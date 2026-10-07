@@ -11,6 +11,7 @@ from unique_search_proxy_core.context import (
     COMPANY_ID_HEADER,
     ENTRY_POINT_HEADER,
     LOCAL_REQUEST_CONTEXT,
+    MESSAGE_ID_HEADER,
     SERVICE_ID_HEADER,
     USER_ID_HEADER,
     USER_METADATA_HEADER,
@@ -143,6 +144,14 @@ class TestRequestContext:
 
 @pytest.mark.ai
 class TestEntryPointAndAttribution:
+    def test_message_id_is_optional_and_round_trips_through_headers(self) -> None:
+        assert MESSAGE_ID_HEADER not in LOCAL_REQUEST_CONTEXT.to_headers()
+        context = LOCAL_REQUEST_CONTEXT.model_copy(update={"message_id": "msg-1"})
+        headers = context.to_headers()
+        assert headers[MESSAGE_ID_HEADER] == "msg-1"
+        restored = RequestContext.from_headers(headers, fallback=LOCAL_REQUEST_CONTEXT)
+        assert restored.message_id == "msg-1"
+
     def test_unknown_entry_point_emits_no_header(self) -> None:
         headers = LOCAL_REQUEST_CONTEXT.to_headers()
         assert ENTRY_POINT_HEADER not in headers

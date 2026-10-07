@@ -44,6 +44,7 @@ def test_record_usage_emits_one_json_line_with_fixed_fields(
         "company_id",
         "user_id",
         "chat_id",
+        "message_id",
         "entry_point",
         "caller",
         "endpoint",

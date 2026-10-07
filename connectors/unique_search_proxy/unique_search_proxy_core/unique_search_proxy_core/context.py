@@ -15,6 +15,7 @@ USER_ID_HEADER = "x-unique-user-id"
 CHAT_ID_HEADER = "x-unique-chat-id"
 USER_METADATA_HEADER = "x-unique-user-metadata"
 ENTRY_POINT_HEADER = "x-unique-entry-point"
+MESSAGE_ID_HEADER = "x-unique-message-id"
 SERVICE_ID_HEADER = "x-service-id"
 
 _CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
@@ -54,6 +55,8 @@ class RequestContext(BaseModel):
     entry_point: EntryPoint = EntryPoint.UNKNOWN
     # Calling service from ``x-service-id``; logged only, never enforced.
     caller: str = "unknown"
+    # Reserved for analytics; optional until callers send it.
+    message_id: str | None = None
     user_metadata: dict[str, Any] = Field(default_factory=dict)
 
     @property
@@ -81,6 +84,8 @@ class RequestContext(BaseModel):
         }
         if self.entry_point is not EntryPoint.UNKNOWN:
             headers[ENTRY_POINT_HEADER] = self.entry_point.value
+        if self.message_id:
+            headers[MESSAGE_ID_HEADER] = self.message_id
         if self.user_metadata:
             # ``ensure_ascii`` keeps the value latin-1 encodable, which HTTP
             # headers require.
@@ -124,6 +129,7 @@ class RequestContext(BaseModel):
                 fallback.entry_point,
             ),
             caller=normalized.get(SERVICE_ID_HEADER) or fallback.caller,
+            message_id=normalized.get(MESSAGE_ID_HEADER) or fallback.message_id,
             user_metadata=_parse_user_metadata(
                 normalized.get(USER_METADATA_HEADER),
                 fallback=fallback.user_metadata,
@@ -168,6 +174,7 @@ __all__ = [
     "ENTRY_POINT_HEADER",
     "EntryPoint",
     "LOCAL_REQUEST_CONTEXT",
+    "MESSAGE_ID_HEADER",
     "RequestContext",
     "SERVICE_ID_HEADER",
     "USER_ID_HEADER",

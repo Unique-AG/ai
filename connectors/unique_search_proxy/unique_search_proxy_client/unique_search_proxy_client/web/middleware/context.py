@@ -30,6 +30,8 @@ _CONTEXT_EXCLUDED_PATHS = frozenset(
     }
 )
 
+_ATTRIBUTION_EXEMPT_PREFIX = "/v1/configuration/"
+
 
 def _headers_from_scope(scope: Scope) -> dict[str, str]:
     return {
@@ -86,7 +88,9 @@ class RequestContextMiddleware:
         token = bind_request_context(context)
         try:
             # Warn and count by default; reject only when the setting is on.
-            if not context.is_attributed:
+            if not context.is_attributed and not path.startswith(
+                _ATTRIBUTION_EXEMPT_PREFIX
+            ):
                 invalid = context.invalid_identity_headers
                 record_unattributed_request(context.entry_point.value)
                 _LOGGER.warning("Unattributed request, invalid headers: %s", invalid)
