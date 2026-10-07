@@ -136,7 +136,7 @@ A skill is a folder that holds a `SKILL.md` or `skills.md` file (any case), toge
 - `search` drops results inside a skill. `ls` hides skill folders and refuses to list inside one. `read` and `download` refuse skill files.
 - `upload`, `rm`, `mv`, `mkdir`, `rmdir` and `mvdir` refuse to change a skill. `rmdir` and `mvdir` also refuse a folder that has a skill anywhere below it, and `upload` and `mv` refuse to create a new marker file.
 
-Your own top-level `personal-<userId>` folder is exempt. A `personal-<userId>` folder inside another skill layer (`company-`, `space-`, `team-`) or inside a skill is not.
+Your personal skills folders are exempt: `<home>/skills-conduct/space-<spaceId>` inside your own home (`/home/<UserName>` or `/home-<userId>`). A `skills-conduct/space-*` folder anywhere else is not, and neither is a `personal-<userId>` folder.
 
 The check runs even when no workspace scope is configured. A denial prints `<command>: permission denied: …` and exits non-zero. If the CLI can't look up the skill status, it denies the request.
 

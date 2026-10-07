@@ -1,7 +1,7 @@
 """Keep CLI reads and writes out of skill folders (a ``skill.md``/``skills.md`` marker
-at or above the folder) outside the caller's ``personal-<userId>`` layer. Conduct
-loads the skills a turn may use into the workspace, so the agent never needs them
-from the knowledge base."""
+at or above the folder) outside the caller's personal skills
+(``<home>/skills-conduct/space-<spaceId>``). Conduct loads the skills a turn may use
+into the workspace, so the agent never needs them from the knowledge base."""
 
 from __future__ import annotations
 
@@ -27,8 +27,11 @@ _MARKER_KEY_SUFFIXES = tuple(
 _FOLDER_ID_PATH_PREFIX = "uniquepathid://"
 _MAX_FOLDER_DEPTH = 64
 
-# Same prefixes as Conduct's ``conduct/workspace/skills/layers.py``.
-_LAYER_PREFIXES = ("company-", "space-", "team-", "personal-")
+# Same names as Conduct's ``conduct/contract/user_home.py`` and node-ingestion.
+_PERSONAL_SKILLS_FOLDER_NAME = "skills-conduct"
+_PERSONAL_SKILLS_SPACE_PREFIX = "space-"
+_USER_HOME_ROOT_NAME = "home"
+_LEGACY_USER_HOME_PREFIX = "home-"
 
 
 def is_skill_marker_name(name: str) -> bool:
@@ -74,7 +77,6 @@ class SkillGuard:
 
     def __init__(self, config: Config) -> None:
         self._config = config
-        self._personal_folder_name = f"personal-{config.user_id}"
         self._folders: dict[str, _FolderNode] = {}
         self._markers: tuple[_SkillMarker, ...] | None = None
         self._hidden: dict[str, bool] = {}
@@ -196,16 +198,29 @@ class SkillGuard:
         return False
 
     def _is_in_own_personal_layer(self, chain: list[_FolderNode]) -> bool:
-        """``personal-<userId>`` counts only as a top-level layer: a copy nested in
-        another layer or skill would load as that layer's skill."""
-        for index, node in enumerate(chain):
-            if node.name != self._personal_folder_name:
-                continue
-            above = chain[index + 1 :]
-            if any(folder.name.startswith(_LAYER_PREFIXES) for folder in above):
-                return False
-            return not self._has_marker_in([folder.scope_id for folder in above])
-        return False
+        """True inside ``<home>/skills-conduct/space-<spaceId>``.
+
+        node-ingestion resolves no other user's home for the caller, so a home in
+        the chain is the caller's own. node-ingestion re-checks the owner on write.
+        """
+        return any(
+            node.name.startswith(_PERSONAL_SKILLS_SPACE_PREFIX)
+            and len(chain) > index + 2
+            and chain[index + 1].name == _PERSONAL_SKILLS_FOLDER_NAME
+            and self._is_own_home(chain[index + 2 :])
+            for index, node in enumerate(chain)
+        )
+
+    def _is_own_home(self, chain_from_home: list[_FolderNode]) -> bool:
+        """``/home/<UserName>``, or the legacy root ``/home-<userId>``."""
+        home, *above = chain_from_home
+        if not above:
+            return home.name == f"{_LEGACY_USER_HOME_PREFIX}{self._config.user_id}"
+        return (
+            len(above) == 1
+            and above[0].name == _USER_HOME_ROOT_NAME
+            and above[0].parent_id is None
+        )
 
     def _has_marker_in(self, folder_ids: list[str]) -> bool:
         if not folder_ids:

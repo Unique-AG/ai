@@ -35,27 +35,39 @@ _FOLDERS: dict[str, tuple[str, str | None]] = {
     "scope_bench": ("bench-skill-4", "scope_kb"),
     "scope_bench_refs": ("references", "scope_bench"),
     "scope_docs": ("Docs", "scope_kb"),
-    "scope_skills": ("skills-conduct", None),
-    "scope_mine_root": ("personal-u1", "scope_skills"),
+    "scope_home_root": ("home", None),
+    "scope_my_home": ("Me", "scope_home_root"),
+    "scope_my_conduct": ("skills-conduct", "scope_my_home"),
+    "scope_mine_root": ("space-abc", "scope_my_conduct"),
     "scope_mine": ("my-skill", "scope_mine_root"),
+    "scope_legacy_home": ("home-u1", None),
+    "scope_legacy_conduct": ("skills-conduct", "scope_legacy_home"),
+    "scope_legacy_space": ("space-abc", "scope_legacy_conduct"),
+    "scope_legacy_mine": ("old-skill", "scope_legacy_space"),
+    "scope_skills": ("skills-conduct", None),
     "scope_theirs_root": ("personal-u2", "scope_skills"),
     "scope_theirs": ("their-skill", "scope_theirs_root"),
     "scope_company": ("company-acme", "scope_skills"),
     "scope_shared": ("shared-skill", "scope_company"),
-    "scope_mine_in_company": ("personal-u1", "scope_company"),
-    "scope_mine_in_company_draft": ("draft", "scope_mine_in_company"),
-    "scope_mine_in_skill": ("personal-u1", "scope_bench"),
+    "scope_old_personal": ("personal-u1", "scope_skills"),
+    "scope_old_personal_skill": ("old-skill", "scope_old_personal"),
+    "scope_lookalike_conduct": ("skills-conduct", "scope_docs"),
+    "scope_lookalike_space": ("space-abc", "scope_lookalike_conduct"),
+    "scope_lookalike_skill": ("fake-skill", "scope_lookalike_space"),
 }
+
+_MY_SKILL_PATH = (
+    "uniquepathid://scope_home_root/scope_my_home/scope_my_conduct"
+    "/scope_mine_root/scope_mine"
+)
 
 # content id, key, owner id, folderIdPath
 _CONTENTS: list[tuple[str, str, str, str | None]] = [
     ("cont_bench", "SKILL.md", "scope_bench", "uniquepathid://scope_kb/scope_bench"),
-    (
-        "cont_mine",
-        "Skills.md",
-        "scope_mine",
-        "uniquepathid://scope_skills/scope_mine_root/scope_mine",
-    ),
+    ("cont_mine", "Skills.md", "scope_mine", _MY_SKILL_PATH),
+    ("cont_legacy_mine", "SKILL.md", "scope_legacy_mine", None),
+    ("cont_old_personal", "SKILL.md", "scope_old_personal_skill", None),
+    ("cont_lookalike", "SKILL.md", "scope_lookalike_skill", None),
     (
         "cont_theirs",
         "skill.md",
@@ -201,7 +213,10 @@ class TestFolderWrites:
             ("scope_bench_refs", True),
             ("scope_theirs", True),
             ("scope_shared", True),
+            ("scope_old_personal_skill", True),
+            ("scope_lookalike_skill", True),
             ("scope_mine", False),
+            ("scope_legacy_mine", False),
             ("scope_docs", False),
             ("scope_kb", False),
         ],
@@ -217,8 +232,9 @@ class TestFolderWrites:
             ("scope_kb", True),
             ("scope_skills", True),
             ("scope_company", True),
+            ("scope_old_personal", True),
+            ("scope_my_home", True),
             ("scope_mine_root", False),
-            ("scope_docs", False),
         ],
     )
     def test_skill_below_folder(
@@ -251,21 +267,32 @@ class TestFolderWrites:
         kb.search.side_effect = unique_sdk.UniqueError("search failed")
         assert SkillGuard(_config()).is_folder_write_denied("scope_docs")
 
-    def test_personal_layer_searches_only_above_the_layer(
+    def test_personal_skills_need_no_marker_search(
         self, kb: _FakeKnowledgeBase
     ) -> None:
         assert not SkillGuard(_config()).is_folder_write_denied("scope_mine")
-        assert kb.search.call_count == 1
-        assert _owner_id_filter(kb.search.call_args.kwargs["where"]) == ["scope_skills"]
+        kb.search.assert_not_called()
 
     @pytest.mark.parametrize(
-        "scope_id", ["scope_mine_in_company_draft", "scope_mine_in_skill"]
+        "scope_id", ["scope_old_personal", "scope_lookalike_space"]
     )
-    def test_nested_personal_folder_is_not_the_personal_layer(
+    def test_space_or_personal_folder_outside_a_home_is_not_personal(
         self, kb: _FakeKnowledgeBase, scope_id: str
     ) -> None:
         guard = SkillGuard(_config())
         assert guard.is_folder_write_denied(scope_id, new_file_name="SKILL.md")
+
+    def test_legacy_home_of_another_user_is_not_personal(
+        self, kb: _FakeKnowledgeBase
+    ) -> None:
+        config = Config(
+            user_id="u2",
+            company_id="c1",
+            api_key="key",
+            app_id="app",
+            api_base="https://example.com",
+        )
+        assert SkillGuard(config).is_folder_write_denied("scope_legacy_mine")
 
     def test_folder_write_searches_only_the_folder_chain(
         self, kb: _FakeKnowledgeBase
@@ -313,10 +340,11 @@ class TestReads:
             ("scope_bench_refs", True),
             ("scope_theirs", True),
             ("scope_shared", True),
-            ("scope_mine_in_skill", True),
+            ("scope_old_personal_skill", True),
+            ("scope_lookalike_skill", True),
             ("scope_mine", False),
             ("scope_mine_root", False),
-            ("scope_mine_in_company_draft", False),
+            ("scope_legacy_mine", False),
             ("scope_docs", False),
             ("scope_kb", False),
         ],
@@ -346,7 +374,8 @@ class TestPathWrites:
             ("/Knowledge/bench-skill-4/new", True),
             ("/Knowledge/bench-skill-4/references/a/b", True),
             ("/Knowledge/Docs/new/deeper", False),
-            ("/skills-conduct/personal-u1/my-skill/assets", False),
+            ("/home/Me/skills-conduct/space-abc/my-skill/assets", False),
+            ("/skills-conduct/personal-u1/old-skill/assets", True),
             ("/Nowhere/new", False),
         ],
     )
@@ -456,7 +485,7 @@ class TestReadCommands:
                 "uniquepathid://scope_skills/scope_theirs_root/scope_theirs",
             ),
             _hit("cont_shared", None),
-            _hit("cont_mine", "uniquepathid://scope_skills/scope_mine_root/scope_mine"),
+            _hit("cont_mine", _MY_SKILL_PATH),
             _hit("cont_report", "uniquepathid://scope_kb/scope_docs"),
         ]
         with patch.object(unique_sdk.Search, "create", return_value=hits):
