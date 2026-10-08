@@ -26,32 +26,3 @@ def _isolated_cwd(
     monkeypatch.setenv("HOME", str(scratch))
     monkeypatch.chdir(scratch)
     return scratch
-
-
-@pytest.fixture(autouse=True)
-def _allow_skill_writes(
-    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Skip the skill guard unless the test is marked ``skill_guard``."""
-    if request.node.get_closest_marker("skill_guard") is not None:
-        return
-    from unique_sdk.cli.skill_guard import SkillGuard
-    from unique_sdk.cli.state import ShellState
-
-    monkeypatch.setattr(
-        SkillGuard, "is_folder_write_denied", lambda *_args, **_kwargs: False
-    )
-    monkeypatch.setattr(
-        SkillGuard, "is_path_write_denied", lambda *_args, **_kwargs: False
-    )
-    monkeypatch.setattr(
-        ShellState, "is_skill_content_write_denied", lambda *_args, **_kwargs: False
-    )
-    monkeypatch.setattr(SkillGuard, "is_folder_hidden", lambda *_args: False)
-    monkeypatch.setattr(
-        SkillGuard, "visible_child_folders", lambda _self, folders: list(folders)
-    )
-    monkeypatch.setattr(
-        ShellState, "is_skill_content_read_denied", lambda *_args: False
-    )
-    monkeypatch.setattr(ShellState, "is_skill_search_hit_hidden", lambda *_args: False)

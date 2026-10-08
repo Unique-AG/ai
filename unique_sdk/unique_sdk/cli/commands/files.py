@@ -11,7 +11,6 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_content_info
-from unique_sdk.cli.skill_guard import skill_denial
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
@@ -338,10 +337,6 @@ def cmd_upload(
                 "upload: permission denied: destination is outside your "
                 f"task scope ({state.scope_denial_hint()})."
             )
-        if state.skill_guard.is_folder_write_denied(
-            scope_id, new_file_name=display_name
-        ):
-            return skill_denial("upload", display_name)
 
         mime_type = _detect_upload_mime_type(path)
 
@@ -431,8 +426,6 @@ def cmd_download(
     """Download a file by name or content ID."""
     try:
         content_id, display_name = _resolve_content_id(state, name_or_id)
-        if state.is_skill_content_read_denied(content_id):
-            return skill_denial("download", display_name)
 
         raw_name = (
             display_name if not display_name.startswith("cont_") else f"{content_id}"
@@ -469,8 +462,6 @@ def cmd_rm(state: ShellState, name_or_id: str) -> str:
         content_id, display_name = _resolve_content_id(
             state, name_or_id, allow_chat_files=False
         )
-        if state.is_skill_content_write_denied(content_id):
-            return skill_denial("rm", display_name)
         unique_sdk.Content.delete(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
@@ -490,8 +481,6 @@ def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
         content_id, display_name = _resolve_content_id(
             state, old_name, allow_chat_files=False
         )
-        if state.is_skill_content_write_denied(content_id, new_name=new_name):
-            return skill_denial("mv", display_name)
         result = unique_sdk.Content.update(
             user_id=state.config.user_id,
             company_id=state.config.company_id,

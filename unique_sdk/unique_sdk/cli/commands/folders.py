@@ -6,7 +6,6 @@ import os
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_folder_info
-from unique_sdk.cli.skill_guard import skill_denial
 from unique_sdk.cli.state import ShellState
 
 
@@ -60,8 +59,6 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
             "mkdir: permission denied: destination is outside your task scope "
             f"({state.scope_denial_hint()})."
         )
-    if state.skill_guard.is_path_write_denied(full_path):
-        return skill_denial("mkdir", full_path)
     try:
         result = unique_sdk.Folder.create_paths(
             user_id=state.config.user_id,
@@ -87,14 +84,11 @@ def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
         and not state.is_folder_target_within_workspace(target)
     ):
         return "rmdir: permission denied (outside workspace scope)"
-    scope_id = _resolve_folder_scope_id(state, target)
-    if _metadata_filter_denies_folder(state, scope_id):
+    if _metadata_filter_denies_folder(state, _resolve_folder_scope_id(state, target)):
         return (
             "rmdir: permission denied: target is outside your task scope "
             f"({state.scope_denial_hint()})."
         )
-    if state.skill_guard.is_folder_write_denied(scope_id, include_subtree=True):
-        return skill_denial("rmdir", target)
     try:
         if target.startswith("scope_"):
             unique_sdk.Folder.delete(
@@ -128,14 +122,11 @@ def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
         and not state.is_folder_target_within_workspace(old_name)
     ):
         return "mvdir: permission denied (outside workspace scope)"
-    scope_id = _resolve_folder_scope_id(state, old_name)
-    if _metadata_filter_denies_folder(state, scope_id):
+    if _metadata_filter_denies_folder(state, _resolve_folder_scope_id(state, old_name)):
         return (
             "mvdir: permission denied: target is outside your task scope "
             f"({state.scope_denial_hint()})."
         )
-    if state.skill_guard.is_folder_write_denied(scope_id, include_subtree=True):
-        return skill_denial("mvdir", old_name)
     try:
         if old_name.startswith("scope_"):
             result = unique_sdk.Folder.update(
