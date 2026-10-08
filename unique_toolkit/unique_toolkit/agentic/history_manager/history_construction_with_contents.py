@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import logging
 import mimetypes
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from itertools import groupby
@@ -104,12 +105,15 @@ def get_chat_history_with_contents(
     else:
         chat_history.append(last_user_message)
 
+    # Failed uploads are included on purpose so the model is told about every
+    # file the user attached, including those that could not be ingested.
     chat_contents = content_service.search_contents(
         where={
             "ownerId": {
                 "equals": chat_id,
             },
         },
+        include_failed_content=True,
     )
 
     return ChatHistoryWithContent.from_chat_history_and_contents(
@@ -139,12 +143,15 @@ async def get_chat_history_with_contents_async(
     else:
         chat_history.append(last_user_message)
 
+    # Failed uploads are included on purpose so the model is told about every
+    # file the user attached, including those that could not be ingested.
     chat_contents = await content_service.search_contents_async(
         where={
             "ownerId": {
                 "equals": chat_id,
             },
         },
+        include_failed_content=True,
     )
 
     return ChatHistoryWithContent.from_chat_history_and_contents(
@@ -223,6 +230,38 @@ def _serialize_file_contents(
     return (text + "\n\n" + "\n".join(serialized_files)).strip()
 
 
+@dataclass(frozen=True)
+class _SplitContents:
+    """Uploads of one chat message, grouped by how they reach the model.
+
+    ``serializable`` holds documents *and* images in upload order so the
+    ``FileContentSerializer`` can describe every upload as text, while
+    ``images`` only holds the images that will be attached as base64.
+    """
+
+    serializable: list[Content]
+    images: list[Content]
+
+
+def _split_contents(
+    contents: list[Content],
+    selected_content_ids: set[str] | None,
+) -> _SplitContents:
+    serializable: list[Content] = []
+    images: list[Content] = []
+    for content in contents:
+        if selected_content_ids is not None and content.id not in selected_content_ids:
+            continue
+        is_image = FileUtils.is_image_content(content.key)
+        if is_image or FileUtils.is_file_content(content.key):
+            serializable.append(content)
+        # Failed or expired uploads cannot be downloaded; they are still listed
+        # via the serializer but never attached as an image.
+        if is_image and not content.has_ingestion_failed() and not content.is_expired():
+            images.append(content)
+    return _SplitContents(serializable=serializable, images=images)
+
+
 def _append_element_to_builder(
     builder: MessagesBuilder,
     c: ChatMessageWithContents,
@@ -234,18 +273,11 @@ def _append_element_to_builder(
     selected_content_ids: set[str] | None = None,
 ) -> None:
     if len(c.contents) > 0:
-        file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
-        image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
-        if selected_content_ids is not None:
-            file_contents = [
-                co for co in file_contents if co.id in selected_content_ids
-            ]
-            image_contents = [
-                co for co in image_contents if co.id in selected_content_ids
-            ]
+        split = _split_contents(c.contents, selected_content_ids)
+        image_contents = split.images
         content = _serialize_file_contents(
             text,
-            file_contents,
+            split.serializable,
             file_content_serializer,
         )
         if include_images and image_contents:
@@ -282,18 +314,11 @@ async def _append_element_to_builder_async(
     selected_content_ids: set[str] | None = None,
 ) -> None:
     if len(c.contents) > 0:
-        file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
-        image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
-        if selected_content_ids is not None:
-            file_contents = [
-                co for co in file_contents if co.id in selected_content_ids
-            ]
-            image_contents = [
-                co for co in image_contents if co.id in selected_content_ids
-            ]
+        split = _split_contents(c.contents, selected_content_ids)
+        image_contents = split.images
         content = _serialize_file_contents(
             text,
-            file_contents,
+            split.serializable,
             file_content_serializer,
         )
         if include_images and image_contents:

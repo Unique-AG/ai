@@ -88,6 +88,31 @@ async def test_get_chat_history_with_contents_async():
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_get_chat_history_with_contents_async_includes_failed_content():
+    """Verify chat uploads are fetched including failed ingestions.
+
+    Purpose: Ensure files whose ingestion failed still reach the history builder.
+    Why this matters: The model must be told about every file the user uploaded,
+    not only the ones the platform could ingest.
+    Setup summary: Call the history loader and inspect the search arguments.
+    """
+    content_service = MagicMock()
+    content_service.search_contents_async = AsyncMock(return_value=[])
+
+    await get_chat_history_with_contents_async(
+        user_message=_make_user_message(),
+        chat_id="chat_1",
+        chat_history=_make_chat_history(),
+        content_service=content_service,
+    )
+
+    call_kwargs = content_service.search_contents_async.await_args.kwargs
+    assert call_kwargs["where"] == {"ownerId": {"equals": "chat_1"}}
+    assert call_kwargs["include_failed_content"] is True
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_get_chat_history_with_contents_async_dedup_user_message():
     """When last history message has same ID as user_message, it should not be duplicated."""
     content_service = MagicMock()
@@ -387,11 +412,137 @@ async def test_append_element_to_builder_async_with_file_and_image_contents():
 
     assert (
         builder.image_message_append.call_args.kwargs["content"]
-        == "see this image\n\nFile: report.pdf"
+        == "see this image\n\nFile: report.pdf\nFile: photo.png"
     )
     assert builder.image_message_append.call_args.kwargs["images"] == [
         "data:image/png;base64,iVBORw=="
     ]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_append_element_to_builder_async_serializes_images_in_upload_order():
+    """Verify images are passed to the file serializer alongside documents.
+
+    Purpose: Every upload, including images, must be describable as text.
+    Why this matters: The model should know an image was attached even though the
+    image itself is delivered as base64, and ordering must follow the upload order.
+    Setup summary: Append image, file, image and assert serializer call order.
+    """
+    from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+        ChatMessageWithContents,
+    )
+
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(return_value=b"\x89PNG")
+    builder = MagicMock()
+    msg = ChatMessageWithContents(
+        id="m1",
+        chat_id="c1",
+        text="mixed",
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime(2026, 1, 1, 12, 0),
+        contents=[
+            _make_image_content("first.png", "cont_img1"),
+            _make_file_content("report.pdf", "cont_file1"),
+            _make_image_content("second.png", "cont_img2"),
+        ],
+    )
+    serialized_ids: list[str] = []
+
+    def serialize(content: Content) -> str:
+        serialized_ids.append(content.id)
+        return content.key
+
+    with (
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_file_content",
+            side_effect=lambda key: key.endswith(".pdf"),
+        ),
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_image_content",
+            side_effect=lambda key: key.endswith(".png"),
+        ),
+    ):
+        await _append_element_to_builder_async(
+            builder=builder,
+            c=msg,
+            text="mixed",
+            include_images=ImageContentInclusion.ALL,
+            content_service=content_service,
+            chat_id="c1",
+            file_content_serializer=serialize,
+        )
+
+    assert serialized_ids == ["cont_img1", "cont_file1", "cont_img2"]
+    assert (
+        builder.image_message_append.call_args.kwargs["content"]
+        == "mixed\n\nfirst.png\nreport.pdf\nsecond.png"
+    )
+    assert len(builder.image_message_append.call_args.kwargs["images"]) == 2
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_append_element_to_builder_async_lists_but_does_not_attach_failed_image():
+    """Verify a failed-ingestion image is described but not downloaded.
+
+    Purpose: Failed uploads (e.g. malware found) cannot be downloaded.
+    Why this matters: The model must still learn the image exists and failed,
+    without the builder attempting a doomed download.
+    Setup summary: Append one failed image and assert text-only message output.
+    """
+    from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+        ChatMessageWithContents,
+    )
+
+    failed_image = Content(
+        id="cont_img1",
+        key="photo.png",
+        ingestion_state="FAILED_MALWARE_FOUND",
+        created_at=datetime(2026, 1, 1, 11, 55),
+    )
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock()
+    builder = MagicMock()
+    msg = ChatMessageWithContents(
+        id="m1",
+        chat_id="c1",
+        text="see this",
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime(2026, 1, 1, 12, 0),
+        contents=[failed_image],
+    )
+
+    with (
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_file_content",
+            return_value=False,
+        ),
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_image_content",
+            return_value=True,
+        ),
+    ):
+        await _append_element_to_builder_async(
+            builder=builder,
+            c=msg,
+            text="see this",
+            include_images=ImageContentInclusion.ALL,
+            content_service=content_service,
+            chat_id="c1",
+            file_content_serializer=lambda content: f"Image: {content.key} failed",
+        )
+
+    builder.image_message_append.assert_not_called()
+    builder.message_append.assert_called_once()
+    assert (
+        builder.message_append.call_args.kwargs["content"]
+        == "see this\n\nImage: photo.png failed"
+    )
+    content_service.download_content_to_bytes_async.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

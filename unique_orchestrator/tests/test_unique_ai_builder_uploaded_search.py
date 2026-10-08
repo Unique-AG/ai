@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -345,7 +346,20 @@ class TestSerializeUploadedFileForHistory:
             "- Available for processing in the code execution container"
         )
 
-    def test_omits_search_for_non_ingested_file(self) -> None:
+    def test_ingested_file_without_tools_has_only_header(self) -> None:
+        content = Content(id="cont_1", key="report.pdf")
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=False,
+            code_interpreter_available=False,
+        )
+
+        assert result == "User uploaded file: report.pdf (cont_1)"
+
+    def test_non_ingested_file_is_not_searchable_but_usable_in_code_execution(
+        self,
+    ) -> None:
         content = Content(
             id="cont_1",
             key="report.pdf",
@@ -355,10 +369,164 @@ class TestSerializeUploadedFileForHistory:
         result = serialize_uploaded_file_for_history(
             content,
             uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Not ingested; not searchable using UploadedSearchTool\n"
+            "- Available for processing in the code execution container"
+        )
+
+    def test_non_ingested_file_without_uploaded_search_omits_tool_name(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_INGESTION"},
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=False,
             code_interpreter_available=False,
         )
 
-        assert result == "User uploaded file: report.pdf (cont_1)"
+        assert result == "User uploaded file: report.pdf (cont_1)\n- Not ingested"
+
+    def test_skipped_excel_ingestion_points_to_code_execution(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="numbers.xlsx",
+            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: numbers.xlsx (cont_1)\n"
+            "- Not ingested; not searchable using UploadedSearchTool\n"
+            "- Available for processing in the code execution container"
+        )
+
+    def test_failed_ingestion_reports_state_without_code_execution(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            ingestion_state="FAILED_PARSING",
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Ingestion failed (FAILED_PARSING); not searchable using UploadedSearchTool"
+        )
+
+    def test_failed_image_is_not_described_as_attached(self) -> None:
+        content = Content(
+            id="cont_img",
+            key="chart.png",
+            ingestion_state="FAILED_MALWARE_FOUND",
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=False,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded image: chart.png (cont_img)\n"
+            "- Ingestion failed (FAILED_MALWARE_FOUND)"
+        )
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "INGESTION_EMBEDDING",
+            "EXTRACTING_METADATA",
+            "RE_INGESTING",
+        ],
+    )
+    def test_ingestion_in_progress(self, state: str) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            ingestion_state=state,
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=False,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Ingestion still in progress; not yet searchable using UploadedSearchTool"
+        )
+
+    @pytest.mark.parametrize("state", ["FINISHED", "CHECKING_INTEGRITY"])
+    def test_finished_ingestion_is_searchable(self, state: str) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            ingestion_state=state,
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=False,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Searchable using UploadedSearchTool"
+        )
+
+    def test_image_is_described_as_attached(self) -> None:
+        content = Content(id="cont_img", key="chart.png")
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded image: chart.png (cont_img)\n"
+            "- Attached to this message as an image\n"
+            "- Available for processing in the code execution container"
+        )
+
+    def test_expired_file_only_reports_expiry(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            expired_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Expired due to company retention policy; "
+            "content can no longer be accessed"
+        )
 
     def test_excludes_code_interpreter_generated_file(self) -> None:
         content = Content(
