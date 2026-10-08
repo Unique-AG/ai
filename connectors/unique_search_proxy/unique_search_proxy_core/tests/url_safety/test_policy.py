@@ -5,7 +5,6 @@ import socket
 import pytest
 
 import unique_search_proxy_core.url_safety.dns as url_safety_dns
-import unique_search_proxy_core.url_safety.policy as url_safety_policy
 from unique_search_proxy_core.url_safety import (
     CrawlTargetValidationError,
     UrlSafetyService,
@@ -161,7 +160,7 @@ class TestValidateCrawlUrls:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_validate_crawl_urls__allows__operator_trusted_private_hostname(
+    async def test_custom_api_allowlist__does_not_allow_regular_crawls(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -177,38 +176,29 @@ class TestValidateCrawlUrls:
             ]
 
         monkeypatch.setattr(url_safety_dns.socket, "getaddrinfo", fake_getaddrinfo)
-        monkeypatch.setattr(
-            url_safety_policy,
-            "url_safety_settings",
-            url_safety_policy.url_safety_settings.model_copy(
-                update={"trusted_private_hosts": ["search.jb.internal"]}
-            ),
+
+        with pytest.raises(CrawlTargetValidationError):
+            await UrlSafetyService.validate_batch_urls(
+                ["https://search.private.example/query"]
+            )
+
+        target = await UrlSafetyService.resolve_custom_api_target(
+            "https://search.private.example/query",
+            trusted_private_hosts=["search.private.example"],
         )
 
-        targets = await UrlSafetyService.validate_batch_urls(
-            ["https://search.jb.internal/query"]
-        )
-
-        assert targets[0].resolved_ip == "10.20.30.40"
-        assert targets[0].host_header == "search.jb.internal"
+        assert target.resolved_ip == "10.20.30.40"
+        assert target.host_header == "search.private.example"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_validate_crawl_urls__still_blocks__trusted_metadata_host(
+    async def test_custom_api_allowlist__still_blocks_metadata_host(
         self,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        monkeypatch.setattr(
-            url_safety_policy,
-            "url_safety_settings",
-            url_safety_policy.url_safety_settings.model_copy(
-                update={"trusted_private_hosts": ["169.254.169.254"]}
-            ),
-        )
-
         with pytest.raises(CrawlTargetValidationError) as exc_info:
-            await UrlSafetyService.validate_batch_urls(
-                ["http://169.254.169.254/latest/meta-data"]
+            await UrlSafetyService.resolve_custom_api_target(
+                "http://169.254.169.254/latest/meta-data",
+                trusted_private_hosts=["169.254.169.254"],
             )
 
         assert exc_info.value.blocked_targets[0].category == "metadata"

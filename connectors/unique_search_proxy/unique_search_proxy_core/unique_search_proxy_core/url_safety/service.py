@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Collection
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
@@ -124,3 +125,14 @@ class UrlSafetyService:
     @staticmethod
     async def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
         return await resolver.resolve_crawl_target(url)
+
+    @staticmethod
+    async def resolve_custom_api_target(
+        url: str,
+        *,
+        trusted_private_hosts: Collection[str],
+    ) -> ResolvedCrawlTarget:
+        return await resolver.resolve_crawl_target(
+            url,
+            trusted_private_hosts=trusted_private_hosts,
+        )

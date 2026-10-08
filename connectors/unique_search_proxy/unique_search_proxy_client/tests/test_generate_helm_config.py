@@ -104,7 +104,14 @@ def test_generated_template_env_vars_match_pydantic_names() -> None:
             if not field.emit_in_template:
                 continue
             assert field.env_var in template
-            assert env_var_name(field.python_name, group.env_prefix) == field.env_var
+            assert (
+                env_var_name(
+                    field.python_name,
+                    group.env_prefix,
+                    group.model.model_fields[field.python_name],
+                )
+                == field.env_var
+            )
 
 
 def test_generated_values_yaml_has_provider_markers() -> None:
@@ -225,10 +232,13 @@ def test_url_safety_lists_are_overridable_in_chart() -> None:
         "allowedSchemes",
         "localhostHosts",
         "metadataHosts",
-        "trustedPrivateHosts",
+        "customApiTrustedPrivateHosts",
     ):
         assert network[key]["type"] == "array"
         assert network[key]["items"] == {"type": "string"}
+    assert network["customApiTrustedPrivateHosts"]["description"] == (
+        "Maps to env var CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS."
+    )
 
     template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
     assert (

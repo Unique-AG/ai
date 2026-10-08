@@ -138,8 +138,9 @@ Response must be JSON with a `results` or legacy `curated` array of
 `FEATURE_FLAG_ENABLE_CUSTOM_API_SEARCH_PROXY_UN_26736` is enabled, the endpoint
 is validated against the Search Proxy URL-safety policy, DNS is pinned, and
 redirects are rejected. Exact private hosts can be operator-approved with
-`URL_SAFETY_TRUSTED_PRIVATE_HOSTS`; use the same value in assistants-core for
-accurate report-only metrics before proxy routing is enabled.
+`CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS`; this exception applies only to
+Customized API endpoints. Use the same value in assistants-core for accurate
+report-only metrics before proxy routing is enabled.
 
 ```bash
 CUSTOM_WEB_SEARCH_API_ENDPOINT=https://your-api.example.com/search

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD, Base
+from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD, Base, Settings
 
 
 class TestSettingsValidateJSON:
@@ -67,6 +67,7 @@ class TestCustomAPISettings:
         assert settings.custom_web_search_api_endpoint is None
         assert settings.custom_web_search_api_headers is None
         assert settings.custom_web_search_api_client_config is None
+        assert settings.custom_web_search_api_trusted_private_hosts == []
 
     def test_custom_api_settings_can_be_set(self):
         """Test Custom API settings can be configured."""
@@ -78,12 +79,32 @@ class TestCustomAPISettings:
             custom_web_search_api_endpoint="https://api.example.com",
             custom_web_search_api_headers=headers,
             custom_web_search_api_client_config=client_config,
+            custom_web_search_api_trusted_private_hosts=["search.private.example"],
         )
 
         assert settings.custom_web_search_api_method == CUSTOM_API_REQUEST_METHOD.POST
         assert settings.custom_web_search_api_endpoint == "https://api.example.com"
         assert settings.custom_web_search_api_headers == headers
         assert settings.custom_web_search_api_client_config == client_config
+        assert settings.custom_web_search_api_trusted_private_hosts == [
+            "search.private.example"
+        ]
+
+    @pytest.mark.ai
+    def test_custom_api_trusted_private_hosts_load_from_env(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv(
+            "CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS",
+            '["search.private.example"]',
+        )
+
+        settings = Settings()
+
+        assert settings.custom_web_search_api_trusted_private_hosts == [
+            "search.private.example"
+        ]
 
 
 class TestValidateCustomWebSearchApiMethod:

@@ -144,16 +144,22 @@ class TestCustomApiProxySearch:
             ]
         )
 
+        resolve_target = AsyncMock(side_effect=validation_error)
         with (
             patch(
                 "unique_web_search.services.search_engine.custom_api."
-                "UrlSafetyService.resolve_crawl_target",
-                AsyncMock(side_effect=validation_error),
+                "UrlSafetyService.resolve_custom_api_target",
+                resolve_target,
             ),
             patch(
                 "unique_web_search.services.search_engine.custom_api."
                 "custom_api_url_safety_report"
             ) as report_metric,
+            patch.object(
+                custom_api_module.env_settings,
+                "custom_web_search_api_trusted_private_hosts",
+                ["10.0.0.1"],
+            ),
         ):
             await search._report_url_safety()
 
@@ -162,6 +168,10 @@ class TestCustomApiProxySearch:
             reason_category="private",
         )
         report_metric.labels.return_value.inc.assert_called_once_with()
+        resolve_target.assert_awaited_once_with(
+            "http://10.0.0.1/search",
+            trusted_private_hosts=["10.0.0.1"],
+        )
 
 
 def test_custom_api_config__rejects_deployment_endpoint_override() -> None:

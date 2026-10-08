@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from pydantic import Field
+import os
+import sys
+from pathlib import Path
+
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,11 +31,15 @@ class UrlSafetySettings(BaseSettings):
         "metadata.azure.internal",
         "metadata.google.internal",
     ]
-    trusted_private_hosts: list[str] = Field(
+    custom_api_trusted_private_hosts: list[str] = Field(
         default_factory=list,
+        validation_alias=AliasChoices(
+            "CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS",
+            "custom_api_trusted_private_hosts",
+        ),
         description=(
-            "Exact operator-approved hostnames or IPs that may resolve to RFC 1918 "
-            "or IPv6 unique-local addresses."
+            "Exact operator-approved Custom API hostnames or IPs that may resolve "
+            "to RFC 1918 or IPv6 unique-local addresses."
         ),
     )
     cluster_local_suffix: str = ".cluster.local"
@@ -47,4 +55,26 @@ class UrlSafetySettings(BaseSettings):
     )
 
 
-url_safety_settings = UrlSafetySettings()
+def _get_settings() -> UrlSafetySettings:
+    if "pytest" in sys.modules:
+        env_file = Path(os.getcwd()) / "tests/test.env"
+    else:
+        env_file = Path(os.getcwd()) / ".env"
+
+    class _Settings(UrlSafetySettings):
+        model_config = SettingsConfigDict(
+            title=UrlSafetySettings.__name__,
+            env_file=env_file,
+            env_file_encoding="utf-8",
+            env_prefix="URL_SAFETY_",
+            extra="ignore",
+            case_sensitive=False,
+            frozen=True,
+        )
+
+    # This subclass only selects the env file; keep generated config docs stable.
+    _Settings.__name__ = UrlSafetySettings.__name__
+    return _Settings()
+
+
+url_safety_settings = _get_settings()

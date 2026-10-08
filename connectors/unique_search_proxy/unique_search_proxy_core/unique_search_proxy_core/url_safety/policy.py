@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
@@ -7,14 +8,21 @@ from unique_search_proxy_core.url_safety import dns
 from unique_search_proxy_core.url_safety.settings import url_safety_settings
 
 
-def is_trusted_private_host(hostname: str) -> bool:
+def is_trusted_private_host(
+    hostname: str,
+    trusted_private_hosts: Collection[str],
+) -> bool:
     normalized_host = hostname.rstrip(".").lower()
     return normalized_host in {
-        host.rstrip(".").lower() for host in url_safety_settings.trusted_private_hosts
+        host.rstrip(".").lower() for host in trusted_private_hosts
     }
 
 
-def validate_target_cheap(url: str) -> tuple[str, str] | None:
+def validate_target_cheap(
+    url: str,
+    *,
+    trusted_private_hosts: Collection[str] = (),
+) -> tuple[str, str] | None:
     """Static validation only — no DNS. Returns (category, reason) if blocked, None otherwise."""
     if not url:
         return "empty", "URL is empty"
@@ -38,7 +46,10 @@ def validate_target_cheap(url: str) -> tuple[str, str] | None:
     ):
         return "localhost", "Target points to a localhost host"
 
-    trusted_private_host = is_trusted_private_host(normalized_host)
+    trusted_private_host = is_trusted_private_host(
+        normalized_host,
+        trusted_private_hosts,
+    )
 
     if not trusted_private_host and normalized_host.endswith(
         url_safety_settings.service_suffix

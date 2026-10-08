@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import json
+import socket
 from typing import Any
 
 import httpx
 import pytest
+import unique_search_proxy_core.url_safety.dns as url_safety_dns
 from unique_search_proxy_core.errors import ForbiddenTargetError
 from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiRequestMethod,
     CustomApiSearchRequest,
 )
 
+import unique_search_proxy_client.web.core.search_engines.custom_api.service as custom_api_service_module
 from unique_search_proxy_client.web.core.search_engines.custom_api.service import (
     CustomApiSearchService,
 )
@@ -122,6 +125,50 @@ class TestCustomApiSearchService:
                 )
 
         assert captured == []
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__allows_configured_custom_api_private_host(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def fake_getaddrinfo(*args: object, **kwargs: object) -> list[tuple]:
+            return [
+                (
+                    socket.AF_INET,
+                    socket.SOCK_STREAM,
+                    6,
+                    "",
+                    ("10.20.30.40", 443),
+                )
+            ]
+
+        monkeypatch.setattr(url_safety_dns.socket, "getaddrinfo", fake_getaddrinfo)
+        monkeypatch.setattr(
+            custom_api_service_module,
+            "url_safety_settings",
+            custom_api_service_module.url_safety_settings.model_copy(
+                update={
+                    "custom_api_trusted_private_hosts": ["search.private.example"],
+                },
+            ),
+        )
+        captured: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.append(request)
+            return httpx.Response(200, json={"results": []})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = CustomApiSearchService(http_client=client)
+            await service.search(
+                _custom_api_request(
+                    apiEndpoint="https://search.private.example/query",
+                ),
+            )
+
+        assert str(captured[0].url).startswith("https://10.20.30.40/query")
+        assert captured[0].headers["Host"] == "search.private.example"
 
     @pytest.mark.ai
     @pytest.mark.asyncio

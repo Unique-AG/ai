@@ -104,7 +104,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | urlSafety.network.metadataHosts[2] | string | `"169.254.170.2"` |  |
 | urlSafety.network.metadataHosts[3] | string | `"metadata.azure.internal"` |  |
 | urlSafety.network.metadataHosts[4] | string | `"metadata.google.internal"` |  |
-| urlSafety.network.trustedPrivateHosts | list | `[]` |  |
+| urlSafety.network.customApiTrustedPrivateHosts | list | `[]` |  |
 | urlSafety.network.serviceSuffix | string | `".svc"` |  |
 | urlSafety.redirects.maxRedirectHops | int | `10` |  |
 | urlSafety.redirects.redirectTimeoutSeconds | float | `10` |  |

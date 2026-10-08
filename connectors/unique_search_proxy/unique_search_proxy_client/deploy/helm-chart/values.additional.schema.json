@@ -569,8 +569,8 @@
                 "type": "string"
               }
             },
-            "trustedPrivateHosts": {
-              "description": "Maps to env var URL_SAFETY_TRUSTED_PRIVATE_HOSTS.",
+            "customApiTrustedPrivateHosts": {
+              "description": "Maps to env var CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS.",
               "type": "array",
               "items": {
                 "type": "string"

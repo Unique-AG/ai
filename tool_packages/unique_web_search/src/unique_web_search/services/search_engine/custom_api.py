@@ -199,7 +199,12 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
 
     async def _report_url_safety(self) -> None:
         try:
-            await UrlSafetyService.resolve_crawl_target(self.config.api_endpoint)
+            await UrlSafetyService.resolve_custom_api_target(
+                self.config.api_endpoint,
+                trusted_private_hosts=(
+                    env_settings.custom_web_search_api_trusted_private_hosts
+                ),
+            )
         except CrawlTargetValidationError as exc:
             reason_category = exc.blocked_targets[0].category
             custom_api_url_safety_report.labels(
@@ -207,7 +212,9 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
                 reason_category=reason_category,
             ).inc()
             _LOGGER.warning(
-                "Custom API URL safety report-only block company_id=%s category=%s",
+                "Search Proxy URL safety would block this Custom API endpoint; "
+                "continuing through the legacy direct path because proxy routing "
+                "is disabled company_id=%s category=%s",
                 self._request_context.company_id,
                 reason_category,
             )

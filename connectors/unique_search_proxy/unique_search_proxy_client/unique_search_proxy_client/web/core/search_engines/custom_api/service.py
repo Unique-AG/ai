@@ -25,6 +25,7 @@ from unique_search_proxy_core.url_safety import (
     CrawlTargetValidationError,
     UrlSafetyService,
     pinned_httpx_get_args,
+    url_safety_settings,
 )
 
 from unique_search_proxy_client.web.core.provider_response import (
@@ -79,8 +80,11 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
 
         # Admin configuration must not grant access to unapproved private targets.
         try:
-            resolved_target = await UrlSafetyService.resolve_crawl_target(
+            resolved_target = await UrlSafetyService.resolve_custom_api_target(
                 request.api_endpoint,
+                trusted_private_hosts=(
+                    url_safety_settings.custom_api_trusted_private_hosts
+                ),
             )
         except CrawlTargetValidationError as exc:
             blocked = exc.blocked_targets[0]
