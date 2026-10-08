@@ -453,7 +453,6 @@ class TestSerializeUploadedFileForHistory:
         "state",
         [
             "INGESTION_EMBEDDING",
-            "CHECKING_INTEGRITY",
             "EXTRACTING_METADATA",
             "RE_INGESTING",
         ],
@@ -476,11 +475,12 @@ class TestSerializeUploadedFileForHistory:
             "- Ingestion still in progress; not yet searchable using UploadedSearchTool"
         )
 
-    def test_finished_ingestion_is_searchable(self) -> None:
+    @pytest.mark.parametrize("state", ["FINISHED", "CHECKING_INTEGRITY"])
+    def test_finished_ingestion_is_searchable(self, state: str) -> None:
         content = Content(
             id="cont_1",
             key="report.pdf",
-            ingestion_state="FINISHED",
+            ingestion_state=state,
         )
 
         result = serialize_uploaded_file_for_history(

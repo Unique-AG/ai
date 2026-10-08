@@ -300,7 +300,6 @@ class TestContentIngestionStateHelpers:
             "QUEUED",
             "MALWARE_SCANNING",
             "METADATA_VALIDATION",
-            "CHECKING_INTEGRITY",
             "EXTRACTING_METADATA",
             "INGESTION_READING",
             "INGESTION_CHUNKING",
@@ -319,12 +318,14 @@ class TestContentIngestionStateHelpers:
         assert make_content(ingestion_state=state).is_ingestion_in_progress() is True
 
     @pytest.mark.parametrize(
-        "state", [None, "FINISHED", "FAILED_PARSING", "RE_EMBEDDING"]
+        "state",
+        [None, "FINISHED", "FAILED_PARSING", "RE_EMBEDDING", "CHECKING_INTEGRITY"],
     )
     def test__is_ingestion_in_progress__false_otherwise(self, state):
         """
         Purpose: Verify finished, failed, post-finish, and unknown states are not pending.
-        Why this matters: Post-FINISHED maintenance states (e.g. RE_EMBEDDING) keep
+        Why this matters: Post-FINISHED maintenance states (e.g. RE_EMBEDDING, or
+                          CHECKING_INTEGRITY which is only entered from FINISHED) keep
                           the content searchable and must not be reported as pending.
         Setup summary: Content with a non-pending state; assert False.
         """
