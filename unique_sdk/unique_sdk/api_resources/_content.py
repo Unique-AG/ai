@@ -21,7 +21,6 @@ class Content(APIResource["Content"]):
 
     id: str
     key: str
-    ownerId: str
     url: str | None
     title: str | None
     updatedAt: str

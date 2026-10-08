@@ -288,7 +288,6 @@ verified page numbers (if any) and `--read-method`.
 - File-not-found and folder-not-found errors are returned as text, not exceptions.
 - Successful results print to stdout -- parse output as needed.
 - Scope denials (e.g. a file or folder outside the task scope) print to **stderr** and exit with a **non-zero** status, so a denial in an `&&` chain stops the chain instead of being treated as success. Read the stderr message: it names the in-scope folders/documents to redirect you, rather than retrying the same out-of-scope target.
-- Skills in the knowledge base are off limits. A skill is a folder with a `SKILL.md` (or `skills.md`) file, including everything inside it. `search` and `ls` hide them, and `read`, `download`, `upload`, `rm`, `mv`, `mkdir`, `rmdir` and `mvdir` refuse them. Only your personal skills folders (`<home>/skills-conduct/space-<spaceId>` in your own home) are exempt. Never retry a denied command another way.
 
 ## Interactive Mode
 
