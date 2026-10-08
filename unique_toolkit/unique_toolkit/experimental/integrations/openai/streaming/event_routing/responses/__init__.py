@@ -1,23 +1,17 @@
-"""OpenAI Responses API streaming event routing (``/v1/responses`` stream)."""
+"""Deprecated import path shim — use the stable module instead."""
 
-from __future__ import annotations
+from importlib import import_module
 
-from .code_interpreter_event_handler import (
-    CodeInterpreterCallEvent,
-    ResponsesCodeInterpreterEventHandler,
+from unique_toolkit._common.streaming_deprecation import (
+    reexport_streaming_module,
+    warn_streaming_deprecated_import,
 )
-from .complete_with_references import ResponsesCompleteWithReferences
-from .completed_event_handler import ResponsesCompletedEventHandler
-from .stream_event_router import ResponsesStreamEventRouter
-from .text_delta_event_handler import ResponsesTextDeltaEventHandler
-from .tool_call_event_handler import ResponsesToolCallEventHandler
 
-__all__ = [
-    "CodeInterpreterCallEvent",
-    "ResponsesCodeInterpreterEventHandler",
-    "ResponsesCompleteWithReferences",
-    "ResponsesCompletedEventHandler",
-    "ResponsesStreamEventRouter",
-    "ResponsesTextDeltaEventHandler",
-    "ResponsesToolCallEventHandler",
-]
+_OLD = (
+    "unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses"
+)
+_NEW = "unique_toolkit.integrations.openai.streaming.event_routing.responses"
+
+warn_streaming_deprecated_import(old_path=_OLD, new_path=_NEW)
+
+reexport_streaming_module(globals(), import_module(_NEW))
