@@ -7,6 +7,7 @@ from typing import Any
 import unique_sdk
 from unique_sdk.cli.formatting import format_ls
 from unique_sdk.cli.metadata_filter import _collect_filter_targets
+from unique_sdk.cli.skill_guard import skill_denial
 from unique_sdk.cli.state import ShellState
 
 
@@ -43,6 +44,8 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                 f"ls: permission denied: target is outside your task scope "
                 f"({state.scope_denial_hint()})."
             )
+        if scope_id is not None and state.skill_guard.is_folder_hidden(scope_id):
+            return skill_denial("ls", target or state.cwd)
 
         # At root with a per-message KB scope (e.g. an Agentic Table column's
         # scope_rules), show only the in-scope folders and explicitly-scoped
@@ -67,6 +70,11 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                     )
                 except unique_sdk.UniqueError:
                     pass
+            scoped_folders = [
+                folder
+                for folder in scoped_folders
+                if not state.skill_guard.is_folder_hidden(folder.get("id", ""))
+            ]
             scoped_files: list[Any] = []
             for cid in content_ids:
                 # A contentId mentioned in the filter is not necessarily in
@@ -76,6 +84,8 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                 # in-folder ls deny. Cached, so no extra API cost. See
                 # UN-21780.
                 if not state.is_content_within_workspace(cid):
+                    continue
+                if state.is_skill_content_read_denied(cid):
                     continue
                 try:
                     info = unique_sdk.Content.get_info(
@@ -109,6 +119,11 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                     folders.append(info)
                 except unique_sdk.UniqueError:
                     pass
+            folders = [
+                folder
+                for folder in folders
+                if not state.skill_guard.is_folder_hidden(folder.get("id", ""))
+            ]
             output = format_ls(folders, [])
             summary = f"\n{len(folders)} folder(s), 0 file(s)"
             return output + summary
@@ -124,7 +139,8 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
             company_id=state.config.company_id,
             **folder_params,
         )
-        folders = folder_result.get("folderInfos", [])
+        listed_folders = folder_result.get("folderInfos", [])
+        folders = state.skill_guard.visible_child_folders(listed_folders)
 
         content_result = unique_sdk.Content.get_infos(
             user_id=state.config.user_id,
@@ -133,7 +149,9 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         )
         files = content_result.get("contentInfos", [])
 
-        total_folders = folder_result.get("totalCount", len(folders))
+        total_folders = folder_result.get("totalCount", len(listed_folders)) - (
+            len(listed_folders) - len(folders)
+        )
         total_files = content_result.get("totalCount", len(files))
 
         # With a per-message filter, listing inside an allowed folder must not
