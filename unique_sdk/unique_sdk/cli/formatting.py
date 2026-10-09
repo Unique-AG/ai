@@ -157,12 +157,7 @@ def format_folder_info(info: Folder.FolderInfo) -> str:
 
 
 def format_write_error(command: str, error: Exception) -> str:
-    """Format a failed Knowledge Base write as ``<command>: <error>``.
-
-    A server 403 keeps its message verbatim but uses the
-    ``<command>: permission denied: …`` denial shape, so the one-shot CLI
-    exits non-zero.
-    """
+    """Format a failed Knowledge Base write; a 403 uses the ``permission denied`` shape."""
     if isinstance(error, SdkPermissionError):
         return f"{command}: permission denied: {error}"
     return f"{command}: {error}"

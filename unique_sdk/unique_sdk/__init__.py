@@ -18,10 +18,7 @@ api_verify_mode: bool = True
 default_http_client: "HTTPClient | None" = None
 ingestion_upload_api_url_internal: str | None = None
 
-# Send Knowledge Base writes (folder create/update/delete, content
-# upsert/update/delete/restore-version) to the /sandbox-knowledge-base/*
-# routes, which refuse to change skills. Set UNIQUE_SDK_SANDBOX_KB_WRITES
-# to "1", "true" or "yes" in agent sandboxes. Reads are unaffected.
+# Routes Knowledge Base writes to /sandbox-knowledge-base/*, which refuses to change skills.
 sandbox_knowledge_base_writes: bool = _sandbox_kb_writes_from_env()
 
 # Timeout (seconds) for the direct-to-blob requests in utils/file_io.py,
