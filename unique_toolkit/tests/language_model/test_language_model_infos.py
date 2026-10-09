@@ -40,6 +40,7 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET,
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING,
             LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_4_5,
+            LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_5_5,
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_1,
@@ -140,6 +141,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH,
             LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO,
+            LanguageModelName.VERTEX_CLAUDE_HAIKU_5_5,
             LanguageModelName.VERTEX_CLAUDE_SONNET_4_6,
             LanguageModelName.VERTEX_CLAUDE_SONNET_5,
             LanguageModelName.VERTEX_CLAUDE_SONNET_5_5,
@@ -378,6 +380,46 @@ class TestLanguageModelInfos:
             "xhigh",
             "max",
         ]
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_5_5,
+            LanguageModelName.VERTEX_CLAUDE_HAIKU_5_5,
+        ],
+    )
+    def test_claude_haiku_5_5_matches_published_limits(self, model_name):
+        """
+        Purpose: Claude Haiku 5.5 registry facts match the published model card.
+        Why this matters: Unique AI sizes requests from token_limits, validates
+        reasoning_effort against supported_reasoning_efforts, and only forces
+        tool choice when the model accepts it.
+        Setup summary: Load the Anthropic and Vertex LiteLLM LanguageModelInfo.
+        Sources:
+        https://platform.claude.com/docs/en/models/haiku-5-5/overview
+        https://platform.claude.com/docs/en/build-with-claude/effort
+        https://platform.claude.com/docs/en/models/haiku-5-5/migration-guide
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.provider == LanguageModelProvider.LITELLM
+        assert model.version == "claude-haiku-5-5"
+        assert model.published_at == date(2026, 10, 7)
+        assert model.info_cutoff_at == date(2026, 6, 1)
+        sonnet = LanguageModelInfo.from_name(
+            LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5_5
+        )
+        # Same published 1M context / 128K output as Sonnet 5.5.
+        assert model.token_limits == sonnet.token_limits
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+        assert model.supports_forced_tool_choice is True
 
 
 class TestLoadLanguageModelInfosFromEnv:

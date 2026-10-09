@@ -88,6 +88,7 @@ class LanguageModelName(StrEnum):
         "litellm:anthropic-claude-3-7-sonnet-thinking"
     )
     ANTHROPIC_CLAUDE_HAIKU_4_5 = "litellm:anthropic-claude-haiku-4-5"
+    ANTHROPIC_CLAUDE_HAIKU_5_5 = "litellm:anthropic-claude-haiku-5-5"
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
     ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
@@ -164,6 +165,7 @@ class LanguageModelName(StrEnum):
     LITELLM_KIMI_K3 = "litellm:kimi-k3"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
+    VERTEX_CLAUDE_HAIKU_5_5 = "litellm:vertex-claude-haiku-5-5"
     VERTEX_CLAUDE_SONNET_4_6 = "litellm:vertex-claude-sonnet-4-6"
     VERTEX_CLAUDE_SONNET_5 = "litellm:vertex-claude-sonnet-5"
     VERTEX_CLAUDE_SONNET_5_5 = "litellm:vertex-claude-sonnet-5-5"
@@ -1761,6 +1763,40 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 2, 1),
                     published_at=date(2025, 10, 1),
                     supported_reasoning_efforts=[],
+                )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_5_5
+                | LanguageModelName.VERTEX_CLAUDE_HAIKU_5_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-haiku-5-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        # 1M context / 128K max output. https://platform.claude.com/docs/en/models/haiku-5-5/overview
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
+                    ),
+                    info_cutoff_at=date(2026, 6, 1),
+                    published_at=date(2026, 10, 7),
+                    # Effort levels: https://platform.claude.com/docs/en/build-with-claude/effort
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4:
                 return cls(
