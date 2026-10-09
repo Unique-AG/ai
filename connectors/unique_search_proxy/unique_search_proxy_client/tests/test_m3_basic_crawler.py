@@ -8,7 +8,10 @@ from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.config_types import parse_crawl_request
 from unique_search_proxy_core.schema import ProxyErrorCode
-from unique_search_proxy_core.url_safety import ResolvedCrawlTarget
+from unique_search_proxy_core.url_safety import (
+    ResolvedCrawlTarget,
+    bypass_crawl_target,
+)
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.crawlers.basic.service import (
@@ -164,6 +167,164 @@ async def test_crawl_pinned__fetches_resolved_ip_with_host_and_sni() -> None:
     assert (
         http_client.get.call_args.kwargs["extensions"]["sni_hostname"] == "example.com"
     )
+    assert http_client.get.call_args.kwargs["follow_redirects"] is False
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__blocks_private_redirect_from_real_get() -> None:
+    response = httpx.Response(
+        302,
+        headers={"Location": "http://127.0.0.1/admin"},
+        request=httpx.Request("GET", "https://93.184.216.34/start"),
+    )
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.return_value = response
+
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+    allowed_targets = [
+        AllowedCrawlTarget(
+            display_url="https://example.com/start",
+            resolved=ResolvedCrawlTarget(
+                normalized_url="https://example.com/start",
+                hostname="example.com",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ),
+    ]
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, allowed_targets)
+
+    assert len(results) == 1
+    assert results[0].error is not None
+    assert results[0].error.code == ProxyErrorCode.FORBIDDEN_TARGET.value
+    assert http_client.get.call_count == 1
+    assert http_client.get.call_args.kwargs["follow_redirects"] is False
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__isolates_malformed_redirect_to_affected_url() -> None:
+    async def get(
+        _url: str,
+        *,
+        headers: dict[str, str],
+        **_kwargs: object,
+    ) -> httpx.Response:
+        if headers["Host"] == "malformed.example":
+            return httpx.Response(
+                302,
+                headers={"Location": "http://[::1"},
+            )
+        return httpx.Response(
+            200,
+            text="valid content",
+            headers={"content-type": "text/plain"},
+        )
+
+    request = parse_crawl_request(
+        {
+            "urls": [
+                "https://malformed.example/start",
+                "https://valid.example/start",
+            ],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+    allowed_targets = [
+        AllowedCrawlTarget(
+            display_url="https://malformed.example/start",
+            resolved=ResolvedCrawlTarget(
+                normalized_url="https://malformed.example/start",
+                hostname="malformed.example",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ),
+        AllowedCrawlTarget(
+            display_url="https://valid.example/start",
+            resolved=ResolvedCrawlTarget(
+                normalized_url="https://valid.example/start",
+                hostname="valid.example",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ),
+    ]
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.side_effect = get
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, allowed_targets)
+
+    malformed_result, valid_result = results
+    assert malformed_result.error is not None
+    assert malformed_result.error.code == ProxyErrorCode.FORBIDDEN_TARGET.value
+    assert valid_result.error is None
+    assert valid_result.raw == "valid content"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__delegates_private_redirect_to_trusted_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "url_safety_settings",
+        service_module.url_safety_settings.model_copy(update={"enabled": False}),
+    )
+
+    redirect_response = httpx.Response(
+        302,
+        headers={"Location": "http://127.0.0.1/internal"},
+        request=httpx.Request("GET", "https://public.example.com/start"),
+    )
+    final_response = httpx.Response(
+        200,
+        text="internal content",
+        headers={"content-type": "text/plain"},
+        request=httpx.Request("GET", "http://127.0.0.1/internal"),
+    )
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.side_effect = [redirect_response, final_response]
+
+    request = parse_crawl_request(
+        {
+            "urls": ["https://public.example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+    allowed_targets = [
+        AllowedCrawlTarget(
+            display_url="https://public.example.com/start",
+            resolved=bypass_crawl_target("https://public.example.com/start"),
+        ),
+    ]
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, allowed_targets)
+
+    assert len(results) == 1
+    assert results[0].error is None
+    assert results[0].raw == "internal content"
+    assert http_client.get.call_count == 2
+    assert http_client.get.call_args_list[1].args[0] == "http://127.0.0.1/internal"
+    assert http_client.get.call_args_list[1].kwargs["extensions"] is None
+    assert "Host" not in http_client.get.call_args_list[1].kwargs["headers"]
 
 
 @pytest.mark.ai
