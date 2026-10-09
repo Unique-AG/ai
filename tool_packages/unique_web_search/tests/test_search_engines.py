@@ -742,6 +742,14 @@ class TestVertexAISearch:
 class TestCustomAPISearch:
     """Test CustomAPI search engine specific functionality."""
 
+    @pytest.fixture(autouse=True)
+    def _mock_url_safety_report(self, mocker) -> None:
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api."
+            "UrlSafetyService.resolve_crawl_target",
+            new=AsyncMock(),
+        )
+
     def test_custom_api_config_creation(self):
         """Test CustomAPIConfig creation with defaults."""
         config = CustomAPIConfig()
