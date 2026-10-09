@@ -6,6 +6,9 @@ from typing import Literal
 # Authors:
 # Konstantin Krauss<konstantin@unique.ch>
 from unique_sdk._api_version import ApiVersion
+from unique_sdk._knowledge_base_routing import (
+    sandbox_kb_writes_from_env as _sandbox_kb_writes_from_env,
+)
 
 api_key: str | None = None
 app_id: str | None = None
@@ -14,6 +17,12 @@ api_version: str = ApiVersion.CURRENT
 api_verify_mode: bool = True
 default_http_client: "HTTPClient | None" = None
 ingestion_upload_api_url_internal: str | None = None
+
+# Send Knowledge Base writes (folder create/update/delete, content
+# upsert/update/delete/restore-version) to the /sandbox-knowledge-base/*
+# routes, which refuse to change skills. Set UNIQUE_SDK_SANDBOX_KB_WRITES
+# to "1", "true" or "yes" in agent sandboxes. Reads are unaffected.
+sandbox_knowledge_base_writes: bool = _sandbox_kb_writes_from_env()
 
 # Timeout (seconds) for the direct-to-blob requests in utils/file_io.py,
 # which bypass _http_client. Defaults to match _http_client's own default.

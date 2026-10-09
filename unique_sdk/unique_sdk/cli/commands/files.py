@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import unique_sdk
-from unique_sdk.cli.formatting import format_content_info
+from unique_sdk.cli.formatting import format_content_info, format_write_error
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
@@ -359,7 +359,7 @@ def cmd_upload(
         return f"Uploaded: {display_name} ({content_id}) to {folder_path}"
 
     except (ValueError, unique_sdk.UniqueError, OSError) as e:
-        return f"upload: {e}"
+        return format_write_error("upload", e)
 
 
 def cmd_versions(
@@ -415,7 +415,7 @@ def cmd_restore_version(state: ShellState, content_version_id: str) -> str:
         content_id = result.get("id", "?")
         return f"Restored: {title} ({content_id}) from version {content_version_id}"
     except (ValueError, unique_sdk.UniqueError) as e:
-        return f"restore-version: {e}"
+        return format_write_error("restore-version", e)
 
 
 def cmd_download(
@@ -469,7 +469,7 @@ def cmd_rm(state: ShellState, name_or_id: str) -> str:
         )
         return f"Deleted: {display_name} ({content_id})"
     except (ValueError, unique_sdk.UniqueError) as e:
-        return f"rm: {e}"
+        return format_write_error("rm", e)
 
 
 def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
@@ -489,7 +489,7 @@ def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
         )
         return f"Renamed: {display_name} -> {result.get('title', new_name)}\n{format_content_info(result)}"
     except (ValueError, unique_sdk.UniqueError) as e:
-        return f"mv: {e}"
+        return format_write_error("mv", e)
 
 
 def is_permission_denied_output(output: str) -> bool:

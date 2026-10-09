@@ -10,6 +10,7 @@ from typing_extensions import NotRequired, Unpack
 
 import unique_sdk
 from unique_sdk._api_resource import APIResource
+from unique_sdk._knowledge_base_routing import knowledge_base_write_url
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
 
@@ -463,7 +464,7 @@ class Content(APIResource["Content"]):
             "Content",
             cls._static_request(
                 "post",
-                "/content/upsert",
+                knowledge_base_write_url("/content/upsert"),
                 user_id,
                 company_id,
                 params=params,
@@ -506,7 +507,7 @@ class Content(APIResource["Content"]):
             "Content",
             await cls._static_request_async(
                 "post",
-                "/content/upsert",
+                knowledge_base_write_url("/content/upsert"),
                 user_id,
                 company_id,
                 params=params,
@@ -601,7 +602,9 @@ class Content(APIResource["Content"]):
             Content.ContentInfo,
             cls._static_request(
                 "post",
-                f"/content/versions/{content_version_id}/restore",
+                knowledge_base_write_url(
+                    f"/content/versions/{content_version_id}/restore"
+                ),
                 user_id,
                 company_id,
                 params=params,
@@ -620,7 +623,9 @@ class Content(APIResource["Content"]):
             Content.ContentInfo,
             await cls._static_request_async(
                 "post",
-                f"/content/versions/{content_version_id}/restore",
+                knowledge_base_write_url(
+                    f"/content/versions/{content_version_id}/restore"
+                ),
                 user_id,
                 company_id,
                 params=params,
@@ -692,7 +697,7 @@ class Content(APIResource["Content"]):
             "Content.ContentInfo",
             cls._static_request(
                 "patch",
-                f"/content/{content_id}",
+                knowledge_base_write_url(f"/content/{content_id}"),
                 user_id,
                 company_id,
                 params=params,
@@ -728,7 +733,7 @@ class Content(APIResource["Content"]):
             "Content.ContentInfo",
             await cls._static_request_async(
                 "patch",
-                f"/content/{content_id}",
+                knowledge_base_write_url(f"/content/{content_id}"),
                 user_id,
                 company_id,
                 params=params,
@@ -808,7 +813,7 @@ class Content(APIResource["Content"]):
             "Content.DeleteResponse",
             cls._static_request(
                 "delete",
-                f"/content/{content_id}",
+                knowledge_base_write_url(f"/content/{content_id}"),
                 user_id,
                 company_id,
                 params=params,
@@ -838,7 +843,7 @@ class Content(APIResource["Content"]):
             "Content.DeleteResponse",
             await cls._static_request_async(
                 "delete",
-                f"/content/{content_id}",
+                knowledge_base_write_url(f"/content/{content_id}"),
                 user_id,
                 company_id,
                 params=params,
