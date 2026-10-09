@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.schema import ProxyErrorCode
+from unique_search_proxy_core.usage import UsageRecord
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.url_safety.gate import UrlSafetyGateResult
@@ -104,6 +105,31 @@ def test_crawl_url_safety__mixed_batch_preserves_order(
     assert results[0]["error"]["code"] == ProxyErrorCode.FORBIDDEN_TARGET.value
     assert results[1]["error"] is None
     assert "Hello" in results[1]["content"]
+
+
+@pytest.mark.ai
+def test_crawl_url_safety__usage_units_count_only_allowed_urls(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    records: list[UsageRecord] = []
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.usage.record_usage",
+        records.append,
+    )
+
+    client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["http://127.0.0.1:8080", "https://example.com/article"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    [record] = records
+    assert (record.units, record.status) == (1, "success")
 
 
 @pytest.mark.ai

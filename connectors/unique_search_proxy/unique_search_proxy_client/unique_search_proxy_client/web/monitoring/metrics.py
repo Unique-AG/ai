@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from unique_search_proxy_core.context import RequestContext
 from unique_toolkit.monitoring import MetricNamespace
 
 m = MetricNamespace("unique_search_proxy")
@@ -117,6 +118,17 @@ agent_search_errors_total = m.counter(
     ["engine", "error_code"],
 )
 
+requests_total = m.counter(
+    "requests_total",
+    "Requests that reached a handler (company_id is 'unattributed' without numeric ids)",
+    ["company_id", "entry_point", "endpoint", "provider", "status"],
+)
+unattributed_requests_total = m.counter(
+    "unattributed_requests_total",
+    "Requests without a numeric company and user id",
+    ["entry_point"],
+)
+
 proxy_errors_total = m.counter(
     "proxy_errors_total",
     "Top-level API errors returned to clients",
@@ -124,37 +136,23 @@ proxy_errors_total = m.counter(
 )
 
 
-def _metrics_enabled() -> bool:
-    from unique_search_proxy_client.web.settings.monitoring import prometheus_settings
-
-    return prometheus_settings.enabled
-
-
 def record_search_success(engine: str, duration_seconds: float) -> None:
-    if not _metrics_enabled():
-        return
     search_total.labels(engine=engine).inc()
     search_duration_seconds.labels(engine=engine).observe(duration_seconds)
 
 
 def record_search_error(engine: str, error_code: str, duration_seconds: float) -> None:
-    if not _metrics_enabled():
-        return
     search_errors_total.labels(engine=engine, error_code=error_code).inc()
     search_duration_seconds.labels(engine=engine).observe(duration_seconds)
 
 
 def record_crawl_success(crawler: str, url_count: int, duration_seconds: float) -> None:
-    if not _metrics_enabled():
-        return
     crawl_total.labels(crawler=crawler).inc()
     crawl_urls_total.labels(crawler=crawler).inc(url_count)
     crawl_duration_seconds.labels(crawler=crawler).observe(duration_seconds)
 
 
 def record_crawl_error(crawler: str, error_code: str, duration_seconds: float) -> None:
-    if not _metrics_enabled():
-        return
     crawl_errors_total.labels(crawler=crawler, error_code=error_code).inc()
     crawl_duration_seconds.labels(crawler=crawler).observe(duration_seconds)
 
@@ -171,8 +169,6 @@ def record_crawl_url_outcomes(
     ``http_status`` is the upstream HTTP status (e.g. ``"403"``) when the failure
     was an HTTP error or ``""`` when no HTTP response was received.
     """
-    if not _metrics_enabled():
-        return
     for outcome, error_code, http_status in outcomes:
         crawl_url_outcomes_total.labels(
             crawler=crawler,
@@ -183,20 +179,14 @@ def record_crawl_url_outcomes(
 
 
 def record_crawl_blocked(reason_category: str, count: int = 1) -> None:
-    if not _metrics_enabled():
-        return
     crawl_blocked_total.labels(reason_category=reason_category).inc(count)
 
 
 def set_url_safety_application_checks_enabled(enabled: bool) -> None:
-    if not _metrics_enabled():
-        return
     url_safety_application_checks_enabled.set(int(enabled))
 
 
 def record_agent_search_success(engine: str, duration_seconds: float) -> None:
-    if not _metrics_enabled():
-        return
     agent_search_total.labels(engine=engine).inc()
     agent_search_duration_seconds.labels(engine=engine).observe(duration_seconds)
 
@@ -206,13 +196,28 @@ def record_agent_search_error(
     error_code: str,
     duration_seconds: float,
 ) -> None:
-    if not _metrics_enabled():
-        return
     agent_search_errors_total.labels(engine=engine, error_code=error_code).inc()
     agent_search_duration_seconds.labels(engine=engine).observe(duration_seconds)
 
 
 def record_proxy_error(error_code: str) -> None:
-    if not _metrics_enabled():
-        return
     proxy_errors_total.labels(error_code=error_code).inc()
+
+
+def record_request(
+    context: RequestContext,
+    endpoint: str,
+    provider: str,
+    status: str,
+) -> None:
+    requests_total.labels(
+        company_id=context.company_id if context.is_attributed else "unattributed",
+        entry_point=context.entry_point.value,
+        endpoint=endpoint,
+        provider=provider,
+        status=status,
+    ).inc()
+
+
+def record_unattributed_request(entry_point: str) -> None:
+    unattributed_requests_total.labels(entry_point=entry_point).inc()

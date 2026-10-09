@@ -1,15 +1,22 @@
 from __future__ import annotations
 
+import logging
+
 from starlette.types import ASGIApp, Receive, Scope, Send
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
-from unique_search_proxy_core.errors import ValidationProxyError
+from unique_search_proxy_core.errors import BadRequestProxyError, ValidationProxyError
 
 from unique_search_proxy_client.web.context import (
     bind_request_context,
     reset_request_context,
 )
 from unique_search_proxy_client.web.error_handlers import proxy_error_response
+from unique_search_proxy_client.web.monitoring.metrics import (
+    record_unattributed_request,
+)
 from unique_search_proxy_client.web.settings.app import app_settings
+
+_LOGGER = logging.getLogger(__name__)
 
 _CONTEXT_EXCLUDED_PATHS = frozenset(
     {
@@ -22,6 +29,8 @@ _CONTEXT_EXCLUDED_PATHS = frozenset(
         "/openapi.json",
     }
 )
+
+_ATTRIBUTION_EXEMPT_PREFIX = "/v1/configuration/"
 
 
 def _headers_from_scope(scope: Scope) -> dict[str, str]:
@@ -78,6 +87,29 @@ class RequestContextMiddleware:
         )
         token = bind_request_context(context)
         try:
+            # Warn and count by default; reject only when the setting is on.
+            if not context.is_attributed and not path.startswith(
+                _ATTRIBUTION_EXEMPT_PREFIX
+            ):
+                invalid = context.invalid_identity_headers
+                record_unattributed_request(context.entry_point.value)
+                _LOGGER.warning("Unattributed request, invalid headers: %s", invalid)
+                if app_settings.reject_unattributed_requests:
+                    response = proxy_error_response(
+                        BadRequestProxyError(
+                            f"Invalid context headers: {', '.join(invalid)}",
+                            details=[
+                                {
+                                    "loc": ["header", header_name],
+                                    "msg": "Must be a numeric id",
+                                    "type": "invalid",
+                                }
+                                for header_name in invalid
+                            ],
+                        ),
+                    )
+                    await response(scope, receive, send)
+                    return
             await self.app(scope, receive, send)
         finally:
             reset_request_context(token)
