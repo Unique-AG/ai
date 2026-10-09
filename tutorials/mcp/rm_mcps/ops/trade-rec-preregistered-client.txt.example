@@ -1,0 +1,8 @@
+# Pre-registered DCR client on rm-trade-rec-mcp (persisted in reconciliationdb kv_store).
+# SHAPE ONLY — the real pair was registered via the server's open /register endpoint
+# and lives in the kv_store table of reconciliationdb (or re-register a fresh one the
+# same way with the next.unique.app chat/admin callback URIs).
+# Paste into the connector Authenticate modal only when the platform loops on
+# "Client Not Registered" (see HANDOFF.md, platform-side stale-client gotcha).
+CLIENT_ID=<dcr-client-id>
+CLIENT_SECRET=<dcr-client-secret>

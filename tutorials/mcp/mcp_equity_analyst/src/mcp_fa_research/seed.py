@@ -1,0 +1,956 @@
+"""seed.py — synthetic data for the FA (fundamental analyst) research demo.
+
+One European-luxury coverage universe (6 names). The story: **reports are generated
+overnight** (the scheduled 07:00 desk brief) and the analyst **reviews them early in the
+morning** from the cockpit. The overnight run surfaces several market-data / news changes
+that move (or explicitly don't move) valuation — an LVMH profit warning, a Richemont
+positive jewellery read, a Kering consensus cut, a Swatch tone-drift transcript, a peer
+downgrade, an FX move, and a China macro headline.
+
+ALL VALUES ARE SYNTHETIC — DEMO USE ONLY. Reference data (coverage statics, dossiers,
+consensus, prices) are module constants; the *mutable* demo state the analyst touches in
+the morning (brief acknowledgements, reviewed drafts, jobs) is built by ``baseline()`` and
+restored by the server's ``Reset_Demo_Data``.
+"""
+
+from __future__ import annotations
+
+import copy
+
+AS_OF = "07:00 CET"
+
+# ---------------------------------------------------------------------------
+# Coverage universe — the analyst's 6 names (static reference)
+# ---------------------------------------------------------------------------
+COVERAGE: list[dict] = [
+    {"ticker": "MC FP", "yahoo": "MC.PA", "bbg": "MC FP", "name": "LVMH",
+     "sector": "Luxury Goods", "ccy": "EUR", "rating": "Outperform",
+     "target_price": 525.0, "price": 455.0, "upside_pct": 15.4,
+     "status": "profit warning · post-view in control",
+     "pills": [{"kind": "warn", "label": "⚠ warning"}, {"kind": "control", "label": "◯ control"}],
+     "premarket_pct": -6.2, "next_catalyst": "Q3 2026 revenue — 14 Oct",
+     "reporting": "quarterly revenue · H1/FY results"},
+    {"ticker": "KER FP", "yahoo": "KER.PA", "bbg": "KER FP", "name": "Kering",
+     "sector": "Luxury Goods", "ccy": "EUR", "rating": "Underperform",
+     "target_price": 225.0, "price": 246.0, "upside_pct": -8.5,
+     "status": "estimate review due",
+     "pills": [{"kind": "ctrl", "label": "◯ review"}],
+     "premarket_pct": 0.4, "next_catalyst": "Q2/H1 sales — 29 Jul",
+     "reporting": "quarterly revenue · H1/FY results"},
+    {"ticker": "RMS FP", "yahoo": "RMS.PA", "bbg": "RMS FP", "name": "Hermès",
+     "sector": "Luxury Goods", "ccy": "EUR", "rating": "Neutral",
+     "target_price": 1625.0, "price": 1668.0, "upside_pct": -2.6,
+     "status": "up to date",
+     "pills": [{"kind": "ok", "label": "✓"}],
+     "premarket_pct": 0.3, "next_catalyst": "H1 results — 30 Jul",
+     "reporting": "quarterly revenue · H1/FY results"},
+    {"ticker": "CFR SW", "yahoo": "CFR.SW", "bbg": "CFR SW", "name": "Richemont",
+     "sector": "Luxury Goods", "ccy": "CHF", "rating": "Outperform",
+     "target_price": 210.0, "price": 191.0, "upside_pct": 9.9,
+     "status": "note in draft · estimates under review (upside)",
+     "pills": [{"kind": "init", "label": "✎ draft"}, {"kind": "up", "label": "▲ upside"}],
+     "premarket_pct": 1.9, "next_catalyst": "H1 FY27 results — Nov",
+     "reporting": "FYE 31 March · Q1/Q3 updates · H1 Nov / FY May"},
+    {"ticker": "MONC IM", "yahoo": "MONC.MI", "bbg": "MONC IM", "name": "Moncler",
+     "sector": "Luxury Goods", "ccy": "EUR", "rating": "Neutral",
+     "target_price": 50.0, "price": 47.5, "upside_pct": 5.3,
+     "status": "up to date",
+     "pills": [{"kind": "ok", "label": "✓"}],
+     "premarket_pct": -0.4, "next_catalyst": "H1 results — 29 Jul",
+     "reporting": "quarterly revenue · H1/FY results"},
+    {"ticker": "UHR SW", "yahoo": "UHR.SW", "bbg": "UHR SW", "name": "Swatch Group",
+     "sector": "Luxury Goods", "ccy": "CHF", "rating": "Underperform",
+     "target_price": 160.0, "price": 168.0, "upside_pct": -4.8,
+     "status": "in pre-publication control · tone flag",
+     "pills": [{"kind": "ctrl", "label": "◯ control"}, {"kind": "warn", "label": "⚠ tone"}],
+     "premarket_pct": -0.8, "next_catalyst": "FY results — mid-Jan",
+     "reporting": "SEMI-ANNUAL only — H1 Jul / FY Jan, no Q updates"},
+]
+
+ALIASES: dict[str, str] = {
+    "lvmh": "MC FP", "mc fp": "MC FP", "mc.pa": "MC FP", "moet": "MC FP",
+    "kering": "KER FP", "ker fp": "KER FP", "ker.pa": "KER FP", "gucci": "KER FP",
+    "hermes": "RMS FP", "hermès": "RMS FP", "rms fp": "RMS FP", "rms.pa": "RMS FP",
+    "richemont": "CFR SW", "cfr sw": "CFR SW", "cfr.sw": "CFR SW", "cartier": "CFR SW",
+    "moncler": "MONC IM", "monc im": "MONC IM", "monc.mi": "MONC IM",
+    "swatch": "UHR SW", "swatch group": "UHR SW", "uhr sw": "UHR SW", "uhr.sw": "UHR SW",
+}
+
+# ---------------------------------------------------------------------------
+# Overnight run — the market-data / news changes generated during the night.
+# severity: alert (act now) · positive (upside) · watch (review) · info (note)
+# Each carries the valuation read (the "so what") + the skill the analyst runs.
+# ---------------------------------------------------------------------------
+OVERNIGHT: dict[str, dict] = {
+    "MC FP": {
+        "ticker": "MC FP", "name": "LVMH", "severity": "alert", "category": "results",
+        "headline": "PROFIT WARNING (pre-open) — FY guidance cut",
+        "detail": "FY guidance cut on deeper Hennessy cognac destocking + soft China Q4; "
+                  "management drops 'resilient growth' language, now guides FY organic "
+                  "slightly negative. Stock indicated −6%.",
+        "valuation_impact": "Recurring EBIT −6%, EPS −7%; target price €525 → €480 "
+                            "(upside +5%). Rating held Outperform — trough thesis intact.",
+        "new_target_price": 480.0, "new_upside_pct": 5.5, "price_move_pct": -6.2,
+        "direction": "down", "suggested_skill": "results-first-take",
+        "suggested_action": "Launch the reaction pack",
+    },
+    "CFR SW": {
+        "ticker": "CFR SW", "name": "Richemont", "severity": "positive", "category": "news",
+        "headline": "Strong US jewellery data + peer pre-announcement",
+        "detail": "Overnight US luxury-jewellery tracker and a peer's positive "
+                  "pre-announcement point to Cartier / Van Cleef momentum into H1 — ahead "
+                  "of our estimates.",
+        "valuation_impact": "Upside risk to FY26 jewellery estimates (+3–4%); target price "
+                            "CHF 210 → CHF 220 under review. Outperform reinforced.",
+        "new_target_price": 220.0, "new_upside_pct": 15.2, "price_move_pct": 1.9,
+        "direction": "up", "suggested_skill": "exane-financial-model",
+        "suggested_action": "Raise estimates — review",
+    },
+    "KER FP": {
+        "ticker": "KER FP", "name": "Kering", "severity": "watch", "category": "consensus",
+        "headline": "Consensus −3% overnight — two brokers cut FY26 EBIT",
+        "detail": "Weak Gucci run-rate read; sell-side consensus FY26 EBIT −3% overnight.",
+        "valuation_impact": "We were already below (FY26 EPS €16.9 vs €17.8 consensus); no "
+                            "TP change, but our Underperform (−8.7%) is better supported.",
+        "new_target_price": None, "price_move_pct": 0.4, "direction": "down",
+        "suggested_skill": "coverage-morning-brief",
+        "suggested_action": "Run estimate review",
+    },
+    "UHR SW": {
+        "ticker": "UHR SW", "name": "Swatch Group", "severity": "watch", "category": "transcript",
+        "headline": "Tone × guidance run complete — softer China entry tone (H1 call)",
+        "detail": "Management language on the China entry consumer turned more cautious vs "
+                  "the FY call — Swatch reports SEMI-ANNUALLY, so the H1 call (mid-Jul) is "
+                  "the only fresh data point until January.",
+        "valuation_impact": "Early-warning flag: downside risk to FY26 organic +2%; watch "
+                            "for a guidance reset. No estimate change yet; the desknote flagging the "
+                            "drift is in pre-publication control.",
+        "new_target_price": None, "price_move_pct": -0.8, "direction": "down",
+        "suggested_skill": "pre-publication-control",
+        "suggested_action": "Open the control item",
+    },
+    "RMS FP": {
+        "ticker": "RMS FP", "name": "Hermès", "severity": "info", "category": "rating",
+        "headline": "A broker cut the luxury sector on multiples overnight",
+        "detail": "A competing house downgraded European luxury on valuation; Hermès is "
+                  "most exposed to a de-rating given its ~32x P/E premium.",
+        "valuation_impact": "Quality but priced — we stay Neutral. No estimate change; flag "
+                            "the multiple risk in the morning meeting.",
+        "new_target_price": None, "price_move_pct": 0.3, "direction": "flat",
+        "suggested_skill": "exane-desknote", "suggested_action": "Note the peer move",
+    },
+    "MONC IM": {
+        "ticker": "MONC IM", "name": "Moncler", "severity": "info", "category": "price",
+        "headline": "FX: EUR strength overnight (EURUSD +0.8%)",
+        "detail": "A stronger EUR is a modest translation headwind for EUR reporters with "
+                  "USD / Asia exposure.",
+        "valuation_impact": "~−0.5% to FY26 reported revenue; immaterial to the target "
+                            "price. Monitor if sustained.",
+        "new_target_price": None, "price_move_pct": -0.4, "direction": "flat",
+        "suggested_skill": "exane-financial-model", "suggested_action": "Monitor",
+    },
+    "SECTOR": {
+        "ticker": "SECTOR", "name": "European Luxury", "severity": "positive", "category": "macro",
+        "headline": "China announces consumption-support measures overnight",
+        "detail": "Beijing unveiled consumer-stimulus measures — a potential sentiment "
+                  "tailwind for China-exposed luxury; partially cushions LVMH, helps Swatch "
+                  "and Richemont.",
+        "valuation_impact": "Sector sentiment positive; raises the option value on a China "
+                            "turn. No single-name estimate change yet — factor into the "
+                            "morning-meeting narrative.",
+        "new_target_price": None, "price_move_pct": None, "direction": "up",
+        "suggested_skill": "coverage-morning-brief",
+        "suggested_action": "Frame in the desk brief",
+    },
+}
+
+# Order the overnight items surface in the brief: alerts first, then upside, watch, info.
+_SEVERITY_RANK = {"alert": 0, "positive": 1, "watch": 2, "info": 3}
+OVERNIGHT_ORDER = sorted(OVERNIGHT, key=lambda k: (_SEVERITY_RANK[OVERNIGHT[k]["severity"]], k))
+
+# The prepared LVMH profit-warning reaction cascade + priority call list
+LVMH_CASCADE = [
+    {"step": 1, "label": "Model updated · recurring EBIT & EPS cut ~7%"},
+    {"step": 2, "label": "Target price revised €525 → €480 · new upside +5.5%"},
+    {"step": 3, "label": "Post-view note drafted — for the mic · publish ASAP"},
+    {"step": 4, "label": "Buy-side reaction email drafted + priority call list"},
+]
+LVMH_CALL_LIST = [
+    {"account": "Fund A", "priority": "High"},
+    {"account": "Fund B", "priority": "High"},
+    {"account": "Fund C", "priority": "Med"},
+    {"account": "+4 holders", "priority": ""},
+]
+
+# ---------------------------------------------------------------------------
+# Per-name dossier (the cockpit drawer; the KB coverage-dossier is the deep record)
+# ---------------------------------------------------------------------------
+DOSSIERS: dict[str, dict] = {
+    "MC FP": {"thesis": "Reference luxury compounder; FY25 = earnings trough; Sephora "
+              "counter-cyclical; cognac destocking the near-term drag.",
+              "estimates": "Preview (T-5d): EPS €21.0 vs consensus €21.3 · Company printed €20.4 "
+                           "+ FY guidance cut — post-view in control (URGENT).",
+              "interaction_log": ["H1-25 call", "FY24 call", "IR follow-up (cognac timeline)",
+                                  "NY corporate roadshow (planned)"],
+              "note_history": ["2026-07-07 09:00 · Re-initiation of coverage (published)",
+                               "2026-07-18 07:30 · FY25 Preview — Ours vs Consensus (published T-5d)",
+                               "2026-07-23 07:25 · Profit warning — reaction pack (this morning)",
+                               "2026-07-23 09:40 · Post-view — Ours / Consensus / Company (in pre-publication control — URGENT)"]},
+    "KER FP": {"thesis": "Gucci turnaround execution risk; aspirational over-exposure; we "
+               "stay cautious until volumes stabilise.",
+               "estimates": "FY26E organic −1%; consensus cut −3% overnight — estimate review suggested.",
+               "interaction_log": ["FY25 call", "CFO meeting (brand reset)", "Sector conference"],
+               "note_history": ["2026-07-09 10:00 · Estimate-change note (2w ago)",
+                                "2026-07-23 07:10 · Review due — overnight consensus cuts"]},
+    "RMS FP": {"thesis": "Highest-quality compounder; the quality is in the price — we "
+               "prefer the risk/reward elsewhere at current multiples.",
+               "estimates": "FY26E organic +9%; P/E ~32x — premium justified but full.",
+               "interaction_log": ["FY25 call", "Store visit note"],
+               "note_history": ["2026-07-02 09:00 · Up to date — last note 3w ago"]},
+    "CFR SW": {"thesis": "Jewellery structural winner (Cartier, VCA); balance-sheet optionality.",
+               "estimates": "FY26E organic +6%; jewellery mix supports margin — upside risk overnight.",
+               "interaction_log": ["FY25 call", "IR follow-up (China)"],
+               "note_history": ["2026-07-21 08:30 · Q1 FY27 trading-update note (published)",
+                                "2026-07-22 15:00 · Note in draft — valuation section pending"]},
+    "MONC IM": {"thesis": "Single-brand story; brand heat solid, watch wholesale normalisation.",
+                "estimates": "FY26E organic +6%; margin resilient.",
+                "interaction_log": ["FY25 call", "Genius event note"],
+                "note_history": ["2026-07-16 09:00 · Up to date"]},
+    "UHR SW": {"thesis": "Most geared to a Chinese entry-consumer recovery; a high-beta call "
+               "on the timing of the China turn, not a quality holding.",
+               "estimates": "FY26E organic +2%; earnings sensitive to China entry demand.",
+               "interaction_log": ["FY25 call (Jan)", "H1-26 call transcript (new, indexed)"],
+               "note_history": ["2026-07-22 17:55 · Note in pre-publication control (tone × guidance desknote)"]},
+}
+
+# ---------------------------------------------------------------------------
+# Action inbox (drafts only — nothing auto-sent), agenda, jobs
+# ---------------------------------------------------------------------------
+ACTION_INBOX: list[dict] = [
+    {"from": "Head of Sales", "subject": "\"Need your LVMH reaction for the desk\"",
+     "kind": "reply draft"},
+    {"from": "Buy-side PM — Fund A", "subject": "\"Your read on the cognac destocking?\"",
+     "kind": "reply draft"},
+    {"from": "LVMH Investor Relations", "subject": "NY roadshow logistics — dates & venue",
+     "kind": "reply draft"},
+    {"from": "Sales — Geneva",
+     "subject": "\"Client asks: Richemont into H1 — add here?\"",
+     "kind": "reply draft"},
+    {"from": "Buy-side PM — Fund B",
+     "subject": "\"Ahead of your London roadshow — send me your scenario analysis by "
+                "tomorrow (your hypotheses: FX move, China timing)\"",
+     "kind": "scenario pack draft"},
+]
+
+AGENDA: list[dict] = [
+    {"title": "Investor roadshow — London", "role": "you lead · marketing the LVMH case",
+     "when": "Wed–Thu", "kind": "investor", "action": "prep pack"},
+    {"title": "Corporate roadshow — New York",
+     "role": "you organise · LVMH CEO / CFO / Head of IR",
+     "when": "Week of 3 Aug", "kind": "corporate", "action": "agenda + targeting"},
+]
+
+# Each job carries WHEN it runs (run_at "YYYY-MM-DD HH:MM", story time) and its
+# recurrence: "once" (the default — a job runs a single time unless someone opts in;
+# recurring runs consume tokens) or "daily". Both are editable in the demo console;
+# rebase-to-today shifts run_at like every other dated field. jobs_engine.py runs due
+# jobs: executor "sdk_regen" = REAL (rebuild + upload the reviews/cards via the Unique
+# SDK, per-document progress recorded in last_run); no executor = simulated transitions.
+# Desk notes — free-form analyst notes, AI-summarized, tagging ANY combination of
+# equities (add_analyst_note / update_analyst_note; the cockpit panel lists them).
+# ts is story time; rebase shifts it with the rest of the timeline.
+ANALYST_NOTES_SEED: list[dict] = [
+    {"id": "N-004", "ts": "2026-07-23 10:05",
+     "summary": "Buy-side pushback on our LVMH trough thesis post-warning — three PMs "
+                "question whether cognac inventories clear by H1-26; watch the destocking "
+                "bear case.",
+     "note": "Calls after the print: Fund A + two long-onlys challenge the H1-26 "
+             "destocking end. If sell-in stays frozen into Q4, our FY27 bridge is at "
+             "risk. Keep the fy27 destocking scenario warm.",
+     "tickers": ["MC FP"]},
+    {"id": "N-003", "ts": "2026-07-22 18:40",
+     "summary": "CFO dinner: Kering and Swatch both cautious on China entry price points "
+                "— supports our below-consensus stance on both names.",
+     "note": "Dinner w/ two CFOs. Kering: entry-price handbags still discounting, no "
+             "sell-out inflection. Swatch: China wholesale sell-in frozen until CNY. "
+             "Both consistent with the tone flag.",
+     "tickers": ["KER FP", "UHR SW"]},
+    {"id": "N-002", "ts": "2026-07-21 11:20",
+     "summary": "US jewellery channel checks strong — Cartier/VCA momentum ahead of our "
+                "numbers; upside risk to Richemont FY26 jewellery estimates.",
+     "note": "Two US department-store buyers report double-digit sell-out in branded "
+             "jewellery QTD; peer pre-announcement confirms. Feeds the CHF 180 review.",
+     "tickers": ["CFR SW", "RMS FP"]},
+    {"id": "N-001", "ts": "2026-07-18 09:30",
+     "summary": "Sector: entry-level pricing power fading across European luxury — mix "
+                "will matter more than price in FY26; watch aspirational-heavy names.",
+     "note": "Cross-name read from Q2 calls: price contribution converging to ~1-2% vs "
+             "4-5% in FY24. Aspirational-exposed names (Kering, Swatch) most at risk; "
+             "Hermès insulated.",
+     "tickers": ["SECTOR", "KER FP", "UHR SW"]},
+]
+
+JOBS_SEED: list[dict] = [
+    {"label": "overnight desk brief (6 names)", "status": "done",
+     "run_at": "2026-07-23 07:00", "recurrence": "daily", "executor": "sdk_regen"},
+    {"label": "first-take run — LVMH", "status": "done",
+     "run_at": "2026-07-23 08:12", "recurrence": "once"},
+    {"label": "tone drift monitor", "status": "scheduled",
+     "run_at": "2026-07-23 18:00", "recurrence": "daily"},
+    {"label": "tone × guidance — Swatch", "status": "done",
+     "run_at": "2026-07-22 16:40", "recurrence": "once"},
+]
+NOTIFICATION = "LVMH reaction pack ready — model, note, buy-side email drafted."
+
+# Per-environment job sets — each env tells its own overnight story. The desk-brief
+# job (executor sdk_regen) is the REAL one everywhere; the rest are storyline
+# (simulated) and differ per env: QA = build/test set, UAT = rehearsal set,
+# sales/bnpp (PROD) = the richer client-facing set. Envs not listed use JOBS_SEED.
+JOBS_BY_ENV: dict[str, list[dict]] = {
+    "uat": [
+        {"label": "overnight desk brief (6 names)", "status": "done",
+         "run_at": "2026-07-23 07:00", "recurrence": "daily", "executor": "sdk_regen"},
+        {"label": "first-take run — LVMH", "status": "done",
+         "run_at": "2026-07-23 08:12", "recurrence": "once"},
+        {"label": "pre-release review refresh — Kering + Richemont", "status": "scheduled",
+         "run_at": "2026-07-23 17:30", "recurrence": "once"},
+        {"label": "roadshow pack build — London investor day", "status": "scheduled",
+         "run_at": "2026-07-24 06:30", "recurrence": "once"},
+    ],
+    "sales": [
+        {"label": "overnight desk brief (6 names)", "status": "done",
+         "run_at": "2026-07-23 07:00", "recurrence": "daily", "executor": "sdk_regen"},
+        {"label": "first-take run — LVMH", "status": "done",
+         "run_at": "2026-07-23 08:12", "recurrence": "once"},
+        {"label": "buy-side scenario pack — Fund B", "status": "scheduled",
+         "run_at": "2026-07-23 16:00", "recurrence": "once"},
+        {"label": "tone drift monitor", "status": "scheduled",
+         "run_at": "2026-07-23 18:00", "recurrence": "daily"},
+        {"label": "control-queue sweep — pre-publication", "status": "scheduled",
+         "run_at": "2026-07-24 07:30", "recurrence": "once", "executor": "control_sweep"},
+    ],
+}
+JOBS_BY_ENV["bnpp"] = JOBS_BY_ENV["sales"]
+
+# ---------------------------------------------------------------------------
+# Fake mailbox + calendar (the demo-data console lets sales edit these; the
+# agent reads them via get_emails / get_calendar). "Today" = 23 July 2026.
+# ---------------------------------------------------------------------------
+SNAPSHOT_LABEL = "Baseline — 23 Jul 2026 · warning day (intraday)"
+STORY_TODAY = "2026-07-23"  # the storyline's "today" (warning day) in the baseline
+
+EMAILS_SEED: list[dict] = [
+    {"id": "M-001", "ts": "2026-07-23 06:41", "from_name": "Head of Sales",
+     "from_role": "Equities desk", "ticker": "MC FP", "read": False,
+     "subject": "Need your LVMH reaction for the desk",
+     "body": "Warning hit the tape pre-open — desk call is at 07:30, can you take the "
+             "mic with the first take? Sales need the one-liner: rating, new TP, and "
+             "what we tell clients at the open."},
+    {"id": "M-002", "ts": "2026-07-23 06:55", "from_name": "PM — Fund A",
+     "from_role": "Buy side · long-only", "ticker": "MC FP", "read": False,
+     "subject": "Your read on the cognac destocking?",
+     "body": "We are long 2.1m shares. Is this the kitchen-sink or is FY27 at risk too? "
+             "Would take 15 minutes today if you have them."},
+    {"id": "M-003", "ts": "2026-07-22 17:20", "from_name": "PM — Fund B",
+     "from_role": "Buy side · hedge fund", "ticker": "MC FP", "read": False,
+     "subject": "Ahead of your London roadshow — scenario analysis by tomorrow",
+     "body": "Before we meet Wednesday: send me your scenario analysis — your "
+             "hypotheses (e.g. currency change, China timing), EPS and TP per case "
+             "with probabilities. By tomorrow EOD please."},
+    {"id": "M-004", "ts": "2026-07-22 15:02", "from_name": "LVMH Investor Relations",
+     "from_role": "Corporate", "ticker": "MC FP", "read": True,
+     "subject": "NY corporate roadshow — dates & venue",
+     "body": "Confirming the New York corporate roadshow for the week of 3 August: CEO, CFO and "
+             "Head of IR attending. Please send your proposed investor list and agenda "
+             "by Friday."},
+    {"id": "M-005", "ts": "2026-07-23 07:05", "from_name": "Research Compliance",
+     "from_role": "Control room", "ticker": "", "read": False,
+     "subject": "Reminder: pre-publication control on all LVMH material today",
+     "body": "Given the market-moving print, every LVMH note, email or deck goes "
+             "through pre-publication control before distribution today. No exceptions "
+             "— route drafts via the control workspace."},
+    {"id": "M-006", "ts": "2026-07-22 11:34", "from_name": "Swatch Group IR",
+     "from_role": "Corporate", "ticker": "UHR SW", "read": True,
+     "subject": "H1 call transcript now available",
+     "body": "The transcript of our H1 analyst call is now available on the IR site. "
+             "Happy to schedule a follow-up with management if useful."},
+    {"id": "M-007", "ts": "2026-07-21 16:48", "from_name": "Strategy team",
+     "from_role": "Internal", "ticker": "", "read": True,
+     "subject": "House macro update — China consumption measures",
+     "body": "We nudge our China consumption path up ahead of the expected "
+             "consumption-support package (details leaking). Sector "
+             "analysts: please reflect the new FX and GDP set in your next estimate "
+             "revision (memo attached in the KB)."},
+    {"id": "M-008", "ts": "2026-07-23 07:10", "from_name": "Sales — Geneva",
+     "from_role": "Equities desk", "ticker": "CFR SW", "read": False,
+     "subject": "Client asks: Richemont into H1 — add here?",
+     "body": "Two PBs asking whether to add Richemont ahead of H1 after the US "
+             "jewellery data. What is the desk line — and does your CHF220 review "
+             "change it?"},
+]
+
+CALENDAR_SEED: list[dict] = [
+    {"id": "E-001", "date": "2026-07-23", "time": "07:30", "kind": "meeting",
+     "title": "Morning meeting — take the mic on LVMH", "ticker": "MC FP",
+     "notes": "First take: rating held, TP EUR525 -> EUR480, trough thesis."},
+    {"id": "E-002", "date": "2026-07-23", "time": "10:00", "kind": "results",
+     "title": "LVMH FY25 results call (mgmt)", "ticker": "MC FP",
+     "notes": "Listen for cognac depletion/shipment gap + China exit rate."},
+    {"id": "E-003", "date": "2026-07-23", "time": "14:30", "kind": "call",
+     "title": "Fund A — LVMH reaction call", "ticker": "MC FP",
+     "notes": "Long 2.1m shares; walk through post-view + scenarios."},
+    {"id": "E-004", "date": "2026-07-23", "time": "16:30", "kind": "control",
+     "title": "Pre-publication control — LVMH post-view note", "ticker": "MC FP",
+     "notes": "Maker/checker before distribution."},
+    {"id": "E-005", "date": "2026-07-24", "time": "16:00", "kind": "call",
+     "title": "Fund B — scenario pack walkthrough", "ticker": "MC FP",
+     "notes": "Pack sent 23 Jul EOD (see M-003) — walk through the hypotheses."},
+    {"id": "E-006", "date": "2026-07-29", "time": "09:00", "kind": "roadshow",
+     "title": "Investor roadshow — London (day 1)", "ticker": "MC FP",
+     "notes": "You lead; marketing the LVMH case. 7 meetings incl. Fund B."},
+    {"id": "E-007", "date": "2026-07-30", "time": "09:00", "kind": "roadshow",
+     "title": "Investor roadshow — London (day 2)", "ticker": "MC FP",
+     "notes": "Focus: hedge funds; scenario grids are the anchor material."},
+    {"id": "E-008", "date": "2026-07-29", "time": "17:40", "kind": "results",
+     "title": "Kering — Q2/H1 sales", "ticker": "KER FP",
+     "notes": "We are 5% below street FY26e EPS; watch Gucci sell-out."},
+    {"id": "E-009", "date": "2026-11-06", "time": "07:00", "kind": "results",
+     "title": "Richemont — H1 FY27 results (FYE March)", "ticker": "CFR SW",
+     "notes": "Q1 update note published; ours above street on jewellery mix."},
+    {"id": "E-013", "date": "2026-07-29", "time": "07:30", "kind": "results",
+     "title": "Moncler — H1 2026 results", "ticker": "MONC IM",
+     "notes": "DTC momentum vs wholesale normalisation; FX headwind quantified."},
+    {"id": "E-014", "date": "2026-07-30", "time": "08:00", "kind": "results",
+     "title": "Hermès — H1 2026 results", "ticker": "RMS FP",
+     "notes": "Consensus +9% organic; watch the leather capacity comment."},
+    {"id": "E-010", "date": "2026-08-03", "time": "09:00", "kind": "roadshow",
+     "title": "Corporate roadshow — New York (LVMH mgmt)", "ticker": "MC FP",
+     "notes": "You organise: CEO/CFO/IR; investor list due Friday."},
+    {"id": "E-011", "date": "2026-07-27", "time": "08:00", "kind": "meeting",
+     "title": "Sector strategy sync — China consumption measures", "ticker": "",
+     "notes": "Apply the new house macro set to estimates."},
+    {"id": "E-012", "date": "2026-07-31", "time": "12:00", "kind": "meeting",
+     "title": "Lunch — Swatch IR follow-up", "ticker": "UHR SW",
+     "notes": "Probe the China entry-demand tone from the H1 call transcript."},
+]
+
+# ---------------------------------------------------------------------------
+# Mock market-data connectors: consensus / our-estimates / price
+# ---------------------------------------------------------------------------
+CONSENSUS: dict[str, dict] = {
+    "MC FP": {"as_of": "this morning (post-print)", "analysts": 24, "period": "FY2025E",
+              "eps_mean": 21.3, "eps_high": 23.1, "eps_low": 19.8, "revenue_bn": 79.6,
+              "rec_ebit_margin_pct": 21.9, "ratings": {"buy": 13, "hold": 8, "sell": 3},
+              "tp_mean": 500.0, "note": "Capitulated into the print — 11 cuts in 6 weeks."},
+    "KER FP": {"as_of": "this morning", "analysts": 21, "period": "FY2026E",
+               "eps_mean": 17.8, "eps_high": 20.0, "eps_low": 15.9, "revenue_bn": 16.5,
+               "rec_ebit_margin_pct": 19.4, "ratings": {"buy": 5, "hold": 10, "sell": 6},
+               "tp_mean": 250.0, "note": "Two brokers cut FY26 EBIT overnight (−3% consensus)."},
+    "CFR SW": {"as_of": "this morning", "analysts": 19, "period": "FY2026E",
+               "eps_mean": 6.4, "eps_high": 7.1, "eps_low": 5.8, "revenue_bn": 23.4,
+               "rec_ebit_margin_pct": 24.8, "ratings": {"buy": 11, "hold": 6, "sell": 2},
+               "tp_mean": 205.0, "note": "Jewellery momentum not yet in numbers — upside risk."},
+}
+
+OUR_ESTIMATES: dict[str, dict] = {
+    "MC FP": {"period": "FY2025", "phase": "post-release",
+              "stance": "Preview (T-5d) had us below the street — right direction: the company "
+              "printed lower still and cut FY guidance. Post-view: Ours / Consensus / Company. "
+              "Our post-cut FY26e organic (+2.6%) sits ~3pp above the company's new "
+              "guidance — deliberately: the cut looks kitchen-sinked.",
+              "rows": [
+                  {"metric": "Revenue (€bn)", "ours": 79.1, "consensus": 79.6, "company": 78.9, "delta": "−0.6%"},
+                  {"metric": "Recurring EBIT margin (%)", "ours": 21.6, "consensus": 21.9, "company": 21.2, "delta": "−30bp"},
+                  {"metric": "EPS (€)", "ours": 21.0, "consensus": 21.3, "company": 20.4, "delta": "−1.4%"},
+                  {"metric": "DPS (€)", "ours": 13.0, "consensus": 13.2, "company": 12.75, "delta": "−1.5%"}]},
+    "KER FP": {"period": "FY2026E", "phase": "pre-release",
+               "stance": "Below consensus; estimate review due after the overnight cuts.",
+               "rows": [
+                   {"metric": "Organic growth (%)", "ours": -1.0, "consensus": 0.5, "delta": "−150bp"},
+                   {"metric": "EPS (€)", "ours": 16.9, "consensus": 17.8, "delta": "−5.1%"}]},
+    "CFR SW": {"period": "FY2026E", "phase": "pre-release",
+               "stance": "Above consensus on jewellery mix; overnight data supports raising further.",
+               "rows": [
+                   {"metric": "Organic growth (%)", "ours": 6.0, "consensus": 5.2, "delta": "+80bp"},
+                   {"metric": "EPS (CHF)", "ours": 6.7, "consensus": 6.4, "delta": "+4.7%"}]},
+}
+
+PRICES: dict[str, dict] = {
+    c["ticker"]: {"ticker": c["ticker"], "name": c["name"], "ccy": c["ccy"],
+                  "last_close": c["price"], "premarket_pct": c["premarket_pct"],
+                  "note": "SYNTHETIC indication — use the yahoo-finance connector for live quotes."}
+    for c in COVERAGE
+}
+
+
+# ---------------------------------------------------------------------------
+# Precomputed review documents (nightly build) — KB contentIds per name, so the
+# cockpit can open a company's review directly (openDocument). Env-specific;
+# override with FA_REVIEW_IDS_JSON (a JSON object {ticker: contentId}).
+# ---------------------------------------------------------------------------
+import json as _json
+import os as _os
+
+REVIEW_IDS: dict[str, str] = {
+    "CFR SW": "cont_zxl88zou3zbpbtkndm0qlu4c",
+    "KER FP": "cont_asj6dg80h2kwy2oxuly7hkv0",
+    "MC FP": "cont_icjk0yb6tc1i2bhjstry1dzu",
+    "MONC IM": "cont_eg2e9h3yrdd0gw8ynkbhe2xq",
+    "RMS FP": "cont_mwcvdhqjexvy1nl4xufhcao8",
+    "UHR SW": "cont_ikja9ogi0z66esh3cplmomrh"
+}
+try:
+    REVIEW_IDS.update(_json.loads(_os.getenv("FA_REVIEW_IDS_JSON", "") or "{}"))
+except Exception:
+    pass
+
+# Content ids are ENV-SPECIFIC (same doc = different cont_… per environment's KB) —
+# the RM Agent CRM pattern. Per-env maps, seeded for qa; other envs override at deploy
+# time via FA_REVIEW_IDS_BY_ENV_JSON ({"<env>": {"<ticker>": "cont_…"}}). Envs without
+# a mapping fall back to the env-agnostic KB filePath (resolved by the canvas bridge).
+REVIEW_IDS_BY_ENV: dict[str, dict[str, str]] = {"qa": REVIEW_IDS}
+try:
+    for _env, _m in (_json.loads(_os.getenv("FA_REVIEW_IDS_BY_ENV_JSON", "") or "{}")).items():
+        REVIEW_IDS_BY_ENV.setdefault(_env, {}).update(_m)
+except Exception:
+    pass
+
+
+def review_open_payload(env: str, ticker: str) -> str:
+    """openDocument payload for a name's review in THIS env: contentId when mapped,
+    else the env-agnostic filePath (bridge resolves it against the env's KB)."""
+    cid = (REVIEW_IDS_BY_ENV.get(env) or {}).get(ticker, "")
+    if cid:
+        return _json.dumps({"contentId": cid})
+    return _json.dumps({"filePath": f"/CIB - Sell-Side Equity Analyst/names/{ticker}/review.html"})
+
+
+COCKPIT_ID: str = _os.getenv("FA_COCKPIT_ID", "")  # set after the cockpit is uploaded
+
+
+# ---------------------------------------------------------------------------
+# Scenario analysis (what-if) — the analyst's hypotheses for buy-side discussions
+# and roadshow prep. EPS/TP impacts vs the POST-WARNING base case (TP €480).
+# ---------------------------------------------------------------------------
+SCENARIOS: dict[str, dict] = {
+    "MC FP": {
+        "period": "FY2026E", "base_tp": "€480",
+        "note": "Impacts vs the post-warning base case (TP €480). Prepared for the London investor "
+                "roadshow — buy-side scenario request (send-by: today EOD).",
+        "rows": [
+            {"scenario": "Base case — trough and stabilise",
+             "assumption": "Cognac destocking ends H1-26; China flat; FX as spot",
+             "args": {},
+             "eps_impact": "—", "tp_impact": "€480 (base)",
+             "hypothesis": "Our central case post-warning; rating Outperform on the reset.",
+             "probability": "55%"},
+            {"scenario": "Currency shock — EUR +5% (USD & Asia)",
+             "assumption": "EURUSD 1.14 → 1.20 sustained; ~55% of sales in USD/Asia ccys",
+             "args": {"fx_eur_move_pct": 5.0},
+             "eps_impact": "−3.5%", "tp_impact": "€465",
+             "hypothesis": "Translation + transaction drag; H1 partially hedged, so full "
+                           "effect only from H2. Watch the hedge book in the AR.",
+             "probability": "20%"},
+            {"scenario": "China recovery from Q2-26",
+             "assumption": "Stimulus lands; entry-luxury demand inflects (Swatch read-across)",
+             "args": {"china_recovery": "q2_26"},
+             "eps_impact": "+4.0%", "tp_impact": "€510",
+             "hypothesis": "The overnight stimulus headline raises this leg's odds; Sephora "
+                           "+ cognac restock would compound it.",
+             "probability": "20%"},
+            {"scenario": "Destocking extends into FY27",
+             "assumption": "US cognac inventories still heavy; guidance reset again",
+             "args": {"destocking_end": "fy27"},
+             "eps_impact": "−5.0%", "tp_impact": "€450",
+             "hypothesis": "Bear case; we see it as tail risk after this morning's kitchen-sink cut.",
+             "probability": "5%"},
+        ],
+    },
+    "KER FP": {
+        "period": "FY2026E", "base_tp": "€225",
+        "note": "Impacts vs our €225 base. Prepared with the overnight estimate review — "
+                "consensus cut FY26 EBIT −3% overnight; we were already below.",
+        "rows": [
+            {"scenario": "Base case — Gucci reset grinds on",
+             "assumption": "Volumes stabilise only in H2-26; no China help; FX as spot",
+             "args": {},
+             "eps_impact": "—", "tp_impact": "€225 (base)",
+             "hypothesis": "Consensus still coming to us — the overnight −3% cut supports "
+                           "the Underperform.",
+             "probability": "50%"},
+            {"scenario": "Currency shock — EUR +5%",
+             "assumption": "EURUSD 1.14 → 1.20 sustained; thin margins amplify the drag",
+             "args": {"fx_eur_move_pct": 5.0},
+             "eps_impact": "−4.1%", "tp_impact": "€215",
+             "hypothesis": "Highest FX drop-through after Swatch (EPS beta 1.8×) — the "
+                           "margin has no buffer.",
+             "probability": "20%"},
+            {"scenario": "China recovery from Q2-26",
+             "assumption": "Stimulus lands; aspirational demand inflects first",
+             "args": {"china_recovery": "q2_26"},
+             "eps_impact": "+4.8%", "tp_impact": "€240",
+             "hypothesis": "Highest EUR-reporter China gearing (1.2×) — the squeeze risk "
+                           "on our Underperform.",
+             "probability": "20%"},
+            {"scenario": "Bull combo — EUR −2.5% + China Q2-26",
+             "assumption": "FX tailwind and an early China turn together",
+             "args": {"fx_eur_move_pct": -2.5, "china_recovery": "q2_26"},
+             "eps_impact": "+6.8%", "tp_impact": "€245",
+             "hypothesis": "TP lands on the share price — the case that forces the rating "
+                           "committee.",
+             "probability": "10%"},
+        ],
+    },
+    "RMS FP": {
+        "period": "FY2026E", "base_tp": "€1,625",
+        "note": "Impacts vs our €1,625 base. The real risk on Hermès is the multiple "
+                "(~32x), not the EPS — FX is the only lever that moves the numbers.",
+        "rows": [
+            {"scenario": "Base case — quality, but priced",
+             "assumption": "Organic +9% holds; multiple stays put; FX as spot",
+             "args": {},
+             "eps_impact": "—", "tp_impact": "€1,625 (base)",
+             "hypothesis": "Premium justified but full — we prefer the risk/reward elsewhere.",
+             "probability": "55%"},
+            {"scenario": "Currency shock — EUR +5%",
+             "assumption": "EURUSD 1.14 → 1.20; best-hedged name in coverage (45% FY26e)",
+             "args": {"fx_eur_move_pct": 5.0},
+             "eps_impact": "−2.8%", "tp_impact": "€1,580",
+             "hypothesis": "The hedge book mutes year 1 — the drag is back-loaded as "
+                           "hedges roll off.",
+             "probability": "20%"},
+            {"scenario": "China recovery from Q2-26",
+             "assumption": "Stimulus lands; entry demand inflects",
+             "args": {"china_recovery": "q2_26"},
+             "eps_impact": "+2.0%", "tp_impact": "€1,675",
+             "hypothesis": "Lowest China gearing in coverage (0.5×) — the recovery is "
+                           "everyone else's story.",
+             "probability": "15%"},
+            {"scenario": "Currency tailwind — EUR −5%",
+             "assumption": "EURUSD 1.14 → 1.08 sustained",
+             "args": {"fx_eur_move_pct": -5.0},
+             "eps_impact": "+2.8%", "tp_impact": "€1,670",
+             "hypothesis": "The symmetric case — still only a ~3% TP move; the thesis "
+                           "stays a multiple question.",
+             "probability": "10%"},
+        ],
+    },
+    "CFR SW": {
+        "period": "FY2026E", "base_tp": "CHF 220",
+        "note": "Impacts vs the CHF 220 base (the overnight raise under review). "
+                "Jewellery momentum is the thesis; the franc is the perennial drag.",
+        "rows": [
+            {"scenario": "Base case — jewellery momentum",
+             "assumption": "Cartier/VCA sell-out holds; CHF stable",
+             "args": {},
+             "eps_impact": "—", "tp_impact": "CHF 220 (base)",
+             "hypothesis": "The overnight CHF 210 → 220 raise IS the base — US jewellery "
+                           "data supports it.",
+             "probability": "45%"},
+            {"scenario": "Franc shock — CHF +5%",
+             "assumption": "Safe-haven bid; 92% of sales outside CHF",
+             "args": {"fx_eur_move_pct": 5.0},
+             "eps_impact": "−4.8%", "tp_impact": "CHF 210",
+             "hypothesis": "Takes the TP straight back to pre-raise — the case against "
+                           "chasing the print.",
+             "probability": "25%"},
+            {"scenario": "China recovery from Q2-26",
+             "assumption": "Stimulus lands; Cartier entry price points benefit",
+             "args": {"china_recovery": "q2_26"},
+             "eps_impact": "+3.2%", "tp_impact": "CHF 230",
+             "hypothesis": "Moderate gearing (0.8×) on top of already-strong US momentum.",
+             "probability": "20%"},
+            {"scenario": "Bull combo — CHF −2.5% + China Q2-26",
+             "assumption": "Franc eases and China turns together",
+             "args": {"fx_eur_move_pct": -2.5, "china_recovery": "q2_26"},
+             "eps_impact": "+5.6%", "tp_impact": "CHF 235",
+             "hypothesis": "Both tailwinds at once — the full jewellery-supercycle case.",
+             "probability": "10%"},
+        ],
+    },
+    "MONC IM": {
+        "period": "FY2026E", "base_tp": "€50",
+        "note": "Impacts vs our €50 base. NB the €5 house rounding step is ~10% of the "
+                "TP — small shocks are absorbed in rounding.",
+        "rows": [
+            {"scenario": "Base case — DTC discipline holds",
+             "assumption": "Brand heat solid; wholesale normalisation managed",
+             "args": {},
+             "eps_impact": "—", "tp_impact": "€50 (base)",
+             "hypothesis": "Single-brand story executing; nothing overnight changes it.",
+             "probability": "55%"},
+            {"scenario": "Currency shock — EUR +5%",
+             "assumption": "EURUSD 1.14 → 1.20; lowest non-EUR share in coverage (55%)",
+             "args": {"fx_eur_move_pct": 5.0},
+             "eps_impact": "−2.6%", "tp_impact": "€50 (drag absorbed in rounding)",
+             "hypothesis": "Ties to the overnight EURUSD move — real but immaterial to "
+                           "the target after €5 rounding.",
+             "probability": "20%"},
+            {"scenario": "China recovery from Q2-26",
+             "assumption": "Stimulus lands; outerwear entry demand inflects",
+             "args": {"china_recovery": "q2_26"},
+             "eps_impact": "+4.0%", "tp_impact": "€55",
+             "hypothesis": "Standard gearing (1.0×) — enough to clear the rounding step.",
+             "probability": "15%"},
+            {"scenario": "Bull combo — EUR −2.5% + China Q2-26",
+             "assumption": "FX tailwind and an early China turn together",
+             "args": {"fx_eur_move_pct": -2.5, "china_recovery": "q2_26"},
+             "eps_impact": "+5.3%", "tp_impact": "€55",
+             "hypothesis": "The upside case — same €60 as China-only after rounding; "
+                           "conviction, not magnitude.",
+             "probability": "10%"},
+        ],
+    },
+    "UHR SW": {
+        "period": "FY2026E", "base_tp": "CHF 160",
+        "note": "Impacts vs our CHF 160 base. THE high-beta name: EPS beta 2.5×, China "
+                "gearing 2.5× — every scenario is violent; the tone flag is the thesis.",
+        "rows": [
+            {"scenario": "Base case — no China recovery",
+             "assumption": "Entry demand stays soft; no fresh print before FY (mid-Jan)",
+             "args": {},
+             "eps_impact": "—", "tp_impact": "CHF 160 (base)",
+             "hypothesis": "The H1-call tone flag IS the thesis — Underperform; next data point "
+                           "only in January (semi-annual reporter).",
+             "probability": "45%"},
+            {"scenario": "Franc shock — CHF +5%",
+             "assumption": "Safe-haven bid; only 15% hedged, 90% of sales non-CHF",
+             "args": {"fx_eur_move_pct": 5.0},
+             "eps_impact": "−9.6%", "tp_impact": "CHF 145",
+             "hypothesis": "The sector's highest FX gearing — our bear case; a −9% TP "
+                           "move goes to the rating committee.",
+             "probability": "25%"},
+            {"scenario": "China recovery from Q2-26",
+             "assumption": "Stimulus lands; entry-consumer inflects hardest here",
+             "args": {"china_recovery": "q2_26"},
+             "eps_impact": "+10.0%", "tp_impact": "CHF 185",
+             "hypothesis": "2.5× the sector schedule — the squeeze risk on the short; "
+                           "also a rating-committee move.",
+             "probability": "15%"},
+            {"scenario": "China recovery from Q4-26",
+             "assumption": "Measures take two quarters to reach sell-out",
+             "args": {"china_recovery": "q4_26"},
+             "eps_impact": "+5.0%", "tp_impact": "CHF 175",
+             "hypothesis": "The half-way case buy-side actually asks about — late but real.",
+             "probability": "15%"},
+        ],
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Pre-publication control queue — the maker/checker beat. The analyst (maker)
+# submits research products; the checker verifies every figure against source
+# and records RELEASE / DO NOT RELEASE. Mutable per environment; Reset restores.
+# ---------------------------------------------------------------------------
+CONTROL_QUEUE_SEED: list[dict] = [
+    {"id": "C-001", "title": "LVMH — Post-release review (post-view note)",
+     "ticker": "MC FP", "kind": "note", "submitted_by": "Analyst (maker)",
+     "submitted_at": "2026-07-23 09:40", "priority": "URGENT — publish ASAP",
+     "status": "pending", "verdict": "", "verdict_notes": "",
+     "checklist": [
+         {"check": "Every figure recomputed vs source (Ours/Consensus/Company)", "state": "ok"},
+         {"check": "Single target price + upside % (house style)", "state": "ok"},
+         {"check": "Rating change consistency (Outperform held)", "state": "ok"},
+         {"check": "MNPI screen — no non-public information", "state": "open"},
+         {"check": "Disclosures block present + synthetic marker", "state": "ok"},
+     ]},
+    {"id": "C-002", "title": "LVMH — Buy-side scenario pack (Fund B)",
+     "ticker": "MC FP", "kind": "pack", "submitted_by": "Analyst (maker)",
+     "submitted_at": "2026-07-23 11:05", "priority": "Send-by TODAY EOD",
+     "status": "pending", "verdict": "", "verdict_notes": "",
+     "checklist": [
+         {"check": "Engine numbers reproduce the published cases", "state": "ok"},
+         {"check": "Probabilities sum to 100%", "state": "ok"},
+         {"check": "Assumption trail included", "state": "ok"},
+         {"check": "Client-suitability wording (professional investors)", "state": "open"},
+     ]},
+    {"id": "C-003", "title": "Swatch Group — desknote (tone × guidance flag)",
+     "ticker": "UHR SW", "kind": "note", "submitted_by": "Analyst (maker)",
+     "submitted_at": "2026-07-22 17:55", "priority": "Standard",
+     "status": "pending", "verdict": "", "verdict_notes": "",
+     "checklist": [
+         {"check": "Transcript quotes verified against source", "state": "ok"},
+         {"check": "Early-warning language is opinion, not fact", "state": "open"},
+         {"check": "No guidance figures attributed to management beyond the call", "state": "open"},
+     ]},
+]
+
+# Scenario Lab preset definitions (which predefined shocks the Lab computes).
+# Editable per environment in the demo console; the engine's board() reads the
+# active env's copy and falls back to this seed.
+LAB_PRESETS: list[dict] = [
+    {"key": "base", "title": "Base case — trough and stabilise", "args": {}, "tag": "BASE · 55%"},
+    {"key": "fx_up5", "title": "Currency shock — EUR +5%",
+     "args": {"fx_eur_move_pct": 5.0}, "tag": "FX"},
+    {"key": "fx_dn5", "title": "Currency tailwind — EUR −5%",
+     "args": {"fx_eur_move_pct": -5.0}, "tag": "FX"},
+    {"key": "china_q2", "title": "China recovery from Q2-26",
+     "args": {"china_recovery": "q2_26"}, "tag": "DEMAND"},
+    {"key": "china_q4", "title": "China recovery from Q4-26",
+     "args": {"china_recovery": "q4_26"}, "tag": "DEMAND"},
+    {"key": "destock_h2", "title": "Destocking slips to H2-26",
+     "args": {"destocking_end": "h2_26"}, "tag": "COGNAC"},
+    {"key": "destock_fy27", "title": "Destocking extends into FY27",
+     "args": {"destocking_end": "fy27"}, "tag": "COGNAC"},
+    {"key": "bull", "title": "Bull — EUR −2.5% + China Q2-26",
+     "args": {"fx_eur_move_pct": -2.5, "china_recovery": "q2_26"}, "tag": "COMBINED"},
+    {"key": "bear", "title": "Bear — EUR +5% + destocking FY27",
+     "args": {"fx_eur_move_pct": 5.0, "destocking_end": "fy27"}, "tag": "COMBINED"},
+]
+
+
+def resolve(ticker_or_name: str) -> str | None:
+    raw = (ticker_or_name or "").strip().lower()
+    if not raw:
+        return None
+    if raw in ALIASES:
+        return ALIASES[raw]
+    for c in COVERAGE:
+        if raw in (c["ticker"].lower(), c["yahoo"].lower(), c["bbg"].lower(), c["name"].lower()):
+            return c["ticker"]
+    return None
+
+
+def coverage_with_overnight() -> list[dict]:
+    """Coverage roster with each name's overnight move merged in (headline + valuation).
+
+    Reads the per-env mutable state (live console/agent edits) with static-seed
+    fallback, like every other read path."""
+    out = []
+    ov_map = current_overnight()
+    for c in current_coverage():
+        row = copy.deepcopy(c)
+        ov = ov_map.get(c["ticker"])
+        if ov:
+            row["overnight"] = {"severity": ov["severity"], "headline": ov["headline"],
+                                "valuation_impact": ov["valuation_impact"],
+                                "new_target_price": ov.get("new_target_price")}
+        out.append(row)
+    return out
+
+
+def _brief_item(key: str) -> dict:
+    ov = copy.deepcopy(OVERNIGHT[key])
+    ov["acknowledged"] = False
+    if key == "MC FP":
+        ov["cascade"] = copy.deepcopy(LVMH_CASCADE)
+        ov["call_list"] = copy.deepcopy(LVMH_CALL_LIST)
+    return ov
+
+
+def rebase_state(st: dict, target=None) -> int:
+    """Shift every dated field so the storyline's "today" becomes ``target``
+    (default: today in Europe/Zurich). Deltas are preserved. Single source for
+    the console rebase, the nightly, and state materialization (auto-rebase on
+    boot/reset so past-dated SCHEDULED jobs don't mass-fire after a restart)."""
+    from datetime import date as _date, datetime as _dt, timedelta as _td
+    from zoneinfo import ZoneInfo as _zi
+
+    if target is None:
+        target = _dt.now(_zi("Europe/Zurich")).date()
+    anchor = _date.fromisoformat(st.get("today", STORY_TODAY))
+    delta = (target - anchor).days
+    if delta:
+        def _shift(v: str) -> str:
+            try:
+                d = _date.fromisoformat(v[:10])
+            except ValueError:
+                return v
+            return (d + _td(days=delta)).isoformat() + v[10:]
+        for ev in st["calendar"]:
+            ev["date"] = _shift(ev["date"])
+        for em in st["emails"]:
+            em["ts"] = _shift(em["ts"])
+        for jb in st["jobs"]["jobs"]:
+            if jb.get("run_at"):
+                jb["run_at"] = _shift(jb["run_at"])
+        for it in st.get("control_queue", []):
+            if it.get("submitted_at"):
+                it["submitted_at"] = _shift(it["submitted_at"])
+        for d in st.get("dossiers", {}).values():
+            d["note_history"] = [_shift(x) for x in d.get("note_history", [])]
+        for n in st.get("analyst_notes", []):
+            n["ts"] = _shift(n["ts"])
+        st["today"] = target.isoformat()
+    return delta
+
+
+def baseline(env: str = "") -> dict:
+    """A fresh copy of the MUTABLE demo state — everything the analyst (or a sales
+    person via the /admin demo-data console) can touch. The server holds this and
+    Reset_Demo_Data / the console's Reset restore it to this labeled snapshot.
+    ``env`` selects env-specific pieces (currently the job set, JOBS_BY_ENV)."""
+    return {
+        "generated_at": "07:00 CET",
+        "snapshot_label": SNAPSHOT_LABEL,
+        "today": STORY_TODAY,
+        "brief": [_brief_item(k) for k in OVERNIGHT_ORDER],
+        "inbox": [{**copy.deepcopy(d), "reviewed": False} for d in ACTION_INBOX],
+        "jobs": {"jobs": copy.deepcopy(JOBS_BY_ENV.get(env, JOBS_SEED)),
+                 "notification": NOTIFICATION},
+        "coverage": copy.deepcopy(COVERAGE),
+        "emails": copy.deepcopy(EMAILS_SEED),
+        "calendar": copy.deepcopy(CALENDAR_SEED),
+        "scenarios": copy.deepcopy(SCENARIOS),
+        "lab_presets": copy.deepcopy(LAB_PRESETS),
+        "control_queue": copy.deepcopy(CONTROL_QUEUE_SEED),
+        "analyst_notes": copy.deepcopy(ANALYST_NOTES_SEED),
+        "dossiers": copy.deepcopy(DOSSIERS),
+        "layout": {},   # per-dashboard section layout (update_dashboard_layout)
+    }
+
+
+# The server registers a STATE RESOLVER here (env-aware: returns the ACTIVE
+# environment's state) so read paths — tools, the scenario engine — see console
+# edits; falls back to the immutable seed when unregistered (build scripts).
+_STATE_RESOLVER = None
+
+
+def register_state_resolver(resolver) -> None:
+    global _STATE_RESOLVER
+    _STATE_RESOLVER = resolver
+
+
+def current_state() -> dict | None:
+    return _STATE_RESOLVER() if _STATE_RESOLVER else None
+
+
+# canonical section keys per dashboard — the review builder applies the stored
+# layout at every regeneration; the cockpit list documents what the skill may move.
+REVIEW_SECTION_ORDER = ["quote", "chart", "tiles", "overnight", "thesis", "products",
+                        "fundamentals", "estimates", "consensus", "scenario", "log",
+                        "notes", "actions"]
+COCKPIT_SECTIONS = ["ribbon", "ticker", "tabs", "coverage", "brief", "inbox",
+                    "agenda", "jobs", "dnotes"]
+
+
+def current_layout(dashboard: str) -> dict:
+    st = current_state()
+    return ((st or {}).get("layout") or {}).get(dashboard) or {}
+
+
+def current_dossiers() -> dict:
+    st = current_state()
+    return (st or {}).get("dossiers") or DOSSIERS
+
+
+def current_scenarios() -> dict:
+    st = current_state()
+    return (st or {}).get("scenarios") or SCENARIOS
+
+
+def current_coverage() -> list[dict]:
+    st = current_state()
+    return (st or {}).get("coverage") or COVERAGE
+
+
+def current_overnight() -> dict:
+    """Per-env mutable overnight map keyed by ticker — the morning brief carries the
+    console/agent edits (update_brief_item, /admin). Falls back to the static seed
+    baseline when no state resolver is registered (standalone build scripts). An
+    empty brief (all items dismissed) is respected, not treated as a fallback."""
+    st = current_state()
+    if st is None:
+        return OVERNIGHT
+    return {b["ticker"]: b for b in st.get("brief", [])}
