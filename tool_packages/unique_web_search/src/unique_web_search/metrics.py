@@ -10,6 +10,11 @@ search_total = m.counter("search_total", "Search calls by engine", ["engine"])
 search_errors = m.counter(
     "search_errors_total", "Search failures", ["engine", "error_type"]
 )
+custom_api_url_safety_report = m.counter(
+    "custom_api_url_safety_report_total",
+    "Report-only URL safety outcomes for legacy Custom API searches",
+    ["outcome", "reason_category"],
+)
 
 # End-to-End Tool (P1)
 tool_duration = m.histogram(
