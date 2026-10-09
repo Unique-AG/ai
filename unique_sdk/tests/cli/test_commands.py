@@ -453,11 +453,7 @@ class TestFolders:
 
     @patch("unique_sdk.Folder.create_paths")
     def test_mkdir_absolute_path(self, mock: MagicMock) -> None:
-        """Absolute mkdir paths are not prefixed with cwd (UN-26812).
-
-        From `/`, joining produced `//demo/x`, which the API rejects. From a
-        subfolder it produced `/Reports/demo/x`, which the API accepted.
-        """
+        """Absolute mkdir paths are not prefixed with the current directory."""
         mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
         from_root = cmd_mkdir(_state("/"), "/demo/x")
         assert "Created: /demo/x" in from_root
