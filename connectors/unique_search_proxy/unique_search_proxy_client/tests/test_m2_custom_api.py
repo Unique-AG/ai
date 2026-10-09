@@ -195,27 +195,3 @@ class TestCustomApiSearchService:
                 await service.search(_custom_api_request())
 
         assert len(captured) == 1
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_search__accepts_legacy_curated_response_alias(self) -> None:
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(
-                lambda _request: httpx.Response(
-                    200,
-                    json={
-                        "curated": [
-                            {
-                                "url": "https://result.example.com",
-                                "title": "Result",
-                                "snippet": "Snippet",
-                            }
-                        ]
-                    },
-                ),
-            ),
-        ) as client:
-            service = CustomApiSearchService(http_client=client)
-            _raw, curated = await service.search(_custom_api_request())
-
-        assert curated.results[0].url == "https://result.example.com"

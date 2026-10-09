@@ -150,13 +150,8 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
         if not isinstance(payload, dict):
             raise UpstreamError("Custom API response must be a JSON object")
 
-        normalized_payload = (
-            {"results": payload["curated"]}
-            if "results" not in payload and "curated" in payload
-            else payload
-        )
         try:
-            curated = WebSearchResults.model_validate(normalized_payload)
+            curated = WebSearchResults.model_validate(payload)
         except ValidationError as exc:
             raise UpstreamError("Custom API returned an invalid result schema") from exc
 
