@@ -33,6 +33,7 @@ _URL_SAFETY_SECTIONS: dict[str, list[str]] = {
         "allowed_schemes",
         "localhost_hosts",
         "metadata_hosts",
+        "custom_api_trusted_private_hosts",
     ],
 }
 
@@ -76,6 +77,7 @@ def configure_url_safety_helm_model(model: type[UrlSafetySettings]) -> None:
             "allowed_schemes": {"overridable": True},
             "localhost_hosts": {"overridable": True},
             "metadata_hosts": {"overridable": True},
+            "custom_api_trusted_private_hosts": {"overridable": True},
         },
     )
 

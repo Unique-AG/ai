@@ -7,6 +7,9 @@ from unique_search_proxy_core.search_engines.base import SearchEngine, SearchEng
 from unique_search_proxy_client.web.core.search_engines.brave.service import (
     BraveSearchService,
 )
+from unique_search_proxy_client.web.core.search_engines.custom_api.service import (
+    CustomApiSearchService,
+)
 from unique_search_proxy_client.web.core.search_engines.google.service import (
     GoogleSearchService,
 )
@@ -31,6 +34,8 @@ def get_search_engine_service(
             return BraveSearchService(http_client=http_client)
         case SearchEngineType.PERPLEXITY:
             return PerplexitySearchService(http_client=http_client)
+        case SearchEngineType.CUSTOM_API:
+            return CustomApiSearchService(http_client=http_client)
         case _:
             raise ValueError(f"Unsupported search engine: {engine}")
 

@@ -97,6 +97,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | urlSafety.network.allowedSchemes[0] | string | `"http"` |  |
 | urlSafety.network.allowedSchemes[1] | string | `"https"` |  |
 | urlSafety.network.clusterLocalSuffix | string | `".cluster.local"` |  |
+| urlSafety.network.customApiTrustedPrivateHosts | list | `[]` |  |
 | urlSafety.network.localhostHosts[0] | string | `"localhost"` |  |
 | urlSafety.network.localhostHosts[1] | string | `"localhost.localdomain"` |  |
 | urlSafety.network.metadataHosts[0] | string | `"100.100.100.200"` |  |
