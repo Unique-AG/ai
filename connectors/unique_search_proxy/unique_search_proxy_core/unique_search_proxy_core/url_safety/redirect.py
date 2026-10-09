@@ -28,6 +28,18 @@ _REDIRECT_PROBE_USER_AGENT = (
 ValidateUrlFn = Callable[[str], Awaitable[tuple[str, str] | None]]
 
 
+def redirect_target_url(response: httpx.Response, current_url: str) -> str | None:
+    """Return the next absolute redirect URL, or ``None`` when not followable."""
+    if response.status_code not in _REDIRECT_STATUS_CODES:
+        return None
+
+    location = response.headers.get("location")
+    if not location:
+        return None
+
+    return urljoin(current_url, location)
+
+
 @asynccontextmanager
 async def _redirect_probe_client(
     http_client: httpx.AsyncClient | None,
@@ -105,14 +117,11 @@ async def resolve_redirect_chain(
                     ]
                 ) from exc
 
-            if resp.status_code not in _REDIRECT_STATUS_CODES:
+            redirect_url = redirect_target_url(resp, current)
+            if redirect_url is None:
                 break
 
-            location = resp.headers.get("location")
-            if not location:
-                break
-
-            current = urljoin(current, location)
+            current = redirect_url
 
     error = await validate_url(current)
     if error is not None:
