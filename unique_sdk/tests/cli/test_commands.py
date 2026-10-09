@@ -445,6 +445,48 @@ class TestFolders:
         result = cmd_mkdir(_state("/Reports", "scope_r"), "Q2")
         assert "Created" in result
         assert "scope_new" in result
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            paths=["/Reports/Q2"],
+        )
+
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_absolute_path(self, mock: MagicMock) -> None:
+        """Absolute mkdir paths are not prefixed with cwd (UN-26812).
+
+        From `/`, joining produced `//demo/x`, which the API rejects. From a
+        subfolder it produced `/Reports/demo/x`, which the API accepted.
+        """
+        mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        from_root = cmd_mkdir(_state("/"), "/demo/x")
+        assert "Created: /demo/x" in from_root
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            paths=["/demo/x"],
+        )
+
+        mock.reset_mock()
+        from_subfolder = cmd_mkdir(_state("/Reports", "scope_r"), "/demo/x")
+        assert "Created: /demo/x" in from_subfolder
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            paths=["/demo/x"],
+        )
+
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_relative_path(self, mock: MagicMock) -> None:
+        """Relative names are still created under the current directory."""
+        mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        result = cmd_mkdir(_state("/Reports", "scope_r"), "x")
+        assert "Created: /Reports/x" in result
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            paths=["/Reports/x"],
+        )
 
     @patch("unique_sdk.Folder.create_paths")
     def test_mkdir_no_created(self, mock: MagicMock) -> None:

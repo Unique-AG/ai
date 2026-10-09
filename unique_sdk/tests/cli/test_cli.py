@@ -66,6 +66,19 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "Created" in result.output
 
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_error_exits_nonzero(self, mock: MagicMock) -> None:
+        """A mkdir failure must exit non-zero so ``&&`` chains stop (UN-26812).
+
+        The default ``emit`` predicate only treats permission denials as
+        errors, so ``mkdir:`` API and validation failures used to exit 0.
+        """
+        mock.side_effect = ValueError("Invalid request parameters")
+        runner = CliRunner()
+        result = runner.invoke(main, ["mkdir", "/demo/x"])
+        assert result.exit_code == 1
+        assert "mkdir:" in result.output
+
     @patch("unique_sdk.Folder.delete")
     def test_rmdir(self, mock: MagicMock) -> None:
         runner = CliRunner()
