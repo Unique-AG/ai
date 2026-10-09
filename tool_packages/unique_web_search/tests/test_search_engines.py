@@ -746,7 +746,7 @@ class TestCustomAPISearch:
     def _mock_url_safety_report(self, mocker) -> None:
         mocker.patch(
             "unique_web_search.services.search_engine.custom_api."
-            "UrlSafetyService.resolve_crawl_target",
+            "UrlSafetyService.resolve_custom_api_target",
             new=AsyncMock(),
         )
 
