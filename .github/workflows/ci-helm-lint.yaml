@@ -38,6 +38,11 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
 
+      - name: Render Helm fixtures
+        run: |
+          cd connectors/unique_search_proxy/unique_search_proxy_client
+          scripts/render_helm_fixtures.sh --check
+
       - name: Check values.schema.json drift
         run: scripts/render-values-schema.sh --check
 
