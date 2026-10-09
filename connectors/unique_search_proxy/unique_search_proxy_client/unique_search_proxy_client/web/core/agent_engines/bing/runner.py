@@ -36,10 +36,16 @@ from unique_search_proxy_client.web.settings.providers import bing_agent as sett
 from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, read_secret
 
 _LOGGER = logging.getLogger(__name__)
+_RETRYABLE_RESPONSE_ERROR_CODES = frozenset({"server_error", "internal_error"})
+_RETRYABLE_RESPONSE_ERROR_MESSAGES = (
+    "model deployment encountered an error processing your request",
+    "invalid or expired token",
+)
 
 __all__ = [
     "create_bing_agent",
     "get_bing_grounding_tool",
+    "is_retryable_bing_response_error",
     "resolve_bing_agent_name",
     "stream_bing_grounding_agent",
 ]
@@ -138,6 +144,23 @@ def _is_missing_agent_error(exc: BaseException, *, agent_name: str) -> bool:
     return False
 
 
+def is_retryable_bing_response_error(exc: BaseException) -> bool:
+    """Return whether a pre-output Foundry stream failure is safe to retry."""
+    if isinstance(exc, openai.APIStatusError):
+        # The OpenAI client already retries retryable HTTP statuses. This
+        # classifier is only for errors embedded in an HTTP 200 SSE stream.
+        return False
+    if not isinstance(exc, openai.APIError):
+        return False
+
+    code = exc.code.lower() if isinstance(exc.code, str) else None
+    if code in _RETRYABLE_RESPONSE_ERROR_CODES:
+        return True
+
+    message = str(exc).lower()
+    return any(marker in message for marker in _RETRYABLE_RESPONSE_ERROR_MESSAGES)
+
+
 async def stream_bing_grounding_agent(
     project_client: AIProjectClient,
     *,
@@ -146,6 +169,7 @@ async def stream_bing_grounding_agent(
     model: str,
     instructions: str,
     grounding: BingGroundingConfiguration,
+    timeout: float,
 ) -> AsyncIterator[tuple[str, dict]]:
     """Stream Bing-grounded Responses events as ``(delta_text, raw_event)`` pairs.
 
@@ -170,6 +194,7 @@ async def stream_bing_grounding_agent(
             openai_client,
             agent_name=resolved_name,
             query=query,
+            timeout=timeout,
         )
     except Exception as exc:
         if not _is_missing_agent_error(exc, agent_name=resolved_name):
@@ -190,6 +215,7 @@ async def stream_bing_grounding_agent(
             openai_client,
             agent_name=resolved_name,
             query=query,
+            timeout=timeout,
         )
 
     emitted_text = False
@@ -230,6 +256,7 @@ async def _create_responses_stream(
     *,
     agent_name: str,
     query: str,
+    timeout: float,
 ) -> openai.AsyncStream[ResponseStreamEvent]:
     started = time.perf_counter()
     stream = await openai_client.responses.create(
@@ -241,6 +268,9 @@ async def _create_responses_stream(
                 "type": "agent_reference",
             }
         },
+        # The shared egress client defaults to 30s, while Bing requests allow
+        # longer runs. The API's outer deadline still caps total request time.
+        timeout=timeout,
     )
     elapsed_ms = (time.perf_counter() - started) * 1000
     _LOGGER.info(

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
+import httpx
 import pytest
-from openai import NotFoundError
+from openai import APIError, InternalServerError, NotFoundError
 from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
 from openai.types.responses.response_output_message import ResponseOutputMessage
@@ -19,7 +20,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     bing_agent_name,
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
-from unique_search_proxy_core.errors import EngineNotConfiguredError
+from unique_search_proxy_core.errors import EngineNotConfiguredError, UpstreamError
 from unique_search_proxy_core.http_client import DirectRoute
 
 from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
@@ -36,6 +37,7 @@ from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
     _is_missing_agent_error,
     create_bing_agent,
     get_bing_grounding_tool,
+    is_retryable_bing_response_error,
     resolve_bing_agent_name,
     stream_bing_grounding_agent,
 )
@@ -71,6 +73,19 @@ async def _fake_stream(
     **_kwargs: Any,
 ) -> AsyncIterator[tuple[str, Any]]:
     yield "agent answer text", {"messages": []}
+
+
+def _stream_error(
+    message: str,
+    *,
+    code: str | None,
+) -> APIError:
+    body = {"code": code} if code is not None else None
+    return APIError(
+        message,
+        request=httpx.Request("POST", "https://example.azure.com/responses"),
+        body=body,
+    )
 
 
 class _CloseableAsyncStream:
@@ -199,6 +214,110 @@ class TestBingAgentSearchService:
             stream_bing_grounding_agent.call_args.kwargs["http_client"]
             is service._http_client
         )
+        assert stream_bing_grounding_agent.call_args.kwargs["timeout"] == 120
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_retries_transient_failures_with_backoff_before_output(
+        self,
+        bing_env: None,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+        calls = 0
+
+        async def transient_then_success(
+            *_args: Any,
+            **_kwargs: Any,
+        ) -> AsyncIterator[tuple[str, Any]]:
+            nonlocal calls
+            calls += 1
+            if calls < 3:
+                raise _stream_error(
+                    "The model deployment encountered an error processing your request",
+                    code="server_error",
+                )
+            yield "agent answer text", {"messages": []}
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=transient_then_success,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.asyncio.sleep",
+                new_callable=AsyncMock,
+            ) as sleep,
+        ):
+            result = await _bing_service().search(_bing_request())
+
+        assert result.answer == "agent answer text"
+        assert calls == 3
+        assert sleep.await_args_list == [call(2.0), call(8.0)]
+        assert mock_credential.__aenter__.await_count == 3
+        assert mock_client.__aenter__.await_count == 3
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_does_not_retry_after_output(
+        self,
+        bing_env: None,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+        calls = 0
+
+        async def partial_then_failure(
+            *_args: Any,
+            **_kwargs: Any,
+        ) -> AsyncIterator[tuple[str, Any]]:
+            nonlocal calls
+            calls += 1
+            yield "partial", {"type": "response.output_text.delta"}
+            raise _stream_error(
+                "The model deployment encountered an error processing your request",
+                code="server_error",
+            )
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=partial_then_failure,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.asyncio.sleep",
+                new_callable=AsyncMock,
+            ) as sleep,
+        ):
+            with pytest.raises(UpstreamError, match="Bing agent search failed"):
+                await _bing_service().search(_bing_request())
+
+        assert calls == 1
+        sleep.assert_not_awaited()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -459,6 +578,48 @@ class TestMissingAgentError:
         assert _is_missing_agent_error(exc, agent_name="unique-grounding-with-bing-abc")
 
 
+class TestRetryableBingResponseError:
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("message", "code"),
+        [
+            (
+                "The model deployment encountered an error processing your request",
+                "server_error",
+            ),
+            ("Bing grounding returned an invalid or expired token", None),
+        ],
+    )
+    def test_detects_observed_transient_stream_errors(
+        self,
+        message: str,
+        code: str | None,
+    ) -> None:
+        assert is_retryable_bing_response_error(
+            _stream_error(message, code=code),
+        )
+
+    @pytest.mark.ai
+    def test_rejects_non_transient_stream_error(self) -> None:
+        assert not is_retryable_bing_response_error(
+            _stream_error(
+                "The request payload is invalid", code="invalid_request_error"
+            ),
+        )
+
+    @pytest.mark.ai
+    def test_leaves_http_status_retries_to_openai_client(self) -> None:
+        request = httpx.Request("POST", "https://example.azure.com/responses")
+        response = httpx.Response(500, request=request)
+        assert not is_retryable_bing_response_error(
+            InternalServerError(
+                "Internal server error",
+                response=response,
+                body={"code": "server_error"},
+            ),
+        )
+
+
 class TestCreateAndStreamOptimistic:
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -525,12 +686,17 @@ class TestCreateAndStreamOptimistic:
                     model="gpt-5.1",
                     instructions="Be helpful.",
                     grounding=_grounding(),
+                    timeout=120,
                 )
             ]
 
         assert chunks[0][0] == "agent answer text"
         mock_client.agents.create_version.assert_awaited_once()
         assert mock_openai.responses.create.await_count == 2
+        assert all(
+            call.kwargs["timeout"] == 120
+            for call in mock_openai.responses.create.await_args_list
+        )
         assert stream.closed is True
 
     @pytest.mark.ai
@@ -557,6 +723,7 @@ class TestCreateAndStreamOptimistic:
                     model="gpt-5.1",
                     instructions="Be helpful.",
                     grounding=_grounding(),
+                    timeout=120,
                 )
             ]
 
