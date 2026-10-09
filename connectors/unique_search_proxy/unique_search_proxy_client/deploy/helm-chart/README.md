@@ -97,6 +97,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | urlSafety.network.allowedSchemes[0] | string | `"http"` |  |
 | urlSafety.network.allowedSchemes[1] | string | `"https"` |  |
 | urlSafety.network.clusterLocalSuffix | string | `".cluster.local"` |  |
+| urlSafety.network.customApiTrustedPrivateHosts | list | `[]` |  |
 | urlSafety.network.localhostHosts[0] | string | `"localhost"` |  |
 | urlSafety.network.localhostHosts[1] | string | `"localhost.localdomain"` |  |
 | urlSafety.network.metadataHosts[0] | string | `"100.100.100.200"` |  |
@@ -104,7 +105,6 @@ Dedicated Helm chart for the Unique search proxy connector
 | urlSafety.network.metadataHosts[2] | string | `"169.254.170.2"` |  |
 | urlSafety.network.metadataHosts[3] | string | `"metadata.azure.internal"` |  |
 | urlSafety.network.metadataHosts[4] | string | `"metadata.google.internal"` |  |
-| urlSafety.network.customApiTrustedPrivateHosts | list | `[]` |  |
 | urlSafety.network.serviceSuffix | string | `".svc"` |  |
 | urlSafety.redirects.maxRedirectHops | int | `10` |  |
 | urlSafety.redirects.redirectTimeoutSeconds | float | `10` |  |
