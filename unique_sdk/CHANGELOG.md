@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.42.0...unique-sdk-v2026.44.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **cli:** resolve absolute mkdir paths [UN-26812] ([#2542](https://github.com/Unique-AG/ai/issues/2542)) ([8b225bf](https://github.com/Unique-AG/ai/commit/8b225bfcc011d52f5734e13a45b37a2efd06523b))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.40.0...unique-sdk-v2026.42.0) (2026-10-09)
 
 

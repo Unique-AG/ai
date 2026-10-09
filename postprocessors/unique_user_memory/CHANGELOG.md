@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.42.0...unique-user-memory-v2026.44.0) (2026-10-09)
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.40.0...unique-user-memory-v2026.42.0) (2026-10-09)
 
 
