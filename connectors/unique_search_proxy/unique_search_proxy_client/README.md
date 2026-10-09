@@ -144,6 +144,23 @@ Response includes **curated** normalised results and opaque **raw** provider pay
 }
 ```
 
+Customized API endpoints must return a JSON object with a `results` array:
+
+```json
+{
+  "results": [
+    {
+      "url": "https://example.com",
+      "title": "Example",
+      "snippet": "Result summary",
+      "content": "Optional full content"
+    }
+  ]
+}
+```
+
+Each result requires `url`, `title`, and `snippet`; `content` is optional.
+
 ### 5.3 Agent search (`POST /v1/agent-search`)
 
 Thin egress — proxy returns opaque agent text; callers own parsing and citation extraction:
