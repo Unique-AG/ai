@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, cast, get_args, get_origin
 
 from pydantic import SecretStr
+from pydantic.aliases import AliasChoices
 from pydantic.fields import FieldInfo
 
 from unique_search_proxy_client.web.settings.secret_str import (
@@ -25,7 +26,17 @@ def snake_to_camel(name: str) -> str:
     return parts[0] + "".join(part.capitalize() for part in parts[1:])
 
 
-def env_var_name(field_name: str, env_prefix: str) -> str:
+def env_var_name(
+    field_name: str,
+    env_prefix: str,
+    field_info: FieldInfo | None = None,
+) -> str:
+    if field_info is not None:
+        aliases = field_info.validation_alias
+        choices = aliases.choices if isinstance(aliases, AliasChoices) else [aliases]
+        for choice in choices:
+            if isinstance(choice, str) and choice.isupper():
+                return choice
     return f"{env_prefix}{field_name.upper()}"
 
 
@@ -201,7 +212,7 @@ def iter_helm_fields(
         spec = HelmFieldSpec(
             python_name=field_name,
             helm_name=helm_name,
-            env_var=env_var_name(field_name, env_prefix),
+            env_var=env_var_name(field_name, env_prefix, field_info),
             sensitive=sensitive,
             required_when_enabled=required_when_enabled,
             schema_ref=schema_ref,

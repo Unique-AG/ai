@@ -160,6 +160,51 @@ class TestValidateCrawlUrls:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_custom_api_allowlist__does_not_allow_regular_crawls(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def fake_getaddrinfo(*args: object, **kwargs: object) -> list[tuple]:
+            return [
+                (
+                    socket.AF_INET,
+                    socket.SOCK_STREAM,
+                    6,
+                    "",
+                    ("10.20.30.40", 443),
+                )
+            ]
+
+        monkeypatch.setattr(url_safety_dns.socket, "getaddrinfo", fake_getaddrinfo)
+
+        with pytest.raises(CrawlTargetValidationError):
+            await UrlSafetyService.validate_batch_urls(
+                ["https://search.private.example/query"]
+            )
+
+        target = await UrlSafetyService.resolve_custom_api_target(
+            "https://search.private.example/query",
+            trusted_private_hosts=["search.private.example"],
+        )
+
+        assert target.resolved_ip == "10.20.30.40"
+        assert target.host_header == "search.private.example"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_custom_api_allowlist__still_blocks_metadata_host(
+        self,
+    ) -> None:
+        with pytest.raises(CrawlTargetValidationError) as exc_info:
+            await UrlSafetyService.resolve_custom_api_target(
+                "http://169.254.169.254/latest/meta-data",
+                trusted_private_hosts=["169.254.169.254"],
+            )
+
+        assert exc_info.value.blocked_targets[0].category == "metadata"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_validate_crawl_urls__raises__when_hostname_cannot_be_resolved(
         self,
         monkeypatch: pytest.MonkeyPatch,

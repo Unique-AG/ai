@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 import pytest
 
 from unique_search_proxy_core.url_safety import UrlSafetySettings
@@ -29,3 +32,27 @@ def test_url_safety_enabled__loads_false_from_env(
     settings = UrlSafetySettings()
 
     assert settings.enabled is False
+
+
+@pytest.mark.ai
+def test_url_safety_settings__loads_custom_api_private_hosts_from_dotenv(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """
+    Purpose: Verify application URL-safety settings load from the local dotenv file.
+    Why this matters: URL-safety settings are imported before the application loads dotenv.
+    Setup summary: Write a production-style .env, load settings, and assert the allowlist.
+    """
+    from unique_search_proxy_core.url_safety import settings as settings_module
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delitem(sys.modules, "pytest")
+    (tmp_path / ".env").write_text(
+        'CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS=["192.168.6.244"]\n',
+        encoding="utf-8",
+    )
+
+    settings = settings_module._get_settings()
+
+    assert settings.custom_api_trusted_private_hosts == ["192.168.6.244"]

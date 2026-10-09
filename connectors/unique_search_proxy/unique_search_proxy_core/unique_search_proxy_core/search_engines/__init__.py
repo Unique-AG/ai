@@ -19,6 +19,11 @@ from unique_search_proxy_core.search_engines.config_types import (
     parse_search_engine_config,
     parse_search_request,
 )
+from unique_search_proxy_core.search_engines.custom_api.schema import (
+    CustomApiConfig,
+    CustomApiRequestMethod,
+    CustomApiSearchRequest,
+)
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
     GoogleSearchRequest,
@@ -32,6 +37,9 @@ __all__ = [
     "BaseSearchEngineConfig",
     "BraveConfig",
     "BraveSearchRequest",
+    "CustomApiConfig",
+    "CustomApiRequestMethod",
+    "CustomApiSearchRequest",
     "GoogleConfig",
     "GoogleSearchRequest",
     "PerplexityConfig",

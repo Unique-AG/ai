@@ -6,6 +6,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.brave_search_request import BraveSearchRequest
+from ...models.custom_api_search_request import CustomApiSearchRequest
 from ...models.google_search_request import GoogleSearchRequest
 from ...models.http_validation_error import HTTPValidationError
 from ...models.perplexity_search_request import PerplexitySearchRequest
@@ -15,7 +16,10 @@ from ...types import Response, Unset
 
 def _get_kwargs(
     *,
-    body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    body: BraveSearchRequest
+    | CustomApiSearchRequest
+    | GoogleSearchRequest
+    | PerplexitySearchRequest,
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
@@ -38,6 +42,8 @@ def _get_kwargs(
     if isinstance(body, GoogleSearchRequest):
         _kwargs["json"] = body.to_dict()
     elif isinstance(body, BraveSearchRequest):
+        _kwargs["json"] = body.to_dict()
+    elif isinstance(body, PerplexitySearchRequest):
         _kwargs["json"] = body.to_dict()
     else:
         _kwargs["json"] = body.to_dict()
@@ -81,7 +87,10 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    body: BraveSearchRequest
+    | CustomApiSearchRequest
+    | GoogleSearchRequest
+    | PerplexitySearchRequest,
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
@@ -92,7 +101,8 @@ def sync_detailed(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
-        body (BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest):
+        body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
+            PerplexitySearchRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -119,7 +129,10 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    body: BraveSearchRequest
+    | CustomApiSearchRequest
+    | GoogleSearchRequest
+    | PerplexitySearchRequest,
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
@@ -130,7 +143,8 @@ def sync(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
-        body (BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest):
+        body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
+            PerplexitySearchRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -152,7 +166,10 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    body: BraveSearchRequest
+    | CustomApiSearchRequest
+    | GoogleSearchRequest
+    | PerplexitySearchRequest,
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
@@ -163,7 +180,8 @@ async def asyncio_detailed(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
-        body (BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest):
+        body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
+            PerplexitySearchRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -188,7 +206,10 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    body: BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest,
+    body: BraveSearchRequest
+    | CustomApiSearchRequest
+    | GoogleSearchRequest
+    | PerplexitySearchRequest,
     x_unique_company_id: str | Unset = "local",
     x_unique_user_id: str | Unset = "local",
     x_unique_chat_id: str | Unset = "local",
@@ -199,7 +220,8 @@ async def asyncio(
         x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
         x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
         x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
-        body (BraveSearchRequest | GoogleSearchRequest | PerplexitySearchRequest):
+        body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
+            PerplexitySearchRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
