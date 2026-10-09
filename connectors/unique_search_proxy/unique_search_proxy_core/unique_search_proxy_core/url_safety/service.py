@@ -132,6 +132,9 @@ class UrlSafetyService:
         *,
         trusted_private_hosts: Collection[str],
     ) -> ResolvedCrawlTarget:
+        if not url_safety_settings.enabled:
+            return bypass_crawl_target(url)
+
         return await resolver.resolve_crawl_target(
             url,
             trusted_private_hosts=trusted_private_hosts,

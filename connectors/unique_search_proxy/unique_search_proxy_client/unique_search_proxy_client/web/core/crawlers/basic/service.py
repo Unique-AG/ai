@@ -15,9 +15,11 @@ from unique_search_proxy_core.schema import (
     ProxyErrorCode,
 )
 from unique_search_proxy_core.url_safety import (
+    CrawlTargetValidationError,
     ResolvedCrawlTarget,
     bypass_crawl_target,
-    pinned_httpx_get_args,
+    safe_pinned_httpx_get,
+    url_safety_settings,
 )
 
 from unique_search_proxy_client.web.core.crawlers.basic.processing import (
@@ -29,10 +31,12 @@ from unique_search_proxy_client.web.core.crawlers.basic.user_agent import (
     random_user_agent,
 )
 from unique_search_proxy_client.web.core.provider_response import (
+    crawl_forbidden_target,
     crawl_upstream_error,
     transport_error_raw,
 )
 from unique_search_proxy_client.web.core.url_safety.gate import AllowedCrawlTarget
+from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,18 +105,24 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
         semaphore: asyncio.Semaphore,
         content_type_handlers: dict[str, ContentTypeHandlerPolicy],
     ) -> CrawlUrlResult:
-        request_url, pin_headers, extensions = pinned_httpx_get_args(resolved_target)
         async with semaphore:
-            headers = {"User-Agent": random_user_agent(), **pin_headers}
-
             try:
-                response = await client.get(
-                    request_url,
-                    headers=headers,
-                    extensions=extensions or None,
+                response = await safe_pinned_httpx_get(
+                    client,
+                    resolved_target,
+                    headers={"User-Agent": random_user_agent()},
                     timeout=Timeout(timeout),
-                    follow_redirects=True,
+                    max_redirect_hops=url_safety_settings.max_redirect_hops,
+                    enforce_url_safety=url_safety_settings.enabled,
                 )
+            except CrawlTargetValidationError as exc:
+                blocked = exc.blocked_targets[0]
+                record_crawl_blocked(blocked.category)
+                _LOGGER.warning(
+                    "Basic crawl blocked redirect: %s",
+                    blocked.category,
+                )
+                return crawl_forbidden_target(display_url, blocked.reason)
             except httpx.TimeoutException as exc:
                 _LOGGER.warning("Basic crawl timed out for %s: %s", display_url, exc)
                 return crawl_upstream_error(

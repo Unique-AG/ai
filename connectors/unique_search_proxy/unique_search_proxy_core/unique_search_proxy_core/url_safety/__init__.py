@@ -1,4 +1,7 @@
-from unique_search_proxy_core.url_safety.egress import pinned_httpx_get_args
+from unique_search_proxy_core.url_safety.egress import (
+    pinned_httpx_get_args,
+    safe_pinned_httpx_get,
+)
 from unique_search_proxy_core.url_safety.models import (
     BlockedCrawlTarget,
     CrawlTargetValidationError,
@@ -21,5 +24,6 @@ __all__ = [
     "UrlSafetySettings",
     "bypass_crawl_target",
     "pinned_httpx_get_args",
+    "safe_pinned_httpx_get",
     "url_safety_settings",
 ]
