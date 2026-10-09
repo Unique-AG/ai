@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 
 import unique_sdk
-from unique_sdk.cli.formatting import format_folder_info
+from unique_sdk.cli.formatting import format_folder_info, format_write_error
 from unique_sdk.cli.state import ShellState
 
 
@@ -71,7 +71,7 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
             return f"Created: {full_path} ({last['id']})"
         return f"Created: {full_path}"
     except (ValueError, unique_sdk.UniqueError) as e:
-        return f"mkdir: {e}"
+        return format_write_error("mkdir", e)
 
 
 def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
@@ -109,7 +109,7 @@ def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
             )
             return f"Deleted folder: {target}"
     except (ValueError, unique_sdk.UniqueError) as e:
-        return f"rmdir: {e}"
+        return format_write_error("rmdir", e)
 
 
 def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
@@ -146,4 +146,4 @@ def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
             )
         return f"Renamed folder -> {result.get('name', new_name)}\n{format_folder_info(result)}"
     except (ValueError, unique_sdk.UniqueError) as e:
-        return f"mvdir: {e}"
+        return format_write_error("mvdir", e)
