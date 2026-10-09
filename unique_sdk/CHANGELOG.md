@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.40.0...unique-sdk-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **agentic_table:** support overwriting Answer Library rows in place [UN-26688] ([#2515](https://github.com/Unique-AG/ai/issues/2515)) ([6cf8f9c](https://github.com/Unique-AG/ai/commit/6cf8f9c8a7584a37a77e4bbc626570dd59b03d1c))
+* **cli:** add agentic-table set-cell ([#2507](https://github.com/Unique-AG/ai/issues/2507)) ([678905f](https://github.com/Unique-AG/ai/commit/678905fa0e3d9f090e493d6f0376daab12eb0ef1))
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Bug Fixes
+
+* **cli:** keep knowledge base commands out of skill folders [UN-25784] ([#2504](https://github.com/Unique-AG/ai/issues/2504)) ([49cbaf6](https://github.com/Unique-AG/ai/commit/49cbaf6bb7ab6020b7606c09acf966c8b441fab3))
+* **cli:** revert keep knowledge base commands out of skill folders [UN-25784] ([#2533](https://github.com/Unique-AG/ai/issues/2533)) ([df0cd77](https://github.com/Unique-AG/ai/commit/df0cd778c909f6a43a40ce280104341c1504fe09))
+* **sdk:** record MCP tool replies whole for the grounding judge [UN-26481] ([#2486](https://github.com/Unique-AG/ai/issues/2486)) ([0d73b6d](https://github.com/Unique-AG/ai/commit/0d73b6d504906653d7e84f72bd1865160ed8bbe6))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
 ## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.38.0...unique-sdk-v2026.40.0) (2026-09-24)
 
 

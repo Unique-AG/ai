@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.40.0...unique-skill-tool-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
 ## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.38.0...unique-skill-tool-v2026.40.0) (2026-09-24)
 
 
