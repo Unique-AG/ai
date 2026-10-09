@@ -5267,6 +5267,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "timeout-decorator" },
     { name = "typing-extensions" },
+    { name = "unique-search-proxy-core" },
     { name = "unique-toolkit" },
     { name = "unique-web-search" },
 ]
@@ -5285,6 +5286,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.8.2,<3" },
     { name = "timeout-decorator", specifier = ">=0.5.0,<0.6" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
+    { name = "unique-search-proxy-core", editable = "connectors/unique_search_proxy/unique_search_proxy_core" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
     { name = "unique-web-search", editable = "tool_packages/unique_web_search" },
 ]

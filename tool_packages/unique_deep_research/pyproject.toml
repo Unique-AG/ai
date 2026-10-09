@@ -20,6 +20,7 @@ dependencies = [
     "langgraph>=1.0.0,<2",
     "langchain-core>=1.0.0,<2",
     "unique-web-search>=2026.40.0",
+    "unique-search-proxy-core>=2026.40.0",
     "httpx>=0.28.0,<0.29",
     "timeout-decorator>=0.5.0,<0.6",
     "beautifulsoup4>=4.12.0,<5",
@@ -50,6 +51,7 @@ exclude-newer = "2 weeks"
 unique-sdk = { workspace = true }
 unique-toolkit = { workspace = true }
 unique-web-search = { workspace = true }
+unique-search-proxy-core = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."
