@@ -59,6 +59,9 @@ from unique_sdk.cli.commands.files import (
     is_permission_denied_output as _is_permission_denied_output,
 )
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.folders import (
+    is_mkdir_error_output as _is_mkdir_error_output,
+)
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
 from unique_sdk.cli.commands.read import cmd_read
@@ -335,7 +338,7 @@ def mkdir(ctx: click.Context, name: str) -> None:
       unique-cli mkdir "2025/Q1"
     """
     output = cmd_mkdir(LazyState.get(ctx), name)
-    emit(output)
+    emit(output, is_error=_is_mkdir_error_output)
 
 
 @main.command()

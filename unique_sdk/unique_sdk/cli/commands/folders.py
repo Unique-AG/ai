@@ -53,7 +53,8 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
     # Resolve the destination (collapsing any `..`) and gate the *path*, not
     # just the current scope id: `mkdir ../../Other/X` would otherwise pass a
     # cwd-only check and create structure outside the per-message task scope.
-    full_path = os.path.normpath(f"{state.cwd.rstrip('/')}/{name}")
+    path = name if name.startswith("/") else f"{state.cwd.rstrip('/')}/{name}"
+    full_path = os.path.normpath(path)
     if not state.folder_path_allowed_by_metadata_filter(full_path):
         return (
             "mkdir: permission denied: destination is outside your task scope "
@@ -72,6 +73,15 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
         return f"Created: {full_path}"
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"mkdir: {e}"
+
+
+def is_mkdir_error_output(output: str) -> bool:
+    """Return True when *output* is a ``cmd_mkdir`` error.
+
+    Success text is ``Created: ...``. Scope denials and API failures both
+    start with ``mkdir:`` and must exit non-zero from the one-shot CLI.
+    """
+    return output.startswith("mkdir:")
 
 
 def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
