@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.40.0...unique-toolkit-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **agentic_table:** support overwriting Answer Library rows in place [UN-26688] ([#2515](https://github.com/Unique-AG/ai/issues/2515)) ([6cf8f9c](https://github.com/Unique-AG/ai/commit/6cf8f9c8a7584a37a77e4bbc626570dd59b03d1c))
+* **orchestrator:** improvement - list every chat upload with ingestion status and if searchable [UN-25228] ([#2526](https://github.com/Unique-AG/ai/issues/2526)) ([a25f47a](https://github.com/Unique-AG/ai/commit/a25f47afcf4cef78c3fd18066e60dfecd3154fe1))
+* **toolkit:** add claude-sonnet-5-5 model info ([#2495](https://github.com/Unique-AG/ai/issues/2495)) ([884c946](https://github.com/Unique-AG/ai/commit/884c94672806beed1b0c6cc839df497bcd4d27f2))
+* **toolkit:** add gemini-3-8-flash model info ([#2494](https://github.com/Unique-AG/ai/issues/2494)) ([2ce7577](https://github.com/Unique-AG/ai/commit/2ce7577fccf17d4c6aa2dceb56fedbbf253a0bb4))
+* **toolkit:** add gemini-4-argon model info ([#2524](https://github.com/Unique-AG/ai/issues/2524)) ([44712ff](https://github.com/Unique-AG/ai/commit/44712ff36196b1397e37990c8f7585654bb6a617))
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([7d4e315](https://github.com/Unique-AG/ai/commit/7d4e315423ff1d12759dd07f096095f93d74570e))
+* **toolkit:** add Phoeniqs GLM 5.3 Flash and Llama 4 Maverick [UN-26735] ([#2493](https://github.com/Unique-AG/ai/issues/2493)) ([8a04a9b](https://github.com/Unique-AG/ai/commit/8a04a9b5014f787c6d6e3a19bd950237c8ec815e))
+* **toolkit:** keep the chat event thinking level ([#2505](https://github.com/Unique-AG/ai/issues/2505)) ([61a10d3](https://github.com/Unique-AG/ai/commit/61a10d3f5213cb0a3d9847bb4f5b5517f1762504))
+* **toolkit:** record reasoning efforts for non-OpenAI models ([#2502](https://github.com/Unique-AG/ai/issues/2502)) ([81164b1](https://github.com/Unique-AG/ai/commit/81164b1b80d9f42f98cc2e6b21bd22e0c52eafb5))
+
+
+### Bug Fixes
+
+* **toolkit:** add layout rules to code interpreter prompt to stop overlapping text [UN-26625] ([#2531](https://github.com/Unique-AG/ai/issues/2531)) ([01fb01f](https://github.com/Unique-AG/ai/commit/01fb01fde778142ad1fbfe1da02c5a189d11f127))
+* **toolkit:** drop hosted tools from forced Responses requests ([#2510](https://github.com/Unique-AG/ai/issues/2510)) ([d3510ce](https://github.com/Unique-AG/ai/commit/d3510ce7d90da10097205dd439dc22a517e4832c))
+* **toolkit:** fail fast on code interpreter container file uploads [UN-25045] ([#2401](https://github.com/Unique-AG/ai/issues/2401)) ([1ecae59](https://github.com/Unique-AG/ai/commit/1ecae59392d2aef0b6514ca599d39886dc8a5aed))
+* **toolkit:** revert hosted-tool drop on forced requests ([#2512](https://github.com/Unique-AG/ai/issues/2512)) ([402eca2](https://github.com/Unique-AG/ai/commit/402eca2474c78bead2608c822507ec2186aacbe9))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
 ## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.38.0...unique-toolkit-v2026.40.0) (2026-09-24)
 
 
