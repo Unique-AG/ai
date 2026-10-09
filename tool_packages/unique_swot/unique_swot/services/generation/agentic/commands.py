@@ -67,6 +67,7 @@ async def create_new_section(
         llm_service=llm_service,
         llm=llm,
         output_model=SWOTReportComponentSection,
+        source="swot.generation.create_section",
     )
 
     ## Validate the result
@@ -139,6 +140,7 @@ async def update_existing_section(
         llm_service=llm_service,
         llm=llm,
         output_model=SWOTReportComponentSection,
+        source="swot.generation.update_section",
     )
     ## Validate the result
     if updated_section is None:
