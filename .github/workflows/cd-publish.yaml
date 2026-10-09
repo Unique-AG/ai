@@ -149,3 +149,19 @@ jobs:
     with:
       publish_matrix: ${{ needs.resolve-package.outputs.matrix }}
       release_tag: ${{ github.event.release.tag_name }}
+
+  uniquecr-import:
+    needs: [helm-publish]
+    if: >-
+      needs.helm-publish.result == 'success'
+      && github.event_name == 'release'
+      && github.event.release.prerelease == false
+      && startsWith(github.event.release.tag_name, 'unique-search-proxy-v')
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    uses: ./.github/workflows/cd-uniquecr-search-proxy.yaml
+    with:
+      version: ${{ replace(github.event.release.tag_name, 'unique-search-proxy-v', '') }}
+    secrets: inherit
