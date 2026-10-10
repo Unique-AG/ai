@@ -30,6 +30,7 @@ from unique_search_proxy_client.web.monitoring.metrics import (
     record_agent_search_error,
     record_agent_search_success,
 )
+from unique_search_proxy_client.web.usage import record_request_usage
 
 router = APIRouter(tags=["agent-search"])
 _LOGGER = logging.getLogger(__name__)
@@ -77,6 +78,7 @@ async def agent_search(
     engine_id = engine.value if hasattr(engine, "value") else str(engine)
     timeout = body.timeout
     started = time.perf_counter()
+    succeeded = False
     _LOGGER.info(
         "agent-search start mode=sync engine=%s timeout=%ss",
         engine_id,
@@ -89,6 +91,7 @@ async def agent_search(
         )
         async with asyncio.timeout(timeout):
             result = await engine_service.search(body)
+        succeeded = True
     except TimeoutError as exc:
         record_agent_search_error(
             engine_id,
@@ -132,6 +135,14 @@ async def agent_search(
             (time.perf_counter() - started) * 1000,
         )
         raise
+    finally:
+        record_request_usage(
+            "agent_search",
+            engine_id,
+            units=1,
+            succeeded=succeeded,
+            started=started,
+        )
 
     duration = time.perf_counter() - started
     record_agent_search_success(engine_id, duration)
@@ -155,6 +166,7 @@ async def agent_search_stream(
     engine_id = engine.value if hasattr(engine, "value") else str(engine)
     timeout = body.timeout
     started = time.perf_counter()
+    succeeded = False
     _LOGGER.info(
         "agent-search start mode=stream engine=%s timeout=%ss",
         engine_id,
@@ -167,6 +179,13 @@ async def agent_search_stream(
         )
     except Exception as exc:
         record_agent_search_error(engine_id, "INTERNAL_ERROR", 0.0)
+        record_request_usage(
+            "agent_search",
+            engine_id,
+            units=1,
+            succeeded=succeeded,
+            started=started,
+        )
         _LOGGER.exception(
             "agent-search setup error mode=stream engine=%s",
             engine_id,
@@ -177,11 +196,12 @@ async def agent_search_stream(
         ) from exc
 
     async def event_generator() -> AsyncIterator[str]:
-        nonlocal started
+        nonlocal started, succeeded
         try:
             async with asyncio.timeout(timeout):
                 async for event in engine_service.stream(body):
                     yield _format_sse_event(event)
+            succeeded = True
             record_agent_search_success(engine_id, time.perf_counter() - started)
             _LOGGER.info(
                 "agent-search success mode=stream engine=%s duration=%.0fms",
@@ -238,6 +258,14 @@ async def agent_search_stream(
                     UpstreamError(str(exc)),
                     engine_id=engine_id,
                 ),
+            )
+        finally:
+            record_request_usage(
+                "agent_search",
+                engine_id,
+                units=1,
+                succeeded=succeeded,
+                started=started,
             )
 
     return StreamingResponse(
