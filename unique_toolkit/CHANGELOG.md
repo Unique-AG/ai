@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.42.1](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.42.0...unique-toolkit-v2026.42.1) (2026-10-12)
+
+
+### Features
+
+* **toolkit:** add claude-haiku-5-5 model info [UN-27193] ([#2546](https://github.com/Unique-AG/ai/issues/2546)) ([57e8023](https://github.com/Unique-AG/ai/commit/57e80235b4aeebc6556393461a8ba89f8afe418d))
+
+
+### Bug Fixes
+
+* **toolkit:** drop default reasoning effort for Claude Opus 4.5 [UN-27202] ([#2549](https://github.com/Unique-AG/ai/issues/2549)) ([4a26e3e](https://github.com/Unique-AG/ai/commit/4a26e3e2a8cec2bfa4303f8687ed6da62994c93e))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.40.0...unique-toolkit-v2026.42.0) (2026-10-09)
 
 
