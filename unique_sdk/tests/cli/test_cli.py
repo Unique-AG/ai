@@ -7,9 +7,11 @@ import os
 from pathlib import Path
 from unittest.mock import ANY, MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 import unique_sdk
+from unique_sdk._error import PermissionError as SdkPermissionError
 from unique_sdk.cli.cli import main
 
 
@@ -359,8 +361,243 @@ class TestClickCLI:
             main,
             ["mcp", "-c", "chat_1", "-m", "msg_1", "not json"],
         )
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "mcp:" in result.output
+
+    @pytest.mark.ai
+    def test_mcp__invalid_json__exits_1_with_unchanged_message(self) -> None:
+        """Purpose: Invalid JSON is a failed connector call.
+
+        Why this matters: An exit code of 0 makes the chat step look
+        successful, so the agent treats a bad payload as a result.
+
+        Setup summary: Invoke mcp with a non-JSON payload and assert exit 1
+        plus the existing mcp: Invalid JSON line, with no traceback.
+        """
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["mcp", "-c", "chat_1", "-m", "msg_1", "not json"],
+        )
+        assert result.exit_code == 1
+        assert "mcp: Invalid JSON:" in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    def test_mcp__missing_name__exits_1_with_unchanged_message(self) -> None:
+        """Purpose: A payload without name is a failed connector call.
+
+        Why this matters: The command used to print the validation error and
+        exit 0, which a chat step records as completed.
+
+        Setup summary: Invoke mcp with a JSON object that has no name and
+        assert exit 1 plus the existing missing-name line.
+        """
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["mcp", "-c", "chat_1", "-m", "msg_1", '{"arguments": {}}'],
+        )
+        assert result.exit_code == 1
+        assert 'mcp: Missing required field "name" in JSON payload.' in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("error", "message"),
+        [
+            (
+                unique_sdk.InvalidRequestError(
+                    "MCP server not found. Unable to call tool.",
+                    None,
+                ),
+                "MCP server not found. Unable to call tool.",
+            ),
+            (
+                unique_sdk.AuthenticationError("unauthorized"),
+                "unauthorized",
+            ),
+            (SdkPermissionError("forbidden"), "forbidden"),
+            (
+                unique_sdk.APIConnectionError("connection reset"),
+                "connection reset",
+            ),
+        ],
+        ids=[
+            "invalid_request",
+            "authentication",
+            "permission",
+            "connection",
+        ],
+    )
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__sdk_error__exits_1_without_traceback(
+        self,
+        mock_call: MagicMock,
+        error: Exception,
+        message: str,
+    ) -> None:
+        """Purpose: SDK errors print one mcp: line and exit 1.
+
+        Why this matters: InvalidRequestError and its siblings are not
+        subclasses of APIError, so they used to escape as a traceback.
+
+        Setup summary: Raise each SDK error from the tool call and assert
+        exit 1, the mcp: line, and no traceback.
+        """
+        mock_call.side_effect = error
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert f"mcp: {message}" in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__api_error__exits_1_with_unchanged_message(
+        self, mock_call: MagicMock
+    ) -> None:
+        """Purpose: APIError still prints mcp: and now exits 1.
+
+        Why this matters: A 5xx used to be caught and printed, then the
+        process exited 0, so the step looked completed.
+
+        Setup summary: Raise APIError from the tool call and assert exit 1
+        with the same mcp: line as before.
+        """
+        mock_call.side_effect = unique_sdk.APIError("API failed")
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert "mcp: API failed" in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__is_error_result__exits_1_and_prints_formatted_result(
+        self, mock_call: MagicMock
+    ) -> None:
+        """Purpose: A tool result with isError exits 1 and stays formatted.
+
+        Why this matters: The connector already marked the result as an
+        error, but the process exited 0, so the step looked completed.
+
+        Setup summary: Return a tool result with isError set and assert
+        exit 1, the (ERROR) tag, and the formatted text.
+        """
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = True
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "nope"}]
+        mock_call.return_value = resp
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert "MCP tool call: tool (ERROR)" in result.output
+        assert "[text] nope" in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__is_error_absent__exits_0(self, mock_call: MagicMock) -> None:
+        """Purpose: A result that omits isError is still a success.
+
+        Why this matters: Some backends only return content. Treating a
+        missing flag as an error would fail successful connector calls.
+
+        Setup summary: Return a response with content and no isError
+        attribute and assert exit 0 without an (ERROR) tag.
+        """
+
+        class _ContentOnly:
+            def __init__(self) -> None:
+                self.name = "tool"
+                self.mcpServerId = "srv_1"
+                self.content = [{"type": "text", "text": "ok"}]
+
+        mock_call.return_value = _ContentOnly()
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 0
+        assert "MCP tool call: tool" in result.output
+        assert "(ERROR)" not in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.commands.mcp.format_mcp_response")
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__formatter_error_on_success__exits_0(
+        self, call_mock: MagicMock, fmt_mock: MagicMock
+    ) -> None:
+        """Purpose: A formatter bug on a successful result still exits 0.
+
+        Why this matters: The tool call worked. Failing the step would hide
+        a successful connector result behind an exit code.
+
+        Setup summary: Return a successful tool result, raise from the
+        formatter, and assert the fallback text with exit 0.
+        """
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = False
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "payload"}]
+        call_mock.return_value = resp
+        fmt_mock.side_effect = RuntimeError("boom")
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 0
+        assert "mcp: formatter error (boom); raw response:" in result.output
+        assert "Traceback" not in result.output
 
     # -- Schedule commands --
 

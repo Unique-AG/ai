@@ -26,6 +26,9 @@ from unique_sdk.cli.workspace import unique_dir as workspace_unique_dir
 
 _LOGGER = logging.getLogger(__name__)
 
+MCP_ERROR_PREFIX = "mcp:"
+_FORMATTER_ERROR_PREFIX = "mcp: formatter error"
+
 # Per-turn manifest of MCP tool output text, consumed by the Swappable
 # Intelligence runner to ground the hallucination check against MCP-retrieved
 # information (UN-21951). Carries *text only* — no source numbers/markers
@@ -1058,6 +1061,41 @@ def _parse_and_validate(raw: str) -> tuple[str, dict[str, Any]]:
     return name, arguments
 
 
+class McpCommandResult(str):
+    """Text returned by ``cmd_mcp``, with whether that call failed.
+
+    Subclasses ``str`` so callers can print and search the text. ``failed``
+    is set when the process should exit 1: a payload error, any
+    ``UniqueError``, or a tool result with ``isError`` set.
+    """
+
+    failed: bool
+
+    def __new__(cls, text: str, *, failed: bool) -> McpCommandResult:
+        result = str.__new__(cls, text)
+        result.failed = failed
+        return result
+
+
+def is_error_output(output: str) -> bool:
+    """Return whether an MCP command result should exit non-zero.
+
+    Args:
+        output (str): Text returned by ``cmd_mcp``.
+
+    Returns:
+        bool: True for payload errors, SDK errors, and ``isError`` tool
+        results. False when the call succeeded, including when formatting
+        that successful result failed and the fallback text was returned.
+    """
+    failed = getattr(output, "failed", None)
+    if isinstance(failed, bool):
+        return failed
+    if output.startswith(_FORMATTER_ERROR_PREFIX):
+        return False
+    return output.startswith(MCP_ERROR_PREFIX)
+
+
 def cmd_mcp(
     state: ShellState,
     chat_id: str,
@@ -1065,8 +1103,21 @@ def cmd_mcp(
     payload: str | None = None,
     file: str | None = None,
     stdin: bool = False,
-) -> str:
-    """Call an MCP tool with a JSON payload containing name and arguments."""
+) -> McpCommandResult:
+    """Call an MCP tool with a JSON payload containing name and arguments.
+
+    Args:
+        state (ShellState): CLI session holding the user and company ids.
+        chat_id (str): Chat the tool call is attributed to.
+        message_id (str): Message the tool call is attributed to.
+        payload (str | None): Inline JSON payload.
+        file (str | None): Path to a JSON payload file.
+        stdin (bool): Read the JSON payload from stdin.
+
+    Returns:
+        McpCommandResult: Formatted tool output, or an ``mcp:`` error line.
+        ``failed`` is true when the call itself failed.
+    """
     try:
         raw = _read_payload(payload, file, stdin)
         name, arguments = _parse_and_validate(raw)
@@ -1080,8 +1131,8 @@ def cmd_mcp(
             arguments=arguments,
         )
 
-    except (ValueError, OSError, unique_sdk.APIError) as e:
-        return f"mcp: {e}"
+    except (ValueError, OSError, unique_sdk.UniqueError) as e:
+        return McpCommandResult(f"{MCP_ERROR_PREFIX} {e}", failed=True)
 
     try:
         formatted = format_mcp_response(response, tool_name=name)
@@ -1090,7 +1141,10 @@ def cmd_mcp(
             fallback = json.dumps(dict(response), indent=2, default=str)
         except Exception:
             fallback = repr(response)
-        formatted = f"mcp: formatter error ({fmt_exc}); raw response:\n{fallback}"
+        formatted = f"{_FORMATTER_ERROR_PREFIX} ({fmt_exc}); raw response:\n{fallback}"
+        call_failed = False
+    else:
+        call_failed = bool(getattr(response, "isError", False))
 
     server_name = _server_name_from_tool(name) or getattr(response, "mcpServerId", None)
     sources_block = record_mcp_citations(
@@ -1104,5 +1158,5 @@ def cmd_mcp(
     # Sources block FIRST: large outputs get spilled/truncated tail-first by
     # the agent harness, and a trailing block is what partial reads miss.
     if sources_block:
-        return sources_block + "\n\n" + formatted
-    return formatted
+        formatted = sources_block + "\n\n" + formatted
+    return McpCommandResult(formatted, failed=call_failed)
