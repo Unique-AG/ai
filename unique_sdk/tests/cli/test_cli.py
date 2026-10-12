@@ -599,6 +599,43 @@ class TestClickCLI:
         assert "mcp: formatter error (boom); raw response:" in result.output
         assert "Traceback" not in result.output
 
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.commands.mcp.format_mcp_response")
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__formatter_error_on_is_error__exits_1(
+        self, call_mock: MagicMock, fmt_mock: MagicMock
+    ) -> None:
+        """Purpose: A formatter bug does not hide an isError tool result.
+
+        Why this matters: Error payloads are the ones most likely to break
+        formatting. Exiting 0 would record the failed call as completed.
+
+        Setup summary: Return a tool result with isError set, raise from the
+        formatter, and assert the fallback text with exit 1.
+        """
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = True
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "nope"}]
+        call_mock.return_value = resp
+        fmt_mock.side_effect = RuntimeError("boom")
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert "mcp: formatter error (boom); raw response:" in result.output
+        assert "Traceback" not in result.output
+
     # -- Schedule commands --
 
     def test_schedule_help(self) -> None:

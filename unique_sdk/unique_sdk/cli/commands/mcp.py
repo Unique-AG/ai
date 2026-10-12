@@ -1077,6 +1077,23 @@ class McpCommandResult(str):
         return result
 
 
+def _response_is_error(response: Any) -> bool:
+    """Return whether the tool result itself is marked ``isError``.
+
+    Args:
+        response (Any): Raw MCP tool response.
+
+    Returns:
+        bool: True when ``isError`` is set. False when it is absent, false,
+        or unreadable, so a formatter failure on a successful result still
+        exits 0.
+    """
+    try:
+        return bool(getattr(response, "isError", False))
+    except Exception:
+        return False
+
+
 def is_error_output(output: str) -> bool:
     """Return whether an MCP command result should exit non-zero.
 
@@ -1142,9 +1159,7 @@ def cmd_mcp(
         except Exception:
             fallback = repr(response)
         formatted = f"{_FORMATTER_ERROR_PREFIX} ({fmt_exc}); raw response:\n{fallback}"
-        call_failed = False
-    else:
-        call_failed = bool(getattr(response, "isError", False))
+    call_failed = _response_is_error(response)
 
     server_name = _server_name_from_tool(name) or getattr(response, "mcpServerId", None)
     sources_block = record_mcp_citations(
