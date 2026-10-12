@@ -82,6 +82,7 @@ constraint-dependencies = [
     "pillow>=12.2.0",
     "pydantic-settings>=2.14.2",
     "pygments>=2.20.0",
+    "pyjwt>=2.15.0",
     "pymdown-extensions>=10.21.3",
     "pytest>=9.0.3",
     "python-multipart>=0.0.31",
