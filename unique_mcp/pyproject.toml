@@ -13,9 +13,11 @@ dependencies = [
     # OAuthProxy.update_default_scopes, added in that release.
     "fastmcp>=3.3.0,<5",
     "httpx>=0.28.0",
+    "joserfc>=1.7.3",
     "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
+    "pyjwt>=2.15.0",
     "python-dotenv>=1.0.0",
     # Declared for deptry (also transitive via fastmcp).
     "starlette>=1.3.1,<2",
@@ -61,6 +63,9 @@ typeCheckingMode = "standard"
 
 [tool.deptry]
 known_first_party = ["unique_mcp"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["joserfc", "pyjwt"]
 
 [tool.poe.tasks]
 # Run from package directory: uv run poe <task>
