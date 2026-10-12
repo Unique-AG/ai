@@ -40,8 +40,37 @@ def _metadata_filter_denies_folder(state: ShellState, scope_id: str | None) -> b
     return not state.folder_allowed_by_metadata_filter(scope_id)
 
 
+def _existing_folder_id(state: ShellState, folder_path: str) -> str | None:
+    """Return the scope id at *folder_path* when that exact folder exists."""
+    try:
+        info = unique_sdk.Folder.get_info(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            folderPath=folder_path,
+        )
+    except (ValueError, unique_sdk.UniqueError):
+        return None
+    folder_id = info.get("id")
+    if not folder_id:
+        return None
+    try:
+        actual = (
+            unique_sdk.Folder.get_folder_path(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                scope_id=folder_id,
+            ).get("folderPath")
+            or ""
+        )
+    except (ValueError, unique_sdk.UniqueError):
+        return None
+    if os.path.normpath(actual) != os.path.normpath(folder_path):
+        return None
+    return folder_id
+
+
 def cmd_mkdir(state: ShellState, name: str) -> str:
-    """Create a new folder under the current directory."""
+    """Create a folder by relative name or absolute path."""
     # A per-message metaDataFilter *replaces* the static scopeIds, so the
     # static-scope check must not over-deny an in-filter destination; the
     # normalized path is gated against the filter below. See UN-21780.
@@ -49,7 +78,7 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
         state.workspace_metadata_filter is None
         and not state.is_folder_target_within_workspace(name)
     ):
-        return "mkdir: permission denied (outside workspace scope)"
+        return f"mkdir: permission denied: refused {name} (outside workspace scope)"
     # Resolve the destination (collapsing any `..`) and gate the *path*, not
     # just the current scope id: `mkdir ../../Other/X` would otherwise pass a
     # cwd-only check and create structure outside the per-message task scope.
@@ -70,7 +99,10 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
         if created:
             last = created[-1]
             return f"Created: {full_path} ({last['id']})"
-        return f"Created: {full_path}"
+        existing_id = _existing_folder_id(state, full_path)
+        if existing_id:
+            return f"Created: {full_path} ({existing_id})"
+        return f"mkdir: refused to create {full_path}"
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"mkdir: {e}"
 

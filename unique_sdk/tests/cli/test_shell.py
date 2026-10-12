@@ -104,6 +104,7 @@ class TestShellNavigation:
         out = _capture(_shell(), "ls")
         assert "0 folder(s), 0 file(s)" in out
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     @patch("unique_sdk.Folder.get_info")
@@ -112,8 +113,10 @@ class TestShellNavigation:
         mock_info: MagicMock,
         mock_infos: MagicMock,
         mock_content: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         mock_info.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         mock_infos.return_value = {
             "folderInfos": [],
             "totalCount": 0,

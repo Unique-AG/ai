@@ -350,7 +350,12 @@ def cmd_upload(
             versioning_enabled=True,
         )
 
-        content_id = result.id if hasattr(result, "id") else "?"
+        content_id = getattr(result, "id", None)
+        if not content_id:
+            return (
+                f"upload: refused to upload {display_name} to {scope_id}: "
+                "no content id returned"
+            )
         folder_path = unique_sdk.Folder.get_folder_path(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
@@ -358,7 +363,7 @@ def cmd_upload(
         ).get("folderPath", scope_id)
         return f"Uploaded: {display_name} ({content_id}) to {folder_path}"
 
-    except (ValueError, unique_sdk.UniqueError, OSError) as e:
+    except (ValueError, unique_sdk.UniqueError, OSError, RuntimeError) as e:
         return f"upload: {e}"
 
 
@@ -490,6 +495,15 @@ def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
         return f"Renamed: {display_name} -> {result.get('title', new_name)}\n{format_content_info(result)}"
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"mv: {e}"
+
+
+def is_upload_error_output(output: str) -> bool:
+    """Return True when *output* is a ``cmd_upload`` error.
+
+    Success text is ``Uploaded: ...``. Local misses, missing destinations,
+    and API failures all start with ``upload:`` and must exit non-zero.
+    """
+    return output.startswith("upload:")
 
 
 def is_permission_denied_output(output: str) -> bool:

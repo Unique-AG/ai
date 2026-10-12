@@ -19,10 +19,21 @@ from unique_sdk.cli.commands.files import (
     cmd_rm,
     cmd_upload,
     cmd_versions,
+    is_upload_error_output,
 )
-from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.folders import (
+    cmd_mkdir,
+    cmd_mvdir,
+    cmd_rmdir,
+    is_mkdir_error_output,
+)
 from unique_sdk.cli.commands.mcp import _parse_and_validate, _read_payload, cmd_mcp
-from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.navigation import (
+    cmd_cd,
+    cmd_ls,
+    cmd_pwd,
+    is_ls_error_output,
+)
 from unique_sdk.cli.commands.scheduled_tasks import (
     SCHEDULE_ERROR_PREFIX,
     cmd_schedule_create,
@@ -175,19 +186,23 @@ class TestNavigation:
         assert "report.pdf" in result
         assert "1 folder(s), 1 file(s)" in result
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_with_target(
         self,
         mock_folders: MagicMock,
         mock_files: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
         mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        mock_path.return_value = {"folderPath": "/Reports"}
         with patch("unique_sdk.Folder.get_info") as mock_info:
             mock_info.return_value = {"id": "scope_r"}
             result = cmd_ls(_state(), "/Reports")
         assert "0 folder(s), 0 file(s)" in result
+        assert is_ls_error_output(result) is False
 
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_error(self, mock: MagicMock) -> None:
@@ -209,6 +224,41 @@ class TestNavigation:
             company_id="c1",
             scopeId="scope_ws",
         )
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_workspace_unlistable(self, mock_info: MagicMock) -> None:
+        """Purpose: A workspace folder that cannot be read is not an empty root.
+        Why this matters: Agents treat an empty listing as proof the folder has no files.
+        Setup summary: get_info raises for the only workspace scope; ls must name it.
+        """
+        mock_info.side_effect = unique_sdk.UniqueError("denied")
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        result = cmd_ls(state)
+        assert result == "ls: cannot list scope_ws (not listable)"
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_workspace_partial_unlistable(self, mock_info: MagicMock) -> None:
+        """Purpose: A readable workspace folder stays listed when a sibling cannot.
+        Why this matters: Hiding the failure makes the missing folder look empty.
+        Setup summary: One scope resolves and one raises; the result names the failure.
+        """
+
+        def side_effect(**kwargs: Any) -> dict[str, Any]:
+            if kwargs.get("scopeId") == "scope_hidden":
+                raise unique_sdk.UniqueError("denied")
+            return _folder_info("Reports", "scope_ws")
+
+        mock_info.side_effect = side_effect
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws", "scope_hidden"]
+        result = cmd_ls(state)
+        assert "Reports/" in result
+        assert "not listable: scope_hidden" in result
+        assert is_ls_error_output(result) is False
 
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
@@ -434,6 +484,53 @@ class TestNavigation:
         # than being overwritten by the filtered page length. See UN-21780.
         assert "1 file(s) in task scope (of 2 in folder)" in result
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_target_not_listable_when_path_resolves_elsewhere(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: An empty listing of the wrong folder is a refusal, not empty.
+        Why this matters: /home-<userId>/... can resolve to the home folder and hide files.
+        Setup summary: The requested path lists nothing and canonical path is its parent.
+        """
+        mock_info.return_value = {"id": "scope_home"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
+        assert "ls: cannot list /home-user_1/second-brain/clients" in result
+        assert "resolved to /home-user_1" in result
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_target_not_listable_when_counts_have_no_rows(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """Purpose: A positive total with no rows is not an empty folder.
+        Why this matters: Agents cannot tell a hidden listing from a folder with no files.
+        Setup summary: Both list calls report counts and return no entries.
+        """
+        mock_info.return_value = {"id": "scope_clients"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 2}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 3}
+        result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
+        assert "cannot list /home-user_1/second-brain/clients" in result
+        assert "2 folder(s), 3 file(s) reported" in result
+        assert is_ls_error_output(result) is True
+
 
 # --- Folders ---
 
@@ -484,11 +581,66 @@ class TestFolders:
             paths=["/Reports/x"],
         )
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_info")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir_no_created(self, mock: MagicMock) -> None:
-        mock.return_value = {"createdFolders": []}
+    def test_mkdir_no_created(
+        self, mock_create: MagicMock, mock_info: MagicMock
+    ) -> None:
+        """Purpose: An empty create response is a failure when the folder is absent.
+        Why this matters: Reporting Created with exit 0 dropped a real upload target.
+        Setup summary: create_paths returns no folders and get_info misses the path.
+        """
+        mock_create.return_value = {"createdFolders": []}
+        mock_info.side_effect = ValueError("not found")
         result = cmd_mkdir(_state("/Reports", "scope_r"), "Q2")
-        assert "Created" in result
+        assert result == "mkdir: refused to create /Reports/Q2"
+        assert is_mkdir_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_already_exists(
+        self,
+        mock_create: MagicMock,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: An empty create response is success when that exact folder exists.
+        Why this matters: create_paths is idempotent and omits folders that already exist.
+        Setup summary: create_paths returns nothing; get_info and get_folder_path agree.
+        """
+        mock_create.return_value = {"createdFolders": []}
+        mock_info.return_value = {"id": "scope_existing"}
+        mock_path.return_value = {"folderPath": "/Reports/Q2"}
+        result = cmd_mkdir(_state("/Reports", "scope_r"), "Q2")
+        assert result == "Created: /Reports/Q2 (scope_existing)"
+        assert is_mkdir_error_output(result) is False
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_refuses_when_lookup_returns_a_different_folder(
+        self,
+        mock_create: MagicMock,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A parent-folder id must not be reported as the requested folder.
+        Why this matters: Home paths can resolve to /home-<userId> and look created.
+        Setup summary: create_paths is empty and the lookup path is the home parent.
+        """
+        mock_create.return_value = {"createdFolders": []}
+        mock_info.return_value = {"id": "scope_home"}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        result = cmd_mkdir(
+            _state("/Reports", "scope_r"),
+            "/home-user_1/second-brain/clients/X",
+        )
+        assert result == "mkdir: refused to create /home-user_1/second-brain/clients/X"
+        assert is_mkdir_error_output(result) is True
 
     @patch("unique_sdk.Folder.create_paths")
     def test_mkdir_error(self, mock: MagicMock) -> None:
@@ -1106,6 +1258,26 @@ class TestFiles:
     def test_upload_nonexistent_file(self) -> None:
         result = cmd_upload(_state("/R", "scope_r"), "/nonexistent/file.pdf")
         assert "local file not found" in result
+        assert is_upload_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    def test_upload_without_content_id(
+        self,
+        mock_upload: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Purpose: An upload that returns no content id did not land.
+        Why this matters: A success line with no id was treated as a finished upload.
+        Setup summary: The local file exists and upload_file returns an object with no id.
+        """
+        local_file = tmp_path / "page.md"
+        local_file.write_text("content")
+        mock_upload.return_value = MagicMock(id=None)
+        result = cmd_upload(_state("/Reports", "scope_r"), str(local_file))
+        assert result.startswith("upload: refused to upload page.md to scope_r")
+        assert is_upload_error_output(result) is True
+        mock_upload.assert_called_once()
 
     @pytest.mark.parametrize(
         ("filename", "expected_mime_type"),

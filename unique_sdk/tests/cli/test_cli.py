@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from unittest.mock import ANY, MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 import unique_sdk
@@ -268,8 +269,59 @@ class TestClickCLI:
     def test_upload_nonexistent(self) -> None:
         runner = CliRunner()
         result = runner.invoke(main, ["upload", "/nonexistent/file.pdf"])
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "local file not found" in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.cli.cmd_upload")
+    def test_upload_error_exits_nonzero(self, mock_upload: MagicMock) -> None:
+        """Purpose: A refused upload exits non-zero even without a permission denial.
+        Why this matters: Agents chained on exit code and reported uploads that did not happen.
+        Setup summary: cmd_upload returns a folder-not-found line for a home path.
+        """
+        mock_upload.return_value = (
+            "upload: folder not found: /home-user_1/second-brain/clients/X"
+        )
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["upload", "./page.md", "/home-user_1/second-brain/clients/X/"],
+        )
+        assert result.exit_code == 1
+        assert "folder not found: /home-user_1/second-brain/clients/X" in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_refused_exits_nonzero(
+        self, mock_create: MagicMock, mock_info: MagicMock
+    ) -> None:
+        """Purpose: mkdir exits non-zero when the folder was not created.
+        Why this matters: An empty create response used to print Created and exit 0.
+        Setup summary: create_paths returns no folders and the path lookup misses.
+        """
+        mock_create.return_value = {"createdFolders": []}
+        mock_info.side_effect = ValueError("not found")
+        runner = CliRunner()
+        result = runner.invoke(main, ["mkdir", "/home-user_1/second-brain/clients/X"])
+        assert result.exit_code == 1
+        assert "refused to create /home-user_1/second-brain/clients/X" in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_unlistable_exits_nonzero(self, mock_ls: MagicMock) -> None:
+        """Purpose: A not-listable folder exits non-zero.
+        Why this matters: An empty listing was indistinguishable from a folder with no files.
+        Setup summary: cmd_ls returns a cannot-list line that is not a permission denial.
+        """
+        mock_ls.return_value = (
+            "ls: cannot list /home-user_1/second-brain/clients: "
+            "resolved to /home-user_1 instead (not listable here)"
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, ["ls", "/home-user_1/second-brain/clients"])
+        assert result.exit_code == 1
+        assert "not listable here" in result.output
 
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
