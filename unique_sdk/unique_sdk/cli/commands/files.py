@@ -11,6 +11,7 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_content_info
+from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
@@ -280,6 +281,18 @@ def _resolve_upload_destination(
         resolved_id = info.get("id")
         if not resolved_id:
             raise ValueError(f"folder not found: {folder_path}")
+        try:
+            actual = canonical_folder_path(
+                state.config.user_id,
+                state.config.company_id,
+                resolved_id,
+            )
+        except (ValueError, unique_sdk.UniqueError) as e:
+            raise ValueError(f"refused to upload to {folder_path}: {e}") from e
+        if not same_folder_path(actual, folder_path):
+            raise ValueError(
+                f"refused to upload to {folder_path}: resolved to {actual}"
+            )
         return resolved_id, display_name
 
     scope_id = state.scope_id

@@ -43,9 +43,11 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "/" in result.output
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd(self, mock: MagicMock) -> None:
+    def test_cd(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         runner = CliRunner()
         result = runner.invoke(main, ["cd", "Reports"])
         assert result.exit_code == 0
@@ -59,9 +61,11 @@ class TestClickCLI:
         result = runner.invoke(main, ["ls"])
         assert result.exit_code == 0
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir(self, mock: MagicMock) -> None:
+    def test_mkdir(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        mock_path.return_value = {"folderPath": "/Test"}
         runner = CliRunner()
         result = runner.invoke(main, ["mkdir", "Test"])
         assert result.exit_code == 0

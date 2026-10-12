@@ -152,9 +152,11 @@ class TestNavigation:
         assert cmd_pwd(_state()) == "/"
         assert cmd_pwd(_state("/Reports")) == "/Reports"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd(self, mock: MagicMock) -> None:
+    def test_cd(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         result = cmd_cd(_state(), "Reports")
         assert result == "/Reports"
 
@@ -260,14 +262,17 @@ class TestNavigation:
         assert "not listable: scope_hidden" in result
         assert is_ls_error_output(result) is False
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_inside_folder_workspace_scoped_uses_normal_path(
         self,
         mock_folders: MagicMock,
         mock_files: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         """ls inside a scoped folder uses the normal get_infos path."""
+        mock_path.return_value = {"folderPath": "/Reports"}
         mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
         mock_files.return_value = {"contentInfos": [], "totalCount": 0}
         state = _state("/Reports", "scope_ws")
@@ -510,6 +515,7 @@ class TestNavigation:
         assert is_ls_error_output(result) is True
 
     @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     @patch("unique_sdk.Folder.get_info")
@@ -518,12 +524,14 @@ class TestNavigation:
         mock_info: MagicMock,
         mock_folders: MagicMock,
         mock_files: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         """Purpose: A positive total with no rows is not an empty folder.
         Why this matters: Agents cannot tell a hidden listing from a folder with no files.
-        Setup summary: Both list calls report counts and return no entries.
+        Setup summary: The canonical path matches, and both list calls report counts with no entries.
         """
         mock_info.return_value = {"id": "scope_clients"}
+        mock_path.return_value = {"folderPath": "/home-user_1/second-brain/clients"}
         mock_folders.return_value = {"folderInfos": [], "totalCount": 2}
         mock_files.return_value = {"contentInfos": [], "totalCount": 3}
         result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
@@ -531,14 +539,104 @@ class TestNavigation:
         assert "2 folder(s), 3 file(s) reported" in result
         assert is_ls_error_output(result) is True
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_target_with_rows_for_a_different_path(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A targeted ls compares the canonical path before trusting rows.
+        Why this matters: An ancestor with children used to print those children and exit 0.
+        Setup summary: get_info returns the home folder, which has a child, for a deeper path.
+        """
+        mock_info.return_value = {"id": "scope_home"}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        mock_folders.return_value = {
+            "folderInfos": [_folder_info("second-brain", "scope_sb")],
+            "totalCount": 1,
+        }
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
+        assert "resolved to /home-user_1" in result
+        assert "scope_sb" not in result
+        assert is_ls_error_output(result) is True
+        mock_folders.assert_not_called()
+        mock_files.assert_not_called()
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_target_errors_when_canonical_path_cannot_be_read(
+        self,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A failed canonical-path lookup is an ls error.
+        Why this matters: Swallowing the lookup printed (empty) and exited 0.
+        Setup summary: get_info returns a scope id and get_folder_path raises.
+        """
+        mock_info.return_value = {"id": "scope_clients"}
+        mock_path.side_effect = unique_sdk.UniqueError("denied")
+        result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
+        assert result.startswith("ls: cannot list /home-user_1/second-brain/clients")
+        assert "(empty)" not in result
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_ls_cwd_errors_when_scope_is_a_different_path(
+        self,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: Listing the current directory checks the stored scope id.
+        Why this matters: cd can store a typed path with an ancestor id, and a later ls has no target.
+        Setup summary: cwd is a leaf path whose scope id resolves to the home folder.
+        """
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        state = _state("/home-user_1/second-brain/clients", "scope_home")
+        result = cmd_ls(state)
+        assert "resolved to /home-user_1" in result
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_cd_refuses_when_lookup_returns_a_different_folder(
+        self,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: cd does not store a path whose scope id is a different folder.
+        Why this matters: A later command would treat the ancestor as the folder the user typed.
+        Setup summary: get_info returns the home id for a deeper absolute path.
+        """
+        mock_info.return_value = {"id": "scope_home"}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        state = _state()
+        result = cmd_cd(state, "/home-user_1/second-brain/clients")
+        assert result.startswith(
+            "cd: cannot change to /home-user_1/second-brain/clients"
+        )
+        assert "resolved to /home-user_1" in result
+        assert state.cwd == "/"
+        assert state.scope_id is None
+
 
 # --- Folders ---
 
 
 class TestFolders:
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir(self, mock: MagicMock) -> None:
+    def test_mkdir(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        mock_path.return_value = {"folderPath": "/Reports/Q2"}
         result = cmd_mkdir(_state("/Reports", "scope_r"), "Q2")
         assert "Created" in result
         assert "scope_new" in result
@@ -548,10 +646,12 @@ class TestFolders:
             paths=["/Reports/Q2"],
         )
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir_absolute_path(self, mock: MagicMock) -> None:
+    def test_mkdir_absolute_path(self, mock: MagicMock, mock_path: MagicMock) -> None:
         """Absolute mkdir paths are not prefixed with the current directory."""
         mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        mock_path.return_value = {"folderPath": "/demo/x"}
         from_root = cmd_mkdir(_state("/"), "/demo/x")
         assert "Created: /demo/x" in from_root
         mock.assert_called_once_with(
@@ -569,10 +669,12 @@ class TestFolders:
             paths=["/demo/x"],
         )
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir_relative_path(self, mock: MagicMock) -> None:
+    def test_mkdir_relative_path(self, mock: MagicMock, mock_path: MagicMock) -> None:
         """Relative names are still created under the current directory."""
         mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        mock_path.return_value = {"folderPath": "/Reports/x"}
         result = cmd_mkdir(_state("/Reports", "scope_r"), "x")
         assert "Created: /Reports/x" in result
         mock.assert_called_once_with(
@@ -641,6 +743,28 @@ class TestFolders:
         )
         assert result == "mkdir: refused to create /home-user_1/second-brain/clients/X"
         assert is_mkdir_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_refuses_when_created_id_is_a_different_folder(
+        self,
+        mock_create: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A created folder id is confirmed against the requested path.
+        Why this matters: create_paths has returned the /home-<userId> id in place of the leaf.
+        Setup summary: createdFolders contains the home id, whose path is the home folder.
+        """
+        mock_create.return_value = {"createdFolders": [{"id": "scope_home"}]}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        result = cmd_mkdir(_state("/"), "/home-user_1/second-brain/clients/X")
+        assert result == (
+            "mkdir: refused to create /home-user_1/second-brain/clients/X: "
+            "resolved to /home-user_1"
+        )
+        assert is_mkdir_error_output(result) is True
+        assert "Created" not in result
 
     @patch("unique_sdk.Folder.create_paths")
     def test_mkdir_error(self, mock: MagicMock) -> None:
@@ -1112,9 +1236,13 @@ class TestFiles:
         assert scope == "scope_r"
         assert name == "new.pdf"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_resolve_upload_dest_subfolder(self, mock: MagicMock) -> None:
+    def test_resolve_upload_dest_subfolder(
+        self, mock: MagicMock, mock_path: MagicMock
+    ) -> None:
         mock.return_value = {"id": "scope_sub"}
+        mock_path.return_value = {"folderPath": "/R/sub"}
         scope, name = _resolve_upload_destination(
             _state("/R", "scope_r"),
             "file.pdf",
@@ -1123,9 +1251,13 @@ class TestFiles:
         assert scope == "scope_sub"
         assert name == "file.pdf"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_resolve_upload_dest_subfolder_rename(self, mock: MagicMock) -> None:
+    def test_resolve_upload_dest_subfolder_rename(
+        self, mock: MagicMock, mock_path: MagicMock
+    ) -> None:
         mock.return_value = {"id": "scope_sub"}
+        mock_path.return_value = {"folderPath": "/R/sub"}
         scope, name = _resolve_upload_destination(
             _state("/R", "scope_r"),
             "file.pdf",
@@ -1278,6 +1410,35 @@ class TestFiles:
         assert result.startswith("upload: refused to upload page.md to scope_r")
         assert is_upload_error_output(result) is True
         mock_upload.assert_called_once()
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_upload_refuses_when_destination_resolves_elsewhere(
+        self,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+        mock_upload: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Purpose: Upload refuses a destination whose id is a different folder.
+        Why this matters: A prefix match used to upload into the ancestor and exit 0.
+        Setup summary: The local file exists and get_info returns the home folder id.
+        """
+        local_file = tmp_path / "page.md"
+        local_file.write_text("content")
+        mock_info.return_value = {"id": "scope_home"}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        result = cmd_upload(
+            _state("/Reports", "scope_r"),
+            str(local_file),
+            "/home-user_1/second-brain/clients/",
+        )
+        assert result.startswith("upload:")
+        assert "resolved to /home-user_1" in result
+        assert is_upload_error_output(result) is True
+        mock_upload.assert_not_called()
 
     @pytest.mark.parametrize(
         ("filename", "expected_mime_type"),
@@ -1452,7 +1613,7 @@ class TestFiles:
         self, mock_path: MagicMock, mock_create: MagicMock
     ) -> None:
         mock_path.side_effect = _folder_path_side_effect(
-            {"scope_allowed": "/Funds/Fund A"}
+            {"scope_allowed": "/Funds/Fund A", "scope_new": "/Funds/Fund A/Q2"}
         )
         mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
         state = _state("/Funds/Fund A", "scope_allowed")
@@ -1475,7 +1636,7 @@ class TestFiles:
         by the static-scope check. See UN-21780.
         """
         mock_path.side_effect = _folder_path_side_effect(
-            {"scope_allowed": "/Funds/Fund A"}
+            {"scope_allowed": "/Funds/Fund A", "scope_new": "/Funds/Fund A/Q2"}
         )
         mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
         state = _state("/Funds/Fund A", "scope_allowed")

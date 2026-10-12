@@ -6,6 +6,7 @@ import os
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_folder_info
+from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
 
 
@@ -54,19 +55,42 @@ def _existing_folder_id(state: ShellState, folder_path: str) -> str | None:
     if not folder_id:
         return None
     try:
-        actual = (
-            unique_sdk.Folder.get_folder_path(
-                user_id=state.config.user_id,
-                company_id=state.config.company_id,
-                scope_id=folder_id,
-            ).get("folderPath")
-            or ""
+        actual = canonical_folder_path(
+            state.config.user_id,
+            state.config.company_id,
+            folder_id,
         )
     except (ValueError, unique_sdk.UniqueError):
         return None
-    if os.path.normpath(actual) != os.path.normpath(folder_path):
+    if not same_folder_path(actual, folder_path):
         return None
     return folder_id
+
+
+def _created_folder_error(
+    state: ShellState,
+    scope_id: str | None,
+    folder_path: str,
+) -> str | None:
+    """Return an ``mkdir:`` error when *scope_id* is not exactly *folder_path*.
+
+    ``create_paths`` can return the ``/home-<userId>`` id in place of the leaf.
+    A failed lookup is a refusal: printing ``Created:`` would claim the folder
+    exists.
+    """
+    if not scope_id:
+        return f"mkdir: refused to create {folder_path}"
+    try:
+        actual = canonical_folder_path(
+            state.config.user_id,
+            state.config.company_id,
+            scope_id,
+        )
+    except (ValueError, unique_sdk.UniqueError) as e:
+        return f"mkdir: refused to create {folder_path}: {e}"
+    if not same_folder_path(actual, folder_path):
+        return f"mkdir: refused to create {folder_path}: resolved to {actual}"
+    return None
 
 
 def cmd_mkdir(state: ShellState, name: str) -> str:
@@ -97,8 +121,11 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
         )
         created = result.get("createdFolders", [])
         if created:
-            last = created[-1]
-            return f"Created: {full_path} ({last['id']})"
+            last_id = created[-1].get("id")
+            mismatch = _created_folder_error(state, last_id, full_path)
+            if mismatch:
+                return mismatch
+            return f"Created: {full_path} ({last_id})"
         existing_id = _existing_folder_id(state, full_path)
         if existing_id:
             return f"Created: {full_path} ({existing_id})"

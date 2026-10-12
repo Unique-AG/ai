@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_ls
 from unique_sdk.cli.metadata_filter import _collect_filter_targets
+from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
 
 
@@ -24,52 +24,44 @@ def cmd_cd(state: ShellState, target: str) -> str:
         return f"cd: {e}"
 
 
-def _same_folder_path(left: str, right: str) -> bool:
-    """True when two folder paths name the same location."""
-
-    def norm(value: str) -> str:
-        text = value.strip()
-        if text and not text.startswith("/"):
-            text = f"/{text}"
-        return os.path.normpath(text.rstrip("/")) or "/"
-
-    return norm(left) == norm(right)
-
-
-def _empty_listing_error(
+def _canonical_listing_error(
     state: ShellState,
-    target: str,
-    resolved_path: str,
+    label: str,
+    claimed_path: str,
     scope_id: str,
+) -> str | None:
+    """Return an ``ls:`` error when *scope_id* is not exactly *claimed_path*.
+
+    ``get_info`` can hand back an ancestor for ``/home-<userId>/...``. The
+    comparison runs before any rows are trusted, including when that ancestor
+    has children. A failed lookup is an error: printing ``(empty)`` would hide
+    it.
+    """
+    try:
+        actual = canonical_folder_path(
+            state.config.user_id,
+            state.config.company_id,
+            scope_id,
+        )
+    except (ValueError, unique_sdk.UniqueError) as e:
+        return f"ls: cannot list {label}: {e}"
+    if not same_folder_path(actual, claimed_path):
+        return (
+            f"ls: cannot list {label}: resolved to {actual} instead (not listable here)"
+        )
+    return None
+
+
+def _counts_without_rows_error(
+    label: str,
     total_folders: int,
     total_files: int,
 ) -> str | None:
-    """Distinguish an empty folder from one this call could not list.
-
-    A reported count with no rows, or a scope id whose canonical path is not
-    the path that was asked for, is a refusal. A matching path with zero
-    counts is a real empty folder.
-    """
+    """Return an ``ls:`` error when the API reports rows it did not return."""
     if total_folders or total_files:
         return (
-            f"ls: cannot list {target}: listing returned no entries "
+            f"ls: cannot list {label}: listing returned no entries "
             f"({total_folders} folder(s), {total_files} file(s) reported)"
-        )
-    try:
-        actual = (
-            unique_sdk.Folder.get_folder_path(
-                user_id=state.config.user_id,
-                company_id=state.config.company_id,
-                scope_id=scope_id,
-            ).get("folderPath")
-            or ""
-        )
-    except (ValueError, unique_sdk.UniqueError):
-        return None
-    if not actual or not _same_folder_path(actual, resolved_path):
-        shown = actual or "(unknown)"
-        return (
-            f"ls: cannot list {target}: resolved to {shown} instead (not listable here)"
         )
     return None
 
@@ -184,6 +176,17 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
             summary = f"\n{len(folders)} folder(s), 0 file(s)"
             return _with_unlistable_marker(output + summary, unlistable_folders)
 
+        if scope_id:
+            label = target if target is not None else resolved_path
+            path_error = _canonical_listing_error(
+                state,
+                label,
+                resolved_path,
+                scope_id,
+            )
+            if path_error:
+                return path_error
+
         folder_params: dict[str, Any] = {}
         content_params: dict[str, Any] = {}
         if scope_id:
@@ -207,17 +210,15 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         total_folders = folder_result.get("totalCount", len(folders))
         total_files = content_result.get("totalCount", len(files))
 
-        if target is not None and scope_id and not folders and not files:
-            empty_error = _empty_listing_error(
-                state,
-                target,
-                resolved_path,
-                scope_id,
+        if scope_id and not folders and not files:
+            label = target if target is not None else resolved_path
+            counts_error = _counts_without_rows_error(
+                label,
                 total_folders,
                 total_files,
             )
-            if empty_error:
-                return empty_error
+            if counts_error:
+                return counts_error
 
         # With a per-message filter, listing inside an allowed folder must not
         # reveal files the filter excludes (e.g. a combined folder + contentId

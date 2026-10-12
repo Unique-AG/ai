@@ -10,6 +10,7 @@ from typing import Any
 import unique_sdk
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.metadata_filter import MetadataFilter
+from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
@@ -561,6 +562,19 @@ class ShellState:
     def prompt(self) -> str:
         return f"{self._path}> "
 
+    def _enter_folder(self, scope_id: str, folder_path: str) -> str:
+        """Store *folder_path* only when *scope_id* is that exact folder."""
+        actual = canonical_folder_path(
+            self.config.user_id,
+            self.config.company_id,
+            scope_id,
+        )
+        if not same_folder_path(actual, folder_path):
+            raise ValueError(f"cannot change to {folder_path}: resolved to {actual}")
+        self._scope_id = scope_id
+        self._path = folder_path
+        return self._path
+
     def cd(self, target: str) -> str:
         """Change directory. Returns the new path.
 
@@ -590,8 +604,7 @@ class ShellState:
                     company_id=self.config.company_id,
                     folderPath=parent,
                 )
-                self._path = parent
-                self._scope_id = info["id"]
+                return self._enter_folder(info["id"], parent)
             return self._path
 
         if target.startswith("scope_"):
@@ -619,9 +632,7 @@ class ShellState:
             company_id=self.config.company_id,
             folderPath=resolved_path,
         )
-        self._scope_id = info["id"]
-        self._path = resolved_path
-        return self._path
+        return self._enter_folder(info["id"], resolved_path)
 
     def resolve_path(self, target: str | None) -> tuple[str, str | None]:
         """Resolve a target to (path, scope_id) without changing state.
