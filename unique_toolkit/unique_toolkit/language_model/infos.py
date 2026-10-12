@@ -1998,8 +1998,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2025, 11, 13),
+                    # No default: a set effort enables thinking, which a forced
+                    # tool_choice rejects.
                     # https://platform.claude.com/docs/en/build-with-claude/effort
-                    default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case (
