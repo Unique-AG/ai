@@ -521,7 +521,9 @@ def test_supported_reasoning_efforts_set_correctly():
 
     opus_45 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_5)
     assert opus_45.supported_reasoning_efforts == ["low", "medium", "high"]
-    assert opus_45.default_options["reasoning_effort"] == "medium"
+    assert "reasoning_effort" not in opus_45.default_options
+    _, effort = opus_45.resolve_temp_and_reasoning(0.0, None)
+    assert effort is None
 
     opus_46 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6)
     assert opus_46.supported_reasoning_efforts == ["low", "medium", "high", "max"]
