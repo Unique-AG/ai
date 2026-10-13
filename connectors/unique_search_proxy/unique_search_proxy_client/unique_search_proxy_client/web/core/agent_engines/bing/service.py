@@ -5,6 +5,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
+import openai
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
@@ -28,7 +29,6 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_project_client,
 )
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
-    is_retryable_bing_response_error,
     stream_bing_grounding_agent,
 )
 from unique_search_proxy_client.web.core.agent_engines.service_base import (
@@ -50,8 +50,30 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 # Foundry can report transient backend failures inside an HTTP 200 SSE stream,
 # beyond the reach of the OpenAI client's HTTP retry policy.
+_RETRYABLE_STREAM_ERROR_CODES = frozenset({"server_error", "internal_error"})
+_RETRYABLE_STREAM_ERROR_MESSAGES = (
+    "model deployment encountered an error processing your request",
+    "invalid or expired token",
+)
 _STREAM_RETRY_DELAYS_SECONDS = (2.0, 8.0)
 _STREAM_MAX_ATTEMPTS = len(_STREAM_RETRY_DELAYS_SECONDS) + 1
+
+
+def _is_retryable_bing_stream_error(exc: BaseException) -> bool:
+    """Return whether a pre-output Foundry stream failure is safe to retry."""
+    if isinstance(exc, openai.APIStatusError):
+        # The OpenAI client already retries retryable HTTP statuses. This
+        # classifier is only for errors embedded in an HTTP 200 SSE stream.
+        return False
+    if not isinstance(exc, openai.APIError):
+        return False
+
+    code = exc.code.lower() if isinstance(exc.code, str) else None
+    if code in _RETRYABLE_STREAM_ERROR_CODES:
+        return True
+
+    message = str(exc).lower()
+    return any(marker in message for marker in _RETRYABLE_STREAM_ERROR_MESSAGES)
 
 
 class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
@@ -132,7 +154,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                 retryable = (
                     attempt < _STREAM_MAX_ATTEMPTS
                     and not answer_parts
-                    and is_retryable_bing_response_error(exc)
+                    and _is_retryable_bing_stream_error(exc)
                 )
                 if not retryable:
                     raise UpstreamError(

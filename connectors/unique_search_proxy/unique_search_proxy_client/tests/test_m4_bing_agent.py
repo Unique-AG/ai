@@ -37,12 +37,12 @@ from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
     _is_missing_agent_error,
     create_bing_agent,
     get_bing_grounding_tool,
-    is_retryable_bing_response_error,
     resolve_bing_agent_name,
     stream_bing_grounding_agent,
 )
 from unique_search_proxy_client.web.core.agent_engines.bing.service import (
     BingAgentSearchService,
+    _is_retryable_bing_stream_error,
 )
 
 
@@ -595,13 +595,13 @@ class TestRetryableBingResponseError:
         message: str,
         code: str | None,
     ) -> None:
-        assert is_retryable_bing_response_error(
+        assert _is_retryable_bing_stream_error(
             _stream_error(message, code=code),
         )
 
     @pytest.mark.ai
     def test_rejects_non_transient_stream_error(self) -> None:
-        assert not is_retryable_bing_response_error(
+        assert not _is_retryable_bing_stream_error(
             _stream_error(
                 "The request payload is invalid", code="invalid_request_error"
             ),
@@ -611,7 +611,7 @@ class TestRetryableBingResponseError:
     def test_leaves_http_status_retries_to_openai_client(self) -> None:
         request = httpx.Request("POST", "https://example.azure.com/responses")
         response = httpx.Response(500, request=request)
-        assert not is_retryable_bing_response_error(
+        assert not _is_retryable_bing_stream_error(
             InternalServerError(
                 "Internal server error",
                 response=response,
