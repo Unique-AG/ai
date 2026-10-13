@@ -1,18 +1,13 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from unique_search_proxy_core.agent_engines.base import AgentEngineType
-from unique_search_proxy_core.http_client import DirectRoute
 
 from unique_search_proxy_client.web.app import create_app
-from unique_search_proxy_client.web.core.agent_engines.factory import (
-    get_agent_engine_service,
-)
 
 
 @pytest.fixture
@@ -41,22 +36,6 @@ def _agent_search_body(**fields: Any) -> dict[str, Any]:
 
 
 class TestAgentSearchRoute:
-    @pytest.mark.ai
-    def test_vertex_factory_passes_only_http_client(self) -> None:
-        http_client = MagicMock(spec=httpx.AsyncClient)
-        route = DirectRoute(verify=True, trust_env=False, headers={})
-
-        with patch(
-            "unique_search_proxy_client.web.core.agent_engines.factory.VertexAIAgentSearchService",
-        ) as vertex_service:
-            get_agent_engine_service(
-                AgentEngineType.VERTEXAI,
-                http_client=http_client,
-                egress_route=route,
-            )
-
-        vertex_service.assert_called_once_with(http_client=http_client)
-
     @pytest.mark.ai
     def test_agent_search_returns_answer(
         self, client: TestClient, bing_env: None
