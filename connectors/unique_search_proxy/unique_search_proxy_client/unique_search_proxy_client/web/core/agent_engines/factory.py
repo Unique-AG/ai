@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 def get_agent_engine_service(
     engine: AgentEngineType,
     *,
-    http_client: AsyncClient | None = None,
-    egress_route: EgressRoute | None = None,
+    http_client: AsyncClient,
+    egress_route: EgressRoute,
 ) -> AgentSearchEngine[Any]:
     """Instantiate an agent search engine by registered id."""
     match engine:
@@ -34,10 +34,7 @@ def get_agent_engine_service(
                 egress_route=egress_route,
             )
         case AgentEngineType.VERTEXAI:
-            return VertexAIAgentSearchService(
-                http_client=http_client,
-                egress_route=egress_route,
-            )
+            return VertexAIAgentSearchService(http_client=http_client)
         case _:
             msg = f"Unsupported agent engine: {engine}"
             raise ValueError(msg)

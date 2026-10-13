@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.grounding import (
@@ -42,6 +43,10 @@ from unique_search_proxy_client.web.settings.providers.bing_agent import (
 )
 from unique_search_proxy_client.web.settings.secret_str import read_secret
 
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from unique_search_proxy_core.http_client import EgressRoute
+
 _LOGGER = logging.getLogger(__name__)
 # Foundry can report transient backend failures inside an HTTP 200 SSE stream,
 # beyond the reach of the OpenAI client's HTTP retry policy.
@@ -51,6 +56,15 @@ _STREAM_MAX_ATTEMPTS = len(_STREAM_RETRY_DELAYS_SECONDS) + 1
 
 class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
     engine_id = AgentEngineType.BING.value
+
+    def __init__(
+        self,
+        *,
+        http_client: AsyncClient,
+        egress_route: EgressRoute,
+    ) -> None:
+        super().__init__(http_client=http_client)
+        self._egress_route = egress_route
 
     async def search(self, request: BingAgentSearchRequest) -> AgentSearchResponse:  # type: ignore[override]
         response: AgentSearchResponse | None = None
@@ -70,8 +84,8 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
         creds = bing_agent_credentials
         http_client = self._http_client
         egress_route = self._egress_route
-        if http_client is None or egress_route is None:
-            raise RuntimeError("HTTP client and egress route are required for Bing")
+        if http_client is None:
+            raise RuntimeError("HTTP client is required for Bing")
 
         answer_parts: list[str] = []
         raw_chunks: list[dict] = []
