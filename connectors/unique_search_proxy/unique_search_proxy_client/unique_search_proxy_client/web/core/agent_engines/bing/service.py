@@ -165,8 +165,8 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                 raw_chunks.clear()
                 retry_delay = _STREAM_RETRY_DELAYS_SECONDS[attempt - 1]
                 _LOGGER.warning(
-                    "Bing response failure classified as retryable before output; "
-                    "retrying attempt %d/%d after %.1fs (type=%s, code=%s)",
+                    "Bing response failed before output; retrying attempt %d/%d "
+                    "after %.1fs (type=%s, code=%s)",
                     attempt + 1,
                     _STREAM_MAX_ATTEMPTS,
                     retry_delay,
