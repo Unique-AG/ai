@@ -37,6 +37,16 @@ _SUPPORTED_UPLOAD_MIME_TYPES = {
     ".md": "text/markdown",
 }
 
+# Cap how many search hits name resolution will consider. Exact title/key
+# matches should be rare; this is a safety bound so a pathological index
+# cannot turn one resolve into unbounded work. See UN-26945.
+_MAX_RESOLVE_MATCH_CANDIDATES = 100
+
+# Last-resort get_infos page budget when Content.search is unavailable.
+# Never used for an unparented whole-KB scan (those are rejected). See UN-26945.
+_MAX_RESOLVE_INFOS_PAGES = 10
+_RESOLVE_INFOS_PAGE_SIZE = 100
+
 
 def _normalize_unique_file_path(cwd: str, path: str) -> str:
     """Normalize a Unique file path without allowing traversal above root."""
@@ -123,16 +133,12 @@ def _resolve_content_id(
         if not scope_id:
             raise ValueError(f"folder not found: {folder_path}")
     elif scope_id is None:
-        # A bare file name with no folder context resolves via an *unparented*
-        # Content.get_infos scan across the whole knowledge base.
+        # Bare names at the knowledge-base root used to paginate the whole
+        # company KB via Content.get_infos (UN-26945). Refuse that path
+        # entirely; require a folder context, a cont_ id, or search.
         if state.workspace_metadata_filter is not None:
-            # With a per-message filter active, a whole-KB filename scan would
-            # discover documents outside the task scope before the per-id gate
-            # runs — and the deny-vs-not-found distinction is an existence/title
-            # oracle across the task boundary. That is broader than the
-            # ls/read-at-root gating intent, so require a bounded context
-            # instead. The cont_ fast-path, an explicit in-scope path, or a
-            # ``cd`` into an in-scope folder all still work. See UN-21780.
+            # With a per-message filter active that is also a cross-scope
+            # existence/title oracle. See UN-21780.
             raise ValueError(
                 f"permission denied: {name_or_id} can't be resolved by name at "
                 f"the knowledge-base root while a task scope is active "
@@ -140,51 +146,120 @@ def _resolve_content_id(
                 "by content id, or 'cd' into an in-scope folder."
             )
         if not state.is_within_workspace():
-            # No per-message filter: defer to the static scopeIds boundary.
             raise ValueError("permission denied (outside workspace scope)")
+        raise ValueError(
+            f"{name_or_id} can't be resolved by name at the knowledge-base "
+            "root. Use 'unique-cli search', pass a content id (cont_...), "
+            "or 'cd' into a folder first."
+        )
 
-    params: dict[str, Any] = {}
-    if scope_id:
-        params["parentId"] = scope_id
+    return _resolve_content_id_in_folder(
+        state=state,
+        name_or_id=name_or_id,
+        lookup_name=lookup_name,
+        scope_id=scope_id,
+        allow_chat_files=allow_chat_files,
+    )
 
-    take = 100
+
+def _resolve_content_id_in_folder(
+    *,
+    state: ShellState,
+    name_or_id: str,
+    lookup_name: str,
+    scope_id: str,
+    allow_chat_files: bool,
+) -> tuple[str, str]:
+    """Resolve ``lookup_name`` inside ``scope_id`` without paging the whole KB."""
+    try:
+        hits = unique_sdk.Content.search(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            where={
+                "AND": [
+                    {"ownerId": {"equals": scope_id}},
+                    {
+                        "OR": [
+                            {"title": {"equals": lookup_name}},
+                            {"key": {"equals": lookup_name}},
+                        ]
+                    },
+                ]
+            },
+        )
+    except unique_sdk.UniqueError:
+        hits = _resolve_content_id_via_infos_fallback(
+            state=state,
+            lookup_name=lookup_name,
+            scope_id=scope_id,
+        )
+
+    for content in hits[:_MAX_RESOLVE_MATCH_CANDIDATES]:
+        info = _as_content_fields(content)
+        resolved_id = info.get("id")
+        if not isinstance(resolved_id, str) or not resolved_id:
+            continue
+        title = info.get("title") or ""
+        key = info.get("key") or ""
+        if lookup_name not in {title, key}:
+            continue
+        # Gate the *resolved* id too: resolving by file name or path must not
+        # bypass the per-message metadata-filter scope that the cont_ fast-path
+        # above enforces, and must honour the same read-only chat-file
+        # exemption (so rm/mv by name can't reach an out-of-scope attachment
+        # either). See UN-21780.
+        if not state.is_content_within_workspace(
+            resolved_id, allow_chat_files=allow_chat_files
+        ):
+            raise ValueError(
+                f"permission denied: {name_or_id} is outside your "
+                f"task scope ({state.scope_denial_hint()}). Use "
+                "'unique-cli search' or 'ls' within that scope "
+                "instead."
+            )
+        return resolved_id, title or key
+
+    raise ValueError(f"File not found: {name_or_id}")
+
+
+def _as_content_fields(content: Any) -> Mapping[str, Any]:
+    if isinstance(content, Mapping):
+        return content
+    return {
+        "id": getattr(content, "id", None),
+        "title": getattr(content, "title", None),
+        "key": getattr(content, "key", None),
+    }
+
+
+def _resolve_content_id_via_infos_fallback(
+    *,
+    state: ShellState,
+    lookup_name: str,
+    scope_id: str,
+) -> list[dict[str, Any]]:
+    """Folder-scoped get_infos fallback with a hard page cap (UN-26945)."""
+    matches: list[dict[str, Any]] = []
     skip = 0
-    while True:
+    for _ in range(_MAX_RESOLVE_INFOS_PAGES):
         result = unique_sdk.Content.get_infos(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
+            parentId=scope_id,
             skip=skip,
-            take=take,
-            **params,
+            take=_RESOLVE_INFOS_PAGE_SIZE,
         )
         content_infos = result.get("contentInfos", [])
         if not content_infos:
             break
-
         for info in content_infos:
             title = info.get("title") or ""
             key = info.get("key") or ""
             if lookup_name in {title, key}:
-                resolved_id = info["id"]
-                # Gate the *resolved* id too: resolving by file name or path
-                # must not bypass the per-message metadata-filter scope that
-                # the cont_ fast-path above enforces, and must honour the same
-                # read-only chat-file exemption (so rm/mv by name can't reach
-                # an out-of-scope attachment either). See UN-21780.
-                if not state.is_content_within_workspace(
-                    resolved_id, allow_chat_files=allow_chat_files
-                ):
-                    raise ValueError(
-                        f"permission denied: {name_or_id} is outside your "
-                        f"task scope ({state.scope_denial_hint()}). Use "
-                        "'unique-cli search' or 'ls' within that scope "
-                        "instead."
-                    )
-                return resolved_id, title or key
-
+                matches.append(info)
+                return matches
         skip += len(content_infos)
-
-    raise ValueError(f"File not found: {name_or_id}")
+    return matches
 
 
 def _detect_upload_mime_type(path: Path) -> str:

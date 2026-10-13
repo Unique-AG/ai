@@ -605,31 +605,33 @@ class TestFolders:
 
 
 class TestFiles:
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_resolve_content_id_by_id(self, mock: MagicMock) -> None:
         cid, name = _resolve_content_id(_state(), "cont_abc")
         assert cid == "cont_abc"
         assert name == "cont_abc"
         mock.assert_not_called()
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_resolve_content_id_by_name(self, mock: MagicMock) -> None:
-        mock.return_value = {"contentInfos": [_content_info()]}
+        mock.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports", "scope_r"),
             "report.pdf",
         )
         assert cid == "cont_123"
         assert name == "report.pdf"
+        where = mock.call_args.kwargs["where"]
+        assert where["AND"][0] == {"ownerId": {"equals": "scope_r"}}
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_resolve_by_name_gated_by_metadata_filter(self, mock: MagicMock) -> None:
         """Resolving by file name must not bypass the per-message scope.
 
         The cont_ fast-path checks is_content_within_workspace; the name/path
         resolution path must gate the *resolved* id the same way (UN-21780).
         """
-        mock.return_value = {"contentInfos": [_content_info()]}
+        mock.return_value = [_content_info()]
         s = _state("/Reports", "scope_r")
         s.workspace_metadata_filter = {
             "path": ["contentId"],
@@ -640,15 +642,14 @@ class TestFiles:
         with pytest.raises(ValueError, match="permission denied"):
             _resolve_content_id(s, "report.pdf")
 
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Content.get_infos")
     def test_resolve_by_name_at_root_with_filter_refuses_whole_kb_scan(
-        self, mock: MagicMock
+        self, mock_infos: MagicMock, mock_search: MagicMock
     ) -> None:
-        """At the KB root (no folder context) a bare file name would resolve via
-        an unparented whole-KB scan. With a per-message filter active that is a
-        cross-scope existence/title oracle, so it must be refused *before* any
-        Content.get_infos call rather than scan everything and gate per id. See
-        UN-21780.
+        """At the KB root (no folder context) a bare file name must be refused
+        before any Content.search / Content.get_infos call. See UN-21780 /
+        UN-26945.
         """
         s = _state("/", None)
         s.workspace_metadata_filter = {
@@ -659,7 +660,8 @@ class TestFiles:
         s._chat_file_content_ids_cache = set()
         with pytest.raises(ValueError, match="permission denied"):
             _resolve_content_id(s, "report.pdf")
-        mock.assert_not_called()
+        mock_search.assert_not_called()
+        mock_infos.assert_not_called()
 
     @patch("unique_sdk.Content.delete")
     def test_rm_denies_out_of_scope_chat_attachment(
@@ -683,16 +685,14 @@ class TestFiles:
         mock_delete.assert_not_called()
 
     @patch("unique_sdk.Content.delete")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_rm_by_name_denies_out_of_scope_chat_attachment(
-        self, mock_infos: MagicMock, mock_delete: MagicMock
+        self, mock_search: MagicMock, mock_delete: MagicMock
     ) -> None:
         """Resolving by file name must honour the same read-only exemption —
         rm <name> can't reach an out-of-scope chat attachment. See UN-21780.
         """
-        mock_infos.return_value = {
-            "contentInfos": [_content_info("attached.pdf", "cont_attached")]
-        }
+        mock_search.return_value = [_content_info("attached.pdf", "cont_attached")]
         s = _state("/Reports", "scope_r")
         s.workspace_metadata_filter = {
             "path": ["contentId"],
@@ -719,10 +719,10 @@ class TestFiles:
         assert "permission denied" in result
         mock_update.assert_not_called()
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_by_path_in_filter_not_blocked_by_static_scope(
-        self, mock_finfo: MagicMock, mock_cinfos: MagicMock
+        self, mock_finfo: MagicMock, mock_search: MagicMock
     ) -> None:
         """An active per-message filter replaces the static scopeIds for content
         access, so a path lookup to an in-filter folder outside the static
@@ -730,9 +730,7 @@ class TestFiles:
         UN-21780.
         """
         mock_finfo.return_value = {"id": "scope_allowed"}
-        mock_cinfos.return_value = {
-            "contentInfos": [_content_info("memo.pdf", "cont_1")]
-        }
+        mock_search.return_value = [_content_info("memo.pdf", "cont_1")]
         s = _state("/", None)
         s.workspace_scope_ids = ["scope_admin"]
         s._workspace_scope_paths = ["/Admin"]
@@ -746,14 +744,14 @@ class TestFiles:
         assert cid == "cont_1"
         assert name == "memo.pdf"
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     @patch("unique_sdk.Folder.get_folder_path")
     def test_resolve_by_path_out_of_filter_folder_denied_without_lookup(
         self,
         mock_fpath: MagicMock,
         mock_finfo: MagicMock,
-        mock_cinfos: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         """A path into a folder outside the per-message filter scope is denied
         structurally — before Folder.get_info or the name scan — so a matching
@@ -771,11 +769,11 @@ class TestFiles:
         with pytest.raises(ValueError, match="permission denied"):
             _resolve_content_id(s, "/Outside/secret.pdf")
         mock_finfo.assert_not_called()
-        mock_cinfos.assert_not_called()
+        mock_search.assert_not_called()
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_resolve_by_name_allowed_by_metadata_filter(self, mock: MagicMock) -> None:
-        mock.return_value = {"contentInfos": [_content_info()]}
+        mock.return_value = [_content_info()]
         s = _state("/Reports", "scope_r")
         s.workspace_metadata_filter = {
             "path": ["contentId"],
@@ -787,15 +785,15 @@ class TestFiles:
         assert cid == "cont_123"
         assert name == "report.pdf"
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_content_id_by_absolute_path(
         self,
         mock_folder: MagicMock,
-        mock_content: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_content.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports", "scope_r"),
             "/Reports/Q1/report.pdf",
@@ -803,19 +801,18 @@ class TestFiles:
         assert cid == "cont_123"
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
-        assert mock_content.call_args.kwargs["parentId"] == "scope_q1"
-        assert mock_content.call_args.kwargs["skip"] == 0
-        assert mock_content.call_args.kwargs["take"] == 100
+        where = mock_search.call_args.kwargs["where"]
+        assert where["AND"][0] == {"ownerId": {"equals": "scope_q1"}}
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_content_id_by_relative_path(
         self,
         mock_folder: MagicMock,
-        mock_content: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_content.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports", "scope_r"),
             "Q1/report.pdf",
@@ -824,15 +821,15 @@ class TestFiles:
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_content_id_normalizes_dot_path(
         self,
         mock_folder: MagicMock,
-        mock_content: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_content.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports", "scope_r"),
             "./Q1/report.pdf",
@@ -841,15 +838,15 @@ class TestFiles:
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_content_id_normalizes_dot_dot_path(
         self,
         mock_folder: MagicMock,
-        mock_content: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_content.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports/Q2", "scope_q2"),
             "../Q1/report.pdf",
@@ -867,51 +864,103 @@ class TestFiles:
             _resolve_content_id(_state("/Reports", "scope_r"), "../../secret.pdf")
         mock_folder.assert_not_called()
 
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_uses_targeted_search(self, mock: MagicMock) -> None:
+        mock.return_value = [_content_info()]
+        cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert cid == "cont_123"
+        assert name == "report.pdf"
+        assert mock.call_count == 1
+        where = mock.call_args.kwargs["where"]
+        assert {"title": {"equals": "report.pdf"}} in where["AND"][1]["OR"]
+        assert {"key": {"equals": "report.pdf"}} in where["AND"][1]["OR"]
+
     @patch("unique_sdk.Content.get_infos")
-    def test_resolve_content_id_scans_paginated_files(self, mock: MagicMock) -> None:
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_falls_back_to_capped_infos(
+        self,
+        mock_search: MagicMock,
+        mock_infos: MagicMock,
+    ) -> None:
+        mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
         other = _content_info(title="other.pdf")
         other["key"] = "other.pdf"
-        mock.side_effect = [
+        mock_infos.side_effect = [
             {"contentInfos": [other], "totalCount": 2},
             {"contentInfos": [_content_info()], "totalCount": 2},
         ]
         cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
         assert cid == "cont_123"
         assert name == "report.pdf"
-        assert mock.call_args_list[0].kwargs["skip"] == 0
-        assert mock.call_args_list[1].kwargs["skip"] == 1
+        assert mock_infos.call_args_list[0].kwargs["parentId"] == "scope_r"
+        assert mock_infos.call_args_list[0].kwargs["skip"] == 0
 
     @patch("unique_sdk.Content.get_infos")
-    def test_resolve_content_id_ignores_total_count_for_pagination(
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_infos_fallback_respects_page_cap(
         self,
-        mock: MagicMock,
+        mock_search: MagicMock,
+        mock_infos: MagicMock,
     ) -> None:
-        other = _content_info(title="other.pdf")
-        other["key"] = "other.pdf"
-        mock.side_effect = [
-            {"contentInfos": [other], "totalCount": 1},
-            {"contentInfos": [], "totalCount": 1},
-        ]
-        with pytest.raises(ValueError, match="File not found"):
-            _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
-        assert mock.call_args_list[0].kwargs["skip"] == 0
-        assert mock.call_args_list[1].kwargs["skip"] == 1
+        mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
 
-    @patch("unique_sdk.Content.get_infos")
+        def _page(**kwargs: Any) -> dict[str, Any]:
+            skip = int(kwargs.get("skip") or 0)
+            take = int(kwargs.get("take") or 100)
+            return {
+                "contentInfos": [
+                    {
+                        "id": f"cont_{skip + i}",
+                        "key": f"other-{skip + i}.pdf",
+                        "title": f"other-{skip + i}.pdf",
+                    }
+                    for i in range(take)
+                ],
+                "totalCount": 10_000,
+            }
+
+        mock_infos.side_effect = _page
+        with pytest.raises(ValueError, match="File not found"):
+            _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
+        assert mock_infos.call_count == 10
+        assert all(
+            call.kwargs.get("parentId") == "scope_r"
+            for call in mock_infos.call_args_list
+        )
+
+    @patch("unique_sdk.Content.search")
     def test_resolve_content_id_matches_storage_key(self, mock: MagicMock) -> None:
-        mock.return_value = {
-            "contentInfos": [_content_info(title="Display Name.pdf")],
-            "totalCount": 1,
-        }
+        mock.return_value = [_content_info(title="Display Name.pdf")]
         cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
         assert cid == "cont_123"
         assert name == "Display Name.pdf"
 
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Content.get_infos")
-    def test_resolve_content_id_not_found(self, mock: MagicMock) -> None:
-        mock.return_value = {"contentInfos": []}
-        with pytest.raises(ValueError, match="File not found"):
+    def test_resolve_content_id_not_found_at_root_refuses_scan(
+        self, mock_infos: MagicMock, mock_search: MagicMock
+    ) -> None:
+        with pytest.raises(ValueError, match="knowledge-base root"):
             _resolve_content_id(_state(), "nope.pdf")
+        mock_search.assert_not_called()
+        mock_infos.assert_not_called()
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_not_found_in_folder(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        with pytest.raises(ValueError, match="File not found"):
+            _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
+
+    @patch("unique_sdk.Content.search")
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_missing_name_at_root_never_scans(
+        self, mock_infos: MagicMock, mock_search: MagicMock
+    ) -> None:
+        """UN-26945: a missing bare name at the KB root must not page the KB."""
+        with pytest.raises(ValueError, match="knowledge-base root"):
+            _resolve_content_id(_state("/", None), "no-such-file.pdf")
+        mock_search.assert_not_called()
+        mock_infos.assert_not_called()
 
     def test_resolve_upload_dest_none(self) -> None:
         scope, name = _resolve_upload_destination(
@@ -992,9 +1041,9 @@ class TestFiles:
         assert name == "new.pdf"
 
     @patch("unique_sdk.Content.delete")
-    @patch("unique_sdk.Content.get_infos")
-    def test_rm(self, mock_infos: MagicMock, mock_delete: MagicMock) -> None:
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+    @patch("unique_sdk.Content.search")
+    def test_rm(self, mock_search: MagicMock, mock_delete: MagicMock) -> None:
+        mock_search.return_value = [_content_info()]
         result = cmd_rm(_state("/R", "scope_r"), "report.pdf")
         assert "Deleted" in result
         assert "cont_123" in result
@@ -1011,9 +1060,9 @@ class TestFiles:
         assert "rm:" in result
 
     @patch("unique_sdk.Content.update")
-    @patch("unique_sdk.Content.get_infos")
-    def test_mv_file(self, mock_infos: MagicMock, mock_update: MagicMock) -> None:
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+    @patch("unique_sdk.Content.search")
+    def test_mv_file(self, mock_search: MagicMock, mock_update: MagicMock) -> None:
+        mock_search.return_value = [_content_info()]
         mock_update.return_value = _content_info(title="new.pdf")
         result = cmd_mv_file(_state("/R", "scope_r"), "report.pdf", "new.pdf")
         assert "Renamed" in result
@@ -1449,13 +1498,13 @@ class TestFiles:
         mock_guess_type.assert_not_called()
 
     @patch("unique_sdk.Content.versions")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_versions_by_name(
         self,
-        mock_infos: MagicMock,
+        mock_search: MagicMock,
         mock_versions: MagicMock,
     ) -> None:
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         mock_versions.return_value = {
             "data": [
                 {
@@ -1474,16 +1523,16 @@ class TestFiles:
         assert mock_versions.call_args.kwargs["take"] == 10
 
     @patch("unique_sdk.Content.versions")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_versions_by_path(
         self,
         mock_folder: MagicMock,
-        mock_infos: MagicMock,
+        mock_search: MagicMock,
         mock_versions: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         mock_versions.return_value = {"data": []}
         result = cmd_versions(_state("/Reports", "scope_r"), "/Reports/Q1/report.pdf")
         assert "Versions for report.pdf" in result
@@ -1613,15 +1662,15 @@ class TestFiles:
 
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_download_by_name(
         self,
-        mock_infos: MagicMock,
+        mock_search: MagicMock,
         mock_dl: MagicMock,
         mock_move: MagicMock,
         tmp_path,  # type: ignore[no-untyped-def]
     ) -> None:
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         mock_dl.return_value = tmp_path / "downloaded"
         result = cmd_download(
             _state("/R", "scope_r"),
