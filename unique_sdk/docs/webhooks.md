@@ -193,9 +193,11 @@ def handle_external_module(event):
 **MCP tools:** a module can call the MCP tools configured on its space. The
 space assigns the servers and handles per-user authentication; connected
 servers then arrive on every event. See
-[`tutorials/mcp/mcp_custom_module`](https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_custom_module)
+[Calling MCP Tools from a Custom Module](../../../Tutorials/mcp/mcp_custom_module/)
 for the configuration fields and a runnable module, with both a FastAPI
-webhook and an event-socket (SSE) entry point for local development.
+webhook and an event-socket (SSE) entry point for local development, and
+[MCP Tools Across Sub-Agents](../../../Tutorials/mcp/mcp_subagents/)
+when the space delegates to sub-agents that carry their own servers.
 
 ## Best Practices
 

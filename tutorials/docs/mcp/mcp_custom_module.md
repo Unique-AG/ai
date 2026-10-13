@@ -127,6 +127,7 @@ Send any message in the space and the module replies with its configured model a
 
 ## 🔗 Additional Resources
 
+- [MCP Tools Across Sub-Agents](mcp_subagents.md) - Surfacing the login prompts for a sub-agent's MCP servers on the orchestrator space
 - [Using MCP Tools in Unique AI](mcp_unique_ai.md) - Enabling MCP tools on a standard space
 - [MCP Fundamentals](mcp_fundamentals.md) - Understanding the basics of building MCP servers
 - [Production MCP Server Template](mcp_server_template.md) - Production-ready server template

@@ -150,3 +150,10 @@ entry points:
   name, scoped to this chat and assistant message.
 - `ChatService` — writes the reply onto the assistant message the platform
   already created for this turn.
+
+## See also
+
+This module works unchanged as a sub-agent of an orchestrator space. For how
+the orchestrator surfaces the login prompts for its sub-agents' MCP servers,
+and how it delegates to them, see
+[MCP Tools Across Sub-Agents](../../docs/mcp/mcp_subagents.md).
