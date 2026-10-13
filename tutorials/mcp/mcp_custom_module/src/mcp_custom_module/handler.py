@@ -13,14 +13,13 @@ import json
 import logging
 from typing import Any
 
+import unique_sdk
 from unique_toolkit import ChatService
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.app.unique_settings import UniqueContext
 from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,
 )
-
-import unique_sdk
 
 logger = logging.getLogger(__name__)
 

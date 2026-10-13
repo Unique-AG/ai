@@ -15,11 +15,10 @@ dropped.
 import logging
 import time
 
+from mcp_custom_module.handler import handle_event
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
-
-from mcp_custom_module.handler import handle_event
 
 logger = logging.getLogger(__name__)
 

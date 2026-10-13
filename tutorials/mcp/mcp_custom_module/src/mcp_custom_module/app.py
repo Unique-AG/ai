@@ -7,11 +7,10 @@ locally you need a tunnel such as ngrok. If you cannot expose a port, run
 
 import logging
 
+from mcp_custom_module.handler import handle_event
 from unique_toolkit.app.fast_api_factory import build_unique_custom_app
 from unique_toolkit.app.schemas import ChatEvent, EventName
 from unique_toolkit.app.unique_settings import UniqueSettings
-
-from mcp_custom_module.handler import handle_event
 
 # Module level so uvicorn can import it. `unique.env` is looked up in the
 # working directory, so run this from the example root.

@@ -73,7 +73,7 @@ connected arrive on the event, and the rest do not.
 Both entry points run the same handler. Pick whichever suits your machine.
 
 ```bash
-cd unique_sdk/examples/mcp-custom-module
+cd tutorials/mcp/mcp_custom_module
 cp unique.env.example unique.env   # then fill it in
 ```
 
