@@ -109,22 +109,31 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
             request.api_additional_body_params,
             field_name="apiAdditionalBodyParams",
         )
-        if request.api_request_method == CustomApiRequestMethod.GET:
-            params["query"] = request.query
-        else:
-            body["query"] = request.query
 
         try:
-            response = await client.request(
-                method=request.api_request_method.value,
-                url=request_url,
-                headers=headers,
-                params=params,
-                json=body,
-                extensions=extensions or None,
-                timeout=request.timeout,
-                follow_redirects=False,
-            )
+            if request.api_request_method == CustomApiRequestMethod.GET:
+                params["query"] = request.query
+                response = await client.get(
+                    url=request_url,
+                    headers=headers,
+                    params=params,
+                    extensions=extensions or None,
+                    timeout=request.timeout,
+                    follow_redirects=False,
+                )
+            elif request.api_request_method == CustomApiRequestMethod.POST:
+                body["query"] = request.query
+                response = await client.post(
+                    url=request_url,
+                    headers=headers,
+                    params=params,
+                    json=body,
+                    extensions=extensions or None,
+                    timeout=request.timeout,
+                    follow_redirects=False,
+                )
+            else:
+                raise BadRequestProxyError("Unsupported Custom API request method")
         except httpx.TimeoutException as exc:
             raise UpstreamTimeoutError(
                 f"Custom API search timed out after {request.timeout}s",
