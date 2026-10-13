@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import certifi
 import httpx
 from azure.ai.projects.aio import AIProjectClient
 from azure.core.credentials_async import AsyncTokenCredential
-from azure.core.pipeline.transport import AsyncioRequestsTransport
+from azure.core.pipeline.transport import AsyncHttpTransport, AsyncioRequestsTransport
 from azure.identity.aio import DefaultAzureCredential, WorkloadIdentityCredential
 from openai import AsyncOpenAI
+from unique_search_proxy_core.http_client import EgressRoute
 
+from unique_search_proxy_client.web.core.client.azure_transport import (
+    azure_transport_for_route,
+)
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
     bing_agent_credentials,
 )
@@ -19,15 +25,32 @@ _LOGGER = logging.getLogger(__name__)
 _private_endpoint_http_client: httpx.AsyncClient | None = None
 
 
-def get_credentials() -> AsyncTokenCredential:
+@asynccontextmanager
+async def bing_azure_transport(
+    route: EgressRoute,
+) -> AsyncIterator[AsyncHttpTransport | None]:
+    """Yield proxied Azure transport, preserving explicit private endpoints."""
+    if bing_agent_credentials.use_private_endpoint_transport:
+        yield None
+        return
+    async with azure_transport_for_route(route) as transport:
+        yield transport
+
+
+def get_credentials(
+    *,
+    transport: AsyncHttpTransport | None = None,
+) -> AsyncTokenCredential:
     match bing_agent_credentials.azure_identity_credential_type:
         case "workload":
             if bing_agent_credentials.use_private_endpoint_transport:
-                transport = AsyncioRequestsTransport(connection_verify=certifi.where())
-                return WorkloadIdentityCredential(transport=transport)
-            return WorkloadIdentityCredential()
+                private_transport = AsyncioRequestsTransport(
+                    connection_verify=certifi.where()
+                )
+                return WorkloadIdentityCredential(transport=private_transport)
+            return WorkloadIdentityCredential(transport=transport)
         case "default":
-            return DefaultAzureCredential()
+            return DefaultAzureCredential(transport=transport)
         case other:
             msg = f"Invalid Azure identity credential type: {other}"
             raise ValueError(msg)
@@ -37,6 +60,7 @@ def get_project_client(
     credential: AsyncTokenCredential,
     *,
     endpoint: str | None = None,
+    transport: AsyncHttpTransport | None = None,
 ) -> AIProjectClient:
     resolved_endpoint = endpoint or read_secret(bing_agent_credentials.endpoint)
     if not resolved_endpoint or resolved_endpoint == NOT_PROVIDED:
@@ -53,6 +77,7 @@ def get_project_client(
     return AIProjectClient(
         credential=credential,
         endpoint=resolved_endpoint,
+        transport=transport,
     )
 
 
@@ -75,7 +100,11 @@ async def aclose_private_endpoint_http_client() -> None:
     _private_endpoint_http_client = None
 
 
-def get_openai_client(project_client: AIProjectClient) -> AsyncOpenAI:
+def get_openai_client(
+    project_client: AIProjectClient,
+    *,
+    http_client: httpx.AsyncClient | None = None,
+) -> AsyncOpenAI:
     """Return an authenticated AsyncOpenAI client from the Foundry project client.
 
     When private-endpoint transport is enabled, reuse a shared certifi-backed
@@ -86,6 +115,8 @@ def get_openai_client(project_client: AIProjectClient) -> AsyncOpenAI:
         return project_client.get_openai_client(
             http_client=_get_private_endpoint_http_client(),
         )
+    if http_client is not None:
+        return project_client.get_openai_client(http_client=http_client)
     return project_client.get_openai_client()
 
 
