@@ -834,6 +834,64 @@ class TestCleanupAutoProvisionedBingAgents:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_startup_cleanup_uses_settings_egress_route(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        creds = MagicMock()
+        creds.cleanup_on_start = True
+        creds.endpoint = MagicMock()
+        creds.check_credentials = MagicMock()
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_agent_credentials",
+            creds,
+        )
+        route = DirectRoute(verify=True, trust_env=False, headers={})
+        registry = MagicMock()
+        registry.settings_egress = AsyncMock(
+            return_value=MagicMock(route=route),
+        )
+        azure_transport = MagicMock()
+        transport_context = MagicMock()
+        transport_context.__aenter__ = AsyncMock(return_value=azure_transport)
+        transport_context.__aexit__ = AsyncMock(return_value=None)
+        credential = MagicMock()
+        credential_context = MagicMock()
+        credential_context.__aenter__ = AsyncMock(return_value=credential)
+        credential_context.__aexit__ = AsyncMock(return_value=None)
+        project_client = MagicMock()
+        project_context = MagicMock()
+        project_context.__aenter__ = AsyncMock(return_value=project_client)
+        project_context.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_azure_transport",
+                return_value=transport_context,
+            ) as bing_transport,
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_credentials",
+                return_value=credential_context,
+            ) as get_credentials,
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_project_client",
+                return_value=project_context,
+            ) as get_project_client,
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.cleanup_auto_provisioned_bing_agents",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+        ):
+            await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
+
+        registry.settings_egress.assert_awaited_once_with()
+        bing_transport.assert_called_once_with(route)
+        get_credentials.assert_called_once_with(transport=azure_transport)
+        assert get_project_client.call_args.kwargs["transport"] is azure_transport
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_maybe_cleanup_swallows_top_level_failures(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -850,6 +908,12 @@ class TestCleanupAutoProvisionedBingAgents:
             "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_agent_credentials",
             creds,
         )
+        registry = MagicMock()
+        registry.settings_egress = AsyncMock(
+            return_value=MagicMock(
+                route=DirectRoute(verify=True, trust_env=False, headers={}),
+            ),
+        )
         with (
             patch(
                 "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_credentials",
@@ -860,7 +924,7 @@ class TestCleanupAutoProvisionedBingAgents:
                 return_value="https://example.azure.com",
             ),
         ):
-            await maybe_cleanup_auto_provisioned_bing_agents_on_start()
+            await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -873,9 +937,12 @@ class TestCleanupAutoProvisionedBingAgents:
             "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_agent_credentials",
             creds,
         )
+        registry = MagicMock()
+        registry.settings_egress = AsyncMock()
         with patch(
             "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_project_client",
         ) as get_client:
-            await maybe_cleanup_auto_provisioned_bing_agents_on_start()
+            await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
             get_client.assert_not_called()
             creds.check_credentials.assert_not_called()
+            registry.settings_egress.assert_not_awaited()

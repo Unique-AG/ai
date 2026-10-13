@@ -326,8 +326,37 @@ class HttpClientRegistry:
         """Return the cached client and route for one credential resolution."""
         if self._closed:
             raise RuntimeError("HTTP client registry is closed")
-
         credentials = self._resolver.resolve(context)
+        return await self._egress_for_credentials(credentials)
+
+    async def settings_egress(self) -> ResolvedEgress:
+        """Return egress for process-level work using settings credentials."""
+        if self._closed:
+            raise RuntimeError("HTTP client registry is closed")
+        if (
+            self._settings.proxy_username_source == "user_metadata"
+            and self._settings.proxy_auth_mode == "none"
+        ):
+            raise ValidationProxyError(
+                "Process-level egress cannot use request-scoped proxy credentials; "
+                "configure settings-backed username/password or mTLS credentials",
+            )
+        credentials = SettingsProxyCredentials(self._settings).resolve(
+            RequestContext(
+                company_id="__settings__",
+                user_id="local",
+                chat_id="local",
+            ),
+        )
+        return await self._egress_for_credentials(credentials)
+
+    async def _egress_for_credentials(
+        self,
+        credentials: ProxyCredentials,
+    ) -> ResolvedEgress:
+        if self._closed:
+            raise RuntimeError("HTTP client registry is closed")
+
         route = build_route(self._settings, credentials)
         if self._fixed_client is not None:
             return ResolvedEgress(http_client=self._fixed_client, route=route)
