@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import typing
 from enum import StrEnum
+from typing import cast
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from pydantic.alias_generators import to_camel
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+
+from unique_web_search.services.search_engine.base import SearchEngineMode
 
 # Strict LLM-facing config: camelCase aliases + forbid extras, while still
 # inheriting ExposedParams.model_json_schema (strips title/default noise).
@@ -15,6 +18,27 @@ _LLM_TOOL_MODEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
     populate_by_name=True,
     extra="forbid",
+)
+
+_STANDARD_QUERY_DESCRIPTION = (
+    "Short search-engine keyword line (~3–8 words, not a sentence). "
+    "Do not pack multiple facets into one query—issue parallel `search` calls with "
+    "one `gap` each instead. Do not paste the user question or `gap` text here."
+)
+_AGENT_QUERY_DESCRIPTION = (
+    "One comprehensive natural-language research request that preserves the user's "
+    "full intent, context, and constraints. Do not condense it into keywords—the "
+    "agent-based search engine performs query planning and source diversification "
+    "internally."
+)
+_AGENT_PHASE_DESCRIPTION = (
+    "Research phase for this call. "
+    "`exploratory` — sense what exists on the web and what is closest to the user's ask "
+    "(broad, mapping requests). "
+    "`target` — pursue the research request in `payload.query` for the facet identified "
+    "by `payload.gap`. "
+    "`redirect` — last resort when the exact facet is not on the public web; find related, "
+    "attributable context (sector, peers, parent entity, adjacent news)—not invented facts."
 )
 
 
@@ -42,13 +66,7 @@ class SearchPayload(ExposedParams):
             "is unlikely to be on the public web."
         )
     )
-    query: str = Field(
-        description=(
-            "Short search-engine keyword line (~3–8 words, not a sentence). "
-            "Do not pack multiple facets into one query—issue parallel `search` calls with "
-            "one `gap` each instead. Do not paste the user question or `gap` text here."
-        )
-    )
+    query: str = Field(description=_STANDARD_QUERY_DESCRIPTION)
 
     @classmethod
     def with_exposed_params(
@@ -56,11 +74,38 @@ class SearchPayload(ExposedParams):
         exposed: type[ExposedParams] | None,
     ) -> type[SearchPayload]:
         """Graft admin-exposed engine knobs onto the search payload model."""
+        return cls.with_search_engine_mode(SearchEngineMode.STANDARD, exposed)
+
+    @classmethod
+    def with_search_engine_mode(
+        cls,
+        mode: SearchEngineMode,
+        exposed: type[ExposedParams] | None = None,
+    ) -> type[SearchPayload]:
+        """Build a search payload with mode-specific query guidance and engine knobs."""
         if exposed is None:
-            return cls
-        return create_model(
-            cls.__name__,
-            __base__=(cls, exposed),
+            if mode == SearchEngineMode.STANDARD:
+                return cls
+            return create_model(
+                cls.__name__,
+                __base__=cls,
+                query=(str, Field(description=_AGENT_QUERY_DESCRIPTION)),
+            )
+        if mode == SearchEngineMode.AGENT:
+            return cast(
+                type[SearchPayload],
+                create_model(
+                    cls.__name__,
+                    __base__=(cls, exposed),
+                    query=(str, Field(description=_AGENT_QUERY_DESCRIPTION)),
+                ),
+            )
+        return cast(
+            type[SearchPayload],
+            create_model(
+                cls.__name__,
+                __base__=(cls, exposed),
+            ),
         )
 
 
@@ -102,21 +147,38 @@ class WebSearchV3ToolParameters(ExposedParams):
         exposed: type[ExposedParams] | None,
     ) -> type[WebSearchV3ToolParameters]:
         """Rebuild the payload union with an exposed ``SearchPayload`` subtype."""
-        search_payload = SearchPayload.with_exposed_params(exposed)
+        return cls.with_search_engine_mode(SearchEngineMode.STANDARD, exposed)
+
+    @classmethod
+    def with_search_engine_mode(
+        cls,
+        mode: SearchEngineMode,
+        exposed: type[ExposedParams] | None = None,
+    ) -> type[WebSearchV3ToolParameters]:
+        """Build V3 parameters with mode-specific search guidance and engine knobs."""
+        search_payload = SearchPayload.with_search_engine_mode(mode, exposed)
         if search_payload is SearchPayload:
             return cls
+        payload_field = (
+            search_payload | FetchUrlsPayload,
+            Field(
+                description=(
+                    "The payload of the command. Must be either a SearchPayload "
+                    "or a FetchUrlsPayload."
+                ),
+            ),
+        )
+        if mode == SearchEngineMode.AGENT:
+            return create_model(
+                cls.__name__,
+                __base__=cls,
+                phase=(SearchPhase, Field(description=_AGENT_PHASE_DESCRIPTION)),
+                payload=payload_field,
+            )
         return create_model(
             cls.__name__,
             __base__=cls,
-            payload=(
-                search_payload | FetchUrlsPayload,
-                Field(
-                    description=(
-                        "The payload of the command. Must be either a SearchPayload "
-                        "or a FetchUrlsPayload."
-                    ),
-                ),
-            ),
+            payload=payload_field,
         )
 
     def relevance_focus(self) -> str:
@@ -133,6 +195,8 @@ class WebSearchV3ToolParameters(ExposedParams):
     def schema_hint(
         cls,
         exposed: type[ExposedParams] | None = None,
+        *,
+        mode: SearchEngineMode = SearchEngineMode.STANDARD,
     ) -> str:
         """Return a markdown-bulleted hint mirroring the field descriptions of this model.
 
@@ -154,8 +218,9 @@ class WebSearchV3ToolParameters(ExposedParams):
                 parts.append(f'"{key}": {placeholder}')
             return "{ " + ", ".join(parts) + " }"
 
+        parameters_model = cls.with_search_engine_mode(mode, exposed)
         lines: list[str] = []
-        for name, field in cls.model_fields.items():
+        for name, field in parameters_model.model_fields.items():
             if name == "command":
                 choices = " or ".join(f'`"{c.value}"`' for c in Command)
                 lines.append(f"- **`{name}`** — {choices}.")
@@ -168,7 +233,7 @@ class WebSearchV3ToolParameters(ExposedParams):
                 lines.append(f"- **`{name}`** — {field.description or name}")
 
         lines.append("- **`payload`** — Shape depends on `command`:")
-        search_payload = SearchPayload.with_exposed_params(exposed)
+        search_payload = SearchPayload.with_search_engine_mode(mode, exposed)
         for cmd, payload_model in (
             (Command.SEARCH, search_payload),
             (Command.FETCH_URLS, FetchUrlsPayload),
