@@ -237,8 +237,12 @@ networkPolicy:
   baseline:
     prometheus:
       namespace: system
-  # -- Allow ports 443 and 80 to the internet for crawling. Set false only with a corporate proxy, so the network enforces that all traffic goes through it.
+  # -- Allow ports 443 and 80 to the internet for crawling. Set false only for corporate-proxy tenants, so the network enforces that all traffic goes through the proxy. Bing and Vertex AI agent search and the Azure workload identity login then need extra egress rules.
   allowWorldEgress: true
+  # -- Blocks link-local addresses (cloud metadata service, IMDS) even though world egress is allowed. Deny rules win over allow rules.
+  egressDeny:
+    - toCIDR:
+        - 169.254.0.0/16
 
 # ── Callers ───────────────────────────────────────────────────────────────────
 # Every caller reaches search-proxy through assistants-core. Override the
