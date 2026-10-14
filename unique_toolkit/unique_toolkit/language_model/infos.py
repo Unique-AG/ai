@@ -2512,8 +2512,7 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=1_048_576,
                         token_limit_output=65_536,
                     ),
-                    info_cutoff_at=None,
-                    # https://ai.google.dev/gemini-api/docs/models/gemini-4-argon
+                    info_cutoff_at=date(2026, 3, day=1),
                     published_at=date(2026, 10, 13),
                     # Supports thinking_level low, medium (default), and high.
                     # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides/gemini-4-argon
