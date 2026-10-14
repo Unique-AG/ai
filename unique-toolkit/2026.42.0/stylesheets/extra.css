@@ -1,0 +1,4 @@
+/* Hide entangled #id-only title bars (div.highlight with id = named block, no file= path) */
+div[id].highlight .filename {
+  display: none;
+}

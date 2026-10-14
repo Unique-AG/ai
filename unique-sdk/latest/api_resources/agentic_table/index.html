@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.40.0/api_resources/agentic_table/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/agentic_table/">
       
       
         <link rel="prev" href="../">
@@ -2865,6 +2865,7 @@
 <ul>
 <li><code>tableId</code> (str, required) - Table/sheet ID</li>
 <li><code>cells</code> (List[AgenticTableCell], required) - List of cell objects to update. Each cell should have <code>rowOrder</code>, <code>columnOrder</code>, and <code>text</code>.</li>
+<li><code>overwriteLibraryRows</code> (bool, optional) - On library sheets, apply updates to existing cells instead of dropping them. Only honored for rows where the caller can read every sheet named in the row's <code>sourceSheetId</code> metadata; rows without that metadata are left unchanged. Locked rows must be unlocked first with <code>bulk_update_status(locked=False)</code>. Omitted when <code>None</code>; only send it to backends that support the field, since older servers reject it with a 400.</li>
 </ul>
 <p><strong>Returns:</strong></p>
 <p>Returns a <a href="#columnmetadataupdatestatus"><code>ColumnMetadataUpdateStatus</code></a> object.</p>
@@ -3069,6 +3070,38 @@
     <span class="n">selected</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># optional</span>
     <span class="n">selectionMethod</span><span class="o">=</span><span class="s2">&quot;MANUAL&quot;</span><span class="p">,</span>  <span class="c1"># optional</span>
     <span class="n">agreementStatus</span><span class="o">=</span><span class="s2">&quot;MATCH&quot;</span>  <span class="c1"># optional</span>
+<span class="p">)</span>
+</code></pre></div>
+</details>
+<details class="example">
+<summary><code>unique_sdk.AgenticTable.update_row_metadata</code> / <code>delete_row_metadata</code> - Change one row metadata entry</summary>
+<p>Update or delete a single row metadata entry, addressed by its <code>id</code> (the <code>id</code> on a <code>rowMetadata</code> entry returned with <code>includeRowMetadata</code>).</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>tableId</code> (str, required) - Table/sheet ID</li>
+<li><code>metadataId</code> (str, required) - Row metadata entry ID</li>
+<li><code>key</code> (str, required for update) - Metadata key</li>
+<li><code>value</code> (str, required for update) - Metadata value</li>
+<li><code>exactFilter</code> (bool, optional, update only) - Whether the entry is used for strict filtering</li>
+</ul>
+<p><strong>Returns:</strong></p>
+<p>Returns a <code>{status, message?}</code> result.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">await</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">AgenticTable</span><span class="o">.</span><span class="n">update_row_metadata</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">tableId</span><span class="o">=</span><span class="s2">&quot;sheet_abc123&quot;</span><span class="p">,</span>
+    <span class="n">metadataId</span><span class="o">=</span><span class="s2">&quot;meta_xyz&quot;</span><span class="p">,</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;client&quot;</span><span class="p">,</span>
+    <span class="n">value</span><span class="o">=</span><span class="s2">&quot;UBP&quot;</span><span class="p">,</span>
+    <span class="n">exactFilter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">await</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">AgenticTable</span><span class="o">.</span><span class="n">delete_row_metadata</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">tableId</span><span class="o">=</span><span class="s2">&quot;sheet_abc123&quot;</span><span class="p">,</span>
+    <span class="n">metadataId</span><span class="o">=</span><span class="s2">&quot;meta_xyz&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 </details>

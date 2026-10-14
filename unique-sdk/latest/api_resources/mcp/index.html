@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.40.0/api_resources/mcp/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/mcp/">
       
       
         <link rel="prev" href="../message_log/">
@@ -1216,6 +1216,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mcpserversresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        McpServersResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#calltoolcontentdto" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2357,6 +2368,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mcpserversresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        McpServersResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#calltoolcontentdto" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2455,6 +2477,28 @@
 <p class="admonition-title">Async variant</p>
 <p>Use <code>unique_sdk.MCP.call_tool_async(...)</code> for async workflows.</p>
 </div>
+<details class="example">
+<summary><code>unique_sdk.MCP.list_servers</code> - List MCP servers that can be attached to a space</summary>
+<p>List the company's MCP servers (connectors) with the tools the company has enabled. Use the ids and tool names in the <code>mcpServers</code> field of <code>Space.create_space</code> and <code>Space.update_space</code>. Never returns server URLs or credentials.</p>
+<p>Requires a role that may configure spaces.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>user_id</code> (str, required) - User identifier</li>
+<li><code>company_id</code> (str, required) - Company identifier</li>
+</ul>
+<p><strong>Returns:</strong></p>
+<p>Returns a <a href="#mcpserversresponse"><code>McpServersResponse</code></a> object.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">servers</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">MCP</span><span class="o">.</span><span class="n">list_servers</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span> <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">server</span> <span class="ow">in</span> <span class="n">servers</span><span class="p">[</span><span class="s2">&quot;mcpServers&quot;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">server</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span> <span class="p">[</span><span class="n">tool</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">tool</span> <span class="ow">in</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;tools&quot;</span><span class="p">]])</span>
+</code></pre></div>
+</details>
+<div class="admonition tip">
+<p class="admonition-title">Async variant</p>
+<p>Use <code>unique_sdk.MCP.list_servers_async(...)</code> for async workflows.</p>
+</div>
 <h2 id="input-types">Input Types<a class="headerlink" href="#input-types" title="Permanent link">&para;</a></h2>
 <h4 id="calltoolparams">CallToolParams<a class="headerlink" href="#calltoolparams" title="Permanent link">&para;</a></h4>
 <details class="note">
@@ -2480,6 +2524,24 @@
 <li><code>name</code> (str | None) - Optional tool name echoed by server</li>
 </ul>
 <p><strong>Returned by:</strong> <code>MCP.call_tool()</code>, <code>MCP.call_tool_async()</code></p>
+</details>
+<h4 id="mcpserversresponse">McpServersResponse<a class="headerlink" href="#mcpserversresponse" title="Permanent link">&para;</a></h4>
+<details class="note">
+<summary>The <code>McpServersResponse</code> object lists the company's MCP servers</summary>
+<p><strong>Fields:</strong></p>
+<ul>
+<li><code>mcpServers</code> (list[McpServerDto]) - Servers sorted by name:<ul>
+<li><code>id</code> (str) - MCP server ID</li>
+<li><code>name</code> (str) - MCP server name</li>
+<li><code>description</code> (str | None) - MCP server description</li>
+<li><code>requiresOAuth</code> (bool) - Whether each user has to sign in before the server's tools run</li>
+<li><code>isSpaceRestricted</code> (bool) - Whether the server may only be attached to the spaces in <code>allowedSpaceIds</code></li>
+<li><code>allowedSpaceIds</code> (list[str]) - Space IDs the server may be attached to. Empty when unrestricted.</li>
+<li><code>tools</code> (list[McpServerToolDto]) - Tools the company has enabled, each with <code>name</code> (str) and <code>description</code> (str | None)</li>
+</ul>
+</li>
+</ul>
+<p><strong>Returned by:</strong> <code>MCP.list_servers()</code>, <code>MCP.list_servers_async()</code></p>
 </details>
 <h4 id="calltoolcontentdto">CallToolContentDto<a class="headerlink" href="#calltoolcontentdto" title="Permanent link">&para;</a></h4>
 <details class="note">

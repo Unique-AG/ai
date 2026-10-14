@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/2026.40.0/modules/content/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/2026.42.0/modules/content/">
       
       
         <link rel="prev" href="../identity/">
@@ -3785,6 +3785,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#unique_toolkit.content.schemas.Content.has_ingestion_failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        has_ingestion_failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unique_toolkit.content.schemas.Content.is_ingestion_in_progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        is_ingestion_in_progress
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#unique_toolkit.content.schemas.Content.model_computed_fields" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5861,6 +5883,28 @@
     <span class="md-ellipsis">
       
         copy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unique_toolkit.content.schemas.Content.has_ingestion_failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        has_ingestion_failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unique_toolkit.content.schemas.Content.is_ingestion_in_progress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        is_ingestion_in_progress
       
     </span>
   </a>
@@ -8037,7 +8081,15 @@
 <span class="normal">854</span>
 <span class="normal">855</span>
 <span class="normal">856</span>
-<span class="normal">857</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use KnowledgeBaseService instead&quot;</span><span class="p">)</span>
+<span class="normal">857</span>
+<span class="normal">858</span>
+<span class="normal">859</span>
+<span class="normal">860</span>
+<span class="normal">861</span>
+<span class="normal">862</span>
+<span class="normal">863</span>
+<span class="normal">864</span>
+<span class="normal">865</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use KnowledgeBaseService instead&quot;</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">ContentService</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Provides methods for searching, downloading and uploading content in the knowledge base.</span>
@@ -8481,6 +8533,7 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">where</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
         <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">include_failed_content</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Content</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Performs a search in the knowledge base by filter (and not a smilarity search)</span>
@@ -8488,6 +8541,8 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            where (dict): The search criteria.</span>
+<span class="sd">            chat_id (str | None): Chat to scope the search to; defaults to the service&#39;s chat.</span>
+<span class="sd">            include_failed_content (bool): Also return content whose ingestion failed.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            list[Content]: The search results.</span>
@@ -8499,18 +8554,22 @@
             <span class="n">company_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_company_id</span><span class="p">,</span>
             <span class="n">chat_id</span><span class="o">=</span><span class="n">chat_id</span><span class="p">,</span>
             <span class="n">where</span><span class="o">=</span><span class="n">where</span><span class="p">,</span>
+            <span class="n">include_failed_content</span><span class="o">=</span><span class="n">include_failed_content</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">search_contents_async</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">where</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
         <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">include_failed_content</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Content</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Performs an asynchronous search for content files in the knowledge base by filter.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            where (dict): The search criteria.</span>
+<span class="sd">            chat_id (str | None): Chat to scope the search to; defaults to the service&#39;s chat.</span>
+<span class="sd">            include_failed_content (bool): Also return content whose ingestion failed.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            list[Content]: The search results.</span>
@@ -8522,6 +8581,7 @@
             <span class="n">company_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_company_id</span><span class="p">,</span>
             <span class="n">chat_id</span><span class="o">=</span><span class="n">chat_id</span><span class="p">,</span>
             <span class="n">where</span><span class="o">=</span><span class="n">where</span><span class="p">,</span>
+            <span class="n">include_failed_content</span><span class="o">=</span><span class="n">include_failed_content</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">search_content_on_chat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Content</span><span class="p">]:</span>
@@ -9343,15 +9403,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">719</span>
-<span class="normal">720</span>
-<span class="normal">721</span>
-<span class="normal">722</span>
-<span class="normal">723</span>
-<span class="normal">724</span>
-<span class="normal">725</span>
-<span class="normal">726</span>
-<span class="normal">727</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">727</span>
 <span class="normal">728</span>
 <span class="normal">729</span>
 <span class="normal">730</span>
@@ -9375,7 +9427,15 @@
 <span class="normal">748</span>
 <span class="normal">749</span>
 <span class="normal">750</span>
-<span class="normal">751</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">download_content</span><span class="p">(</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span>
+<span class="normal">756</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">download_content</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">content_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">content_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -9523,15 +9583,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">753</span>
-<span class="normal">754</span>
-<span class="normal">755</span>
-<span class="normal">756</span>
-<span class="normal">757</span>
-<span class="normal">758</span>
-<span class="normal">759</span>
-<span class="normal">760</span>
-<span class="normal">761</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">761</span>
 <span class="normal">762</span>
 <span class="normal">763</span>
 <span class="normal">764</span>
@@ -9547,7 +9599,15 @@
 <span class="normal">774</span>
 <span class="normal">775</span>
 <span class="normal">776</span>
-<span class="normal">777</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">download_content_to_bytes</span><span class="p">(</span>
+<span class="normal">777</span>
+<span class="normal">778</span>
+<span class="normal">779</span>
+<span class="normal">780</span>
+<span class="normal">781</span>
+<span class="normal">782</span>
+<span class="normal">783</span>
+<span class="normal">784</span>
+<span class="normal">785</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">download_content_to_bytes</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">content_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9691,15 +9751,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">779</span>
-<span class="normal">780</span>
-<span class="normal">781</span>
-<span class="normal">782</span>
-<span class="normal">783</span>
-<span class="normal">784</span>
-<span class="normal">785</span>
-<span class="normal">786</span>
-<span class="normal">787</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">787</span>
 <span class="normal">788</span>
 <span class="normal">789</span>
 <span class="normal">790</span>
@@ -9715,7 +9767,15 @@
 <span class="normal">800</span>
 <span class="normal">801</span>
 <span class="normal">802</span>
-<span class="normal">803</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">download_content_to_bytes_async</span><span class="p">(</span>
+<span class="normal">803</span>
+<span class="normal">804</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span>
+<span class="normal">810</span>
+<span class="normal">811</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">download_content_to_bytes_async</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">content_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9886,15 +9946,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">684</span>
-<span class="normal">685</span>
-<span class="normal">686</span>
-<span class="normal">687</span>
-<span class="normal">688</span>
-<span class="normal">689</span>
-<span class="normal">690</span>
-<span class="normal">691</span>
-<span class="normal">692</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">692</span>
 <span class="normal">693</span>
 <span class="normal">694</span>
 <span class="normal">695</span>
@@ -9918,7 +9970,15 @@
 <span class="normal">713</span>
 <span class="normal">714</span>
 <span class="normal">715</span>
-<span class="normal">716</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">download_content_to_file_by_id</span><span class="p">(</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span>
+<span class="normal">719</span>
+<span class="normal">720</span>
+<span class="normal">721</span>
+<span class="normal">722</span>
+<span class="normal">723</span>
+<span class="normal">724</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">download_content_to_file_by_id</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">content_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10549,15 +10609,7 @@ correlation is present, the parent chat.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">659</span>
-<span class="normal">660</span>
-<span class="normal">661</span>
-<span class="normal">662</span>
-<span class="normal">663</span>
-<span class="normal">664</span>
-<span class="normal">665</span>
-<span class="normal">666</span>
-<span class="normal">667</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">667</span>
 <span class="normal">668</span>
 <span class="normal">669</span>
 <span class="normal">670</span>
@@ -10572,7 +10624,15 @@ correlation is present, the parent chat.</p>
 <span class="normal">679</span>
 <span class="normal">680</span>
 <span class="normal">681</span>
-<span class="normal">682</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">request_content_by_id</span><span class="p">(</span>
+<span class="normal">682</span>
+<span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span>
+<span class="normal">687</span>
+<span class="normal">688</span>
+<span class="normal">689</span>
+<span class="normal">690</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">request_content_by_id</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">content_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -11385,7 +11445,7 @@ correlation is present, the parent chat.</p>
 
 
 <h3 id="unique_toolkit.content.service.ContentService.search_contents" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">search_contents</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">chat_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">search_contents</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">chat_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">include_failed_content</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 <a href="#unique_toolkit.content.service.ContentService.search_contents" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -11421,6 +11481,38 @@ This function loads complete content of the files from the knowledge base in con
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>chat_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Chat to scope the search to; defaults to the service's chat.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_failed_content</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Also return content whose ingestion failed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
       </tbody>
@@ -11474,10 +11566,15 @@ This function loads complete content of the files from the knowledge base in con
 <span class="normal">498</span>
 <span class="normal">499</span>
 <span class="normal">500</span>
-<span class="normal">501</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">search_contents</span><span class="p">(</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">search_contents</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">where</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
     <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">include_failed_content</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Content</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Performs a search in the knowledge base by filter (and not a smilarity search)</span>
@@ -11485,6 +11582,8 @@ This function loads complete content of the files from the knowledge base in con
 
 <span class="sd">    Args:</span>
 <span class="sd">        where (dict): The search criteria.</span>
+<span class="sd">        chat_id (str | None): Chat to scope the search to; defaults to the service&#39;s chat.</span>
+<span class="sd">        include_failed_content (bool): Also return content whose ingestion failed.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        list[Content]: The search results.</span>
@@ -11496,6 +11595,7 @@ This function loads complete content of the files from the knowledge base in con
         <span class="n">company_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_company_id</span><span class="p">,</span>
         <span class="n">chat_id</span><span class="o">=</span><span class="n">chat_id</span><span class="p">,</span>
         <span class="n">where</span><span class="o">=</span><span class="n">where</span><span class="p">,</span>
+        <span class="n">include_failed_content</span><span class="o">=</span><span class="n">include_failed_content</span><span class="p">,</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -11507,7 +11607,7 @@ This function loads complete content of the files from the knowledge base in con
 
 
 <h3 id="unique_toolkit.content.service.ContentService.search_contents_async" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">search_contents_async</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">chat_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">search_contents_async</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">chat_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">include_failed_content</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-async"><code>async</code></small>
@@ -11548,6 +11648,38 @@ This function loads complete content of the files from the knowledge base in con
                 <em>required</em>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>chat_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Chat to scope the search to; defaults to the service's chat.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_failed_content</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Also return content whose ingestion failed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -11577,11 +11709,7 @@ This function loads complete content of the files from the knowledge base in con
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">503</span>
-<span class="normal">504</span>
-<span class="normal">505</span>
-<span class="normal">506</span>
-<span class="normal">507</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">507</span>
 <span class="normal">508</span>
 <span class="normal">509</span>
 <span class="normal">510</span>
@@ -11598,16 +11726,27 @@ This function loads complete content of the files from the knowledge base in con
 <span class="normal">521</span>
 <span class="normal">522</span>
 <span class="normal">523</span>
-<span class="normal">524</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">search_contents_async</span><span class="p">(</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">search_contents_async</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">where</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
     <span class="n">chat_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">include_failed_content</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Content</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Performs an asynchronous search for content files in the knowledge base by filter.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        where (dict): The search criteria.</span>
+<span class="sd">        chat_id (str | None): Chat to scope the search to; defaults to the service&#39;s chat.</span>
+<span class="sd">        include_failed_content (bool): Also return content whose ingestion failed.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        list[Content]: The search results.</span>
@@ -11619,6 +11758,7 @@ This function loads complete content of the files from the knowledge base in con
         <span class="n">company_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_company_id</span><span class="p">,</span>
         <span class="n">chat_id</span><span class="o">=</span><span class="n">chat_id</span><span class="p">,</span>
         <span class="n">where</span><span class="o">=</span><span class="n">where</span><span class="p">,</span>
+        <span class="n">include_failed_content</span><span class="o">=</span><span class="n">include_failed_content</span><span class="p">,</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -11824,15 +11964,7 @@ This function loads complete content of the files from the knowledge base in con
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">615</span>
-<span class="normal">616</span>
-<span class="normal">617</span>
-<span class="normal">618</span>
-<span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">623</span>
 <span class="normal">624</span>
 <span class="normal">625</span>
 <span class="normal">626</span>
@@ -11866,7 +11998,15 @@ This function loads complete content of the files from the knowledge base in con
 <span class="normal">654</span>
 <span class="normal">655</span>
 <span class="normal">656</span>
-<span class="normal">657</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">upload_content</span><span class="p">(</span>
+<span class="normal">657</span>
+<span class="normal">658</span>
+<span class="normal">659</span>
+<span class="normal">660</span>
+<span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">upload_content</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">path_to_content</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">content_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -12113,15 +12253,7 @@ This function loads complete content of the files from the knowledge base in con
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">539</span>
 <span class="normal">540</span>
 <span class="normal">541</span>
 <span class="normal">542</span>
@@ -12154,7 +12286,15 @@ This function loads complete content of the files from the knowledge base in con
 <span class="normal">569</span>
 <span class="normal">570</span>
 <span class="normal">571</span>
-<span class="normal">572</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">upload_content_from_bytes</span><span class="p">(</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">upload_content_from_bytes</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">content</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">content_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -12388,15 +12528,7 @@ This function loads complete content of the files from the knowledge base in con
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/content/service.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
-<span class="normal">577</span>
-<span class="normal">578</span>
-<span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span>
-<span class="normal">582</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">582</span>
 <span class="normal">583</span>
 <span class="normal">584</span>
 <span class="normal">585</span>
@@ -12427,7 +12559,15 @@ This function loads complete content of the files from the knowledge base in con
 <span class="normal">610</span>
 <span class="normal">611</span>
 <span class="normal">612</span>
-<span class="normal">613</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">upload_content_from_bytes_async</span><span class="p">(</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">upload_content_from_bytes_async</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">content</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span>
     <span class="n">content_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -12563,7 +12703,21 @@ This function loads complete content of the files from the knowledge base in con
 <span class="normal">198</span>
 <span class="normal">199</span>
 <span class="normal">200</span>
-<span class="normal">201</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Content</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Content</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="n">model_config</span> <span class="o">=</span> <span class="n">model_config</span>
     <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
         <span class="n">default</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
@@ -12619,6 +12773,20 @@ This function loads complete content of the files from the knowledge base in con
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">expired_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">expired_at</span> <span class="o">&lt;=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span>
             <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span>
         <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_ingestion_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether the platform reported a failed ingestion for this content.</span>
+
+<span class="sd">        All failure states of the platform&#39;s ``IngestionState`` enum share the</span>
+<span class="sd">        ``FAILED`` prefix (e.g. ``FAILED_PARSING``, ``FAILED_MALWARE_FOUND``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ingestion_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">ingestion_state</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span>
+            <span class="s2">&quot;FAILED&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_ingestion_in_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether the content is still being ingested and is not yet searchable.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ingestion_state</span> <span class="ow">in</span> <span class="n">_INGESTION_IN_PROGRESS_STATES</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -14102,6 +14270,74 @@ In that case, it will be called later, when the model is rebuilt automatically o
         <span class="n">fields_set</span> <span class="o">-=</span> <span class="nb">set</span><span class="p">(</span><span class="n">exclude</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">copy_internals</span><span class="o">.</span><span class="n">_copy_and_set_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">fields_set</span><span class="p">,</span> <span class="n">extra</span><span class="p">,</span> <span class="n">private</span><span class="p">,</span> <span class="n">deep</span><span class="o">=</span><span class="n">deep</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="unique_toolkit.content.schemas.Content.has_ingestion_failed" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">has_ingestion_failed</span><span class="p">()</span></code>
+
+<a href="#unique_toolkit.content.schemas.Content.has_ingestion_failed" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Whether the platform reported a failed ingestion for this content.</p>
+<p>All failure states of the platform's <code>IngestionState</code> enum share the
+<code>FAILED</code> prefix (e.g. <code>FAILED_PARSING</code>, <code>FAILED_MALWARE_FOUND</code>).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>unique_toolkit/unique_toolkit/content/schemas.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">has_ingestion_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Whether the platform reported a failed ingestion for this content.</span>
+
+<span class="sd">    All failure states of the platform&#39;s ``IngestionState`` enum share the</span>
+<span class="sd">    ``FAILED`` prefix (e.g. ``FAILED_PARSING``, ``FAILED_MALWARE_FOUND``).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ingestion_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">ingestion_state</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span>
+        <span class="s2">&quot;FAILED&quot;</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="unique_toolkit.content.schemas.Content.is_ingestion_in_progress" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">is_ingestion_in_progress</span><span class="p">()</span></code>
+
+<a href="#unique_toolkit.content.schemas.Content.is_ingestion_in_progress" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Whether the content is still being ingested and is not yet searchable.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>unique_toolkit/unique_toolkit/content/schemas.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">is_ingestion_in_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Whether the content is still being ingested and is not yet searchable.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ingestion_state</span> <span class="ow">in</span> <span class="n">_INGESTION_IN_PROGRESS_STATES</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -21883,9 +22119,9 @@ message text that this reference corresponds to.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>unique_toolkit/unique_toolkit/content/schemas.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">263</span>
-<span class="normal">264</span>
-<span class="normal">265</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ContentSearchType</span><span class="p">(</span><span class="n">StrEnum</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ContentSearchType</span><span class="p">(</span><span class="n">StrEnum</span><span class="p">):</span>
     <span class="n">COMBINED</span> <span class="o">=</span> <span class="s2">&quot;COMBINED&quot;</span>
     <span class="n">VECTOR</span> <span class="o">=</span> <span class="s2">&quot;VECTOR&quot;</span>
 </code></pre></div></td></tr></table></div>
@@ -21938,10 +22174,10 @@ message text that this reference corresponds to.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>unique_toolkit/unique_toolkit/content/schemas.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">293</span>
-<span class="normal">294</span>
-<span class="normal">295</span>
-<span class="normal">296</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ContentRerankerConfig</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ContentRerankerConfig</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="n">model_config</span> <span class="o">=</span> <span class="n">model_config</span>
     <span class="n">deployment_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">serialization_alias</span><span class="o">=</span><span class="s2">&quot;deploymentName&quot;</span><span class="p">)</span>
     <span class="n">options</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>

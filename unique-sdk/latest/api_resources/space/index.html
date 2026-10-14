@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.40.0/api_resources/space/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/space/">
       
       
         <link rel="prev" href="../short_term_memory/">
@@ -1482,6 +1482,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spacemcpserverparams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Space.McpServerParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spacemcpserverstatusresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Space.McpServerStatusResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spacemodule" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2686,6 +2708,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spacemcpserverparams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Space.McpServerParams
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spacemcpserverstatusresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Space.McpServerStatusResponse
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spacemodule" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2897,11 +2941,12 @@
 <li><code>switchableLanguageModels</code> (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when <code>allowModelSwitching</code> is True. See <a href="#spaceswitchablelanguagemodel"><code>Space.SwitchableLanguageModel</code></a> for structure.</li>
 <li><code>isExternal</code> (bool, optional) - Whether the space is external</li>
 <li><code>isPinned</code> (bool, optional) - Whether the space is pinned</li>
-<li><code>uiType</code> (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type</li>
+<li><code>uiType</code> (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI", "SWAPPABLE_INTELLIGENCE"], optional) - UI type. <code>SWAPPABLE_INTELLIGENCE</code> creates a Unique AI Conduct space: use one <code>SwappableIntelligence</code> module as <code>fallbackModule</code> and put the harness settings in its <code>configuration</code>.</li>
 <li><code>settings</code> (Dict, optional) - Space settings</li>
 <li><code>isSubAgent</code> (bool, optional) - Set to <code>True</code> to create the space as a sub-agent</li>
 <li><code>subAgentSettings</code> (Dict, optional) - Tool settings for a sub-agent. See <a href="#spacesubagentsettings"><code>Space.SubAgentSettings</code></a> for structure.</li>
 <li><code>subAgentIds</code> (List[str], optional) - Full list of sub-agent assistant IDs to link to this parent space</li>
+<li><code>mcpServers</code> (List[McpServerParams], optional) - MCP servers (connectors) to attach, each with its tool selection. See <a href="#spacemcpserverparams"><code>Space.McpServerParams</code></a>. An unknown <code>mcpServerId</code> returns 404; a space-restricted server, an unknown tool name, or enabling a tool the company has disabled returns 400. Nothing is created when the input is rejected.</li>
 </ul>
 <p><strong>Returns:</strong></p>
 <p>Returns a <a href="#space"><code>Space</code></a> object.</p>
@@ -2977,6 +3022,53 @@
     <span class="n">subAgentIds</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;assistant_hjcdga64bkcjnhu4&quot;</span><span class="p">,</span> <span class="s2">&quot;assistant_l9sv3d2q8bmnxk4p&quot;</span><span class="p">]</span>
 <span class="p">)</span>
 </code></pre></div>
+<p><strong>Example - Create a Conduct Space from a Template Space:</strong></p>
+<p>Read the setup of an existing Conduct space with <code>Space.get_space</code>, then create a new space from it. Change the name, instructions or tool selection before you create it.</p>
+<div class="highlight"><pre><span></span><code><span class="n">template</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Space</span><span class="o">.</span><span class="n">get_space</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">space_id</span><span class="o">=</span><span class="s2">&quot;assistant_conduct_template&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">space</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Space</span><span class="o">.</span><span class="n">create_space</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Due Diligence Agent&quot;</span><span class="p">,</span>
+    <span class="n">uiType</span><span class="o">=</span><span class="s2">&quot;SWAPPABLE_INTELLIGENCE&quot;</span><span class="p">,</span>
+    <span class="n">fallbackModule</span><span class="o">=</span><span class="n">template</span><span class="p">[</span><span class="s2">&quot;fallbackModule&quot;</span><span class="p">],</span>
+    <span class="n">modules</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">module</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="n">module</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;configuration&quot;</span><span class="p">:</span> <span class="n">module</span><span class="p">[</span><span class="s2">&quot;configuration&quot;</span><span class="p">],</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">template</span><span class="p">[</span><span class="s2">&quot;modules&quot;</span><span class="p">]</span>
+    <span class="p">],</span>
+    <span class="n">settings</span><span class="o">=</span><span class="n">template</span><span class="p">[</span><span class="s2">&quot;settings&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="p">{},</span>
+    <span class="n">mcpServers</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;mcpServerId&quot;</span><span class="p">:</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;mcpServerId&quot;</span><span class="p">],</span> <span class="s2">&quot;tools&quot;</span><span class="p">:</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;tools&quot;</span><span class="p">]}</span>
+        <span class="k">for</span> <span class="n">server</span> <span class="ow">in</span> <span class="n">template</span><span class="p">[</span><span class="s2">&quot;assistantMcpServers&quot;</span><span class="p">]</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><strong>Example - Attach MCP Servers on Creation:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">servers</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">MCP</span><span class="o">.</span><span class="n">list_servers</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span> <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">)</span>
+<span class="n">jira</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">servers</span><span class="p">[</span><span class="s2">&quot;mcpServers&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Jira&quot;</span><span class="p">)</span>
+
+<span class="n">space</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Space</span><span class="o">.</span><span class="n">create_space</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Issue Triage Assistant&quot;</span><span class="p">,</span>
+    <span class="n">fallbackModule</span><span class="o">=</span><span class="s2">&quot;UniqueAi&quot;</span><span class="p">,</span>
+    <span class="n">modules</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;UniqueAi&quot;</span><span class="p">,</span> <span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">}],</span>
+    <span class="n">mcpServers</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;mcpServerId&quot;</span><span class="p">:</span> <span class="n">jira</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;tools&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;search_issues&quot;</span><span class="p">,</span> <span class="s2">&quot;isEnabled&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}],</span>
+        <span class="p">}</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
 </details>
 <details class="example">
 <summary><code>unique_sdk.Space.update_space</code> - Update a space</summary>
@@ -3007,10 +3099,11 @@
 <li><code>allowModelSwitching</code> (bool, optional) - Whether end users may switch the language model in chat</li>
 <li><code>switchableLanguageModels</code> (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when <code>allowModelSwitching</code> is True. Pass an empty list to clear the allowlist. See <a href="#spaceswitchablelanguagemodel"><code>Space.SwitchableLanguageModel</code></a> for structure.</li>
 <li><code>allowEndUserSpace</code> (bool, optional) - Allow end users to create custom spaces from this assistant</li>
-<li><code>uiType</code> (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy.</li>
+<li><code>uiType</code> (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI", "SWAPPABLE_INTELLIGENCE"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy. A space cannot be converted to or from an Embedded App.</li>
 <li><code>isSubAgent</code> (bool, optional) - Whether the space is a sub-agent</li>
 <li><code>subAgentSettings</code> (Dict, optional) - Tool settings for a sub-agent. See <a href="#spacesubagentsettings"><code>Space.SubAgentSettings</code></a> for structure.</li>
 <li><code>subAgentIds</code> (List[str], optional) - Full replacement list of caller-visible linked sub-agent assistant IDs. Pass <code>[]</code> to remove all caller-visible linked sub-agents. Omit the field to keep existing links unchanged. Linked sub-agents hidden from the caller because they lack Use access are preserved by the API.</li>
+<li><code>mcpServers</code> (List[McpServerParams], optional) - MCP servers to attach or change. Only listed servers change; servers that are not listed keep their state. Pass <code>"tools": []</code> to disable a server for the space. See <a href="#spacemcpserverparams"><code>Space.McpServerParams</code></a>.</li>
 </ul>
 <p><strong>Returns:</strong></p>
 <p>Returns a <a href="#space"><code>Space</code></a> object.</p>
@@ -3072,6 +3165,35 @@
     <span class="n">space_id</span><span class="o">=</span><span class="s2">&quot;assistant_parent&quot;</span><span class="p">,</span>
     <span class="n">subAgentIds</span><span class="o">=</span><span class="p">[]</span>
 <span class="p">)</span>
+</code></pre></div>
+<p><strong>Example - Disable an MCP Server for the Space:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">space</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Space</span><span class="o">.</span><span class="n">update_space</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">space_id</span><span class="o">=</span><span class="s2">&quot;assistant_parent&quot;</span><span class="p">,</span>
+    <span class="n">mcpServers</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;mcpServerId&quot;</span><span class="p">:</span> <span class="s2">&quot;mcp_server_u3x61phmqxvlhswjlm3byvvr&quot;</span><span class="p">,</span> <span class="s2">&quot;tools&quot;</span><span class="p">:</span> <span class="p">[]}],</span>
+<span class="p">)</span>
+</code></pre></div>
+</details>
+<details class="example">
+<summary><code>unique_sdk.Space.get_mcp_server_status</code> - Get MCP server status for the caller</summary>
+<p>Get the MCP servers enabled on a space with the calling user's own connection state. Use it after installing a space to find servers the user still has to sign in to. Never returns other users' state.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>space_id</code> (str, required) - The ID of the space</li>
+</ul>
+<p><strong>Returns:</strong></p>
+<p>Returns a <a href="#spacemcpserverstatusresponse"><code>McpServerStatusResponse</code></a> object.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">status</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Space</span><span class="o">.</span><span class="n">get_mcp_server_status</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">space_id</span><span class="o">=</span><span class="s2">&quot;assistant_abc123&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">server</span> <span class="ow">in</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;mcpServers&quot;</span><span class="p">]:</span>
+    <span class="k">if</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;requiresOAuth&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">server</span><span class="p">[</span><span class="s2">&quot;isOAuth2Connected&quot;</span><span class="p">]:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sign in to </span><span class="si">{</span><span class="n">server</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">server</span><span class="p">[</span><span class="s1">&#39;oauth2Url&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div>
 </details>
 <details class="example">
@@ -3698,10 +3820,41 @@ the next message without <code>languageModel</code> runs on the space's configur
 <li><code>assistantId</code> (str) - Associated assistant/space ID</li>
 <li><code>mcpServerId</code> (str) - MCP server ID</li>
 <li><code>isEnabled</code> (bool) - Whether the MCP server is enabled</li>
+<li><code>tools</code> (List[McpServerTool]) - Tool selection on this space, sorted by name. Each entry has <code>name</code> (str) and <code>isEnabled</code> (bool).</li>
 <li><code>createdAt</code> (str) - Creation timestamp (ISO 8601)</li>
 <li><code>updatedAt</code> (str) - Last update timestamp (ISO 8601)</li>
 </ul>
 <p><strong>Used in:</strong> <code>Space.assistantMcpServers</code></p>
+</details>
+<h4 id="spacemcpserverparams">Space.McpServerParams<a class="headerlink" href="#spacemcpserverparams" title="Permanent link">&para;</a></h4>
+<details class="note">
+<summary>The <code>Space.McpServerParams</code> type attaches an MCP server (connector) to a space</summary>
+<p><strong>Fields:</strong></p>
+<ul>
+<li><code>mcpServerId</code> (str) - MCP server ID from <a href="../mcp/"><code>MCP.list_servers</code></a></li>
+<li><code>tools</code> (List[McpServerToolParams] | None, optional) - The complete tool selection for this server. Each entry has <code>name</code> (str) and <code>isEnabled</code> (bool). Listed tools take the given state, unlisted tools are disabled, and an empty list disables the server for the space. Omit to enable every tool the company has enabled.</li>
+</ul>
+<p>Module configurations can also reference MCP tools (<code>configuration.mcpTool</code> with <code>mcpServerId</code>). Those entries are applied first, so <code>mcpServers</code> wins for a server that appears in both.</p>
+<p><strong>Used in:</strong> <code>Space.create_space()</code>, <code>Space.update_space()</code></p>
+</details>
+<h4 id="spacemcpserverstatusresponse">Space.McpServerStatusResponse<a class="headerlink" href="#spacemcpserverstatusresponse" title="Permanent link">&para;</a></h4>
+<details class="note">
+<summary>The <code>Space.McpServerStatusResponse</code> object contains the caller's MCP server state for a space</summary>
+<p><strong>Fields:</strong></p>
+<ul>
+<li><code>spaceId</code> (str) - Space ID</li>
+<li><code>mcpServers</code> (List[McpServerStatus]) - Servers enabled on the space, sorted by name:<ul>
+<li><code>mcpServerId</code> (str) - MCP server ID</li>
+<li><code>name</code> (str) - MCP server name</li>
+<li><code>isEnabled</code> (bool) - Whether the server is enabled for the space</li>
+<li><code>requiresOAuth</code> (bool) - Whether each user has to sign in before the server's tools run</li>
+<li><code>isOAuth2Connected</code> (bool) - Whether the calling user has a usable connection</li>
+<li><code>oauth2Url</code> (str | None) - URL the calling user opens to connect. <code>None</code> when connected or when no sign-in is needed.</li>
+<li><code>enabledToolNames</code> (List[str]) - Tools enabled on the space that the caller can run</li>
+</ul>
+</li>
+</ul>
+<p><strong>Returned by:</strong> <code>Space.get_mcp_server_status()</code></p>
 </details>
 <h4 id="spacemodule">Space.Module<a class="headerlink" href="#spacemodule" title="Permanent link">&para;</a></h4>
 <details class="note">
