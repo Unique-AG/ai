@@ -63,6 +63,9 @@ from unique_sdk.cli.commands.folders import (
     is_mkdir_error_output as _is_mkdir_error_output,
 )
 from unique_sdk.cli.commands.mcp import cmd_mcp
+from unique_sdk.cli.commands.mcp import (
+    is_error_output as _is_mcp_error_output,
+)
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
 from unique_sdk.cli.commands.read import cmd_read
 from unique_sdk.cli.commands.read import (
@@ -844,7 +847,7 @@ def mcp(
     """
     resolved_message_id = _resolve_cli_message_id(ctx, message_id, required=True)
     resolved_chat_id = _resolve_cli_chat_id(ctx, chat_id, required=True)
-    click.echo(
+    emit(
         cmd_mcp(
             LazyState.get(ctx),
             chat_id=resolved_chat_id or "",
@@ -852,7 +855,8 @@ def mcp(
             payload=payload,
             file=file_path,
             stdin=use_stdin,
-        )
+        ),
+        is_error=_is_mcp_error_output,
     )
 
 
