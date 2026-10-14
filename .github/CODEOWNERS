@@ -3,11 +3,5 @@
 # All changes must be approved by internal reviewers before being merged to main branch.
 #
 
-# Toolkit and everything else not listed below.
-* @Unique-AG/data-science
-unique_toolkit/ @Unique-AG/data-science
-
-# SDK, unique-cli, tutorials, and unique_mcp. Staff is enough; collaborators cannot approve each other.
-tutorials/ @Unique-AG/Staff
-unique_mcp/ @Unique-AG/Staff
-unique_sdk/ @Unique-AG/Staff
+# Staff owns all code so collaborators cannot approve each other.
+* @Unique-AG/Staff
