@@ -58,6 +58,9 @@ from unique_sdk.cli.commands.files import (
 from unique_sdk.cli.commands.files import (
     is_permission_denied_output as _is_permission_denied_output,
 )
+from unique_sdk.cli.commands.files import (
+    is_upload_error_output as _is_upload_error_output,
+)
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.folders import (
     is_mkdir_error_output as _is_mkdir_error_output,
@@ -67,6 +70,9 @@ from unique_sdk.cli.commands.mcp import (
     is_error_output as _is_mcp_error_output,
 )
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.navigation import (
+    is_ls_error_output as _is_ls_error_output,
+)
 from unique_sdk.cli.commands.read import cmd_read
 from unique_sdk.cli.commands.read import (
     is_error_output as _is_read_error_output,
@@ -322,23 +328,25 @@ def ls(ctx: click.Context, target: str | None) -> None:
       unique-cli ls scope_abc    List by scope ID
     """
     output = cmd_ls(LazyState.get(ctx), target)
-    emit(output)
+    emit(output, is_error=_is_ls_error_output)
 
 
 @main.command()
 @click.argument("name")
 @click.pass_context
 def mkdir(ctx: click.Context, name: str) -> None:
-    """Create a new folder under the current directory.
+    """Create a folder by relative name or absolute path.
 
     \b
-    NAME is the folder name to create. Nested paths are supported
-    (e.g., "A/B/C" creates the full hierarchy).
+    A relative NAME is created under the current directory. An absolute
+    path (starting with /) is created from the root, including under
+    /home-<userId>. Nested paths create the full hierarchy.
 
     \b
     Examples:
       unique-cli mkdir Q2
       unique-cli mkdir "2025/Q1"
+      unique-cli mkdir /home-user_1/second-brain/clients/X
     """
     output = cmd_mkdir(LazyState.get(ctx), name)
     emit(output, is_error=_is_mkdir_error_output)
@@ -421,7 +429,7 @@ def upload(ctx: click.Context, local_path: str, destination: str | None) -> None
       unique-cli upload ./report.pdf /Archive/2025/
     """
     output = cmd_upload(LazyState.get(ctx), local_path, destination)
-    emit(output)
+    emit(output, is_error=_is_upload_error_output)
 
 
 @main.command()

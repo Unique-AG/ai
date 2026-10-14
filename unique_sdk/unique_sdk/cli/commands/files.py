@@ -11,6 +11,7 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_content_info
+from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
@@ -280,6 +281,18 @@ def _resolve_upload_destination(
         resolved_id = info.get("id")
         if not resolved_id:
             raise ValueError(f"folder not found: {folder_path}")
+        try:
+            actual = canonical_folder_path(
+                state.config.user_id,
+                state.config.company_id,
+                resolved_id,
+            )
+        except (ValueError, unique_sdk.UniqueError) as e:
+            raise ValueError(f"refused to upload to {folder_path}: {e}") from e
+        if not same_folder_path(actual, folder_path):
+            raise ValueError(
+                f"refused to upload to {folder_path}: resolved to {actual}"
+            )
         return resolved_id, display_name
 
     scope_id = state.scope_id
@@ -350,7 +363,12 @@ def cmd_upload(
             versioning_enabled=True,
         )
 
-        content_id = result.id if hasattr(result, "id") else "?"
+        content_id = getattr(result, "id", None)
+        if not content_id:
+            return (
+                f"upload: refused to upload {display_name} to {scope_id}: "
+                "no content id returned"
+            )
         folder_path = unique_sdk.Folder.get_folder_path(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
@@ -358,7 +376,7 @@ def cmd_upload(
         ).get("folderPath", scope_id)
         return f"Uploaded: {display_name} ({content_id}) to {folder_path}"
 
-    except (ValueError, unique_sdk.UniqueError, OSError) as e:
+    except (ValueError, unique_sdk.UniqueError, OSError, RuntimeError) as e:
         return f"upload: {e}"
 
 
@@ -490,6 +508,15 @@ def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
         return f"Renamed: {display_name} -> {result.get('title', new_name)}\n{format_content_info(result)}"
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"mv: {e}"
+
+
+def is_upload_error_output(output: str) -> bool:
+    """Return True when *output* is a ``cmd_upload`` error.
+
+    Success text is ``Uploaded: ...``. Local misses, missing destinations,
+    and API failures all start with ``upload:`` and must exit non-zero.
+    """
+    return output.startswith("upload:")
 
 
 def is_permission_denied_output(output: str) -> bool:

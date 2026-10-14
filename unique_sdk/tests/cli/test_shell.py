@@ -77,9 +77,11 @@ class TestShellNavigation:
         out = _capture(_shell("/Reports"), "pwd")
         assert "/Reports" in out
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd(self, mock_get_info: MagicMock) -> None:
+    def test_cd(self, mock_get_info: MagicMock, mock_path: MagicMock) -> None:
         mock_get_info.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         sh = _shell()
         out = _capture(sh, "cd Reports")
         assert "/Reports" in out
@@ -104,6 +106,7 @@ class TestShellNavigation:
         out = _capture(_shell(), "ls")
         assert "0 folder(s), 0 file(s)" in out
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     @patch("unique_sdk.Folder.get_info")
@@ -112,8 +115,10 @@ class TestShellNavigation:
         mock_info: MagicMock,
         mock_infos: MagicMock,
         mock_content: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         mock_info.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         mock_infos.return_value = {
             "folderInfos": [],
             "totalCount": 0,
@@ -127,11 +132,13 @@ class TestShellNavigation:
 
 
 class TestShellFolderOps:
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir(self, mock: MagicMock) -> None:
+    def test_mkdir(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {
             "createdFolders": [{"id": "scope_new"}],
         }
+        mock_path.return_value = {"folderPath": "/R/Q2"}
         out = _capture(_shell("/R", "scope_r"), "mkdir Q2")
         assert "Created" in out
 

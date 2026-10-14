@@ -239,12 +239,13 @@ class UniqueShell(cmd.Cmd):
     # -- Folder operations --
 
     def do_mkdir(self, arg: str) -> None:
-        """Create a new folder under the current directory.
+        """Create a folder by relative name or absolute path.
 
         Usage: mkdir <name>
 
-        Creates a child folder with the given name. Nested paths are
-        supported (e.g., "A/B/C" creates the full hierarchy).
+        A relative name is created under the current directory. An absolute
+        path (starting with /) is created from the root, including under
+        /home-<userId>. Nested paths create the full hierarchy.
 
         Examples:
           /Reports> mkdir Q2
@@ -252,6 +253,9 @@ class UniqueShell(cmd.Cmd):
 
           /Reports> mkdir "2025/Q1"
           Created: /Reports/2025/Q1 (scope_xyz999)
+
+          /> mkdir /home-user_1/second-brain/clients/X
+          Created: /home-user_1/second-brain/clients/X (scope_home1)
         """
         name = arg.strip()
         if not name:
