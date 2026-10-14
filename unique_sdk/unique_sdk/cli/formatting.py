@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from unique_sdk._error import PermissionError as SdkPermissionError
 from unique_sdk.api_resources._content import Content
 from unique_sdk.api_resources._folder import Folder
 
@@ -153,6 +154,13 @@ def format_folder_info(info: Folder.FolderInfo) -> str:
         ["Updated:", _format_date(info.get("updatedAt"))],
     ]
     return "\n".join(_pad_columns(rows))
+
+
+def format_write_error(command: str, error: Exception) -> str:
+    """Format a failed Knowledge Base write; a 403 uses the ``permission denied`` shape."""
+    if isinstance(error, SdkPermissionError):
+        return f"{command}: permission denied: {error}"
+    return f"{command}: {error}"
 
 
 def format_scheduled_task(task: ScheduledTask) -> str:

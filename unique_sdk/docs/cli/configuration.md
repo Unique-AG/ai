@@ -19,6 +19,7 @@ Unique CLI reads all configuration from environment variables. No config files a
 | `UNIQUE_API_KEY` | API key for authenticating with the Unique platform. Not needed on localhost or in a secured cluster. | *(empty)* |
 | `UNIQUE_APP_ID` | Application identifier. Not needed on localhost or in a secured cluster. | *(empty)* |
 | `UNIQUE_API_BASE` | Gateway root (typically ends with `/public/chat-gen2`). Set the **prefix only**, not a full endpoint path such as `/content/infos`; leading or trailing quotation marks on the env value are stripped when composing URLs. | `https://gateway.unique.app/public/chat-gen2` |
+| `UNIQUE_SDK_SANDBOX_KB_WRITES` | Set to `1`, `true` or `yes` in agent sandboxes. Knowledge Base writes (`mkdir`, `rmdir`, `mvdir`, `upload`, `rm`, `mv`, `restore-version`) then go to the `/sandbox-knowledge-base` routes, which refuse to change skills. Reads are unaffected. Also available as `unique_sdk.sandbox_knowledge_base_writes`. | *(off)* |
 
 ## Setup
 

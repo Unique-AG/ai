@@ -8,6 +8,7 @@ from typing import (
 )
 
 from unique_sdk._api_resource import APIResource
+from unique_sdk._knowledge_base_routing import knowledge_base_write_url
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
 
@@ -410,7 +411,7 @@ class Folder(APIResource["Folder"]):
             "Folder.CreateFolderStructureResponse",
             cls._static_request(
                 "post",
-                cls.RESOURCE_URL,
+                knowledge_base_write_url(cls.RESOURCE_URL),
                 user_id,
                 company_id=company_id,
                 params=params,
@@ -425,7 +426,7 @@ class Folder(APIResource["Folder"]):
             "Folder.CreateFolderStructureResponse",
             await cls._static_request_async(
                 "post",
-                cls.RESOURCE_URL,
+                knowledge_base_write_url(cls.RESOURCE_URL),
                 user_id,
                 company_id=company_id,
                 params=params,
@@ -590,7 +591,7 @@ class Folder(APIResource["Folder"]):
             "Folder.FolderInfo",
             cls._static_request(
                 "patch",
-                f"{cls.RESOURCE_URL}/{scopeId}",
+                knowledge_base_write_url(f"{cls.RESOURCE_URL}/{scopeId}"),
                 user_id,
                 company_id=company_id,
                 params=params,
@@ -629,7 +630,7 @@ class Folder(APIResource["Folder"]):
             "Folder.FolderInfo",
             await cls._static_request_async(
                 "patch",
-                f"{cls.RESOURCE_URL}/{scopeId}",
+                knowledge_base_write_url(f"{cls.RESOURCE_URL}/{scopeId}"),
                 user_id,
                 company_id=company_id,
                 params=params,
@@ -695,7 +696,7 @@ class Folder(APIResource["Folder"]):
             "Folder.DeleteResponse",
             cls._static_request(
                 "delete",
-                f"{cls.RESOURCE_URL}/{scopeId}",
+                knowledge_base_write_url(f"{cls.RESOURCE_URL}/{scopeId}"),
                 user_id,
                 company_id=company_id,
                 params=params,
@@ -722,7 +723,7 @@ class Folder(APIResource["Folder"]):
             "Folder.DeleteResponse",
             await cls._static_request_async(
                 "delete",
-                f"{cls.RESOURCE_URL}/{scopeId}",
+                knowledge_base_write_url(f"{cls.RESOURCE_URL}/{scopeId}"),
                 user_id,
                 company_id=company_id,
                 params=params,
