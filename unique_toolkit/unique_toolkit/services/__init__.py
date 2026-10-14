@@ -36,6 +36,14 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     ),
 }
 
-__all__ = list(_EXPORTS)
+__all__ = [
+    "AuthContext",
+    "ChatContext",
+    "ChatService",
+    "KnowledgeBaseService",
+    "ServiceNotRegisteredError",
+    "UniqueContext",
+    "UniqueServiceFactory",
+]
 
 _install(globals(), _EXPORTS)

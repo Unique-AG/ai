@@ -104,7 +104,21 @@ __all__ = [
     "run_async_tasks_parallel",
     "to_async",
     "verify_signature_and_construct_event",
-    *_SCHEMA_EXPORTS,
+    "BaseEvent",
+    "ChatEvent",
+    "ChatEventAdditionalParameters",
+    "ChatEventAssistantMessage",
+    "ChatEventPayload",
+    "ChatEventUserMessage",
+    "Event",
+    "EventAssistantMessage",
+    "EventName",
+    "EventPayload",
+    "EventUserMessage",
+    "McpReferenceMapping",
+    "McpServer",
+    "McpTool",
+    "UploadedFileInfo",
 ]
 
 _install(globals(), _EXPORTS)

@@ -75,6 +75,16 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     ),
 }
 
-__all__ = list(_EXPORTS)
+__all__ = [
+    "ConfigDiffer",
+    "DefaultChangeReport",
+    "ConfigExporter",
+    "ExportManifest",
+    "ConfigEntry",
+    "ConfigRegistry",
+    "register_config",
+    "ConfigValidator",
+    "ValidationReport",
+]
 
 _install(globals(), _EXPORTS)
