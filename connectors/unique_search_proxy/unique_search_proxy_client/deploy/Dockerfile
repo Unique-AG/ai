@@ -24,7 +24,7 @@ COPY . .
 RUN uv sync --frozen --package unique-search-proxy --no-dev --no-editable
 
 # ── Stage 2: lean runtime image ───────────────────────────────────────────────
-FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+FROM python:3.12-slim-trixie@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS runtime
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
