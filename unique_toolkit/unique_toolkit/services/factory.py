@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Protocol, overload
 from typing_extensions import Self, TypeVar
 
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.services.chat_service import ChatService
-from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 if TYPE_CHECKING:
     from unique_toolkit._common.chunk_relevancy_sorter.service import (
         ChunkRelevancySorter,
     )
+    from unique_toolkit.services.chat_service import ChatService
+    from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 
 class ServiceProtocol(Protocol):
@@ -22,6 +22,16 @@ class ServiceProtocol(Protocol):
 
 
 S = TypeVar("S", bound=ServiceProtocol)
+
+
+_KNOWN_SERVICE_NAMES = frozenset(
+    {
+        "ChatService",
+        "ContentService",
+        "KnowledgeBaseService",
+        "LanguageModelService",
+    }
+)
 
 
 class ServiceNotRegisteredError(Exception):
@@ -81,11 +91,10 @@ class UniqueServiceFactory:
             service_name: The registered name of the service to create.
             **kwargs: Additional keyword arguments forwarded to the creator.
         """
-        service_creator: Callable[[UniqueSettings], ServiceProtocol] | None = None
-        if isinstance(service_name, str):
-            service_creator = self._registry.get(service_name, None)
-        if isinstance(service_name, type):
-            service_creator = self._registry.get(service_name.__name__, None)
+        key = service_name if isinstance(service_name, str) else service_name.__name__
+        if key not in self._registry and key in _KNOWN_SERVICE_NAMES:
+            self.register_known_services()
+        service_creator = self._registry.get(key)
 
         if service_creator is None:
             raise ServiceNotRegisteredError(service_name)
@@ -96,10 +105,14 @@ class UniqueServiceFactory:
 
     def chat_service(self, **kwargs: Any) -> ChatService:
         """Create a :class:`ChatService` using the pre-bound context."""
+        from unique_toolkit.services.chat_service import ChatService
+
         return self.get(ChatService, **kwargs)
 
     def knowledge_base_service(self, **kwargs: Any) -> KnowledgeBaseService:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
+        from unique_toolkit.services.knowledge_base import KnowledgeBaseService
+
         return self.get(KnowledgeBaseService, **kwargs)
 
     def chunk_relevancy_sorter(self) -> ChunkRelevancySorter:
@@ -155,12 +168,17 @@ class UniqueServiceFactory:
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [
+        service_classes = (
             KnowledgeBaseService,
             ChatService,
             ContentService,
             LanguageModelService,
-        ]:
+        )
+        if {service.__name__ for service in service_classes} != _KNOWN_SERVICE_NAMES:
+            raise RuntimeError(
+                "register_known_services does not match _KNOWN_SERVICE_NAMES"
+            )
+        for service_class in service_classes:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 
@@ -187,6 +205,8 @@ class UniqueServiceFactory:
             ServiceNotRegisteredError: If *service_type* has not been registered.
         """
         key = service_type if isinstance(service_type, str) else service_type.__name__
+        if key not in cls._registry and key in _KNOWN_SERVICE_NAMES:
+            cls.register_known_services()
         if key not in cls._registry:
             raise ServiceNotRegisteredError(service_type)
         return cls._registry[key](settings, **kwargs)
