@@ -17,6 +17,7 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentInfo,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
     DeleteContentResponse,
     FolderInfo,
@@ -45,6 +46,8 @@ def search_content_chunks(
     metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
+    merge_strategy: ContentSearchMergeStrategy | None = None,
+    include_scores: bool | None = None,
 ) -> list[ContentChunk]:
     """
     Performs a synchronous search for content chunks in the knowledge base.
@@ -60,6 +63,8 @@ def search_content_chunks(
         metadata_filter (dict | None): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
         content_ids (list[str] | None): The content IDs to search. Defaults to None.
         score_threshold (float | None): The minimum score threshold for results. Defaults to 0.
+        merge_strategy (ContentSearchMergeStrategy | None): How a COMBINED search merges vector and full-text results. Ignored by other search types. Defaults to the backend configuration.
+        include_scores (bool | None): Whether to populate ``ContentChunk.score``. Defaults to None.
     Returns:
         list[ContentChunk]: The search results.
     """
@@ -86,6 +91,8 @@ def search_content_chunks(
             metaDataFilter=metadata_filter,
             contentIds=content_ids,
             scoreThreshold=score_threshold,
+            mergeStrategy=merge_strategy.value if merge_strategy else None,
+            includeScores=include_scores,
         )
         return map_to_content_chunks(searches)
     except Exception as e:
@@ -107,6 +114,8 @@ async def search_content_chunks_async(
     metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
+    merge_strategy: ContentSearchMergeStrategy | None = None,
+    include_scores: bool | None = None,
 ):
     """
     Performs an asynchronous search for content chunks in the knowledge base.
@@ -136,6 +145,8 @@ async def search_content_chunks_async(
             metaDataFilter=metadata_filter,
             contentIds=content_ids,
             scoreThreshold=score_threshold,
+            mergeStrategy=merge_strategy.value if merge_strategy else None,
+            includeScores=include_scores,
         )
         return map_to_content_chunks(searches)
     except Exception as e:

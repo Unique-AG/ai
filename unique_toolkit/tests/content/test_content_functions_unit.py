@@ -21,6 +21,7 @@ from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
 )
 
@@ -352,6 +353,51 @@ def test_search_with_metadata_filter(mock_sdk, sample_content_chunk_data):
     mock_sdk.Search.create.assert_called_once()
     call_kwargs = mock_sdk.Search.create.call_args[1]
     assert call_kwargs["metaDataFilter"] == metadata_filter
+
+
+def test_search_forwards_merge_strategy_and_include_scores(
+    mock_sdk, sample_content_chunk_data
+):
+    # Setup
+    mock_sdk.Search.create.return_value = [sample_content_chunk_data]
+
+    # Execute
+    result = search_content_chunks(
+        user_id="user123",
+        company_id="company123",
+        chat_id="chat123",
+        search_string="test query",
+        search_type=ContentSearchType.COMBINED,
+        limit=10,
+        merge_strategy=ContentSearchMergeStrategy.RRF,
+        include_scores=True,
+    )
+
+    # Assert
+    call_kwargs = mock_sdk.Search.create.call_args[1]
+    assert call_kwargs["mergeStrategy"] == "RRF"
+    assert call_kwargs["includeScores"] is True
+    assert result[0].score == 0.95
+
+
+def test_search_without_merge_strategy_sends_none(mock_sdk, sample_content_chunk_data):
+    # Setup
+    mock_sdk.Search.create.return_value = [sample_content_chunk_data]
+
+    # Execute
+    search_content_chunks(
+        user_id="user123",
+        company_id="company123",
+        chat_id="chat123",
+        search_string="test query",
+        search_type=ContentSearchType.VECTOR,
+        limit=10,
+    )
+
+    # Assert
+    call_kwargs = mock_sdk.Search.create.call_args[1]
+    assert call_kwargs["mergeStrategy"] is None
+    assert call_kwargs["includeScores"] is None
 
 
 def test_upload_content_error_handling(mock_sdk, tmp_path):
