@@ -37,13 +37,8 @@ _SUPPORTED_UPLOAD_MIME_TYPES = {
     ".md": "text/markdown",
 }
 
-# Cap how many search hits name resolution will consider. Exact title/key
-# matches should be rare; this is a safety bound so a pathological index
-# cannot turn one resolve into unbounded work. See UN-26945.
+# Bounds so one name resolve can never page through the whole knowledge base.
 _MAX_RESOLVE_MATCH_CANDIDATES = 100
-
-# Last-resort get_infos page budget when Content.search is unavailable.
-# Never used for an unparented whole-KB scan (those are rejected). See UN-26945.
 _MAX_RESOLVE_INFOS_PAGES = 10
 _RESOLVE_INFOS_PAGE_SIZE = 100
 
@@ -133,9 +128,7 @@ def _resolve_content_id(
         if not scope_id:
             raise ValueError(f"folder not found: {folder_path}")
     elif scope_id is None:
-        # Bare names at the knowledge-base root used to paginate the whole
-        # company KB via Content.get_infos (UN-26945). Refuse that path
-        # entirely; require a folder context, a cont_ id, or search.
+        # Resolving a bare name at the root would page the whole knowledge base.
         if state.workspace_metadata_filter is not None:
             # With a per-message filter active that is also a cross-scope
             # existence/title oracle. See UN-21780.
@@ -237,9 +230,9 @@ def _resolve_content_id_via_infos_fallback(
     state: ShellState,
     lookup_name: str,
     scope_id: str,
-) -> list[dict[str, Any]]:
-    """Folder-scoped get_infos fallback with a hard page cap (UN-26945)."""
-    matches: list[dict[str, Any]] = []
+) -> list[Mapping[str, Any]]:
+    """Folder-scoped get_infos fallback with a hard page cap."""
+    matches: list[Mapping[str, Any]] = []
     skip = 0
     for _ in range(_MAX_RESOLVE_INFOS_PAGES):
         result = unique_sdk.Content.get_infos(
