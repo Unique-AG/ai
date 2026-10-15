@@ -36,16 +36,16 @@ _CLAUDE_CONTEXT_WINDOWS = {
     "claude-opus-4": 200_000,
     "claude-opus-4-1": 200_000,
     "claude-opus-4-5": 200_000,
+    "claude-opus-4-6": 200_000,
     "claude-sonnet-4": 200_000,
     "claude-sonnet-4-5": 200_000,
+    "claude-sonnet-4-6": 200_000,
     "claude-fable-5": 1_000_000,
     "claude-haiku-5-5": 1_000_000,
-    "claude-opus-4-6": 1_000_000,
     "claude-opus-4-7": 1_000_000,
     "claude-opus-4-8": 1_000_000,
     "claude-opus-5": 1_000_000,
     "claude-opus-5-5": 1_000_000,
-    "claude-sonnet-4-6": 1_000_000,
     "claude-sonnet-5": 1_000_000,
     "claude-sonnet-5-5": 1_000_000,
 }
@@ -60,14 +60,13 @@ WITHHELD_TOOL_RESULT_NOTICE = (
 
 
 def is_context_window_exceeded_error(exc: BaseException) -> bool:
-    """Whether *exc* is a provider rejection because the prompt exceeded the context window.
-
-    Our token counting is an estimate (non-OpenAI models are counted with an
-    OpenAI encoder), so a payload the reducer considered within budget can
-    still be rejected by the provider.
-    """
+    """Return True if *exc* indicates the prompt exceeded the model's context window."""
     error_text = f"{type(exc).__name__} {exc}".lower()
     return any(signal in error_text for signal in _CONTEXT_OVERFLOW_SIGNALS)
+
+
+def supports_provider_token_count(model: LanguageModelInfo) -> bool:
+    return model.family == ModelFamily.ANTHROPIC
 
 
 def provider_context_window(model: LanguageModelInfo) -> int:
@@ -78,7 +77,11 @@ def provider_context_window(model: LanguageModelInfo) -> int:
             known_window = next(
                 (
                     window
-                    for version, window in _CLAUDE_CONTEXT_WINDOWS.items()
+                    for version, window in sorted(
+                        _CLAUDE_CONTEXT_WINDOWS.items(),
+                        key=lambda item: len(item[0]),
+                        reverse=True,
+                    )
                     if version in model_name
                 ),
                 None,

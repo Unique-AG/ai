@@ -20,6 +20,7 @@ from unique_toolkit.agentic.history_manager.context_overflow import (
     is_context_window_exceeded_error,
     provider_count_trigger_tokens,
     provider_input_target,
+    supports_provider_token_count,
 )
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import (
@@ -693,6 +694,8 @@ class UniqueAI:
             return
 
         model = self._config.space.language_model
+        if not supports_provider_token_count(model):
+            return
         trigger = provider_count_trigger_tokens(model, effective_limit)
         if local_count < trigger or not isinstance(
             self._streaming_handler, SupportsTokenCount
@@ -747,10 +750,10 @@ class UniqueAI:
                 ),
                 timeout=PROVIDER_TOKEN_COUNT_TIMEOUT_SECONDS,
             )
-        except Exception as exc:
+        except Exception:
             self._logger.warning(
-                f"Provider token counting failed ({exc}). "
-                "Continuing with the local token budget."
+                "Provider token counting failed. Continuing with the local token budget.",
+                exc_info=True,
             )
             return None
         return count if count > 0 else None
@@ -758,15 +761,10 @@ class UniqueAI:
     async def _retry_after_context_overflow(
         self, kwargs: dict, exc: Exception
     ) -> LanguageModelStreamResponse:
-        """Recover from a provider rejecting the prompt as too long.
-
-        First shrink the token budget so the reducer truncates tool results
-        harder. If that still overflows, withhold the latest tool-call batch and
-        tell the model to repeat those calls one at a time.
-        """
+        """Retry an oversized LLM call by tightening the budget or withholding the latest tool batch."""
         self._logger.warning(
-            f"LLM call exceeded the context window ({exc}). "
-            "Retrying with a tighter token budget."
+            "LLM call exceeded the context window. Retrying with a tighter token budget.",
+            exc_info=exc,
         )
         self._history_manager.tighten_token_budget(CONTEXT_OVERFLOW_TOKEN_BUDGET_FACTOR)
         await self._recompose_messages(kwargs)

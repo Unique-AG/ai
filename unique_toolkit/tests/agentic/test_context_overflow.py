@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -8,6 +8,7 @@ from unique_toolkit.agentic.history_manager.context_overflow import (
     provider_context_window,
     provider_count_trigger_tokens,
     provider_input_target,
+    supports_provider_token_count,
 )
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
@@ -91,6 +92,10 @@ def _history_manager(reference_manager: ReferenceManager) -> HistoryManager:
     hm._logger = MagicMock()
     hm._loop_history = []
     hm._reference_manager = reference_manager
+    hm._collected_tool_response_image_urls = []
+    hm._source_offset_initialized = True
+    hm._initial_source_offset = 0
+    hm._source_enumerator = 0
     return hm
 
 
@@ -113,6 +118,10 @@ def test_withhold_latest_tool_call_results__replaces_only_latest_batch_AI() -> N
         ]
     )
     hm = _history_manager(reference_manager)
+    hm._collected_tool_response_image_urls = [
+        ("data:image/png;base64,a2VwdA==", "call_1"),
+        ("data:image/png;base64,d2l0aGhlbGQ=", "call_2"),
+    ]
     hm._loop_history = [
         LanguageModelAssistantMessage.from_functions(
             tool_calls=[LanguageModelFunction(id="call_1", name="search")]
@@ -142,6 +151,58 @@ def test_withhold_latest_tool_call_results__replaces_only_latest_batch_AI() -> N
     assert reference_manager.get_chunks() == [kept_chunk]
     assert reference_manager.get_chunks_of_tool("call_2") == []
     assert reference_manager.get_chunks_of_tool("call_1") == [kept_chunk]
+    assert hm._collected_tool_response_image_urls == [
+        ("data:image/png;base64,a2VwdA==", "call_1")
+    ]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_recompose_history__preserves_tool_images_until_next_tool_batch_AI() -> (
+    None
+):
+    """
+    Purpose: Tool result images survive recomposition on the same turn and reset on the next tool batch.
+    Why this matters: Preflight or overflow recomposition calls get_history_for_model_call more than once.
+    Setup summary: One tool batch with an image, two get_history_for_model_call calls -> both receive the image.
+    """
+    hm = _history_manager(ReferenceManager())
+    hm._token_reducer = MagicMock()
+    hm._token_reducer.get_history_for_model_call = AsyncMock(return_value=MagicMock())
+    hm.add_tool_call_results(
+        [
+            ToolCallResponse(
+                id="call_1",
+                name="render_chart",
+                content="chart",
+                image_data_urls=["data:image/png;base64,Y2hhcnQ="],
+            )
+        ]
+    )
+
+    async def _noop_clean(text: str) -> str:
+        return text
+
+    await hm.get_history_for_model_call("q", "q", "sys", _noop_clean)
+    await hm.get_history_for_model_call("q", "q", "sys", _noop_clean)
+
+    first_call_images = hm._token_reducer.get_history_for_model_call.await_args_list[
+        0
+    ].kwargs["image_data_urls_from_tools"]
+    second_call_images = hm._token_reducer.get_history_for_model_call.await_args_list[
+        1
+    ].kwargs["image_data_urls_from_tools"]
+    assert first_call_images == [("data:image/png;base64,Y2hhcnQ=", "call_1")]
+    assert second_call_images == [("data:image/png;base64,Y2hhcnQ=", "call_1")]
+
+    hm.add_tool_call_results(
+        [ToolCallResponse(id="call_2", name="search", content="text only")]
+    )
+    await hm.get_history_for_model_call("q", "q", "sys", _noop_clean)
+    third_call_images = hm._token_reducer.get_history_for_model_call.await_args_list[
+        2
+    ].kwargs["image_data_urls_from_tools"]
+    assert third_call_images == []
 
 
 @pytest.mark.ai
@@ -181,6 +242,40 @@ def test_provider_budget__uses_real_claude_window_and_output_reserve_AI() -> Non
 
     model.version = ""
     assert provider_context_window(model) == 1_000_000
+
+    opus_47_without_version = LanguageModelInfo(
+        name="litellm:anthropic-claude-opus-4-7",
+        family=ModelFamily.ANTHROPIC,
+        version="",
+        token_limits=LanguageModelTokenLimits(
+            token_limit_input=769_230,
+            token_limit_output=98_461,
+        ),
+    )
+    assert provider_context_window(opus_47_without_version) == 1_000_000
+
+    sonnet_46 = LanguageModelInfo(
+        name="litellm:vertex-claude-sonnet-4-6",
+        family=ModelFamily.ANTHROPIC,
+        version="claude-sonnet-4-6",
+        token_limits=LanguageModelTokenLimits(
+            token_limit_input=200_000,
+            token_limit_output=64_000,
+        ),
+    )
+    assert provider_context_window(sonnet_46) == 200_000
+    assert supports_provider_token_count(sonnet_46)
+
+    gpt_model = LanguageModelInfo(
+        name="AZURE_GPT_4o_2024_1120",
+        family=ModelFamily.OPENAI,
+        version="2024-11-20",
+        token_limits=LanguageModelTokenLimits(
+            token_limit_input=128_000,
+            token_limit_output=16_384,
+        ),
+    )
+    assert not supports_provider_token_count(gpt_model)
 
 
 @pytest.mark.ai

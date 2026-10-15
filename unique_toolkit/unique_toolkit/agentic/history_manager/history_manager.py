@@ -152,6 +152,7 @@ class HistoryManager:
         return len(self._loop_history) == 0
 
     def add_tool_call_results(self, tool_call_results: list[ToolCallResponse]):
+        self._collected_tool_response_image_urls = []
         for tool_response in tool_call_results:
             if tool_response.image_data_urls:
                 for url in tool_response.image_data_urls:
@@ -278,6 +279,14 @@ class HistoryManager:
             for tool_call_id in withheld_tool_call_ids:
                 self._reference_manager.replace_chunks_of_tool(tool_call_id, [])
 
+        if self._collected_tool_response_image_urls:
+            withheld_ids = set(withheld_tool_call_ids)
+            self._collected_tool_response_image_urls = [
+                (url, tool_call_id)
+                for url, tool_call_id in self._collected_tool_response_image_urls
+                if tool_call_id not in withheld_ids
+            ]
+
         self._logger.warning(
             f"Withheld {len(withheld_tool_call_ids)} tool call result(s) that "
             "exceeded the context window."
@@ -302,7 +311,6 @@ class HistoryManager:
             remove_from_text=remove_from_text,
             image_data_urls_from_tools=image_data_from_tools,
         )
-        self._collected_tool_response_image_urls = []
 
         if not self._source_offset_initialized:
             offset = max(0, self._token_reducer.max_db_source_number + 1)

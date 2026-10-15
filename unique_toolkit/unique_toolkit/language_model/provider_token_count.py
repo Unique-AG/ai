@@ -33,7 +33,11 @@ def build_provider_token_count_payload(
                 [
                     {
                         "type": "tool_result",
-                        "tool_use_id": message.get("tool_call_id", ""),
+                        "tool_use_id": (
+                            message.get("tool_call_id")
+                            or message.get("toolCallId")
+                            or ""
+                        ),
                         "content": _content_as_text(message.get("content")),
                     }
                 ],
@@ -46,7 +50,7 @@ def build_provider_token_count_payload(
             )
 
     payload: dict[str, Any] = {
-        "model": model,
+        "model": model.removeprefix("litellm:"),
         "messages": provider_messages,
     }
     if system_parts:
@@ -64,7 +68,7 @@ def _assistant_content_blocks(
     if isinstance(content, str) and content:
         blocks.append({"type": "text", "text": content})
 
-    tool_calls = message.get("tool_calls")
+    tool_calls = message.get("tool_calls") or message.get("toolCalls")
     if isinstance(tool_calls, list):
         for tool_call in tool_calls:
             function = tool_call.get("function", {})
@@ -94,7 +98,7 @@ def _user_content_blocks(content: object) -> list[dict[str, Any]]:
         if part.get("type") == "text":
             blocks.append({"type": "text", "text": str(part.get("text", ""))})
         elif part.get("type") == "image_url":
-            image_url = part.get("image_url")
+            image_url = part.get("image_url") or part.get("imageUrl")
             if isinstance(image_url, dict):
                 image_block = _base64_image_block(image_url.get("url"))
                 if image_block is not None:

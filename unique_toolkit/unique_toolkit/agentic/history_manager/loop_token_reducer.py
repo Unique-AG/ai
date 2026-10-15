@@ -38,7 +38,6 @@ MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = env_settings.input_correction_reduction_fac
 SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION = env_settings.input_aggressive_reduction_factor
 
 PLAIN_TEXT_TRUNCATION_MARKER = "\n\n[... tool response too long and was truncated]"
-# TODO: Make this configurable
 MIN_PLAIN_TEXT_CHARS_TO_KEEP = 1000
 
 
@@ -214,8 +213,6 @@ class LoopTokenReducer:
         This is purely a size check. Whether anything can actually be reduced to
         get back under the limit is a separate concern (:meth:`_can_reduce_history`).
         """
-        # TODO: This is not fully correct at the moment as the token_count
-        # include system_prompt and user question already
         return token_count > self._effective_token_limit
 
     def _can_reduce_history(self, loop_history: list[LanguageModelMessage]) -> bool:

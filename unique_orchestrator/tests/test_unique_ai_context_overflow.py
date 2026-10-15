@@ -133,6 +133,36 @@ async def test_preflight__skips_provider_below_local_trigger_AI(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_preflight__skips_non_anthropic_models_AI(
+    mock_unique_ai: UniqueAI,
+) -> None:
+    """
+    Purpose: Do not call the Anthropic token counter for non-Anthropic models.
+    Why this matters: The proxy counter endpoint only accepts Anthropic-routed models.
+    Setup summary: Near-limit OpenAI model -> generate directly without provider counting.
+    """
+    counter = _configure_claude_preflight(mock_unique_ai)
+    mock_unique_ai._config.space.language_model = LanguageModelInfo(
+        name="AZURE_GPT_4o_2024_1120",
+        family=ModelFamily.OPENAI,
+        version="2024-11-20",
+        token_limits=LanguageModelTokenLimits(
+            token_limit_input=128_000,
+            token_limit_output=16_384,
+        ),
+    )
+    mock_unique_ai._history_manager.last_token_count = 120_000
+    mock_unique_ai._history_manager.effective_token_limit = 120_000
+    response = MagicMock()
+    mock_unique_ai._loop_iteration_runner.return_value = response
+
+    assert await _plan_or_execute(mock_unique_ai) is response
+
+    counter.assert_not_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_preflight__provider_counter_failure_falls_back_to_local_budget_AI(
     mock_unique_ai: UniqueAI,
 ) -> None:
