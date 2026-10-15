@@ -58,6 +58,30 @@ unique-cli web-search search "python tutorial" --json
 unique-cli web-search search "sustainability reports" --include-content --json
 ```
 
+### Several searches: pass every query in ONE call
+
+When you need more than one search (several topics, companies or
+questions), pass all queries as separate arguments of a single `search`
+command. Do **not** run one `unique-cli web-search search` call per query,
+and do not start several in the background: the queries run concurrently
+inside the one call and the answer comes back in one round.
+
+```bash
+unique-cli web-search search "Git first release" "Redis first release" "Docker first release" --json
+```
+
+- Up to 8 queries per call (4 run at the same time). More than 8 is an
+  error: split them across calls.
+- Options such as `-n`, `--include-content` and `--json` apply to every
+  query.
+- Output has one block per query, in the order you gave them, each with
+  its query. `--json` returns a list with one entry per query.
+- `[websourceN]` numbers follow the query order. A URL found by two
+  queries has one number.
+- A query that fails shows its own error and the other queries still
+  return. The command exits `1` only when every query failed.
+- A single query behaves exactly as before.
+
 ### Per-call engine override
 
 Force a specific engine (or any engine-specific knob) without changing server config:
@@ -141,7 +165,7 @@ discriminator:
 
 ## Command Reference
 
-### `unique-cli web-search search <query>`
+### `unique-cli web-search search <query> [<query>...]`
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
@@ -217,6 +241,27 @@ Found 3 result(s):
 >   | unique-cli web-search crawl --stdin
 > ```
 
+### `search` with several queries (text)
+
+```
+=== query 1/2: 'Git first release' ===
+engine: Google    query: 'Git first release'
+Found 1 result(s):
+
+  1. Git history [websource1]
+     https://example.com/git
+     ...
+
+=== query 2/2: 'Redis first release' ===
+ERROR: web-search: upstream failed
+
+1 of 2 queries failed.
+```
+
+With `--json` the output is a list. Each entry is the usual
+`{engine, query, results}` object, or `{"query": "...", "error": "..."}`
+for a query that failed.
+
 ### `crawl` (text)
 
 ```
@@ -261,7 +306,10 @@ In one-shot mode, the CLI exits **`0`** on success and **`1`** on
 failures (config-file errors, invalid JSON overrides, API errors,
 missing URLs for `crawl`, and citation-manifest I/O failures — e.g.
 when `.unique/web-refs.jsonl` cannot be written or its parent
-directory is unsafe). Error messages are prefixed with
+directory is unsafe). With several queries in one `search` call, a failed
+query alone does not change the exit code: it exits `1` only when every
+query failed, or when the call is invalid (more than 8 queries, bad
+override JSON). Error messages are prefixed with
 `web-search:` or `web-crawl:` so they're easy to grep.
 
 ```bash
