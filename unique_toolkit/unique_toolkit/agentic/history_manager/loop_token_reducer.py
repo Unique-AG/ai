@@ -106,6 +106,7 @@ class LoopTokenReducer:
             self._language_model.token_limits.token_limit_input
             * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
         )
+        self._last_token_count = 0
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
@@ -130,6 +131,27 @@ class LoopTokenReducer:
     @property
     def db_source_map(self) -> dict[int, ContentChunk]:
         return self._db_source_map
+
+    @property
+    def effective_token_limit(self) -> int:
+        return self._effective_token_limit
+
+    @property
+    def last_token_count(self) -> int:
+        return self._last_token_count
+
+    def tighten_effective_token_limit(self, factor: float) -> None:
+        """Shrink the input-token budget for the rest of the run.
+
+        Used after the provider rejected a payload this reducer counted as within
+        budget, i.e. the encoder underestimates the model's real token count.
+        """
+        previous_limit = self._effective_token_limit
+        self._effective_token_limit = int(previous_limit * factor)
+        self._logger.warning(
+            f"Tightened effective token limit from {previous_limit} to "
+            f"{self._effective_token_limit} tokens."
+        )
 
     def _get_encoder(self, language_model: LMI) -> Callable[[str], list[int]]:
         return language_model.get_encoder()
@@ -179,6 +201,7 @@ class LoopTokenReducer:
                 break
 
         token_count = self._count_message_tokens(messages)
+        self._last_token_count = token_count
         self._logger.info(
             f"Final token count after reduction: {token_count} of model_capacity {self._language_model.token_limits.token_limit_input}"
         )

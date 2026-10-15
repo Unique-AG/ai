@@ -220,6 +220,70 @@ class HistoryManager:
     def add_assistant_message(self, message: LanguageModelAssistantMessage) -> None:
         self._loop_history.append(message)
 
+    def tighten_token_budget(self, factor: float) -> None:
+        self._token_reducer.tighten_effective_token_limit(factor)
+
+    @property
+    def effective_token_limit(self) -> int:
+        return self._token_reducer.effective_token_limit
+
+    @property
+    def last_token_count(self) -> int:
+        return self._token_reducer.last_token_count
+
+    def withhold_latest_tool_call_results(self, notice: str) -> int:
+        """Replace every result of the most recent tool-call batch with *notice*.
+
+        The withheld results' chunks are dropped from the reference manager. They
+        are the newest chunks, so source numbers of earlier results stay valid.
+        Returns the number of withheld results.
+        """
+        batch_start: int | None = None
+        for index in range(len(self._loop_history) - 1, -1, -1):
+            candidate = self._loop_history[index]
+            if (
+                isinstance(candidate, LanguageModelAssistantMessage)
+                and candidate.tool_calls
+            ):
+                batch_start = index
+                break
+        if batch_start is None:
+            return 0
+
+        withheld_tool_call_ids: list[str] = []
+        for index in range(batch_start + 1, len(self._loop_history)):
+            message = self._loop_history[index]
+            if not isinstance(message, LanguageModelToolMessage):
+                continue
+            self._loop_history[index] = LanguageModelToolMessage(
+                content=notice,
+                tool_call_id=message.tool_call_id,
+                name=message.name,
+            )
+            withheld_tool_call_ids.append(message.tool_call_id)
+
+        withheld_chunks = {
+            id(chunk)
+            for tool_call_id in withheld_tool_call_ids
+            for chunk in self._reference_manager.get_chunks_of_tool(tool_call_id)
+        }
+        if withheld_chunks:
+            self._reference_manager.replace(
+                chunks=[
+                    chunk
+                    for chunk in self._reference_manager.get_chunks()
+                    if id(chunk) not in withheld_chunks
+                ]
+            )
+            for tool_call_id in withheld_tool_call_ids:
+                self._reference_manager.replace_chunks_of_tool(tool_call_id, [])
+
+        self._logger.warning(
+            f"Withheld {len(withheld_tool_call_ids)} tool call result(s) that "
+            "exceeded the context window."
+        )
+        return len(withheld_tool_call_ids)
+
     async def get_history_for_model_call(
         self,
         original_user_message: str,
