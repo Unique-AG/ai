@@ -51,6 +51,16 @@ def _config() -> Config:
     )
 
 
+@pytest.fixture(autouse=True)
+def _content_by_path_misses() -> Any:
+    """Name resolve looks up by file path first; default to a miss."""
+    with patch(
+        "unique_sdk.Content.get_info",
+        return_value={"contentInfo": [], "totalCount": 0},
+    ) as mock:
+        yield mock
+
+
 def _state(path: str = "/", scope_id: str | None = None) -> ShellState:
     s = ShellState(_config())
     s._path = path
@@ -883,11 +893,14 @@ class TestFiles:
         mock_infos: MagicMock,
     ) -> None:
         mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
-        other = _content_info(title="other.pdf")
-        other["key"] = "other.pdf"
+        others = []
+        for i in range(100):
+            other = _content_info(title=f"other-{i}.pdf", cid=f"cont_o{i}")
+            other["key"] = f"other-{i}.pdf"
+            others.append(other)
         mock_infos.side_effect = [
-            {"contentInfos": [other], "totalCount": 2},
-            {"contentInfos": [_content_info()], "totalCount": 2},
+            {"contentInfos": others, "totalCount": 101},
+            {"contentInfos": [_content_info()], "totalCount": 101},
         ]
         cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
         assert cid == "cont_123"
@@ -920,13 +933,68 @@ class TestFiles:
             }
 
         mock_infos.side_effect = _page
-        with pytest.raises(ValueError, match="File not found"):
+        with pytest.raises(
+            ValueError, match="File not found in the first 1000 entries"
+        ):
             _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
         assert mock_infos.call_count == 10
         assert all(
             call.kwargs.get("parentId") == "scope_r"
             for call in mock_infos.call_args_list
         )
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_infos_fallback_stops_on_short_page(
+        self,
+        mock_search: MagicMock,
+        mock_infos: MagicMock,
+    ) -> None:
+        mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
+        mock_infos.return_value = {
+            "contentInfos": [_content_info(title="other.pdf")],
+            "totalCount": 1,
+        }
+        with pytest.raises(ValueError, match=r"^File not found: nope\.pdf$"):
+            _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
+        assert mock_infos.call_count == 1
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_prefers_file_path_lookup(
+        self, mock_search: MagicMock, _content_by_path_misses: MagicMock
+    ) -> None:
+        hit = _content_info()
+        hit["ownerId"] = "scope_r"
+        _content_by_path_misses.return_value = {"contentInfo": [hit], "totalCount": 1}
+        cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert (cid, name) == ("cont_123", "report.pdf")
+        assert (
+            _content_by_path_misses.call_args.kwargs["filePath"]
+            == "/Reports/report.pdf"
+        )
+        mock_search.assert_not_called()
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_ignores_path_hit_from_other_folder(
+        self, mock_search: MagicMock, _content_by_path_misses: MagicMock
+    ) -> None:
+        _content_by_path_misses.return_value = {
+            "contentInfo": [_content_info(cid="cont_elsewhere")],
+            "totalCount": 1,
+        }
+        mock_search.return_value = [_content_info()]
+        cid, _ = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert cid == "cont_123"
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_search_includes_failed_content(
+        self, mock_search: MagicMock, _content_by_path_misses: MagicMock
+    ) -> None:
+        _content_by_path_misses.side_effect = unique_sdk.UniqueError("no path lookup")
+        mock_search.return_value = [_content_info()]
+        cid, _ = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert cid == "cont_123"
+        assert mock_search.call_args.kwargs["includeFailedContent"] is True
 
     @patch("unique_sdk.Content.search")
     def test_resolve_content_id_matches_storage_key(self, mock: MagicMock) -> None:

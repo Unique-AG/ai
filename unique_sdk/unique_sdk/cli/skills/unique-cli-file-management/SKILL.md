@@ -99,6 +99,10 @@ unique-cli mv report.pdf "Annual Report 2025.pdf"
 | Content ID | `cont_abc123` | File directly by ID |
 | File path | `/Reports/Q1/report.pdf` | File in a folder |
 
+A bare file name such as `report.pdf` resolves in the current folder. At the
+root (`/`) a bare file name is an error: pass a full path, a content ID, or `cd`
+into the folder first.
+
 ## Upload Destination Resolution
 
 The `upload` command always enables immutable content versioning. It does not expose an unversioned upload mode. Its destination works like Linux `cp`:
