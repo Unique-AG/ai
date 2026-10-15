@@ -98,13 +98,8 @@ def _annotate_web_results_for_citations(
     payload: dict[str, Any],
     *,
     refs_log_path: Path | None = None,
-    recorded_urls: set[str] | None = None,
 ) -> dict[str, Any]:
     """Add per-turn web citation numbers and append the refs manifest.
-
-    When ``recorded_urls`` is given, a URL already in that set gets its
-    ``sourceNumber`` but no second manifest row, and every URL written is
-    added to the set. A multi-query call uses this to keep one row per URL.
 
     Web results are deduped by URL: the same URL keeps the same
     ``sourceNumber`` across consecutive ``search`` / ``crawl`` calls in
@@ -165,10 +160,7 @@ def _annotate_web_results_for_citations(
                 "content": content,
                 "error": error,
             }
-            if recorded_urls is None or url not in recorded_urls:
-                _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
-                if recorded_urls is not None:
-                    recorded_urls.add(url)
+            _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
             annotated_results.append(result)
 
         annotated["results"] = annotated_results
@@ -478,7 +470,7 @@ def _fetch_search_payload(
             query=query,
             **options,
         )
-    except (ValueError, unique_sdk.APIError) as exc:
+    except (ValueError, unique_sdk.UniqueError) as exc:
         return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
     return _payload_from_resource(resource)
 
@@ -535,16 +527,13 @@ def cmd_web_search_many(
             )
         )
 
-    recorded_urls: set[str] = set()
     outcomes: list[dict[str, Any] | str] = []
     for item in fetched:
         if isinstance(item, str):
             outcomes.append(item)
             continue
         try:
-            outcomes.append(
-                _annotate_web_results_for_citations(item, recorded_urls=recorded_urls)
-            )
+            outcomes.append(_annotate_web_results_for_citations(item))
         except UnsafeRefsLogPathError as exc:
             return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
 
@@ -573,10 +562,10 @@ def _format_many_search_results(
     for position, (query, outcome) in enumerate(
         zip(queries, outcomes, strict=True), start=1
     ):
-        header = f"=== query {position}/{len(queries)}: {query!r} ==="
+        header = f"=== query {position}/{len(queries)} ==="
         if isinstance(outcome, str):
             failed += 1
-            blocks.append(f"{header}\nERROR: {outcome}")
+            blocks.append(f"{header}\nquery: {query!r}\nERROR: {outcome}")
             continue
         blocks.append(f"{header}\n{_format_search_results(outcome)}")
     if failed:

@@ -130,10 +130,16 @@ class TestMultiQueryOrderAndNumbering:
         }
 
     @patch("unique_sdk.WebSearch.search")
-    def test_shared_url_keeps_one_number_and_one_manifest_row(
+    def test_shared_url_keeps_one_number_and_one_row_per_search(
         self, mock_search: MagicMock, tmp_path: Path
     ) -> None:
-        mock_search.side_effect = _search_by_query(URLS)
+        def _search(**kwargs: Any) -> _FakeResource:
+            payload = _payload(kwargs["query"], URLS[kwargs["query"]])
+            for result in payload["results"]:
+                result["snippet"] = f"snippet from {kwargs['query']}"
+            return _FakeResource(payload)
+
+        mock_search.side_effect = _search
 
         out = cmd_web_search_many(_state(), ["git", "redis"], output_json=True)
 
@@ -145,8 +151,29 @@ class TestMultiQueryOrderAndNumbering:
             if result["url"] == "https://shared.example/history"
         ]
         assert shared == [2, 2]
-        urls = [row["url"] for row in _manifest_rows(tmp_path)]
-        assert len(urls) == len(set(urls))
+        shared_rows = [
+            row
+            for row in _manifest_rows(tmp_path)
+            if row["url"] == "https://shared.example/history"
+        ]
+        # One row per search that returned the URL, as separate calls write:
+        # the reference keeps every snippet for the hallucination judge.
+        assert [row["sourceNumber"] for row in shared_rows] == [2, 2]
+        assert {row["snippet"] for row in shared_rows} == {
+            "snippet from git",
+            "snippet from redis",
+        }
+
+    @patch("unique_sdk.WebSearch.search")
+    def test_block_header_does_not_repeat_the_query(
+        self, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_search.side_effect = _search_by_query(URLS)
+
+        out = cmd_web_search_many(_state(), ["git", "redis"])
+
+        assert "=== query 1/2 ===" in out
+        assert out.count("'git'") == 1
 
     @patch("unique_sdk.WebSearch.search")
     def test_numbering_is_identical_across_repeated_runs(
@@ -180,10 +207,41 @@ class TestMultiQueryOrderAndNumbering:
         cmd_web_search_many(_state(), ["git", "redis", "docker"])
 
         rows = _manifest_rows(tmp_path)
-        assert [row["sourceNumber"] for row in rows] == [1, 2, 3, 4]
+        assert [row["sourceNumber"] for row in rows] == [1, 2, 3, 2, 4]
 
 
 class TestMultiQueryFailures:
+    @patch("unique_sdk.WebSearch.search")
+    def test_connection_error_in_one_query_keeps_the_others(
+        self, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        def _search(**kwargs: Any) -> _FakeResource:
+            if kwargs["query"] == "redis":
+                raise unique_sdk.APIConnectionError("timed out")
+            return _FakeResource(_payload(kwargs["query"], URLS[kwargs["query"]]))
+
+        mock_search.side_effect = _search
+
+        out = cmd_web_search_many(_state(), ["git", "redis", "docker"])
+
+        assert not out.startswith(WEB_SEARCH_ERROR_PREFIX)
+        assert "timed out" in out
+        assert "https://a.example/git" in out
+        assert "https://c.example/docker" in out
+        assert "1 of 3 queries failed" in out
+
+    @patch("unique_sdk.WebSearch.search")
+    def test_failed_query_block_names_the_query(
+        self, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_search.side_effect = _search_by_query(
+            URLS, fail_queries=frozenset({"redis"})
+        )
+
+        out = cmd_web_search_many(_state(), ["git", "redis"])
+
+        assert "query: 'redis'\nERROR:" in out
+
     @patch("unique_sdk.WebSearch.search")
     def test_failed_query_keeps_the_others(
         self, mock_search: MagicMock, tmp_path: Path

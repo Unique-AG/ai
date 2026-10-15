@@ -73,7 +73,8 @@ unique-cli web-search search "Git first release" "Redis first release" "Docker f
 - Up to 8 queries per call (4 run at the same time). More than 8 is an
   error: split them across calls.
 - Options such as `-n`, `--include-content` and `--json` apply to every
-  query.
+  query. With `--include-content`, prefer fewer queries per call: the output
+  grows with every query.
 - Output has one block per query, in the order you gave them, each with
   its query. `--json` returns a list with one entry per query.
 - `[websourceN]` numbers follow the query order. A URL found by two
