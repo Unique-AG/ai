@@ -245,7 +245,7 @@ Found 3 result(s):
 ### `search` with several queries (text)
 
 ```
-=== query 1/2: 'Git first release' ===
+=== query 1/2 ===
 engine: Google    query: 'Git first release'
 Found 1 result(s):
 
@@ -253,7 +253,8 @@ Found 1 result(s):
      https://example.com/git
      ...
 
-=== query 2/2: 'Redis first release' ===
+=== query 2/2 ===
+query: 'Redis first release'
 ERROR: web-search: upstream failed
 
 1 of 2 queries failed.
