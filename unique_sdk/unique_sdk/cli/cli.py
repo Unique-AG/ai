@@ -93,6 +93,7 @@ from unique_sdk.cli.commands.subagent import (
 from unique_sdk.cli.commands.web_search import (
     cmd_web_crawl,
     cmd_web_search,
+    cmd_web_search_many,
 )
 from unique_sdk.cli.commands.web_search import (
     is_error_output as _is_web_search_error_output,
@@ -2112,6 +2113,7 @@ Examples:
   unique-cli web-search search "quarterly earnings 2026"
   unique-cli web-search search "AI regulation" -n 10
   unique-cli web-search search "python tutorial" --json
+  unique-cli web-search search "git history" "redis history" "docker history"
   unique-cli web-search search "sustainability" --include-content --json
   unique-cli web-search search "tax reform" \\
     --engine-config '{"searchEngineName":"Google","fetchSize":3}'
@@ -2120,7 +2122,7 @@ Examples:
 
 
 @web_search_group.command("search", help=_SEARCH_HELP)
-@click.argument("query")
+@click.argument("queries", nargs=-1, required=True)
 @click.option(
     "--fetch-size",
     "-n",
@@ -2176,7 +2178,7 @@ Examples:
 @click.pass_context
 def web_search_search_cmd(
     ctx: click.Context,
-    query: str,
+    queries: tuple[str, ...],
     fetch_size: int | None,
     include_content: bool,
     engine_config_raw: str | None,
@@ -2187,17 +2189,30 @@ def web_search_search_cmd(
 ) -> None:
     """Search the web via the Unique public API."""
     resolved_config = _resolve_web_search_config_path(ctx, config_path)
-    output = cmd_web_search(
-        LazyState.get(ctx),
-        query,
-        fetch_size=fetch_size,
-        include_content=include_content,
-        engine_config_raw=engine_config_raw,
-        crawler_config_raw=crawler_config_raw,
-        output_json=output_json,
-        config_path=resolved_config,
-        chat_id=_resolve_cli_chat_id(ctx, chat_id),
-    )
+    if len(queries) == 1:
+        output = cmd_web_search(
+            LazyState.get(ctx),
+            queries[0],
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+            chat_id=_resolve_cli_chat_id(ctx, chat_id),
+        )
+    else:
+        output = cmd_web_search_many(
+            LazyState.get(ctx),
+            list(queries),
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+            chat_id=_resolve_cli_chat_id(ctx, chat_id),
+        )
     _emit_web_search(ctx, output)
 
 
