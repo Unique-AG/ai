@@ -491,7 +491,7 @@ def cmd_web_search_many(
     Requests run concurrently, at most ``SEARCH_CONCURRENCY`` at a time.
     Citation numbers are assigned afterwards, one query at a time in the
     order given, so ``[websourceN]`` is the same on every run. A URL found
-    by several queries keeps one number and one manifest row.
+    by several queries keeps one number; the manifest gets one row per search.
 
     A failed query shows its own error and does not drop the others. The
     output is a ``web-search:`` error only when every query failed.
