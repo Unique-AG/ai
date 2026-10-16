@@ -1,4 +1,4 @@
-from typing import Any, Protocol, Sequence
+from typing import Any, Protocol, Sequence, runtime_checkable
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -53,6 +53,19 @@ class SupportsComplete(Protocol):
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     ) -> LanguageModelResponse: ...
+
+
+@runtime_checkable
+class SupportsTokenCount(Protocol):
+    async def count_tokens_async(
+        self,
+        *,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        other_options: dict[str, Any] | None = None,
+    ) -> int: ...
 
 
 class SupportCompleteWithReferences(Protocol):

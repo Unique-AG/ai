@@ -335,6 +335,28 @@ def _load_custom_decoder(tokenizer_name: str) -> TypeDecoder:
     return tokenizer.decode
 
 
+_CLAUDE_CONTEXT_WINDOWS = {
+    "claude-3-7-sonnet": 200_000,
+    "claude-3-7-sonnet-thinking": 200_000,
+    "claude-haiku-4-5": 200_000,
+    "claude-opus-4": 200_000,
+    "claude-opus-4-1": 200_000,
+    "claude-opus-4-5": 200_000,
+    "claude-opus-4-6": 200_000,
+    "claude-sonnet-4": 200_000,
+    "claude-sonnet-4-5": 200_000,
+    "claude-sonnet-4-6": 200_000,
+    "claude-fable-5": 1_000_000,
+    "claude-haiku-5-5": 1_000_000,
+    "claude-opus-4-7": 1_000_000,
+    "claude-opus-4-8": 1_000_000,
+    "claude-opus-5": 1_000_000,
+    "claude-opus-5-5": 1_000_000,
+    "claude-sonnet-5": 1_000_000,
+    "claude-sonnet-5-5": 1_000_000,
+}
+
+
 class LanguageModelInfo(BaseModel):
     model_config = get_configuration_dict()
     name: (
@@ -3730,6 +3752,29 @@ class LanguageModelInfo(BaseModel):
             return self.name.value
         else:
             return self.name
+
+    @property
+    def provider_context_window(self) -> int:
+        """Return the raw provider input context window before local-tokenizer adjustments."""
+        if self.family == ModelFamily.ANTHROPIC:
+            known_window = _CLAUDE_CONTEXT_WINDOWS.get(self.version)
+            if known_window is None:
+                model_name = str(self.name)
+                known_window = next(
+                    (
+                        window
+                        for version, window in sorted(
+                            _CLAUDE_CONTEXT_WINDOWS.items(),
+                            key=lambda item: len(item[0]),
+                            reverse=True,
+                        )
+                        if version in model_name
+                    ),
+                    None,
+                )
+            if known_window is not None:
+                return known_window
+        return self.token_limits.token_limit_input
 
 
 @deprecated(
