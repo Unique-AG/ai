@@ -8,7 +8,7 @@ from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
     StructuredOutputConfig,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_51
 
 
 @register_config()
@@ -27,11 +27,11 @@ class ChunkRelevancySortConfig(BaseModel):
         description="The relevancy level order.",
     )
     language_model: LMI = get_LMI_default_field(
-        DEFAULT_GPT_4o,
+        DEFAULT_GPT_51,
         description="The language model to use for the chunk relevancy sort.",
     )
     fallback_language_model: LMI = get_LMI_default_field(
-        DEFAULT_GPT_4o,
+        DEFAULT_GPT_51,
         description="The language model to use as a fallback.",
     )
     additional_llm_options: dict[str, Any] = Field(

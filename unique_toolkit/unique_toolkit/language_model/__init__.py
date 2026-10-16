@@ -1,7 +1,11 @@
 from typing import TYPE_CHECKING, Any
 
 from .constants import DOMAIN_NAME
-from .default_language_model import DEFAULT_LANGUAGE_MODEL, DEFAULT_GPT_4o
+from .default_language_model import (
+    DEFAULT_GPT_51,
+    DEFAULT_LANGUAGE_MODEL,
+    DEFAULT_GPT_4o,
+)
 from .functions import (
     stream_complete_with_references_openai as stream_complete_with_references_openai,
 )
@@ -85,6 +89,7 @@ __all__ = [
     "DOMAIN_NAME",
     "DEFAULT_LANGUAGE_MODEL",
     "DEFAULT_GPT_4o",
+    "DEFAULT_GPT_51",
     "stream_complete_with_references_openai",
     "NormalizationTransform",
     "ReferenceInjectionTransform",
