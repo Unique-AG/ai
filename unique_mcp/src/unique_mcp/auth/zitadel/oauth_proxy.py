@@ -62,7 +62,7 @@ def create_zitadel_oauth_proxy(
         client_storage: OAuth client/token state. Required — FastMCP's default is
             a per-pod on-disk store, which drops every session on restart and
             breaks across replicas. See "Production storage" in
-            ``unique_mcp/docs/zitadel/README.md``; ``MemoryStore()`` for local dev.
+            ``unique_mcp/docs/zitadel.md``; ``MemoryStore()`` for local dev.
         mcp_server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
         zitadel_oauth_proxy_settings: Optional settings instance. If not provided,
             a new instance will be created from environment variables.
