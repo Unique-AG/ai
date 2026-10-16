@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.42.0...unique-search-proxy-core-v2026.44.0) (2026-10-16)
+
+
+### Bug Fixes
+
+* **search-proxy:** route agent search through egress proxy ([#2559](https://github.com/Unique-AG/ai/issues/2559)) ([52eee59](https://github.com/Unique-AG/ai/commit/52eee59cfafc6c7bf5e9b7ec2e2a5216a783f5ee))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.40.0...unique-search-proxy-core-v2026.42.0) (2026-10-09)
 
 
