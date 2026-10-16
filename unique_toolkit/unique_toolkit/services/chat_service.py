@@ -97,6 +97,7 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentReference,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
 )
 from unique_toolkit.elicitation.service import ElicitationService
@@ -2119,8 +2120,15 @@ class ChatService(ChatServiceDeprecated):
         metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ) -> list[ContentChunk]:
-        """Search content chunks scoped to this chat session (chat_only=True)."""
+        """Search content chunks scoped to this chat session (chat_only=True).
+
+        Args:
+            merge_strategy: How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+            include_scores: When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type.
+        """
         if scope_ids:
             warnings.warn(
                 "Passing scope_ids to ChatService.search_content_chunks_async is "
@@ -2147,6 +2155,8 @@ class ChatService(ChatServiceDeprecated):
             metadata_filter=metadata_filter,
             content_ids=content_ids,
             score_threshold=score_threshold,
+            merge_strategy=merge_strategy,
+            include_scores=include_scores,
         )
 
     async def search_contents_async(

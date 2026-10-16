@@ -327,6 +327,8 @@ content_chunks = kb_service.search_content_chunks(
 print(f"Combined search found {len(content_chunks)} chunks")
 ```
 
+`merge_strategy` chooses how the two lists are joined. `ZIP` keeps each chunk's original score. `RRF` and `DBSF` replace it with a fused score. Pass `include_scores=True` to read `chunk.score`. Scores from different search types are not on the same scale.
+
 <!--
 ```{.python file=./docs/.python_files/kb_service_combined_search_content_chunks.py }
 <<example-script-deps>>

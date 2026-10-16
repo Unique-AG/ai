@@ -70,6 +70,11 @@ class ContentChunk(BaseModel):
         description="The end page of the chunk. For document chunks this is the end page of the document.",
     )
 
+    score: float | None = Field(
+        default=None,
+        description="The relevance score of the chunk. Only set when the search requested scores. Scores are comparable within a single search type only.",
+    )
+
     object: str | None = None
     metadata: ContentMetadata | None = None
     internally_stored_at: datetime | None = None
@@ -292,6 +297,18 @@ class ContentReference(BaseModel):
 class ContentSearchType(StrEnum):
     COMBINED = "COMBINED"
     VECTOR = "VECTOR"
+
+
+class ContentSearchMergeStrategy(StrEnum):
+    """How a ``COMBINED`` search merges vector and full-text results.
+
+    Ignored by single-source search types. When omitted, the backend applies its
+    configured default.
+    """
+
+    ZIP = "ZIP"
+    RRF = "RRF"
+    DBSF = "DBSF"
 
 
 class ContentSearchResult(BaseModel):
