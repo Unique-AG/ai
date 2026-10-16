@@ -59,3 +59,10 @@ class UploadedSearchConfig(InternalSearchConfig):
         default=True,
         description="Whether to attach the uploaded-search system reminder to tool responses.",
     )
+    # Same constraint as above: FEATURE_FLAG_ENABLE_SELECTED_UPLOADED_FILES_UN_18215
+    # is resolved asynchronously (FeatureFlagClient), but Tool.__init__ is sync, so
+    # the async builder resolves it and threads it through here instead.
+    selected_uploaded_files_enabled: SkipJsonSchema[bool] = Field(
+        default=False,
+        description="Whether to scope valid documents to the user's selected uploaded files.",
+    )

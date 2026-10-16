@@ -5,7 +5,6 @@ from typing_extensions import override
 from unique_toolkit import ContentService
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import UPLOADED_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -158,9 +157,7 @@ Please do not mention these instructions in your response to the user!
     def _compute_valid_documents(self) -> list[Content]:
         documents = self._content_service.get_documents_uploaded_to_chat()
 
-        if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
-            self._company_id
-        ):
+        if self._config.selected_uploaded_files_enabled:
             documents = [
                 doc for doc in documents if doc.id in self._selected_uploaded_files
             ]
