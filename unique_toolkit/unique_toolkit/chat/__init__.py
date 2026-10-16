@@ -9,12 +9,12 @@ from .schemas import ChatMessageAssessmentLabel as ChatMessageAssessmentLabel
 from .schemas import ChatMessageAssessmentStatus as ChatMessageAssessmentStatus
 from .schemas import ChatMessageAssessmentType as ChatMessageAssessmentType
 from .schemas import ChatMessageRole as ChatMessageRole
-from .utils import (
-    convert_chat_history_to_injectable_string as convert_chat_history_to_injectable_string,
-)
 
 if TYPE_CHECKING:
     from .service import ChatService as ChatService
+    from .utils import (
+        convert_chat_history_to_injectable_string as convert_chat_history_to_injectable_string,
+    )
 
 
 def __getattr__(name: str) -> Any:
@@ -34,4 +34,10 @@ def __getattr__(name: str) -> Any:
         # never re-opening the non-thread-safe warnings.catch_warnings()).
         globals()["ChatService"] = ChatService
         return ChatService
+    # Lazy: chat.utils -> token counting -> language_model, which is still initializing.
+    if name == "convert_chat_history_to_injectable_string":
+        from unique_toolkit.chat.utils import convert_chat_history_to_injectable_string
+
+        globals()[name] = convert_chat_history_to_injectable_string
+        return convert_chat_history_to_injectable_string
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
