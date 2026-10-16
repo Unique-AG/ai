@@ -104,6 +104,9 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
 )
+from unique_toolkit.language_model.functions import (
+    count_tokens_with_provider_async,
+)
 from unique_toolkit.language_model.infos import (
     LanguageModelName,
 )
@@ -1716,6 +1719,25 @@ class ChatService(ChatServiceDeprecated):
             tools=tools,
             start_text=start_text,
             tool_choice=tool_choice,
+            other_options=other_options,
+        )
+
+    async def count_tokens_async(
+        self,
+        *,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        other_options: dict[str, Any] | None = None,
+    ) -> int:
+        return await count_tokens_with_provider_async(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            messages=messages,
+            model_name=model_name,
+            temperature=temperature,
+            tools=tools,
             other_options=other_options,
         )
 
