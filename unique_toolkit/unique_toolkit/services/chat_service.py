@@ -32,7 +32,6 @@ from unique_toolkit.chat.constants import (
 )
 from unique_toolkit.chat.deprecated.service import ChatServiceDeprecated
 from unique_toolkit.chat.functions import (
-    count_tokens_with_provider_async,
     create_message,
     create_message_assessment,
     create_message_assessment_async,
@@ -104,6 +103,9 @@ from unique_toolkit.elicitation.service import ElicitationService
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
+)
+from unique_toolkit.language_model.functions import (
+    count_tokens_with_provider_async,
 )
 from unique_toolkit.language_model.infos import (
     LanguageModelName,

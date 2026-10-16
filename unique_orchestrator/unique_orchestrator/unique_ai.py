@@ -14,13 +14,8 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.context_overflow import (
-    CONTEXT_OVERFLOW_TOKEN_BUDGET_FACTOR,
-    PROVIDER_TOKEN_COUNT_TIMEOUT_SECONDS,
-    WITHHELD_TOOL_RESULT_NOTICE,
+    ContextOverflowGuard,
     is_context_window_exceeded_error,
-    provider_count_trigger_tokens,
-    provider_input_target,
-    supports_provider_token_count,
 )
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import (
@@ -28,6 +23,7 @@ from unique_toolkit.agentic.loop_runner import (
     ResponsesLoopIterationRunner,
     SupportsInvocationStats,
 )
+from unique_toolkit.agentic.loop_runner.base import _LoopIterationRunnerKwargs
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -66,7 +62,6 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
     SupportCompleteWithReferences,
-    SupportsTokenCount,
 )
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
@@ -641,7 +636,7 @@ class UniqueAI:
         )
         self._record_loop_debug_params(other_options)
 
-        kwargs: dict = dict(
+        kwargs: _LoopIterationRunnerKwargs = dict(
             messages=messages,
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
@@ -655,20 +650,36 @@ class UniqueAI:
             other_options=other_options,
         )
 
-        await self._preflight_provider_token_budget(kwargs)
+        overflow_guard = ContextOverflowGuard(
+            logger=self._logger,
+            history_manager=self._history_manager,
+            streaming_handler=self._streaming_handler,
+            model=self._config.space.language_model,
+        )
+
+        async def _recompose() -> None:
+            await self._recompose_messages(kwargs)
+
+        await overflow_guard.preflight_token_budget(kwargs, _recompose)
 
         try:
             return await self._run_loop_iteration(kwargs)
         except Exception as exc:
             if not is_context_window_exceeded_error(exc):
                 raise
-            return await self._retry_after_context_overflow(kwargs, exc)
+            return await overflow_guard.retry_after_overflow(
+                exc,
+                recompose=_recompose,
+                run_iteration=lambda: self._run_loop_iteration(kwargs),
+            )
 
-    async def _run_loop_iteration(self, kwargs: dict) -> LanguageModelStreamResponse:
+    async def _run_loop_iteration(
+        self, kwargs: _LoopIterationRunnerKwargs
+    ) -> LanguageModelStreamResponse:
         # Experimental Feature UN-17905
         if self._config.agent.experimental.open_file_tool_config.enabled:
             try:
-                return await self._loop_iteration_runner(**kwargs)
+                return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
             except Exception as exc:
                 if not self._open_file_runtime.should_retry_without_files(exc):
                     raise
@@ -682,109 +693,13 @@ class UniqueAI:
                 )
                 kwargs["tools"] = self._tool_manager.get_tool_definitions()  # type: ignore (as above)
                 kwargs["tool_choices"] = self._tool_manager.get_forced_tools()  # type: ignore (as above)
-                return await self._loop_iteration_runner(**kwargs)
+                return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
 
-        return await self._loop_iteration_runner(**kwargs)
+        return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
 
-    async def _preflight_provider_token_budget(self, kwargs: dict) -> None:
-        """Verify near-limit payloads using the provider's tokenizer before the LLM call."""
-        local_count = self._history_manager.last_token_count
-        effective_limit = self._history_manager.effective_token_limit
-        if not isinstance(local_count, int) or not isinstance(effective_limit, int):
-            return
-
-        model = self._config.space.language_model
-        if not supports_provider_token_count(model):
-            return
-        trigger = provider_count_trigger_tokens(model, effective_limit)
-        if local_count < trigger or not isinstance(
-            self._streaming_handler, SupportsTokenCount
-        ):
-            return
-
-        target = provider_input_target(model, kwargs.get("other_options"))
-        provider_count = await self._try_provider_token_count(kwargs)
-        if provider_count is None or provider_count <= target:
-            return
-
-        self._logger.warning(
-            f"Provider token count {provider_count} exceeds the safe input target "
-            f"{target}. Reducing tool results before the LLM call."
-        )
-        reduction_factor = min(0.9, target / provider_count * 0.95)
-        self._history_manager.tighten_token_budget(reduction_factor)
-        await self._recompose_messages(kwargs)
-
-        reduced_count = await self._try_provider_token_count(kwargs)
-        if reduced_count is None or reduced_count <= target:
-            return
-
-        if not self._history_manager.withhold_latest_tool_call_results(
-            WITHHELD_TOOL_RESULT_NOTICE
-        ):
-            self._logger.warning(
-                f"Provider token count remains above target ({reduced_count} > "
-                f"{target}), but there are no tool results to withhold."
-            )
-            return
-
-        self._logger.warning(
-            "Provider token count remains above target after reduction. "
-            "Withholding the latest tool-call batch."
-        )
-        await self._recompose_messages(kwargs)
-        await self._try_provider_token_count(kwargs)
-
-    async def _try_provider_token_count(self, kwargs: dict) -> int | None:
-        handler = self._streaming_handler
-        if not isinstance(handler, SupportsTokenCount):
-            return None
-        try:
-            count = await asyncio.wait_for(
-                handler.count_tokens_async(
-                    messages=kwargs["messages"],
-                    model_name=self._config.space.language_model.name,
-                    temperature=kwargs["temperature"],
-                    tools=kwargs.get("tools"),
-                    other_options=kwargs.get("other_options"),
-                ),
-                timeout=PROVIDER_TOKEN_COUNT_TIMEOUT_SECONDS,
-            )
-        except Exception:
-            self._logger.warning(
-                "Provider token counting failed. Continuing with the local token budget.",
-                exc_info=True,
-            )
-            return None
-        return count if count > 0 else None
-
-    async def _retry_after_context_overflow(
-        self, kwargs: dict, exc: Exception
-    ) -> LanguageModelStreamResponse:
-        """Retry an oversized LLM call by tightening the budget or withholding the latest tool batch."""
-        self._logger.warning(
-            "LLM call exceeded the context window. Retrying with a tighter token budget.",
-            exc_info=exc,
-        )
-        self._history_manager.tighten_token_budget(CONTEXT_OVERFLOW_TOKEN_BUDGET_FACTOR)
-        await self._recompose_messages(kwargs)
-        try:
-            return await self._run_loop_iteration(kwargs)
-        except Exception as retry_exc:
-            if not is_context_window_exceeded_error(retry_exc):
-                raise
-            if not self._history_manager.withhold_latest_tool_call_results(
-                WITHHELD_TOOL_RESULT_NOTICE
-            ):
-                raise
-            self._logger.warning(
-                "LLM call still exceeded the context window. Retrying with the "
-                "latest tool call results withheld."
-            )
-            await self._recompose_messages(kwargs)
-            return await self._run_loop_iteration(kwargs)
-
-    async def _recompose_messages(self, kwargs: dict) -> None:
+    async def _recompose_messages(
+        self, kwargs: _LoopIterationRunnerKwargs
+    ) -> None:
         kwargs["messages"] = await self._compose_message_plan_execution()
         kwargs["content_chunks"] = (
             self._history_manager.get_content_chunks_for_backend()

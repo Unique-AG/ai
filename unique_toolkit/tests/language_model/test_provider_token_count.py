@@ -4,7 +4,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from openai.types.chat import ChatCompletionMessageParam
 
-from unique_toolkit.chat.functions import count_tokens_with_provider_async
+from unique_toolkit.language_model.functions import (
+    count_tokens_with_provider_async,
+)
 from unique_toolkit.language_model.provider_token_count import (
     build_provider_token_count_payload,
 )
@@ -119,7 +121,7 @@ async def test_count_tokens_with_provider_async__returns_proxy_count_AI() -> Non
     Setup summary: One user message, provider returns 123 tokens -> helper returns 123.
     """
     with patch(
-        "unique_toolkit.chat.functions.unique_sdk.Integrated.count_tokens_async",
+        "unique_toolkit.language_model.functions.unique_sdk.Integrated.count_tokens_async",
         AsyncMock(return_value={"input_tokens": 123}),
     ) as count_tokens:
         result = await count_tokens_with_provider_async(
@@ -179,7 +181,7 @@ async def test_count_tokens_with_provider_async__preserves_camelcase_tool_and_im
     )
 
     with patch(
-        "unique_toolkit.chat.functions.unique_sdk.Integrated.count_tokens_async",
+        "unique_toolkit.language_model.functions.unique_sdk.Integrated.count_tokens_async",
         AsyncMock(return_value={"input_tokens": 456}),
     ) as count_tokens:
         result = await count_tokens_with_provider_async(

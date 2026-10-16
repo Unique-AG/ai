@@ -1,7 +1,17 @@
-from typing import Any
+from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
+from logging import Logger
+from typing import Any, TypeVar
+
+from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.loop_runner.base import _LoopIterationRunnerKwargs
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.settings import ModelFamily
+from unique_toolkit.protocols.support import SupportsTokenCount
+
+_T = TypeVar("_T")
 
 _CONTEXT_OVERFLOW_SIGNALS = (
     "context_length_exceeded",
@@ -17,6 +27,7 @@ _CONTEXT_OVERFLOW_SIGNALS = (
 
 CONTEXT_OVERFLOW_TOKEN_BUDGET_FACTOR = 0.7
 PROVIDER_COUNT_TARGET_RATIO = 0.95
+MAX_PROVIDER_OVERFLOW_REDUCTION_FACTOR = 0.9
 APPROXIMATE_TOKENIZER_TRIGGER_RATIO = 0.7
 NATIVE_TOKENIZER_TRIGGER_RATIO = 0.85
 LOCAL_LIMIT_TRIGGER_RATIO = 0.95
@@ -27,27 +38,6 @@ _NATIVE_TOKENIZER_FAMILIES = {
     ModelFamily.OPENAI,
     ModelFamily.DEEPSEEK,
     ModelFamily.QWEN,
-}
-
-_CLAUDE_CONTEXT_WINDOWS = {
-    "claude-3-7-sonnet": 200_000,
-    "claude-3-7-sonnet-thinking": 200_000,
-    "claude-haiku-4-5": 200_000,
-    "claude-opus-4": 200_000,
-    "claude-opus-4-1": 200_000,
-    "claude-opus-4-5": 200_000,
-    "claude-opus-4-6": 200_000,
-    "claude-sonnet-4": 200_000,
-    "claude-sonnet-4-5": 200_000,
-    "claude-sonnet-4-6": 200_000,
-    "claude-fable-5": 1_000_000,
-    "claude-haiku-5-5": 1_000_000,
-    "claude-opus-4-7": 1_000_000,
-    "claude-opus-4-8": 1_000_000,
-    "claude-opus-5": 1_000_000,
-    "claude-opus-5-5": 1_000_000,
-    "claude-sonnet-5": 1_000_000,
-    "claude-sonnet-5-5": 1_000_000,
 }
 
 WITHHELD_TOOL_RESULT_NOTICE = (
@@ -70,25 +60,7 @@ def supports_provider_token_count(model: LanguageModelInfo) -> bool:
 
 
 def provider_context_window(model: LanguageModelInfo) -> int:
-    if model.family == ModelFamily.ANTHROPIC:
-        known_window = _CLAUDE_CONTEXT_WINDOWS.get(model.version)
-        if known_window is None:
-            model_name = str(model.name)
-            known_window = next(
-                (
-                    window
-                    for version, window in sorted(
-                        _CLAUDE_CONTEXT_WINDOWS.items(),
-                        key=lambda item: len(item[0]),
-                        reverse=True,
-                    )
-                    if version in model_name
-                ),
-                None,
-            )
-        if known_window is not None:
-            return known_window
-    return model.token_limits.token_limit_input
+    return model.provider_context_window
 
 
 def provider_count_trigger_tokens(
@@ -127,3 +99,132 @@ def provider_input_target(
         int(provider_context_window(model) * PROVIDER_COUNT_TARGET_RATIO)
         - output_reserve,
     )
+
+
+def provider_overflow_reduction_factor(provider_count: int, target: int) -> float:
+    """Budget multiplier that brings an oversized provider count under *target*."""
+    return min(
+        MAX_PROVIDER_OVERFLOW_REDUCTION_FACTOR,
+        target / provider_count * PROVIDER_COUNT_TARGET_RATIO,
+    )
+
+
+class ContextOverflowGuard:
+    """Preflight provider token-budget verification and overflow retry policy."""
+
+    def __init__(
+        self,
+        *,
+        logger: Logger,
+        history_manager: HistoryManager,
+        streaming_handler: object,
+        model: LanguageModelInfo,
+    ) -> None:
+        self._logger = logger
+        self._history_manager = history_manager
+        self._streaming_handler = streaming_handler
+        self._model = model
+
+    async def preflight_token_budget(
+        self,
+        kwargs: _LoopIterationRunnerKwargs,
+        recompose: Callable[[], Awaitable[None]],
+    ) -> None:
+        """Verify near-limit payloads using the provider's tokenizer before the LLM call."""
+        if not supports_provider_token_count(self._model):
+            return
+        if not isinstance(self._streaming_handler, SupportsTokenCount):
+            return
+
+        local_count = self._history_manager.last_token_count
+        effective_limit = self._history_manager.effective_token_limit
+        trigger = provider_count_trigger_tokens(self._model, effective_limit)
+        if local_count < trigger:
+            return
+
+        target = provider_input_target(self._model, kwargs.get("other_options"))
+        provider_count = await self._try_provider_token_count(kwargs)
+        if provider_count is None or provider_count <= target:
+            return
+
+        self._logger.warning(
+            f"Provider token count {provider_count} exceeds the safe input target "
+            f"{target}. Reducing tool results before the LLM call."
+        )
+        reduction_factor = provider_overflow_reduction_factor(provider_count, target)
+        self._history_manager.tighten_token_budget(reduction_factor)
+        await recompose()
+
+        reduced_count = await self._try_provider_token_count(kwargs)
+        if reduced_count is None or reduced_count <= target:
+            return
+
+        if not self._history_manager.withhold_latest_tool_call_results(
+            WITHHELD_TOOL_RESULT_NOTICE
+        ):
+            self._logger.warning(
+                f"Provider token count remains above target ({reduced_count} > "
+                f"{target}), but there are no tool results to withhold."
+            )
+            return
+
+        self._logger.warning(
+            "Provider token count remains above target after reduction. "
+            "Withholding the latest tool-call batch."
+        )
+        await recompose()
+
+    async def retry_after_overflow(
+        self,
+        exc: Exception,
+        *,
+        recompose: Callable[[], Awaitable[None]],
+        run_iteration: Callable[[], Awaitable[_T]],
+    ) -> _T:
+        """Retry an oversized LLM call by tightening the budget or withholding the latest tool batch."""
+        self._logger.warning(
+            "LLM call exceeded the context window. Retrying with a tighter token budget.",
+            exc_info=exc,
+        )
+        self._history_manager.tighten_token_budget(CONTEXT_OVERFLOW_TOKEN_BUDGET_FACTOR)
+        await recompose()
+        try:
+            return await run_iteration()
+        except Exception as retry_exc:
+            if not is_context_window_exceeded_error(retry_exc):
+                raise
+            if not self._history_manager.withhold_latest_tool_call_results(
+                WITHHELD_TOOL_RESULT_NOTICE
+            ):
+                raise
+            self._logger.warning(
+                "LLM call still exceeded the context window. Retrying with the "
+                "latest tool call results withheld."
+            )
+            await recompose()
+            return await run_iteration()
+
+    async def _try_provider_token_count(
+        self, kwargs: _LoopIterationRunnerKwargs
+    ) -> int | None:
+        handler = self._streaming_handler
+        if not isinstance(handler, SupportsTokenCount):
+            return None
+        try:
+            count = await asyncio.wait_for(
+                handler.count_tokens_async(
+                    messages=kwargs["messages"],
+                    model_name=self._model.name,
+                    temperature=kwargs.get("temperature", 0.0),
+                    tools=kwargs.get("tools"),
+                    other_options=kwargs.get("other_options"),
+                ),
+                timeout=PROVIDER_TOKEN_COUNT_TIMEOUT_SECONDS,
+            )
+        except Exception:
+            self._logger.warning(
+                "Provider token counting failed. Continuing with the local token budget.",
+                exc_info=True,
+            )
+            return None
+        return count if count > 0 else None

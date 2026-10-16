@@ -65,6 +65,8 @@ def mock_unique_ai(monkeypatch: pytest.MonkeyPatch) -> UniqueAI:
     )
     ua._compose_message_plan_execution = AsyncMock(return_value=MagicMock())
     ua._record_loop_debug_params = MagicMock()
+    ua._history_manager.last_token_count = 0
+    ua._history_manager.effective_token_limit = 600_000
     return ua
 
 
@@ -213,10 +215,10 @@ async def test_preflight__withholds_latest_batch_when_reduction_is_insufficient_
     """
     Purpose: Persistent provider overflow falls back to withholding the latest tool batch.
     Why this matters: Parallel high-context tool calls must degrade into a sequential retry instruction.
-    Setup summary: Counts remain over target after reduction, latest batch exists -> withhold and recount.
+    Setup summary: Counts remain over target after reduction, latest batch exists -> withhold and recompose.
     """
     counter = _configure_claude_preflight(mock_unique_ai)
-    counter.side_effect = [990_000, 970_000, 100_000]
+    counter.side_effect = [990_000, 970_000]
     mock_unique_ai._history_manager.withhold_latest_tool_call_results.return_value = 2
     response = MagicMock()
     mock_unique_ai._loop_iteration_runner.return_value = response
@@ -226,7 +228,7 @@ async def test_preflight__withholds_latest_batch_when_reduction_is_insufficient_
     mock_unique_ai._history_manager.withhold_latest_tool_call_results.assert_called_once_with(
         WITHHELD_TOOL_RESULT_NOTICE
     )
-    assert counter.await_count == 3
+    assert counter.await_count == 2
     assert mock_unique_ai._loop_iteration_runner.await_count == 1
 
 

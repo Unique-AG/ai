@@ -8,6 +8,7 @@ from unique_toolkit.agentic.history_manager.context_overflow import (
     provider_context_window,
     provider_count_trigger_tokens,
     provider_input_target,
+    provider_overflow_reduction_factor,
     supports_provider_token_count,
 )
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -298,3 +299,8 @@ def test_provider_budget__triggers_before_local_reducer_ceiling_AI() -> None:
     assert (
         provider_count_trigger_tokens(model, effective_local_limit=600_000) == 570_000
     )
+    assert provider_overflow_reduction_factor(990_000, 940_000) == 0.9
+    assert provider_overflow_reduction_factor(1_200_000, 900_000) == pytest.approx(
+        0.7125
+    )
+
