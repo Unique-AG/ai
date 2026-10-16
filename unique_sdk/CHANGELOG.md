@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.42.0...unique-sdk-v2026.44.0) (2026-10-16)
+
+
+### Features
+
+* **cli:** accept several queries in one web-search call [UN-27454] ([#2572](https://github.com/Unique-AG/ai/issues/2572)) ([88ecd6a](https://github.com/Unique-AG/ai/commit/88ecd6a355c630d716a8ab53a3d68af1948fb905))
+* **sdk:** create Conduct spaces and attach MCP servers [UN-27208] ([#2547](https://github.com/Unique-AG/ai/issues/2547)) ([426c594](https://github.com/Unique-AG/ai/commit/426c5944c5d4f0799a81dadb1c0c705d83a180e6))
+* **search:** add merge strategy and score options ([#2565](https://github.com/Unique-AG/ai/issues/2565)) ([5d71779](https://github.com/Unique-AG/ai/commit/5d71779b93aced9e08fed0a6222980c49b94fd16))
+
+
+### Bug Fixes
+
+* **cli:** bound filename resolve to stop whole-KB scans [UN-26945] ([#2561](https://github.com/Unique-AG/ai/issues/2561)) ([42df03e](https://github.com/Unique-AG/ai/commit/42df03ec3ec0cf86e6cf7aecceb2abf561187f36))
+* **cli:** exit 1 when unique-cli mcp fails [UN-27061] ([#2558](https://github.com/Unique-AG/ai/issues/2558)) ([b578bc7](https://github.com/Unique-AG/ai/commit/b578bc75eca45de781a7fc710475dc94f01a60e3))
+* **cli:** exit non-zero when mkdir, upload, or ls fails [UN-26713] ([#2553](https://github.com/Unique-AG/ai/issues/2553)) ([dbab9f3](https://github.com/Unique-AG/ai/commit/dbab9f34ae4f055750edcde0f94979d547b44379))
+* **cli:** resolve absolute mkdir paths [UN-26812] ([#2542](https://github.com/Unique-AG/ai/issues/2542)) ([8b225bf](https://github.com/Unique-AG/ai/commit/8b225bfcc011d52f5734e13a45b37a2efd06523b))
+* **orchestrator:** prevent parallel tool context overflow [UN-27401] ([#2575](https://github.com/Unique-AG/ai/issues/2575)) ([95ec9ec](https://github.com/Unique-AG/ai/commit/95ec9ec8bc94033dea7e04c045fac6783327750f))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.40.0...unique-sdk-v2026.42.0) (2026-10-09)
 
 
