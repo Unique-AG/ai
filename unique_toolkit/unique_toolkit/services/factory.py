@@ -174,7 +174,10 @@ class UniqueServiceFactory:
             ContentService,
             LanguageModelService,
         )
-        if {service.__name__ for service in service_classes} != _KNOWN_SERVICE_NAMES:
+        if (
+            frozenset(service.__name__ for service in service_classes)
+            != _KNOWN_SERVICE_NAMES
+        ):
             raise RuntimeError(
                 "register_known_services does not match _KNOWN_SERVICE_NAMES"
             )
