@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from pydantic import BaseModel
 
+from unique_search_proxy_client.web.helm.generator.introspect import env_var_name
 from unique_search_proxy_client.web.helm.registry import startup_report_groups
 from unique_search_proxy_client.web.settings.secret_str import (
     field_has_not_provided_default,
@@ -15,8 +16,8 @@ from unique_search_proxy_client.web.settings.secret_str import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def _env_var_name(field_name: str, env_prefix: str) -> str:
-    return f"{env_prefix}{field_name.upper()}"
+def _env_var_name(model: BaseModel, field_name: str, env_prefix: str) -> str:
+    return env_var_name(field_name, env_prefix, model.model_fields[field_name])
 
 
 def _field_status(
@@ -26,7 +27,7 @@ def _field_status(
 ) -> str:
     value = getattr(model, field_name)
     field_info = model.model_fields[field_name]
-    env_var = _env_var_name(field_name, env_prefix)
+    env_var = _env_var_name(model, field_name, env_prefix)
 
     if field_has_not_provided_default(field_info):
         return "configured" if is_secret_configured(value) else "missing"
@@ -46,7 +47,7 @@ def _group_fields_by_status(
 ) -> dict[str, list[str]]:
     grouped: dict[str, list[str]] = defaultdict(list)
     for field_name in model.model_fields:
-        env_var = _env_var_name(field_name, env_prefix)
+        env_var = _env_var_name(model, field_name, env_prefix)
         status = _field_status(model, field_name, env_prefix)
         grouped[status].append(env_var)
     return grouped
@@ -72,7 +73,7 @@ def _format_group(title: str, model: BaseModel, env_prefix: str) -> list[str]:
     grouped = _group_fields_by_status(model, env_prefix)
     lines = [f"  [{title}] {_group_summary(grouped)}"]
     for field_name in model.model_fields:
-        env_var = _env_var_name(field_name, env_prefix)
+        env_var = _env_var_name(model, field_name, env_prefix)
         value = getattr(model, field_name)
         lines.append(f"    {env_var}={_format_settings_value(value)}")
     return lines

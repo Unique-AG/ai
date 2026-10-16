@@ -182,6 +182,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/PerplexitySearchRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CustomApiSearchRequest"
                   }
                 ],
                 "title": "Body"
@@ -1379,6 +1382,72 @@
           "url"
         ],
         "title": "Crawl Url Result"
+      },
+      "CustomApiRequestMethod": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST"
+        ],
+        "title": "CustomApiRequestMethod"
+      },
+      "CustomApiSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "custom_api",
+            "title": "Search engine",
+            "description": "Provider discriminator; must be `custom_api` for this config.",
+            "default": "custom_api"
+          },
+          "apiEndpoint": {
+            "type": "string",
+            "title": "API endpoint",
+            "description": "HTTP(S) endpoint called by Search Proxy.",
+            "default": "https://api.example.com/search"
+          },
+          "apiHeaders": {
+            "type": "string",
+            "title": "API headers",
+            "description": "JSON object containing headers sent to the custom API.",
+            "default": "{\"Content-Type\": \"application/json\"}"
+          },
+          "apiAdditionalQueryParams": {
+            "type": "string",
+            "title": "Additional query parameters",
+            "description": "JSON object merged into the custom API query parameters.",
+            "default": "{}"
+          },
+          "apiAdditionalBodyParams": {
+            "type": "string",
+            "title": "Additional body parameters",
+            "description": "JSON object merged into the custom API JSON body.",
+            "default": "{}"
+          },
+          "apiRequestMethod": {
+            "$ref": "#/components/schemas/CustomApiRequestMethod",
+            "title": "Request method",
+            "description": "HTTP method used to call the custom API.",
+            "default": "GET"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Custom API request timeout in seconds.",
+            "default": 120
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Custom Api Search Request"
       },
       "FirecrawlCrawlRequest": {
         "properties": {

@@ -24,6 +24,9 @@ from unique_search_proxy_core.search_engines.brave.schema import (
     BraveSafesearch,
     BraveUnits,
 )
+from unique_search_proxy_core.search_engines.custom_api.schema import (
+    CustomApiRequestMethod,
+)
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleSafeDefault,
     GoogleSiteSearchFilter,
@@ -171,6 +174,31 @@ class PerplexitySearchEndpoint(_TypedPostEndpoint[SearchResponse]):
             last_updated_before_filter=last_updated_before_filter,
             search_after_date_filter=search_after_date_filter,
             search_before_date_filter=search_before_date_filter,
+        )
+
+
+class CustomApiSearchEndpoint(_TypedPostEndpoint[SearchResponse]):
+    async def __call__(
+        self,
+        *,
+        query: str,
+        api_endpoint: str,
+        engine: Literal["custom_api"] = "custom_api",
+        timeout: int = 120,
+        api_headers: str = '{"Content-Type": "application/json"}',
+        api_additional_query_params: str = "{}",
+        api_additional_body_params: str = "{}",
+        api_request_method: CustomApiRequestMethod = CustomApiRequestMethod.GET,
+    ) -> SearchResponse:
+        return await self._call(
+            query=query,
+            api_endpoint=api_endpoint,
+            engine=engine,
+            timeout=timeout,
+            api_headers=api_headers,
+            api_additional_query_params=api_additional_query_params,
+            api_additional_body_params=api_additional_body_params,
+            api_request_method=api_request_method,
         )
 
 
@@ -417,6 +445,7 @@ __all__ = [
     "BingAgentSearchEndpoint",
     "BingAgentSearchStreamEndpoint",
     "BraveSearchEndpoint",
+    "CustomApiSearchEndpoint",
     "FirecrawlCrawlEndpoint",
     "GoogleSearchEndpoint",
     "JinaCrawlEndpoint",
