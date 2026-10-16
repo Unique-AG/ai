@@ -303,4 +303,3 @@ def test_provider_budget__triggers_before_local_reducer_ceiling_AI() -> None:
     assert provider_overflow_reduction_factor(1_200_000, 900_000) == pytest.approx(
         0.7125
     )
-

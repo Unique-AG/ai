@@ -697,9 +697,7 @@ class UniqueAI:
 
         return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
 
-    async def _recompose_messages(
-        self, kwargs: _LoopIterationRunnerKwargs
-    ) -> None:
+    async def _recompose_messages(self, kwargs: _LoopIterationRunnerKwargs) -> None:
         kwargs["messages"] = await self._compose_message_plan_execution()
         kwargs["content_chunks"] = (
             self._history_manager.get_content_chunks_for_backend()
