@@ -23,7 +23,12 @@ from unique_toolkit.chat.schemas import (
     ChatMessageRole,
 )
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.content.schemas import (
+    ContentChunk,
+    ContentReference,
+    ContentSearchMergeStrategy,
+    ContentSearchType,
+)
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -1388,6 +1393,27 @@ class TestChatServiceUnit:
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
         assert "London, UK" in arguments.values()
+
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.services.chat_service.search_content_chunks_async")
+    async def test_search_content_chunks_async_forwards_merge_strategy_and_scores(
+        self, mock_search
+    ):
+        mock_search.return_value = []
+
+        await self.service.search_content_chunks_async(
+            search_string="test",
+            search_type=ContentSearchType.COMBINED,
+            limit=10,
+            merge_strategy=ContentSearchMergeStrategy.RRF,
+            include_scores=True,
+        )
+
+        call_kwargs = mock_search.call_args.kwargs
+        assert call_kwargs["merge_strategy"] == ContentSearchMergeStrategy.RRF
+        assert call_kwargs["include_scores"] is True
+        assert call_kwargs["chat_only"] is True
+        assert call_kwargs["chat_id"] == "test_chat"
 
 
 class TestChatServiceDebugInfo:
