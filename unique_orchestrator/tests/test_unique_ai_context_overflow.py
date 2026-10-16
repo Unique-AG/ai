@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -88,7 +89,7 @@ def _configure_claude_preflight(ua: UniqueAI) -> AsyncMock:
     ua._history_manager.last_token_count = 600_000
     ua._history_manager.effective_token_limit = 600_000
     counter = AsyncMock()
-    ua._streaming_handler.count_tokens_async = counter
+    ua._chat_service.count_tokens_async = counter
     return counter
 
 
@@ -181,7 +182,62 @@ async def test_preflight__provider_counter_failure_falls_back_to_local_budget_AI
     assert await _plan_or_execute(mock_unique_ai) is response
 
     counter.assert_awaited_once()
+    mock_unique_ai._history_manager.tighten_token_budget.assert_not_called()
     assert mock_unique_ai._loop_iteration_runner.await_count == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_preflight__provider_counter_timeout_falls_back_to_local_budget_AI(
+    mock_unique_ai: UniqueAI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: A slow provider counter fails open instead of delaying or shrinking the turn.
+    Why this matters: The counter is an optimisation; a hung proxy must not block generation.
+    Setup summary: Counter sleeps past a shortened timeout -> generate once, budget untouched.
+    """
+    monkeypatch.setattr(
+        "unique_toolkit.agentic.history_manager.context_overflow."
+        "PROVIDER_TOKEN_COUNT_TIMEOUT_SECONDS",
+        0.01,
+    )
+    counter = _configure_claude_preflight(mock_unique_ai)
+
+    async def _slow_count(**_: object) -> int:
+        await asyncio.sleep(1)
+        return 990_000
+
+    counter.side_effect = _slow_count
+    response = MagicMock()
+    mock_unique_ai._loop_iteration_runner.return_value = response
+
+    assert await _plan_or_execute(mock_unique_ai) is response
+
+    mock_unique_ai._history_manager.tighten_token_budget.assert_not_called()
+    assert mock_unique_ai._loop_iteration_runner.await_count == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_preflight__counts_through_chat_service_for_any_streaming_handler_AI(
+    mock_unique_ai: UniqueAI,
+) -> None:
+    """
+    Purpose: Preflight counting does not depend on the streaming handler implementing a counter.
+    Why this matters: The Responses API handler has no count_tokens_async, so near-limit Claude
+        calls on that build would otherwise skip the provider check.
+    Setup summary: Streaming handler without a counter, chat service counter -> counter used.
+    """
+    counter = _configure_claude_preflight(mock_unique_ai)
+    mock_unique_ai._streaming_handler = object()
+    counter.return_value = 930_000
+    response = MagicMock()
+    mock_unique_ai._loop_iteration_runner.return_value = response
+
+    assert await _plan_or_execute(mock_unique_ai) is response
+
+    counter.assert_awaited_once()
 
 
 @pytest.mark.ai
@@ -218,7 +274,7 @@ async def test_preflight__withholds_latest_batch_when_reduction_is_insufficient_
     Setup summary: Counts remain over target after reduction, latest batch exists -> withhold and recompose.
     """
     counter = _configure_claude_preflight(mock_unique_ai)
-    counter.side_effect = [990_000, 970_000]
+    counter.side_effect = [990_000, 970_000, 600_000]
     mock_unique_ai._history_manager.withhold_latest_tool_call_results.return_value = 2
     response = MagicMock()
     mock_unique_ai._loop_iteration_runner.return_value = response
@@ -228,7 +284,36 @@ async def test_preflight__withholds_latest_batch_when_reduction_is_insufficient_
     mock_unique_ai._history_manager.withhold_latest_tool_call_results.assert_called_once_with(
         WITHHELD_TOOL_RESULT_NOTICE
     )
-    assert counter.await_count == 2
+    mock_unique_ai._history_manager.tighten_token_budget.assert_called_once()
+    assert counter.await_count == 3
+    assert mock_unique_ai._loop_iteration_runner.await_count == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_preflight__reduces_history_when_withheld_payload_is_still_over_AI(
+    mock_unique_ai: UniqueAI,
+) -> None:
+    """
+    Purpose: The withheld payload is counted again before generation.
+    Why this matters: If older history alone exceeds the target, sending it would rely on the
+        provider rejecting the call before anything shrinks it.
+    Setup summary: Counts stay over target after withholding -> second budget tighten and recompose.
+    """
+    counter = _configure_claude_preflight(mock_unique_ai)
+    counter.side_effect = [990_000, 970_000, 1_000_000]
+    mock_unique_ai._history_manager.withhold_latest_tool_call_results.return_value = 2
+    response = MagicMock()
+    mock_unique_ai._loop_iteration_runner.return_value = response
+
+    assert await _plan_or_execute(mock_unique_ai) is response
+
+    assert mock_unique_ai._history_manager.tighten_token_budget.call_count == 2
+    assert mock_unique_ai._history_manager.tighten_token_budget.call_args_list[
+        1
+    ].args == (pytest.approx(940_000 / 1_000_000 * 0.95),)
+    assert counter.await_count == 3
+    assert mock_unique_ai._compose_message_plan_execution.await_count == 4
     assert mock_unique_ai._loop_iteration_runner.await_count == 1
 
 
@@ -274,6 +359,26 @@ async def test_repeated_overflow__withholds_latest_tool_results_AI(
         WITHHELD_TOOL_RESULT_NOTICE
     )
     assert mock_unique_ai._compose_message_plan_execution.await_count == 3
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_repeated_overflow__propagates_third_overflow_after_withhold_AI(
+    mock_unique_ai: UniqueAI,
+) -> None:
+    """
+    Purpose: Recovery is bounded; an overflow after withholding propagates.
+    Why this matters: Retrying indefinitely would loop on a payload that cannot fit.
+    Setup summary: Runner overflows three times, withhold succeeds -> error raised after 3 attempts.
+    """
+    mock_unique_ai._loop_iteration_runner.side_effect = [OVERFLOW, OVERFLOW, OVERFLOW]
+    mock_unique_ai._history_manager.withhold_latest_tool_call_results.return_value = 2
+
+    with pytest.raises(Exception, match="prompt is too long"):
+        await _plan_or_execute(mock_unique_ai)
+
+    mock_unique_ai._history_manager.withhold_latest_tool_call_results.assert_called_once()
+    assert mock_unique_ai._loop_iteration_runner.await_count == 3
 
 
 @pytest.mark.ai

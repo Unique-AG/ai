@@ -1,6 +1,15 @@
+"""Keep agent-loop prompts inside the provider's context window.
+
+The local reducer estimates tokens with an OpenAI tokenizer, which can undercount
+other providers by 2x or more. ``ContextOverflowGuard`` verifies near-limit
+payloads with the provider's own counter before the LLM call and recovers when the
+provider still rejects a prompt as too long.
+"""
+
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from logging import Logger
 from typing import Any, TypeVar
@@ -18,12 +27,12 @@ _CONTEXT_OVERFLOW_SIGNALS = (
     "contextwindowexceedederror",
     "tokenlimitexceeded",
     "maximum context length",
-    "context window",
     "prompt is too long",
     "input is too long",
     "too many input tokens",
     "exceeds the maximum number of tokens",
 )
+_CONTEXT_WINDOW_QUALIFIERS = ("exceed", "too long", "maximum")
 
 CONTEXT_OVERFLOW_TOKEN_BUDGET_FACTOR = 0.7
 PROVIDER_COUNT_TARGET_RATIO = 0.95
@@ -52,7 +61,11 @@ WITHHELD_TOOL_RESULT_NOTICE = (
 def is_context_window_exceeded_error(exc: BaseException) -> bool:
     """Return True if *exc* indicates the prompt exceeded the model's context window."""
     error_text = f"{type(exc).__name__} {exc}".lower()
-    return any(signal in error_text for signal in _CONTEXT_OVERFLOW_SIGNALS)
+    if any(signal in error_text for signal in _CONTEXT_OVERFLOW_SIGNALS):
+        return True
+    return "context window" in error_text and any(
+        qualifier in error_text for qualifier in _CONTEXT_WINDOW_QUALIFIERS
+    )
 
 
 def supports_provider_token_count(model: LanguageModelInfo) -> bool:
@@ -117,12 +130,12 @@ class ContextOverflowGuard:
         *,
         logger: Logger,
         history_manager: HistoryManager,
-        streaming_handler: object,
+        token_counter: object,
         model: LanguageModelInfo,
     ) -> None:
         self._logger = logger
         self._history_manager = history_manager
-        self._streaming_handler = streaming_handler
+        self._token_counter = token_counter
         self._model = model
 
     async def preflight_token_budget(
@@ -133,7 +146,7 @@ class ContextOverflowGuard:
         """Verify near-limit payloads using the provider's tokenizer before the LLM call."""
         if not supports_provider_token_count(self._model):
             return
-        if not isinstance(self._streaming_handler, SupportsTokenCount):
+        if not isinstance(self._token_counter, SupportsTokenCount):
             return
 
         local_count = self._history_manager.last_token_count
@@ -174,6 +187,19 @@ class ContextOverflowGuard:
         )
         await recompose()
 
+        withheld_count = await self._try_provider_token_count(kwargs)
+        if withheld_count is None or withheld_count <= target:
+            return
+
+        self._logger.warning(
+            f"Provider token count {withheld_count} still exceeds the safe input "
+            f"target {target} after withholding. Reducing history further."
+        )
+        self._history_manager.tighten_token_budget(
+            provider_overflow_reduction_factor(withheld_count, target)
+        )
+        await recompose()
+
     async def retry_after_overflow(
         self,
         exc: Exception,
@@ -207,12 +233,13 @@ class ContextOverflowGuard:
     async def _try_provider_token_count(
         self, kwargs: _LoopIterationRunnerKwargs
     ) -> int | None:
-        handler = self._streaming_handler
-        if not isinstance(handler, SupportsTokenCount):
+        counter = self._token_counter
+        if not isinstance(counter, SupportsTokenCount):
             return None
+        started_at = time.perf_counter()
         try:
             count = await asyncio.wait_for(
-                handler.count_tokens_async(
+                counter.count_tokens_async(
                     messages=kwargs["messages"],
                     model_name=self._model.name,
                     temperature=kwargs.get("temperature", 0.0),
@@ -222,9 +249,16 @@ class ContextOverflowGuard:
                 timeout=PROVIDER_TOKEN_COUNT_TIMEOUT_SECONDS,
             )
         except Exception:
+            elapsed_ms = (time.perf_counter() - started_at) * 1000
             self._logger.warning(
-                "Provider token counting failed. Continuing with the local token budget.",
+                f"Provider token counting failed after {elapsed_ms:.0f} ms. "
+                "Continuing with the local token budget.",
                 exc_info=True,
             )
             return None
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        self._logger.info(
+            f"Provider token count for {self._model.name}: {count} tokens "
+            f"in {elapsed_ms:.0f} ms."
+        )
         return count if count > 0 else None

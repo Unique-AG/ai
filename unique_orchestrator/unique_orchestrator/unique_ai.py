@@ -653,7 +653,7 @@ class UniqueAI:
         overflow_guard = ContextOverflowGuard(
             logger=self._logger,
             history_manager=self._history_manager,
-            streaming_handler=self._streaming_handler,
+            token_counter=self._chat_service,
             model=self._config.space.language_model,
         )
 

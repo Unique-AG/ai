@@ -42,6 +42,8 @@ class ContextWindowExceededError(Exception):
         ),
         ContextWindowExceededError("litellm.BadRequestError"),
         Exception("TokenLimitExceeded"),
+        Exception("The request exceeds the model's context window."),
+        Exception("Input is longer than the maximum context window of 200000 tokens."),
         Exception(
             "Internal server error\n(Original error) 400: litellm.BadRequestError: "
             "OpenAIException - litellm.ContextWindowExceededError: "
@@ -71,6 +73,7 @@ def test_is_context_window_exceeded_error__detects_provider_overflow_AI(
         ),
         Exception("Internal server error"),
         TimeoutError("Request timed out"),
+        Exception("Invalid context window configuration for deployment."),
     ],
 )
 def test_is_context_window_exceeded_error__ignores_other_errors_AI(
@@ -79,7 +82,7 @@ def test_is_context_window_exceeded_error__ignores_other_errors_AI(
     """
     Purpose: Unrelated LLM errors are not treated as context overflow.
     Why this matters: Retrying them with withheld tool results would silently drop data.
-    Setup summary: Rate-limit, server and timeout errors -> False.
+    Setup summary: Rate-limit, server, timeout and window-mentioning non-length errors -> False.
     """
     assert not is_context_window_exceeded_error(exc)
 
