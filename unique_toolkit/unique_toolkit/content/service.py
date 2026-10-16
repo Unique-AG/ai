@@ -376,8 +376,8 @@ class ContentService:
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
-            merge_strategy (ContentSearchMergeStrategy | None, optional): How a COMBINED search merges vector and full-text results. Ignored by other search types. Defaults to the backend configuration.
-            include_scores (bool | None, optional): Whether to populate ``ContentChunk.score``. Defaults to None.
+            merge_strategy (ContentSearchMergeStrategy | None, optional): How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+            include_scores (bool | None, optional): When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -449,8 +449,8 @@ class ContentService:
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
-            merge_strategy (ContentSearchMergeStrategy | None, optional): How a COMBINED search merges vector and full-text results. Ignored by other search types. Defaults to the backend configuration.
-            include_scores (bool | None, optional): Whether to populate ``ContentChunk.score``. Defaults to None.
+            merge_strategy (ContentSearchMergeStrategy | None, optional): How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+            include_scores (bool | None, optional): When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.

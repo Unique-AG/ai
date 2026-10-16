@@ -20,6 +20,7 @@ The `unique_toolkit.content` module encompasses all content-related functionalit
 ::: unique_toolkit.content.schemas.Content
 ::: unique_toolkit.content.schemas.ContentChunk
 ::: unique_toolkit.content.schemas.ContentSearchType
+::: unique_toolkit.content.schemas.ContentSearchMergeStrategy
 ::: unique_toolkit.content.schemas.ContentRerankerConfig
 
 ### Functions
