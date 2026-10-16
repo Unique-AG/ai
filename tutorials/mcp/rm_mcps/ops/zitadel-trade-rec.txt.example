@@ -1,0 +1,6 @@
+# Zitadel Web app "rm-trade-rec-mcp" (QA instance, Cluster IAM / Unique Apps project)
+# SHAPE ONLY — real values: Zitadel console (id.qa.unique.app) or the
+# rm-trade-rec-mcp web app's UPSTREAM_CLIENT_ID / UPSTREAM_CLIENT_SECRET app settings.
+# Redirect URI: https://rm-trade-rec-mcp.azurewebsites.net/auth/callback
+UPSTREAM_CLIENT_ID=<zitadel-client-id>
+UPSTREAM_CLIENT_SECRET=<zitadel-client-secret>
