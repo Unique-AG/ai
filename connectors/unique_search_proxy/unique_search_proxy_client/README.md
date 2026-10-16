@@ -92,7 +92,7 @@ Built-in providers register in `register_builtin_providers()` during `create_app
 | `POST /v1/agent-search/stream` | Same, streamed as SSE (`delta` + `done`) |
 | `POST /v1/crawl` | Crawl URLs (flat body: `crawler`, `urls`, `timeout`, …) |
 | `GET /metrics` | Prometheus (when enabled) |
-| `/docs` | Swagger UI with preset examples |
+| `/docs` | Swagger UI with preset examples (only when `EXPOSE_DOCS=true`) |
 
 OpenAPI spec: `openapi.json` (input for [SDK codegen](../unique_search_proxy_sdk/README.md)).
 
@@ -260,7 +260,7 @@ uv run python scripts/generate_sdk.py
 ## 8. Dev testing
 
 1. Start the server and configure `.env` (`.env.example` sets `REQUIRE_CONTEXT_HEADERS=false` for local use; production keeps enforcement enabled).
-2. **Swagger** — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset. Context headers default to `local` in the UI.
+2. **Swagger** (if `EXPOSE_DOCS=true`) — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset. Context headers default to `local` in the UI.
 3. **CLI** — same presets from the terminal (`scripts/try_presets.py` sends the same local context headers):
 
 ```bash

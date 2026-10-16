@@ -27,6 +27,7 @@ from unique_search_proxy_client.web.logging_config import (
 )
 from unique_search_proxy_client.web.middleware.context import RequestContextMiddleware
 from unique_search_proxy_client.web.monitoring import setup_prometheus
+from unique_search_proxy_client.web.settings.app import app_settings
 from unique_search_proxy_client.web.startup_report import (
     log_startup_settings_report,
 )
@@ -85,6 +86,9 @@ def create_app() -> FastAPI:
         ),
         version="0.2.0",
         lifespan=lifespan,
+        docs_url="/docs" if app_settings.expose_docs else None,
+        redoc_url="/redoc" if app_settings.expose_docs else None,
+        openapi_url="/openapi.json" if app_settings.expose_docs else None,
         swagger_ui_parameters={
             "defaultModelsExpandDepth": 1,
             "defaultModelExpandDepth": 2,

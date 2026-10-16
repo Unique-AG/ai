@@ -392,10 +392,46 @@ library extension hooks (base.externalService.*.ext).
     - port: {{ $port | quote }}
       protocol: TCP
 {{- end }}
+{{ if and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort }}
+{{- $host := .Values.httpClient.connection.proxyHost -}}
+{{- $port := .Values.httpClient.connection.proxyPort -}}
+{{- if not (and (kindIs "string" $host) (regexMatch "^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$" $host)) -}}
+{{- fail "httpClient.connection.proxyHost must be a plain hostname or IPv4 address (no scheme, port, path or IPv6 literal)." -}}
+{{- end -}}
+{{- if not (regexMatch "^[0-9]+$" (toString $port)) -}}
+{{- fail "httpClient.connection.proxyPort must be a number." -}}
+{{- else if or (lt (int $port) 1) (gt (int $port) 65535) -}}
+{{- fail "httpClient.connection.proxyPort must be between 1 and 65535." -}}
+{{- end -}}
+{{- if regexMatch "^((25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$" $host }}
+- toCIDR:
+  - {{ printf "%s/32" $host | quote }}
+{{- else }}
+{{- if regexMatch "^[0-9.]+$" $host -}}
+{{- fail "httpClient.connection.proxyHost is not a valid IPv4 address." -}}
+{{- end }}
+- toFQDNs:
+  - matchName: {{ $host | quote }}
+{{- end }}
+  toPorts:
+  - ports:
+    - port: {{ $port | quote }}
+      protocol: TCP
+{{- end }}
+{{ if ne ((.Values.networkPolicy).allowWorldEgress | toString) "false" }}
+- toEntities:
+  - world
+  toPorts:
+  - ports:
+    - port: "443"
+      protocol: TCP
+    - port: "80"
+      protocol: TCP
+{{- end }}
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.cilium.egress.hasRules.ext" -}}
-{{- if or (and .Values.googleSearch .Values.googleSearch.enabled) (and .Values.braveSearch .Values.braveSearch.enabled) (and .Values.perplexitySearch .Values.perplexitySearch.enabled) (and .Values.tavily .Values.tavily.enabled) (and .Values.jina .Values.jina.enabled) (and .Values.firecrawl .Values.firecrawl.enabled) -}}true{{- end -}}
+{{- if or (and .Values.googleSearch .Values.googleSearch.enabled) (and .Values.braveSearch .Values.braveSearch.enabled) (and .Values.perplexitySearch .Values.perplexitySearch.enabled) (and .Values.tavily .Values.tavily.enabled) (and .Values.jina .Values.jina.enabled) (and .Values.firecrawl .Values.firecrawl.enabled) (and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort) -}}true{{- end -}}
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.kubernetes.egress.validation.ext" -}}
