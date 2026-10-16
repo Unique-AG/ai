@@ -15,7 +15,7 @@ return await self._legacy_search(...)      # direct provider call from this proc
 |------|---------|-------|--------|
 | **Standard** | Google | yes | yes |
 | **Standard** | Brave, Perplexity | yes | **raises** (proxy-only) |
-| **Standard** | Custom API | never | always |
+| **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
 Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Bing/VertexAI).
@@ -127,13 +127,20 @@ Config: `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityCon
 PERPLEXITY_API_KEY=...
 ```
 
-### Custom API Search (always local)
+### Custom API Search
 
-**Provider:** your REST endpoint · **Never proxy-routed**
+**Provider:** your REST endpoint · **Proxy:** legacy + proxy
 
 Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (`LocalSearchEngineType.CUSTOM_API`)
 
-Response must be JSON with a `results` array of `{url, title, snippet, content?}`.
+Response must be JSON with a `results` or legacy `curated` array of
+`{url, title, snippet, content?}`. When
+`FEATURE_FLAG_ENABLE_CUSTOM_API_SEARCH_PROXY_UN_26736` is enabled, the endpoint
+is validated against the Search Proxy URL-safety policy, DNS is pinned, and
+redirects are rejected. Exact private hosts can be operator-approved with
+`CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS`; this exception applies only to
+Customized API endpoints. Use the same value in assistants-core for accurate
+report-only metrics before proxy routing is enabled.
 
 ```bash
 CUSTOM_WEB_SEARCH_API_ENDPOINT=https://your-api.example.com/search
