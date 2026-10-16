@@ -82,3 +82,6 @@ Tests run automatically on:
 - Pushes to `main` that modify `.github/scripts/**`
 
 See `.github/workflows/scripts-test.yaml` for the CI configuration.
+
+Gatekeeper override logic lives in `check-gatekeeper.sh` and is covered by
+`test_check_gatekeeper.bats`.

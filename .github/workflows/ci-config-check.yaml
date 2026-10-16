@@ -198,6 +198,17 @@ jobs:
             else
               echo "Validation failed. See job logs for details." >> $GITHUB_STEP_SUMMARY
             fi
+            {
+              echo ""
+              echo "### Intentional override"
+              echo "Config compatibility check failed. To proceed intentionally:"
+              echo "1. Add the \`config-check-override\` label to this PR"
+              echo "2. Get approval from \`@Unique-AG/ds-engels\` (not the PR author) on the current head SHA"
+              echo "3. Re-run **Gatekeeper** (or re-run failed jobs)"
+              echo ""
+              echo "The config job stays red; only Gatekeeper can become green when the override is authorized."
+              echo "Justification belongs in normal PR review — no special comment is required."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "## ✓ Configuration Check Passed for ${{ matrix.id }}" >> $GITHUB_STEP_SUMMARY
             if [ -f ./config-check-report.md ]; then
@@ -212,4 +223,9 @@ jobs:
         if: steps.validate.outcome == 'failure'
         run: |
           echo "❌ Configuration compatibility check failed"
+          echo ""
+          echo "To proceed intentionally:"
+          echo "  1. Add the config-check-override label"
+          echo "  2. Get approval from @Unique-AG/ds-engels on the current head SHA"
+          echo "  3. Re-run Gatekeeper (or re-run failed jobs)"
           exit 1

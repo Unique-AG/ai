@@ -349,13 +349,15 @@ To fix: Either restore the class or use `@register_config()` to map the old name
 
 ### Q: Can I ignore a specific breaking change?
 
-**A:** Not recommended (defeats the purpose), but you can:
+**A:** Prefer fixing the schema to maintain compatibility. When an intentional, reviewed exception is needed on a PR targeting `main`:
 
-1. **Fix the schema** to maintain compatibility
+1. Add the `config-check-override` label (create it once in the repo if it does not exist — CI never creates labels)
+2. Get approval from `@Unique-AG/ds-engels` on the **current** head SHA (not the PR author)
+3. Re-run **Gatekeeper** (or re-run failed jobs)
 
-2. **Create a migration guide** for users
+The config job stays failed and explains this path in its summary. Only Gatekeeper becomes green when the override is authorized. Justification belongs in normal PR review — no special comment body is required. See `CONTEXT.md` for the domain language.
 
-The system is designed to catch issues early. If you need to skip, understand why.
+Fork PRs, non-`main` base branches, cancelled config checks, other failing CI jobs, stale/dismissed approvals, and membership verification failures all remain blocking.
 
 ## Performance
 
