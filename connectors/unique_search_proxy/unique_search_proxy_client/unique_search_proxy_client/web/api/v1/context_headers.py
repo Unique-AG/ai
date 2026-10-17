@@ -8,7 +8,9 @@ from fastapi import Header
 from unique_search_proxy_core.context import (
     CHAT_ID_HEADER,
     COMPANY_ID_HEADER,
+    ENTRY_POINT_HEADER,
     LOCAL_REQUEST_CONTEXT,
+    MESSAGE_ID_HEADER,
     USER_ID_HEADER,
 )
 
@@ -35,6 +37,20 @@ async def document_request_context_headers(
             description="Tenant chat or session identifier.",
         ),
     ] = LOCAL_REQUEST_CONTEXT.chat_id,
+    x_unique_entry_point: Annotated[
+        str,
+        Header(
+            alias=ENTRY_POINT_HEADER,
+            description="Service where the search entered the platform.",
+        ),
+    ] = LOCAL_REQUEST_CONTEXT.entry_point.value,
+    x_unique_message_id: Annotated[
+        str | None,
+        Header(
+            alias=MESSAGE_ID_HEADER,
+            description="Message identifier, reserved for analytics.",
+        ),
+    ] = None,
 ) -> None:
     """Declare context headers on /v1 routes for Swagger; enforcement is in middleware."""
     return None

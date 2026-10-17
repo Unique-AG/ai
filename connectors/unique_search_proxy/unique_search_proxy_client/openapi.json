@@ -97,6 +97,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "responses": {
@@ -166,6 +196,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -302,6 +362,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -409,6 +499,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -514,6 +634,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
