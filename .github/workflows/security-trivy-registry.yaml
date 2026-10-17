@@ -1,0 +1,165 @@
+name: "[Security] Trivy Registry Image Scan"
+
+on:
+  schedule:
+    - cron: "0 6 * * 3"
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Package ids to scan (comma-separated, or "all")'
+        required: true
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-trivy-registry
+  cancel-in-progress: false
+
+jobs:
+  detect-packages:
+    name: Detect containerized packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      packages: ${{ steps.build-matrix.outputs.packages }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build package matrix
+        id: build-matrix
+        env:
+          REQUESTED: ${{ inputs.packages || 'all' }}
+        run: |
+          set -euo pipefail
+          released=$(jq -c '
+            . as $manifest
+            | $packages[0][]
+            | select(.containerize == true)
+            | {
+                id: .id,
+                image: .container_repo,
+                version: $manifest[.dir]
+              }
+            | select(.version != null)
+          ' --slurpfile packages .github/actions/get-packages-matrix/package_configuration.json \
+            .release-please-manifest.json | jq -s '.')
+
+          if [ "$REQUESTED" = "all" ]; then
+            packages="$released"
+          else
+            wanted=$(printf '%s' "$REQUESTED" | jq -Rc 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')
+            packages=$(jq -c --argjson w "$wanted" '[.[] | select(.id as $id | $w | index($id))]' <<<"$released")
+            missing=$(jq -r --argjson p "$packages" '. - [$p[].id] | join(", ")' <<<"$wanted")
+            if [ -n "$missing" ]; then
+              echo "::error::Unknown package ids: ${missing}. Known ids come from package_configuration.json (containerize: true)."
+              exit 1
+            fi
+          fi
+
+          if [ "$(jq 'length' <<<"$packages")" -eq 0 ]; then
+            echo "::error::No containerized packages selected."
+            exit 1
+          fi
+          echo "packages=${packages}" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Image ${{ matrix.package.id }}
+    needs: detect-packages
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE: ${{ matrix.package.image }}
+      VERSION: ${{ matrix.package.version }}
+      TRIVY_DISABLE_VEX_NOTICE: "true"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            /.github/trivy-templates/
+            /.github/trivyignore.yaml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve published digest
+        id: resolve
+        run: |
+          set -uo pipefail
+          if digest=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}' 2>/dev/null); then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "ref=${IMAGE}@${digest}" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=No published image::${IMAGE}:${VERSION} is in the release manifest, and the registry does not hold it."
+            echo "⚠️ ${IMAGE}:${VERSION} is not published." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        if: steps.resolve.outputs.found == 'true'
+        with:
+          scan-type: image
+          image-ref: ${{ steps.resolve.outputs.ref }}
+          format: json
+          output: trivy-results.json
+          severity: CRITICAL,HIGH
+          scanners: vuln
+          ignore-unfixed: true
+          trivyignores: .github/trivyignore.yaml
+          exit-code: "0"
+          timeout: 15m
+          cache: true
+
+      - name: Convert Trivy results to SARIF
+        if: steps.resolve.outputs.found == 'true' && hashFiles('trivy-results.json') != ''
+        run: trivy convert --format sarif trivy-results.json -o trivy-image-scan-results.sarif
+
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        if: steps.resolve.outputs.found == 'true' && hashFiles('trivy-image-scan-results.sarif') != ''
+        with:
+          sarif_file: trivy-image-scan-results.sarif
+          category: trivy-image/${{ matrix.package.id }}
+
+      - name: Evaluate registry findings
+        if: steps.resolve.outputs.found == 'true'
+        env:
+          SUMMARY_TEMPLATE: .github/trivy-templates/image-summary-markdown.tpl
+        run: |
+          set -euo pipefail
+          if [ ! -s trivy-results.json ]; then
+            echo "No trivy results file — treating as clean."
+            echo "✅ ${IMAGE}:${VERSION} reports no CRITICAL,HIGH findings." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ -f "$SUMMARY_TEMPLATE" ]; then
+            trivy convert --format template --template @"$SUMMARY_TEMPLATE" trivy-results.json > trivy-report.md || true
+            if [ -s trivy-report.md ]; then
+              cat trivy-report.md >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          fixable_json=$(jq -c '[.Results[]?.Vulnerabilities[]? | select(.FixedVersion != null and .FixedVersion != "")]' trivy-results.json)
+          fixable_count=$(echo "$fixable_json" | jq 'length')
+          echo "Fixable CRITICAL,HIGH in ${IMAGE}:${VERSION}: ${fixable_count}"
+          if [ "$fixable_count" -eq 0 ]; then
+            echo "✅ ${IMAGE}:${VERSION} reports no patchable CRITICAL,HIGH findings." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "$fixable_json" | jq -r '.[] | "::error title=Patchable finding::\(.PkgName) \(.InstalledVersion) → \(.FixedVersion) \(.VulnerabilityID) (\(.Severity))"'
+          echo "::error::Patchable CRITICAL,HIGH findings: ${fixable_count} in ${IMAGE}:${VERSION}. Rebuild and release this package."
+          exit 1

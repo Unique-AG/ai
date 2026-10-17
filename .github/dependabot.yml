@@ -42,3 +42,50 @@ updates:
       docker:
         patterns:
           - "*"
+
+  # Search-proxy direct third-party deps (single root uv.lock). Workspace members
+  # stay on the CalVer release flow and are ignored here.
+  - package-ecosystem: uv
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: friday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - uv
+    allow:
+      - dependency-name: aiohttp
+      - dependency-name: attrs
+      - dependency-name: azure-ai-projects
+      - dependency-name: azure-core
+      - dependency-name: azure-identity
+      - dependency-name: certifi
+      - dependency-name: fastapi
+      - dependency-name: google-auth
+      - dependency-name: google-genai
+      - dependency-name: httpx
+      - dependency-name: jinja2
+      - dependency-name: markdownify
+      - dependency-name: openai
+      - dependency-name: pydantic
+      - dependency-name: pydantic-settings
+      - dependency-name: pyhumps
+      - dependency-name: python-dotenv
+      - dependency-name: starlette
+      - dependency-name: uvicorn
+    ignore:
+      - dependency-name: "unique-*"
+    groups:
+      per-dependency:
+        patterns:
+          - "*"
+        update-types:
+          - major
+          - minor
+          - patch
+        group-by: dependency-name
