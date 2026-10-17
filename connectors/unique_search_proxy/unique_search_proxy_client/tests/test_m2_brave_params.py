@@ -58,7 +58,7 @@ class TestBraveProviderParams:
             "safesearch": "moderate",
             "search_lang": "de",
             "spellcheck": False,
-            "summary": True,
+            "summary": False,
             "text_decorations": True,
             "ui_lang": "en-US",
         }
