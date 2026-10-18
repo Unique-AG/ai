@@ -17,7 +17,7 @@ REQUEST_LIMITS_ENV_PREFIX = "REQUEST_LIMITS_"
     egress=None,
     env_prefix=REQUEST_LIMITS_ENV_PREFIX,
     sections={
-        "crawl": ["max_crawl_response_kib"],
+        "crawl": ["max_crawl_response_kib", "max_urls_per_crawl", "max_url_length"],
     },
 )
 class RequestLimitsSettings(BaseSettings):
@@ -39,6 +39,19 @@ class RequestLimitsSettings(BaseSettings):
             "Combined decoded size, in KiB, of all page bodies one crawl request "
             "may keep. URLs read after the budget is spent fail individually."
         ),
+    )
+
+    # Matches the search fetch_size ceiling: the web search tool crawls a whole
+    # result page in one request.
+    max_urls_per_crawl: int = Field(
+        default=100,
+        ge=1,
+        description="Most URLs one crawl request may list; longer lists get a 422.",
+    )
+    max_url_length: int = Field(
+        default=2048,
+        ge=1,
+        description="Longest URL, in characters, a crawl request may contain.",
     )
 
     @property

@@ -172,6 +172,8 @@ httpClient:
 requestLimits:
   crawl:
     maxCrawlResponseKib: 10240
+    maxUrlsPerCrawl: 100
+    maxUrlLength: 2048
 
 urlSafety:
   enabled: true

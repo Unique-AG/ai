@@ -533,6 +533,14 @@
             "maxCrawlResponseKib": {
               "description": "Maps to env var REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB.",
               "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxUrlsPerCrawl": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_URLS_PER_CRAWL.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxUrlLength": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_URL_LENGTH.",
+              "$ref": "#/$defs/valueSourceInteger"
             }
           }
         }
