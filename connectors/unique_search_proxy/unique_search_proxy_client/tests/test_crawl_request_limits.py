@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Generator
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
+from unique_search_proxy_core.errors import RateLimitedError
 from unique_search_proxy_core.schema import ProxyErrorCode
 
 import unique_search_proxy_client.web.api.v1.crawl as crawl_module
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
+from unique_search_proxy_client.web.core.crawl_limiter import CrawlLimiter
+from unique_search_proxy_client.web.core.url_safety.gate import UrlSafetyGateResult
 
 
 @pytest.fixture
@@ -118,3 +122,102 @@ def test_crawl__accepts_request__when_within_url_limits(
         ProxyErrorCode.FORBIDDEN_TARGET.value,
         ProxyErrorCode.FORBIDDEN_TARGET.value,
     ]
+
+
+@pytest.mark.ai
+async def test_crawl_limiter__rejects__when_all_slots_taken() -> None:
+    """
+    Purpose: Verify the limiter fails fast instead of queueing.
+    Why this matters: Queued crawls would still pile bodies up in the worker.
+    Setup summary: One-slot limiter held open; assert a second slot raises
+        RateLimitedError with a retry hint.
+    """
+    limiter = CrawlLimiter(1)
+
+    async with limiter.slot():
+        with pytest.raises(RateLimitedError) as exc_info:
+            async with limiter.slot():
+                pass
+
+    assert exc_info.value.retry_after_seconds == 1
+
+
+@pytest.mark.ai
+async def test_crawl_limiter__frees_slot__when_crawl_raises() -> None:
+    """
+    Purpose: Verify a failing crawl gives its slot back.
+    Why this matters: Leaked slots would turn every later crawl into a 429.
+    Setup summary: One-slot limiter, raise inside the slot; assert the slot
+        can be taken again.
+    """
+    limiter = CrawlLimiter(1)
+
+    with pytest.raises(ValueError):
+        async with limiter.slot():
+            raise ValueError("boom")
+
+    async with limiter.slot():
+        pass
+
+
+@pytest.mark.ai
+def test_crawl__returns_429__when_worker_crawl_capacity_full(
+    client: TestClient,
+) -> None:
+    """
+    Purpose: Verify the endpoint answers 429 with Retry-After when full.
+    Why this matters: Callers need a retryable signal, not a hung request.
+    Setup summary: Replace the app limiter with a zero-slot one; assert 429
+        RATE_LIMITED, Retry-After 1 and no upstream fetch.
+    """
+    client.app.state.crawl_limiter = CrawlLimiter(0)  # type: ignore[attr-defined]
+
+    response = _crawl(client, ["https://a.example/"])
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "1"
+    assert response.json()["error"]["code"] == ProxyErrorCode.RATE_LIMITED.value
+    assert client.upstream_calls == []  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+def test_crawl__clamps_timeout__when_above_server_ceiling(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify a crawl timeout above the server ceiling is lowered.
+    Why this matters: Callers must not hold a crawl slot longer than allowed.
+    Setup summary: Ceiling 1s, request timeout 600s, gate sleeping 2s;
+        assert 504 reporting the 1s ceiling.
+    """
+
+    async def slow_gate(
+        _urls: list[str],
+        *,
+        redirect_http_client: object | None = None,
+    ) -> UrlSafetyGateResult:
+        del redirect_http_client
+        await asyncio.sleep(2)
+        return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
+
+    monkeypatch.setattr(crawl_module, "apply_url_safety_gate", slow_gate)
+    monkeypatch.setattr(
+        crawl_module,
+        "request_limits_settings",
+        crawl_module.request_limits_settings.model_copy(
+            update={"max_timeout_seconds": 1},
+        ),
+    )
+
+    response = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://a.example/"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 600,
+        },
+    )
+
+    assert response.status_code == 504
+    assert "after 1s" in response.json()["error"]["message"]

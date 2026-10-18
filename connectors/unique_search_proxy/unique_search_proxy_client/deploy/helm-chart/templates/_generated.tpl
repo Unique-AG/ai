@@ -145,6 +145,12 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.requestLimits.crawl.maxUrlsPerCrawl | quote }}
 - name: REQUEST_LIMITS_MAX_URL_LENGTH
   value: {{ .Values.requestLimits.crawl.maxUrlLength | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_FETCHES
+  value: {{ .Values.requestLimits.crawl.maxConcurrentFetches | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS
+  value: {{ .Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
+- name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
+  value: {{ .Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -305,6 +311,12 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.requestLimits.crawl.maxUrlsPerCrawl | quote }}
 - name: REQUEST_LIMITS_MAX_URL_LENGTH
   value: {{ .ctx.Values.requestLimits.crawl.maxUrlLength | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_FETCHES
+  value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentFetches | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS
+  value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
+- name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
+  value: {{ .ctx.Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
