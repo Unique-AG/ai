@@ -2299,6 +2299,10 @@
             "maxKeepaliveConnections": {
               "description": "Maps to env var HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS.",
               "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxResponseKib": {
+              "description": "Maps to env var HTTP_CLIENT_MAX_RESPONSE_KIB.",
+              "$ref": "#/$defs/valueSourceInteger"
             }
           }
         }

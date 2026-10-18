@@ -20,6 +20,10 @@ from unique_search_proxy_core.http_client.credentials import (
     SettingsProxyCredentials,
     resolver_from_settings,
 )
+from unique_search_proxy_core.http_client.response_cap import (
+    ResponseHook,
+    response_size_cap_hook,
+)
 from unique_search_proxy_core.http_client.secrets import read_secret_mapping
 from unique_search_proxy_core.http_client.settings import (
     ProxyAuthMode,
@@ -94,6 +98,10 @@ def _get_cert_args(settings: ProxySettings) -> tuple[str, str] | str:
 
 def _proxy_headers(settings: ProxySettings) -> dict[str, str]:
     return read_secret_mapping(settings.proxy_headers)
+
+
+def _event_hooks(settings: ProxySettings) -> dict[str, list[ResponseHook]]:
+    return {"response": [response_size_cap_hook(settings.max_response_bytes)]}
 
 
 def _build_httpx_proxy(
@@ -174,6 +182,7 @@ def build_async_client(
                 trust_env=route.trust_env,
                 timeout=timeout,
                 limits=limits,
+                event_hooks=_event_hooks(settings),
             )
         case ProxiedRoute():
             return AsyncClient(
@@ -184,6 +193,7 @@ def build_async_client(
                 cert=route.cert,
                 timeout=timeout,
                 limits=limits,
+                event_hooks=_event_hooks(settings),
             )
 
 
@@ -207,6 +217,7 @@ def async_client_factory(
                 verify=route.verify,
                 trust_env=route.trust_env,
                 timeout=effective_timeout,
+                event_hooks=_event_hooks(settings),
             )
         case ProxiedRoute():
             return partial(
@@ -217,6 +228,7 @@ def async_client_factory(
                 trust_env=route.trust_env,
                 cert=route.cert,
                 timeout=effective_timeout,
+                event_hooks=_event_hooks(settings),
             )
 
 
@@ -283,6 +295,10 @@ class HttpClientRegistry:
     ) -> None:
         if fixed_client is None:
             _validate_url_safety_proxy_configuration(settings)
+            _LOGGER.info(
+                "Outbound response size limit: %s bytes",
+                settings.max_response_bytes or "unlimited",
+            )
         self._settings = settings
         self._resolver = resolver
         self._fixed_client = fixed_client
