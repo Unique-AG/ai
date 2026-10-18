@@ -754,3 +754,95 @@ async def test_crawl_pinned__decodes_gzip_body__when_under_limit() -> None:
 
     assert result.error is None
     assert result.raw == "<p>Grüezi</p>"
+
+
+def _set_crawl_budget(monkeypatch: pytest.MonkeyPatch, *, max_kib: int) -> None:
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "request_limits_settings",
+        service_module.request_limits_settings.model_copy(
+            update={"max_crawl_response_kib": max_kib},
+        ),
+    )
+
+
+def _sequential_crawl_request(*urls: str) -> BaseModel:
+    return parse_crawl_request(
+        {
+            "urls": list(urls),
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "maxConcurrentRequests": 1,
+        },
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__fails_url_that_overruns_crawl_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the URL that overruns the crawl budget fails on its own.
+    Why this matters: The budget bounds one request's total retained bodies.
+    Setup summary: 1 KiB budget, sequential fetches of 800, 800 and 100 byte
+        bodies; assert the second fails and the third still fits once the
+        failed body's bytes are released.
+    """
+    _set_crawl_budget(monkeypatch, max_kib=1)
+    sizes = {"a.example": 800, "b.example": 800, "c.example": 100}
+    http_client, _ = _recording_client(
+        lambda request: httpx.Response(200, text="x" * sizes[request.headers["Host"]]),
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        first, second, third = await crawler.crawl_pinned(
+            _sequential_crawl_request(
+                "https://a.example/", "https://b.example/", "https://c.example/"
+            ),
+            [
+                _pinned_target("https://a.example/", "a.example"),
+                _pinned_target("https://b.example/", "b.example"),
+                _pinned_target("https://c.example/", "c.example"),
+            ],
+        )
+
+    assert first.error is None
+    assert second.error is not None
+    assert second.error.code == ProxyErrorCode.RESPONSE_TOO_LARGE.value
+    assert third.error is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__skips_fetch__when_crawl_budget_exhausted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify URLs are not fetched once the crawl budget is used up.
+    Why this matters: Avoids network work whose result would be discarded.
+    Setup summary: 1 KiB budget, first body exactly 1 KiB; assert the second
+        URL errors with RESPONSE_TOO_LARGE and was never requested.
+    """
+    _set_crawl_budget(monkeypatch, max_kib=1)
+    http_client, requests = _recording_client(
+        lambda _: httpx.Response(200, text="x" * 1024),
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        first, second = await crawler.crawl_pinned(
+            _sequential_crawl_request("https://a.example/", "https://b.example/"),
+            [
+                _pinned_target("https://a.example/", "a.example"),
+                _pinned_target("https://b.example/", "b.example"),
+            ],
+        )
+
+    assert first.error is None
+    assert second.error is not None
+    assert second.error.code == ProxyErrorCode.RESPONSE_TOO_LARGE.value
+    assert len(requests) == 1

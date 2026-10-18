@@ -31,6 +31,7 @@ def test_all_registry_groups_have_helm_keys() -> None:
         "httpClient",
         "jina",
         "perplexitySearch",
+        "requestLimits",
         "tavily",
         "urlSafety",
         "vertexaiAgent",
@@ -46,7 +47,8 @@ def test_provider_groups_are_gated_but_always_on_config_is_not() -> None:
     gated = {g.helm_key: g.gated for g in helm_generated_groups()}
     assert gated["httpClient"] is False
     assert gated["urlSafety"] is False
-    provider_keys = set(gated) - {"httpClient", "urlSafety"}
+    assert gated["requestLimits"] is False
+    provider_keys = set(gated) - {"httpClient", "requestLimits", "urlSafety"}
     assert provider_keys, "expected at least one gated provider group"
     assert all(gated[key] for key in provider_keys)
 
@@ -59,13 +61,16 @@ def test_generated_schema_contains_all_provider_blocks() -> None:
         block = properties[group.helm_key]
         if not group.gated:
             # Non-gated groups get no synthetic ``enabled`` helm gate. A real
-            # activation field (urlSafety.enabled) still appears; httpClient has
-            # none.
+            # activation field (urlSafety.enabled) still appears; httpClient and
+            # requestLimits have none.
             if group.helm_key == "urlSafety":
                 assert block["properties"]["enabled"]["default"] is True
                 assert "connection" not in block["properties"]
                 assert "redirects" in block["properties"]
                 assert "network" in block["properties"]
+            elif group.helm_key == "requestLimits":
+                assert "enabled" not in block["properties"]
+                assert "crawl" in block["properties"]
             else:
                 assert "enabled" not in block["properties"]
                 assert "connection" in block["properties"]

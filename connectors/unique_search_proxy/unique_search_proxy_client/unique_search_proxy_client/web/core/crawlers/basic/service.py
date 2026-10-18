@@ -11,7 +11,7 @@ from unique_search_proxy_core.crawlers.basic.processing.policy import (
 )
 from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
 from unique_search_proxy_core.errors import ResponseTooLargeError
-from unique_search_proxy_core.http_client import read_capped_body
+from unique_search_proxy_core.http_client import ByteBudget, read_capped_body
 from unique_search_proxy_core.schema import (
     CrawlUrlResult,
     ProxyErrorCode,
@@ -40,6 +40,9 @@ from unique_search_proxy_client.web.core.provider_response import (
 from unique_search_proxy_client.web.core.url_safety.gate import AllowedCrawlTarget
 from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
 from unique_search_proxy_client.web.settings.client import http_client_settings
+from unique_search_proxy_client.web.settings.request_limits import (
+    request_limits_settings,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,6 +109,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
 
         timeout = request.timeout
         semaphore = asyncio.Semaphore(request.max_concurrent_requests)
+        budget = ByteBudget(request_limits_settings.max_crawl_response_bytes)
         return list(
             await asyncio.gather(
                 *[
@@ -115,6 +119,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                         resolved_target=allowed_target.resolved,
                         timeout=timeout,
                         semaphore=semaphore,
+                        budget=budget,
                         content_type_handlers=request.content_types.to_handlers(),
                     )
                     for allowed_target in allowed_targets
@@ -130,9 +135,17 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
         resolved_target: ResolvedCrawlTarget,
         timeout: int,
         semaphore: asyncio.Semaphore,
+        budget: ByteBudget,
         content_type_handlers: dict[str, ContentTypeHandlerPolicy],
     ) -> CrawlUrlResult:
         async with semaphore:
+            if budget.exhausted:
+                return crawl_upstream_error(
+                    display_url,
+                    "Crawl response budget exhausted before this URL was fetched",
+                    content_type=None,
+                    code=ProxyErrorCode.RESPONSE_TOO_LARGE.value,
+                )
             try:
                 async with safe_pinned_httpx_stream(
                     client,
@@ -161,6 +174,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     body = await read_capped_body(
                         response,
                         max_bytes=http_client_settings.max_response_bytes,
+                        budget=budget,
                     )
                     raw_body = body.decode(
                         response.encoding or "utf-8",

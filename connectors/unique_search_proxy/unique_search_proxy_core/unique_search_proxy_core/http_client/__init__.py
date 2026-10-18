@@ -19,6 +19,7 @@ from unique_search_proxy_core.http_client.credentials import (
 )
 from unique_search_proxy_core.http_client.response_cap import (
     MAX_RESPONSE_BYTES_EXTENSION,
+    ByteBudget,
     install_response_size_cap,
     read_capped_body,
     response_size_cap_hook,
@@ -36,6 +37,7 @@ from unique_search_proxy_core.http_client.settings import (
 
 __all__ = [
     "MAX_RESPONSE_BYTES_EXTENSION",
+    "ByteBudget",
     "DirectRoute",
     "EgressRoute",
     "HttpClientRegistry",
