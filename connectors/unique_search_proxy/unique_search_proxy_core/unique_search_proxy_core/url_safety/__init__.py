@@ -1,6 +1,7 @@
 from unique_search_proxy_core.url_safety.egress import (
     pinned_httpx_get_args,
     safe_pinned_httpx_get,
+    safe_pinned_httpx_stream,
 )
 from unique_search_proxy_core.url_safety.models import (
     BlockedCrawlTarget,
@@ -29,5 +30,6 @@ __all__ = [
     "bypass_crawl_target",
     "pinned_httpx_get_args",
     "safe_pinned_httpx_get",
+    "safe_pinned_httpx_stream",
     "url_safety_settings",
 ]
