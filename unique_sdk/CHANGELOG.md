@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.42.3](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.42.2...unique-sdk-v2026.42.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* **orchestrator:** prevent parallel tool context overflow [UN-27401] ([#2575](https://github.com/Unique-AG/ai/issues/2575)) ([54dc82f](https://github.com/Unique-AG/ai/commit/54dc82f3aab68528b8bb77cd1ffa279a7ca696dc))
+
 ## [2026.42.2](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.42.1...unique-sdk-v2026.42.2) (2026-10-16)
 
 
