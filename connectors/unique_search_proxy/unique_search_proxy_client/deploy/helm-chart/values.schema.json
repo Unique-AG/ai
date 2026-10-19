@@ -2356,6 +2356,13 @@
                 "type": "string"
               }
             },
+            "customApiTrustedPrivateHosts": {
+              "description": "Maps to env var CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "clusterLocalSuffix": {
               "description": "Maps to env var URL_SAFETY_CLUSTER_LOCAL_SUFFIX.",
               "$ref": "#/$defs/valueSourceString"

@@ -5,8 +5,10 @@ from unique_search_proxy_core.url_safety.egress import (
 from unique_search_proxy_core.url_safety.models import (
     BlockedCrawlTarget,
     CrawlTargetValidationError,
+    CustomApiTargetValidationError,
     ResolvedCrawlTarget,
     UrlSafetyOutcome,
+    UrlSafetyValidationError,
     bypass_crawl_target,
 )
 from unique_search_proxy_core.url_safety.service import UrlSafetyService
@@ -18,7 +20,9 @@ from unique_search_proxy_core.url_safety.settings import (
 __all__ = [
     "BlockedCrawlTarget",
     "CrawlTargetValidationError",
+    "CustomApiTargetValidationError",
     "ResolvedCrawlTarget",
+    "UrlSafetyValidationError",
     "UrlSafetyOutcome",
     "UrlSafetyService",
     "UrlSafetySettings",
