@@ -101,15 +101,13 @@ jobs:
       - name: Resolve published digest
         id: resolve
         run: |
-          set -uo pipefail
-          if digest=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}' 2>/dev/null); then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "ref=${IMAGE}@${digest}" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=No published image::${IMAGE}:${VERSION} is in the release manifest, and the registry does not hold it."
-            echo "⚠️ ${IMAGE}:${VERSION} is not published." >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          if ! digest=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}'); then
+            echo "::error::Could not resolve published image ${IMAGE}:${VERSION}. The image was not scanned."
+            exit 1
           fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "ref=${IMAGE}@${digest}" >> "$GITHUB_OUTPUT"
 
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         if: steps.resolve.outputs.found == 'true'
