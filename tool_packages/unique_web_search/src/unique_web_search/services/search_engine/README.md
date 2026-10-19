@@ -6,7 +6,11 @@ Implementations wrap standard search APIs and grounding (agent) providers behind
 
 ```python
 # SearchEngine.search (services/search_engine/base.py)
-if search_proxy_client_enabled and engine is proxy-supported:
+if (
+    search_proxy_client_enabled
+    and engine is proxy-supported            # config.engine is SearchEngineType / AgentEngineType
+    and await self._proxy_routing_enabled()  # per-engine gate; Custom API checks its feature flag
+):
     return await self._proxy_search(...)   # standard → /v1/search; agent → /v1/agent-search
 return await self._legacy_search(...)      # direct provider call from this process
 ```
@@ -131,7 +135,7 @@ PERPLEXITY_API_KEY=...
 
 **Provider:** your REST endpoint · **Proxy:** legacy + proxy
 
-Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (`LocalSearchEngineType.CUSTOM_API`)
+Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (engine `SearchEngineType.CUSTOM_API`; registered under `LocalSearchEngineType.CUSTOM_API`)
 
 Response must be JSON with a `results` or legacy `curated` array of
 `{url, title, snippet, content?}`. When
