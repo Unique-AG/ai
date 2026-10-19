@@ -46,7 +46,7 @@ jobs:
               }
             | select(.version != null)
           ' --slurpfile packages .github/actions/get-packages-matrix/package_configuration.json \
-            .release-please-manifest.json | jq -s '.')
+            .release-please-manifest.json | jq -s -c '.')
 
           if [ "$REQUESTED" = "all" ]; then
             packages="$released"
