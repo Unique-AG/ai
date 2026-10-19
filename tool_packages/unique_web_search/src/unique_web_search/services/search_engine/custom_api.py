@@ -104,10 +104,11 @@ class CustomAPIConfig(ProxyCustomApiConfig):
 
     @model_validator(mode="before")
     @classmethod
-    def reject_operator_config_overrides(cls, value: Any) -> Any:
+    def apply_operator_config_precedence(cls, value: Any) -> Any:
         if not isinstance(value, dict):
             return value
 
+        resolved_value = dict(value)
         operator_values = {
             "apiEndpoint": env_settings.custom_web_search_api_endpoint,
             "apiHeaders": env_settings.custom_web_search_api_headers,
@@ -129,10 +130,9 @@ class CustomAPIConfig(ProxyCustomApiConfig):
         for alias, operator_value in operator_values.items():
             if operator_value is None:
                 continue
-            supplied_value = value.get(alias, value.get(aliases[alias], operator_value))
-            if supplied_value != operator_value:
-                raise ValueError(f"{alias} is managed by the deployment")
-        return value
+            resolved_value.pop(aliases[alias], None)
+            resolved_value[alias] = operator_value
+        return resolved_value
 
     @classmethod
     def request_model(cls) -> type[BaseModel]:

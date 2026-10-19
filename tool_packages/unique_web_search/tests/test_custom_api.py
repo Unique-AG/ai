@@ -1,7 +1,6 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from pydantic import ValidationError
 from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.url_safety import (
     BlockedCrawlTarget,
@@ -174,11 +173,52 @@ class TestCustomApiProxySearch:
         )
 
 
-def test_custom_api_config__rejects_deployment_endpoint_override() -> None:
+@pytest.mark.parametrize("config_field", ["apiEndpoint", "api_endpoint"])
+def test_custom_api_config__deployment_endpoint_overrides_space_value(
+    config_field: str,
+) -> None:
     with patch.object(
         custom_api_module.env_settings,
         "custom_web_search_api_endpoint",
         "https://operator.example.com/search",
     ):
-        with pytest.raises(ValidationError, match="managed by the deployment"):
-            CustomAPIConfig(api_endpoint="https://caller.example.com/search")
+        config = CustomAPIConfig(
+            **{config_field: "https://space.example.com/search"},
+        )
+
+    assert config.api_endpoint == "https://operator.example.com/search"
+
+
+def test_custom_api_config__space_endpoint_used_when_deployment_value_is_unset() -> None:
+    with patch.object(
+        custom_api_module.env_settings,
+        "custom_web_search_api_endpoint",
+        None,
+    ):
+        config = CustomAPIConfig(api_endpoint="https://space.example.com/search")
+
+    assert config.api_endpoint == "https://space.example.com/search"
+
+
+def test_custom_api_config__deployment_values_override_all_space_values() -> None:
+    with patch.multiple(
+        custom_api_module.env_settings,
+        custom_web_search_api_endpoint="https://operator.example.com/search",
+        custom_web_search_api_headers='{"X-Source":"operator"}',
+        custom_web_search_api_additional_query_params='{"source":"operator"}',
+        custom_web_search_api_additional_body_params='{"limit":10}',
+        custom_web_search_api_method=CUSTOM_API_REQUEST_METHOD.POST,
+    ):
+        config = CustomAPIConfig(
+            api_endpoint="https://space.example.com/search",
+            api_headers='{"X-Source":"space"}',
+            api_additional_query_params='{"source":"space"}',
+            api_additional_body_params='{"limit":1}',
+            api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
+        )
+
+    assert config.api_endpoint == "https://operator.example.com/search"
+    assert config.api_headers == '{"X-Source":"operator"}'
+    assert config.api_additional_query_params == '{"source":"operator"}'
+    assert config.api_additional_body_params == '{"limit":10}'
+    assert config.api_request_method == CUSTOM_API_REQUEST_METHOD.POST
