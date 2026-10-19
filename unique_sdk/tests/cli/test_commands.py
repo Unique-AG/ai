@@ -32,6 +32,7 @@ from unique_sdk.cli.commands.navigation import (
     cmd_cd,
     cmd_ls,
     cmd_pwd,
+    direct_children_filter,
     is_ls_error_output,
 )
 from unique_sdk.cli.commands.scheduled_tasks import (
@@ -183,20 +184,53 @@ class TestNavigation:
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_root(self, mock_folders: MagicMock, mock_files: MagicMock) -> None:
+        """Root ls lists folders only; an unfiltered content/infos is denied."""
         mock_folders.return_value = {
             "folderInfos": [_folder_info()],
-            "totalCount": 1,
-        }
-        mock_files.return_value = {
-            "contentInfos": [_content_info()],
             "totalCount": 1,
         }
         result = cmd_ls(_state())
         assert "DIR" in result
         assert "Reports/" in result
-        assert "FILE" in result
+        assert "1 folder(s), 0 file(s)" in result
+        mock_files.assert_not_called()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_folder_lists_direct_children_by_filter(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        mock_path.return_value = {"folderPath": "/Reports"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {
+            "contentInfos": [_content_info()],
+            "totalCount": 1,
+        }
+        result = cmd_ls(_state("/Reports", "scope_r"))
         assert "report.pdf" in result
-        assert "1 folder(s), 1 file(s)" in result
+        assert "0 folder(s), 1 file(s)" in result
+        mock_files.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            metadataFilter={
+                "and": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_r",
+                    },
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "notContains",
+                        "value": "scope_r/",
+                    },
+                ]
+            },
+        )
 
     @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
@@ -1181,8 +1215,10 @@ class TestFiles:
         cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
         assert cid == "cont_123"
         assert name == "report.pdf"
-        assert mock_infos.call_args_list[0].kwargs["parentId"] == "scope_r"
-        assert mock_infos.call_args_list[0].kwargs["skip"] == 0
+        first_call = mock_infos.call_args_list[0].kwargs
+        assert first_call["metadataFilter"] == direct_children_filter("scope_r")
+        assert "parentId" not in first_call
+        assert first_call["skip"] == 0
 
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Content.search")
@@ -1215,7 +1251,7 @@ class TestFiles:
             _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
         assert mock_infos.call_count == 10
         assert all(
-            call.kwargs.get("parentId") == "scope_r"
+            call.kwargs.get("metadataFilter") == direct_children_filter("scope_r")
             for call in mock_infos.call_args_list
         )
 

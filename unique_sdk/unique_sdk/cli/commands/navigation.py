@@ -5,10 +5,34 @@ from __future__ import annotations
 from typing import Any
 
 import unique_sdk
+from unique_sdk import UQLCombinator, UQLOperator
 from unique_sdk.cli.formatting import format_ls
 from unique_sdk.cli.metadata_filter import _collect_filter_targets
 from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
+
+
+def direct_children_filter(scope_id: str) -> dict[str, Any]:
+    """UniqueQL for files owned directly by ``scope_id``.
+
+    ``content/infos`` without a ``metadataFilter`` needs company-wide content
+    read, which most users lack (UN-26552). ``folderIdPath`` ends with the
+    owning folder's id, so excluding ``<id>/`` drops files in subfolders.
+    """
+    return {
+        UQLCombinator.AND: [
+            {
+                "path": ["folderIdPath"],
+                "operator": UQLOperator.CONTAINS,
+                "value": scope_id,
+            },
+            {
+                "path": ["folderIdPath"],
+                "operator": UQLOperator.NOT_CONTAINS,
+                "value": f"{scope_id}/",
+            },
+        ]
+    }
 
 
 def cmd_pwd(state: ShellState) -> str:
@@ -188,10 +212,8 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                 return path_error
 
         folder_params: dict[str, Any] = {}
-        content_params: dict[str, Any] = {}
         if scope_id:
             folder_params["parentId"] = scope_id
-            content_params["parentId"] = scope_id
 
         folder_result = unique_sdk.Folder.get_infos(
             user_id=state.config.user_id,
@@ -199,16 +221,19 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
             **folder_params,
         )
         folders = folder_result.get("folderInfos", [])
-
-        content_result = unique_sdk.Content.get_infos(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            **content_params,
-        )
-        files = content_result.get("contentInfos", [])
-
         total_folders = folder_result.get("totalCount", len(folders))
-        total_files = content_result.get("totalCount", len(files))
+
+        # Every file lives in a folder, so the root has no files of its own.
+        files: list[Any] = []
+        total_files = 0
+        if scope_id:
+            content_result = unique_sdk.Content.get_infos(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                metadataFilter=direct_children_filter(scope_id),
+            )
+            files = content_result.get("contentInfos", [])
+            total_files = content_result.get("totalCount", len(files))
 
         if scope_id and not folders and not files:
             label = target if target is not None else resolved_path

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import unique_sdk
+from unique_sdk.cli.commands.navigation import direct_children_filter
 from unique_sdk.cli.formatting import format_content_info
 from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
@@ -300,7 +301,7 @@ def _resolve_content_id_via_infos_fallback(
         result = unique_sdk.Content.get_infos(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
-            parentId=scope_id,
+            metadataFilter=direct_children_filter(scope_id),
             skip=skip,
             take=_RESOLVE_INFOS_PAGE_SIZE,
         )
