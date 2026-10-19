@@ -237,7 +237,8 @@ class HistoryManager:
 
         The withheld results' chunks are dropped from the reference manager. They
         are the newest chunks, so source numbers of earlier results stay valid.
-        Returns the number of withheld results.
+        Returns the number of newly withheld results; results that already hold
+        *notice* are not counted.
         """
         batch_start: int | None = None
         for index in range(len(self._loop_history) - 1, -1, -1):
@@ -256,12 +257,16 @@ class HistoryManager:
             message = self._loop_history[index]
             if not isinstance(message, LanguageModelToolMessage):
                 continue
+            if message.content == notice:
+                continue
             self._loop_history[index] = LanguageModelToolMessage(
                 content=notice,
                 tool_call_id=message.tool_call_id,
                 name=message.name,
             )
             withheld_tool_call_ids.append(message.tool_call_id)
+        if not withheld_tool_call_ids:
+            return 0
 
         withheld_chunks = {
             id(chunk)

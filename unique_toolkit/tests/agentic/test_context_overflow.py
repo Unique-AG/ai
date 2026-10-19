@@ -210,6 +210,38 @@ async def test_recompose_history__preserves_tool_images_until_next_tool_batch_AI
 
 
 @pytest.mark.ai
+def test_withhold_latest_tool_call_results__returns_zero_when_already_withheld_AI() -> (
+    None
+):
+    """
+    Purpose: Withholding a batch that already holds the notice reports no progress.
+    Why this matters: The overflow retry re-raises on 0 instead of resending an identical payload.
+    Setup summary: Batch withheld once, then withheld again -> 2, then 0, history unchanged.
+    """
+    hm = _history_manager(ReferenceManager())
+    hm._loop_history = [
+        LanguageModelAssistantMessage.from_functions(
+            tool_calls=[
+                LanguageModelFunction(id="call_1", name="search_emails"),
+                LanguageModelFunction(id="call_2", name="search_emails"),
+            ]
+        ),
+        LanguageModelToolMessage(
+            tool_call_id="call_1", name="search_emails", content="big"
+        ),
+        LanguageModelToolMessage(
+            tool_call_id="call_2", name="search_emails", content="bigger"
+        ),
+    ]
+
+    assert hm.withhold_latest_tool_call_results(WITHHELD_TOOL_RESULT_NOTICE) == 2
+    history_after_first = list(hm._loop_history)
+
+    assert hm.withhold_latest_tool_call_results(WITHHELD_TOOL_RESULT_NOTICE) == 0
+    assert hm._loop_history == history_after_first
+
+
+@pytest.mark.ai
 def test_withhold_latest_tool_call_results__returns_zero_without_tool_calls_AI() -> (
     None
 ):

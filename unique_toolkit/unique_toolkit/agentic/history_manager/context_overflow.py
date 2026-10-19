@@ -1,10 +1,4 @@
-"""Keep agent-loop prompts inside the provider's context window.
-
-The local reducer estimates tokens with an OpenAI tokenizer, which can undercount
-other providers by 2x or more. ``ContextOverflowGuard`` verifies near-limit
-payloads with the provider's own counter before the LLM call and recovers when the
-provider still rejects a prompt as too long.
-"""
+"""Keep agent-loop prompts inside the provider's context window, verified by the provider's own token counter."""
 
 from __future__ import annotations
 
@@ -225,7 +219,8 @@ class ContextOverflowGuard:
                 raise
             self._logger.warning(
                 "LLM call still exceeded the context window. Retrying with the "
-                "latest tool call results withheld."
+                "latest tool call results withheld.",
+                exc_info=retry_exc,
             )
             await recompose()
             return await run_iteration()
