@@ -140,11 +140,7 @@ class LoopTokenReducer:
         return self._last_token_count
 
     def tighten_effective_token_limit(self, factor: float) -> None:
-        """Shrink the input-token budget for the rest of the run.
-
-        Used after the provider rejected a payload this reducer counted as within
-        budget, i.e. the encoder underestimates the model's real token count.
-        """
+        """Shrink the input-token budget for the rest of the run after the provider counted more tokens than the local encoder."""
         previous_limit = self._effective_token_limit
         self._effective_token_limit = int(previous_limit * factor)
         self._logger.warning(
