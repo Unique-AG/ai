@@ -8,6 +8,7 @@ import unique_search_proxy_core.url_safety.dns as url_safety_dns
 import unique_search_proxy_core.url_safety.service as url_safety_service_module
 from unique_search_proxy_core.url_safety import (
     CrawlTargetValidationError,
+    CustomApiTargetValidationError,
     UrlSafetyService,
 )
 
@@ -229,13 +230,14 @@ class TestValidateCrawlUrls:
     async def test_custom_api_allowlist__still_blocks_metadata_host(
         self,
     ) -> None:
-        with pytest.raises(CrawlTargetValidationError) as exc_info:
+        with pytest.raises(CustomApiTargetValidationError) as exc_info:
             await UrlSafetyService.resolve_custom_api_target(
                 "http://169.254.169.254/latest/meta-data",
                 trusted_private_hosts=["169.254.169.254"],
             )
 
         assert exc_info.value.blocked_targets[0].category == "metadata"
+        assert "Blocked Custom API target(s)" in str(exc_info.value)
 
     @pytest.mark.ai
     @pytest.mark.asyncio

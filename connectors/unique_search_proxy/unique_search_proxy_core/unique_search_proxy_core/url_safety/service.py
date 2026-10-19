@@ -11,6 +11,7 @@ from unique_search_proxy_core.url_safety import dns, redirect, resolver
 from unique_search_proxy_core.url_safety.models import (
     BlockedCrawlTarget,
     CrawlTargetValidationError,
+    CustomApiTargetValidationError,
     ResolvedCrawlTarget,
     UrlSafetyOutcome,
     bypass_crawl_target,
@@ -135,7 +136,10 @@ class UrlSafetyService:
         if not url_safety_settings.enabled:
             return bypass_crawl_target(url)
 
-        return await resolver.resolve_crawl_target(
-            url,
-            trusted_private_hosts=trusted_private_hosts,
-        )
+        try:
+            return await resolver.resolve_crawl_target(
+                url,
+                trusted_private_hosts=trusted_private_hosts,
+            )
+        except CrawlTargetValidationError as exc:
+            raise CustomApiTargetValidationError(exc.blocked_targets) from exc

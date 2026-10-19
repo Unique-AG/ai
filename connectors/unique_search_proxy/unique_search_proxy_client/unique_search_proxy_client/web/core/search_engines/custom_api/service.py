@@ -22,7 +22,7 @@ from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiSearchRequest,
 )
 from unique_search_proxy_core.url_safety import (
-    CrawlTargetValidationError,
+    CustomApiTargetValidationError,
     UrlSafetyService,
     pinned_httpx_get_args,
     url_safety_settings,
@@ -86,7 +86,7 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
                     url_safety_settings.custom_api_trusted_private_hosts
                 ),
             )
-        except CrawlTargetValidationError as exc:
+        except CustomApiTargetValidationError as exc:
             blocked = exc.blocked_targets[0]
             raise ForbiddenTargetError(
                 "Custom API endpoint is blocked by URL safety policy",
