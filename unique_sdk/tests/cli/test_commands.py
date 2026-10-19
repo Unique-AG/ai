@@ -2429,6 +2429,7 @@ def _scheduled_task_obj(
     prompt: str = "Generate report",
     enabled: bool = True,
     name: str | None = None,
+    timezone: str | None = "Europe/Zurich",
 ) -> MagicMock:
     task = MagicMock()
     task.id = task_id
@@ -2436,6 +2437,7 @@ def _scheduled_task_obj(
     task.name = name
     task.object = "scheduled_task"
     task.cronExpression = cron
+    task.timezone = timezone
     task.assistantId = assistant_id
     task.assistantName = assistant_name
     task.chatId = None
@@ -2494,9 +2496,11 @@ class TestScheduledTasks:
             cron="0 9 * * 1-5",
             assistant_id="ast_123",
             prompt="Generate report",
+            timezone="Europe/Zurich",
         )
         assert "Created scheduled task task_abc" in result
         mock.assert_called_once()
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_create_with_chat_id(self, mock: MagicMock) -> None:
@@ -2506,6 +2510,7 @@ class TestScheduledTasks:
             cron="0 9 * * 1-5",
             assistant_id="ast_123",
             prompt="Continue chat",
+            timezone="Europe/Zurich",
             chat_id="chat_456",
         )
         assert "Created" in result
@@ -2520,6 +2525,7 @@ class TestScheduledTasks:
             cron="0 9 * * 1-5",
             assistant_id="ast_123",
             prompt="Generate report",
+            timezone="Europe/Zurich",
             name="Daily sales report",
         )
         assert "Created" in result
@@ -2533,6 +2539,7 @@ class TestScheduledTasks:
             cron="0 9 * * 1-5",
             assistant_id="ast_123",
             prompt="Generate report",
+            timezone="Europe/Zurich",
         )
         assert "name" not in mock.call_args[1]
 
@@ -2557,6 +2564,7 @@ class TestScheduledTasks:
             cron="0 9 * * 1-5",
             assistant_id="ast_123",
             prompt="Report",
+            timezone="Europe/Zurich",
             enabled=False,
         )
         assert "Created" in result
@@ -2571,6 +2579,7 @@ class TestScheduledTasks:
             cron="bad",
             assistant_id="ast_123",
             prompt="Report",
+            timezone="Europe/Zurich",
         )
         assert "schedule:" in result
 
@@ -2581,12 +2590,42 @@ class TestScheduledTasks:
         assert "Updated scheduled task task_abc" in result
 
     @patch("unique_sdk.ScheduledTask.modify")
-    def test_update_cron(self, mock: MagicMock) -> None:
-        mock.return_value = _scheduled_task_obj(cron="*/15 * * * *")
+    def test_update_cron_requires_timezone(self, mock: MagicMock) -> None:
         result = cmd_schedule_update(_state(), "task_abc", cron="*/15 * * * *")
+        assert "--timezone is required when changing --cron" in result
+        mock.assert_not_called()
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_cron_with_timezone(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(cron="*/15 * * * *")
+        result = cmd_schedule_update(
+            _state(),
+            "task_abc",
+            cron="*/15 * * * *",
+            timezone="Europe/Zurich",
+        )
         assert "Updated" in result
         call_kwargs = mock.call_args[1]
         assert call_kwargs["cronExpression"] == "*/15 * * * *"
+        assert call_kwargs["timezone"] == "Europe/Zurich"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_timezone_alone(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(timezone="America/New_York")
+        result = cmd_schedule_update(
+            _state(), "task_abc", timezone="America/New_York"
+        )
+        assert "Updated" in result
+        assert mock.call_args[1]["timezone"] == "America/New_York"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_without_cron_does_not_require_timezone(
+        self, mock: MagicMock
+    ) -> None:
+        mock.return_value = _scheduled_task_obj(name="Renamed")
+        result = cmd_schedule_update(_state(), "task_abc", name="Renamed")
+        assert "Updated" in result
+        assert "timezone" not in mock.call_args[1]
 
     def test_update_nothing(self) -> None:
         result = cmd_schedule_update(_state(), "task_abc")

@@ -193,11 +193,13 @@ def _task(
     enabled: bool = True,
     last_run: str | None = None,
     name: str | None = None,
+    timezone: str | None = None,
 ) -> MagicMock:
     t = MagicMock()
     t.id = task_id
     t.name = name
     t.cronExpression = cron
+    t.timezone = timezone
     t.assistantId = assistant_id
     t.assistantName = assistant_name
     t.chatId = None
@@ -218,6 +220,15 @@ class TestFormatScheduledTask:
         assert "ast_123" in result
         assert "Generate report" in result
         assert "yes" in result
+
+    def test_null_timezone_shows_utc(self) -> None:
+        result = format_scheduled_task(_task(timezone=None))
+        assert "Timezone:" in result
+        assert "UTC" in result
+
+    def test_timezone_is_shown(self) -> None:
+        result = format_scheduled_task(_task(timezone="Europe/Zurich"))
+        assert "Europe/Zurich" in result
 
     def test_disabled(self) -> None:
         result = format_scheduled_task(_task(enabled=False))
@@ -302,7 +313,18 @@ class TestFormatScheduledTasks:
         result = format_scheduled_tasks([_task()])
         assert "STATUS" in result
         assert "CRON" in result
+        assert "TIMEZONE" in result
         assert "ASSISTANT" in result
+
+    def test_table_shows_timezone_or_utc(self) -> None:
+        result = format_scheduled_tasks(
+            [
+                _task(task_id="t1", timezone="Europe/Zurich"),
+                _task(task_id="t2", timezone=None),
+            ]
+        )
+        assert "Europe/Zurich" in result
+        assert "UTC" in result
 
 
 class _StubMCPResponse:
