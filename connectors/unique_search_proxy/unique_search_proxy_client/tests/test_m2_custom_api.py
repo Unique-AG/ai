@@ -60,6 +60,7 @@ class TestCustomApiSearchService:
             _raw, curated = await service.search(
                 _custom_api_request(
                     apiAdditionalQueryParams='{"language": "en"}',
+                    apiAdditionalBodyParams='{"region": "ch"}',
                 ),
             )
 
@@ -70,6 +71,7 @@ class TestCustomApiSearchService:
         )
         assert request.headers["Host"] == "api.example.com"
         assert request.extensions["sni_hostname"] == "api.example.com"
+        assert json.loads(request.content) == {"region": "ch"}
         assert curated.results[0].url == "https://result.example.com"
 
     @pytest.mark.ai

@@ -113,10 +113,12 @@ class CustomApiSearchService(SearchEngineService[CustomApiSearchRequest]):
         try:
             if request.api_request_method == CustomApiRequestMethod.GET:
                 params["query"] = request.query
-                response = await client.get(
+                response = await client.request(
+                    method=CustomApiRequestMethod.GET,
                     url=request_url,
                     headers=headers,
                     params=params,
+                    json=body,
                     extensions=extensions or None,
                     timeout=request.timeout,
                     follow_redirects=False,
