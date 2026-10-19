@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.url_safety import (
     BlockedCrawlTarget,
-    CrawlTargetValidationError,
+    CustomApiTargetValidationError,
 )
 
 import unique_web_search.services.search_engine.custom_api as custom_api_module
@@ -134,7 +134,7 @@ class TestCustomApiProxySearch:
             CustomAPIConfig(api_endpoint="http://10.0.0.1/search"),
             request_context=request_context,
         )
-        validation_error = CrawlTargetValidationError(
+        validation_error = CustomApiTargetValidationError(
             [
                 BlockedCrawlTarget(
                     hostname="10.0.0.1",

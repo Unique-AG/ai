@@ -14,7 +14,7 @@ from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiSearchRequest,
 )
 from unique_search_proxy_core.url_safety import (
-    CrawlTargetValidationError,
+    CustomApiTargetValidationError,
     UrlSafetyService,
 )
 from unique_toolkit.agentic.feature_flags import FeatureFlagNames
@@ -205,7 +205,7 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
                     env_settings.custom_web_search_api_trusted_private_hosts
                 ),
             )
-        except CrawlTargetValidationError as exc:
+        except CustomApiTargetValidationError as exc:
             reason_category = exc.blocked_targets[0].category
             custom_api_url_safety_report.labels(
                 outcome="would_block",
