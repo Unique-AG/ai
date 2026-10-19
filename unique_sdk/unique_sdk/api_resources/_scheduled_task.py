@@ -13,7 +13,8 @@ class ScheduledTask(APIResource["ScheduledTask"]):
     """Cron-tab style scheduled task that triggers an assistant on a recurring schedule.
 
     Each task defines a cron expression, an assistant to execute, an optional
-    chat to continue, and a prompt to send.
+    chat to continue, and a prompt to send. The cron is evaluated in
+    ``timezone`` when set, otherwise in UTC.
     """
 
     @classproperty
@@ -34,6 +35,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         prompt: str
         name: NotRequired[str]
         chatId: NotRequired[str | None]
+        timezone: NotRequired[str]
         enabled: NotRequired[bool]
 
     class ModifyParams(RequestOptions):
@@ -42,6 +44,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         prompt: NotRequired[str]
         name: NotRequired[str | None]
         chatId: NotRequired[str | None]
+        timezone: NotRequired[str | None]
         enabled: NotRequired[bool]
 
     class DeletedObject(TypedDict):
@@ -58,6 +61,7 @@ class ScheduledTask(APIResource["ScheduledTask"]):
     assistantId: str
     assistantName: str | None
     chatId: str | None
+    timezone: str | None
     prompt: str
     enabled: bool
     lastRunAt: str | None

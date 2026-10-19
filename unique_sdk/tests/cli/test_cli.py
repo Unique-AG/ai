@@ -721,6 +721,7 @@ class TestClickCLI:
         task.id = "task_1"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = None
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -749,6 +750,7 @@ class TestClickCLI:
         task.id = "task_new"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -766,6 +768,8 @@ class TestClickCLI:
                 "create",
                 "--cron",
                 "0 9 * * 1-5",
+                "--timezone",
+                "Europe/Zurich",
                 "--assistant",
                 "ast_1",
                 "--prompt",
@@ -774,6 +778,60 @@ class TestClickCLI:
         )
         assert result.exit_code == 0
         assert "Created scheduled task task_new" in result.output
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
+
+    def test_schedule_create_missing_timezone(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "create",
+                "--cron",
+                "0 9 * * 1-5",
+                "--assistant",
+                "ast_1",
+                "--prompt",
+                "Report",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "timezone" in result.output.lower() or "Missing option" in result.output
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create_short_timezone_flag(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_new"
+        task.name = None
+        task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = True
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "create",
+                "-c",
+                "0 9 * * 1-5",
+                "-tz",
+                "Europe/Zurich",
+                "-a",
+                "ast_1",
+                "-p",
+                "Report",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_schedule_create_error_exit_code(self, mock: MagicMock) -> None:
@@ -786,6 +844,8 @@ class TestClickCLI:
                 "create",
                 "--cron",
                 "bad",
+                "--timezone",
+                "Europe/Zurich",
                 "--assistant",
                 "ast_1",
                 "--prompt",
@@ -801,6 +861,7 @@ class TestClickCLI:
         task.id = "task_new"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -818,6 +879,8 @@ class TestClickCLI:
                 "create",
                 "-c",
                 "0 9 * * 1-5",
+                "-tz",
+                "Europe/Zurich",
                 "-a",
                 "ast_1",
                 "-p",
@@ -834,6 +897,7 @@ class TestClickCLI:
         task.id = "task_new"
         task.name = "Daily sales report"
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -851,6 +915,8 @@ class TestClickCLI:
                 "create",
                 "-c",
                 "0 9 * * 1-5",
+                "-tz",
+                "Europe/Zurich",
                 "-a",
                 "ast_1",
                 "-p",
@@ -868,6 +934,7 @@ class TestClickCLI:
         task.id = "task_1"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = None
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -888,6 +955,7 @@ class TestClickCLI:
         task.id = "task_1"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -901,6 +969,48 @@ class TestClickCLI:
         result = runner.invoke(main, ["schedule", "update", "task_1", "--disable"])
         assert result.exit_code == 0
         assert "Updated" in result.output
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_cron_without_timezone(self, mock: MagicMock) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["schedule", "update", "task_1", "--cron", "0 9 * * 1-5"]
+        )
+        assert result.exit_code == 1
+        assert "--timezone is required when changing --cron" in result.output
+        mock.assert_not_called()
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_cron_with_timezone(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_1"
+        task.name = None
+        task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = True
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "update",
+                "task_1",
+                "--cron",
+                "0 9 * * 1-5",
+                "--timezone",
+                "Europe/Zurich",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     @patch("unique_sdk.ScheduledTask.modify")
     def test_schedule_update_error_exit_code(self, mock: MagicMock) -> None:

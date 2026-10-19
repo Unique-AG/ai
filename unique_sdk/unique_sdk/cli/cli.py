@@ -1040,6 +1040,12 @@ def schedule_get(ctx: click.Context, task_id: str) -> None:
     help="Prompt text sent to the assistant on each trigger.",
 )
 @click.option(
+    "--timezone",
+    "-tz",
+    required=True,
+    help="IANA timezone the cron runs in, e.g. Europe/Zurich. Use UTC for UTC.",
+)
+@click.option(
     "--name",
     "-n",
     default=None,
@@ -1062,6 +1068,7 @@ def schedule_create(
     cron: str,
     assistant_id: str,
     prompt: str,
+    timezone: str,
     name: str | None,
     chat_id: str | None,
     disabled: bool,
@@ -1071,7 +1078,7 @@ def schedule_create(
     \b
     Defines a cron schedule, an assistant, and a prompt. The task
     will execute the assistant with the given prompt on every cron
-    match.
+    match. The cron is evaluated in --timezone.
 
     \b
     Cron expression format (5 fields):
@@ -1081,18 +1088,20 @@ def schedule_create(
     Examples:
       unique-cli schedule create \\
         --cron "0 9 * * 1-5" \\
+        --timezone Europe/Zurich \\
         --assistant clx1abc2d0001abcdef123456 \\
         --prompt "Generate the daily sales report" \\
         --name "Daily sales report"
 
       unique-cli schedule create \\
-        -c "*/15 * * * *" -a clx1abc -p "Check inbox" --disabled
+        -c "*/15 * * * *" -tz Europe/Zurich -a clx1abc -p "Check inbox" --disabled
     """
     output = cmd_schedule_create(
         LazyState.get(ctx),
         cron=cron,
         assistant_id=assistant_id,
         prompt=prompt,
+        timezone=timezone,
         name=name,
         chat_id=chat_id,
         enabled=not disabled,
@@ -1111,6 +1120,12 @@ def schedule_create(
 @click.option("--prompt", "-p", default=None, help="Updated prompt text.")
 @click.option("--name", "-n", default=None, help="Updated label (use 'none' to clear).")
 @click.option("--chat-id", default=None, help="Updated chat ID (use 'none' to clear).")
+@click.option(
+    "--timezone",
+    "-tz",
+    default=None,
+    help="IANA timezone the cron runs in (required with --cron).",
+)
 @click.option("--enable", is_flag=True, default=False, help="Enable the task.")
 @click.option("--disable", is_flag=True, default=False, help="Disable the task.")
 @click.pass_context
@@ -1122,6 +1137,7 @@ def schedule_update(
     prompt: str | None,
     name: str | None,
     chat_id: str | None,
+    timezone: str | None,
     enable: bool,
     disable: bool,
 ) -> None:
@@ -1130,10 +1146,11 @@ def schedule_update(
     \b
     TASK_ID is the scheduled task identifier. Only the fields you
     provide will be changed; everything else stays the same.
+    --timezone is required whenever --cron is given.
 
     \b
     Examples:
-      unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5"
+      unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5" --timezone Europe/Zurich
       unique-cli schedule update clx3ghi4f --disable
       unique-cli schedule update clx3ghi4f --enable --prompt "New prompt"
       unique-cli schedule update clx3ghi4f --chat-id none
@@ -1167,6 +1184,7 @@ def schedule_update(
         prompt=prompt,
         name=resolved_name,
         chat_id=resolved_chat_id,
+        timezone=timezone,
         enabled=enabled,
     )
     click.echo(output)
