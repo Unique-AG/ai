@@ -189,7 +189,7 @@ def test_custom_api_config__deployment_endpoint_overrides_space_value(
     assert config.api_endpoint == "https://operator.example.com/search"
 
 
-def test_custom_api_config__space_endpoint_used_when_deployment_value_is_unset() -> None:
+def test_custom_api_config__uses_space_endpoint_when_deployment_unset() -> None:
     with patch.object(
         custom_api_module.env_settings,
         "custom_web_search_api_endpoint",
@@ -198,6 +198,24 @@ def test_custom_api_config__space_endpoint_used_when_deployment_value_is_unset()
         config = CustomAPIConfig(api_endpoint="https://space.example.com/search")
 
     assert config.api_endpoint == "https://space.example.com/search"
+
+
+def test_custom_api_config__uses_deployment_values_when_space_omits_them() -> None:
+    with patch.multiple(
+        custom_api_module.env_settings,
+        custom_web_search_api_endpoint="https://operator.example.com/search",
+        custom_web_search_api_headers='{"X-Source":"operator"}',
+        custom_web_search_api_additional_query_params='{"source":"operator"}',
+        custom_web_search_api_additional_body_params='{"limit":10}',
+        custom_web_search_api_method=CUSTOM_API_REQUEST_METHOD.POST,
+    ):
+        config = CustomAPIConfig()
+
+    assert config.api_endpoint == "https://operator.example.com/search"
+    assert config.api_headers == '{"X-Source":"operator"}'
+    assert config.api_additional_query_params == '{"source":"operator"}'
+    assert config.api_additional_body_params == '{"limit":10}'
+    assert config.api_request_method == CUSTOM_API_REQUEST_METHOD.POST
 
 
 def test_custom_api_config__deployment_values_override_all_space_values() -> None:
