@@ -39,15 +39,26 @@ permissions:
   contents: read
   packages: write
   id-token: write # keyless cosign signing
+  security-events: write # upload Trivy SARIF from security-trivy-image-scan
 
 jobs:
   containerize:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      digest: ${{ steps.final-digest.outputs.digest }}
+    env:
+      IMAGE_REPO: ${{ inputs.image_repo }}
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+
+      - name: Resolve source revision
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup docker buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -62,6 +73,8 @@ jobs:
             type=raw,value=${{ inputs.version }}
             type=raw,value=v${{ inputs.version }},enable=${{ inputs.tag_latest }}
             type=raw,value=latest,enable=${{ inputs.tag_latest }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
 
       - name: Login to registry hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
@@ -70,8 +83,55 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Look for an existing image
+        id: existing
+        env:
+          IMAGE: ${{ env.IMAGE_REPO }}:${{ env.VERSION }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -uo pipefail
+          digest_of() {
+            local output error
+            error=$(mktemp)
+            if output=$(docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>"$error"); then
+              echo "$output"
+            elif grep -qiE 'not found|NAME_UNKNOWN|MANIFEST_UNKNOWN|404' "$error"; then
+              echo ""
+            else
+              echo "::error::Could not look up $1: $(cat "$error")" >&2
+              return 1
+            fi
+          }
+          digest=$(digest_of "$IMAGE")
+          if [ -z "$digest" ]; then
+            echo "No image for this version yet. The next step builds it."
+            exit 0
+          fi
+          existing_ref="${IMAGE_REPO}@${digest}"
+          image_config=$(docker buildx imagetools inspect "$existing_ref" --format '{{json .Image}}')
+          revision=$(jq -r '.config.Labels["org.opencontainers.image.revision"] // empty' <<< "$image_config")
+          if [ "$revision" != "$SOURCE_SHA" ]; then
+            echo "::error::The existing image for this version comes from ${revision:-an unknown commit}, not from the commit $SOURCE_SHA of the release tag. This workflow does not reuse or sign it. If the image is wrong, delete the tag by hand."
+            exit 1
+          fi
+          echo "::notice::The image for this version exists ($digest). This run reuses it and does not build again."
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Retag existing image
+        if: steps.existing.outputs.digest != ''
+        env:
+          DIGEST: ${{ steps.existing.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            docker buildx imagetools create --tag "$tag" "${IMAGE_REPO}@${DIGEST}"
+          done <<< "$TAGS"
+
       - name: Build and push container
         id: build-and-push
+        if: steps.existing.outputs.digest == ''
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           cache-from: type=registry,ref=${{ inputs.image_repo }}:cache
@@ -80,22 +140,31 @@ jobs:
           file: ${{ inputs.package_dir }}/deploy/Dockerfile
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
-          # Full provenance and an SBOM are attached to the image. Customers pull
-          # these images directly, so they need to be able to see how it was built
-          # and what is in it without us shipping a separate document.
           provenance: mode=max
           sbom: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          no-cache-filters: runtime
+
+      - name: Resolve image digest
+        id: final-digest
+        env:
+          BUILT_DIGEST: ${{ steps.build-and-push.outputs.digest }}
+          EXISTING_DIGEST: ${{ steps.existing.outputs.digest }}
+        run: |
+          digest="${EXISTING_DIGEST:-$BUILT_DIGEST}"
+          if [ -z "$digest" ]; then
+            echo "::error::No image digest after build or reuse."
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
-      # Sign the digest, not the tags. Verification pins the workflow identity, so a
-      # signature can only come from this workflow on main or on a release tag.
       - name: Sign and verify the image with the GitHub OIDC token
         env:
-          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+          DIGEST: ${{ steps.final-digest.outputs.digest }}
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           set -euo pipefail
@@ -107,3 +176,112 @@ jobs:
           cosign verify ${images} \
             --certificate-identity-regexp="^https://github.com/${{ github.repository }}/\.github/workflows/.*@refs/(heads/main|tags/.*)$" \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+
+  security-trivy-image-scan:
+    name: Trivy image scan
+    needs: containerize
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE_REPO: ${{ inputs.image_repo }}
+      TRIVY_DISABLE_VEX_NOTICE: "true"
+    steps:
+      - name: Resolve SARIF category
+        id: scan-meta
+        env:
+          IMAGE_REPO: ${{ inputs.image_repo }}
+        run: echo "category=trivy-image/$(basename "$IMAGE_REPO")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            /.github/trivy-templates/
+            /.github/trivyignore.yaml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE_REPO }}@${{ needs.containerize.outputs.digest }}
+          format: json
+          output: trivy-results.json
+          severity: CRITICAL,HIGH
+          scanners: vuln
+          ignore-unfixed: true
+          trivyignores: .github/trivyignore.yaml
+          exit-code: "0"
+          timeout: 15m
+          cache: true
+
+      - name: Convert Trivy results to SARIF
+        if: always() && hashFiles('trivy-results.json') != ''
+        run: trivy convert --format sarif trivy-results.json -o trivy-image-scan-results.sarif
+
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        if: always() && hashFiles('trivy-image-scan-results.sarif') != ''
+        with:
+          sarif_file: trivy-image-scan-results.sarif
+          category: ${{ steps.scan-meta.outputs.category }}
+
+      - name: Write Trivy summary
+        if: always() && hashFiles('trivy-results.json') != ''
+        run: |
+          trivy convert --format template \
+            --template @.github/trivy-templates/image-summary-markdown.tpl \
+            trivy-results.json > trivy-report.md || true
+          if [ -s trivy-report.md ]; then
+            cat trivy-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  security-trivy-license-scan:
+    name: Trivy license scan
+    needs: containerize
+    permissions:
+      contents: read
+      packages: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      IMAGE_REPO: ${{ inputs.image_repo }}
+      TRIVY_DISABLE_VEX_NOTICE: "true"
+    steps:
+      - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE_REPO }}@${{ needs.containerize.outputs.digest }}
+          scanners: license
+          format: json
+          output: trivy-license.json
+          severity: UNKNOWN,HIGH,CRITICAL
+          exit-code: "0"
+          timeout: 15m
+          cache: true
+
+      - name: Write license summary
+        if: always() && hashFiles('trivy-license.json') != ''
+        run: |
+          jq -r '
+            [.Results[]?.Licenses[]?]
+            | group_by([.Severity, .Name])
+            | map({severity: .[0].Severity, license: (.[0].Name | gsub("[|\n]"; " ")), packages: length})
+            | sort_by(.severity, .license)
+            | ["| Severity | License | Packages |", "| --- | --- | --- |"] + map("| \(.severity) | \(.license) | \(.packages) |")
+            | .[]
+          ' trivy-license.json >> "$GITHUB_STEP_SUMMARY"

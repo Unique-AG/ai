@@ -77,9 +77,11 @@ class TestShellNavigation:
         out = _capture(_shell("/Reports"), "pwd")
         assert "/Reports" in out
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd(self, mock_get_info: MagicMock) -> None:
+    def test_cd(self, mock_get_info: MagicMock, mock_path: MagicMock) -> None:
         mock_get_info.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         sh = _shell()
         out = _capture(sh, "cd Reports")
         assert "/Reports" in out
@@ -104,6 +106,7 @@ class TestShellNavigation:
         out = _capture(_shell(), "ls")
         assert "0 folder(s), 0 file(s)" in out
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     @patch("unique_sdk.Folder.get_info")
@@ -112,8 +115,10 @@ class TestShellNavigation:
         mock_info: MagicMock,
         mock_infos: MagicMock,
         mock_content: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         mock_info.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         mock_infos.return_value = {
             "folderInfos": [],
             "totalCount": 0,
@@ -127,11 +132,13 @@ class TestShellNavigation:
 
 
 class TestShellFolderOps:
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir(self, mock: MagicMock) -> None:
+    def test_mkdir(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {
             "createdFolders": [{"id": "scope_new"}],
         }
+        mock_path.return_value = {"folderPath": "/R/Q2"}
         out = _capture(_shell("/R", "scope_r"), "mkdir Q2")
         assert "Created" in out
 
@@ -441,11 +448,14 @@ class TestShellMcp:
         assert "MCP tool call: tool" in out
 
 
-def _scheduled_task(name: str | None = None) -> MagicMock:
+def _scheduled_task(
+    name: str | None = None, timezone: str | None = "Europe/Zurich"
+) -> MagicMock:
     task = MagicMock()
     task.id = "task_abc"
     task.name = name
     task.cronExpression = "0 9 * * 1-5"
+    task.timezone = timezone
     task.assistantId = "ast_123"
     task.assistantName = "Bot"
     task.chatId = None
@@ -487,20 +497,31 @@ class TestShellSchedule:
         mock.return_value = _scheduled_task()
         out = _capture(
             _shell(),
-            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Generate report"',
+            'schedule create -c "0 9 * * 1-5" -tz Europe/Zurich '
+            '-a ast_123 -p "Generate report"',
         )
         assert "Created" in out
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     def test_schedule_create_missing_required(self) -> None:
         out = _capture(_shell(), "schedule create -c '0 9 * * 1-5'")
         assert "Usage:" in out
+
+    def test_schedule_create_missing_timezone(self) -> None:
+        out = _capture(
+            _shell(),
+            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Generate report"',
+        )
+        assert "Usage:" in out
+        assert "--timezone" in out
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_schedule_create_with_all_options(self, mock: MagicMock) -> None:
         mock.return_value = _scheduled_task()
         out = _capture(
             _shell(),
-            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Report" --chat-id chat_1 --disabled',
+            'schedule create -c "0 9 * * 1-5" -tz Europe/Zurich -a ast_123 '
+            '-p "Report" --chat-id chat_1 --disabled',
         )
         assert "Created" in out
 
@@ -509,8 +530,8 @@ class TestShellSchedule:
         mock.return_value = _scheduled_task(name="Daily sales report")
         out = _capture(
             _shell(),
-            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Generate report" '
-            '-n "Daily sales report"',
+            'schedule create -c "0 9 * * 1-5" -tz Europe/Zurich -a ast_123 '
+            '-p "Generate report" -n "Daily sales report"',
         )
         assert "Created" in out
         assert mock.call_args[1]["name"] == "Daily sales report"
@@ -524,7 +545,8 @@ class TestShellSchedule:
     def test_schedule_create_unknown_option(self) -> None:
         out = _capture(
             _shell(),
-            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Report" --bad',
+            'schedule create -c "0 9 * * 1-5" -tz Europe/Zurich '
+            '-a ast_123 -p "Report" --bad',
         )
         assert "Unknown option" in out
 
@@ -539,13 +561,21 @@ class TestShellSchedule:
         assert "Usage:" in out
 
     @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_cron_without_timezone(self, mock: MagicMock) -> None:
+        out = _capture(_shell(), 'schedule update task_abc -c "*/15 * * * *"')
+        assert "--timezone is required when changing --cron" in out
+        mock.assert_not_called()
+
+    @patch("unique_sdk.ScheduledTask.modify")
     def test_schedule_update_all_options(self, mock: MagicMock) -> None:
         mock.return_value = _scheduled_task()
         out = _capture(
             _shell(),
-            'schedule update task_abc -c "*/15 * * * *" -a ast_456 -p "New prompt" --enable',
+            'schedule update task_abc -c "*/15 * * * *" -tz Europe/Zurich '
+            '-a ast_456 -p "New prompt" --enable',
         )
         assert "Updated" in out
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     @patch("unique_sdk.ScheduledTask.modify")
     def test_schedule_update_clear_chat_id(self, mock: MagicMock) -> None:

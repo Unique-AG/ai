@@ -38,10 +38,12 @@ permissions:
   contents: read
   packages: write
   id-token: write # forwarded to cd-containerize.yaml for keyless cosign signing
+  security-events: write # forwarded to cd-containerize.yaml Trivy SARIF upload
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       matrix: ${{ steps.out.outputs.matrix }}
     steps:

@@ -88,6 +88,7 @@ class LanguageModelName(StrEnum):
         "litellm:anthropic-claude-3-7-sonnet-thinking"
     )
     ANTHROPIC_CLAUDE_HAIKU_4_5 = "litellm:anthropic-claude-haiku-4-5"
+    ANTHROPIC_CLAUDE_HAIKU_5_5 = "litellm:anthropic-claude-haiku-5-5"
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
     ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
@@ -164,6 +165,7 @@ class LanguageModelName(StrEnum):
     LITELLM_KIMI_K3 = "litellm:kimi-k3"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
+    VERTEX_CLAUDE_HAIKU_5_5 = "litellm:vertex-claude-haiku-5-5"
     VERTEX_CLAUDE_SONNET_4_6 = "litellm:vertex-claude-sonnet-4-6"
     VERTEX_CLAUDE_SONNET_5 = "litellm:vertex-claude-sonnet-5"
     VERTEX_CLAUDE_SONNET_5_5 = "litellm:vertex-claude-sonnet-5-5"
@@ -174,6 +176,7 @@ class LanguageModelName(StrEnum):
     VERTEX_CLAUDE_OPUS_5_5 = "litellm:vertex-claude-opus-5-5"
     VERTEX_CLAUDE_FABLE_5 = "litellm:vertex-claude-fable-5"
     VERTEX_GEMINI_3_8_FLASH = "litellm:vertex-gemini-3-8-flash"
+    VERTEX_GEMINI_4_ARGON = "litellm:vertex-gemini-4-argon"
 
 
 class EncoderName(StrEnum):
@@ -330,6 +333,28 @@ def _load_custom_decoder(tokenizer_name: str) -> TypeDecoder:
     tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
     tokenizer = get_tokenizer_from_path(tokenizer_path)
     return tokenizer.decode
+
+
+_CLAUDE_CONTEXT_WINDOWS = {
+    "claude-3-7-sonnet": 200_000,
+    "claude-3-7-sonnet-thinking": 200_000,
+    "claude-haiku-4-5": 200_000,
+    "claude-opus-4": 200_000,
+    "claude-opus-4-1": 200_000,
+    "claude-opus-4-5": 200_000,
+    "claude-opus-4-6": 200_000,
+    "claude-sonnet-4": 200_000,
+    "claude-sonnet-4-5": 200_000,
+    "claude-sonnet-4-6": 200_000,
+    "claude-fable-5": 1_000_000,
+    "claude-haiku-5-5": 1_000_000,
+    "claude-opus-4-7": 1_000_000,
+    "claude-opus-4-8": 1_000_000,
+    "claude-opus-5": 1_000_000,
+    "claude-opus-5-5": 1_000_000,
+    "claude-sonnet-5": 1_000_000,
+    "claude-sonnet-5-5": 1_000_000,
+}
 
 
 class LanguageModelInfo(BaseModel):
@@ -1762,6 +1787,40 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 10, 1),
                     supported_reasoning_efforts=[],
                 )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_5_5
+                | LanguageModelName.VERTEX_CLAUDE_HAIKU_5_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-haiku-5-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        # 1M context / 128K max output. https://platform.claude.com/docs/en/models/haiku-5-5/overview
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
+                    ),
+                    info_cutoff_at=date(2026, 6, 1),
+                    published_at=date(2026, 10, 7),
+                    # Effort levels: https://platform.claude.com/docs/en/build-with-claude/effort
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4:
                 return cls(
                     name=model_name,
@@ -1962,8 +2021,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2025, 11, 13),
+                    # No default: a set effort enables thinking, which a forced
+                    # tool_choice rejects.
                     # https://platform.claude.com/docs/en/build-with-claude/effort
-                    default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case (
@@ -2450,11 +2510,10 @@ class LanguageModelInfo(BaseModel):
                     default_options={"reasoning_effort": "low"},
                     supported_reasoning_efforts=["low", "high"],
                 )
-            # Day-0 placeholder so the model can be selected before general
-            # availability. Limits, cutoff, thinking levels, and the API model
-            # id are provisional. Update this entry from the official model
-            # card once Argon is published.
-            case LanguageModelName.GEMINI_4_ARGON:
+            case (
+                LanguageModelName.GEMINI_4_ARGON
+                | LanguageModelName.VERTEX_GEMINI_4_ARGON
+            ):
                 return cls(
                     name=model_name,
                     capabilities=[
@@ -2469,21 +2528,16 @@ class LanguageModelInfo(BaseModel):
                     version="gemini-4-argon",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # GraphWalks evaluates contexts from 256k through 1M tokens.
-                        # https://deepmind.google/models/gemini/
+                        # Unified 1,048,576 input/output context window; 65,536 single-request output cap.
+                        # https://ai.google.dev/gemini-api/docs/models/gemini-4-argon
+                        # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-argon
                         token_limit_input=1_048_576,
                         token_limit_output=65_536,
                     ),
-                    # Google has not published a knowledge cutoff for Argon.
-                    info_cutoff_at=None,
-                    # https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/
-                    published_at=date(2026, 9, 30),
-                    # thinkingLevel is recommended for Gemini 3 and later. Argon is
-                    # not yet on the public thinking-level table; evals use the
-                    # highest thinking setting. Mirror Gemini 3.8 Flash (low,
-                    # medium, high; medium default) until Argon docs land.
-                    # https://ai.google.dev/gemini-api/docs/thinking
-                    # https://deepmind.google/models/evals-methodology/gemini-4-argon
+                    info_cutoff_at=date(2026, 3, day=1),
+                    published_at=date(2026, 10, 13),
+                    # Supports thinking_level low, medium (default), and high.
+                    # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides/gemini-4-argon
                     default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
@@ -3698,6 +3752,29 @@ class LanguageModelInfo(BaseModel):
             return self.name.value
         else:
             return self.name
+
+    @property
+    def provider_context_window(self) -> int:
+        """Return the raw provider input context window before local-tokenizer adjustments."""
+        if self.family == ModelFamily.ANTHROPIC:
+            known_window = _CLAUDE_CONTEXT_WINDOWS.get(self.version)
+            if known_window is None:
+                model_name = str(self.name)
+                known_window = next(
+                    (
+                        window
+                        for version, window in sorted(
+                            _CLAUDE_CONTEXT_WINDOWS.items(),
+                            key=lambda item: len(item[0]),
+                            reverse=True,
+                        )
+                        if version in model_name
+                    ),
+                    None,
+                )
+            if known_window is not None:
+                return known_window
+        return self.token_limits.token_limit_input
 
 
 @deprecated(

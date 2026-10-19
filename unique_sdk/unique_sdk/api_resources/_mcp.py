@@ -46,6 +46,29 @@ class CallToolContentDto(TypedDict):
     ]  # For type: "resource"
 
 
+class McpServerToolDto(TypedDict):
+    """A tool of an MCP server that the company has enabled."""
+
+    name: str
+    description: str | None
+
+
+class McpServerDto(TypedDict):
+    """An MCP server (connector) of the company that can be attached to a space."""
+
+    id: str
+    name: str
+    description: str | None
+    requiresOAuth: bool
+    isSpaceRestricted: bool
+    allowedSpaceIds: list[str]
+    tools: list[McpServerToolDto]
+
+
+class McpServersResponse(TypedDict):
+    mcpServers: list[McpServerDto]
+
+
 class MCP(APIResource["MCP"]):
     @classproperty
     def OBJECT_NAME(cls) -> Literal["mcp.call_tool"]:
@@ -126,5 +149,59 @@ class MCP(APIResource["MCP"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def list_servers(
+        cls,
+        user_id: str,
+        company_id: str,
+    ) -> McpServersResponse:
+        """
+        List the company's MCP servers that can be attached to a space, with their
+        tools. Never returns server URLs or credentials.
+
+        Args:
+            user_id: The ID of the user making the request
+            company_id: The ID of the company
+
+        Returns:
+            McpServersResponse: The servers, sorted by name
+        """
+        return cast(
+            McpServersResponse,
+            cls._static_request(
+                "get",
+                "/mcp/servers",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def list_servers_async(
+        cls,
+        user_id: str,
+        company_id: str,
+    ) -> McpServersResponse:
+        """
+        Asynchronously list the company's MCP servers that can be attached to a space,
+        with their tools. Never returns server URLs or credentials.
+
+        Args:
+            user_id: The ID of the user making the request
+            company_id: The ID of the company
+
+        Returns:
+            McpServersResponse: The servers, sorted by name
+        """
+        return cast(
+            McpServersResponse,
+            await cls._static_request_async(
+                "get",
+                "/mcp/servers",
+                user_id,
+                company_id,
             ),
         )

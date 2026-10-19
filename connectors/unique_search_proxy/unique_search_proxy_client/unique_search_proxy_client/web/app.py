@@ -59,10 +59,10 @@ logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 async def lifespan(app: FastAPI):
     _LOGGER.info("Starting Unique Search Proxy...")
     log_startup_settings_report(_LOGGER)
-    await maybe_cleanup_auto_provisioned_bing_agents_on_start()
     registry = await create_http_client_registry()
     app.state.http_client_registry = registry
     try:
+        await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
         yield
     finally:
         await aclose_private_endpoint_http_client()

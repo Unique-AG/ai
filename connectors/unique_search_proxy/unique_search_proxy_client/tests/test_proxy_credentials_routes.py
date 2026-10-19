@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Generator
 from dataclasses import dataclass, field
-from typing import Any, Generator
+from typing import Any
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.context import RequestContext
 from unique_search_proxy_core.crawlers.base import CrawlerType
-from unique_search_proxy_core.schema import ProxyErrorCode
+from unique_search_proxy_core.schema import (
+    AgentSearchDone,
+    AgentSearchResponse,
+    ProxyErrorCode,
+)
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.client.service import (
@@ -248,3 +254,98 @@ def test_search_also_uses_the_end_user_identity(
     assert response.status_code == 200
     assert captured
     assert "u12345" in egress.usernames
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("path", "streaming"),
+    [
+        ("/v1/agent-search", False),
+        ("/v1/agent-search/stream", True),
+    ],
+)
+def test_agent_search_uses_the_end_user_identity(
+    client: TestClient,
+    egress: _Egress,
+    monkeypatch: pytest.MonkeyPatch,
+    path: str,
+    streaming: bool,
+) -> None:
+    class _FakeAgentEngine:
+        def __init__(self, http_client: httpx.AsyncClient) -> None:
+            self._http_client = http_client
+
+        async def search(self, body: Any) -> AgentSearchResponse:
+            await self._http_client.get("https://example.com/agent-probe")
+            return AgentSearchResponse(
+                engine="bing",
+                query=body.query,
+                answer="done",
+                raw={},
+            )
+
+        async def stream(self, body: Any) -> AsyncIterator[AgentSearchDone]:
+            result = await self.search(body)
+            yield AgentSearchDone(response=result)
+
+    captured_routes: list[Any] = []
+
+    def get_service(*_args: Any, **kwargs: Any) -> _FakeAgentEngine:
+        captured_routes.append(kwargs["egress_route"])
+        return _FakeAgentEngine(kwargs["http_client"])
+
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.api.v1.agent_search.get_agent_engine_service",
+        get_service,
+    )
+
+    response = client.post(
+        path,
+        json={
+            "engine": "bing",
+            "query": "unique ai",
+            "fetchSize": 5,
+            "timeout": 10,
+        },
+        headers=_headers(_GATED_COMPANY, {"userName": "u12345"}),
+    )
+
+    assert response.status_code == 200
+    assert captured_routes
+    assert "u12345" in egress.usernames
+    if streaming:
+        assert '"type": "done"' in response.text
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "path",
+    ["/v1/agent-search", "/v1/agent-search/stream"],
+)
+def test_agent_search_without_identity_fails_before_provider_call(
+    client: TestClient,
+    egress: _Egress,
+    monkeypatch: pytest.MonkeyPatch,
+    path: str,
+) -> None:
+    get_service = MagicMock()
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.api.v1.agent_search.get_agent_engine_service",
+        get_service,
+    )
+
+    response = client.post(
+        path,
+        json={
+            "engine": "bing",
+            "query": "unique ai",
+            "fetchSize": 5,
+            "timeout": 10,
+        },
+        headers=_headers(_GATED_COMPANY),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == ProxyErrorCode.VALIDATION_ERROR.value
+    assert egress.by_username == []
+    get_service.assert_not_called()

@@ -239,12 +239,13 @@ class UniqueShell(cmd.Cmd):
     # -- Folder operations --
 
     def do_mkdir(self, arg: str) -> None:
-        """Create a new folder under the current directory.
+        """Create a folder by relative name or absolute path.
 
         Usage: mkdir <name>
 
-        Creates a child folder with the given name. Nested paths are
-        supported (e.g., "A/B/C" creates the full hierarchy).
+        A relative name is created under the current directory. An absolute
+        path (starting with /) is created from the root, including under
+        /home-<userId>. Nested paths create the full hierarchy.
 
         Examples:
           /Reports> mkdir Q2
@@ -252,6 +253,9 @@ class UniqueShell(cmd.Cmd):
 
           /Reports> mkdir "2025/Q1"
           Created: /Reports/2025/Q1 (scope_xyz999)
+
+          /> mkdir /home-user_1/second-brain/clients/X
+          Created: /home-user_1/second-brain/clients/X (scope_home1)
         """
         name = arg.strip()
         if not name:
@@ -1109,12 +1113,14 @@ class UniqueShell(cmd.Cmd):
           --cron / -c <expr>      Cron expression (required)
           --assistant / -a <id>   Assistant ID (required)
           --prompt / -p <text>    Prompt text (required)
+          --timezone / -tz <tz>   IANA timezone (required)
           --name / -n <text>      Short label shown in the UI (optional)
           --chat-id <id>          Chat to continue (optional)
           --disabled              Create in disabled state
 
         Update options:
           --cron / -c <expr>      Updated cron expression
+          --timezone / -tz <tz>   IANA timezone (required with --cron)
           --assistant / -a <id>   Updated assistant ID
           --prompt / -p <text>    Updated prompt
           --name / -n <text>      Updated label ('none' to clear)
@@ -1125,7 +1131,7 @@ class UniqueShell(cmd.Cmd):
         Examples:
           /> schedule list
           /> schedule get clx3ghi4f0003mnopqr345678
-          /> schedule create -c "0 9 * * 1-5" -a clx1abc -p "Daily report" -n "Daily report"
+          /> schedule create -c "0 9 * * 1-5" -tz Europe/Zurich -a clx1abc -p "Daily report" -n "Daily report"
           /> schedule update clx3ghi4f --disable
           /> schedule delete clx3ghi4f0003mnopqr345678
         """
@@ -1175,6 +1181,7 @@ class UniqueShell(cmd.Cmd):
         cron: str | None = None
         assistant_id: str | None = None
         prompt: str | None = None
+        timezone: str | None = None
         name: str | None = None
         chat_id: str | None = None
         disabled = False
@@ -1190,6 +1197,9 @@ class UniqueShell(cmd.Cmd):
             elif parts[i] in ("--prompt", "-p") and i + 1 < len(parts):
                 prompt = parts[i + 1]
                 i += 2
+            elif parts[i] in ("--timezone", "-tz") and i + 1 < len(parts):
+                timezone = parts[i + 1]
+                i += 2
             elif parts[i] in ("--name", "-n") and i + 1 < len(parts):
                 name = parts[i + 1]
                 i += 2
@@ -1203,10 +1213,10 @@ class UniqueShell(cmd.Cmd):
                 self._print(f"Unknown option: {parts[i]}")
                 return
 
-        if not cron or not assistant_id or not prompt:
+        if not cron or not assistant_id or not prompt or not timezone:
             self._print(
                 "Usage: schedule create --cron <expr> --assistant <id> --prompt <text> "
-                "[--name <text>] [--chat-id <id>] [--disabled]"
+                "--timezone <tz> [--name <text>] [--chat-id <id>] [--disabled]"
             )
             return
 
@@ -1216,6 +1226,7 @@ class UniqueShell(cmd.Cmd):
                 cron=cron,
                 assistant_id=assistant_id,
                 prompt=prompt,
+                timezone=timezone,
                 name=name,
                 chat_id=chat_id,
                 enabled=not disabled,
@@ -1229,6 +1240,7 @@ class UniqueShell(cmd.Cmd):
         prompt: str | None = None
         name: str | None = None
         chat_id: str | None = None
+        timezone: str | None = None
         enable = False
         disable = False
 
@@ -1242,6 +1254,9 @@ class UniqueShell(cmd.Cmd):
                 i += 2
             elif parts[i] in ("--prompt", "-p") and i + 1 < len(parts):
                 prompt = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--timezone", "-tz") and i + 1 < len(parts):
+                timezone = parts[i + 1]
                 i += 2
             elif parts[i] in ("--name", "-n") and i + 1 < len(parts):
                 name = "" if parts[i + 1].lower() == "none" else parts[i + 1]
@@ -1278,6 +1293,7 @@ class UniqueShell(cmd.Cmd):
                 prompt=prompt,
                 name=name,
                 chat_id=chat_id,
+                timezone=timezone,
                 enabled=enabled,
             )
         )
