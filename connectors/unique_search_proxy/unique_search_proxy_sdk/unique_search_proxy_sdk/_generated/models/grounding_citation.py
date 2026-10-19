@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any, TypeVar, cast
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+
+from ..types import UNSET, Unset
+
+T = TypeVar("T", bound="GroundingCitation")
+
+
+@_attrs_define
+class GroundingCitation:
+    """Provider-authoritative citation attached to grounded agent output.
+
+    Attributes:
+        url (str):
+        marker (str):
+        start_index (int):
+        end_index (int):
+        title (None | str | Unset):
+        output_item_id (None | str | Unset):
+    """
+
+    url: str
+    marker: str
+    start_index: int
+    end_index: int
+    title: None | str | Unset = UNSET
+    output_item_id: None | str | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        url = self.url
+
+        marker = self.marker
+
+        start_index = self.start_index
+
+        end_index = self.end_index
+
+        title: None | str | Unset
+        if isinstance(self.title, Unset):
+            title = UNSET
+        else:
+            title = self.title
+
+        output_item_id: None | str | Unset
+        if isinstance(self.output_item_id, Unset):
+            output_item_id = UNSET
+        else:
+            output_item_id = self.output_item_id
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "url": url,
+                "marker": marker,
+                "startIndex": start_index,
+                "endIndex": end_index,
+            }
+        )
+        if title is not UNSET:
+            field_dict["title"] = title
+        if output_item_id is not UNSET:
+            field_dict["outputItemId"] = output_item_id
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        d = dict(src_dict)
+        url = d.pop("url")
+
+        marker = d.pop("marker")
+
+        start_index = d.pop("startIndex")
+
+        end_index = d.pop("endIndex")
+
+        def _parse_title(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        title = _parse_title(d.pop("title", UNSET))
+
+        def _parse_output_item_id(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        output_item_id = _parse_output_item_id(d.pop("outputItemId", UNSET))
+
+        grounding_citation = cls(
+            url=url,
+            marker=marker,
+            start_index=start_index,
+            end_index=end_index,
+            title=title,
+            output_item_id=output_item_id,
+        )
+
+        grounding_citation.additional_properties = d
+        return grounding_citation
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

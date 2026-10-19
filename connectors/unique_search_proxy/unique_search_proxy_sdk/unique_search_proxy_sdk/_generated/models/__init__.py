@@ -31,6 +31,7 @@ from .google_search_request_safe_search import GoogleSearchRequestSafeSearch
 from .google_search_request_site_search_filter_type_0 import (
     GoogleSearchRequestSiteSearchFilterType0,
 )
+from .grounding_citation import GroundingCitation
 from .health_health_get_response_health_health_get import (
     HealthHealthGetResponseHealthHealthGet,
 )
@@ -82,6 +83,7 @@ __all__ = (
     "GoogleSearchRequest",
     "GoogleSearchRequestSafeSearch",
     "GoogleSearchRequestSiteSearchFilterType0",
+    "GroundingCitation",
     "HealthHealthGetResponseHealthHealthGet",
     "HTTPValidationError",
     "JinaCrawlRequest",

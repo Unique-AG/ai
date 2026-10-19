@@ -5,6 +5,7 @@ from unique_web_search.services.search_engine.utils.grounding.models import (
     ResultItem,
 )
 from unique_web_search.services.search_engine.utils.grounding.response_parsing import (
+    CitationAwareLLMParserStrategy,
     JsonConversionStrategy,
     LLMParserStrategy,
     ResponseParser,
@@ -16,6 +17,7 @@ __all__ = [
     "RESPONSE_RULE",
     "GroundingSearchResults",
     "ResultItem",
+    "CitationAwareLLMParserStrategy",
     "JsonConversionStrategy",
     "LLMParserStrategy",
     "ResponseParser",

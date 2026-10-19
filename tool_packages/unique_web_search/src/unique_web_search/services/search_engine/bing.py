@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import asyncio
-from typing import Any, override
+from typing import TYPE_CHECKING, Any, override
 
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
@@ -17,12 +19,17 @@ from unique_toolkit.language_model import LanguageModelService
 from unique_web_search.services.proxy.bridge import (
     search_proxy_client_enabled,
 )
+from unique_web_search.services.proxy.mappers import (
+    agent_answer_text,
+    agent_citations,
+)
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
 from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 from unique_web_search.services.search_engine.utils.grounding import (
+    CitationAwareLLMParserStrategy,
     JsonConversionStrategy,
     LLMParserStrategy,
 )
@@ -33,11 +40,19 @@ from unique_web_search.services.search_engine.utils.grounding.bing import (
     get_project_client,
 )
 
+if TYPE_CHECKING:
+    from unique_search_proxy_sdk._generated.models.agent_search_response import (
+        AgentSearchResponse,
+    )
+
 
 class BingSearchConfig(BingAgentConfig):
     language_model: LMI = get_LMI_default_field(
         DEFAULT_LANGUAGE_MODEL,
-        description="The language model to use in as a fallback parser if the agent response is not a valid JSON.",
+        description=(
+            "The language model used to structure citation-grounded Bing prose "
+            "without allowing it to generate source URLs."
+        ),
     )
     requires_scraping: bool = Field(
         default=False,
@@ -71,6 +86,10 @@ class BingSearch(SearchEngine[BingSearchConfig]):
                 language_model_service,
             ),
         ]
+        self.citation_response_parser = CitationAwareLLMParserStrategy(
+            config.language_model,
+            language_model_service,
+        )
 
     @property
     def is_configured(self) -> bool:
@@ -108,6 +127,16 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         return invocation
 
     @override
+    async def _parse_agent_proxy_response(
+        self,
+        response: AgentSearchResponse,
+    ) -> list[WebSearchResult]:
+        return await self.citation_response_parser(
+            agent_answer_text(response),
+            agent_citations(response),
+        )
+
+    @override
     async def _legacy_search(
         self,
         query: str,
@@ -122,6 +151,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
                 grounding=self._grounding_configuration(),
                 response_parsers_strategies=self.response_parsers,
                 generation_instructions=self.config.generation_instructions,
+                citation_parser_strategy=self.citation_response_parser,
             )
 
         return search_results

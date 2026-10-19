@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from unique_search_proxy_core.schema import GroundingCitation
 from unique_search_proxy_sdk._generated.models.agent_search_response import (
     AgentSearchResponse,
 )
@@ -71,3 +72,12 @@ def agent_answer_text(response: AgentSearchResponse) -> str:
     if isinstance(response.answer, str):
         return response.answer
     return ""
+
+
+def agent_citations(response: AgentSearchResponse) -> list[GroundingCitation]:
+    if not isinstance(response.citations, list):
+        return []
+    return [
+        GroundingCitation.model_validate(citation.to_dict())
+        for citation in response.citations
+    ]

@@ -17,6 +17,12 @@ BING_AUTO_AGENT_NAME_PREFIX = "unique-grounding-with-bing"
 _CONFIG_HASH_LENGTH = 12
 _HASH_FIELD_SEPARATOR = "\0"
 
+_CITATION_INSTRUCTIONS = """## Source attribution
+Answer in clear prose organized by source, not JSON.
+Use the citation references supplied by Bing Grounding after every factual section.
+Never invent, reconstruct, type, or guess citation markers or source URLs.
+Preserve all relevant facts, figures, dates, names, quotes, and contextual details."""
+
 
 @dataclass(frozen=True, slots=True)
 class BingGroundingConfiguration:
@@ -59,6 +65,11 @@ def bing_agent_name(
     return f"{BING_AUTO_AGENT_NAME_PREFIX}-{digest}"
 
 
+def build_bing_citation_instructions(generation_instructions: str) -> str:
+    """Add citation-safe output rules without suppressing Foundry annotations."""
+    return f"{generation_instructions.rstrip()}\n\n{_CITATION_INSTRUCTIONS}"
+
+
 def is_auto_provisioned_bing_agent_name(name: str) -> bool:
     """True for names this module would have generated."""
     return name.startswith(f"{BING_AUTO_AGENT_NAME_PREFIX}-")
@@ -69,5 +80,6 @@ __all__ = [
     "BingGroundingConfiguration",
     "bing_agent_config_hash",
     "bing_agent_name",
+    "build_bing_citation_instructions",
     "is_auto_provisioned_bing_agent_name",
 ]

@@ -185,6 +185,19 @@ class SearchResponse(BaseModel):
     curated: list[WebSearchResult]
 
 
+class GroundingCitation(BaseModel):
+    """Provider-authoritative citation attached to grounded agent output."""
+
+    model_config = camelized_model_config
+
+    url: str
+    title: str | None = None
+    marker: str
+    start_index: int
+    end_index: int
+    output_item_id: str | None = None
+
+
 class AgentSearchResponse(BaseModel):
     """Result of an agent-based (grounded) search.
 
@@ -199,6 +212,10 @@ class AgentSearchResponse(BaseModel):
     answer: str = Field(
         default="",
         description="Agent response text as returned by the provider (opaque to the proxy)",
+    )
+    citations: list[GroundingCitation] = Field(
+        default_factory=list,
+        description="Provider-authoritative citations for spans in the agent answer",
     )
     raw: Any = Field(default=None, description="Opaque provider payload")
 

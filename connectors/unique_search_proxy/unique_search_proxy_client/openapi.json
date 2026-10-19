@@ -767,6 +767,14 @@
             "description": "Agent response text as returned by the provider (opaque to the proxy)",
             "default": ""
           },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/GroundingCitation"
+            },
+            "type": "array",
+            "title": "Citations",
+            "description": "Provider-authoritative citations for spans in the agent answer"
+          },
           "raw": {
             "title": "Raw",
             "description": "Opaque provider payload"
@@ -1788,6 +1796,57 @@
           "query"
         ],
         "title": "Google Search Request"
+      },
+      "GroundingCitation": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "marker": {
+            "type": "string",
+            "title": "Marker"
+          },
+          "startIndex": {
+            "type": "integer",
+            "title": "Start Index"
+          },
+          "endIndex": {
+            "type": "integer",
+            "title": "End Index"
+          },
+          "outputItemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Item Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "marker",
+          "startIndex",
+          "endIndex"
+        ],
+        "title": "Grounding Citation",
+        "description": "Provider-authoritative citation attached to grounded agent output."
       },
       "HTTPValidationError": {
         "properties": {

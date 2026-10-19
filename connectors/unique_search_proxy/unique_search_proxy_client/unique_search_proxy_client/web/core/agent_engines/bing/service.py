@@ -9,18 +9,17 @@ import openai
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
+    build_bing_citation_instructions,
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.agent_engines.bing.settings import resolve_market
-from unique_search_proxy_core.agent_engines.resolve import (
-    resolve_output_schema_for_engine,
-)
 from unique_search_proxy_core.errors import UpstreamError
 from unique_search_proxy_core.schema import (
     AgentSearchDelta,
     AgentSearchDone,
     AgentSearchResponse,
     AgentSearchStreamEvent,
+    GroundingCitation,
 )
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
@@ -33,9 +32,6 @@ from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
 )
 from unique_search_proxy_client.web.core.agent_engines.service_base import (
     AgentSearchEngineService,
-)
-from unique_search_proxy_client.web.core.agent_engines.structured_output import (
-    build_agent_instructions,
 )
 from unique_search_proxy_client.web.core.provider_response import transport_error_raw
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
@@ -110,12 +106,12 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
             raise RuntimeError("HTTP client is required for Bing")
 
         answer_parts: list[str] = []
+        completed_answer: str | None = None
         raw_chunks: list[dict] = []
+        citations: list[GroundingCitation] = []
 
-        output_schema = resolve_output_schema_for_engine(request.engine)
-        instructions = build_agent_instructions(
-            generation_instructions=request.generation_instructions,
-            output_schema=output_schema,
+        instructions = build_bing_citation_instructions(
+            request.generation_instructions,
         )
         grounding = BingGroundingConfiguration(
             fetch_size=request.fetch_size,
@@ -149,6 +145,13 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                                     yield AgentSearchDelta(text=delta)
                                 if raw_event:
                                     raw_chunks.append(raw_event)
+                                    if raw_event.get("type") == "response.completed":
+                                        completed_answer = raw_event.get("answer")
+                                        citations = [
+                                            GroundingCitation.model_validate(citation)
+                                            for citation in raw_event.get("citations")
+                                            or []
+                                        ]
                 break
             except Exception as exc:
                 retryable = (
@@ -163,6 +166,8 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                     ) from exc
 
                 raw_chunks.clear()
+                completed_answer = None
+                citations = []
                 retry_delay = _STREAM_RETRY_DELAYS_SECONDS[attempt - 1]
                 _LOGGER.warning(
                     "Bing response failed before output; retrying attempt %d/%d "
@@ -175,11 +180,14 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                 )
                 await asyncio.sleep(retry_delay)
 
-        answer = "".join(answer_parts)
+        answer = (
+            completed_answer if completed_answer is not None else "".join(answer_parts)
+        )
         response = AgentSearchResponse(
             engine=AgentEngineType.BING.value,
             query=request.query,
             answer=answer,
+            citations=citations,
             raw=raw_chunks if len(raw_chunks) != 1 else raw_chunks[0],
         )
         yield AgentSearchDone(response=response)

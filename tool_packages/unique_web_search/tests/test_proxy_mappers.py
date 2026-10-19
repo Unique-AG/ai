@@ -1,8 +1,41 @@
 import pytest
+from unique_search_proxy_sdk._generated.models.agent_search_response import (
+    AgentSearchResponse,
+)
 from unique_search_proxy_sdk._generated.models.crawl_response import CrawlResponse
 from unique_search_proxy_sdk._generated.models.crawl_url_result import CrawlUrlResult
+from unique_search_proxy_sdk._generated.models.grounding_citation import (
+    GroundingCitation,
+)
 
-from unique_web_search.services.proxy.mappers import map_crawl_response
+from unique_web_search.services.proxy.mappers import (
+    agent_citations,
+    map_crawl_response,
+)
+
+
+@pytest.mark.ai
+def test_agent_citations__maps_sdk_model_to_core_model() -> None:
+    response = AgentSearchResponse(
+        engine="bing",
+        query="query",
+        citations=[
+            GroundingCitation(
+                url="https://canonical.example/source",
+                title="Canonical source",
+                marker="[1]",
+                start_index=6,
+                end_index=9,
+                output_item_id="msg-1",
+            )
+        ],
+    )
+
+    citations = agent_citations(response)
+
+    assert len(citations) == 1
+    assert citations[0].url == "https://canonical.example/source"
+    assert citations[0].start_index == 6
 
 
 @pytest.mark.ai

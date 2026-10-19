@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,8 +10,14 @@ import pytest
 from openai import NotFoundError
 from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
+from openai.types.responses.response_output_item_done_event import (
+    ResponseOutputItemDoneEvent,
+)
 from openai.types.responses.response_output_message import ResponseOutputMessage
-from openai.types.responses.response_output_text import ResponseOutputText
+from openai.types.responses.response_output_text import (
+    AnnotationURLCitation,
+    ResponseOutputText,
+)
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 from openai.types.responses.response_usage import ResponseUsage
 from pydantic import ValidationError
@@ -35,6 +42,8 @@ from unique_web_search.services.search_engine.utils.grounding.bing.models import
     ResultItem,
 )
 from unique_web_search.services.search_engine.utils.grounding.bing.runner import (
+    _extract_markdown_citations,
+    _extract_response_grounding_citations,
     _is_missing_agent_error,
     create_and_process_run,
     create_bing_agent,
@@ -858,6 +867,107 @@ def _mock_openai_client(
         side_effect=lambda *_a, **_k: _fake_response_stream(usage=usage),
     )
     return mock_openai
+
+
+class TestCitationDiagnostics:
+    """Tests for logging Foundry's authoritative citation annotations."""
+
+    @pytest.mark.ai
+    def test_extract_citations__logs_annotation_payload(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        text = "Grounded answer [1]"
+        annotation = AnnotationURLCitation.model_construct(
+            type="url_citation",
+            url="https://canonical.example/article",
+            title="Canonical article",
+            start_index=16,
+            end_index=19,
+        )
+        content = ResponseOutputText.model_construct(
+            type="output_text",
+            text=text,
+            annotations=[annotation],
+            logprobs=[],
+        )
+        message = ResponseOutputMessage.model_construct(
+            type="message",
+            id="msg-citation",
+            role="assistant",
+            status="completed",
+            content=[content],
+        )
+        event = ResponseOutputItemDoneEvent.model_construct(
+            type="response.output_item.done",
+            item=message,
+            output_index=0,
+            sequence_number=1,
+        )
+
+        with caplog.at_level(logging.INFO):
+            replacements = _extract_markdown_citations(event)
+
+        assert replacements == [
+            (
+                "[1]",
+                "[Canonical article](https://canonical.example/article)",
+            )
+        ]
+        assert "output_item_id=msg-citation" in caplog.text
+        assert "citation_count=1" in caplog.text
+        assert "https://canonical.example/article" in caplog.text
+
+    @pytest.mark.ai
+    def test_response_offsets_cover_concatenated_output_items(self) -> None:
+        messages: list[ResponseOutputMessage] = []
+        for item_id, text, start, end, url in [
+            ("msg-1", "First [1]", 6, 9, "https://canonical.example/one"),
+            ("msg-2", "Second [2]", 7, 10, "https://canonical.example/two"),
+        ]:
+            annotation = AnnotationURLCitation.model_construct(
+                type="url_citation",
+                url=url,
+                title=item_id,
+                start_index=start,
+                end_index=end,
+            )
+            content = ResponseOutputText.model_construct(
+                type="output_text",
+                text=text,
+                annotations=[annotation],
+                logprobs=[],
+            )
+            messages.append(
+                ResponseOutputMessage.model_construct(
+                    type="message",
+                    id=item_id,
+                    role="assistant",
+                    status="completed",
+                    content=[content],
+                )
+            )
+        response = Response.model_construct(
+            id="resp-multiple-items",
+            created_at=0,
+            model="gpt-5.1",
+            object="response",
+            output=messages,
+            parallel_tool_calls=True,
+            tool_choice="auto",
+            tools=[],
+        )
+
+        citations = _extract_response_grounding_citations(response)
+
+        assert response.output_text == "First [1]Second [2]"
+        assert [(item.start_index, item.end_index) for item in citations] == [
+            (6, 9),
+            (16, 19),
+        ]
+        assert [
+            response.output_text[item.start_index : item.end_index]
+            for item in citations
+        ] == ["[1]", "[2]"]
 
 
 class TestCreateAndProcessRun:

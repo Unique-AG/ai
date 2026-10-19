@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.grounding_citation import GroundingCitation
+
 
 T = TypeVar("T", bound="AgentSearchResponse")
 
@@ -22,12 +26,14 @@ class AgentSearchResponse:
             engine (str):
             query (str):
             answer (str | Unset): Agent response text as returned by the provider (opaque to the proxy) Default: ''.
+            citations (list[GroundingCitation] | Unset): Provider-authoritative citations for spans in the agent answer
             raw (Any | Unset): Opaque provider payload
     """
 
     engine: str
     query: str
     answer: str | Unset = ""
+    citations: list[GroundingCitation] | Unset = UNSET
     raw: Any | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -37,6 +43,13 @@ class AgentSearchResponse:
         query = self.query
 
         answer = self.answer
+
+        citations: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.citations, Unset):
+            citations = []
+            for citations_item_data in self.citations:
+                citations_item = citations_item_data.to_dict()
+                citations.append(citations_item)
 
         raw = self.raw
 
@@ -50,6 +63,8 @@ class AgentSearchResponse:
         )
         if answer is not UNSET:
             field_dict["answer"] = answer
+        if citations is not UNSET:
+            field_dict["citations"] = citations
         if raw is not UNSET:
             field_dict["raw"] = raw
 
@@ -57,6 +72,8 @@ class AgentSearchResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.grounding_citation import GroundingCitation
+
         d = dict(src_dict)
         engine = d.pop("engine")
 
@@ -64,12 +81,22 @@ class AgentSearchResponse:
 
         answer = d.pop("answer", UNSET)
 
+        _citations = d.pop("citations", UNSET)
+        citations: list[GroundingCitation] | Unset = UNSET
+        if _citations is not UNSET:
+            citations = []
+            for citations_item_data in _citations:
+                citations_item = GroundingCitation.from_dict(citations_item_data)
+
+                citations.append(citations_item)
+
         raw = d.pop("raw", UNSET)
 
         agent_search_response = cls(
             engine=engine,
             query=query,
             answer=answer,
+            citations=citations,
             raw=raw,
         )
 

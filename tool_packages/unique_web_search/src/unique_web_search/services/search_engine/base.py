@@ -32,6 +32,10 @@ from unique_web_search.services.search_engine.schema import (
 )
 
 if TYPE_CHECKING:
+    from unique_search_proxy_sdk._generated.models.agent_search_response import (
+        AgentSearchResponse,
+    )
+
     from unique_web_search.services.search_engine.utils.grounding.response_parsing import (
         ResponseParser,
     )
@@ -180,11 +184,18 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 engine=engine.value,
                 **invocation,
             )
-        results = await map_agent_answer(
+        results = await self._parse_agent_proxy_response(response)
+        return await self._postprocess_results(results)
+
+    async def _parse_agent_proxy_response(
+        self,
+        response: AgentSearchResponse,
+    ) -> list[WebSearchResult]:
+        """Parse an agent proxy response; engines may override for grounding metadata."""
+        return await map_agent_answer(
             agent_answer_text(response),
             self.response_parsers,
         )
-        return await self._postprocess_results(results)
 
     def _agent_proxy_invocation(
         self,

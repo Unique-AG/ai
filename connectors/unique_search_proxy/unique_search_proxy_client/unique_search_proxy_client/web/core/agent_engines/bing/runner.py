@@ -14,6 +14,7 @@ from azure.ai.projects.models import (
 )
 from httpx import AsyncClient
 from openai.types.responses import ResponseStreamEvent
+from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
 from openai.types.responses.response_output_item_done_event import (
     ResponseOutputItemDoneEvent,
@@ -28,6 +29,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
     bing_agent_name,
 )
+from unique_search_proxy_core.schema import GroundingCitation
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client,
@@ -181,13 +183,23 @@ async def stream_bing_grounding_agent(
             resolved_name,
             exc,
         )
-        await create_bing_agent(
-            project_client,
-            agent_name=resolved_name,
-            model=model,
-            instructions=instructions,
-            grounding=grounding,
-        )
+        try:
+            await create_bing_agent(
+                project_client,
+                agent_name=resolved_name,
+                model=model,
+                instructions=instructions,
+                grounding=grounding,
+            )
+        except UnicodeDecodeError:
+            # Foundry can persist the agent but return a compressed create response
+            # that azure-core fails to decode. The Responses retry below verifies
+            # whether creation actually succeeded.
+            _LOGGER.warning(
+                "Could not decode create response for Bing agent %s; "
+                "verifying creation through Responses",
+                resolved_name,
+            )
         stream = await _create_responses_stream(
             openai_client,
             agent_name=resolved_name,
@@ -203,22 +215,22 @@ async def stream_bing_grounding_agent(
                     emitted_text = True
                     yield event.delta, event.model_dump(mode="json", warnings="none")
             elif isinstance(event, ResponseOutputItemDoneEvent):
-                citations = _extract_url_citations(event)
-                if citations:
-                    yield (
-                        "",
-                        {
-                            "type": event.type,
-                            "citations": citations,
-                            "event": event.model_dump(mode="json", warnings="none"),
-                        },
-                    )
+                # Keep item-level extraction for diagnostics, but publish citations
+                # only from the completed response. Item offsets are local to that
+                # item, whereas the response answer concatenates every output item.
+                _extract_url_citations(event)
             elif isinstance(event, ResponseCompletedEvent):
                 response = event.response
                 output_text = response.output_text
+                completed_citations = _extract_response_url_citations(response)
                 raw_completed = {
                     "type": event.type,
                     "response": response.model_dump(mode="json", warnings="none"),
+                    "answer": output_text,
+                    "citations": [
+                        citation.model_dump(by_alias=True)
+                        for citation in completed_citations
+                    ],
                 }
                 # Foundry sometimes delivers the full answer only on completion.
                 if output_text and not emitted_text:
@@ -258,15 +270,79 @@ async def _create_responses_stream(
     return stream
 
 
-def _extract_url_citations(event: ResponseOutputItemDoneEvent) -> list[str]:
+def _extract_url_citations(
+    event: ResponseOutputItemDoneEvent,
+) -> list[GroundingCitation]:
     item = event.item
+    if not isinstance(item, ResponseOutputMessage):
+        return []
+    return _extract_message_url_citations(item)
+
+
+def _extract_message_url_citations(
+    item: ResponseOutputMessage,
+    *,
+    start_index_offset: int = 0,
+) -> list[GroundingCitation]:
     if not isinstance(item, ResponseOutputMessage) or not item.content:
         return []
-    text_content = item.content[-1]
-    if not isinstance(text_content, ResponseOutputText):
-        return []
-    return [
-        annotation.url
-        for annotation in text_content.annotations
-        if isinstance(annotation, AnnotationURLCitation) and annotation.url
-    ]
+
+    citations: list[GroundingCitation] = []
+    text_offset = start_index_offset
+    for text_content in item.content:
+        if not isinstance(text_content, ResponseOutputText):
+            continue
+        for annotation in text_content.annotations or []:
+            if not isinstance(annotation, AnnotationURLCitation):
+                continue
+            marker = text_content.text[annotation.start_index : annotation.end_index]
+            if annotation.url and marker:
+                citations.append(
+                    GroundingCitation(
+                        url=annotation.url,
+                        title=annotation.title,
+                        start_index=text_offset + annotation.start_index,
+                        end_index=text_offset + annotation.end_index,
+                        marker=marker,
+                        output_item_id=item.id,
+                    )
+                )
+        text_offset += len(text_content.text)
+
+    _LOGGER.info(
+        "Foundry Bing citation annotations output_item_id=%s "
+        "citation_count=%d citations=%s",
+        item.id,
+        len(citations),
+        [
+            citation.model_dump(
+                mode="json",
+                by_alias=True,
+            )
+            for citation in citations
+        ],
+    )
+    return citations
+
+
+def _extract_response_url_citations(
+    response: Response,
+) -> list[GroundingCitation]:
+    """Extract citations with offsets into ``response.output_text``."""
+    citations: list[GroundingCitation] = []
+    text_offset = 0
+    for item in response.output or []:
+        if not isinstance(item, ResponseOutputMessage):
+            continue
+        citations.extend(
+            _extract_message_url_citations(
+                item,
+                start_index_offset=text_offset,
+            )
+        )
+        text_offset += sum(
+            len(content.text)
+            for content in item.content or []
+            if isinstance(content, ResponseOutputText)
+        )
+    return citations
