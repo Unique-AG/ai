@@ -91,9 +91,7 @@ def cmd_schedule_update(
 ) -> str:
     """Update an existing scheduled task."""
     if cron is not None and timezone is None:
-        return (
-            f"{SCHEDULE_ERROR_PREFIX} --timezone is required when changing --cron"
-        )
+        return f"{SCHEDULE_ERROR_PREFIX} --timezone is required when changing --cron"
 
     try:
         params: dict[str, Any] = {}

@@ -2612,9 +2612,7 @@ class TestScheduledTasks:
     @patch("unique_sdk.ScheduledTask.modify")
     def test_update_timezone_alone(self, mock: MagicMock) -> None:
         mock.return_value = _scheduled_task_obj(timezone="America/New_York")
-        result = cmd_schedule_update(
-            _state(), "task_abc", timezone="America/New_York"
-        )
+        result = cmd_schedule_update(_state(), "task_abc", timezone="America/New_York")
         assert "Updated" in result
         assert mock.call_args[1]["timezone"] == "America/New_York"
 
