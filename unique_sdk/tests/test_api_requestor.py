@@ -14,7 +14,7 @@ from unique_sdk._api_requestor import (
     _encode_datetime,
     _encode_nested_dict,
 )
-from unique_sdk._error import APIError
+from unique_sdk._error import APIError, InvalidRequestError, RateLimitError
 
 # Canonical fake gateway bases for URL composition tests (not real endpoints).
 _TEST_CHAT_API_BASE = "https://gateway.example/public/chat-gen2"
@@ -391,3 +391,73 @@ def test_api_requestor_handle_error_response_with_original_error():
         )
 
     assert "(Original error) TEST: Test error" in str(excinfo.value)
+
+
+_FILTER_MESSAGE = (
+    "The response was filtered due to the prompt triggering the content "
+    "filter management policy of the AI model. Please modify your prompt and retry."
+)
+
+
+@pytest.mark.ai
+def test_handle_error_response__content_filter__reads_error_object() -> None:
+    """Purpose: Verify a contract 400 becomes InvalidRequestError without a cause suffix.
+    Why this matters: The user message must be the API sentence, not a legacy cause line.
+    Setup summary: Pass the content-filter envelope node-chat returns today.
+    """
+    requestor = APIRequestor(user_id="user_id", company_id="company_id")
+    body = {
+        "error": {
+            "type": "invalid_request_error",
+            "code": "content_filter",
+            "message": _FILTER_MESSAGE,
+            "params": {
+                "retryable": False,
+                "correlationId": "corr-1",
+                "model": "gpt-4o-2024-11-20",
+            },
+        }
+    }
+
+    with pytest.raises(InvalidRequestError) as caught:
+        requestor.handle_error_response("{}", 400, body, {})
+
+    error = caught.value
+    assert error.code == "content_filter"
+    assert error.http_status == 400
+    assert str(error) == _FILTER_MESSAGE
+    assert "(Original error)" not in str(error)
+    assert error.params["retryable"] is False
+    assert error.params["correlationId"] == "corr-1"
+
+
+@pytest.mark.ai
+def test_handle_error_response__rate_limited__returns_rate_limit_error() -> None:
+    """Purpose: Verify a contract 429 becomes RateLimitError with its params.
+    Why this matters: Callers branch on the type and wait retryAfterSeconds.
+    Setup summary: Pass a rate_limited envelope with a retry delay.
+    """
+    requestor = APIRequestor(user_id="user_id", company_id="company_id")
+    body = {
+        "error": {
+            "type": "rate_limit_error",
+            "code": "rate_limited",
+            "message": "The model is receiving too many requests. Please retry.",
+            "params": {
+                "retryable": True,
+                "correlationId": "corr-2",
+                "retryAfterSeconds": 7,
+            },
+        }
+    }
+
+    with pytest.raises(RateLimitError) as caught:
+        requestor.handle_error_response("{}", 429, body, {})
+
+    error = caught.value
+    assert isinstance(error, APIError)
+    assert error.code == "rate_limited"
+    assert error.http_status == 429
+    assert error.params["retryable"] is True
+    assert error.params["retryAfterSeconds"] == 7
+    assert "(Original error)" not in str(error)

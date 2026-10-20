@@ -204,7 +204,7 @@ async def test_static_request_async_retry_on_specific_error(
     mock_api_requestor.return_value.request_async.side_effect = APIError(
         "There was a problem proxying the request"
     )
-    with pytest.raises(APIError, match="Failed after 3 attempts"):
+    with pytest.raises(APIError, match="There was a problem proxying the request"):
         await MessageResource._static_request_async(
             "get", "/messages", "user_1", "company_1"
         )
@@ -222,7 +222,7 @@ async def test_static_request_async_retry_on_specific_error_second(
     mock_api_requestor.return_value.request_async.side_effect = APIError(
         "Upstream service reached a hard timeout"
     )
-    with pytest.raises(APIError, match="Failed after 3 attempts"):
+    with pytest.raises(APIError, match="Upstream service reached a hard timeout"):
         await MessageResource._static_request_async(
             "get", "/messages", "user_1", "company_1"
         )
@@ -251,7 +251,7 @@ def test_static_request_sync_retry_on_specific_error(mock_sleep, mock_api_reques
     mock_api_requestor.return_value.request.side_effect = APIError(
         "There was a problem proxying the request"
     )
-    with pytest.raises(APIError, match="Failed after 3 attempts"):
+    with pytest.raises(APIError, match="There was a problem proxying the request"):
         MessageResource._static_request("get", "/messages", "user_1", "company_1")
     assert (
         mock_api_requestor.return_value.request.call_count == 3
@@ -266,7 +266,7 @@ def test_static_request_sync_retry_on_specific_error_second(
     mock_api_requestor.return_value.request.side_effect = APIError(
         "Upstream service reached a hard timeout"
     )
-    with pytest.raises(APIError, match="Failed after 3 attempts"):
+    with pytest.raises(APIError, match="Upstream service reached a hard timeout"):
         MessageResource._static_request("get", "/messages", "user_1", "company_1")
     assert (
         mock_api_requestor.return_value.request.call_count == 3

@@ -35,6 +35,9 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
 )
+from unique_toolkit.language_model.errors import (
+    _reraise_as_language_model_call_error,
+)
 from unique_toolkit.language_model.functions import (
     _prepare_all_completions_params_util,
 )
@@ -933,7 +936,7 @@ def stream_complete_with_references(
         return LanguageModelStreamResponse(**response)
     except Exception as e:
         _LOGGER.error(f"Error streaming completion: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 @deprecated("Use stream_complete_with_references_async instead")
@@ -1030,7 +1033,7 @@ async def stream_complete_with_references_async(
         return LanguageModelStreamResponse(**response)
     except Exception as e:
         _LOGGER.error(f"Error streaming completion: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 def _get_model_dump_or_none(model: BaseModel | None) -> dict[str, Any] | None:

@@ -402,46 +402,71 @@ class APIRequestor(object):
             error_params=_util.redacted_error_params(error_data.get("params")),
         )
 
-        error = cause.get("error", {}) if cause else {}
-        error_code = error.get("code", "<Unknown code>")
-        error_message = error.get("message", "<No message>")
-        original_error = f"{error_code}: {error_message}"
+        cause_error = cause.get("error") or {}
+        cause_code = cause_error.get("code")
+        cause_message = cause_error.get("message")
 
-        if status in [400, 404]:
-            return _error.InvalidRequestError(
-                message=error_data.get("message"),
-                params=error_data.get("params"),
-                code=error_data.get("code"),
+        message = error_data.get("message") or cause_message
+        code = error_data.get("code") or cause_code
+        params = error_data.get("params") or cause_error.get("params")
+
+        original_error = None
+        if cause_code or cause_message:
+            original_error = (
+                f"{cause_code or '<Unknown code>'}: {cause_message or '<No message>'}"
+            )
+
+        if status == 429:
+            return _error.RateLimitError(
+                message=message,
+                params=params,
+                code=code,
                 http_body=rbody,
                 http_status=rcode,
                 json_body=resp,
                 headers=rheaders,
                 original_error=original_error,
             )
-        elif status == 401:
+        if status in [400, 404]:
+            return _error.InvalidRequestError(
+                message=message,
+                params=params,
+                code=code,
+                http_body=rbody,
+                http_status=rcode,
+                json_body=resp,
+                headers=rheaders,
+                original_error=original_error,
+            )
+        if status == 401:
             return _error.AuthenticationError(
-                message=error_data.get("message"),
+                message=message,
                 http_body=rbody,
                 http_status=status,
                 json_body=resp,
                 headers=rheaders,
+                code=code,
                 original_error=original_error,
+                params=params,
             )
-        elif status == 403:
+        if status == 403:
             return _error.PermissionError(
-                message=error_data.get("message"),
+                message=message,
                 http_body=rbody,
                 http_status=status,
                 json_body=resp,
                 headers=rheaders,
+                code=code,
                 original_error=original_error,
+                params=params,
             )
-        else:
-            return _error.APIError(
-                message=error_data.get("message"),
-                http_body=rbody,
-                http_status=status,
-                json_body=resp,
-                headers=rheaders,
-                original_error=original_error,
-            )
+        return _error.APIError(
+            message=message,
+            http_body=rbody,
+            http_status=status,
+            json_body=resp,
+            headers=rheaders,
+            code=code,
+            original_error=original_error,
+            params=params,
+        )

@@ -16,6 +16,9 @@ from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.errors import (
+    _reraise_as_language_model_call_error,
+)
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
@@ -133,7 +136,7 @@ def complete(
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.error(f"Error completing: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 async def complete_async(
@@ -173,8 +176,8 @@ async def complete_async(
 
     Raises:
     ------
-        Exception: If an error occurs during the request, an exception is raised
-        and logged.
+        LanguageModelCallError: The API returned the LLM error contract.
+        Exception: Any other request failure is logged and re-raised.
 
     """
     if not user_id:
@@ -217,7 +220,7 @@ async def complete_async(
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.exception(f"Error completing: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 def _add_tools_to_options(
