@@ -201,7 +201,13 @@ BING_AGENT_DEFAULT_MARKET=fr-FR
 
 **Provider:** Gemini + Google Search grounding on Vertex AI · Config extends `VertexAIAgentConfig`.
 
-Requires GCP ADC / workload identity. Fields include `vertexai_model_name`, `generation_instructions`, `enable_entreprise_search`, `enable_redirect_resolution`, `requires_scraping`.
+Requires GCP ADC / workload identity. Fields include `vertexai_model_name`,
+`generation_instructions`, `enable_entreprise_search`, and `requires_scraping`.
+
+Vertex grounding redirect URLs are returned unchanged. Browser navigation
+follows them normally. When scraping is enabled, the configured crawler owns
+the fetch and applies URL-safety checks instead of the search engine resolving
+redirects directly.
 
 ```bash
 VERTEXAI_AGENT_DEFAULT_VERTEX_AI_MODEL_NAME=gemini-3-flash-preview

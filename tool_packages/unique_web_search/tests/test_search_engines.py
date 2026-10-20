@@ -30,15 +30,10 @@ from unique_web_search.services.search_engine.custom_api import (
     conditional_type,
 )
 from unique_web_search.services.search_engine.google import GoogleSearch
-from unique_web_search.services.search_engine.schema import (
-    WebSearchResult,
-    WebSearchResults,
-)
+from unique_web_search.services.search_engine.schema import WebSearchResult
 from unique_web_search.services.search_engine.vertexai import (
     VertexAI,
     VertexAIConfig,
-    resolve_all,
-    resolve_url,
 )
 from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD
 
@@ -468,7 +463,6 @@ class TestSearchEngineConfigs:
         assert config.vertexai_model_name == "gemini-3-flash-preview"
         assert not config.requires_scraping
         assert not config.enable_enterprise_search
-        assert config.enable_redirect_resolution
 
     def test_vertexai_config_custom_values(self):
         """Test VertexAIConfig with custom values."""
@@ -477,14 +471,26 @@ class TestSearchEngineConfigs:
             generation_instructions="Custom instruction",
             requires_scraping=True,
             enable_enterprise_search=True,
-            enable_redirect_resolution=False,
         )
 
         assert config.vertexai_model_name == "gemini-2.5-pro"
         assert config.generation_instructions == "Custom instruction"
         assert config.requires_scraping
         assert config.enable_enterprise_search
-        assert not config.enable_redirect_resolution
+
+    @pytest.mark.ai
+    def test_vertexai_config_ignores_legacy_redirect_resolution_field(self):
+        """
+        Purpose: Verify persisted configs remain loadable after removing the setting.
+        Why this matters: Existing spaces may still store enableRedirectResolution.
+        Setup summary: Validate legacy input and assert the removed field is not exposed.
+        """
+        config = VertexAIConfig.model_validate(
+            {"enableRedirectResolution": True},
+        )
+
+        assert "enable_redirect_resolution" not in VertexAIConfig.model_fields
+        assert config.engine == AgentEngineType.VERTEXAI
 
 
 class TestSearchEngineTypes:
@@ -533,14 +539,24 @@ class TestSearchEngineInstances:
 class TestVertexAISearch:
     """Test VertexAI search engine specific functionality."""
 
+    @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_vertexai_search_with_redirect_resolution(self, mocker):
-        """Test VertexAI search with redirect resolution enabled."""
-        config = VertexAIConfig(
-            enable_redirect_resolution=True,
+    async def test_legacy_search_preserves_google_redirect_url(self, mocker):
+        """
+        Purpose: Verify direct Vertex search returns Google's redirect URL unchanged.
+        Why this matters: Assistants must not resolve provider URLs outside URL safety.
+        Setup summary: Mock Vertex parsing and assert no post-processing changes the URL.
+        """
+        config = VertexAIConfig()
+        redirect_url = (
+            "https://vertexaisearch.cloud.google.com/grounding-api-redirect/test-token"
         )
 
         mock_client = AsyncMock()
+        mocker.patch(
+            "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+            False,
+        )
         mocker.patch(
             "unique_web_search.services.search_engine.vertexai.get_vertex_client",
             return_value=mock_client,
@@ -556,7 +572,7 @@ class TestVertexAISearch:
         )
         parsed = [
             WebSearchResult(
-                url="http://example.com",
+                url=redirect_url,
                 title="Test",
                 snippet="Test snippet",
                 content="Test content",
@@ -568,159 +584,52 @@ class TestVertexAISearch:
             return_value=parsed,
         )
 
-        mock_resolve = AsyncMock()
-        mock_resolve.return_value = WebSearchResults(
-            results=[
-                WebSearchResult(
-                    url="https://example.com",
-                    title="Test",
-                    snippet="Test snippet",
-                    content="Test content",
-                )
-            ]
-        )
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.resolve_all",
-            mock_resolve,
-        )
-
         search = VertexAI(config, Mock())
         results = await search.search("test query")
 
-        assert len(results) == 1
-        assert results[0].url == "https://example.com"
-        mock_resolve.assert_called_once()
+        assert results == parsed
+        assert results[0].url == redirect_url
 
+    @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_vertexai_search_without_redirect_resolution(self, mocker):
-        """Test VertexAI search with redirect resolution disabled."""
-        config = VertexAIConfig(
-            enable_redirect_resolution=False,
+    async def test_proxy_search_preserves_google_redirect_url(self, mocker):
+        """
+        Purpose: Verify proxied Vertex search returns Google's redirect URL unchanged.
+        Why this matters: Proxy mode must not trigger direct redirect-resolution egress.
+        Setup summary: Mock the proxy response parser and assert the URL is preserved.
+        """
+        redirect_url = (
+            "https://vertexaisearch.cloud.google.com/grounding-api-redirect/test-token"
         )
-
+        parsed = [
+            WebSearchResult(
+                url=redirect_url,
+                title="Test",
+                snippet="Test snippet",
+                content="Test content",
+            )
+        ]
+        mocker.patch(
+            "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+            True,
+        )
+        mock_map_agent_answer = mocker.patch(
+            "unique_web_search.services.search_engine.base.map_agent_answer",
+            new_callable=AsyncMock,
+            return_value=parsed,
+        )
+        mock_open_client = mocker.patch(
+            "unique_web_search.services.search_engine.base.open_search_proxy_client",
+        )
         mock_client = AsyncMock()
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.get_vertex_client",
-            return_value=mock_client,
-        )
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.generate_vertexai_response",
-            new_callable=AsyncMock,
-            return_value=Mock(),
-        )
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.add_citations",
-            return_value="answer with citations",
-        )
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.convert_response_to_search_results",
-            new_callable=AsyncMock,
-            return_value=[
-                WebSearchResult(
-                    url="http://example.com",
-                    title="Test",
-                    snippet="Test snippet",
-                    content="Test content",
-                )
-            ],
-        )
-
-        mock_resolve = AsyncMock()
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.resolve_all",
-            mock_resolve,
-        )
-
-        search = VertexAI(config, Mock())
+        mock_client.agent_search.search.return_value = Mock(answer="proxy answer")
+        mock_open_client.return_value.__aenter__.return_value = mock_client
+        search = VertexAI(VertexAIConfig(), Mock())
         results = await search.search("test query")
 
-        assert len(results) == 1
-        assert results[0].url == "http://example.com"
-        mock_resolve.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_resolve_url_successful(self, mocker):
-        """Test resolve_url successfully resolves a redirect."""
-        from httpx import Response
-
-        # Create a mock response with redirected URL
-        mock_response = Mock(spec=Response)
-        mock_response.url = "https://redirected-example.com"
-
-        # Create a mock client
-        mock_client = AsyncMock()
-        mock_client.head = AsyncMock(return_value=mock_response)
-
-        web_search_result = WebSearchResult(
-            url="http://example.com",
-            title="Test",
-            snippet="Test snippet",
-            content="Test content",
-        )
-
-        result = await resolve_url(mock_client, web_search_result)
-
-        assert result.url == "https://redirected-example.com"
-        mock_client.head.assert_called_once_with(
-            "http://example.com", follow_redirects=True
-        )
-
-    @pytest.mark.asyncio
-    async def test_resolve_url_handles_exception(self, mocker):
-        """Test resolve_url handles exceptions gracefully."""
-        # Create a mock client that raises an exception
-        mock_client = AsyncMock()
-        mock_client.head = AsyncMock(side_effect=HTTPError("Network error"))
-
-        web_search_result = WebSearchResult(
-            url="http://example.com",
-            title="Test",
-            snippet="Test snippet",
-            content="Test content",
-        )
-
-        result = await resolve_url(mock_client, web_search_result)
-
-        # URL should remain unchanged
-        assert result.url == "http://example.com"
-        assert result == web_search_result
-
-    @pytest.mark.asyncio
-    async def test_resolve_all_resolves_multiple_urls(self, mocker):
-        """Test resolve_all resolves multiple URLs in parallel."""
-
-        # Mock resolve_url
-        async def mock_resolve_url(client, result):
-            result.url = result.url.replace("http://", "https://")
-            return result
-
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.resolve_url",
-            side_effect=mock_resolve_url,
-        )
-
-        web_search_results = WebSearchResults(
-            results=[
-                WebSearchResult(
-                    url="http://example1.com",
-                    title="Test 1",
-                    snippet="Snippet 1",
-                    content="Content 1",
-                ),
-                WebSearchResult(
-                    url="http://example2.com",
-                    title="Test 2",
-                    snippet="Snippet 2",
-                    content="Content 2",
-                ),
-            ]
-        )
-
-        result = await resolve_all(web_search_results)
-
-        assert len(result.results) == 2
-        assert result.results[0].url == "https://example1.com"
-        assert result.results[1].url == "https://example2.com"
+        assert results == parsed
+        assert results[0].url == redirect_url
+        mock_map_agent_answer.assert_awaited_once()
 
     def test_vertexai_requires_scraping_property(self):
         """Test VertexAI requires_scraping property."""
