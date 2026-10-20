@@ -15,6 +15,7 @@ Manage chat messages and integrate with the Unique AI chat system. Includes supp
     **Parameters:**
 
     - `chatId` (str, required) - Chat ID to retrieve messages from
+    - `excludeGptRequest` (bool, optional) - When `True`, `gptRequest` is not loaded and is returned as `None` on every message. It holds each message's full prompt history and can be very large on long chats. Defaults to `False`; platforms without support ignore it.
 
     **Returns:**
 
@@ -27,6 +28,7 @@ Manage chat messages and integrate with the Unique AI chat system. Includes supp
         user_id=user_id,
         company_id=company_id,
         chatId=chat_id,
+        excludeGptRequest=True,
     )
     ```
 

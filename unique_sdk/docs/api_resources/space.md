@@ -675,6 +675,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `chat_id` (str, required) - Chat ID to retrieve messages from
     - `skip` (int, optional) - Number of messages to skip (default: 0)
     - `take` (int, optional) - Number of messages to return (default: 10, max: 100)
+    - `excludeGptRequest` (bool, optional) - When `True`, `gptRequest` is not loaded and is returned as `None` on every message. It holds each message's full prompt history and can be very large on long chats. Defaults to `False`. Platform releases without support reject the parameter with a 400, so only pass it when the platform supports it.
 
     **Returns:**
 
