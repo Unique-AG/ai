@@ -172,10 +172,13 @@ class Space(APIResource["Space"]):
         Attributes:
             skip: Number of messages to skip. Server default: 0.
             take: Number of messages to return. Server default: 10, max: 100.
+            excludeGptRequest: When True, `gptRequest` is not loaded and is
+                returned as None on every message. Server default: False.
         """
 
         skip: NotRequired[int]
         take: NotRequired[int]
+        excludeGptRequest: NotRequired[bool]
 
     class GetSpacesParams(RequestOptions):
         """
