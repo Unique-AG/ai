@@ -57,6 +57,12 @@ class VertexAIAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.VERTEXAI
         default=vertex_ai_env_settings.force_activate_enterprise_search,
         validate_default=True,
     )
+    enable_redirect_resolution: bool = Field(
+        default=True,
+        description=(
+            "Resolve provider redirect URLs through Search Proxy URL-safety controls."
+        ),
+    )
 
     @field_validator("enable_enterprise_search", mode="before")
     @classmethod

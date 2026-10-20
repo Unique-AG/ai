@@ -463,6 +463,7 @@ class TestSearchEngineConfigs:
         assert config.vertexai_model_name == "gemini-3-flash-preview"
         assert not config.requires_scraping
         assert not config.enable_enterprise_search
+        assert config.enable_redirect_resolution
 
     def test_vertexai_config_custom_values(self):
         """Test VertexAIConfig with custom values."""
@@ -471,26 +472,27 @@ class TestSearchEngineConfigs:
             generation_instructions="Custom instruction",
             requires_scraping=True,
             enable_enterprise_search=True,
+            enable_redirect_resolution=False,
         )
 
         assert config.vertexai_model_name == "gemini-2.5-pro"
         assert config.generation_instructions == "Custom instruction"
         assert config.requires_scraping
         assert config.enable_enterprise_search
+        assert not config.enable_redirect_resolution
 
     @pytest.mark.ai
-    def test_vertexai_config_ignores_legacy_redirect_resolution_field(self):
+    def test_vertexai_config_accepts_persisted_redirect_resolution_field(self):
         """
-        Purpose: Verify persisted configs remain loadable after removing the setting.
+        Purpose: Verify persisted configs keep controlling proxy URL resolution.
         Why this matters: Existing spaces may still store enableRedirectResolution.
-        Setup summary: Validate legacy input and assert the removed field is not exposed.
+        Setup summary: Validate camel-case input and assert it remains disabled.
         """
         config = VertexAIConfig.model_validate(
-            {"enableRedirectResolution": True},
+            {"enableRedirectResolution": False},
         )
 
-        assert "enable_redirect_resolution" not in VertexAIConfig.model_fields
-        assert config.engine == AgentEngineType.VERTEXAI
+        assert not config.enable_redirect_resolution
 
 
 class TestSearchEngineTypes:
@@ -592,18 +594,16 @@ class TestVertexAISearch:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_proxy_search_preserves_google_redirect_url(self, mocker):
+    async def test_proxy_search_uses_url_resolved_by_search_proxy(self, mocker):
         """
-        Purpose: Verify proxied Vertex search returns Google's redirect URL unchanged.
-        Why this matters: Proxy mode must not trigger direct redirect-resolution egress.
-        Setup summary: Mock the proxy response parser and assert the URL is preserved.
+        Purpose: Verify proxied Vertex search uses the URL returned by Search Proxy.
+        Why this matters: Redirect resolution must happen behind shared egress controls.
+        Setup summary: Mock a resolved proxy result and assert the flag and URL propagate.
         """
-        redirect_url = (
-            "https://vertexaisearch.cloud.google.com/grounding-api-redirect/test-token"
-        )
+        resolved_url = "https://example.com/article"
         parsed = [
             WebSearchResult(
-                url=redirect_url,
+                url=resolved_url,
                 title="Test",
                 snippet="Test snippet",
                 content="Test content",
@@ -628,7 +628,13 @@ class TestVertexAISearch:
         results = await search.search("test query")
 
         assert results == parsed
-        assert results[0].url == redirect_url
+        assert results[0].url == resolved_url
+        assert (
+            mock_client.agent_search.search.await_args.kwargs[
+                "enable_redirect_resolution"
+            ]
+            is True
+        )
         mock_map_agent_answer.assert_awaited_once()
 
     def test_vertexai_requires_scraping_property(self):

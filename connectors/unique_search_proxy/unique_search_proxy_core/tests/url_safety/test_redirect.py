@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -108,22 +109,29 @@ class TestResolveRedirectChain:
     @pytest.mark.asyncio
     async def test_resolve_redirect_chain__network_error_on_hop__raises_instead_of_failing_open(
         self,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
+        url = "https://client-sensitive.example/page?id=42"
         mock_client = AsyncMock()
         mock_client.head = AsyncMock(
-            side_effect=httpx.ConnectError("connection refused")
+            side_effect=httpx.ConnectError(f"connection refused for {url}")
         )
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch(_REDIRECT_HTTPX, return_value=mock_client):
-            with pytest.raises(CrawlTargetValidationError) as exc_info:
-                await self._resolve_redirect_chain("https://example.com/page")
+        with (
+            caplog.at_level(logging.DEBUG, logger=redirect_module.__name__),
+            patch(_REDIRECT_HTTPX, return_value=mock_client),
+            pytest.raises(CrawlTargetValidationError) as exc_info,
+        ):
+            await self._resolve_redirect_chain(url)
 
         blocked = exc_info.value.blocked_targets[0]
-        assert blocked.hostname == "example.com"
+        assert blocked.hostname == "client-sensitive.example"
         assert blocked.category == "redirect"
         assert "Unable to verify redirect chain" in blocked.reason
+        assert "ConnectError" in caplog.text
+        assert "client-sensitive" not in caplog.text
 
     @pytest.mark.ai
     @pytest.mark.asyncio

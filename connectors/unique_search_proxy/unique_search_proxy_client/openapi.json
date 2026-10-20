@@ -2467,6 +2467,12 @@
             "type": "boolean",
             "title": "Enable Enterprise Search",
             "default": false
+          },
+          "enableRedirectResolution": {
+            "type": "boolean",
+            "title": "Enable Redirect Resolution",
+            "description": "Resolve provider redirect URLs through Search Proxy URL-safety controls.",
+            "default": true
           }
         },
         "type": "object",

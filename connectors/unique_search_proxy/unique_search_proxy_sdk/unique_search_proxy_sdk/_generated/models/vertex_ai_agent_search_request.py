@@ -35,6 +35,8 @@ class VertexAiAgentSearchRequest:
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         vertexai_model_name (str | Unset): Gemini model name for grounded generation Default: 'gemini-3-flash-preview'.
         enable_enterprise_search (bool | Unset):  Default: False.
+        enable_redirect_resolution (bool | Unset): Resolve provider redirect URLs through Search Proxy URL-safety
+            controls. Default: True.
     """
 
     query: str
@@ -45,6 +47,7 @@ class VertexAiAgentSearchRequest:
     timeout: int | Unset = 120
     vertexai_model_name: str | Unset = "gemini-3-flash-preview"
     enable_enterprise_search: bool | Unset = False
+    enable_redirect_resolution: bool | Unset = True
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -59,6 +62,8 @@ class VertexAiAgentSearchRequest:
         vertexai_model_name = self.vertexai_model_name
 
         enable_enterprise_search = self.enable_enterprise_search
+
+        enable_redirect_resolution = self.enable_redirect_resolution
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -77,6 +82,8 @@ class VertexAiAgentSearchRequest:
             field_dict["vertexaiModelName"] = vertexai_model_name
         if enable_enterprise_search is not UNSET:
             field_dict["enableEnterpriseSearch"] = enable_enterprise_search
+        if enable_redirect_resolution is not UNSET:
+            field_dict["enableRedirectResolution"] = enable_redirect_resolution
 
         return field_dict
 
@@ -97,6 +104,8 @@ class VertexAiAgentSearchRequest:
 
         enable_enterprise_search = d.pop("enableEnterpriseSearch", UNSET)
 
+        enable_redirect_resolution = d.pop("enableRedirectResolution", UNSET)
+
         vertex_ai_agent_search_request = cls(
             query=query,
             engine=engine,
@@ -104,6 +113,7 @@ class VertexAiAgentSearchRequest:
             timeout=timeout,
             vertexai_model_name=vertexai_model_name,
             enable_enterprise_search=enable_enterprise_search,
+            enable_redirect_resolution=enable_redirect_resolution,
         )
 
         vertex_ai_agent_search_request.additional_properties = d

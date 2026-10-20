@@ -4,7 +4,9 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+from httpx import AsyncClient
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
+from unique_search_proxy_core.agent_engines.output_schema import AgentSearchOutput
 from unique_search_proxy_core.agent_engines.resolve import (
     resolve_output_schema_for_engine,
 )
@@ -18,6 +20,7 @@ from unique_search_proxy_core.schema import (
     AgentSearchResponse,
     AgentSearchStreamEvent,
 )
+from unique_search_proxy_core.url_safety import UrlSafetyService
 
 from unique_search_proxy_client.web.core.agent_engines.service_base import (
     AgentSearchEngineService,
@@ -33,6 +36,31 @@ from unique_search_proxy_client.web.core.agent_engines.vertexai.gemini import (
 from unique_search_proxy_client.web.core.provider_response import transport_error_raw
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def resolve_redirect_urls(
+    answer: str,
+    *,
+    http_client: AsyncClient | None,
+) -> str:
+    """Resolve structured-output URLs through Search Proxy URL safety."""
+    if http_client is None:
+        return answer
+
+    try:
+        output = AgentSearchOutput.model_validate_json(answer)
+    except ValueError:
+        return answer
+
+    outcomes = await UrlSafetyService.validate_urls_individually(
+        [result.source_url for result in output.results],
+        redirect_http_client=http_client,
+    )
+    for result, outcome in zip(output.results, outcomes, strict=True):
+        if outcome.resolved is not None:
+            result.source_url = outcome.resolved.normalized_url
+
+    return output.model_dump_json()
 
 
 class VertexAIAgentSearchService(
@@ -90,6 +118,11 @@ class VertexAIAgentSearchService(
             ) from exc
 
         answer = "".join(answer_parts)
+        if request.enable_redirect_resolution:
+            answer = await resolve_redirect_urls(
+                answer,
+                http_client=self._http_client,
+            )
         response = AgentSearchResponse(
             engine=AgentEngineType.VERTEXAI.value,
             query=request.query,
