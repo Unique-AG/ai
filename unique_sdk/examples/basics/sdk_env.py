@@ -81,6 +81,10 @@ def configure_sdk(env_file: Path | None = None) -> Config:
     import unique_sdk
 
     base = (os.environ.get("UNIQUE_API_BASE") or unique_sdk.api_base).rstrip("/")
-    if "/unique-api" in base:
-        unique_sdk.api_version = os.environ.get("UNIQUE_API_VERSION", "2026-03-01")
+    explicit_version = os.environ.get("UNIQUE_API_VERSION")
+    if explicit_version:
+        # e.g. local unique-api (http://localhost:8096) routes on ``x-api-version``
+        unique_sdk.api_version = explicit_version
+    elif "/unique-api" in base:
+        unique_sdk.api_version = "2026-03-01"
     return config
