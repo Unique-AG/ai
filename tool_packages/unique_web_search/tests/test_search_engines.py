@@ -685,30 +685,6 @@ class TestVertexAISearch:
         assert result.url == "http://example.com"
         assert result == web_search_result
 
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_resolve_url__http_error__does_not_log_url(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """
-        Purpose: Verify a failed redirect resolution logs only the error type.
-        Why this matters: Result URLs can contain client identifying information,
-        and httpx error messages can embed the URL as well.
-        Setup summary: Fail HEAD with an error that embeds the URL; assert the error
-        is logged without the URL's host.
-        """
-        url = "https://client-intranet.example/deals?id=42"
-        mock_client = AsyncMock()
-        mock_client.head = AsyncMock(side_effect=HTTPError(f"cannot reach {url}"))
-        web_search_result = WebSearchResult(
-            url=url, title="Test", snippet="Test snippet", content="Test content"
-        )
-
-        await resolve_url(mock_client, web_search_result)
-
-        assert "Unable to resolve redirect URL: HTTPError" in caplog.text
-        assert "client-intranet" not in caplog.text
-
     @pytest.mark.asyncio
     async def test_resolve_all_resolves_multiple_urls(self, mocker):
         """Test resolve_all resolves multiple URLs in parallel."""

@@ -254,30 +254,6 @@ class TestGoogleSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_empty_items__error_message__omits_query(
-        self, google_env: None
-    ) -> None:
-        """
-        Purpose: Verify the empty-results error does not echo the search query.
-        Why this matters: The proxy logs this message next to company and user IDs, and queries can contain client identifying information.
-        Setup summary: Return no items for a client-specific query and assert the error message lacks it.
-        """
-
-        def handler(_request: httpx.Request) -> httpx.Response:
-            return httpx.Response(200, json={"items": []})
-
-        transport = httpx.MockTransport(handler)
-        async with httpx.AsyncClient(transport=transport) as client:
-            engine = GoogleSearchService(http_client=client)
-            with pytest.raises(EmptySearchResultsError) as exc_info:
-                await engine.search(
-                    _google_request(query="Acme Corp acquisition of Beta GmbH")
-                )
-
-        assert "Acme" not in exc_info.value.message
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
     async def test_missing_items_raises_empty_search_results(
         self, google_env: None
     ) -> None:

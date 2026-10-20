@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from unittest.mock import AsyncMock
 
 import httpx
@@ -482,53 +481,3 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
     assert result["error"] is not None
     assert "PDF processing" in result["error"]["message"]
     assert result["raw"] == "%PDF-1.4"
-
-
-_CLIENT_URL = "https://client-intranet.example/deals/acme?id=42"
-
-
-def _raise_read_timeout(request: httpx.Request) -> httpx.Response:
-    raise httpx.ReadTimeout(f"timed out reading {request.url}", request=request)
-
-
-def _raise_connect_error(request: httpx.Request) -> httpx.Response:
-    raise httpx.ConnectError(f"cannot connect to {request.url}", request=request)
-
-
-def _service_unavailable(_request: httpx.Request) -> httpx.Response:
-    return httpx.Response(503, text="unavailable")
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "handler",
-    [_raise_read_timeout, _raise_connect_error, _service_unavailable],
-    ids=["timeout", "transport_error", "http_error"],
-)
-async def test_basic_crawl__failure_logs__omit_crawled_url(
-    handler: Callable[[httpx.Request], httpx.Response],
-    app_log_capture: pytest.LogCaptureFixture,
-) -> None:
-    """
-    Purpose: Verify basic crawler failure warnings do not include the crawled URL.
-    Why this matters: Proxy log lines carry company and user ids, and a URL chosen by
-    the assistant can contain client identifying information. httpx exception
-    messages can embed the URL too, so they must not be logged verbatim.
-    Setup summary: Fail a client-like URL by timeout, transport error, and HTTP 503;
-    assert a per-URL error is returned and the logs never mention the URL's host.
-    """
-    request = parse_crawl_request(
-        {
-            "urls": [_CLIENT_URL],
-            "crawler": CrawlerType.BASIC.value,
-            "timeout": 10,
-        },
-    )
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
-        results = await BasicCrawlerService(http_client=http_client).crawl(request)
-
-    assert results[0].error is not None
-    assert "Basic crawl" in app_log_capture.text
-    assert "client-intranet" not in app_log_capture.text

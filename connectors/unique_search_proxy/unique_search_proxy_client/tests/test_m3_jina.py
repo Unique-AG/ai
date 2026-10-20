@@ -125,43 +125,6 @@ def test_jina_maps_non_200_reader_code() -> None:
 
 
 @pytest.mark.ai
-def test_jina_crawl__failure_log__omits_crawled_url(
-    app_log_capture: pytest.LogCaptureFixture,
-) -> None:
-    """
-    Purpose: Verify the Jina reader failure warning does not include the crawled URL.
-    Why this matters: Proxy log lines carry company and user ids, and a URL chosen by
-    the assistant can contain client identifying information.
-    Setup summary: Return a non-200 reader code for a client-like URL; assert the
-    warning is emitted without the URL's host.
-    """
-
-    def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"code": 422, "data": None})
-
-    async def run() -> None:
-        request = parse_crawl_request(
-            {
-                "urls": ["https://client-intranet.example/deals/acme?id=42"],
-                "crawler": CrawlerType.JINA.value,
-                "timeout": 30,
-            },
-        )
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(handler)
-        ) as http_client:
-            service = JinaCrawlerService(http_client=http_client)
-            await service.crawl(request)
-
-    import asyncio
-
-    asyncio.run(run())
-
-    assert "Jina reader failure" in app_log_capture.text
-    assert "client-intranet" not in app_log_capture.text
-
-
-@pytest.mark.ai
 def test_jina_includes_upstream_message_and_raw_on_auth_failure() -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(

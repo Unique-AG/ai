@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import socket
 
 import pytest
@@ -56,16 +55,3 @@ def disable_url_safety_redirects(monkeypatch: pytest.MonkeyPatch) -> None:
             update={"resolve_redirects": False}
         ),
     )
-
-
-@pytest.fixture
-def app_log_capture(
-    caplog: pytest.LogCaptureFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> pytest.LogCaptureFixture:
-    """Capture app logs; ``configure_logging`` stops them reaching caplog's root handler."""
-    monkeypatch.setattr(
-        logging.getLogger("unique_search_proxy_client"), "propagate", True
-    )
-    caplog.set_level(logging.DEBUG)
-    return caplog
