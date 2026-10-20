@@ -161,7 +161,7 @@ class ContentProcessor:
                 # Clear content to avoid overfilling the context; the chunker will
                 # render the compliance placeholder via the empty-content branch.
                 _LOGGER.error(
-                    f"Processing strategy failed for page {page.url}: {result.exception}",
+                    f"Processing strategy failed for page: {result.exception}",
                     exc_info=result.exception,
                 )
                 processed_pages.append(page.model_copy(update={"content": ""}))

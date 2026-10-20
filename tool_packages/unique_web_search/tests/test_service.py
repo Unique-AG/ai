@@ -1,7 +1,12 @@
+import logging
 from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_search_proxy_core.search_engines.google.schema import (
+    ExposableStrOrNone,
+    GoogleConfig,
+)
 from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 
 from unique_web_search.invocation_stats import collector
@@ -10,6 +15,7 @@ from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
+from unique_web_search.services.search_engine.base import SearchEngineMode
 
 
 class TestWebSearchToolDescription:
@@ -1008,6 +1014,116 @@ class TestWebSearchToolRun:
         assert result.error_message == "escaped _run's own error handling"
         assert len(result.invocation_stats) == 1
         assert result.invocation_stats[0].source == "web_search.relevancy"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("tool_parameters", "arguments"),
+        [
+            pytest.param(
+                WebSearchToolParameters.with_exposed_params(
+                    GoogleConfig(
+                        gl=ExposableStrOrNone(expose=True, value="us")
+                    ).exposed_params_model()
+                ),
+                {"queryy": "Acme Corp acquisition of Beta GmbH"},
+                id="v1",
+            ),
+            pytest.param(
+                WebSearchPlan.with_search_engine_mode(SearchEngineMode.STANDARD),
+                {"steps": [{"query_or_url": "https://client-intranet.example/acme"}]},
+                id="v2",
+            ),
+            pytest.param(
+                WebSearchV3ToolParameters.with_exposed_params(None),
+                {
+                    "command": "read_urls",
+                    "payload": {"urls": ["https://client-intranet.example/acme"]},
+                },
+                id="v3",
+            ),
+        ],
+    )
+    async def test_run__invalid_arguments__log_omits_argument_values(
+        self,
+        tool_parameters: type,
+        arguments: dict[str, Any],
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """
+        Purpose: Verify a tool call that fails argument validation does not log the arguments.
+        Why this matters: Pydantic embeds the input in validation errors, and the arguments carry search queries and crawl URLs that can contain client identifying information.
+        Setup summary: Run the tool with malformed arguments for each mode's parameter model and assert the logged traceback lacks the query or URL.
+        """
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.name = "WebSearch"
+        tool.logger = Mock()
+        tool.tool_parameter_calls = tool_parameters
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = arguments
+        caplog.set_level(logging.DEBUG, logger="unique_web_search")
+
+        result = await tool.run(tool_call)
+
+        assert result.error_message
+        assert "WebSearch tool run failed" in caplog.text
+        assert "acme" not in caplog.text.lower()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("parameters_model", "arguments"),
+        [
+            pytest.param(
+                WebSearchToolParameters.with_exposed_params(
+                    GoogleConfig(
+                        gl=ExposableStrOrNone(expose=True, value="us")
+                    ).exposed_params_model()
+                ),
+                {"queryy": "Acme Corp acquisition of Beta GmbH"},
+                id="v1",
+            ),
+            pytest.param(
+                WebSearchPlan.with_search_engine_mode(SearchEngineMode.STANDARD),
+                {"steps": [{"query_or_url": "https://client-intranet.example/acme"}]},
+                id="v2",
+            ),
+            pytest.param(
+                WebSearchV3ToolParameters.with_exposed_params(None),
+                {
+                    "command": "read_urls",
+                    "payload": {"urls": ["https://client-intranet.example/acme"]},
+                },
+                id="v3",
+            ),
+        ],
+    )
+    async def test_run__invalid_arguments__logs_omit_queries_and_urls(
+        self,
+        parameters_model: Any,
+        arguments: dict[str, Any],
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """
+        Purpose: Verify a tool call that fails argument validation does not log its queries or URLs.
+        Why this matters: Pydantic embeds the raw input in validation errors, and the failure is logged with its traceback; queries and URLs can contain client identifying information.
+        Setup summary: Run the tool with malformed arguments for each mode's parameter model and assert the captured logs lack the client-specific text.
+        """
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.name = "WebSearch"
+        tool.logger = Mock()
+        tool.tool_parameter_calls = parameters_model
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = arguments
+        caplog.set_level(logging.INFO, logger="unique_web_search")
+
+        result = await tool.run(tool_call)
+
+        assert result.error_message
+        assert "WebSearch tool run failed" in caplog.text
+        assert "acme" not in caplog.text.lower()
 
 
 class TestWebSearchToolArgumentScreeningFeatureFlag:

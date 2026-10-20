@@ -50,7 +50,7 @@ class QueryElicitationModel(BaseModel):
     creation with default values for form pre-population.
     """
 
-    model_config = ConfigDict(title="Query Elicitation")
+    model_config = ConfigDict(title="Query Elicitation", hide_input_in_errors=True)
     queries: list[str] = Field(description="The queries to search the web for")
 
     @classmethod
@@ -160,13 +160,13 @@ class QueryElicitationService:
             elif elicitation.status == ElicitationStatus.DECLINED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} declined")
                 raise ElicitationDeclinedException(
-                    f"Elicitation triggered with queries {queries} was declined"
+                    f"Query elicitation {elicitation.id} was declined"
                 )
 
             elif elicitation.status == ElicitationStatus.CANCELLED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} cancelled")
                 raise ElicitationCancelledException(
-                    f"Elicitation triggered with queries {queries} was cancelled"
+                    f"Query elicitation {elicitation.id} was cancelled"
                 )
 
         raise ElicitationExpiredException(

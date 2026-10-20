@@ -136,7 +136,7 @@ async def resolve_url(client: HttpxAsyncClient, web_search_result: WebSearchResu
         web_search_result.url = str(resp.url)
         return web_search_result
     except HTTPError as e:
-        _LOGGER.error(f"Unable to redirect URL: {web_search_result.url}: {e}")
+        _LOGGER.error(f"Unable to resolve redirect URL: {type(e).__name__}")
         return web_search_result
 
 

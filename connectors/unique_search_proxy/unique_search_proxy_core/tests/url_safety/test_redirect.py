@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -124,6 +125,35 @@ class TestResolveRedirectChain:
         assert blocked.hostname == "example.com"
         assert blocked.category == "redirect"
         assert "Unable to verify redirect chain" in blocked.reason
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_resolve_redirect_chain__network_error_on_hop__does_not_log_url(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """
+        Purpose: Verify the network-error debug log omits the URL being probed.
+        Why this matters: Proxy log lines carry company and user ids, and a URL chosen
+        by the assistant can contain client identifying information.
+        Setup summary: Fail HEAD with an error whose message embeds the URL; assert
+        the debug record is emitted without the URL's host.
+        """
+        url = "https://client-intranet.example/deals/acme?id=42"
+        mock_client = AsyncMock()
+        mock_client.head = AsyncMock(
+            side_effect=httpx.ConnectError(f"cannot connect to {url}")
+        )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        caplog.set_level(logging.DEBUG, logger=redirect_module.__name__)
+
+        with patch(_REDIRECT_HTTPX, return_value=mock_client):
+            with pytest.raises(CrawlTargetValidationError):
+                await self._resolve_redirect_chain(url)
+
+        assert "Redirect resolution blocked" in caplog.text
+        assert "client-intranet" not in caplog.text
 
     @pytest.mark.ai
     @pytest.mark.asyncio

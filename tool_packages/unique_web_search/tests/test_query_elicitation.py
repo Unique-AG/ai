@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from unique_toolkit.elicitation import (
+    ElicitationCancelledException,
     ElicitationDeclinedException,
     ElicitationExpiredException,
     ElicitationStatus,
@@ -97,6 +98,42 @@ async def test_query_elicitation__records_not_approved__when_declined() -> None:
 
     assert debug_info.elicitation_approval is False
     assert debug_info.elicitation_prompt_change is False
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("status", "exception_type"),
+    [
+        (ElicitationStatus.DECLINED, ElicitationDeclinedException),
+        (ElicitationStatus.CANCELLED, ElicitationCancelledException),
+    ],
+)
+async def test_query_elicitation__error_message__omits_queries__when_not_accepted(
+    status: ElicitationStatus,
+    exception_type: type[Exception],
+) -> None:
+    """
+    Purpose: Verify declined and cancelled elicitation errors do not carry the queries.
+    Why this matters: The tool logs the error with its traceback, and queries can contain client identifying information.
+    Setup summary: Return a declined or cancelled response and assert the raised message lacks the query.
+    """
+    service, chat_service, _ = _build_service()
+    chat_service.elicitation.get_async.return_value = SimpleNamespace(
+        id="elicitation-id",
+        status=status,
+    )
+
+    with (
+        patch(
+            "unique_web_search.services.query_elicitation.asyncio.sleep",
+            new_callable=AsyncMock,
+        ),
+        pytest.raises(exception_type) as exc_info,
+    ):
+        await service(["Acme Corp acquisition of Beta GmbH"])
+
+    assert "Acme" not in str(exc_info.value)
+    assert "elicitation-id" in str(exc_info.value)
 
 
 @pytest.mark.ai

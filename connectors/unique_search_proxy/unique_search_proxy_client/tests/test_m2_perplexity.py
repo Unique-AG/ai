@@ -124,6 +124,30 @@ class TestPerplexitySearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_empty_results__error_message__omits_query(
+        self, perplexity_env: None
+    ) -> None:
+        """
+        Purpose: Verify the empty-results error does not echo the search query.
+        Why this matters: The proxy logs this message next to company and user IDs, and queries can contain client identifying information.
+        Setup summary: Return no results for a client-specific query and assert the error message lacks it.
+        """
+
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"results": []})
+
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport) as client:
+            engine = PerplexitySearchService(http_client=client)
+            with pytest.raises(EmptySearchResultsError) as exc_info:
+                await engine.search(
+                    _perplexity_request(query="Acme Corp acquisition of Beta GmbH")
+                )
+
+        assert "Acme" not in exc_info.value.message
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_missing_credentials_raises(
         self,
         monkeypatch: pytest.MonkeyPatch,

@@ -71,7 +71,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         self._notify_message = ""
 
         async def notify_callback() -> None:
-            _LOGGER.debug(f"{self.notify_name}: {self.notify_message}")
+            _LOGGER.debug(f"Progress update: {self.notify_name}")
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,

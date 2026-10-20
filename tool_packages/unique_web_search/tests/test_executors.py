@@ -1,5 +1,6 @@
 """Tests for WebSearchV1Executor, WebSearchV2Executor, and WebSearchV3Executor."""
 
+import logging
 from typing import Any
 from unittest.mock import AsyncMock, Mock
 
@@ -971,6 +972,48 @@ class TestWebSearchV3ExecutorFetchUrls:
         mock_executor_dependencies["search_service"].search.assert_not_called()
         mock_executor_dependencies["content_processor"].run.assert_awaited_once()
         assert isinstance(result, list)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run_fetch_urls__logs__omit_requested_urls(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """
+        Purpose: Verify a V3 read_urls run never writes the requested URLs to logs.
+        Why this matters: URLs chosen by the assistant can contain client identifying
+        information, and these log lines sit next to company-scoped lines.
+        Setup summary: Run read_urls for a client-like URL with DEBUG capture; assert
+        progress and crawl logs are emitted without the URL's host.
+        """
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "read_urls",
+                "phase": "target",
+                "payload": {"urls": ["https://client-intranet.example/deals?id=42"]},
+            }
+        )
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            return_value=["content"]
+        )
+        mock_executor_dependencies["content_processor"].run = AsyncMock(return_value=[])
+        mock_executor_dependencies["chunk_relevancy_sort_config"].enabled = False
+        mock_executor_dependencies["content_reducer"].return_value = []
+        executor = WebSearchV3Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
+        )
+        caplog.set_level(logging.DEBUG, logger="unique_web_search")
+
+        await executor.run()
+
+        assert "Reading Web Pages" in caplog.text
+        assert "client-intranet" not in caplog.text
 
     @pytest.mark.ai
     @pytest.mark.asyncio

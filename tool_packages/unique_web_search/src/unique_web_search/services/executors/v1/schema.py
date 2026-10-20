@@ -16,6 +16,7 @@ class WebSearchToolParameters(ExposedParams):
         alias_generator=to_camel,
         populate_by_name=True,
         extra="forbid",
+        hide_input_in_errors=True,
     )
 
     query: str = Field(description=_DEFAULT_QUERY_DESCRIPTION)

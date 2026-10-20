@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -82,3 +83,33 @@ def test_truncate_page():
 
     assert len(result.content) < original_length
     assert len(result.content) > 0
+
+
+@pytest.mark.ai
+def test_truncate__page_log__omits_page_url(caplog: pytest.LogCaptureFixture) -> None:
+    """
+    Purpose: Verify the per-page truncate log line does not include the page URL.
+    Why this matters: Pages fetched for the assistant can have URLs that contain
+    client identifying information, and this line is logged at INFO for every page.
+    Setup summary: Truncate a page with a client-like URL; assert the INFO line is
+    emitted without the URL's host.
+    """
+    truncate = Truncate(
+        encoder=_simple_encoder,
+        decoder=_simple_decoder,
+        config=TruncateConfig(max_tokens=50),
+    )
+    page = WebSearchResult(
+        url="https://client-intranet.example/deals?id=42",
+        title="Test",
+        snippet="s",
+        content="word " * 100,
+    )
+    caplog.set_level(logging.INFO, logger="unique_web_search")
+
+    import asyncio
+
+    asyncio.run(truncate(page=page, query="test"))
+
+    assert "Truncating page" in caplog.text
+    assert "client-intranet" not in caplog.text
