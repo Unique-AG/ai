@@ -594,7 +594,12 @@ class TestVertexAISearch:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_proxy_search_uses_url_resolved_by_search_proxy(self, mocker):
+    @pytest.mark.parametrize("enable_redirect_resolution", [True, False])
+    async def test_proxy_search_uses_url_resolved_by_search_proxy(
+        self,
+        mocker,
+        enable_redirect_resolution,
+    ):
         """
         Purpose: Verify proxied Vertex search uses the URL returned by Search Proxy.
         Why this matters: Redirect resolution must happen behind shared egress controls.
@@ -624,7 +629,12 @@ class TestVertexAISearch:
         mock_client = AsyncMock()
         mock_client.agent_search.search.return_value = Mock(answer="proxy answer")
         mock_open_client.return_value.__aenter__.return_value = mock_client
-        search = VertexAI(VertexAIConfig(), Mock())
+        search = VertexAI(
+            VertexAIConfig(
+                enable_redirect_resolution=enable_redirect_resolution,
+            ),
+            Mock(),
+        )
         results = await search.search("test query")
 
         assert results == parsed
@@ -633,7 +643,7 @@ class TestVertexAISearch:
             mock_client.agent_search.search.await_args.kwargs[
                 "enable_redirect_resolution"
             ]
-            is True
+            is enable_redirect_resolution
         )
         mock_map_agent_answer.assert_awaited_once()
 

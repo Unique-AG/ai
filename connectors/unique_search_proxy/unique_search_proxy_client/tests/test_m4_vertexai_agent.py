@@ -10,6 +10,7 @@ from unique_search_proxy_core.agent_engines.output_schema import AgentSearchOutp
 from unique_search_proxy_core.agent_engines.vertexai.schema import (
     VertexAIAgentSearchRequest,
 )
+from unique_search_proxy_core.schema import AgentSearchDelta, AgentSearchDone
 from unique_search_proxy_core.url_safety import (
     BlockedCrawlTarget,
     ResolvedCrawlTarget,
@@ -19,9 +20,11 @@ from unique_search_proxy_core.url_safety import (
 from unique_search_proxy_client.web.core.agent_engines.vertexai.client import (
     _get_base_api_client_from_adc,
 )
+from unique_search_proxy_client.web.core.agent_engines.vertexai.redirects import (
+    resolve_vertex_result_urls,
+)
 from unique_search_proxy_client.web.core.agent_engines.vertexai.service import (
     VertexAIAgentSearchService,
-    resolve_redirect_urls,
 )
 
 
@@ -72,16 +75,19 @@ class TestVertexAIAgentSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_search_skips_redirect_resolution_when_disabled(self) -> None:
+    async def test_stream_emits_only_resolved_answer_when_enabled(self) -> None:
         """
-        Purpose: Verify the persisted resolution setting still controls proxy behavior.
-        Why this matters: Disabling resolution must not trigger any URL egress.
-        Setup summary: Stream a response with the setting off and spy on the resolver.
+        Purpose: Keep streaming output consistent with the resolved final response.
+        Why this matters: Consumers must never assemble unresolved redirect URLs.
+        Setup summary: Stream two raw chunks and assert one resolved delta plus done.
         """
         http_client = MagicMock()
+        raw_answer = '{"results":[]}'
+        resolved_answer = '{"results":[{"source_url":"https://example.com"}]}'
 
         async def fake_stream(**_kwargs: Any):
-            yield _Chunk('{"results":[]}')
+            yield _Chunk(raw_answer[:6])
+            yield _Chunk(raw_answer[6:])
 
         with (
             patch(
@@ -93,14 +99,67 @@ class TestVertexAIAgentSearchService:
                 side_effect=fake_stream,
             ),
             patch(
-                "unique_search_proxy_client.web.core.agent_engines.vertexai.service.resolve_redirect_urls",
+                "unique_search_proxy_client.web.core.agent_engines.vertexai.service.resolve_vertex_result_urls",
+                new_callable=AsyncMock,
+                return_value=resolved_answer,
+            ) as resolver,
+        ):
+            service = VertexAIAgentSearchService(http_client=http_client)
+            events = [event async for event in service.stream(_vertex_request())]
+
+        assert len(events) == 2
+        assert isinstance(events[0], AgentSearchDelta)
+        assert events[0].text == resolved_answer
+        assert isinstance(events[1], AgentSearchDone)
+        assert events[1].response.answer == resolved_answer
+        resolver.assert_awaited_once_with(
+            raw_answer,
+            http_client=http_client,
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search_skips_redirect_resolution_when_disabled(self) -> None:
+        """
+        Purpose: Verify the persisted resolution setting still controls proxy behavior.
+        Why this matters: Disabling resolution must not trigger any URL egress.
+        Setup summary: Stream a response with the setting off and spy on the resolver.
+        """
+        http_client = MagicMock()
+
+        async def fake_stream(**_kwargs: Any):
+            yield _Chunk('{"results"')
+            yield _Chunk(":[]}")
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.vertexai.service.get_vertex_client",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.vertexai.service.stream_vertexai_response",
+                side_effect=fake_stream,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.vertexai.service.resolve_vertex_result_urls",
                 new_callable=AsyncMock,
             ) as resolver,
         ):
             service = VertexAIAgentSearchService(http_client=http_client)
-            await service.search(_vertex_request(enable_redirect_resolution=False))
+            events = [
+                event
+                async for event in service.stream(
+                    _vertex_request(enable_redirect_resolution=False)
+                )
+            ]
 
         resolver.assert_not_awaited()
+        assert [
+            event.text for event in events if isinstance(event, AgentSearchDelta)
+        ] == [
+            '{"results"',
+            ":[]}",
+        ]
 
 
 class TestResolveRedirectUrls:
@@ -143,11 +202,11 @@ class TestResolveRedirectUrls:
         )
 
         with patch(
-            "unique_search_proxy_client.web.core.agent_engines.vertexai.service.UrlSafetyService.validate_urls_individually",
+            "unique_search_proxy_client.web.core.agent_engines.vertexai.redirects.UrlSafetyService.validate_urls_individually",
             new_callable=AsyncMock,
             return_value=[outcome],
         ) as validate_urls:
-            answer = await resolve_redirect_urls(
+            answer = await resolve_vertex_result_urls(
                 self._answer(redirect_url),
                 http_client=http_client,
             )
@@ -181,11 +240,11 @@ class TestResolveRedirectUrls:
         )
 
         with patch(
-            "unique_search_proxy_client.web.core.agent_engines.vertexai.service.UrlSafetyService.validate_urls_individually",
+            "unique_search_proxy_client.web.core.agent_engines.vertexai.redirects.UrlSafetyService.validate_urls_individually",
             new_callable=AsyncMock,
             return_value=[outcome],
         ):
-            answer = await resolve_redirect_urls(
+            answer = await resolve_vertex_result_urls(
                 self._answer(redirect_url),
                 http_client=http_client,
             )

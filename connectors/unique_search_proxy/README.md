@@ -144,7 +144,9 @@ sequenceDiagram
 2. **Client owns execution** — secrets, egress, and provider SDKs stay in the proxy pod.
 3. **SDK owns transport** — thin OpenAPI wrapper; no duplicated business logic.
 4. **Flat HTTP bodies** — no nested `config` + `invocation` on the wire; merge happens in core before the call.
-5. **Thin agent egress** — agent search returns opaque `answer`; parsing is a caller concern.
+5. **Thin agent egress** — agent search returns opaque `answer`; proxy adapters only
+   normalize transport-safety details such as redirect URLs, while semantic parsing
+   remains a caller concern.
 6. **Fail closed** — missing credentials → `503 ENGINE_NOT_CONFIGURED` with env var names.
 
 ---

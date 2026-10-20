@@ -6,7 +6,6 @@ from typing import Any
 
 from httpx import AsyncClient
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
-from unique_search_proxy_core.agent_engines.output_schema import AgentSearchOutput
 from unique_search_proxy_core.agent_engines.resolve import (
     resolve_output_schema_for_engine,
 )
@@ -20,7 +19,6 @@ from unique_search_proxy_core.schema import (
     AgentSearchResponse,
     AgentSearchStreamEvent,
 )
-from unique_search_proxy_core.url_safety import UrlSafetyService
 
 from unique_search_proxy_client.web.core.agent_engines.service_base import (
     AgentSearchEngineService,
@@ -33,34 +31,12 @@ from unique_search_proxy_client.web.core.agent_engines.vertexai.gemini import (
     serialize_vertex_response,
     stream_vertexai_response,
 )
+from unique_search_proxy_client.web.core.agent_engines.vertexai.redirects import (
+    resolve_vertex_result_urls,
+)
 from unique_search_proxy_client.web.core.provider_response import transport_error_raw
 
 _LOGGER = logging.getLogger(__name__)
-
-
-async def resolve_redirect_urls(
-    answer: str,
-    *,
-    http_client: AsyncClient | None,
-) -> str:
-    """Resolve structured-output URLs through Search Proxy URL safety."""
-    if http_client is None:
-        return answer
-
-    try:
-        output = AgentSearchOutput.model_validate_json(answer)
-    except ValueError:
-        return answer
-
-    outcomes = await UrlSafetyService.validate_urls_individually(
-        [result.source_url for result in output.results],
-        redirect_http_client=http_client,
-    )
-    for result, outcome in zip(output.results, outcomes, strict=True):
-        if outcome.resolved is not None:
-            result.source_url = outcome.resolved.normalized_url
-
-    return output.model_dump_json()
 
 
 class VertexAIAgentSearchService(
@@ -68,9 +44,10 @@ class VertexAIAgentSearchService(
 ):
     engine_id = AgentEngineType.VERTEXAI.value
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self._client = get_vertex_client(self._http_client)
+    def __init__(self, *, http_client: AsyncClient) -> None:
+        super().__init__(http_client=http_client)
+        self._egress_http_client = http_client
+        self._client = get_vertex_client(http_client)
 
     async def search(self, request: VertexAIAgentSearchRequest) -> AgentSearchResponse:  # type: ignore[override]
         response: AgentSearchResponse | None = None
@@ -109,7 +86,8 @@ class VertexAIAgentSearchService(
                 text = chunk.text or ""
                 if text:
                     answer_parts.append(text)
-                    yield AgentSearchDelta(text=text)
+                    if not request.enable_redirect_resolution:
+                        yield AgentSearchDelta(text=text)
                 raw_chunks.append(serialize_vertex_response(chunk))
         except Exception as exc:
             raise UpstreamError(
@@ -119,10 +97,11 @@ class VertexAIAgentSearchService(
 
         answer = "".join(answer_parts)
         if request.enable_redirect_resolution:
-            answer = await resolve_redirect_urls(
+            answer = await resolve_vertex_result_urls(
                 answer,
-                http_client=self._http_client,
+                http_client=self._egress_http_client,
             )
+            yield AgentSearchDelta(text=answer)
         response = AgentSearchResponse(
             engine=AgentEngineType.VERTEXAI.value,
             query=request.query,
