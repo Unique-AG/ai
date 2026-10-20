@@ -3,6 +3,7 @@ import logging
 import pytest
 
 from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_GPT_51,
     DEFAULT_GPT_4o,
     resolve_default_language_model,
 )
@@ -27,7 +28,7 @@ class TestResolveDefaultLanguageModel:
         result = resolve_default_language_model()
 
         # Assert
-        assert result == DEFAULT_GPT_4o
+        assert result == DEFAULT_GPT_51
 
     @pytest.mark.verified
     def test_resolve_default_language_model__returns_enum_value__when_env_matches_value(
@@ -108,5 +109,5 @@ class TestResolveDefaultLanguageModel:
             result = resolve_default_language_model()
 
         # Assert
-        assert result == DEFAULT_GPT_4o
+        assert result == DEFAULT_GPT_51
         assert "Invalid DEFAULT_LANGUAGE_MODEL='NOT_A_REAL_MODEL'" in caplog.text
