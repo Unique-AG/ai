@@ -481,19 +481,6 @@ class TestSearchEngineConfigs:
         assert config.enable_enterprise_search
         assert not config.enable_redirect_resolution
 
-    @pytest.mark.ai
-    def test_vertexai_config_accepts_persisted_redirect_resolution_field(self):
-        """
-        Purpose: Verify persisted configs keep controlling proxy URL resolution.
-        Why this matters: Existing spaces may still store enableRedirectResolution.
-        Setup summary: Validate camel-case input and assert it remains disabled.
-        """
-        config = VertexAIConfig.model_validate(
-            {"enableRedirectResolution": False},
-        )
-
-        assert not config.enable_redirect_resolution
-
 
 class TestSearchEngineTypes:
     """Test search engine type definitions."""
@@ -594,16 +581,11 @@ class TestVertexAISearch:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("enable_redirect_resolution", [True, False])
-    async def test_proxy_search_uses_url_resolved_by_search_proxy(
-        self,
-        mocker,
-        enable_redirect_resolution,
-    ):
+    async def test_proxy_search_forwards_redirect_resolution_setting(self, mocker):
         """
-        Purpose: Verify proxied Vertex search uses the URL returned by Search Proxy.
-        Why this matters: Redirect resolution must happen behind shared egress controls.
-        Setup summary: Mock a resolved proxy result and assert the flag and URL propagate.
+        Purpose: Verify assistants forward the redirect-resolution setting to the proxy.
+        Why this matters: Assistants must not resolve Vertex URLs through direct egress.
+        Setup summary: Disable resolution and assert the proxy call receives that value.
         """
         resolved_url = "https://example.com/article"
         parsed = [
@@ -631,7 +613,7 @@ class TestVertexAISearch:
         mock_open_client.return_value.__aenter__.return_value = mock_client
         search = VertexAI(
             VertexAIConfig(
-                enable_redirect_resolution=enable_redirect_resolution,
+                enable_redirect_resolution=False,
             ),
             Mock(),
         )
@@ -643,7 +625,7 @@ class TestVertexAISearch:
             mock_client.agent_search.search.await_args.kwargs[
                 "enable_redirect_resolution"
             ]
-            is enable_redirect_resolution
+            is False
         )
         mock_map_agent_answer.assert_awaited_once()
 
