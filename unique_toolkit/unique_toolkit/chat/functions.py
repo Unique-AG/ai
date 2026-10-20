@@ -564,11 +564,13 @@ def list_messages(
     hundreds of MB for long chats. Platforms without support ignore it.
     """
     try:
+        params: unique_sdk.Message.ListParams = {"chatId": chat_id}
+        if exclude_gpt_request:
+            params["excludeGptRequest"] = True
         messages = unique_sdk.Message.list(
             user_id=event_user_id,
             company_id=event_company_id,
-            chatId=chat_id,
-            **({"excludeGptRequest": True} if exclude_gpt_request else {}),
+            **params,
         )
         return messages
     except Exception as e:
@@ -584,11 +586,13 @@ async def list_messages_async(
 ) -> ListObject[unique_sdk.Message]:
     """Async variant of `list_messages`."""
     try:
+        params: unique_sdk.Message.ListParams = {"chatId": chat_id}
+        if exclude_gpt_request:
+            params["excludeGptRequest"] = True
         messages = await unique_sdk.Message.list_async(
             user_id=event_user_id,
             company_id=event_company_id,
-            chatId=chat_id,
-            **({"excludeGptRequest": True} if exclude_gpt_request else {}),
+            **params,
         )
         return messages
     except Exception as e:
