@@ -51,13 +51,14 @@ def main() -> None:
         )
     except unique_sdk.AuthenticationError as exc:
         logger.error(
-            "401 Unauthorized — the gateway rejected your credentials. "
+            "401 Unauthorized (%s) — the gateway rejected your credentials. "
             "Use a valid ukey_ API key and matching UNIQUE_APP_ID, "
             "UNIQUE_AUTH_USER_ID, and UNIQUE_AUTH_COMPANY_ID for the same tenant; "
             "UNIQUE_API_BASE_URL must target the same environment (prod vs QA). "
-            "Generate or rotate keys in the Unique admin UI if needed."
+            "Generate or rotate keys in the Unique admin UI if needed.",
+            exc,
         )
-        raise exc
+        raise
     logger.info("Upserted text preview: %s…", (briefing.get("text") or "")[:60])
 
     logger.info("Retrieve briefing")
