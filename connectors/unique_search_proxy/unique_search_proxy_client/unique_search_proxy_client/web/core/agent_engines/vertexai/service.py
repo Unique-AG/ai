@@ -57,6 +57,11 @@ class VertexAIAgentSearchService(
         if response is None:
             msg = "VertexAI agent search stream ended without a done event"
             raise UpstreamError(msg)
+        if request.enable_redirect_resolution:
+            response.answer = await resolve_vertex_result_urls(
+                response.answer,
+                http_client=self._egress_http_client,
+            )
         return response
 
     async def stream(
@@ -86,8 +91,7 @@ class VertexAIAgentSearchService(
                 text = chunk.text or ""
                 if text:
                     answer_parts.append(text)
-                    if not request.enable_redirect_resolution:
-                        yield AgentSearchDelta(text=text)
+                    yield AgentSearchDelta(text=text)
                 raw_chunks.append(serialize_vertex_response(chunk))
         except Exception as exc:
             raise UpstreamError(
@@ -96,12 +100,6 @@ class VertexAIAgentSearchService(
             ) from exc
 
         answer = "".join(answer_parts)
-        if request.enable_redirect_resolution:
-            answer = await resolve_vertex_result_urls(
-                answer,
-                http_client=self._egress_http_client,
-            )
-            yield AgentSearchDelta(text=answer)
         response = AgentSearchResponse(
             engine=AgentEngineType.VERTEXAI.value,
             query=request.query,

@@ -10,7 +10,6 @@ from unique_search_proxy_core.agent_engines.output_schema import AgentSearchOutp
 from unique_search_proxy_core.agent_engines.vertexai.schema import (
     VertexAIAgentSearchRequest,
 )
-from unique_search_proxy_core.schema import AgentSearchDelta, AgentSearchDone
 from unique_search_proxy_core.url_safety import (
     ResolvedCrawlTarget,
     UrlSafetyOutcome,
@@ -72,14 +71,14 @@ class TestVertexAIAgentSearchService:
     @pytest.mark.ai
     @pytest.mark.asyncio
     @pytest.mark.parametrize("enable_redirect_resolution", [True, False])
-    async def test_stream_respects_redirect_resolution_setting(
+    async def test_search_respects_redirect_resolution_setting(
         self,
         enable_redirect_resolution: bool,
     ) -> None:
         """
-        Purpose: Keep stream output consistent with the redirect-resolution setting.
-        Why this matters: Enabled streams must not expose unresolved intermediate JSON.
-        Setup summary: Stream two chunks and compare enabled and disabled output.
+        Purpose: Apply redirect resolution only to synchronous search responses.
+        Why this matters: Proxy resolution must not alter the streaming API.
+        Setup summary: Search with the setting enabled and disabled and compare answers.
         """
         http_client = MagicMock()
         redirect_url = (
@@ -128,30 +127,19 @@ class TestVertexAIAgentSearchService:
             ) as validate_urls,
         ):
             service = VertexAIAgentSearchService(http_client=http_client)
-            events = [
-                event
-                async for event in service.stream(
-                    _vertex_request(
-                        enable_redirect_resolution=enable_redirect_resolution
-                    )
-                )
-            ]
+            result = await service.search(
+                _vertex_request(enable_redirect_resolution=enable_redirect_resolution)
+            )
 
-        deltas = [event.text for event in events if isinstance(event, AgentSearchDelta)]
-        done = events[-1]
-        assert isinstance(done, AgentSearchDone)
         if enable_redirect_resolution:
-            assert len(deltas) == 1
-            resolved = AgentSearchOutput.model_validate_json(deltas[0])
+            resolved = AgentSearchOutput.model_validate_json(result.answer)
             assert resolved.results[0].source_url == final_url
-            assert done.response.answer == deltas[0]
             validate_urls.assert_awaited_once_with(
                 [redirect_url],
                 redirect_http_client=http_client,
             )
         else:
-            assert deltas == [raw_answer[:6], raw_answer[6:]]
-            assert done.response.answer == raw_answer
+            assert result.answer == raw_answer
             validate_urls.assert_not_awaited()
 
 
