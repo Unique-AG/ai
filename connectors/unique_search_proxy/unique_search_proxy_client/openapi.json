@@ -2471,7 +2471,7 @@
           "enableRedirectResolution": {
             "type": "boolean",
             "title": "Enable Redirect Resolution",
-            "description": "Resolve provider redirect URLs through Search Proxy URL-safety controls.",
+            "description": "Whether to enable redirect resolution.",
             "default": true
           }
         },

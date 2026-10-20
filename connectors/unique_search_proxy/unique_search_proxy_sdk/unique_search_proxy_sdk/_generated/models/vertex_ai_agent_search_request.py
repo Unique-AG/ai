@@ -35,8 +35,7 @@ class VertexAiAgentSearchRequest:
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         vertexai_model_name (str | Unset): Gemini model name for grounded generation Default: 'gemini-3-flash-preview'.
         enable_enterprise_search (bool | Unset):  Default: False.
-        enable_redirect_resolution (bool | Unset): Resolve provider redirect URLs through Search Proxy URL-safety
-            controls. Default: True.
+        enable_redirect_resolution (bool | Unset): Whether to enable redirect resolution. Default: True.
     """
 
     query: str
