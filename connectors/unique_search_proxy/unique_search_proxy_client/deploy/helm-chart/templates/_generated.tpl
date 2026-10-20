@@ -418,7 +418,7 @@ library extension hooks (base.externalService.*.ext).
     - port: {{ $port | quote }}
       protocol: TCP
 {{- end }}
-{{ if ne ((.Values.networkPolicy).allowWorldEgress | toString) "false" }}
+{{ if (ne ((.Values.networkPolicy).allowWorldEgress | toString) "false") }}
 - toEntities:
   - world
   toPorts:
@@ -431,7 +431,7 @@ library extension hooks (base.externalService.*.ext).
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.cilium.egress.hasRules.ext" -}}
-{{- if or (and .Values.googleSearch .Values.googleSearch.enabled) (and .Values.braveSearch .Values.braveSearch.enabled) (and .Values.perplexitySearch .Values.perplexitySearch.enabled) (and .Values.tavily .Values.tavily.enabled) (and .Values.jina .Values.jina.enabled) (and .Values.firecrawl .Values.firecrawl.enabled) (and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort) -}}true{{- end -}}
+{{- if or (and .Values.googleSearch .Values.googleSearch.enabled) (and .Values.braveSearch .Values.braveSearch.enabled) (and .Values.perplexitySearch .Values.perplexitySearch.enabled) (and .Values.tavily .Values.tavily.enabled) (and .Values.jina .Values.jina.enabled) (and .Values.firecrawl .Values.firecrawl.enabled) (and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort) (ne ((.Values.networkPolicy).allowWorldEgress | toString) "false") -}}true{{- end -}}
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.kubernetes.egress.validation.ext" -}}

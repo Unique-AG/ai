@@ -265,8 +265,12 @@ def _emit_egress_block(group: HelmSettingsGroup) -> list[str]:
     return []
 
 
+_WORLD_EGRESS_CHECK = (
+    '(ne ((.Values.networkPolicy).allowWorldEgress | toString) "false")'
+)
+
 _WORLD_EGRESS_BLOCK = [
-    '{{ if ne ((.Values.networkPolicy).allowWorldEgress | toString) "false" }}',
+    f"{{{{ if {_WORLD_EGRESS_CHECK} }}}}",
     "- toEntities:",
     "  - world",
     "  toPorts:",
@@ -291,11 +295,7 @@ def _emit_has_rules_block(groups: tuple[HelmSettingsGroup, ...]) -> list[str]:
     checks = [
         _egress_active_check(group) for group in groups if group.egress is not None
     ]
-    if not checks:
-        return ["{{/* no auto egress rules */}}"]
-    if len(checks) == 1:
-        return [f"{{{{- if {checks[0]} -}}}}true{{{{- end -}}}}"]
-    joined = " ".join(checks)
+    joined = " ".join([*checks, _WORLD_EGRESS_CHECK])
     return [f"{{{{- if or {joined} -}}}}true{{{{- end -}}}}"]
 
 
