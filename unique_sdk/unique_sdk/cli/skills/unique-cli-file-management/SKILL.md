@@ -42,6 +42,11 @@ unique-cli ls /Reports/Q1
 # List by scope ID
 unique-cli ls scope_abc123
 
+# Large folder: ls shows 50 folders and 50 files by default. When it prints
+# "showing files 1-50 of N", run the "more:" command it gives you
+unique-cli ls /Reports/Q1 --skip 50      # next page
+unique-cli ls /Reports/Q1 --all          # up to 1000 folders and 1000 files
+
 # Create a folder
 unique-cli mkdir Q2
 

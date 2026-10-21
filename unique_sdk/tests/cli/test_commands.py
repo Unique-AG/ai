@@ -230,6 +230,8 @@ class TestNavigation:
                     },
                 ]
             },
+            skip=0,
+            take=50,
         )
 
     @patch("unique_sdk.Folder.get_folder_path")
@@ -253,6 +255,8 @@ class TestNavigation:
             user_id="u1",
             company_id="c1",
             metadataFilter=direct_children_filter("scope_r"),
+            skip=0,
+            take=50,
         )
 
     @patch("unique_sdk.Content.get_infos")
