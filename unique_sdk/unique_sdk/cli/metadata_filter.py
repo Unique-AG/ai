@@ -38,6 +38,20 @@ ScopePathResolver = Callable[[str], "str | None"]
 ContentOwnerPathResolver = Callable[[str], "str | None"]
 
 
+def direct_children_filter(scope_id: str) -> dict[str, Any]:
+    """UniqueQL for files directly in ``scope_id``, not in its subfolders."""
+    return {
+        "and": [
+            {"path": ["folderIdPath"], "operator": "contains", "value": scope_id},
+            {
+                "path": ["folderIdPath"],
+                "operator": "notContains",
+                "value": f"{scope_id}/",
+            },
+        ]
+    }
+
+
 def _extract_target_scope_id(value: Any) -> str | None:
     """Deepest folder scope id referenced by a ``folderIdPath`` filter value.
 

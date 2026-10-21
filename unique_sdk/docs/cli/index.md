@@ -115,7 +115,7 @@ python -m unique_sdk.cli
 |---------|-------------|---------|
 | `pwd` | Print current directory | `pwd` |
 | `cd` | Change directory | `cd /Reports`, `cd ..`, `cd scope_abc` |
-| `ls` | List files and folders | `ls`, `ls /Reports` |
+| `ls` | List files and folders (folders only at `/`) | `ls`, `ls /Reports` |
 | `mkdir` | Create a folder | `mkdir Q2` |
 | `rmdir` | Delete a folder | `rmdir Q2`, `rmdir Q2 -r` |
 | `mvdir` | Rename a folder | `mvdir OldName NewName` |
