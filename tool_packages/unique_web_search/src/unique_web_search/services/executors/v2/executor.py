@@ -212,7 +212,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         )
         delta_time = time() - time_start
         _LOGGER.debug(
-            f"Crawled {step.query_or_url} with {self.crawler_service} completed in {delta_time} seconds"
+            f"Crawled URL with {self.crawler_service} completed in {delta_time} seconds"
         )
 
         self.debug_info.steps.append(

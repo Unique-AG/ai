@@ -100,9 +100,8 @@ async def resolve_redirect_chain(
                 )
             except Exception as exc:
                 _LOGGER.debug(
-                    "Redirect resolution blocked at %s due to network error: %s",
-                    current,
-                    exc,
+                    "Redirect resolution blocked due to network error: %s",
+                    type(exc).__name__,
                 )
                 raise CrawlTargetValidationError(
                     [
