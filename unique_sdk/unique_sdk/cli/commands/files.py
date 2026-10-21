@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 
 import unique_sdk
-from unique_sdk.cli.commands.navigation import direct_children_filter
 from unique_sdk.cli.formatting import format_content_info
+from unique_sdk.cli.metadata_filter import direct_children_filter
 from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
@@ -41,9 +41,6 @@ _SUPPORTED_UPLOAD_MIME_TYPES = {
 
 # Bounds so one name resolve can never page through the whole knowledge base.
 _MAX_RESOLVE_MATCH_CANDIDATES = 100
-_MAX_RESOLVE_INFOS_PAGES = 10
-_RESOLVE_INFOS_PAGE_SIZE = 100
-_MAX_RESOLVE_INFOS_ENTRIES = _MAX_RESOLVE_INFOS_PAGES * _RESOLVE_INFOS_PAGE_SIZE
 
 
 def _normalize_unique_file_path(cwd: str, path: str) -> str:
@@ -179,19 +176,10 @@ def _resolve_content_id_in_folder(
         ),
         lookup_name=lookup_name,
     )
-    capped = False
     if match is None:
-        hits, capped = _hits_by_search(
-            state=state, lookup_name=lookup_name, scope_id=scope_id
-        )
+        hits = _hits_by_search(state=state, lookup_name=lookup_name, scope_id=scope_id)
         match = _pick_match(hits=hits, lookup_name=lookup_name)
     if match is None:
-        if capped:
-            raise ValueError(
-                f"File not found in the first {_MAX_RESOLVE_INFOS_ENTRIES} "
-                f"entries of this folder: {name_or_id}. Use 'unique-cli "
-                "search' or pass a content id (cont_...)."
-            )
         raise ValueError(f"File not found: {name_or_id}")
 
     resolved_id, display_name = match
@@ -235,8 +223,7 @@ def _hits_by_file_path(
 
 def _hits_by_search(
     *, state: ShellState, lookup_name: str, scope_id: str
-) -> tuple[Sequence[Any], bool]:
-    """Return the hits, and whether the get_infos fallback hit its page cap."""
+) -> Sequence[Any]:
     try:
         hits = unique_sdk.Content.search(
             user_id=state.config.user_id,
@@ -260,7 +247,7 @@ def _hits_by_search(
             lookup_name=lookup_name,
             scope_id=scope_id,
         )
-    return hits, False
+    return hits
 
 
 def _pick_match(*, hits: Sequence[Any], lookup_name: str) -> tuple[str, str] | None:
@@ -291,32 +278,21 @@ def _resolve_content_id_via_infos_fallback(
     state: ShellState,
     lookup_name: str,
     scope_id: str,
-) -> tuple[list[Mapping[str, Any]], bool]:
-    """Folder-scoped get_infos fallback with a hard page cap.
-
-    Returns the match (if any), and whether the cap stopped the scan early.
-    """
-    skip = 0
-    for _ in range(_MAX_RESOLVE_INFOS_PAGES):
-        result = unique_sdk.Content.get_infos(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            metadataFilter=direct_children_filter(scope_id),
-            skip=skip,
-            take=_RESOLVE_INFOS_PAGE_SIZE,
-        )
-        content_infos = result.get("contentInfos", [])
-        if not content_infos:
-            return [], False
-        for info in content_infos:
-            title = info.get("title") or ""
-            key = info.get("key") or ""
-            if lookup_name in {title, key}:
-                return [info], False
-        if len(content_infos) < _RESOLVE_INFOS_PAGE_SIZE:
-            return [], False
-        skip += len(content_infos)
-    return [], True
+) -> list[Mapping[str, Any]]:
+    """Folder-scoped get_infos fallback, filtered by name so one page suffices."""
+    name_filter = {
+        "or": [
+            {"path": ["title"], "operator": "equals", "value": lookup_name},
+            {"path": ["key"], "operator": "equals", "value": lookup_name},
+        ]
+    }
+    result = unique_sdk.Content.get_infos(
+        user_id=state.config.user_id,
+        company_id=state.config.company_id,
+        metadataFilter={"and": [direct_children_filter(scope_id), name_filter]},
+        take=_MAX_RESOLVE_MATCH_CANDIDATES,
+    )
+    return list(result.get("contentInfos", []))
 
 
 def _detect_upload_mime_type(path: Path) -> str:

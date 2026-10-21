@@ -5,34 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 import unique_sdk
-from unique_sdk import UQLCombinator, UQLOperator
 from unique_sdk.cli.formatting import format_ls
-from unique_sdk.cli.metadata_filter import _collect_filter_targets
+from unique_sdk.cli.metadata_filter import (
+    _collect_filter_targets,
+    direct_children_filter,
+)
 from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
-
-
-def direct_children_filter(scope_id: str) -> dict[str, Any]:
-    """UniqueQL for files owned directly by ``scope_id``.
-
-    ``content/infos`` without a ``metadataFilter`` needs company-wide content
-    read, which most users lack (UN-26552). ``folderIdPath`` ends with the
-    owning folder's id, so excluding ``<id>/`` drops files in subfolders.
-    """
-    return {
-        UQLCombinator.AND: [
-            {
-                "path": ["folderIdPath"],
-                "operator": UQLOperator.CONTAINS,
-                "value": scope_id,
-            },
-            {
-                "path": ["folderIdPath"],
-                "operator": UQLOperator.NOT_CONTAINS,
-                "value": f"{scope_id}/",
-            },
-        ]
-    }
 
 
 def cmd_pwd(state: ShellState) -> str:

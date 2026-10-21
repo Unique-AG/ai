@@ -77,7 +77,7 @@ If the target folder does not exist, an error is shown and the directory is unch
 
 ### ls
 
-List folders and files in the current (or specified) directory.
+List folders and files in the current (or specified) directory. At the root (`/`) it lists folders only, because every file belongs to a folder. Empty files (0 bytes, including uploads still in progress) are not listed.
 
 **Synopsis:**
 
