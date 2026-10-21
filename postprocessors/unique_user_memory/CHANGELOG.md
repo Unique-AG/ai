@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.42.4](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.42.3...unique-user-memory-v2026.42.4) (2026-10-21)
+
+
+### Miscellaneous
+
+* **unique-user-memory:** Synchronize ai versions
+
 ## [2026.42.3](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.42.2...unique-user-memory-v2026.42.3) (2026-10-19)
 
 
