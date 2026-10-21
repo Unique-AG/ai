@@ -292,7 +292,6 @@ class VertexAIAgentSearchStreamEndpoint(_TypedStreamEndpoint):
         timeout: int = 120,
         vertexai_model_name: str = "gemini-3-flash-preview",
         enable_enterprise_search: bool = False,
-        enable_redirect_resolution: bool = True,
     ) -> AsyncIterator[dict[str, Any]]:
         async for event in self._call(
             query=query,
@@ -301,7 +300,6 @@ class VertexAIAgentSearchStreamEndpoint(_TypedStreamEndpoint):
             timeout=timeout,
             vertexai_model_name=vertexai_model_name,
             enable_enterprise_search=enable_enterprise_search,
-            enable_redirect_resolution=enable_redirect_resolution,
         ):
             yield event
 
