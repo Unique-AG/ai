@@ -17,6 +17,7 @@ from unique_search_proxy_core.search_engines.base import (
     SearchEngineType,
 )
 
+from unique_web_search.services.httpx_logging import hide_httpx_request_logs
 from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
     search_proxy_client_enabled,
@@ -104,10 +105,11 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         params: ExposedParams | None = None,
     ) -> list[WebSearchResult]:
         """Search the web for the given query using the search engine."""
-        proxy_engine = self._proxy_engine
-        if search_proxy_client_enabled and proxy_engine is not None:
-            return await self._proxy_search(query, params, proxy_engine)
-        return await self._legacy_search(query=query, params=params)
+        with hide_httpx_request_logs():
+            proxy_engine = self._proxy_engine
+            if search_proxy_client_enabled and proxy_engine is not None:
+                return await self._proxy_search(query, params, proxy_engine)
+            return await self._legacy_search(query=query, params=params)
 
     async def _proxy_search(
         self,
