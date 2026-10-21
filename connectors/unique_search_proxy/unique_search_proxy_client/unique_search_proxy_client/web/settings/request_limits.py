@@ -46,12 +46,18 @@ class RequestLimitsSettings(BaseSettings):
     max_urls_per_crawl: int = Field(
         default=100,
         ge=1,
-        description="Most URLs one crawl request may list; longer lists get a 422.",
+        description=(
+            "Maximum number of URLs in one crawl request. Requests with more "
+            "are rejected with a 422."
+        ),
     )
     max_url_length: int = Field(
         default=2048,
         ge=1,
-        description="Longest URL, in characters, a crawl request may contain.",
+        description=(
+            "Maximum length of each URL, in characters. Requests containing a "
+            "longer URL are rejected with a 422."
+        ),
     )
 
     @property
