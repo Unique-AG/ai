@@ -92,9 +92,11 @@ ls [target] [--limit N] [--skip N] [--all]
 | `target` | Optional. Folder name, absolute path, or scope ID to list. Defaults to current directory. |
 | `--limit`, `-l` | Maximum number of folders and of files to show (1-1000). Default 50. |
 | `--skip` | Skip this many folders and files first, to page through a large folder. Default 0. |
-| `--all`, `-a` | Show up to 1000 folders and 1000 files. |
+| `--all`, `-a` | Show up to 1000 folders and 1000 files. Cannot be combined with `--limit`. |
 
 By default `ls` shows the first 50 folders and the first 50 files. When a folder holds more, the output says which rows are shown and prints the command for the rest (see below).
+
+Pages are read one after another, so if files are added or removed while you page through a folder, a row can be skipped or listed twice. `--skip` is not supported at a task-scoped root.
 
 **Output format:**
 
@@ -126,6 +128,8 @@ When the listing is cut off, the output ends with the range shown and the next c
 showing files 1-50 of 100
 more: unique-cli ls /Reports/Q1 --skip 50 (or: unique-cli ls /Reports/Q1 --all)
 ```
+
+In a task-scoped chat some files may be hidden. The note then says `read` instead of `showing` and names how many rows the scope hid, for example `read files 1-50 of 100 (13 file(s) hidden by task scope)`.
 
 **One-shot examples:**
 

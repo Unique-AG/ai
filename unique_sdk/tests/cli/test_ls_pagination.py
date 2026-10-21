@@ -248,6 +248,60 @@ def test_cmd_ls_rejects_bad_numbers(kwargs: dict[str, int], message: str) -> Non
 
 
 @pytest.mark.ai
+def test_cmd_ls_all_with_limit_is_rejected() -> None:
+    """Purpose: --all together with --limit is an error, not a silent --all.
+    Why this matters: The caller asked for a window the CLI would not honour.
+    Setup summary: 120 files; --all with limit 20.
+    """
+    with _Backend(files=120) as backend:
+        out = cmd_ls(_state(), limit=20, all_items=True)
+    assert out == "ls: --all and --limit cannot be combined"
+    assert is_ls_error_output(out) is True
+    assert backend.file_calls == []
+
+
+@pytest.mark.ai
+def test_cmd_ls_skip_at_scoped_root_is_rejected() -> None:
+    """Purpose: --skip at a task-scoped root says paging is unsupported.
+    Why this matters: The root list is fixed; ignoring --skip hid that.
+    Setup summary: Root with a workspace scope id; skip 50.
+    """
+    state = _state()
+    state._path = "/"
+    state._scope_id = None
+    state.workspace_scope_ids = ["scope_a"]
+    out = cmd_ls(state, skip=50)
+    assert out == "ls: paging is not supported at the scoped root"
+    assert is_ls_error_output(out) is True
+
+
+@pytest.mark.ai
+def test_cmd_ls_task_scope_note_says_rows_were_hidden() -> None:
+    """Purpose: The paging note does not claim rows the task scope hid.
+    Why this matters: "showing files 1-50" next to a shorter table misled agents.
+    Setup summary: 120 files, task scope keeps the even-numbered ones.
+    """
+    state = _state()
+    state.workspace_metadata_filter = {"and": []}
+    with (
+        _Backend(files=120),
+        patch.object(
+            ShellState, "folder_allowed_by_metadata_filter", return_value=True
+        ),
+        patch.object(
+            ShellState,
+            "is_content_within_workspace",
+            side_effect=lambda cid: int(cid[-4:]) % 2 == 0,
+        ),
+    ):
+        out = cmd_ls(state)
+    assert len(_rows(out, "FILE")) == 25
+    assert "read files 1-50 of 120 (25 file(s) hidden by task scope)" in out
+    assert "showing" not in out
+    assert "--skip 50" in out
+
+
+@pytest.mark.ai
 def test_cli_ls_flags_reach_cmd_ls() -> None:
     """Purpose: The Click command forwards --skip, --limit and --all.
     Why this matters: The agent calls the one-shot CLI.
@@ -286,6 +340,8 @@ def test_cli_ls_bad_limit_exits_non_zero() -> None:
         ("/A --skip 50", {"target": "/A", "skip": 50, "limit": 50, "all": False}),
         ("-l 20 /A", {"target": "/A", "skip": 0, "limit": 20, "all": False}),
         ("--all", {"target": None, "skip": 0, "limit": 50, "all": True}),
+        ("/A --limit=20", {"target": "/A", "skip": 0, "limit": 20, "all": False}),
+        ("--skip=50 /A", {"target": "/A", "skip": 50, "limit": 50, "all": False}),
     ],
 )
 def test_shell_do_ls_parses_flags(arg: str, expected: dict[str, Any]) -> None:

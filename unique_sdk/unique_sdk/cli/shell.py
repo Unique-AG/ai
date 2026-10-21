@@ -249,7 +249,15 @@ class UniqueShell(cmd.Cmd):
         skip = 0
         limit = LS_DEFAULT_LIMIT
         all_items = False
-        it = iter(parts)
+        # Accept --limit=20 / --skip=50 like the one-shot CLI does.
+        expanded: list[str] = []
+        for part in parts:
+            name, sep, value = part.partition("=")
+            if sep and name in ("--limit", "--skip"):
+                expanded.extend([name, value])
+            else:
+                expanded.append(part)
+        it = iter(expanded)
         for part in it:
             if part in ("--all", "-a"):
                 all_items = True
