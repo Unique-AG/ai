@@ -2467,6 +2467,12 @@
             "type": "boolean",
             "title": "Enable Enterprise Search",
             "default": false
+          },
+          "enableRedirectResolution": {
+            "type": "boolean",
+            "title": "Enable Redirect Resolution",
+            "description": "Whether to enable redirect resolution.",
+            "default": true
           }
         },
         "type": "object",
