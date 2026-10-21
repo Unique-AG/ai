@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock
 
 import httpx
@@ -353,7 +354,12 @@ def _example_com_target() -> list[AllowedCrawlTarget]:
 async def test_crawl_pinned__maps_transport_errors_to_upstream_errors(
     error: httpx.HTTPError,
     expected_code: str,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    monkeypatch.setattr(
+        logging.getLogger("unique_search_proxy_client"), "propagate", True
+    )
     http_client = AsyncMock(spec=httpx.AsyncClient)
     http_client.get.side_effect = error
     request = parse_crawl_request(
@@ -369,14 +375,21 @@ async def test_crawl_pinned__maps_transport_errors_to_upstream_errors(
 
     assert results[0].error is not None
     assert results[0].error.code == expected_code
+    assert "Basic crawl" in caplog.text
+    assert "example.com" not in caplog.text
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
 async def test_crawl_pinned__reports_processing_timeout(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        logging.getLogger("unique_search_proxy_client"), "propagate", True
+    )
 
     async def time_out(*_args: object, **_kwargs: object) -> str:
         raise service_module.ContentProcessingTimeoutError("too slow")
@@ -403,6 +416,8 @@ async def test_crawl_pinned__reports_processing_timeout(
     assert results[0].error is not None
     assert results[0].error.code == ProxyErrorCode.UPSTREAM_TIMEOUT.value
     assert results[0].raw == _HTML_PAGE
+    assert "Basic crawl processing timed out" in caplog.text
+    assert "example.com" not in caplog.text
 
 
 @pytest.mark.ai
