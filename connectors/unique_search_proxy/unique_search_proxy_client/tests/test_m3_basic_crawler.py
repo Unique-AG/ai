@@ -327,6 +327,84 @@ async def test_crawl_pinned__delegates_private_redirect_to_trusted_proxy(
     assert "Host" not in http_client.get.call_args_list[1].kwargs["headers"]
 
 
+def _example_com_target() -> list[AllowedCrawlTarget]:
+    return [
+        AllowedCrawlTarget(
+            display_url="https://example.com/start",
+            resolved=ResolvedCrawlTarget(
+                normalized_url="https://example.com/start",
+                hostname="example.com",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ),
+    ]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error", "expected_code"),
+    [
+        (httpx.ReadTimeout("timed out"), ProxyErrorCode.UPSTREAM_TIMEOUT.value),
+        (httpx.ConnectError("refused"), ProxyErrorCode.UPSTREAM_ERROR.value),
+    ],
+)
+async def test_crawl_pinned__maps_transport_errors_to_upstream_errors(
+    error: httpx.HTTPError,
+    expected_code: str,
+) -> None:
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.side_effect = error
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, _example_com_target())
+
+    assert results[0].error is not None
+    assert results[0].error.code == expected_code
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__reports_processing_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    async def time_out(*_args: object, **_kwargs: object) -> str:
+        raise service_module.ContentProcessingTimeoutError("too slow")
+
+    monkeypatch.setattr(service_module, "process_content", time_out)
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.return_value = httpx.Response(
+        200,
+        text=_HTML_PAGE,
+        headers={"content-type": "text/html"},
+    )
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, _example_com_target())
+
+    assert results[0].error is not None
+    assert results[0].error.code == ProxyErrorCode.UPSTREAM_TIMEOUT.value
+    assert results[0].raw == _HTML_PAGE
+
+
 @pytest.mark.ai
 def test_crawl_endpoint_returns_per_url_results(client: TestClient) -> None:
     resp = client.post(
