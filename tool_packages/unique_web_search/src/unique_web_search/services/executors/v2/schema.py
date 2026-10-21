@@ -26,7 +26,7 @@ class Step(BaseModel):
 
 
 class WebSearchPlan(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
     objective: str = Field(description="The objective of the plan")
     query_analysis: str = Field(
         description="Analysis of the user's query and what information is needed"
