@@ -13,7 +13,7 @@ Outbound web access should go through **Unique Search Proxy** (`connectors/uniqu
 
 - **New standard engines (Brave, Perplexity) are proxy-only** — legacy raises.
 - **Custom API** uses proxy egress only when
-  `FEATURE_FLAG_ENABLE_CUSTOM_API_SEARCH_PROXY_UN_26736` is enabled; otherwise
+  `FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736` is enabled; otherwise
   the legacy path reports URL-safety outcomes without blocking.
 - Future provider work targets Search Proxy only; legacy is preserved for migrated engines.
 

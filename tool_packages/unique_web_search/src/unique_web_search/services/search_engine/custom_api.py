@@ -160,7 +160,7 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
 
     async def _proxy_routing_enabled(self) -> bool:
         return await is_flag_enabled(
-            FeatureFlagNames.enable_custom_api_search_proxy_un_26736,
+            FeatureFlagNames.search_proxy_enable_custom_api_un_26736,
             company_id=self._request_context.company_id,
             user_id=self._request_context.user_id,
         )

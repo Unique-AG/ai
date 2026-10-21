@@ -26,8 +26,8 @@ class FeatureFlagNames(StrEnum):
     enable_web_search_argument_screening_un_18741 = (
         "FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741"
     )
-    enable_custom_api_search_proxy_un_26736 = (
-        "FEATURE_FLAG_ENABLE_CUSTOM_API_SEARCH_PROXY_UN_26736"
+    search_proxy_enable_custom_api_un_26736 = (
+        "FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736"
     )
 
 

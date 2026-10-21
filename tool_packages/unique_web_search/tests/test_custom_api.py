@@ -75,7 +75,7 @@ class TestCustomApiProxySearch:
 
         direct_client.assert_not_called()
         proxy_flag.assert_awaited_once_with(
-            "FEATURE_FLAG_ENABLE_CUSTOM_API_SEARCH_PROXY_UN_26736",
+            "FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736",
             company_id="company-1",
             user_id="user-1",
         )
