@@ -19,6 +19,8 @@ from .brave_search_request_units_type_0 import BraveSearchRequestUnitsType0
 from .content_types import ContentTypes
 from .crawl_response import CrawlResponse
 from .crawl_url_result import CrawlUrlResult
+from .custom_api_request_method import CustomApiRequestMethod
+from .custom_api_search_request import CustomApiSearchRequest
 from .firecrawl_crawl_request import FirecrawlCrawlRequest
 from .firecrawl_crawl_request_proxy_mode import FirecrawlCrawlRequestProxyMode
 from .firecrawl_crawl_request_scrape_headers_type_0 import (
@@ -72,6 +74,8 @@ __all__ = (
     "ContentTypes",
     "CrawlResponse",
     "CrawlUrlResult",
+    "CustomApiRequestMethod",
+    "CustomApiSearchRequest",
     "FirecrawlCrawlRequest",
     "FirecrawlCrawlRequestProxyMode",
     "FirecrawlCrawlRequestScrapeHeadersType0",

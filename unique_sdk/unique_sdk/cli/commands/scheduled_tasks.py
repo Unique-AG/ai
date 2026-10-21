@@ -46,6 +46,7 @@ def cmd_schedule_create(
     cron: str,
     assistant_id: str,
     prompt: str,
+    timezone: str,
     *,
     name: str | None = None,
     chat_id: str | None = None,
@@ -57,6 +58,7 @@ def cmd_schedule_create(
             "cronExpression": cron,
             "assistantId": assistant_id,
             "prompt": prompt,
+            "timezone": timezone,
             "enabled": enabled,
         }
         if name is not None:
@@ -84,9 +86,13 @@ def cmd_schedule_update(
     prompt: str | None = None,
     name: str | None = None,
     chat_id: str | None = None,
+    timezone: str | None = None,
     enabled: bool | None = None,
 ) -> str:
     """Update an existing scheduled task."""
+    if cron is not None and timezone is None:
+        return f"{SCHEDULE_ERROR_PREFIX} --timezone is required when changing --cron"
+
     try:
         params: dict[str, Any] = {}
         if cron is not None:
@@ -100,6 +106,8 @@ def cmd_schedule_update(
             params["name"] = name if name != "" else None
         if chat_id is not None:
             params["chatId"] = chat_id if chat_id != "" else None
+        if timezone is not None:
+            params["timezone"] = timezone
         if enabled is not None:
             params["enabled"] = enabled
 

@@ -555,12 +555,22 @@ def list_messages(
     event_user_id: str,
     event_company_id: str,
     chat_id: str,
+    exclude_gpt_request: bool = False,
 ) -> ListObject[unique_sdk.Message]:
+    """List the messages of a chat.
+
+    Set `exclude_gpt_request` to skip loading each message's stored LLM request
+    (returned as `None`); it holds the full prompt history and can reach
+    hundreds of MB for long chats. Platforms without support ignore it.
+    """
     try:
+        params: unique_sdk.Message.ListParams = {"chatId": chat_id}
+        if exclude_gpt_request:
+            params["excludeGptRequest"] = True
         messages = unique_sdk.Message.list(
             user_id=event_user_id,
             company_id=event_company_id,
-            chatId=chat_id,
+            **params,
         )
         return messages
     except Exception as e:
@@ -572,12 +582,17 @@ async def list_messages_async(
     event_user_id: str,
     event_company_id: str,
     chat_id: str,
+    exclude_gpt_request: bool = False,
 ) -> ListObject[unique_sdk.Message]:
+    """Async variant of `list_messages`."""
     try:
+        params: unique_sdk.Message.ListParams = {"chatId": chat_id}
+        if exclude_gpt_request:
+            params["excludeGptRequest"] = True
         messages = await unique_sdk.Message.list_async(
             user_id=event_user_id,
             company_id=event_company_id,
-            chatId=chat_id,
+            **params,
         )
         return messages
     except Exception as e:
@@ -590,7 +605,12 @@ def get_full_history(
     event_company_id: str,
     event_payload_chat_id: str,
 ) -> list[ChatMessage]:
-    messages = list_messages(event_user_id, event_company_id, event_payload_chat_id)
+    messages = list_messages(
+        event_user_id,
+        event_company_id,
+        event_payload_chat_id,
+        exclude_gpt_request=True,
+    )
     messages = filter_valid_messages(messages)
 
     return [ChatMessage.model_validate(msg) for msg in messages]
@@ -605,6 +625,7 @@ async def get_full_history_async(
         event_user_id,
         event_company_id,
         event_payload_chat_id,
+        exclude_gpt_request=True,
     )
     messages = filter_valid_messages(messages)
 

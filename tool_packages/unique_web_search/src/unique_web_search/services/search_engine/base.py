@@ -8,14 +8,14 @@ from pydantic import BaseModel
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.config_types import ENGINE_NAME_TO_CONFIG
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
+from unique_search_proxy_core.param_policy.exposable_config import (
+    ExposableParamsConfig,
+)
 from unique_search_proxy_core.param_policy.exposable_param import (
     resolve_exposable_value,
 )
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
-from unique_search_proxy_core.search_engines.base import (
-    BaseSearchEngineConfig,
-    SearchEngineType,
-)
+from unique_search_proxy_core.search_engines.base import SearchEngineType
 
 from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
@@ -45,8 +45,7 @@ class LocalSearchEngineType(StrEnum):
     CUSTOM_API = "custom_api"
 
 
-# Engine ids that the search proxy can serve. Every other engine
-# (e.g. ``LocalSearchEngineType``) is routed to the local legacy implementation.
+# Engine ids that the search proxy can serve.
 ProxyEngineType = SearchEngineType | AgentEngineType
 
 # Fields present on agent-engine configs that are not accepted as proxy call kwargs.
@@ -69,8 +68,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     provide the direct ``_legacy_search`` implementation.
 
     ``search`` uses the proxy whenever it is enabled and the engine is supported by
-    it, otherwise it reroutes to the local legacy implementation. Engines that the
-    proxy cannot serve (e.g. custom APIs) always fall back to ``_legacy_search``.
+    it, otherwise it reroutes to the local legacy implementation.
     """
 
     # Set by agent engines (Bing/VertexAI) and consumed by the agent proxy path.
@@ -90,6 +88,14 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         """Whether the search engine requires scraping."""
         return False
 
+    async def _proxy_routing_enabled(self) -> bool:
+        """Whether this engine may use Search Proxy for the current request."""
+        return True
+
+    @property
+    def _standard_proxy_client_timeout(self) -> float:
+        return _STANDARD_PROXY_TIMEOUT
+
     @property
     def _proxy_engine(self) -> ProxyEngineType | None:
         """The proxy engine id for this config, or ``None`` if not proxy-supported."""
@@ -105,7 +111,11 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     ) -> list[WebSearchResult]:
         """Search the web for the given query using the search engine."""
         proxy_engine = self._proxy_engine
-        if search_proxy_client_enabled and proxy_engine is not None:
+        if (
+            search_proxy_client_enabled
+            and proxy_engine is not None
+            and await self._proxy_routing_enabled()
+        ):
             return await self._proxy_search(query, params, proxy_engine)
         return await self._legacy_search(query=query, params=params)
 
@@ -127,9 +137,9 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         engine: SearchEngineType,
     ) -> list[WebSearchResult]:
         """Merge deployment config with per-call params and dispatch via the proxy SDK."""
-        if not isinstance(self.config, BaseSearchEngineConfig):
+        if not isinstance(self.config, ExposableParamsConfig):
             raise TypeError(
-                f"Standard proxy search requires BaseSearchEngineConfig, "
+                f"Standard proxy search requires ExposableParamsConfig, "
                 f"got {type(self.config).__name__}"
             )
         overrides = (
@@ -140,7 +150,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         invocation.pop("engine", None)
         invocation.pop("query", None)
         async with open_search_proxy_client(
-            timeout=_STANDARD_PROXY_TIMEOUT,
+            timeout=self._standard_proxy_client_timeout,
             context=self._request_context,
         ) as client:
             response = await client.search.search(

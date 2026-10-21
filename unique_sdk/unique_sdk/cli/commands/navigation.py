@@ -8,7 +8,10 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_ls
-from unique_sdk.cli.metadata_filter import _collect_filter_targets
+from unique_sdk.cli.metadata_filter import (
+    _collect_filter_targets,
+    direct_children_filter,
+)
 from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
 
@@ -139,10 +142,11 @@ def _window_note(
     if any(skip + shown[kind] < totals[kind] for kind in shown):
         quoted = shlex.quote(label)
         limit_arg = "" if limit == LS_DEFAULT_LIMIT else f" --limit {limit}"
-        note += (
-            f"\nmore: unique-cli ls {quoted} --skip {skip + limit}{limit_arg}"
-            f" (or: unique-cli ls {quoted} --all)"
-        )
+        note += f"\nmore: unique-cli ls {quoted} --skip {skip + limit}{limit_arg}"
+        # --all restarts at row 0, so it only helps when it would show more
+        # than this window already does; at the cap it would repeat rows.
+        if skip == 0 and limit < LS_MAX_LIMIT:
+            note += f" (or: unique-cli ls {quoted} --all)"
     return note
 
 
@@ -268,10 +272,8 @@ def cmd_ls(
                 return path_error
 
         folder_params: dict[str, Any] = {}
-        content_params: dict[str, Any] = {}
         if scope_id:
             folder_params["parentId"] = scope_id
-            content_params["parentId"] = scope_id
 
         folders, total_folders = _fetch_window(
             lambda offset, take: unique_sdk.Folder.get_infos(
@@ -285,18 +287,22 @@ def cmd_ls(
             skip,
             limit,
         )
-        files, total_files = _fetch_window(
-            lambda offset, take: unique_sdk.Content.get_infos(
-                user_id=state.config.user_id,
-                company_id=state.config.company_id,
-                skip=offset,
-                take=take,
-                **content_params,
-            ),
-            "contentInfos",
-            skip,
-            limit,
-        )
+        # Every file lives in a folder, so the root has no files of its own.
+        files: list[Any] = []
+        total_files = 0
+        if scope_id:
+            files, total_files = _fetch_window(
+                lambda offset, take: unique_sdk.Content.get_infos(
+                    user_id=state.config.user_id,
+                    company_id=state.config.company_id,
+                    metadataFilter=direct_children_filter(scope_id),
+                    skip=offset,
+                    take=take,
+                ),
+                "contentInfos",
+                skip,
+                limit,
+            )
         note = _window_note(
             target if target is not None else resolved_path,
             skip,

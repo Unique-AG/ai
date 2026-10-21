@@ -1,9 +1,4 @@
-"""Build request bodies for LiteLLM's Anthropic-compatible ``count_tokens`` endpoint.
-
-Agent-loop messages are in OpenAI chat format. The endpoint expects the Anthropic
-Messages format, so system messages, tool calls, tool results and images are
-converted before counting.
-"""
+"""Convert OpenAI chat payloads to request bodies for LiteLLM's Anthropic-compatible ``count_tokens`` endpoint."""
 
 from __future__ import annotations
 

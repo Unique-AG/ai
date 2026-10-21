@@ -22,7 +22,8 @@ from unique_sdk.cli.state import ShellState
 
 
 def _state() -> ShellState:
-    return ShellState(
+    """A shell inside /Reports: the root lists no files of its own."""
+    state = ShellState(
         Config(
             user_id="u1",
             company_id="c1",
@@ -31,6 +32,9 @@ def _state() -> ShellState:
             api_base="https://example.com",
         )
     )
+    state._path = "/Reports"
+    state._scope_id = "scope_r"
+    return state
 
 
 def _fake_infos(
@@ -83,6 +87,10 @@ class _Backend:
             patch(
                 "unique_sdk.Content.get_infos",
                 side_effect=_fake_infos("contentInfos", _files(files), self.file_calls),
+            ),
+            patch(
+                "unique_sdk.Folder.get_folder_path",
+                return_value={"folderPath": "/Reports"},
             ),
             patch(
                 "unique_sdk.Folder.get_infos",
@@ -186,6 +194,20 @@ def test_cmd_ls_all_stops_at_the_safety_cap() -> None:
     assert len(_rows(out, "FILE")) == LS_MAX_LIMIT
     assert len(backend.file_calls) == LS_MAX_LIMIT // 100
     assert f"--skip {LS_MAX_LIMIT}" in out
+    # --all restarts at row 0, so at the cap it would only repeat these rows.
+    assert "--all" not in out
+
+
+@pytest.mark.ai
+def test_cmd_ls_later_page_does_not_offer_all() -> None:
+    """Purpose: --all is only suggested when it reaches rows this call did not.
+    Why this matters: --all restarts at row 0; offering it mid-listing loops (Bugbot).
+    Setup summary: 230 files; skip 50.
+    """
+    with _Backend(files=230):
+        out = cmd_ls(_state(), skip=50)
+    assert "--skip 100" in out
+    assert "--all" not in out
 
 
 @pytest.mark.ai

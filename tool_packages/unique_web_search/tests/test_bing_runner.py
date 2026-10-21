@@ -256,20 +256,42 @@ class TestJsonConversionStrategy:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_call__no_json_fence__raises_value_error(self) -> None:
+    async def test_call__bare_json__returns_web_search_results(
+        self, sample_result_item: ResultItem
+    ) -> None:
         """
-        Purpose: Verify ValueError is raised when no JSON code fence exists.
+        Purpose: Verify bare JSON without a code fence is parsed directly.
+        Why this matters: Search Proxy agents return schema-enforced bare JSON; it must not fall back to the LLM parser.
+        Setup summary: Serialized results without a fence; assert URL is preserved.
+        """
+        # Arrange
+        strategy = JsonConversionStrategy()
+        response = GroundingWithBingResults(
+            results=[sample_result_item]
+        ).model_dump_json()
+
+        # Act
+        results = await strategy(response)
+
+        # Assert
+        assert len(results) == 1
+        assert results[0].url == "https://example.com/article"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_call__plain_text__raises_value_error(self) -> None:
+        """
+        Purpose: Verify ValueError is raised when the response is not results JSON.
         Why this matters: Enables fallback to next strategy in the chain.
-        Setup summary: Plain text response without code fence.
+        Setup summary: Plain text response without JSON.
         """
         # Arrange
         strategy = JsonConversionStrategy()
         response = "This is a plain text answer without any JSON."
 
         # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError):
             await strategy(response)
-        assert "No JSON found" in str(exc_info.value)
 
     @pytest.mark.ai
     @pytest.mark.asyncio

@@ -97,6 +97,9 @@ class TestStartupSettingsReport:
         assert "[Google Search] incomplete (2 missing)" in report
         assert "GOOGLE_SEARCH_API_KEY=NOT_PROVIDED" in report
         assert "GOOGLE_SEARCH_ENGINE_ID=NOT_PROVIDED" in report
+        assert "CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS=" in report
+        assert "CUSTOM_API_TRUSTED_PRIVATE_HOSTS=" not in report
+        assert "URL_SAFETY_CUSTOM_API_TRUSTED_PRIVATE_HOSTS=" not in report
         assert "[Runtime] LOG_LEVEL=" in report
 
     @pytest.mark.ai

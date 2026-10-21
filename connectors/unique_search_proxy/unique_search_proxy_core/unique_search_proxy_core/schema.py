@@ -4,7 +4,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal, overload
 
 import humps
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 
@@ -97,7 +97,9 @@ class WebSearchResult(BaseModel):
 
 class WebSearchResults(BaseModel):
     model_config = camelized_model_config
-    results: list[WebSearchResult]
+    results: list[WebSearchResult] = Field(
+        validation_alias=AliasChoices("results", "curated")
+    )
 
     def __len__(self) -> int:
         return len(self.results)
