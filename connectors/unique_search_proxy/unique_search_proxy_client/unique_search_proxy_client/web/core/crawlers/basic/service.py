@@ -209,7 +209,10 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 raw=raw_body,
             )
         except ContentProcessingError as exc:
-            _LOGGER.warning("Basic crawl processing failed: %s", exc)
+            _LOGGER.warning(
+                "Basic crawl processing failed error_type=%s",
+                type(exc.__cause__ or exc).__name__,
+            )
             return crawl_upstream_error(
                 request_url,
                 str(exc),
