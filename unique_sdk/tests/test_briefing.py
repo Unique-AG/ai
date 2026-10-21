@@ -282,3 +282,134 @@ def test_AI_upsert_raises_when_prompt_body_too_long():
             text="txt",
             prompts=[{"title": "x", "body": long_body}],
         )
+
+
+@pytest.mark.ai
+@patch.object(Briefing, "_static_request", autospec=True)
+def test_AI_retrieve_for_assistant_calls_get(mock_static):
+    """retrieve_for_assistant issues GET on /briefings/{assistantId}."""
+    mock_static.return_value = {
+        "object": "briefing",
+        "externalId": "as/x",
+        "text": "body",
+        "generatedAt": _FIXED_ISO,
+        "prompts": [],
+        "createdAt": "t1",
+        "updatedAt": "t2",
+    }
+
+    Briefing.retrieve_for_assistant(
+        user_id="u1",
+        company_id="co1",
+        assistant_id="as/x",
+    )
+
+    mock_static.assert_called_once_with("get", "/briefings/as%2Fx", "u1", "co1")
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch.object(Briefing, "_static_request_async", autospec=True)
+async def test_AI_retrieve_for_assistant_async_calls_get(mock_async):
+    """Async retrieve mirrors sync GET URL and method."""
+    mock_async.return_value = {
+        "object": "briefing",
+        "externalId": "aid",
+        "text": "c",
+        "generatedAt": _FIXED_ISO,
+        "prompts": [],
+        "createdAt": "t1",
+        "updatedAt": "t2",
+    }
+
+    await Briefing.retrieve_for_assistant_async(
+        user_id="u1",
+        company_id="co1",
+        assistant_id="aid",
+    )
+
+    mock_async.assert_called_once_with("get", "/briefings/aid", "u1", "co1")
+
+
+@pytest.mark.ai
+@patch.object(Briefing, "_static_request", autospec=True)
+def test_AI_delete_for_assistant_calls_delete(mock_static):
+    """delete_for_assistant issues DELETE on /briefings/{assistantId}."""
+    mock_static.return_value = {
+        "object": "deleted-briefing",
+        "id": "as/x",
+        "deleted": True,
+    }
+
+    result = Briefing.delete_for_assistant(
+        user_id="u1",
+        company_id="co1",
+        assistant_id="as/x",
+    )
+
+    mock_static.assert_called_once_with("delete", "/briefings/as%2Fx", "u1", "co1")
+    assert result["object"] == "deleted-briefing"
+    assert result["deleted"] is True
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch.object(Briefing, "_static_request_async", autospec=True)
+async def test_AI_delete_for_assistant_async_calls_delete(mock_async):
+    """Async delete mirrors sync DELETE semantics."""
+    mock_async.return_value = {
+        "object": "deleted-briefing",
+        "id": "aid",
+        "deleted": True,
+    }
+
+    await Briefing.delete_for_assistant_async(
+        user_id="u1",
+        company_id="co1",
+        assistant_id="aid",
+    )
+
+    mock_async.assert_called_once_with("delete", "/briefings/aid", "u1", "co1")
+
+
+@pytest.mark.ai
+@patch.object(Briefing, "_static_request", autospec=True)
+def test_AI_upsert_sends_title_when_provided(mock_static):
+    """Optional title= is included in the PUT JSON body."""
+    mock_static.return_value = {
+        "object": "briefing",
+        "externalId": "aid",
+        "text": "t",
+        "title": "Today's Briefing",
+        "generatedAt": _FIXED_ISO,
+        "prompts": [],
+        "createdAt": "c",
+        "updatedAt": "u",
+    }
+
+    Briefing.upsert_for_assistant(
+        user_id="u",
+        company_id="c",
+        assistant_id="aid",
+        text="body",
+        title="Today's Briefing",
+        generatedAt=_FIXED_ISO,
+        prompts=[],
+    )
+
+    payload = mock_static.call_args[0][4]
+    assert payload["title"] == "Today's Briefing"
+
+
+@pytest.mark.ai
+def test_AI_upsert_raises_when_title_over_100():
+    """Overlong title is rejected locally before hitting the wire."""
+    with pytest.raises(ValueError, match="100"):
+        Briefing.upsert_for_assistant(
+            user_id="u",
+            company_id="c",
+            assistant_id="a",
+            text="txt",
+            title="t" * 101,
+            prompts=[],
+        )

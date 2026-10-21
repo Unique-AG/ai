@@ -69,7 +69,13 @@ from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.mcp import (
     is_error_output as _is_mcp_error_output,
 )
-from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.navigation import (
+    LS_DEFAULT_LIMIT,
+    LS_MAX_LIMIT,
+    cmd_cd,
+    cmd_ls,
+    cmd_pwd,
+)
 from unique_sdk.cli.commands.navigation import (
     is_ls_error_output as _is_ls_error_output,
 )
@@ -309,13 +315,44 @@ def cd(ctx: click.Context, target: str) -> None:
 
 @main.command()
 @click.argument("target", required=False, default=None)
+@click.option(
+    "--limit",
+    "-l",
+    type=int,
+    default=LS_DEFAULT_LIMIT,
+    show_default=True,
+    help=f"Max folders and max files to show (1-{LS_MAX_LIMIT}).",
+)
+@click.option(
+    "--skip",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Skip this many folders and files first (for paging).",
+)
+@click.option(
+    "--all",
+    "-a",
+    "all_items",
+    is_flag=True,
+    help=f"Show up to {LS_MAX_LIMIT} folders and {LS_MAX_LIMIT} files.",
+)
 @click.pass_context
-def ls(ctx: click.Context, target: str | None) -> None:
+def ls(
+    ctx: click.Context,
+    target: str | None,
+    limit: int,
+    skip: int,
+    all_items: bool,
+) -> None:
     """List folders and files in a directory.
 
     \b
     Without TARGET, lists the current directory. With TARGET, lists
     the specified folder (by name, absolute path, or scope ID).
+    Shows 50 folders and 50 files by default. When a folder holds more,
+    the output says "showing ... of N" and prints the command for the
+    rest: use --skip to page, --limit to show more, or --all.
 
     \b
     Output columns: TYPE  NAME  ID  SIZE  UPDATED
@@ -327,8 +364,12 @@ def ls(ctx: click.Context, target: str | None) -> None:
       unique-cli ls              List root folders
       unique-cli ls /Reports     List a specific path
       unique-cli ls scope_abc    List by scope ID
+      unique-cli ls /Reports --skip 50    Next page of a large folder
+      unique-cli ls /Reports --all        Up to 1000 folders and files
     """
-    output = cmd_ls(LazyState.get(ctx), target)
+    output = cmd_ls(
+        LazyState.get(ctx), target, skip=skip, limit=limit, all_items=all_items
+    )
     emit(output, is_error=_is_ls_error_output)
 
 

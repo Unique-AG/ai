@@ -1,9 +1,5 @@
-import asyncio
-import logging
 from typing import override
 
-from httpx import AsyncClient as HttpxAsyncClient
-from httpx import HTTPError
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.vertexai.schema import VertexAIAgentConfig
@@ -19,10 +15,7 @@ from unique_web_search.services.proxy.bridge import (
 )
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
 from unique_web_search.services.search_engine.registry import register_search_engine
-from unique_web_search.services.search_engine.schema import (
-    WebSearchResult,
-    WebSearchResults,
-)
+from unique_web_search.services.search_engine.schema import WebSearchResult
 from unique_web_search.services.search_engine.utils.grounding import (
     JsonConversionStrategy,
     LLMParserStrategy,
@@ -35,8 +28,6 @@ from unique_web_search.services.search_engine.utils.grounding.vertexai import (
     get_vertex_grounding_with_structured_output_config,
 )
 
-_LOGGER = logging.getLogger(__name__)
-
 
 class VertexAIConfig(VertexAIAgentConfig):
     language_model: LMI = get_LMI_default_field(
@@ -47,11 +38,6 @@ class VertexAIConfig(VertexAIAgentConfig):
     requires_scraping: bool = Field(
         default=False,
         description="Whether the search engine requires scraping.",
-    )
-
-    enable_redirect_resolution: bool = Field(
-        default=True,
-        description="Whether to enable redirect resolution.",
     )
 
 
@@ -88,16 +74,6 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         return self.config.requires_scraping
 
     @override
-    async def _postprocess_results(
-        self,
-        results: list[WebSearchResult],
-    ) -> list[WebSearchResult]:
-        if self.config.enable_redirect_resolution:
-            resolved = await resolve_all(WebSearchResults(results=results))
-            return resolved.results
-        return results
-
-    @override
     async def _legacy_search(
         self,
         query: str,
@@ -127,21 +103,4 @@ class VertexAI(SearchEngine[VertexAIConfig]):
             answer_with_citations, self.response_parsers
         )
 
-        return await self._postprocess_results(results)
-
-
-async def resolve_url(client: HttpxAsyncClient, web_search_result: WebSearchResult):
-    try:
-        resp = await client.head(web_search_result.url, follow_redirects=True)
-        web_search_result.url = str(resp.url)
-        return web_search_result
-    except HTTPError as e:
-        _LOGGER.error(f"Unable to resolve redirect URL: {type(e).__name__}")
-        return web_search_result
-
-
-async def resolve_all(web_search_results: WebSearchResults):
-    async with HttpxAsyncClient(follow_redirects=True, timeout=10) as client:
-        tasks = [resolve_url(client, result) for result in web_search_results.results]
-        results = await asyncio.gather(*tasks)
-        return WebSearchResults(results=results)
+        return results

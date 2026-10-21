@@ -381,6 +381,7 @@ class TestChatServiceUnit:
             user_id="test_user",
             company_id="test_company",
             chatId="test_chat",
+            excludeGptRequest=True,
         )
 
     @patch.object(unique_sdk.Message, "create", autospec=True)
@@ -680,6 +681,7 @@ class TestChatServiceUnit:
             user_id="test_user",
             company_id="test_company",
             chatId="test_chat",
+            excludeGptRequest=True,
         )
 
     @pytest.mark.asyncio

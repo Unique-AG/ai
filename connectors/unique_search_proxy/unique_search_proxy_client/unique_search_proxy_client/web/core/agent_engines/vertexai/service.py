@@ -4,6 +4,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+from httpx import AsyncClient
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.resolve import (
     resolve_output_schema_for_engine,
@@ -30,6 +31,9 @@ from unique_search_proxy_client.web.core.agent_engines.vertexai.gemini import (
     serialize_vertex_response,
     stream_vertexai_response,
 )
+from unique_search_proxy_client.web.core.agent_engines.vertexai.redirects import (
+    resolve_vertex_result_urls,
+)
 from unique_search_proxy_client.web.core.provider_response import transport_error_raw
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,9 +44,10 @@ class VertexAIAgentSearchService(
 ):
     engine_id = AgentEngineType.VERTEXAI.value
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self._client = get_vertex_client(self._http_client)
+    def __init__(self, *, http_client: AsyncClient) -> None:
+        super().__init__(http_client=http_client)
+        self._egress_http_client = http_client
+        self._client = get_vertex_client(http_client)
 
     async def search(self, request: VertexAIAgentSearchRequest) -> AgentSearchResponse:  # type: ignore[override]
         response: AgentSearchResponse | None = None
@@ -52,6 +57,11 @@ class VertexAIAgentSearchService(
         if response is None:
             msg = "VertexAI agent search stream ended without a done event"
             raise UpstreamError(msg)
+        if request.enable_redirect_resolution:
+            response.answer = await resolve_vertex_result_urls(
+                response.answer,
+                http_client=self._egress_http_client,
+            )
         return response
 
     async def stream(

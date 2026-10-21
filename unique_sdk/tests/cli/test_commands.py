@@ -49,6 +49,7 @@ from unique_sdk.cli.commands.search import (
     cmd_search,
 )
 from unique_sdk.cli.config import Config
+from unique_sdk.cli.metadata_filter import direct_children_filter
 from unique_sdk.cli.state import ShellState
 
 
@@ -183,20 +184,55 @@ class TestNavigation:
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_root(self, mock_folders: MagicMock, mock_files: MagicMock) -> None:
+        """Root ls lists folders only; an unfiltered content/infos is denied."""
         mock_folders.return_value = {
             "folderInfos": [_folder_info()],
-            "totalCount": 1,
-        }
-        mock_files.return_value = {
-            "contentInfos": [_content_info()],
             "totalCount": 1,
         }
         result = cmd_ls(_state())
         assert "DIR" in result
         assert "Reports/" in result
-        assert "FILE" in result
+        assert "1 folder(s), 0 file(s)" in result
+        mock_files.assert_not_called()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_folder_lists_direct_children_by_filter(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        mock_path.return_value = {"folderPath": "/Reports"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {
+            "contentInfos": [_content_info()],
+            "totalCount": 1,
+        }
+        result = cmd_ls(_state("/Reports", "scope_r"))
         assert "report.pdf" in result
-        assert "1 folder(s), 1 file(s)" in result
+        assert "0 folder(s), 1 file(s)" in result
+        mock_files.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            metadataFilter={
+                "and": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_r",
+                    },
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "notContains",
+                        "value": "scope_r/",
+                    },
+                ]
+            },
+            skip=0,
+            take=50,
+        )
 
     @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
@@ -215,6 +251,42 @@ class TestNavigation:
             result = cmd_ls(_state(), "/Reports")
         assert "0 folder(s), 0 file(s)" in result
         assert is_ls_error_output(result) is False
+        mock_files.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            metadataFilter=direct_children_filter("scope_r"),
+            skip=0,
+            take=50,
+        )
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_root_target_from_folder_skips_content_call(
+        self, mock_folders: MagicMock, mock_files: MagicMock
+    ) -> None:
+        mock_folders.return_value = {"folderInfos": [_folder_info()], "totalCount": 1}
+        result = cmd_ls(_state("/Reports", "scope_r"), "/")
+        assert "1 folder(s), 0 file(s)" in result
+        mock_files.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("folder_id_path", "listed"),
+        [
+            ("uniquepathid://scope_a", False),
+            ("uniquepathid://scope_a/scope_b", True),
+            ("uniquepathid://scope_a/scope_b/scope_c", False),
+        ],
+    )
+    def test_direct_children_filter_matches_leaf_folder_only(
+        self, folder_id_path: str, listed: bool
+    ) -> None:
+        """``ls a/b`` lists b's files, not a's or those of b's subfolders."""
+        contains, not_contains = direct_children_filter("scope_b")["and"]
+        matches = (
+            contains["value"] in folder_id_path
+            and not_contains["value"] not in folder_id_path
+        )
+        assert matches is listed
 
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_error(self, mock: MagicMock) -> None:
@@ -1163,74 +1235,49 @@ class TestFiles:
 
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Content.search")
-    def test_resolve_content_id_falls_back_to_capped_infos(
+    def test_resolve_content_id_falls_back_to_name_filtered_infos(
         self,
         mock_search: MagicMock,
         mock_infos: MagicMock,
     ) -> None:
         mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
-        others = []
-        for i in range(100):
-            other = _content_info(title=f"other-{i}.pdf", cid=f"cont_o{i}")
-            other["key"] = f"other-{i}.pdf"
-            others.append(other)
-        mock_infos.side_effect = [
-            {"contentInfos": others, "totalCount": 101},
-            {"contentInfos": [_content_info()], "totalCount": 101},
-        ]
+        mock_infos.return_value = {"contentInfos": [_content_info()], "totalCount": 1}
         cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
-        assert cid == "cont_123"
-        assert name == "report.pdf"
-        assert mock_infos.call_args_list[0].kwargs["parentId"] == "scope_r"
-        assert mock_infos.call_args_list[0].kwargs["skip"] == 0
-
-    @patch("unique_sdk.Content.get_infos")
-    @patch("unique_sdk.Content.search")
-    def test_resolve_content_id_infos_fallback_respects_page_cap(
-        self,
-        mock_search: MagicMock,
-        mock_infos: MagicMock,
-    ) -> None:
-        mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
-
-        def _page(**kwargs: Any) -> dict[str, Any]:
-            skip = int(kwargs.get("skip") or 0)
-            take = int(kwargs.get("take") or 100)
-            return {
-                "contentInfos": [
+        assert (cid, name) == ("cont_123", "report.pdf")
+        mock_infos.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            metadataFilter={
+                "and": [
+                    direct_children_filter("scope_r"),
                     {
-                        "id": f"cont_{skip + i}",
-                        "key": f"other-{skip + i}.pdf",
-                        "title": f"other-{skip + i}.pdf",
-                    }
-                    for i in range(take)
-                ],
-                "totalCount": 10_000,
-            }
-
-        mock_infos.side_effect = _page
-        with pytest.raises(
-            ValueError, match="File not found in the first 1000 entries"
-        ):
-            _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
-        assert mock_infos.call_count == 10
-        assert all(
-            call.kwargs.get("parentId") == "scope_r"
-            for call in mock_infos.call_args_list
+                        "or": [
+                            {
+                                "path": ["title"],
+                                "operator": "equals",
+                                "value": "report.pdf",
+                            },
+                            {
+                                "path": ["key"],
+                                "operator": "equals",
+                                "value": "report.pdf",
+                            },
+                        ]
+                    },
+                ]
+            },
+            take=100,
         )
 
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Content.search")
-    def test_resolve_content_id_infos_fallback_stops_on_short_page(
+    def test_resolve_content_id_infos_fallback_not_found(
         self,
         mock_search: MagicMock,
         mock_infos: MagicMock,
     ) -> None:
         mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
-        mock_infos.return_value = {
-            "contentInfos": [_content_info(title="other.pdf")],
-            "totalCount": 1,
-        }
+        mock_infos.return_value = {"contentInfos": [], "totalCount": 0}
         with pytest.raises(ValueError, match=r"^File not found: nope\.pdf$"):
             _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
         assert mock_infos.call_count == 1
