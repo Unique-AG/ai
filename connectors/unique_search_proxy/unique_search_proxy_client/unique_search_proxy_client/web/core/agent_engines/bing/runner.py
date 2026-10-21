@@ -16,9 +16,6 @@ from httpx import AsyncClient
 from openai.types.responses import ResponseStreamEvent
 from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
-from openai.types.responses.response_output_item_done_event import (
-    ResponseOutputItemDoneEvent,
-)
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import (
     AnnotationURLCitation,
@@ -214,11 +211,6 @@ async def stream_bing_grounding_agent(
                 if event.delta:
                     emitted_text = True
                     yield event.delta, event.model_dump(mode="json", warnings="none")
-            elif isinstance(event, ResponseOutputItemDoneEvent):
-                # Keep item-level extraction for diagnostics, but publish citations
-                # only from the completed response. Item offsets are local to that
-                # item, whereas the response answer concatenates every output item.
-                _extract_url_citations(event)
             elif isinstance(event, ResponseCompletedEvent):
                 response = event.response
                 output_text = response.output_text
@@ -270,21 +262,12 @@ async def _create_responses_stream(
     return stream
 
 
-def _extract_url_citations(
-    event: ResponseOutputItemDoneEvent,
-) -> list[GroundingCitation]:
-    item = event.item
-    if not isinstance(item, ResponseOutputMessage):
-        return []
-    return _extract_message_url_citations(item)
-
-
 def _extract_message_url_citations(
     item: ResponseOutputMessage,
     *,
     start_index_offset: int = 0,
 ) -> list[GroundingCitation]:
-    if not isinstance(item, ResponseOutputMessage) or not item.content:
+    if not item.content:
         return []
 
     citations: list[GroundingCitation] = []
@@ -301,27 +284,13 @@ def _extract_message_url_citations(
                     GroundingCitation(
                         url=annotation.url,
                         title=annotation.title,
+                        marker=marker,
                         start_index=text_offset + annotation.start_index,
                         end_index=text_offset + annotation.end_index,
-                        marker=marker,
                         output_item_id=item.id,
                     )
                 )
         text_offset += len(text_content.text)
-
-    _LOGGER.info(
-        "Foundry Bing citation annotations output_item_id=%s "
-        "citation_count=%d citations=%s",
-        item.id,
-        len(citations),
-        [
-            citation.model_dump(
-                mode="json",
-                by_alias=True,
-            )
-            for citation in citations
-        ],
-    )
     return citations
 
 
@@ -345,4 +314,12 @@ def _extract_response_url_citations(
             for content in item.content or []
             if isinstance(content, ResponseOutputText)
         )
+
+    _LOGGER.info(
+        "Foundry Bing citation annotations response_id=%s "
+        "citation_count=%d citations=%s",
+        response.id,
+        len(citations),
+        [citation.model_dump(mode="json", by_alias=True) for citation in citations],
+    )
     return citations

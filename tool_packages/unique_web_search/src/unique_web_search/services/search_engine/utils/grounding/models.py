@@ -51,38 +51,6 @@ class GroundingSearchResults(BaseModel):
         ]
 
 
-class CitedResultItem(BaseModel):
-    """Structured content keyed by a provider-authoritative citation id."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    source_id: str = Field(
-        description="The exact SOURCE_n identifier attached to this source.",
-    )
-    detailed_answer: str = Field(
-        description=(
-            "All information from this source, preserving facts, figures, dates, "
-            "names, quotes, and context."
-        ),
-    )
-    key_facts: list[str] = Field(
-        description="Specific standalone facts extracted from this source.",
-    )
-
-
-class CitedGroundingSearchResults(BaseModel):
-    """Citation-safe intermediate representation for grounded prose."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    results: list[CitedResultItem] = Field(
-        description=(
-            "One entry for every SOURCE_n identifier in the response. "
-            "Use only identifiers present in the response."
-        ),
-    )
-
-
 GENERATION_INSTRUCTIONS = """You are an Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you find.
 
 ## Core Directives

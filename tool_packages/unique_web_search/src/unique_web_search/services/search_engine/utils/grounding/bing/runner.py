@@ -14,9 +14,6 @@ from azure.ai.projects.models import (
 from openai.types.responses import ResponseStreamEvent
 from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
-from openai.types.responses.response_output_item_done_event import (
-    ResponseOutputItemDoneEvent,
-)
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import (
     AnnotationURLCitation,
@@ -31,14 +28,6 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
 from unique_search_proxy_core.schema import GroundingCitation
 
 from unique_web_search.invocation_stats import collector
-from unique_web_search.services.search_engine.schema import (
-    WebSearchResult,
-)
-from unique_web_search.services.search_engine.utils.grounding import (
-    CitationAwareLLMParserStrategy,
-    ResponseParser,
-    convert_response_to_search_results,
-)
 from unique_web_search.services.search_engine.utils.grounding.bing.client import (
     get_openai_client,
 )
@@ -183,11 +172,9 @@ async def create_and_process_run(
     agent_client: AIProjectClient,
     query: str,
     grounding: BingGroundingConfiguration,
-    response_parsers_strategies: list[ResponseParser],
     generation_instructions: str,
-    citation_parser_strategy: CitationAwareLLMParserStrategy | None = None,
-) -> list[WebSearchResult]:
-    """Execute a Bing-grounded agent run and return parsed search results.
+) -> tuple[str, list[GroundingCitation]]:
+    """Execute a Bing-grounded agent run and return its answer and citations.
 
     Optimistically calls Responses with a hash-derived agent name. If the agent
     is missing, creates it once and retries.
@@ -196,39 +183,22 @@ async def create_and_process_run(
         agent_client: Azure AI project client used to manage agents.
         query: The search query to send to the agent.
         grounding: Bing tool knobs (result count, market, language, freshness).
-        response_parsers_strategies: Ordered list of parsing strategies to try
-            when converting the agent's free-text response into structured results.
         generation_instructions: Per-request system instructions for the agent.
+
+    Returns:
+        The answer text and its citations, with offsets into that text.
 
     Raises:
         Exception: If the agent run fails.
-        ValueError: If none of the parser strategies can parse the response.
     """
-    instructions = (
-        build_bing_citation_instructions(generation_instructions)
-        if citation_parser_strategy
-        else f"{generation_instructions}\n{RESPONSE_RULE}"
-    )
     model = env_settings.azure_ai_bing_agent_model
-    answer, citations = await _run_responses_agent(
+    return await _run_responses_agent(
         agent_client,
         query=query,
         model=model,
-        instructions=instructions,
+        instructions=build_bing_citation_instructions(generation_instructions),
         grounding=grounding,
     )
-
-    if citation_parser_strategy:
-        return await citation_parser_strategy(answer, citations)
-
-    for citation in reversed(citations):
-        markdown_link = f"[{citation.title or citation.url}]({citation.url})"
-        answer = (
-            answer[: citation.start_index]
-            + markdown_link
-            + answer[citation.end_index :]
-        )
-    return await convert_response_to_search_results(answer, response_parsers_strategies)
 
 
 async def _run_responses_agent(
@@ -298,13 +268,9 @@ async def _run_responses_agent(
             if isinstance(event, ResponseTextDeltaEvent):
                 if event.delta:
                     answer_parts.append(event.delta)
-            elif isinstance(event, ResponseOutputItemDoneEvent):
-                # Item offsets are local to the item. Extract here for diagnostics,
-                # but use the completed response for answer-global offsets.
-                _extract_grounding_citations(event)
             elif isinstance(event, ResponseCompletedEvent):
                 completed_answer = event.response.output_text
-                citations = _extract_response_grounding_citations(event.response)
+                citations = _extract_response_url_citations(event.response)
                 collector.record_token_usage(
                     model_name=model,
                     usage=event.response.usage,
@@ -341,30 +307,7 @@ async def _create_responses_stream(
     return stream
 
 
-def _extract_markdown_citations(
-    event: ResponseOutputItemDoneEvent,
-) -> list[tuple[str, str]]:
-    """Extract (placeholder, markdown-link) pairs from a message output item."""
-    return [
-        (
-            citation.marker,
-            f"[{citation.title or citation.url}]({citation.url})",
-        )
-        for citation in _extract_grounding_citations(event)
-    ]
-
-
-def _extract_grounding_citations(
-    event: ResponseOutputItemDoneEvent,
-) -> list[GroundingCitation]:
-    """Extract provider-authoritative URL citation records."""
-    item = event.item
-    if not isinstance(item, ResponseOutputMessage):
-        return []
-    return _extract_message_grounding_citations(item)
-
-
-def _extract_message_grounding_citations(
+def _extract_message_url_citations(
     item: ResponseOutputMessage,
     *,
     start_index_offset: int = 0,
@@ -393,18 +336,10 @@ def _extract_message_grounding_citations(
                     )
                 )
         text_offset += len(text_content.text)
-
-    _LOGGER.info(
-        "Foundry Bing citation annotations output_item_id=%s "
-        "citation_count=%d citations=%s",
-        item.id,
-        len(citations),
-        [citation.model_dump(mode="json", by_alias=True) for citation in citations],
-    )
     return citations
 
 
-def _extract_response_grounding_citations(
+def _extract_response_url_citations(
     response: Response,
 ) -> list[GroundingCitation]:
     """Extract citations with offsets into ``response.output_text``."""
@@ -414,7 +349,7 @@ def _extract_response_grounding_citations(
         if not isinstance(item, ResponseOutputMessage):
             continue
         citations.extend(
-            _extract_message_grounding_citations(
+            _extract_message_url_citations(
                 item,
                 start_index_offset=text_offset,
             )
@@ -424,4 +359,12 @@ def _extract_response_grounding_citations(
             for content in item.content or []
             if isinstance(content, ResponseOutputText)
         )
+
+    _LOGGER.info(
+        "Foundry Bing citation annotations response_id=%s "
+        "citation_count=%d citations=%s",
+        response.id,
+        len(citations),
+        [citation.model_dump(mode="json", by_alias=True) for citation in citations],
+    )
     return citations

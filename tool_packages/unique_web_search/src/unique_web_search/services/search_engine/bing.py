@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, override
 
 from pydantic import Field
@@ -12,10 +13,13 @@ from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
 from unique_search_proxy_core.agent_engines.bing.settings import resolve_market
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
-from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
-from unique_toolkit._common.validators import LMI, get_LMI_default_field
-from unique_toolkit.language_model import LanguageModelService
+from unique_search_proxy_core.schema import GroundingCitation
 
+from unique_web_search.metrics import (
+    grounding_dropped_citations,
+    grounding_dropped_lines,
+    grounding_parse_failures,
+)
 from unique_web_search.services.proxy.bridge import (
     search_proxy_client_enabled,
 )
@@ -29,9 +33,7 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 from unique_web_search.services.search_engine.utils.grounding import (
-    CitationAwareLLMParserStrategy,
-    JsonConversionStrategy,
-    LLMParserStrategy,
+    CitationBulletParserStrategy,
 )
 from unique_web_search.services.search_engine.utils.grounding.bing import (
     create_and_process_run,
@@ -47,13 +49,6 @@ if TYPE_CHECKING:
 
 
 class BingSearchConfig(BingAgentConfig):
-    language_model: LMI = get_LMI_default_field(
-        DEFAULT_LANGUAGE_MODEL,
-        description=(
-            "The language model used to structure citation-grounded Bing prose "
-            "without allowing it to generate source URLs."
-        ),
-    )
     requires_scraping: bool = Field(
         default=False,
         description="Whether the search engine requires scraping.",
@@ -66,30 +61,17 @@ class BingSearchConfig(BingAgentConfig):
     config_cls=BingSearchConfig,
     mode=SearchEngineMode.AGENT,
     config_display_name="Grounding with Bing",
-    needs_language_model=True,
 )
 class BingSearch(SearchEngine[BingSearchConfig]):
     def __init__(
         self,
         config: BingSearchConfig,
-        language_model_service: LanguageModelService,
         *,
         request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
     ):
         super().__init__(config, request_context=request_context)
         self.credentials = get_credentials()
-
-        self.response_parsers = [
-            JsonConversionStrategy(),
-            LLMParserStrategy(
-                config.language_model,
-                language_model_service,
-            ),
-        ]
-        self.citation_response_parser = CitationAwareLLMParserStrategy(
-            config.language_model,
-            language_model_service,
-        )
+        self.citation_response_parser = CitationBulletParserStrategy()
 
     @property
     def is_configured(self) -> bool:
@@ -131,7 +113,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         self,
         response: AgentSearchResponse,
     ) -> list[WebSearchResult]:
-        return await self.citation_response_parser(
+        return await self._parse_cited_answer(
             agent_answer_text(response),
             agent_citations(response),
         )
@@ -145,13 +127,26 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         agent_client = get_project_client(self.credentials)
 
         async with agent_client:
-            search_results = await create_and_process_run(
+            answer, citations = await create_and_process_run(
                 agent_client,
                 query=query,
                 grounding=self._grounding_configuration(),
-                response_parsers_strategies=self.response_parsers,
                 generation_instructions=self.config.generation_instructions,
-                citation_parser_strategy=self.citation_response_parser,
             )
 
-        return search_results
+        return await self._parse_cited_answer(answer, citations)
+
+    async def _parse_cited_answer(
+        self,
+        answer: str,
+        citations: Sequence[GroundingCitation],
+    ) -> list[WebSearchResult]:
+        parsed = await self.citation_response_parser(answer, citations)
+        engine = self.config.engine.value
+        for reason, count in parsed.dropped_citations.items():
+            grounding_dropped_citations.labels(engine=engine, reason=reason).inc(count)
+        for reason, count in parsed.dropped_lines.items():
+            grounding_dropped_lines.labels(engine=engine, reason=reason).inc(count)
+        if parsed.failure is not None:
+            grounding_parse_failures.labels(engine=engine, reason=parsed.failure).inc()
+        return parsed.results

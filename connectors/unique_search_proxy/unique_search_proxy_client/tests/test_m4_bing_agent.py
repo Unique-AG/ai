@@ -9,9 +9,6 @@ import pytest
 from openai import APIError, InternalServerError, NotFoundError
 from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
-from openai.types.responses.response_output_item_done_event import (
-    ResponseOutputItemDoneEvent,
-)
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import (
     AnnotationURLCitation,
@@ -41,7 +38,6 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
 )
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
     _extract_response_url_citations,
-    _extract_url_citations,
     _is_missing_agent_error,
     create_bing_agent,
     get_bing_grounding_tool,
@@ -97,7 +93,7 @@ def _stream_error(
 
 
 @pytest.mark.ai
-def test_extract_url_citations_returns_annotation_payload() -> None:
+def test_extract_response_url_citations_returns_annotation_payload() -> None:
     text = "Grounded answer [1]"
     annotation = AnnotationURLCitation.model_construct(
         type="url_citation",
@@ -119,18 +115,27 @@ def test_extract_url_citations_returns_annotation_payload() -> None:
         status="completed",
         content=[content],
     )
-    event = ResponseOutputItemDoneEvent.model_construct(
-        type="response.output_item.done",
-        item=message,
-        output_index=0,
-        sequence_number=1,
+    response = Response.model_construct(
+        id="resp-citation",
+        created_at=0,
+        model="gpt-5.1",
+        object="response",
+        output=[message],
+        parallel_tool_calls=True,
+        tool_choice="auto",
+        tools=[],
     )
 
-    citations = _extract_url_citations(event)
+    with patch(
+        "unique_search_proxy_client.web.core.agent_engines.bing.runner._LOGGER"
+    ) as logger:
+        citations = _extract_response_url_citations(response)
 
     assert len(citations) == 1
     assert citations[0].url == "https://canonical.example/article"
     assert citations[0].marker == "[1]"
+    logger.info.assert_called_once()
+    assert logger.info.call_args.args[1:3] == ("resp-citation", 1)
 
 
 @pytest.mark.ai

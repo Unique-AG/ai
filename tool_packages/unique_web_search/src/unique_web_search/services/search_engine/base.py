@@ -76,7 +76,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     it, otherwise it reroutes to the local legacy implementation.
     """
 
-    # Set by agent engines (Bing/VertexAI) and consumed by the agent proxy path.
+    # Set by agent engines that use the default ``_parse_agent_proxy_response``.
     response_parsers: list[ResponseParser]
 
     def __init__(

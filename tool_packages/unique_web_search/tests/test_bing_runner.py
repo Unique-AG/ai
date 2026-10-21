@@ -10,9 +10,6 @@ import pytest
 from openai import NotFoundError
 from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
-from openai.types.responses.response_output_item_done_event import (
-    ResponseOutputItemDoneEvent,
-)
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import (
     AnnotationURLCitation,
@@ -25,6 +22,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
     bing_agent_config_hash,
     bing_agent_name,
+    build_bing_citation_instructions,
 )
 
 from unique_web_search.invocation_stats import collector
@@ -42,8 +40,7 @@ from unique_web_search.services.search_engine.utils.grounding.bing.models import
     ResultItem,
 )
 from unique_web_search.services.search_engine.utils.grounding.bing.runner import (
-    _extract_markdown_citations,
-    _extract_response_grounding_citations,
+    _extract_response_url_citations,
     _is_missing_agent_error,
     create_and_process_run,
     create_bing_agent,
@@ -873,7 +870,7 @@ class TestCitationDiagnostics:
     """Tests for logging Foundry's authoritative citation annotations."""
 
     @pytest.mark.ai
-    def test_extract_citations__logs_annotation_payload(
+    def test_extract_citations__logs_annotation_payload_once_per_response(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
         text = "Grounded answer [1]"
@@ -897,25 +894,32 @@ class TestCitationDiagnostics:
             status="completed",
             content=[content],
         )
-        event = ResponseOutputItemDoneEvent.model_construct(
-            type="response.output_item.done",
-            item=message,
-            output_index=0,
-            sequence_number=1,
+        response = Response.model_construct(
+            id="resp-citation",
+            created_at=0,
+            model="gpt-5.1",
+            object="response",
+            output=[message],
+            parallel_tool_calls=True,
+            tool_choice="auto",
+            tools=[],
         )
 
         with caplog.at_level(logging.INFO):
-            replacements = _extract_markdown_citations(event)
+            citations = _extract_response_url_citations(response)
 
-        assert replacements == [
-            (
-                "[1]",
-                "[Canonical article](https://canonical.example/article)",
-            )
+        assert [(item.url, item.marker, item.output_item_id) for item in citations] == [
+            ("https://canonical.example/article", "[1]", "msg-citation")
         ]
-        assert "output_item_id=msg-citation" in caplog.text
-        assert "citation_count=1" in caplog.text
-        assert "https://canonical.example/article" in caplog.text
+        annotation_logs = [
+            record
+            for record in caplog.records
+            if "Foundry Bing citation annotations" in record.getMessage()
+        ]
+        assert len(annotation_logs) == 1
+        assert "response_id=resp-citation" in annotation_logs[0].getMessage()
+        assert "citation_count=1" in annotation_logs[0].getMessage()
+        assert "https://canonical.example/article" in annotation_logs[0].getMessage()
 
     @pytest.mark.ai
     def test_response_offsets_cover_concatenated_output_items(self) -> None:
@@ -957,7 +961,7 @@ class TestCitationDiagnostics:
             tools=[],
         )
 
-        citations = _extract_response_grounding_citations(response)
+        citations = _extract_response_url_citations(response)
 
         assert response.output_text == "First [1]Second [2]"
         assert [(item.start_index, item.end_index) for item in citations] == [
@@ -976,15 +980,16 @@ class TestCreateAndProcessRun:
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch(f"{_RUNNER_MODULE}.env_settings")
-    async def test_run__successful__returns_parsed_results(
+    async def test_run__successful__returns_answer_from_citation_prompted_agent(
         self,
         mock_env: MagicMock,
     ) -> None:
         """
-        Purpose: Verify successful run returns parsed search results with hash-based agent.
-        Why this matters: Core happy-path for Bing grounding with hash-based agent reuse.
-        Setup summary: Mock Responses stream (agent already exists); assert parser is invoked
-            and create_version is not called.
+        Purpose: Verify a run returns the answer and citations from the citation-prompted agent.
+        Why this matters: The agent name hashes its instructions, so a run that still used
+            the JSON rule would reach an agent that writes its own source URLs.
+        Setup summary: Mock Responses stream (agent already exists); assert the answer,
+            the agent name, and that create_version is not called.
         """
         mock_env.azure_ai_bing_agent_model = "gpt-5.1"
         mock_env.azure_ai_bing_resource_connection_string = (
@@ -992,26 +997,29 @@ class TestCreateAndProcessRun:
         )
         mock_agent_client = MagicMock()
         mock_agent_client.agents.create_version = AsyncMock()
-        expected_results = [
-            WebSearchResult(url="https://a.com", title="A", snippet="s", content="c")
-        ]
-        mock_parser = AsyncMock(return_value=expected_results)
+        mock_openai = _mock_openai_client()
 
         with patch(
             f"{_RUNNER_MODULE}.get_openai_client",
-            return_value=_mock_openai_client(),
+            return_value=mock_openai,
         ):
-            results = await create_and_process_run(
+            answer, citations = await create_and_process_run(
                 agent_client=mock_agent_client,
                 query="test query",
                 grounding=_grounding(),
-                response_parsers_strategies=[mock_parser],
                 generation_instructions="Test instructions",
             )
 
-        assert results == expected_results
+        assert (answer, citations) == ("response text", [])
+        agent_reference = mock_openai.responses.create.call_args.kwargs["extra_body"][
+            "agent_reference"
+        ]
+        assert agent_reference["name"] == bing_agent_name(
+            model="gpt-5.1",
+            instructions=build_bing_citation_instructions("Test instructions"),
+            grounding=_grounding(),
+        )
         mock_agent_client.agents.create_version.assert_not_called()
-        mock_parser.assert_called_once()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -1031,13 +1039,6 @@ class TestCreateAndProcessRun:
         )
         mock_agent_client = MagicMock()
         mock_agent_client.agents.create_version = AsyncMock()
-        mock_parser = AsyncMock(
-            return_value=[
-                WebSearchResult(
-                    url="https://a.com", title="A", snippet="s", content="c"
-                )
-            ]
-        )
         stream = _fake_response_stream()
         mock_openai = MagicMock()
         mock_openai.responses.create = AsyncMock(return_value=stream)
@@ -1050,7 +1051,6 @@ class TestCreateAndProcessRun:
                 agent_client=mock_agent_client,
                 query="test query",
                 grounding=_grounding(),
-                response_parsers_strategies=[mock_parser],
                 generation_instructions="Test instructions",
             )
 
@@ -1074,13 +1074,6 @@ class TestCreateAndProcessRun:
         )
         mock_agent_client = MagicMock()
         mock_agent_client.agents.create_version = AsyncMock()
-        mock_parser = AsyncMock(
-            return_value=[
-                WebSearchResult(
-                    url="https://a.com", title="A", snippet="s", content="c"
-                )
-            ]
-        )
         usage = ResponseUsage.model_construct(
             input_tokens=12,
             output_tokens=34,
@@ -1100,7 +1093,6 @@ class TestCreateAndProcessRun:
                 agent_client=mock_agent_client,
                 query="test query",
                 grounding=_grounding(),
-                response_parsers_strategies=[mock_parser],
                 generation_instructions="Test instructions",
             )
 
@@ -1127,7 +1119,7 @@ class TestCreateAndProcessRun:
         mock_env.azure_ai_bing_resource_connection_string = (
             "/subscriptions/x/connections/bing"
         )
-        instructions = f"Test instructions\n{RESPONSE_RULE}"
+        instructions = build_bing_citation_instructions("Test instructions")
         expected_name = bing_agent_name(
             model="gpt-5.1", instructions=instructions, grounding=_grounding()
         )
@@ -1145,92 +1137,21 @@ class TestCreateAndProcessRun:
         created.id = "created-id"
         mock_agent_client = MagicMock()
         mock_agent_client.agents.create_version = AsyncMock(return_value=created)
-        expected_results = [
-            WebSearchResult(url="https://a.com", title="A", snippet="s", content="c")
-        ]
-        mock_parser = AsyncMock(return_value=expected_results)
 
         with patch(
             f"{_RUNNER_MODULE}.get_openai_client",
             return_value=mock_openai,
         ):
-            results = await create_and_process_run(
+            answer, _ = await create_and_process_run(
                 agent_client=mock_agent_client,
                 query="test query",
                 grounding=_grounding(),
-                response_parsers_strategies=[mock_parser],
                 generation_instructions="Test instructions",
             )
 
-        assert results == expected_results
+        assert answer == "response text"
         mock_agent_client.agents.create_version.assert_awaited_once()
         assert mock_openai.responses.create.await_count == 2
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch(f"{_RUNNER_MODULE}.env_settings")
-    async def test_run__all_parsers_fail__raises_value_error(
-        self,
-        mock_env: MagicMock,
-    ) -> None:
-        """
-        Purpose: Verify ValueError when no parser can handle the response.
-        Why this matters: Callers need a definitive signal that parsing failed.
-        Setup summary: Mock Responses stream succeeds but all parsers raise; assert ValueError.
-        """
-        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
-        mock_agent_client = MagicMock()
-        failing_parser = AsyncMock(side_effect=ValueError("cannot parse"))
-
-        with patch(
-            f"{_RUNNER_MODULE}.get_openai_client",
-            return_value=_mock_openai_client(),
-        ):
-            with pytest.raises(ValueError) as exc_info:
-                await create_and_process_run(
-                    agent_client=mock_agent_client,
-                    query="test",
-                    grounding=_grounding(),
-                    response_parsers_strategies=[failing_parser],
-                    generation_instructions="instructions",
-                )
-            assert "No conversion strategy found" in str(exc_info.value)
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch(f"{_RUNNER_MODULE}.env_settings")
-    async def test_run__first_parser_fails__second_succeeds(
-        self,
-        mock_env: MagicMock,
-    ) -> None:
-        """
-        Purpose: Verify fallback to second parser when first fails during a run.
-        Why this matters: Validates the full strategy chain within create_and_process_run.
-        Setup summary: First parser raises; second returns results; assert success.
-        """
-        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
-        mock_agent_client = MagicMock()
-        expected = [
-            WebSearchResult(url="https://fb.com", title="FB", snippet="s", content="c")
-        ]
-        parser_1 = AsyncMock(side_effect=ValueError("nope"))
-        parser_2 = AsyncMock(return_value=expected)
-
-        with patch(
-            f"{_RUNNER_MODULE}.get_openai_client",
-            return_value=_mock_openai_client(),
-        ):
-            results = await create_and_process_run(
-                agent_client=mock_agent_client,
-                query="query",
-                grounding=_grounding(fetch_size=3),
-                response_parsers_strategies=[parser_1, parser_2],
-                generation_instructions="instructions",
-            )
-
-        assert results == expected
-        parser_1.assert_called_once()
-        parser_2.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -1258,7 +1179,6 @@ class TestBingSearchConfig:
         assert config.requires_scraping is False
         assert config.fetch_size == 5
         assert config.generation_instructions == GENERATION_INSTRUCTIONS
-        assert config.language_model is not None
 
     @pytest.mark.ai
     def test_config__custom_generation_instructions__override_default(self) -> None:

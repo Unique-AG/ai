@@ -7,10 +7,18 @@ from unique_search_proxy_core.agent_engines.bing import settings as bing_setting
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
 )
+from unique_search_proxy_core.schema import GroundingCitation
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityConfig
+from unique_search_proxy_sdk._generated.models.agent_search_response import (
+    AgentSearchResponse,
+)
+from unique_search_proxy_sdk._generated.models.grounding_citation import (
+    GroundingCitation as SdkGroundingCitation,
+)
+from unique_toolkit.monitoring import REGISTRY
 
 from unique_web_search.services.search_engine import (
     BingSearch,
@@ -30,7 +38,12 @@ from unique_web_search.services.search_engine.custom_api import (
     conditional_type,
 )
 from unique_web_search.services.search_engine.google import GoogleSearch
-from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.search_engine.schema import (
+    WebSearchResult,
+)
+from unique_web_search.services.search_engine.utils.grounding import (
+    CitationBulletParserStrategy,
+)
 from unique_web_search.services.search_engine.vertexai import (
     VertexAI,
     VertexAIConfig,
@@ -88,40 +101,75 @@ class TestSearchEngineFactory:
         assert issubclass(config, GoogleConfig)
 
 
+def _cited_answer(
+    answer: str = "- Test content [1]",
+    url: str = "https://example.com",
+) -> tuple[str, list[GroundingCitation]]:
+    marker_start = answer.index("[1]")
+    return answer, [
+        GroundingCitation(
+            url=url,
+            title="Test",
+            marker="[1]",
+            start_index=marker_start,
+            end_index=marker_start + 3,
+        )
+    ]
+
+
+def _metric_count(metric: str, reason: str) -> float:
+    return (
+        REGISTRY.get_sample_value(
+            f"unique_web_search_{metric}",
+            {"engine": "bing", "reason": reason},
+        )
+        or 0.0
+    )
+
+
 class TestBingSearchInit:
-    """Tests for BingSearch constructor creating response parsers internally."""
+    """Tests for BingSearch construction and config compatibility."""
 
     @pytest.mark.ai
-    def test_bing_search__initializes_response_parsers__internally(self) -> None:
+    def test_bing_search__uses_citation_parser_without_language_model(self) -> None:
         """
-        Purpose: Verify BingSearch creates JsonConversionStrategy and LLMParserStrategy internally.
-        Why this matters: Parsers were moved from the factory into BingSearch; incorrect wiring
-            would break response parsing for all Bing searches.
-        Setup summary: Create BingSearch with mock LanguageModelService; inspect response_parsers.
+        Purpose: Verify BingSearch maps answers with the citation parser and needs no LLM.
+        Why this matters: An LLM parser would write source URLs itself, which is how
+            wrong URLs reached the assistant before.
+        Setup summary: Build BingSearch from config alone; inspect the parser.
         """
-        from unique_web_search.services.search_engine.utils.grounding import (
-            JsonConversionStrategy,
-            LLMParserStrategy,
-        )
-
-        # Arrange
-        config = BingSearchConfig()
-        mock_lm_service = Mock()
-
         # Act
-        search = BingSearch(config, mock_lm_service)
+        search = BingSearch(BingSearchConfig())
 
         # Assert
-        assert len(search.response_parsers) == 2
-        assert isinstance(search.response_parsers[0], JsonConversionStrategy)
-        assert isinstance(search.response_parsers[1], LLMParserStrategy)
+        assert isinstance(search.citation_response_parser, CitationBulletParserStrategy)
+
+    @pytest.mark.ai
+    def test_bing_config__loads_saved_config_with_retired_language_model(self) -> None:
+        """
+        Purpose: Verify a saved space config that still has `languageModel` loads.
+        Why this matters: Existing spaces were saved with the retired field; rejecting
+            it would break web search for those spaces after rollout.
+        Setup summary: Validate a camelCase payload with the retired field.
+        """
+        # Act
+        config = BingSearchConfig.model_validate(
+            {"languageModel": "AZURE_GPT_4o_2024_1120", "fetchSize": 7},
+        )
+
+        # Assert
+        assert config.fetch_size == 7
+        assert "language_model" not in BingSearchConfig.model_fields
 
 
 class TestBingLegacySearch:
     """Tests for the direct (non-proxy) Bing search path."""
 
     @staticmethod
-    def _patch_bing_runtime(mocker, results: list[WebSearchResult]):
+    def _patch_bing_runtime(
+        mocker,
+        run_output: tuple[str, list[GroundingCitation]] | None = None,
+    ):
         agent_client = AsyncMock()
         get_project_client = mocker.patch(
             "unique_web_search.services.search_engine.bing.get_project_client",
@@ -130,7 +178,7 @@ class TestBingLegacySearch:
         create_and_process_run = mocker.patch(
             "unique_web_search.services.search_engine.bing.create_and_process_run",
             new_callable=AsyncMock,
-            return_value=results,
+            return_value=run_output or _cited_answer(),
         )
         return get_project_client, create_and_process_run
 
@@ -146,26 +194,49 @@ class TestBingLegacySearch:
         """
         # Arrange
         config = BingSearchConfig()
-        expected = [
-            WebSearchResult(
-                url="https://example.com",
-                title="Test",
-                snippet="Test snippet",
-                content="Test content",
-            )
-        ]
-        get_project_client, create_and_process_run = self._patch_bing_runtime(
-            mocker, expected
-        )
-        search = BingSearch(config, Mock())
+        get_project_client, create_and_process_run = self._patch_bing_runtime(mocker)
+        search = BingSearch(config)
 
         # Act
         results = await search._legacy_search("test query", params=None)
 
         # Assert
-        assert results == expected
+        assert results == [
+            WebSearchResult(
+                url="https://example.com",
+                title="Test",
+                snippet="Test content",
+                content="Test content",
+            )
+        ]
         assert len(get_project_client.call_args.args) == 1
         assert "agent_id" not in create_and_process_run.call_args.kwargs
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__no_citations__returns_empty_and_counts_failure(
+        self, mocker
+    ) -> None:
+        """
+        Purpose: Verify an answer without citations yields no results and is counted.
+        Why this matters: Raising would fail the whole tool call in executors that
+            search queries one by one; the counter tracks the failure instead.
+        Setup summary: Return an answer without citations; assert results and counter.
+        """
+        # Arrange
+        self._patch_bing_runtime(mocker, ("- Uncited claim", []))
+        search = BingSearch(BingSearchConfig())
+        before = _metric_count("grounding_parse_failures_total", "no_citations")
+
+        # Act
+        results = await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert results == []
+        assert (
+            _metric_count("grounding_parse_failures_total", "no_citations")
+            == before + 1
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -178,8 +249,8 @@ class TestBingLegacySearch:
         """
         # Arrange
         config = BingSearchConfig(market="fr-CH", freshness="Week")
-        _, create_and_process_run = self._patch_bing_runtime(mocker, [])
-        search = BingSearch(config, Mock())
+        _, create_and_process_run = self._patch_bing_runtime(mocker)
+        search = BingSearch(config)
 
         # Act
         await search._legacy_search("test query", params=None)
@@ -208,8 +279,8 @@ class TestBingLegacySearch:
         monkeypatch.setattr(
             bing_settings.bing_agent_env_settings, "default_market", "fr-FR"
         )
-        _, create_and_process_run = self._patch_bing_runtime(mocker, [])
-        search = BingSearch(BingSearchConfig(), Mock())
+        _, create_and_process_run = self._patch_bing_runtime(mocker)
+        search = BingSearch(BingSearchConfig())
 
         # Act
         await search._legacy_search("test query", params=None)
@@ -232,14 +303,102 @@ class TestBingLegacySearch:
         monkeypatch.setattr(
             bing_settings.bing_agent_env_settings, "default_market", None
         )
-        _, create_and_process_run = self._patch_bing_runtime(mocker, [])
-        search = BingSearch(BingSearchConfig(), Mock())
+        _, create_and_process_run = self._patch_bing_runtime(mocker)
+        search = BingSearch(BingSearchConfig())
 
         # Act
         await search._legacy_search("test query", params=None)
 
         # Assert
         assert create_and_process_run.call_args.kwargs["grounding"].market is None
+
+
+class TestBingProxyResponseParsing:
+    """Tests for mapping a proxy agent-search response onto Bing results."""
+
+    @staticmethod
+    def _proxy_response(
+        answer: str, citations: list[GroundingCitation]
+    ) -> AgentSearchResponse:
+        return AgentSearchResponse(
+            engine="bing",
+            query="test query",
+            answer=answer,
+            citations=[
+                SdkGroundingCitation(
+                    url=citation.url,
+                    title=citation.title,
+                    marker=citation.marker,
+                    start_index=citation.start_index,
+                    end_index=citation.end_index,
+                )
+                for citation in citations
+            ],
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_parse_agent_proxy_response__maps_citation_urls(self) -> None:
+        """
+        Purpose: Verify the proxy path maps cited lines onto the citation URLs.
+        Why this matters: Citation URLs are the only trusted source of result URLs.
+        Setup summary: Build a proxy response with one cited bullet; parse it.
+        """
+        # Arrange
+        search = BingSearch(BingSearchConfig())
+        response = self._proxy_response(*_cited_answer())
+
+        # Act
+        results = await search._parse_agent_proxy_response(response)
+
+        # Assert
+        assert [result.url for result in results] == ["https://example.com"]
+        assert results[0].content == "Test content"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_parse_agent_proxy_response__bad_citation__keeps_the_rest(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify a bad citation drops only itself and is counted by reason.
+        Why this matters: One broken citation must not discard the sources that
+            passed validation, and the drop must stay visible after rollout.
+        Setup summary: One good citation and one with a non-HTTP URL on another line.
+        """
+        # Arrange
+        search = BingSearch(BingSearchConfig())
+        answer = "- Good claim [1]\n- Bad claim [2]"
+        good = _cited_answer(answer)[1][0]
+        bad = good.model_copy(
+            update={
+                "url": "javascript:alert(1)",
+                "marker": "[2]",
+                "start_index": answer.index("[2]"),
+                "end_index": answer.index("[2]") + 3,
+            }
+        )
+        response = self._proxy_response(answer, [good, bad])
+        citations_before = _metric_count(
+            "grounding_dropped_citations_total", "non_http_url"
+        )
+        lines_before = _metric_count("grounding_dropped_lines_total", "no_citation")
+
+        # Act
+        results = await search._parse_agent_proxy_response(response)
+
+        # Assert
+        assert [(result.url, result.content) for result in results] == [
+            ("https://example.com", "Good claim")
+        ]
+        assert (
+            _metric_count("grounding_dropped_citations_total", "non_http_url")
+            == citations_before + 1
+        )
+        assert (
+            _metric_count("grounding_dropped_lines_total", "no_citation")
+            == lines_before + 1
+        )
 
 
 class TestAgentProxyInvocation:
@@ -254,7 +413,7 @@ class TestAgentProxyInvocation:
         """
         # Arrange
         config = BingSearchConfig()
-        search = BingSearch(config, Mock())
+        search = BingSearch(config)
 
         # Act
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
@@ -275,7 +434,7 @@ class TestAgentProxyInvocation:
         config = BingSearchConfig.model_validate(
             {"market": "de-CH", "freshness": "Week"},
         )
-        search = BingSearch(config, Mock())
+        search = BingSearch(config)
 
         # Act
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
@@ -299,7 +458,7 @@ class TestAgentProxyInvocation:
         monkeypatch.setattr(
             bing_settings.bing_agent_env_settings, "default_market", "fr-FR"
         )
-        search = BingSearch(BingSearchConfig(), Mock())
+        search = BingSearch(BingSearchConfig())
 
         # Act
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
@@ -315,7 +474,7 @@ class TestAgentProxyInvocation:
         monkeypatch.setattr(
             bing_settings.bing_agent_env_settings, "default_market", None
         )
-        search = BingSearch(BingSearchConfig(), Mock())
+        search = BingSearch(BingSearchConfig())
 
         # Act
         invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)

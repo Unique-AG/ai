@@ -1,8 +1,10 @@
 import logging
 import re
+from collections import Counter, defaultdict
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field
+from typing import Literal, Protocol
+from urllib.parse import urlparse
 
 from unique_search_proxy_core.schema import GroundingCitation
 from unique_toolkit._common.validators import LMI
@@ -12,12 +14,12 @@ from unique_toolkit.language_model.service import LanguageModelService
 from unique_web_search.invocation_stats import collector
 from unique_web_search.services.search_engine.schema import WebSearchResult
 from unique_web_search.services.search_engine.utils.grounding.models import (
-    CitedGroundingSearchResults,
     GroundingSearchResults,
 )
 
 _LOGGER = logging.getLogger(__name__)
 _JSON_PATTERN = re.compile(r"```json\s*([\s\S]*?)\s*```")
+_LIST_MARKER_PATTERN = re.compile(r"\s*(?:[-*+•]|\d+[.)])\s+")
 
 
 class ResponseParser(Protocol):
@@ -131,178 +133,192 @@ class LLMParserStrategy(ResponseParser):
         ).to_web_search_results()
 
 
-@dataclass(frozen=True, slots=True)
-class _CitationSource:
-    source_id: str
-    url: str
-    title: str
+GroundingCitationDropReason = Literal[
+    "invalid_offsets",
+    "marker_mismatch",
+    "citation_not_on_one_line",
+    "non_http_url",
+]
+GroundingLineDropReason = Literal["no_citation", "no_content"]
+GroundingParseFailureReason = Literal["no_text", "no_citations", "no_usable_citations"]
 
 
-_SOURCE_TAG_PATTERN = re.compile(r"\[SOURCE_\d+\]")
+@dataclass(frozen=True)
+class CitationParseResult:
+    """Results mapped from a grounded answer, plus the parts that were dropped.
+
+    ``failure`` is set exactly when no result survived.
+    """
+
+    results: list[WebSearchResult]
+    dropped_citations: Counter[GroundingCitationDropReason] = field(
+        default_factory=Counter
+    )
+    dropped_lines: Counter[GroundingLineDropReason] = field(default_factory=Counter)
+    failure: GroundingParseFailureReason | None = None
 
 
-def _replace_citations_with_source_ids(
-    response: str,
-    citations: Sequence[GroundingCitation],
-) -> tuple[str, dict[str, _CitationSource]]:
-    """Replace authoritative annotation spans with stable source identifiers."""
-    sources_by_url: dict[str, _CitationSource] = {}
-    replacements: list[tuple[int, int, str]] = []
+class CitationBulletParserStrategy:
+    """Group cited lines by authoritative source without another model call.
 
-    for citation in sorted(
-        citations,
-        key=lambda item: (item.start_index, item.end_index),
-    ):
-        if not (0 <= citation.start_index < citation.end_index <= len(response)):
-            continue
-        if response[citation.start_index : citation.end_index] != citation.marker:
-            continue
+    Bullets are the expected format, but cited prose lines are accepted too so
+    a formatting slip does not drop sources whose URLs Foundry already cited.
 
-        source = sources_by_url.get(citation.url)
-        if source is None:
-            source = _CitationSource(
-                source_id=f"SOURCE_{len(sources_by_url)}",
-                url=citation.url,
-                title=citation.title or citation.url,
-            )
-            sources_by_url[citation.url] = source
-        replacements.append(
-            (
-                citation.start_index,
-                citation.end_index,
-                f"[{source.source_id}]",
-            )
-        )
-
-    cited_response = response
-    for start_index, end_index, source_id in reversed(replacements):
-        cited_response = (
-            cited_response[:start_index] + source_id + cited_response[end_index:]
-        )
-
-    return cited_response, {
-        source.source_id: source for source in sources_by_url.values()
-    }
-
-
-def _fallback_cited_results(
-    cited_response: str,
-    sources: dict[str, _CitationSource],
-) -> list[WebSearchResult]:
-    """Preserve cited prose deterministically if LLM structuring fails."""
-    paragraphs = [
-        paragraph.strip()
-        for paragraph in re.split(r"\n\s*\n", cited_response)
-        if paragraph.strip()
-    ]
-    shared_paragraphs = [
-        paragraph
-        for paragraph in paragraphs
-        if not _SOURCE_TAG_PATTERN.search(paragraph)
-    ]
-    results: list[WebSearchResult] = []
-    for source in sources.values():
-        source_tag = f"[{source.source_id}]"
-        source_paragraphs = [
-            paragraph for paragraph in paragraphs if source_tag in paragraph
-        ]
-        selected_paragraphs = [*shared_paragraphs, *source_paragraphs]
-        if not selected_paragraphs:
-            selected_paragraphs = paragraphs
-        content = "\n\n".join(
-            _SOURCE_TAG_PATTERN.sub("", paragraph).strip()
-            for paragraph in selected_paragraphs
-        )
-        results.append(
-            WebSearchResult(
-                url=source.url,
-                title=source.title,
-                snippet=content[:500],
-                content=content,
-            )
-        )
-    return results
-
-
-class CitationAwareLLMParserStrategy:
-    """Structure cited prose while keeping provider URLs outside model control."""
-
-    def __init__(self, llm: LMI, llm_service: LanguageModelService):
-        self.llm = llm
-        self.llm_service = llm_service
+    A citation or line that fails validation is dropped on its own; everything
+    that passes is kept.
+    """
 
     async def __call__(
         self,
         response: str,
         citations: Sequence[GroundingCitation],
-    ) -> list[WebSearchResult]:
-        cited_response, sources = _replace_citations_with_source_ids(
-            response,
-            citations,
-        )
-        if not sources:
-            raise ValueError("No valid grounding citations found in the response")
+    ) -> CitationParseResult:
+        lines = _nonempty_lines_with_offsets(response)
+        if not lines:
+            _LOGGER.warning("Grounding response contained no text")
+            return CitationParseResult(results=[], failure="no_text")
+        if not citations:
+            _LOGGER.warning("Grounding response contained no citations")
+            return CitationParseResult(results=[], failure="no_citations")
 
-        source_catalog = "\n".join(
-            f"- {source.source_id}: {source.title}" for source in sources.values()
-        )
-        system_prompt = """Convert cited web research into structured search results.
-Preserve every relevant detail from the response.
-Return exactly one result for every SOURCE_n identifier in the source catalog.
-Use source_id values exactly as provided. Never create, alter, or omit a source id."""
-        user_prompt = (
-            f"Source catalog:\n{source_catalog}\n\nCited response:\n{cited_response}"
-        )
-        messages = (
-            MessagesBuilder()
-            .system_message_append(system_prompt)
-            .user_message_append(user_prompt)
-            .build()
-        )
-        try:
-            llm_response = await self.llm_service.complete_async(
-                messages=messages,
-                model_name=self.llm.name,
-                structured_output_model=CitedGroundingSearchResults,
-                structured_output_enforce_schema=True,
-            )
-            collector.record_language_model_response(
-                model_name=self.llm.name,
-                response=llm_response,
-                source="web_search.grounding.citation_parser",
-            )
-
-            parsed = llm_response.choices[0].message.parsed
-            if not parsed:
-                raise ValueError("No structured citation response returned")
-
-            cited_results = CitedGroundingSearchResults.model_validate(parsed)
-            results_by_source: dict[str, WebSearchResult] = {}
-            for result in cited_results.results:
-                source = sources.get(result.source_id)
-                if source is None:
-                    raise ValueError(f"Unknown grounding source id: {result.source_id}")
-                if result.source_id in results_by_source:
-                    raise ValueError(
-                        f"Duplicate grounding source id: {result.source_id}"
-                    )
-                results_by_source[result.source_id] = WebSearchResult(
-                    url=source.url,
-                    title=source.title,
-                    snippet="\n".join(result.key_facts),
-                    content=result.detailed_answer,
+        dropped_citations: Counter[GroundingCitationDropReason] = Counter()
+        markers_by_line: dict[int, list[GroundingCitation]] = defaultdict(list)
+        sources_by_line: dict[int, list[GroundingCitation]] = defaultdict(list)
+        for citation in citations:
+            line_index = _locate_citation(response, lines, citation)
+            if isinstance(line_index, str):
+                dropped_citations[line_index] += 1
+                _LOGGER.warning(
+                    "Dropped grounding citation reason=%s url=%s",
+                    line_index,
+                    citation.url,
                 )
-
-            missing_source_ids = sources.keys() - results_by_source.keys()
-            if missing_source_ids:
-                raise ValueError(
-                    "Structured response omitted grounding source ids: "
-                    f"{sorted(missing_source_ids)}"
+                continue
+            markers_by_line[line_index].append(citation)
+            if not _is_http_url(citation.url):
+                dropped_citations["non_http_url"] += 1
+                _LOGGER.warning(
+                    "Dropped grounding citation reason=non_http_url url=%s",
+                    citation.url,
                 )
+                continue
+            sources_by_line[line_index].append(citation)
 
-            return list(results_by_source.values())
-        except Exception:
-            _LOGGER.exception(
-                "Citation structuring failed; preserving cited prose deterministically"
+        dropped_lines: Counter[GroundingLineDropReason] = Counter()
+        content_by_url: dict[str, list[str]] = {}
+        citation_by_url: dict[str, GroundingCitation] = {}
+        for index, (line_start, line_end, line) in enumerate(lines):
+            line_sources = sources_by_line[index]
+            if not line_sources:
+                dropped_lines["no_citation"] += 1
+                continue
+
+            list_marker = _LIST_MARKER_PATTERN.match(line)
+            content = _line_text_without_citations(
+                response,
+                start=line_start + (list_marker.end() if list_marker else 0),
+                end=line_end,
+                citations=sorted(
+                    markers_by_line[index], key=lambda item: item.start_index
+                ),
             )
-            return _fallback_cited_results(cited_response, sources)
+            if not content:
+                dropped_lines["no_content"] += 1
+                continue
+
+            line_urls: set[str] = set()
+            for citation in line_sources:
+                if citation.url in line_urls:
+                    continue
+                line_urls.add(citation.url)
+                citation_by_url.setdefault(citation.url, citation)
+                content_by_url.setdefault(citation.url, []).append(content)
+
+        results: list[WebSearchResult] = []
+        for url, content_lines in content_by_url.items():
+            citation = citation_by_url[url]
+            content = "\n".join(content_lines)
+            results.append(
+                WebSearchResult(
+                    url=url,
+                    title=citation.title or url,
+                    snippet=content,
+                    content=content,
+                )
+            )
+
+        if dropped_citations or dropped_lines:
+            _LOGGER.info(
+                "Grounding response parsed with drops result_count=%d "
+                "dropped_citations=%s dropped_lines=%s",
+                len(results),
+                dict(dropped_citations),
+                dict(dropped_lines),
+            )
+        if not results:
+            _LOGGER.warning("Grounding response had no usable citations")
+        return CitationParseResult(
+            results=results,
+            dropped_citations=dropped_citations,
+            dropped_lines=dropped_lines,
+            failure=None if results else "no_usable_citations",
+        )
+
+
+def _locate_citation(
+    response: str,
+    lines: Sequence[tuple[int, int, str]],
+    citation: GroundingCitation,
+) -> int | GroundingCitationDropReason:
+    """Return the index of the line holding the citation's verified marker.
+
+    Returns the drop reason instead when the marker cannot be verified.
+    """
+    if not (0 <= citation.start_index < citation.end_index <= len(response)):
+        return "invalid_offsets"
+    if response[citation.start_index : citation.end_index] != citation.marker:
+        return "marker_mismatch"
+    matching_lines = [
+        index
+        for index, (line_start, line_end, _) in enumerate(lines)
+        if line_start <= citation.start_index and citation.end_index <= line_end
+    ]
+    if len(matching_lines) != 1:
+        return "citation_not_on_one_line"
+    return matching_lines[0]
+
+
+def _is_http_url(url: str) -> bool:
+    parsed_url = urlparse(url)
+    return parsed_url.scheme in {"http", "https"} and bool(parsed_url.netloc)
+
+
+def _line_text_without_citations(
+    response: str,
+    *,
+    start: int,
+    end: int,
+    citations: Sequence[GroundingCitation],
+) -> str:
+    """Return the line text with each citation marker and its leading space removed."""
+    parts: list[str] = []
+    cursor = start
+    for citation in citations:
+        parts.append(response[cursor : citation.start_index].rstrip())
+        cursor = max(cursor, citation.end_index)
+    parts.append(response[cursor:end])
+    return "".join(parts).strip()
+
+
+def _nonempty_lines_with_offsets(
+    response: str,
+) -> list[tuple[int, int, str]]:
+    """Return non-empty physical lines with offsets into the original response."""
+    lines: list[tuple[int, int, str]] = []
+    offset = 0
+    for raw_line in response.splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        if line.strip():
+            lines.append((offset, offset + len(line), line))
+        offset += len(raw_line)
+    return lines

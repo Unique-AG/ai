@@ -57,7 +57,7 @@ def test_search_engine_registry__config_classes__extend_static_bases() -> None:
         (SearchEngineType.GOOGLE, False),
         (SearchEngineType.BRAVE, False),
         (SearchEngineType.PERPLEXITY, False),
-        (AgentEngineType.BING, True),
+        (AgentEngineType.BING, False),
         (AgentEngineType.VERTEXAI, True),
         (LocalSearchEngineType.CUSTOM_API, False),
     ],
