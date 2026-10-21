@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.42.4](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.42.3...unique-web-search-v2026.42.4) (2026-10-21)
+
+
+### Bug Fixes
+
+* **web-search:** stop logging crawled URLs and search queries [UN-27835] ([#2600](https://github.com/Unique-AG/ai/issues/2600)) ([2b1a11d](https://github.com/Unique-AG/ai/commit/2b1a11d035b7a792714113f0bfe6f33e1dedaf7c))
+
 ## [2026.42.3](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.42.2...unique-web-search-v2026.42.3) (2026-10-19)
 
 
