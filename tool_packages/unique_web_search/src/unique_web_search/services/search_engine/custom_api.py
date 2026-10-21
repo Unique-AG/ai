@@ -191,7 +191,7 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
 
         if not response.is_success:
             raise ValueError(
-                f"Search engine request failed with status {response.status_code}: {response.text}"
+                f"Search engine request failed with status {response.status_code}"
             )
 
         validated_response = WebSearchResults.model_validate(response.json())

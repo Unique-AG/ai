@@ -171,7 +171,7 @@ class LLMKeywordRedact:
         )
 
         _LOGGER.info(
-            f"Running keyword extraction for page {page.url} "
+            "Running keyword extraction for page "
             f"(model={self._config.language_model.name})"
         )
 
@@ -195,7 +195,7 @@ class LLMKeywordRedact:
         )
 
         _LOGGER.info(
-            f"Extracted {len(parsed.sensitive_keywords)} sensitive keyword(s) from {page.url}"
+            f"Extracted {len(parsed.sensitive_keywords)} sensitive keyword(s) from page"
         )
 
         return parsed.apply_to_page(page)

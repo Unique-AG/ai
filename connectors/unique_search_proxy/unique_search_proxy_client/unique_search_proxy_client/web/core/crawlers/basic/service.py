@@ -124,7 +124,10 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 )
                 return crawl_forbidden_target(display_url, blocked.reason)
             except httpx.TimeoutException as exc:
-                _LOGGER.warning("Basic crawl timed out for %s: %s", display_url, exc)
+                _LOGGER.warning(
+                    "Basic crawl timed out error_type=%s",
+                    type(exc).__name__,
+                )
                 return crawl_upstream_error(
                     display_url,
                     f"Crawl timed out after {timeout}s",
@@ -133,7 +136,10 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     raw=transport_error_raw(exc),
                 )
             except httpx.HTTPError as exc:
-                _LOGGER.warning("Basic crawl failed for %s: %s", display_url, exc)
+                _LOGGER.warning(
+                    "Basic crawl failed error_type=%s",
+                    type(exc).__name__,
+                )
                 return crawl_upstream_error(
                     display_url,
                     str(exc),
@@ -145,8 +151,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
             raw_body = response.text
             if response.is_error:
                 _LOGGER.warning(
-                    "Basic crawl HTTP error for %s: %s",
-                    display_url,
+                    "Basic crawl HTTP error http_status=%s",
                     response.status_code,
                 )
                 return crawl_upstream_error(
@@ -195,11 +200,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 timeout=float(timeout),
             )
         except ContentProcessingTimeoutError as exc:
-            _LOGGER.warning(
-                "Basic crawl processing timed out for %s: %s",
-                request_url,
-                exc,
-            )
+            _LOGGER.warning("Basic crawl processing timed out: %s", exc)
             return crawl_upstream_error(
                 request_url,
                 str(exc),
@@ -209,9 +210,8 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
             )
         except ContentProcessingError as exc:
             _LOGGER.warning(
-                "Basic crawl processing failed for %s: %s",
-                request_url,
-                exc,
+                "Basic crawl processing failed error_type=%s",
+                type(exc.__cause__ or exc).__name__,
             )
             return crawl_upstream_error(
                 request_url,

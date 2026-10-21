@@ -940,7 +940,7 @@ class TestCustomAPISearch:
             await search.search("test query")
 
         assert "500" in str(exc_info.value)
-        assert "Internal Server Error" in str(exc_info.value)
+        assert "Internal Server Error" not in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_custom_api_search_handles_invalid_response(self, mocker):

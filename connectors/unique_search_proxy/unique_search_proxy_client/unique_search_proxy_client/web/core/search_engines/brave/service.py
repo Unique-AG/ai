@@ -81,7 +81,7 @@ class BraveSearchService(SearchEngineService[BraveSearchRequest]):
             if not page_results:
                 if not len(curated.results):
                     raise EmptySearchResultsError(
-                        f"Brave search returned no results for query {request.query!r}",
+                        "Brave search returned no results",
                     )
                 break
             curated = curated.extend(page_results)
