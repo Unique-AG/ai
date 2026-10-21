@@ -95,7 +95,7 @@ export UNIQUE_APP_ID="app_..."
 |---------|---------|
 | `pwd` | Print current directory |
 | `cd <path>` | Change directory (supports `/`, `..`, `scope_*`, absolute/relative paths) |
-| `ls [path]` | List folders and files |
+| `ls [path]` | List folders and files (folders only at `/`) |
 | `mkdir <name>` | Create folder |
 | `rmdir <target> [-r]` | Delete folder |
 | `mvdir <old> <new>` | Rename folder |
