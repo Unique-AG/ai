@@ -248,6 +248,27 @@ def test_cmd_ls_rejects_bad_numbers(kwargs: dict[str, int], message: str) -> Non
 
 
 @pytest.mark.ai
+@pytest.mark.parametrize("kwargs", [{"all_items": True}, {"skip": 5, "limit": 5}])
+def test_cmd_ls_root_paging_never_reads_company_wide_files(
+    kwargs: dict[str, Any],
+) -> None:
+    """Purpose: Paging at the root pages root folders only and never reads content.
+    Why this matters: A company-wide file read there let an agent page the whole
+    knowledge base as if it were top level (UN-24304).
+    Setup summary: Root with 12 folders and a content backend that must stay unused.
+    """
+    state = _state()
+    state._path = "/"
+    state._scope_id = None
+    with _Backend(files=500, folders=12) as backend:
+        out = cmd_ls(state, **kwargs)
+    assert backend.file_calls == []
+    assert _rows(out, "FILE") == []
+    assert "0 file(s)" in out
+    assert len(backend.folder_calls) >= 1
+
+
+@pytest.mark.ai
 def test_cmd_ls_all_with_limit_is_rejected() -> None:
     """Purpose: --all together with --limit is an error, not a silent --all.
     Why this matters: The caller asked for a window the CLI would not honour.
