@@ -135,7 +135,7 @@ def test_extract_response_url_citations_returns_annotation_payload() -> None:
     assert citations[0].url == "https://canonical.example/article"
     assert citations[0].marker == "[1]"
     logger.info.assert_called_once()
-    assert logger.info.call_args.args[1:3] == ("resp-citation", 1)
+    assert logger.info.call_args.args[1:] == ("resp-citation", 1)
 
 
 @pytest.mark.ai

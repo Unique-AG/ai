@@ -867,10 +867,10 @@ def _mock_openai_client(
 
 
 class TestCitationDiagnostics:
-    """Tests for logging Foundry's authoritative citation annotations."""
+    """Tests for logging Foundry's citation annotations without their contents."""
 
     @pytest.mark.ai
-    def test_extract_citations__logs_annotation_payload_once_per_response(
+    def test_extract_citations__logs_count_without_urls_once_per_response(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
         text = "Grounded answer [1]"
@@ -919,7 +919,8 @@ class TestCitationDiagnostics:
         assert len(annotation_logs) == 1
         assert "response_id=resp-citation" in annotation_logs[0].getMessage()
         assert "citation_count=1" in annotation_logs[0].getMessage()
-        assert "https://canonical.example/article" in annotation_logs[0].getMessage()
+        assert "canonical.example" not in caplog.text
+        assert "Canonical article" not in caplog.text
 
     @pytest.mark.ai
     def test_response_offsets_cover_concatenated_output_items(self) -> None:

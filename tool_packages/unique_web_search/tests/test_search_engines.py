@@ -7,7 +7,7 @@ from unique_search_proxy_core.agent_engines.bing import settings as bing_setting
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
 )
-from unique_search_proxy_core.schema import GroundingCitation
+from unique_search_proxy_core.schema import AnswerSpanCitation
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
@@ -15,8 +15,8 @@ from unique_search_proxy_core.search_engines.perplexity.schema import Perplexity
 from unique_search_proxy_sdk._generated.models.agent_search_response import (
     AgentSearchResponse,
 )
-from unique_search_proxy_sdk._generated.models.grounding_citation import (
-    GroundingCitation as SdkGroundingCitation,
+from unique_search_proxy_sdk._generated.models.answer_span_citation import (
+    AnswerSpanCitation as SdkAnswerSpanCitation,
 )
 from unique_toolkit.monitoring import REGISTRY
 
@@ -104,10 +104,10 @@ class TestSearchEngineFactory:
 def _cited_answer(
     answer: str = "- Test content [1]",
     url: str = "https://example.com",
-) -> tuple[str, list[GroundingCitation]]:
+) -> tuple[str, list[AnswerSpanCitation]]:
     marker_start = answer.index("[1]")
     return answer, [
-        GroundingCitation(
+        AnswerSpanCitation(
             url=url,
             title="Test",
             marker="[1]",
@@ -168,7 +168,7 @@ class TestBingLegacySearch:
     @staticmethod
     def _patch_bing_runtime(
         mocker,
-        run_output: tuple[str, list[GroundingCitation]] | None = None,
+        run_output: tuple[str, list[AnswerSpanCitation]] | None = None,
     ):
         agent_client = AsyncMock()
         get_project_client = mocker.patch(
@@ -313,19 +313,19 @@ class TestBingLegacySearch:
         assert create_and_process_run.call_args.kwargs["grounding"].market is None
 
 
-class TestBingProxyResponseParsing:
-    """Tests for mapping a proxy agent-search response onto Bing results."""
+class TestBingAgentSearchResponseParsing:
+    """Tests for mapping the Search Proxy's agent search response onto Bing results."""
 
     @staticmethod
-    def _proxy_response(
-        answer: str, citations: list[GroundingCitation]
+    def _agent_search_response(
+        answer: str, citations: list[AnswerSpanCitation]
     ) -> AgentSearchResponse:
         return AgentSearchResponse(
             engine="bing",
             query="test query",
             answer=answer,
             citations=[
-                SdkGroundingCitation(
+                SdkAnswerSpanCitation(
                     url=citation.url,
                     title=citation.title,
                     marker=citation.marker,
@@ -338,18 +338,18 @@ class TestBingProxyResponseParsing:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_parse_agent_proxy_response__maps_citation_urls(self) -> None:
+    async def test_parse_agent_search_response__maps_citation_urls(self) -> None:
         """
-        Purpose: Verify the proxy path maps cited lines onto the citation URLs.
+        Purpose: Verify the Search Proxy path maps cited lines onto the citation URLs.
         Why this matters: Citation URLs are the only trusted source of result URLs.
-        Setup summary: Build a proxy response with one cited bullet; parse it.
+        Setup summary: Build an agent search response with one cited bullet; parse it.
         """
         # Arrange
         search = BingSearch(BingSearchConfig())
-        response = self._proxy_response(*_cited_answer())
+        response = self._agent_search_response(*_cited_answer())
 
         # Act
-        results = await search._parse_agent_proxy_response(response)
+        results = await search._parse_agent_search_response(response)
 
         # Assert
         assert [result.url for result in results] == ["https://example.com"]
@@ -357,7 +357,7 @@ class TestBingProxyResponseParsing:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_parse_agent_proxy_response__bad_citation__keeps_the_rest(
+    async def test_parse_agent_search_response__bad_citation__keeps_the_rest(
         self,
     ) -> None:
         """
@@ -378,14 +378,14 @@ class TestBingProxyResponseParsing:
                 "end_index": answer.index("[2]") + 3,
             }
         )
-        response = self._proxy_response(answer, [good, bad])
+        response = self._agent_search_response(answer, [good, bad])
         citations_before = _metric_count(
             "grounding_dropped_citations_total", "non_http_url"
         )
         lines_before = _metric_count("grounding_dropped_lines_total", "no_citation")
 
         # Act
-        results = await search._parse_agent_proxy_response(response)
+        results = await search._parse_agent_search_response(response)
 
         # Assert
         assert [(result.url, result.content) for result in results] == [

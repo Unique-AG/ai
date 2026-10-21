@@ -8,20 +8,24 @@ from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="GroundingCitation")
+T = TypeVar("T", bound="AnswerSpanCitation")
 
 
 @_attrs_define
-class GroundingCitation:
-    """Provider-authoritative citation attached to grounded agent output.
+class AnswerSpanCitation:
+    """A source cited at a specific span of the answer text.
 
-    Attributes:
-        url (str):
-        marker (str):
-        start_index (int):
-        end_index (int):
-        title (None | str | Unset):
-        output_item_id (None | str | Unset):
+    Grounding with Bing Search reports these as ``url_citation`` annotations:
+    the agent writes a marker such as ``【4:0†source】`` into its answer, and
+    Foundry attaches the source to that marker's character span.
+
+        Attributes:
+            url (str): URL of the cited source
+            marker (str): Answer text between start_index and end_index
+            start_index (int): Character offset in the answer where the marker starts
+            end_index (int): Character offset in the answer just past the marker
+            title (None | str | Unset): Title of the cited source
+            output_item_id (None | str | Unset): Output item the citation is attached to, if the provider reports one
     """
 
     url: str
@@ -99,7 +103,7 @@ class GroundingCitation:
 
         output_item_id = _parse_output_item_id(d.pop("outputItemId", UNSET))
 
-        grounding_citation = cls(
+        answer_span_citation = cls(
             url=url,
             marker=marker,
             start_index=start_index,
@@ -108,8 +112,8 @@ class GroundingCitation:
             output_item_id=output_item_id,
         )
 
-        grounding_citation.additional_properties = d
-        return grounding_citation
+        answer_span_citation.additional_properties = d
+        return answer_span_citation
 
     @property
     def additional_keys(self) -> list[str]:

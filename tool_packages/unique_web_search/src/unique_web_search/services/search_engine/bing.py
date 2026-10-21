@@ -13,7 +13,7 @@ from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
 from unique_search_proxy_core.agent_engines.bing.settings import resolve_market
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
-from unique_search_proxy_core.schema import GroundingCitation
+from unique_search_proxy_core.schema import AnswerSpanCitation
 
 from unique_web_search.metrics import (
     grounding_dropped_citations,
@@ -109,7 +109,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         return invocation
 
     @override
-    async def _parse_agent_proxy_response(
+    async def _parse_agent_search_response(
         self,
         response: AgentSearchResponse,
     ) -> list[WebSearchResult]:
@@ -139,14 +139,20 @@ class BingSearch(SearchEngine[BingSearchConfig]):
     async def _parse_cited_answer(
         self,
         answer: str,
-        citations: Sequence[GroundingCitation],
+        citations: Sequence[AnswerSpanCitation],
     ) -> list[WebSearchResult]:
         parsed = await self.citation_response_parser(answer, citations)
         engine = self.config.engine.value
         for reason, count in parsed.dropped_citations.items():
-            grounding_dropped_citations.labels(engine=engine, reason=reason).inc(count)
+            grounding_dropped_citations.labels(engine=engine, reason=reason.value).inc(
+                count
+            )
         for reason, count in parsed.dropped_lines.items():
-            grounding_dropped_lines.labels(engine=engine, reason=reason).inc(count)
+            grounding_dropped_lines.labels(engine=engine, reason=reason.value).inc(
+                count
+            )
         if parsed.failure is not None:
-            grounding_parse_failures.labels(engine=engine, reason=parsed.failure).inc()
+            grounding_parse_failures.labels(
+                engine=engine, reason=parsed.failure.value
+            ).inc()
         return parsed.results

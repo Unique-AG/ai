@@ -26,7 +26,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
     bing_agent_name,
 )
-from unique_search_proxy_core.schema import GroundingCitation
+from unique_search_proxy_core.schema import AnswerSpanCitation
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client,
@@ -266,11 +266,25 @@ def _extract_message_url_citations(
     item: ResponseOutputMessage,
     *,
     start_index_offset: int = 0,
-) -> list[GroundingCitation]:
+) -> list[AnswerSpanCitation]:
+    """Turn the URL annotations on one output message into citations.
+
+    Args:
+        item: A completed assistant message. Its text can be split across
+            several ``output_text`` parts, and each annotation's offsets are
+            relative to the part it is attached to.
+        start_index_offset: Length of the answer text before this message, so
+            the returned offsets point into the full answer.
+
+    Returns:
+        One citation per URL annotation, carrying the marker text the
+        annotation spans and its offsets into the full answer. Annotations
+        without a URL or with an empty span are skipped.
+    """
     if not item.content:
         return []
 
-    citations: list[GroundingCitation] = []
+    citations: list[AnswerSpanCitation] = []
     text_offset = start_index_offset
     for text_content in item.content:
         if not isinstance(text_content, ResponseOutputText):
@@ -281,7 +295,7 @@ def _extract_message_url_citations(
             marker = text_content.text[annotation.start_index : annotation.end_index]
             if annotation.url and marker:
                 citations.append(
-                    GroundingCitation(
+                    AnswerSpanCitation(
                         url=annotation.url,
                         title=annotation.title,
                         marker=marker,
@@ -296,9 +310,9 @@ def _extract_message_url_citations(
 
 def _extract_response_url_citations(
     response: Response,
-) -> list[GroundingCitation]:
+) -> list[AnswerSpanCitation]:
     """Extract citations with offsets into ``response.output_text``."""
-    citations: list[GroundingCitation] = []
+    citations: list[AnswerSpanCitation] = []
     text_offset = 0
     for item in response.output or []:
         if not isinstance(item, ResponseOutputMessage):
@@ -316,10 +330,8 @@ def _extract_response_url_citations(
         )
 
     _LOGGER.info(
-        "Foundry Bing citation annotations response_id=%s "
-        "citation_count=%d citations=%s",
+        "Foundry Bing citation annotations response_id=%s citation_count=%d",
         response.id,
         len(citations),
-        [citation.model_dump(mode="json", by_alias=True) for citation in citations],
     )
     return citations

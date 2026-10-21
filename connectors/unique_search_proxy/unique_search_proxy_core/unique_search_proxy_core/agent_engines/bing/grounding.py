@@ -17,6 +17,9 @@ BING_AUTO_AGENT_NAME_PREFIX = "unique-grounding-with-bing"
 _CONFIG_HASH_LENGTH = 12
 _HASH_FIELD_SEPARATOR = "\0"
 
+# Describes the output format we want from the agent. Models do not always
+# follow it, so downstream parsing should tolerate deviations and keep what it
+# can rather than reject the whole answer.
 _CITATION_INSTRUCTIONS = """## Source-isolated evidence list
 Use Bing Grounding to select distinct useful sources.
 The complete response must consist only of lines in this form:

@@ -2,11 +2,11 @@ import pytest
 from unique_search_proxy_sdk._generated.models.agent_search_response import (
     AgentSearchResponse,
 )
+from unique_search_proxy_sdk._generated.models.answer_span_citation import (
+    AnswerSpanCitation,
+)
 from unique_search_proxy_sdk._generated.models.crawl_response import CrawlResponse
 from unique_search_proxy_sdk._generated.models.crawl_url_result import CrawlUrlResult
-from unique_search_proxy_sdk._generated.models.grounding_citation import (
-    GroundingCitation,
-)
 
 from unique_web_search.services.proxy.mappers import (
     agent_citations,
@@ -20,7 +20,7 @@ def test_agent_citations__maps_sdk_model_to_core_model() -> None:
         engine="bing",
         query="query",
         citations=[
-            GroundingCitation(
+            AnswerSpanCitation(
                 url="https://canonical.example/source",
                 title="Canonical source",
                 marker="[1]",

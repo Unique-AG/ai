@@ -76,7 +76,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     it, otherwise it reroutes to the local legacy implementation.
     """
 
-    # Set by agent engines that use the default ``_parse_agent_proxy_response``.
+    # Set by agent engines that use the default ``_parse_agent_search_response``.
     response_parsers: list[ResponseParser]
 
     def __init__(
@@ -184,14 +184,18 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 engine=engine.value,
                 **invocation,
             )
-        results = await self._parse_agent_proxy_response(response)
+        results = await self._parse_agent_search_response(response)
         return await self._postprocess_results(results)
 
-    async def _parse_agent_proxy_response(
+    async def _parse_agent_search_response(
         self,
         response: AgentSearchResponse,
     ) -> list[WebSearchResult]:
-        """Parse an agent proxy response; engines may override for grounding metadata."""
+        """Turn the Search Proxy's agent search response into results.
+
+        Parses only the answer text. Engines whose provider attaches more to
+        the answer override this, as Bing does to use its citations.
+        """
         return await map_agent_answer(
             agent_answer_text(response),
             self.response_parsers,

@@ -19,7 +19,7 @@ from unique_search_proxy_core.schema import (
     AgentSearchDone,
     AgentSearchResponse,
     AgentSearchStreamEvent,
-    GroundingCitation,
+    AnswerSpanCitation,
 )
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
@@ -108,7 +108,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
         answer_parts: list[str] = []
         completed_answer: str | None = None
         raw_chunks: list[dict] = []
-        citations: list[GroundingCitation] = []
+        citations: list[AnswerSpanCitation] = []
 
         instructions = build_bing_citation_instructions(
             request.generation_instructions,
@@ -148,7 +148,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                                     if raw_event.get("type") == "response.completed":
                                         completed_answer = raw_event.get("answer")
                                         citations = [
-                                            GroundingCitation.model_validate(citation)
+                                            AnswerSpanCitation.model_validate(citation)
                                             for citation in raw_event.get("citations")
                                             or []
                                         ]

@@ -9,7 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.grounding_citation import GroundingCitation
+    from ..models.answer_span_citation import AnswerSpanCitation
 
 
 T = TypeVar("T", bound="AgentSearchResponse")
@@ -19,21 +19,23 @@ T = TypeVar("T", bound="AgentSearchResponse")
 class AgentSearchResponse:
     """Result of an agent-based (grounded) search.
 
-    Thin egress contract: opaque ``answer`` text from the provider plus ``raw``
-    for debugging. Consumers interpret ``answer`` (JSON parsing, citations, etc.).
+    Thin egress contract: opaque ``answer`` text from the provider, the
+    citations the provider attached to it, and ``raw`` for debugging. Consumers
+    interpret ``answer`` (JSON parsing, mapping citations, etc.).
 
         Attributes:
             engine (str):
             query (str):
             answer (str | Unset): Agent response text as returned by the provider (opaque to the proxy) Default: ''.
-            citations (list[GroundingCitation] | Unset): Provider-authoritative citations for spans in the agent answer
+            citations (list[AnswerSpanCitation] | Unset): Sources cited in the answer. Only Grounding with Bing Search
+                reports citations; other engines return an empty list.
             raw (Any | Unset): Opaque provider payload
     """
 
     engine: str
     query: str
     answer: str | Unset = ""
-    citations: list[GroundingCitation] | Unset = UNSET
+    citations: list[AnswerSpanCitation] | Unset = UNSET
     raw: Any | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -72,7 +74,7 @@ class AgentSearchResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.grounding_citation import GroundingCitation
+        from ..models.answer_span_citation import AnswerSpanCitation
 
         d = dict(src_dict)
         engine = d.pop("engine")
@@ -82,11 +84,11 @@ class AgentSearchResponse:
         answer = d.pop("answer", UNSET)
 
         _citations = d.pop("citations", UNSET)
-        citations: list[GroundingCitation] | Unset = UNSET
+        citations: list[AnswerSpanCitation] | Unset = UNSET
         if _citations is not UNSET:
             citations = []
             for citations_item_data in _citations:
-                citations_item = GroundingCitation.from_dict(citations_item_data)
+                citations_item = AnswerSpanCitation.from_dict(citations_item_data)
 
                 citations.append(citations_item)
 
