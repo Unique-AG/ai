@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shlex
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import unique_sdk
@@ -9,6 +11,13 @@ from unique_sdk.cli.formatting import format_ls
 from unique_sdk.cli.metadata_filter import _collect_filter_targets
 from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
+
+# folder/infos and content/infos reject take > 100 and return 50 rows when
+# take is omitted. ``ls`` shows LS_DEFAULT_LIMIT folders and files per call;
+# --limit raises that and --all lifts it to LS_MAX_LIMIT (10 pages of 100).
+LS_PAGE_SIZE = 100
+LS_DEFAULT_LIMIT = 50
+LS_MAX_LIMIT = 1000
 
 
 def cmd_pwd(state: ShellState) -> str:
@@ -84,8 +93,79 @@ def is_ls_error_output(output: str) -> bool:
     return output.startswith("ls:")
 
 
-def cmd_ls(state: ShellState, target: str | None = None) -> str:
-    """List folders and files at the given (or current) path."""
+def _fetch_window(
+    fetch_page: Callable[[int, int], Mapping[str, Any]],
+    rows_key: str,
+    skip: int,
+    limit: int,
+) -> tuple[list[Any], int]:
+    """Return up to *limit* rows starting at *skip*, and the API total."""
+    rows: list[Any] = []
+    total: int | None = None
+    offset = skip
+    while len(rows) < limit:
+        take = min(LS_PAGE_SIZE, limit - len(rows))
+        result = fetch_page(offset, take)
+        page = result.get(rows_key, [])
+        total = result.get("totalCount", total)
+        rows.extend(page)
+        offset += len(page)
+        if len(page) < take or (total is not None and offset >= total):
+            break
+    return rows, total if total is not None else skip + len(rows)
+
+
+def _window_note(
+    label: str,
+    skip: int,
+    limit: int,
+    shown: dict[str, int],
+    totals: dict[str, int],
+) -> str:
+    """Say which rows are shown and how to list the rest; empty when complete."""
+    parts: list[str] = []
+    for kind in ("folders", "files"):
+        total = totals[kind]
+        count = shown[kind]
+        if total == 0 or (skip == 0 and count >= total):
+            continue
+        if count == 0:
+            parts.append(f"no {kind} after {skip} (of {total})")
+        else:
+            parts.append(f"{kind} {skip + 1}-{skip + count} of {total}")
+    if not parts:
+        return ""
+    note = "\nshowing " + ", ".join(parts)
+    if any(skip + shown[kind] < totals[kind] for kind in shown):
+        quoted = shlex.quote(label)
+        limit_arg = "" if limit == LS_DEFAULT_LIMIT else f" --limit {limit}"
+        note += (
+            f"\nmore: unique-cli ls {quoted} --skip {skip + limit}{limit_arg}"
+            f" (or: unique-cli ls {quoted} --all)"
+        )
+    return note
+
+
+def cmd_ls(
+    state: ShellState,
+    target: str | None = None,
+    *,
+    skip: int = 0,
+    limit: int = LS_DEFAULT_LIMIT,
+    all_items: bool = False,
+) -> str:
+    """List folders and files at the given (or current) path.
+
+    Shows up to *limit* folders and *limit* files starting at *skip*
+    (``all_items`` raises *limit* to ``LS_MAX_LIMIT``). When more exist, the
+    output says which rows are shown and ends with the ``ls`` call for the rest.
+    """
+    if all_items:
+        limit = LS_MAX_LIMIT
+    if skip < 0:
+        return "ls: --skip must be 0 or more"
+    if not 1 <= limit <= LS_MAX_LIMIT:
+        return f"ls: --limit must be between 1 and {LS_MAX_LIMIT}"
     try:
         if target is not None:
             resolved_path, scope_id = state.resolve_path(target)
@@ -193,24 +273,39 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
             folder_params["parentId"] = scope_id
             content_params["parentId"] = scope_id
 
-        folder_result = unique_sdk.Folder.get_infos(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            **folder_params,
+        folders, total_folders = _fetch_window(
+            lambda offset, take: unique_sdk.Folder.get_infos(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                skip=offset,
+                take=take,
+                **folder_params,
+            ),
+            "folderInfos",
+            skip,
+            limit,
         )
-        folders = folder_result.get("folderInfos", [])
-
-        content_result = unique_sdk.Content.get_infos(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            **content_params,
+        files, total_files = _fetch_window(
+            lambda offset, take: unique_sdk.Content.get_infos(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                skip=offset,
+                take=take,
+                **content_params,
+            ),
+            "contentInfos",
+            skip,
+            limit,
         )
-        files = content_result.get("contentInfos", [])
+        note = _window_note(
+            target if target is not None else resolved_path,
+            skip,
+            limit,
+            {"folders": len(folders), "files": len(files)},
+            {"folders": total_folders, "files": total_files},
+        )
 
-        total_folders = folder_result.get("totalCount", len(folders))
-        total_files = content_result.get("totalCount", len(files))
-
-        if scope_id and not folders and not files:
+        if scope_id and not folders and not files and skip == 0:
             label = target if target is not None else resolved_path
             counts_error = _counts_without_rows_error(
                 label,
@@ -239,11 +334,11 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                 f"\n{total_folders} folder(s), {len(files)} file(s) in task scope "
                 f"(of {total_files} in folder)"
             )
-            return output + summary
+            return output + summary + note
 
         output = format_ls(folders, files)
         summary = f"\n{total_folders} folder(s), {total_files} file(s)"
-        return output + summary
+        return output + summary + note
 
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"ls: {e}"

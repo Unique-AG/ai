@@ -27,7 +27,12 @@ from unique_sdk.cli.commands.files import (
 )
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
-from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.navigation import (
+    LS_DEFAULT_LIMIT,
+    cmd_cd,
+    cmd_ls,
+    cmd_pwd,
+)
 from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_create,
     cmd_schedule_delete,
@@ -217,10 +222,12 @@ class UniqueShell(cmd.Cmd):
     def do_ls(self, arg: str) -> None:
         """List folders and files in a directory.
 
-        Usage: ls [target]
+        Usage: ls [target] [--limit N] [--skip N] [--all]
 
         Without arguments, lists the current directory. With an argument,
         lists the specified folder (by name, path, or scope ID).
+        Shows 50 folders and 50 files by default; when a folder holds more,
+        the output says so and prints the command for the rest.
 
         Output columns: TYPE  NAME  ID  SIZE  UPDATED
 
@@ -233,8 +240,43 @@ class UniqueShell(cmd.Cmd):
           /> ls /Reports/Q1
           /> ls scope_abc123
         """
-        target = arg.strip() or None
-        self._print(cmd_ls(self.state, target))
+        try:
+            parts = shlex.split(arg)
+        except ValueError as e:
+            self._print(f"ls: {e}")
+            return
+        target: str | None = None
+        skip = 0
+        limit = LS_DEFAULT_LIMIT
+        all_items = False
+        it = iter(parts)
+        for part in it:
+            if part in ("--all", "-a"):
+                all_items = True
+            elif part in ("--limit", "-l", "--skip"):
+                value = next(it, None)
+                try:
+                    number = int(value) if value is not None else None
+                except ValueError:
+                    number = None
+                if number is None:
+                    self._print(f"ls: {part} needs a whole number")
+                    return
+                if part == "--skip":
+                    skip = number
+                else:
+                    limit = number
+            elif part.startswith("-") and len(part) > 1:
+                self._print(f"ls: unknown option {part}")
+                return
+            elif target is None:
+                target = part
+            else:
+                self._print("ls: expected at most one target")
+                return
+        self._print(
+            cmd_ls(self.state, target, skip=skip, limit=limit, all_items=all_items)
+        )
 
     # -- Folder operations --
 
