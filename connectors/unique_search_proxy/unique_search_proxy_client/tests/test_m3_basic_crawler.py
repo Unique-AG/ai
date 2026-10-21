@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import gzip
 import logging
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 
 import httpx
 import pytest
@@ -324,6 +324,7 @@ async def test_crawl_pinned__maps_transport_errors_to_upstream_errors(
     monkeypatch.setattr(
         logging.getLogger("unique_search_proxy_client"), "propagate", True
     )
+
     def raise_error(_request: httpx.Request) -> httpx.Response:
         raise error
 
@@ -668,6 +669,61 @@ async def test_crawl_pinned__rejects_unrequested_content_encoding() -> None:
     assert result.error is not None
     assert result.error.code == ProxyErrorCode.UPSTREAM_ERROR.value
     assert "br" in result.error.message
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "content_encoding",
+    ["gzip, gzip", "deflate, gzip", "gzip, identity, deflate"],
+)
+async def test_crawl_pinned__rejects_stacked_compression__only_for_affected_url(
+    content_encoding: str,
+) -> None:
+    """
+    Purpose: Verify responses with more than one compressing layer are rejected.
+    Why this matters: httpx decodes all layers in one step, so a second layer
+        inflates past the decoded-size limit before it can be checked.
+    Setup summary: One URL streams a body with a stacked content-encoding,
+        another a plain body; assert only the stacked URL errors, its body is
+        never read, and the other still succeeds.
+    """
+    stacked_body_read: list[bool] = []
+
+    async def stacked_body() -> AsyncIterator[bytes]:
+        stacked_body_read.append(True)
+        yield gzip.compress(gzip.compress(b"\0" * 1024))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["Host"] == "stacked.example":
+            return httpx.Response(
+                200,
+                headers={"content-encoding": content_encoding},
+                content=stacked_body(),
+            )
+        return httpx.Response(200, text="plain")
+
+    http_client, _ = _recording_client(handler)
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        stacked_result, plain_result = await crawler.crawl_pinned(
+            _plain_crawl_request(
+                "https://stacked.example/page", "https://plain.example/page"
+            ),
+            [
+                _pinned_target("https://stacked.example/page", "stacked.example"),
+                _pinned_target("https://plain.example/page", "plain.example"),
+            ],
+        )
+
+    assert stacked_result.error is not None
+    assert stacked_result.error.code == ProxyErrorCode.UPSTREAM_ERROR.value
+    assert "Unsupported content encoding" in stacked_result.error.message
+    assert stacked_result.raw is None
+    assert stacked_body_read == []
+    assert plain_result.error is None
+    assert plain_result.raw == "plain"
 
 
 @pytest.mark.ai

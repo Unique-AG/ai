@@ -46,7 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 # Only encodings whose decoded size read_capped_body can bound in small steps;
 # brotli and zstd reach far higher compression ratios.
 _ACCEPT_ENCODING = "gzip, deflate"
-_SUPPORTED_CONTENT_ENCODINGS = frozenset({"gzip", "deflate", "identity"})
+_COMPRESSING_CONTENT_ENCODINGS = frozenset({"gzip", "deflate"})
 
 
 def _content_type_from_response(response: httpx.Response) -> str | None:
@@ -57,11 +57,21 @@ def _content_type_from_response(response: httpx.Response) -> str | None:
 
 
 def _unsupported_content_encoding(response: httpx.Response) -> str | None:
-    header = response.headers.get("content-encoding", "")
-    for encoding in header.split(","):
-        normalized = encoding.strip().lower()
-        if normalized and normalized not in _SUPPORTED_CONTENT_ENCODINGS:
-            return normalized
+    encodings = [
+        encoding.strip().lower()
+        for encoding in response.headers.get_list(
+            "content-encoding",
+            split_commas=True,
+        )
+    ]
+    for encoding in encodings:
+        if encoding not in {"", "identity", *_COMPRESSING_CONTENT_ENCODINGS}:
+            return encoding
+    # httpx decodes stacked layers in a single step, so a second compressing
+    # layer would inflate past read_capped_body before it can check the size.
+    compressing = [e for e in encodings if e in _COMPRESSING_CONTENT_ENCODINGS]
+    if len(compressing) > 1:
+        return ", ".join(compressing)
     return None
 
 
