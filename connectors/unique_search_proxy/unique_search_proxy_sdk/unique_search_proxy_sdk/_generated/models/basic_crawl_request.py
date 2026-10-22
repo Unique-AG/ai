@@ -26,8 +26,8 @@ class BasicCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
-        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including HTTP error bodies. For
-            debugging and benchmarks. Default: False.
+        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including bodies the crawler would
+            otherwise skip (unprocessed content types, HTTP errors). For debugging and benchmarks. Default: False.
         crawler (Literal['Basic'] | Unset): Provider discriminator; must be `Basic` for this config. Default: 'Basic'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         content_types (ContentTypes | Unset): Per-type activation flags for basic-crawler content processing.

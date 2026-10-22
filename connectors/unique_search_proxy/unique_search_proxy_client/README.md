@@ -193,7 +193,7 @@ Per-URL outcomes — one URL failing does not fail the batch:
 
 Crawler discriminators: `Basic`, `Tavily`, `Jina`, `Firecrawl`.
 
-Results carry `content` (markdown); `raw` stays null unless the request sets `"includeRaw": true`, which is meant for debugging and benchmarks.
+Results carry `content` (markdown); `raw` stays null unless the request sets `"includeRaw": true`, which is meant for debugging and benchmarks. The Basic crawler checks the `Content-Type` header first and returns `UNSUPPORTED_CONTENT_TYPE` without downloading the body when `contentTypes` does not enable that type (PDF is off by default); with `includeRaw` it downloads and returns those bodies instead.
 
 ### 5.5 Errors
 

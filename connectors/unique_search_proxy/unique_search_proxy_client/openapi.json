@@ -794,7 +794,7 @@
           "includeRaw": {
             "type": "boolean",
             "title": "Include Raw",
-            "description": "Return each URL's upstream response in `raw`, including HTTP error bodies. For debugging and benchmarks.",
+            "description": "Return each URL's upstream response in `raw`, including bodies the crawler would otherwise skip (unprocessed content types, HTTP errors). For debugging and benchmarks.",
             "default": false
           },
           "crawler": {
@@ -815,7 +815,7 @@
           "contentTypes": {
             "$ref": "#/components/schemas/ContentTypeToggles",
             "title": "Content types",
-            "description": "Enable built-in processing per media type. Unchecked types are not converted; their body is returned only with `includeRaw`.",
+            "description": "Enable built-in processing per media type. Pages of unchecked types are skipped without being downloaded.",
             "default": {
               "html": true,
               "xhtml": true,
@@ -1469,7 +1469,7 @@
           "includeRaw": {
             "type": "boolean",
             "title": "Include Raw",
-            "description": "Return each URL's upstream response in `raw`, including HTTP error bodies. For debugging and benchmarks.",
+            "description": "Return each URL's upstream response in `raw`, including bodies the crawler would otherwise skip (unprocessed content types, HTTP errors). For debugging and benchmarks.",
             "default": false
           },
           "crawler": {
@@ -1828,7 +1828,7 @@
           "includeRaw": {
             "type": "boolean",
             "title": "Include Raw",
-            "description": "Return each URL's upstream response in `raw`, including HTTP error bodies. For debugging and benchmarks.",
+            "description": "Return each URL's upstream response in `raw`, including bodies the crawler would otherwise skip (unprocessed content types, HTTP errors). For debugging and benchmarks.",
             "default": false
           },
           "crawler": {
@@ -2325,7 +2325,7 @@
           "includeRaw": {
             "type": "boolean",
             "title": "Include Raw",
-            "description": "Return each URL's upstream response in `raw`, including HTTP error bodies. For debugging and benchmarks.",
+            "description": "Return each URL's upstream response in `raw`, including bodies the crawler would otherwise skip (unprocessed content types, HTTP errors). For debugging and benchmarks.",
             "default": false
           },
           "crawler": {
