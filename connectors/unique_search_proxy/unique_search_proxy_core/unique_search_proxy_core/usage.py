@@ -31,6 +31,8 @@ class UsageRecord(BaseModel):
     endpoint: Literal["search", "agent_search", "crawl"]
     provider: str
     units: int
+    # Results requested on /v1/search; Google and Brave page, so one unit can be several calls.
+    fetch_size: int | None = None
     status: Literal["success", "error"]
     duration_ms: int
 

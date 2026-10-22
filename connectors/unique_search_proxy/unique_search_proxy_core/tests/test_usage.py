@@ -50,6 +50,7 @@ def test_record_usage_emits_one_json_line_with_fixed_fields(
         "endpoint",
         "provider",
         "units",
+        "fetch_size",
         "status",
         "duration_ms",
     }

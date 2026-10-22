@@ -130,6 +130,7 @@ async def search(
             "search",
             engine_id,
             units=1,
+            fetch_size=body.fetch_size,
             succeeded=succeeded,
             started=started,
         )

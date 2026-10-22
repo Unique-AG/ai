@@ -192,9 +192,10 @@ class TestUsageRecording:
         )
         assert record.entry_point is EntryPoint.PUBLIC_API
         assert record.message_id == "msg-1"
-        assert (record.endpoint, record.provider, record.units) == (
+        assert (record.endpoint, record.provider, record.units, record.fetch_size) == (
             "search",
             "google",
+            1,
             1,
         )
         assert record.status == "success"

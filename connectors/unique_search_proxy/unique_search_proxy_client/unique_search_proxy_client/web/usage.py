@@ -16,6 +16,7 @@ def record_request_usage(
     units: int,
     succeeded: bool,
     started: float,
+    fetch_size: int | None = None,
 ) -> None:
     """Emit the usage log line and counter for the current request."""
     context = get_request_context()
@@ -31,6 +32,7 @@ def record_request_usage(
             endpoint=endpoint,
             provider=provider,
             units=units,
+            fetch_size=fetch_size,
             status=status,
             duration_ms=round((time.perf_counter() - started) * 1000),
         ),
