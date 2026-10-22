@@ -265,24 +265,6 @@ def _emit_egress_block(group: HelmSettingsGroup) -> list[str]:
     return []
 
 
-_WORLD_EGRESS_CHECK = (
-    '(ne ((.Values.networkPolicy).allowWorldEgress | toString) "false")'
-)
-
-_WORLD_EGRESS_BLOCK = [
-    f"{{{{ if {_WORLD_EGRESS_CHECK} }}}}",
-    "- toEntities:",
-    "  - world",
-    "  toPorts:",
-    "  - ports:",
-    '    - port: "443"',
-    "      protocol: TCP",
-    '    - port: "80"',
-    "      protocol: TCP",
-    "{{- end }}",
-]
-
-
 def _egress_active_check(group: HelmSettingsGroup) -> str:
     if isinstance(group.egress, EgressProxyHost):
         paths = _proxy_values_paths(group, group.egress)
@@ -295,7 +277,7 @@ def _emit_has_rules_block(groups: tuple[HelmSettingsGroup, ...]) -> list[str]:
     checks = [
         _egress_active_check(group) for group in groups if group.egress is not None
     ]
-    joined = " ".join([*checks, _WORLD_EGRESS_CHECK])
+    joined = " ".join(checks)
     return [f"{{{{- if or {joined} -}}}}true{{{{- end -}}}}"]
 
 
@@ -359,7 +341,6 @@ def render_generated_template(groups: tuple[HelmSettingsGroup, ...]) -> str:
     )
     for group in groups:
         lines.extend(_emit_egress_block(group))
-    lines.extend(_WORLD_EGRESS_BLOCK)
     lines.append("{{- end -}}")
     lines.append("")
 

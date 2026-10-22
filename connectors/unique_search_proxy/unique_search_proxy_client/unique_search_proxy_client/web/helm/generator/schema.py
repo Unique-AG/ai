@@ -132,11 +132,6 @@ def build_additional_schema(groups: tuple[HelmSettingsGroup, ...]) -> dict[str, 
     properties["networkPolicy"] = {
         "properties": {
             "enabled": {"type": "boolean", "default": True},
-            "allowWorldEgress": {
-                "type": "boolean",
-                "default": True,
-                "description": "Allow ports 443 and 80 to the internet. Set false only for corporate-proxy tenants. Bing and Vertex AI agent search and the Azure workload identity login then need extra egress rules.",
-            },
             "allowDisabled": {
                 "type": "boolean",
                 "default": False,

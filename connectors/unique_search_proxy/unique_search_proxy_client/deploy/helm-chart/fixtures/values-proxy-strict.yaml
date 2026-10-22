@@ -1,6 +1,9 @@
 # Overlay fixture: strict mode, all crawl traffic through a corporate proxy (no real secrets).
 networkPolicy:
-  allowWorldEgress: false
+  baseline:
+    egress:
+      worldHttp:
+        enabled: false
 
 urlSafety:
   enabled: false

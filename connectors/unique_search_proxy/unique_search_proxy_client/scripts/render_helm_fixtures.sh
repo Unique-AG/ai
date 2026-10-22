@@ -90,9 +90,9 @@ if ! grep -qF "toEntities" <<<"${policy}"; then
   echo "Error: default policy is missing the world egress rule." >&2
   exit 1
 fi
-err="$(render_defaults --set networkPolicy.allowWorldEgress=false 2>&1 >/dev/null || true)"
-if ! grep -qF "allowWorldEgress=false needs" <<<"${err}"; then
-  echo "Error: allowWorldEgress=false without a proxy did not trip the guard." >&2
+err="$(render_defaults --set networkPolicy.baseline.egress.worldHttp.enabled=false 2>&1 >/dev/null || true)"
+if ! grep -qF "worldHttp.enabled=false needs" <<<"${err}"; then
+  echo "Error: worldHttp.enabled=false without a proxy did not trip the guard." >&2
   exit 1
 fi
 

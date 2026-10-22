@@ -154,9 +154,9 @@ and rendered into `_generated.tpl` (only when `networkPolicy.enabled`):
   `toCIDR` `/32` for an IPv4 host or `toFQDNs: matchName` otherwise. The render fails on an invalid host or port.
 - **`egress=None`** (e.g. agent providers reaching Azure/GCP) → no rule generated.
 
-Ports 443 and 80 to the internet are a fixed block in the same hook, rendered unless
-`networkPolicy.allowWorldEgress` is false. Setting it to false requires a proxy host and port
-(`templates/guards.yaml`).
+Ports 443 and 80 to the internet are not generated. They are the `worldHttp` baseline rule in
+`values.yaml` (`networkPolicy.baseline.egress.worldHttp`). Disabling it requires a proxy host and
+port (`templates/guards.yaml`).
 
 ---
 
