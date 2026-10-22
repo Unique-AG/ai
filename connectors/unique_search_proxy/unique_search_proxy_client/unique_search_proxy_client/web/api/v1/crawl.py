@@ -84,6 +84,15 @@ def _url_outcomes(results: list[CrawlUrlResult]) -> list[tuple[str, str, str]]:
     return outcomes
 
 
+def _without_success_raw(results: list[CrawlUrlResult]) -> list[CrawlUrlResult]:
+    return [
+        result.model_copy(update={"raw": None})
+        if result.error is None and result.raw is not None
+        else result
+        for result in results
+    ]
+
+
 @router.post(
     "/crawl",
     response_model=CrawlResponse,
@@ -206,6 +215,8 @@ async def crawl(
         blocked_by_index=gate.blocked_by_index,
         crawler_results=crawler_results,
     )
+    if not body.include_raw:
+        merged_results = _without_success_raw(merged_results)
     record_crawl_url_outcomes(crawler_id, _url_outcomes(merged_results))
     _LOGGER.info(
         "crawl success crawler=%s urls=%d blocked=%d results=%d duration=%.0fms",

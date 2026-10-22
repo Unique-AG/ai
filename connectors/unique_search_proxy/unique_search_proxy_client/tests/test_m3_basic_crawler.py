@@ -110,11 +110,48 @@ def test_basic_crawler_service_returns_markdown() -> None:
         assert results[0].content_type == "text/html"
         assert results[0].content is not None
         assert "Hello" in results[0].content
-        assert results[0].raw is not None
+        assert results[0].raw is None
 
     import asyncio
 
     asyncio.run(run())
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__returns_raw_body__when_include_raw() -> None:
+    """
+    Purpose: Verify includeRaw returns the upstream body next to the markdown.
+    Why this matters: Debugging and benchmarks need the body the proxy saw,
+        while normal requests leave it out to keep responses small.
+    Setup summary: HTML page crawled with includeRaw; assert content and raw.
+    """
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            200,
+            text=_HTML_PAGE,
+            headers={"content-type": "text/html"},
+        ),
+    )
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/article"],
+            "crawler": CrawlerType.BASIC.value,
+            "includeRaw": True,
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        (result,) = await crawler.crawl_pinned(
+            request,
+            [_pinned_target("https://example.com/article", "example.com")],
+        )
+
+    assert result.error is None
+    assert result.content is not None
+    assert "Hello" in result.content
+    assert result.raw == _HTML_PAGE
 
 
 @pytest.mark.ai
@@ -250,7 +287,7 @@ async def test_crawl_pinned__isolates_malformed_redirect_to_affected_url() -> No
     assert malformed_result.error is not None
     assert malformed_result.error.code == ProxyErrorCode.UPSTREAM_ERROR.value
     assert valid_result.error is None
-    assert valid_result.raw == "valid content"
+    assert valid_result.content == "valid content"
 
 
 @pytest.mark.ai
@@ -299,7 +336,7 @@ async def test_crawl_pinned__delegates_private_redirect_to_trusted_proxy(
 
     assert len(results) == 1
     assert results[0].error is None
-    assert results[0].raw == "internal content"
+    assert results[0].content == "internal content"
     assert len(requests) == 2
     assert str(requests[1].url) == "http://127.0.0.1/internal"
     assert "sni_hostname" not in requests[1].extensions
@@ -391,7 +428,7 @@ async def test_crawl_pinned__reports_processing_timeout(
 
     assert results[0].error is not None
     assert results[0].error.code == ProxyErrorCode.UPSTREAM_TIMEOUT.value
-    assert results[0].raw == _HTML_PAGE
+    assert results[0].raw is None
     assert "Basic crawl processing timed out" in caplog.text
     assert "example.com" not in caplog.text
 
@@ -415,13 +452,40 @@ def test_crawl_endpoint_returns_per_url_results(client: TestClient) -> None:
     assert success["error"] is None
     assert success["contentType"] == "text/html"
     assert success["content"]
-    assert success["raw"]
+    assert success["raw"] is None
 
     failure = next(r for r in body["results"] if "blocked.example" in r["url"])
     assert failure["error"] is not None
     assert failure["error"]["code"] == ProxyErrorCode.UPSTREAM_ERROR.value
     assert failure["error"]["statusCode"] == 403
     assert failure["contentType"] == "text/plain"
+    assert failure["raw"] is None
+
+
+@pytest.mark.ai
+def test_crawl_endpoint_returns_raw_bodies__when_include_raw(
+    client: TestClient,
+) -> None:
+    """
+    Purpose: Verify includeRaw returns upstream bodies for successes and HTTP errors.
+    Why this matters: This is the debugging path once raw is off by default.
+    Setup summary: One HTML URL and one 403 URL with includeRaw; assert both
+        results carry the upstream body.
+    """
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/a", "https://blocked.example/x"],
+            "crawler": CrawlerType.BASIC.value,
+            "includeRaw": True,
+        },
+    )
+    assert resp.status_code == 200
+    success, failure = resp.json()["results"]
+    assert success["error"] is None
+    assert success["content"]
+    assert success["raw"] == _HTML_PAGE
+    assert failure["error"]["statusCode"] == 403
     assert failure["raw"] == "forbidden"
 
 
@@ -450,7 +514,7 @@ def test_crawl_records_per_url_outcome_metrics(client: TestClient) -> None:
 
 
 @pytest.mark.ai
-def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
+def test_crawl_returns_pdf_content_type_without_raw(client: TestClient) -> None:
     resp = client.post(
         "/v1/crawl",
         json={
@@ -462,8 +526,44 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
     result = resp.json()["results"][0]
     assert result["error"] is None
     assert result["contentType"] == "application/pdf"
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__skips_error_body__unless_include_raw() -> None:
+    """
+    Purpose: Verify HTTP error responses are reported without reading their body.
+    Why this matters: Error pages are only useful for debugging, which
+        includeRaw covers.
+    Setup summary: 500 response with a streaming body; assert the status code
+        is reported and the body is never read.
+    """
+    error_body_read: list[bool] = []
+
+    async def error_body() -> AsyncIterator[bytes]:
+        error_body_read.append(True)
+        yield b"<html>Internal Server Error</html>"
+
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            500, headers={"content-type": "text/html"}, content=error_body()
+        ),
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        (result,) = await crawler.crawl_pinned(
+            _plain_crawl_request("https://error.example/page"),
+            [_pinned_target("https://error.example/page", "error.example")],
+        )
+
+    assert result.error is not None
+    assert result.error.code == ProxyErrorCode.UPSTREAM_ERROR.value
+    assert result.error.status_code == 500
+    assert result.raw is None
+    assert error_body_read == []
 
 
 @pytest.mark.ai
@@ -492,8 +592,17 @@ def test_crawl_reports_markdown_conversion_error(
     assert result["error"] is not None
     assert result["error"]["code"] == ProxyErrorCode.UPSTREAM_ERROR.value
     assert "processing failed" in result["error"]["message"].lower()
-    assert result["raw"]
+    assert result["raw"] is None
     assert result["content"] is None
+
+
+_ALL_PROCESSING_DISABLED = {
+    "html": False,
+    "xhtml": False,
+    "plainText": False,
+    "markdown": False,
+    "pdf": False,
+}
 
 
 @pytest.mark.ai
@@ -503,29 +612,47 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
         json={
             "urls": ["https://example.com/a"],
             "crawler": CrawlerType.BASIC.value,
-            "contentTypes": {
-                "html": False,
-                "xhtml": False,
-                "plainText": False,
-                "markdown": False,
-                "pdf": False,
-            },
+            "contentTypes": _ALL_PROCESSING_DISABLED,
         },
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
     assert result["error"] is None
-    assert result["raw"]
+    assert result["contentType"] == "text/html"
+    assert result["raw"] is None
     assert result["content"] is None
 
 
 @pytest.mark.ai
-def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
+def test_crawl_without_processing_returns_raw_body__when_include_raw(
+    client: TestClient,
+) -> None:
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/a"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": _ALL_PROCESSING_DISABLED,
+            "includeRaw": True,
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
+    assert result["error"] is None
+    assert result["raw"] == _HTML_PAGE
+    assert result["content"] is None
+
+
+@pytest.mark.ai
+def test_crawl_pdf_forbidden_returns_raw_body__when_include_raw(
+    client: TestClient,
+) -> None:
     resp = client.post(
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
             "crawler": CrawlerType.BASIC.value,
+            "includeRaw": True,
         },
     )
     assert resp.status_code == 200
@@ -549,7 +676,7 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
     result = resp.json()["results"][0]
     assert result["error"] is not None
     assert "PDF processing" in result["error"]["message"]
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
 
 
 def _cap_crawler_bodies(monkeypatch: pytest.MonkeyPatch, *, max_kib: int) -> None:
@@ -610,7 +737,7 @@ async def test_crawl_pinned__maps_oversized_body_to_per_url_error(
     assert big_result.error.code == ProxyErrorCode.RESPONSE_TOO_LARGE.value
     assert big_result.raw is None
     assert small_result.error is None
-    assert small_result.raw == "small"
+    assert small_result.content == "small"
 
 
 @pytest.mark.ai
@@ -723,7 +850,7 @@ async def test_crawl_pinned__rejects_stacked_compression__only_for_affected_url(
     assert stacked_result.raw is None
     assert stacked_body_read == []
     assert plain_result.error is None
-    assert plain_result.raw == "plain"
+    assert plain_result.content == "plain"
 
 
 @pytest.mark.ai
@@ -732,7 +859,7 @@ async def test_crawl_pinned__decodes_gzip_body__when_under_limit() -> None:
     """
     Purpose: Verify normal gzip pages are decoded and returned as text.
     Why this matters: Most sites compress; the cap must not break them.
-    Setup summary: Gzipped HTML within the default cap; assert decoded raw.
+    Setup summary: Gzipped HTML within the default cap; assert decoded content.
     """
     http_client, _ = _recording_client(
         lambda _: httpx.Response(
@@ -753,7 +880,8 @@ async def test_crawl_pinned__decodes_gzip_body__when_under_limit() -> None:
         )
 
     assert result.error is None
-    assert result.raw == "<p>Grüezi</p>"
+    assert result.content is not None
+    assert "Grüezi" in result.content
 
 
 def _set_crawl_budget(monkeypatch: pytest.MonkeyPatch, *, max_kib: int) -> None:

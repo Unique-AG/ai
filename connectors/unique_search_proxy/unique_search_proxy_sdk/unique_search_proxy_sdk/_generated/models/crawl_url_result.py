@@ -23,8 +23,8 @@ class CrawlUrlResult:
         content (None | str | Unset): Markdown extracted from HTML responses; null when unprocessed
         content_type (None | str | Unset): Response Content-Type (media type only, parameters stripped)
         error (None | PerUrlError | Unset):
-        raw (Any | None | Unset): Upstream provider response for this URL (JSON object or text wrapper); included on
-            success and on per-URL failures for debugging
+        raw (Any | None | Unset): Upstream provider response for this URL (JSON object or text wrapper). Null unless the
+            request sets `includeRaw`, except for transport and provider error details on failures
     """
 
     url: str
@@ -35,7 +35,7 @@ class CrawlUrlResult:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.per_url_error import PerUrlError
+        from ..models.per_url_error import PerUrlError  # noqa: PLC0415
 
         url = self.url
 
@@ -85,7 +85,7 @@ class CrawlUrlResult:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.per_url_error import PerUrlError
+        from ..models.per_url_error import PerUrlError  # noqa: PLC0415
 
         d = dict(src_dict)
         url = d.pop("url")

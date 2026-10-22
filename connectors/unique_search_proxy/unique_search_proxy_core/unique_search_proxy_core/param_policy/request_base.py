@@ -28,3 +28,10 @@ class CrawlRequestBase(BaseModel):
 
     model_config = camelized_model_config
     urls: list[str] = Field(..., min_length=1, description="URLs to crawl")
+    include_raw: bool = Field(
+        default=False,
+        description=(
+            "Return each URL's upstream response in `raw`, including HTTP error "
+            "bodies. For debugging and benchmarks."
+        ),
+    )

@@ -78,6 +78,26 @@ def _unsupported_content_encoding(response: httpx.Response) -> str | None:
     return None
 
 
+def _http_error_result(
+    display_url: str,
+    response: httpx.Response,
+    content_type: str | None,
+    *,
+    raw: str | None,
+) -> CrawlUrlResult:
+    _LOGGER.warning(
+        "Basic crawl HTTP error http_status=%s",
+        response.status_code,
+    )
+    return crawl_upstream_error(
+        display_url,
+        f"HTTP {response.status_code} while fetching URL",
+        content_type=content_type,
+        raw=raw,
+        status_code=response.status_code,
+    )
+
+
 class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
     """Fetch URLs over HTTP and return the response body plus content type."""
 
@@ -126,6 +146,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                         semaphore=semaphore,
                         budget=budget,
                         content_type_handlers=request.content_types.to_handlers(),
+                        include_raw=request.include_raw,
                     )
                     for allowed_target in allowed_targets
                 ],
@@ -142,6 +163,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
         semaphore: asyncio.Semaphore,
         budget: ByteBudget,
         content_type_handlers: dict[str, ContentTypeHandlerPolicy],
+        include_raw: bool,
     ) -> CrawlUrlResult:
         async with semaphore:
             if budget.exhausted:
@@ -175,6 +197,10 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                             f"Unsupported content encoding: {unsupported_encoding}",
                             content_type=content_type,
                             status_code=response.status_code,
+                        )
+                    if not include_raw and response.is_error:
+                        return _http_error_result(
+                            display_url, response, content_type, raw=None
                         )
                     body = await read_capped_body(
                         response,
@@ -226,24 +252,18 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 )
 
             if response.is_error:
-                _LOGGER.warning(
-                    "Basic crawl HTTP error http_status=%s",
-                    response.status_code,
-                )
-                return crawl_upstream_error(
-                    display_url,
-                    f"HTTP {response.status_code} while fetching URL",
-                    content_type=content_type,
-                    raw=raw_body,
-                    status_code=response.status_code,
+                return _http_error_result(
+                    display_url, response, content_type, raw=raw_body
                 )
 
+            returned_raw = raw_body if include_raw else None
             content = await self._maybe_process_content(
                 raw_body,
                 content_type,
                 request_url=display_url,
                 timeout=timeout,
                 content_type_handlers=content_type_handlers,
+                returned_raw=returned_raw,
             )
             if isinstance(content, CrawlUrlResult):
                 return content
@@ -251,7 +271,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
             return CrawlUrlResult(
                 url=display_url,
                 content=content,
-                raw=raw_body,
+                raw=returned_raw,
                 content_type=content_type,
                 error=None,
             )
@@ -264,6 +284,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
         request_url: str,
         timeout: int,
         content_type_handlers: dict[str, ContentTypeHandlerPolicy],
+        returned_raw: str | None,
     ) -> str | None | CrawlUrlResult:
         if not content_type_handlers:
             return None
@@ -282,7 +303,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 str(exc),
                 content_type=content_type,
                 code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
-                raw=raw_body,
+                raw=returned_raw,
             )
         except ContentProcessingError as exc:
             _LOGGER.warning(
@@ -293,5 +314,5 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 request_url,
                 str(exc),
                 content_type=content_type,
-                raw=raw_body,
+                raw=returned_raw,
             )

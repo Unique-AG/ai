@@ -791,6 +791,12 @@
             "title": "Urls",
             "description": "URLs to crawl"
           },
+          "includeRaw": {
+            "type": "boolean",
+            "title": "Include Raw",
+            "description": "Return each URL's upstream response in `raw`, including HTTP error bodies. For debugging and benchmarks.",
+            "default": false
+          },
           "crawler": {
             "type": "string",
             "const": "Basic",
@@ -809,7 +815,7 @@
           "contentTypes": {
             "$ref": "#/components/schemas/ContentTypeToggles",
             "title": "Content types",
-            "description": "Enable built-in processing per media type. Unchecked types return raw body only.",
+            "description": "Enable built-in processing per media type. Unchecked types are not converted; their body is returned only with `includeRaw`.",
             "default": {
               "html": true,
               "xhtml": true,
@@ -1374,7 +1380,7 @@
               }
             ],
             "title": "Raw",
-            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging"
+            "description": "Upstream provider response for this URL (JSON object or text wrapper). Null unless the request sets `includeRaw`, except for transport and provider error details on failures"
           }
         },
         "type": "object",
@@ -1459,6 +1465,12 @@
             "minItems": 1,
             "title": "Urls",
             "description": "URLs to crawl"
+          },
+          "includeRaw": {
+            "type": "boolean",
+            "title": "Include Raw",
+            "description": "Return each URL's upstream response in `raw`, including HTTP error bodies. For debugging and benchmarks.",
+            "default": false
           },
           "crawler": {
             "type": "string",
@@ -1812,6 +1824,12 @@
             "minItems": 1,
             "title": "Urls",
             "description": "URLs to crawl"
+          },
+          "includeRaw": {
+            "type": "boolean",
+            "title": "Include Raw",
+            "description": "Return each URL's upstream response in `raw`, including HTTP error bodies. For debugging and benchmarks.",
+            "default": false
           },
           "crawler": {
             "type": "string",
@@ -2303,6 +2321,12 @@
             "minItems": 1,
             "title": "Urls",
             "description": "URLs to crawl"
+          },
+          "includeRaw": {
+            "type": "boolean",
+            "title": "Include Raw",
+            "description": "Return each URL's upstream response in `raw`, including HTTP error bodies. For debugging and benchmarks.",
+            "default": false
           },
           "crawler": {
             "type": "string",

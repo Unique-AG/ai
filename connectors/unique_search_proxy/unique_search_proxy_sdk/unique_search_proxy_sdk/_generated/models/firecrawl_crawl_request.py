@@ -29,6 +29,8 @@ class FirecrawlCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
+        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including HTTP error bodies. For
+            debugging and benchmarks. Default: False.
         crawler (Literal['Firecrawl'] | Unset): Provider discriminator; must be `Firecrawl` for this config. Default:
             'Firecrawl'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
@@ -50,6 +52,7 @@ class FirecrawlCrawlRequest:
     """
 
     urls: list[str]
+    include_raw: bool | Unset = False
     crawler: Literal["Firecrawl"] | Unset = "Firecrawl"
     timeout: int | Unset = 30
     only_main_content: bool | Unset = True
@@ -69,10 +72,12 @@ class FirecrawlCrawlRequest:
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.firecrawl_crawl_request_scrape_headers_type_0 import (
-            FirecrawlCrawlRequestScrapeHeadersType0,
+            FirecrawlCrawlRequestScrapeHeadersType0,  # noqa: PLC0415
         )
 
         urls = self.urls
+
+        include_raw = self.include_raw
 
         crawler = self.crawler
 
@@ -141,6 +146,8 @@ class FirecrawlCrawlRequest:
                 "urls": urls,
             }
         )
+        if include_raw is not UNSET:
+            field_dict["includeRaw"] = include_raw
         if crawler is not UNSET:
             field_dict["crawler"] = crawler
         if timeout is not UNSET:
@@ -177,11 +184,13 @@ class FirecrawlCrawlRequest:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.firecrawl_crawl_request_scrape_headers_type_0 import (
-            FirecrawlCrawlRequestScrapeHeadersType0,
+            FirecrawlCrawlRequestScrapeHeadersType0,  # noqa: PLC0415
         )
 
         d = dict(src_dict)
         urls = cast(list[str], d.pop("urls"))
+
+        include_raw = d.pop("includeRaw", UNSET)
 
         crawler = cast(Literal["Firecrawl"] | Unset, d.pop("crawler", UNSET))
         if crawler != "Firecrawl" and not isinstance(crawler, Unset):
@@ -285,6 +294,7 @@ class FirecrawlCrawlRequest:
 
         firecrawl_crawl_request = cls(
             urls=urls,
+            include_raw=include_raw,
             crawler=crawler,
             timeout=timeout,
             only_main_content=only_main_content,

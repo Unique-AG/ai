@@ -27,7 +27,8 @@ class BasicConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
         title="Content types",
         description=(
             "Enable built-in processing per media type. "
-            "Unchecked types return raw body only."
+            "Unchecked types are not converted; their body is returned only "
+            "with `includeRaw`."
         ),
     )
     max_concurrent_requests: int = Field(

@@ -313,6 +313,7 @@ class BasicCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         timeout: int = 30,
         content_types: ContentTypeToggles = ContentTypeToggles(),
         max_concurrent_requests: int = 10,
+        include_raw: bool = False,
     ) -> CrawlResponse:
         return await self._call(
             urls=urls,
@@ -320,6 +321,7 @@ class BasicCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
             timeout=timeout,
             content_types=content_types,
             max_concurrent_requests=max_concurrent_requests,
+            include_raw=include_raw,
         )
 
 
@@ -337,6 +339,7 @@ class TavilyCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         include_images: bool = False,
         include_favicon: bool = False,
         include_usage: bool = False,
+        include_raw: bool = False,
     ) -> CrawlResponse:
         return await self._call(
             urls=urls,
@@ -349,6 +352,7 @@ class TavilyCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
             include_images=include_images,
             include_favicon=include_favicon,
             include_usage=include_usage,
+            include_raw=include_raw,
         )
 
 
@@ -376,6 +380,7 @@ class JinaCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         referer: str | None = None,
         proxy_url: str | None = None,
         do_not_track: bool = True,
+        include_raw: bool = False,
     ) -> CrawlResponse:
         return await self._call(
             urls=urls,
@@ -398,6 +403,7 @@ class JinaCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
             referer=referer,
             proxy_url=proxy_url,
             do_not_track=do_not_track,
+            include_raw=include_raw,
         )
 
 
@@ -421,6 +427,7 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         exclude_tags: list[str] | None = None,
         scrape_headers: dict[str, str] | None = None,
         max_age: int | None = None,
+        include_raw: bool = False,
     ) -> CrawlResponse:
         return await self._call(
             urls=urls,
@@ -439,6 +446,7 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
             exclude_tags=exclude_tags,
             scrape_headers=scrape_headers,
             max_age=max_age,
+            include_raw=include_raw,
         )
 
 
