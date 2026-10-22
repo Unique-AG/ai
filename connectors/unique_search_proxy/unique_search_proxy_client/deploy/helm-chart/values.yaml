@@ -167,6 +167,7 @@ httpClient:
     poolTimeoutSeconds: 30.0
     maxConnections: 100
     maxKeepaliveConnections: 20
+    maxResponseKib: 5120
 
 urlSafety:
   enabled: true

@@ -17,6 +17,12 @@ from unique_search_proxy_core.http_client.credentials import (
     UserMetadataProxyCredentials,
     resolver_from_settings,
 )
+from unique_search_proxy_core.http_client.response_cap import (
+    MAX_RESPONSE_BYTES_EXTENSION,
+    install_response_size_cap,
+    read_capped_body,
+    response_size_cap_hook,
+)
 from unique_search_proxy_core.http_client.secrets import (
     read_secret,
     read_secret_mapping,
@@ -29,6 +35,7 @@ from unique_search_proxy_core.http_client.settings import (
 )
 
 __all__ = [
+    "MAX_RESPONSE_BYTES_EXTENSION",
     "DirectRoute",
     "EgressRoute",
     "HttpClientRegistry",
@@ -45,7 +52,10 @@ __all__ = [
     "async_client_factory",
     "build_async_client",
     "build_route",
+    "install_response_size_cap",
+    "read_capped_body",
     "read_secret",
     "read_secret_mapping",
     "resolver_from_settings",
+    "response_size_cap_hook",
 ]

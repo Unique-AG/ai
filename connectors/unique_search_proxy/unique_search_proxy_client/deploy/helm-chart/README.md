@@ -43,6 +43,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | httpClient.tuning.httpClientCacheSize | int | `128` |  |
 | httpClient.tuning.maxConnections | int | `100` |  |
 | httpClient.tuning.maxKeepaliveConnections | int | `20` |  |
+| httpClient.tuning.maxResponseKib | int | `5120` |  |
 | httpClient.tuning.poolTimeoutSeconds | float | `30` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
