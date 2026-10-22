@@ -373,10 +373,9 @@ def retry_on_error(
     """Retry ``APIError`` and ``APIConnectionError``.
 
     4xx responses and errors with ``params.retryable`` false are not retried.
-    The original exception is re-raised after the last attempt.
-    ``error_class`` is accepted for compatibility and ignored.
+    After the last attempt ``error_class`` is raised with the last error as
+    its ``__cause__``.
     """
-    del error_class
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
@@ -392,7 +391,9 @@ def retry_on_error(
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise
+                        raise error_class(
+                            f"Failed after {max_retries} attempts: {e}"
+                        ) from e
 
                     _log_retry(e, attempts, max_retries)
 
@@ -413,7 +414,9 @@ def retry_on_error(
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise
+                        raise error_class(
+                            f"Failed after {max_retries} attempts: {e}"
+                        ) from e
 
                     _log_retry(e, attempts, max_retries)
 

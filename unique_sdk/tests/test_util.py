@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from unique_sdk._util import APIError, retry_on_error
+from unique_sdk._util import APIConnectionError, APIError, retry_on_error
 
 
 # ---- Synchronous Function Tests ----
@@ -27,9 +27,9 @@ def test_retry_on_error_sync_retries_on_specific_error(mock_sleep):
     def func():
         raise source
 
-    with pytest.raises(APIError) as caught:
+    with pytest.raises(APIError, match="Failed after 3 attempts") as caught:
         func()
-    assert caught.value is source
+    assert caught.value.__cause__ is source
     assert mock_sleep.call_count == 2  # Should sleep twice (between retries)
 
 
@@ -70,9 +70,9 @@ async def test_retry_on_error_async_retries_on_specific_error(mock_async_sleep):
     async def func():
         raise source
 
-    with pytest.raises(APIError) as caught:
+    with pytest.raises(APIError, match="Failed after 3 attempts") as caught:
         await func()
-    assert caught.value is source
+    assert caught.value.__cause__ is source
     assert mock_async_sleep.call_count == 2  # Should sleep twice (between retries)
 
 
@@ -187,3 +187,24 @@ def test_retry_on_error__does_not_retry__5xx_marked_not_retryable(mock_sleep) ->
 
     assert caught.value is source
     mock_sleep.assert_not_called()
+
+
+@pytest.mark.ai
+@patch("time.sleep", return_value=None)
+def test_retry_on_error__raises_api_error__when_connection_retries_run_out(
+    mock_sleep,
+) -> None:
+    """Purpose: Verify exhausted connection retries still raise ``APIError``.
+    Why this matters: Client modules catch ``APIError`` for network failures.
+    Setup summary: Raise a matching APIConnectionError on every attempt.
+    """
+    source = APIConnectionError("Connection aborted")
+
+    @retry_on_error(max_retries=3, error_messages=["Connection aborted"])
+    def func():
+        raise source
+
+    with pytest.raises(APIError, match="Failed after 3 attempts") as caught:
+        func()
+
+    assert caught.value.__cause__ is source

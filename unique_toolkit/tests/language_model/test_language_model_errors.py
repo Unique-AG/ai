@@ -13,7 +13,10 @@ from unique_toolkit.chat.responses_api import (
     stream_responses_with_references_async,
 )
 from unique_toolkit.language_model import LanguageModelCallError
-from unique_toolkit.language_model.errors import _language_model_call_error_from
+from unique_toolkit.language_model.errors import (
+    _language_model_call_error_from,
+    _reraise_as_language_model_call_error,
+)
 from unique_toolkit.language_model.functions import complete, complete_async
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import LanguageModelMessages
@@ -48,6 +51,7 @@ def _assert_content_filter(
     source: unique_sdk.InvalidRequestError,
 ) -> None:
     assert isinstance(raised, LanguageModelCallError)
+    assert isinstance(raised, unique_sdk.APIError)
     assert raised.code == "content_filter"
     assert raised.user_message == _FILTER_MESSAGE
     assert raised.retryable is False
@@ -167,6 +171,21 @@ def test_language_model_call_error_from__returns_none__outside_contract(
     assert _language_model_call_error_from(error) is None
 
 
+def test_reraise_as_language_model_call_error__keeps_converted_error() -> None:
+    """Purpose: Verify an already converted error is re-raised as the same object.
+    Why this matters: Nested toolkit calls must not convert its cause a second time.
+    Setup summary: Re-raise a LanguageModelCallError whose cause is a contract error.
+    """
+    converted = _language_model_call_error_from(_content_filter_error())
+    assert converted is not None
+    converted.__cause__ = _content_filter_error()
+
+    with pytest.raises(LanguageModelCallError) as caught:
+        _reraise_as_language_model_call_error(converted)
+
+    assert caught.value is converted
+
+
 @patch.object(unique_sdk.ChatCompletion, "create")
 def test_complete__raises_language_model_call_error__content_filter(
     mock_create,
@@ -235,6 +254,42 @@ async def test_complete_async__reraises_original__legacy_api_error(
         )
 
     assert caught.value is source
+
+
+@pytest.mark.asyncio
+@patch.object(unique_sdk.ChatCompletion, "create_async")
+async def test_complete_async__raises_language_model_call_error__after_sdk_retries(
+    mock_create,
+) -> None:
+    """Purpose: Verify the contract is read from the error the SDK retried.
+    Why this matters: After its last retry the SDK raises "Failed after N attempts".
+    Setup summary: Raise that wrapper with a provider_unavailable 503 as its cause.
+    """
+    last_error = unique_sdk.APIError(
+        "The model provider is unavailable. Please try again later.",
+        params={"retryable": True, "correlationId": "corr-5"},
+        code="provider_unavailable",
+        http_status=503,
+    )
+    wrapper = unique_sdk.APIError(f"Failed after 3 attempts: {last_error}")
+    wrapper.__cause__ = last_error
+    mock_create.side_effect = wrapper
+
+    with pytest.raises(LanguageModelCallError) as caught:
+        await complete_async(
+            company_id="company",
+            user_id="user",
+            messages=LanguageModelMessages([]),
+            model_name=_MODEL,
+        )
+
+    assert caught.value.code == "provider_unavailable"
+    assert (
+        caught.value.user_message
+        == "The model provider is unavailable. Please try again later."
+    )
+    assert caught.value.http_status == 503
+    assert caught.value.__cause__ is wrapper
 
 
 @pytest.mark.asyncio

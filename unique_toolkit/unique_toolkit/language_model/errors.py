@@ -4,12 +4,15 @@ from typing import NoReturn
 import unique_sdk
 
 
-class LanguageModelCallError(unique_sdk.UniqueError):
+class LanguageModelCallError(unique_sdk.APIError):
     """LLM call rejected with node-chat's error contract.
 
     ``user_message`` is the text the API curated for the user. Display that
     field. ``str(self)`` is the same text, without the SDK's
     ``(Original error)`` suffix.
+
+    It subclasses ``APIError`` so callers that catch the SDK error around
+    toolkit calls keep catching it.
 
     Args:
         code (str): ``error.code`` from the API, for example ``content_filter``.
@@ -72,9 +75,16 @@ def _language_model_call_error_from(
 
 
 def _reraise_as_language_model_call_error(error: BaseException) -> NoReturn:
-    """Raise ``LanguageModelCallError`` for a contract error, else re-raise ``error``."""
-    if isinstance(error, unique_sdk.UniqueError):
-        converted = _language_model_call_error_from(error)
-        if converted is not None:
-            raise converted from error
+    """Raise ``LanguageModelCallError`` for a contract error, else re-raise ``error``.
+
+    The SDK wraps the last error in ``APIError("Failed after N attempts")`` once
+    retries run out, so the contract is also read from ``error.__cause__``.
+    """
+    if isinstance(error, LanguageModelCallError):
+        raise error
+    for candidate in (error, error.__cause__):
+        if isinstance(candidate, unique_sdk.UniqueError):
+            converted = _language_model_call_error_from(candidate)
+            if converted is not None:
+                raise converted from error
     raise error
