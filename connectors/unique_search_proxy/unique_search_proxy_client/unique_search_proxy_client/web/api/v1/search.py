@@ -129,6 +129,7 @@ async def search(
         record_request_usage(
             "search",
             engine_id,
+            # TODO: count provider pages actually fetched if billing needs exact call counts.
             units=1,
             fetch_size=body.fetch_size,
             succeeded=succeeded,
