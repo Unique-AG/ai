@@ -10,6 +10,8 @@ from unique_search_proxy_core.crawlers.basic.processing.policy import (
     ContentTypeHandlerPolicy,
 )
 from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
+from unique_search_proxy_core.errors import ResponseTooLargeError
+from unique_search_proxy_core.http_client import read_capped_body
 from unique_search_proxy_core.schema import (
     CrawlUrlResult,
     ProxyErrorCode,
@@ -18,7 +20,7 @@ from unique_search_proxy_core.url_safety import (
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
     bypass_crawl_target,
-    safe_pinned_httpx_get,
+    safe_pinned_httpx_stream,
     url_safety_settings,
 )
 
@@ -37,8 +39,14 @@ from unique_search_proxy_client.web.core.provider_response import (
 )
 from unique_search_proxy_client.web.core.url_safety.gate import AllowedCrawlTarget
 from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
+from unique_search_proxy_client.web.settings.client import http_client_settings
 
 _LOGGER = logging.getLogger(__name__)
+
+# Only encodings whose decoded size read_capped_body can bound in small steps;
+# brotli and zstd reach far higher compression ratios.
+_ACCEPT_ENCODING = "gzip, deflate"
+_COMPRESSING_CONTENT_ENCODINGS = frozenset({"gzip", "deflate"})
 
 
 def _content_type_from_response(response: httpx.Response) -> str | None:
@@ -46,6 +54,25 @@ def _content_type_from_response(response: httpx.Response) -> str | None:
     if header is None:
         return None
     return str(header).split(";")[0].strip().lower() or None
+
+
+def _unsupported_content_encoding(response: httpx.Response) -> str | None:
+    encodings = [
+        encoding.strip().lower()
+        for encoding in response.headers.get_list(
+            "content-encoding",
+            split_commas=True,
+        )
+    ]
+    for encoding in encodings:
+        if encoding not in {"", "identity", *_COMPRESSING_CONTENT_ENCODINGS}:
+            return encoding
+    # httpx decodes stacked layers in a single step, so a second compressing
+    # layer would inflate past read_capped_body before it can check the size.
+    compressing = [e for e in encodings if e in _COMPRESSING_CONTENT_ENCODINGS]
+    if len(compressing) > 1:
+        return ", ".join(compressing)
+    return None
 
 
 class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
@@ -107,14 +134,38 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
     ) -> CrawlUrlResult:
         async with semaphore:
             try:
-                response = await safe_pinned_httpx_get(
+                async with safe_pinned_httpx_stream(
                     client,
                     resolved_target,
-                    headers={"User-Agent": random_user_agent()},
+                    headers={
+                        "User-Agent": random_user_agent(),
+                        "Accept-Encoding": _ACCEPT_ENCODING,
+                    },
                     timeout=Timeout(timeout),
                     max_redirect_hops=url_safety_settings.max_redirect_hops,
                     enforce_url_safety=url_safety_settings.enabled,
-                )
+                ) as response:
+                    content_type = _content_type_from_response(response)
+                    unsupported_encoding = _unsupported_content_encoding(response)
+                    if unsupported_encoding is not None:
+                        _LOGGER.warning(
+                            "Basic crawl rejected content encoding %s",
+                            unsupported_encoding,
+                        )
+                        return crawl_upstream_error(
+                            display_url,
+                            f"Unsupported content encoding: {unsupported_encoding}",
+                            content_type=content_type,
+                            status_code=response.status_code,
+                        )
+                    body = await read_capped_body(
+                        response,
+                        max_bytes=http_client_settings.max_response_bytes,
+                    )
+                    raw_body = body.decode(
+                        response.encoding or "utf-8",
+                        errors="replace",
+                    )
             except CrawlTargetValidationError as exc:
                 blocked = exc.blocked_targets[0]
                 record_crawl_blocked(blocked.category)
@@ -123,6 +174,14 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     blocked.category,
                 )
                 return crawl_forbidden_target(display_url, blocked.reason)
+            except ResponseTooLargeError as exc:
+                _LOGGER.warning("Basic crawl response too large: %s", exc.message)
+                return crawl_upstream_error(
+                    display_url,
+                    exc.message,
+                    content_type=None,
+                    code=ProxyErrorCode.RESPONSE_TOO_LARGE.value,
+                )
             except httpx.TimeoutException as exc:
                 _LOGGER.warning(
                     "Basic crawl timed out error_type=%s",
@@ -147,8 +206,6 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     raw=transport_error_raw(exc),
                 )
 
-            content_type = _content_type_from_response(response)
-            raw_body = response.text
             if response.is_error:
                 _LOGGER.warning(
                     "Basic crawl HTTP error http_status=%s",
