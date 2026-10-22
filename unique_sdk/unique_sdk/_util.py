@@ -348,6 +348,20 @@ def _should_retry_error(
     return any(err_msg.lower() in str(error).lower() for err_msg in error_messages)
 
 
+def _log_retry(error: UniqueError, attempt: int, max_retries: int) -> None:
+    # str(error) can carry upstream provider text via original_error.
+    params = error.params if isinstance(error.params, Mapping) else {}
+    logger.warning(
+        "Retrying Unique API call, attempt %d of %d: "
+        "code=%s http_status=%s correlation_id=%s",
+        attempt + 1,
+        max_retries,
+        error.code,
+        error.http_status,
+        params.get("correlationId"),
+    )
+
+
 def retry_on_error(
     error_messages: list[str],
     max_retries: int = 3,
@@ -373,13 +387,14 @@ def retry_on_error(
                     return await func(*args, **kwargs)
                 except (APIError, APIConnectionError) as e:
                     e = cast(UniqueError, e)
-                    logger.error(f"Retrying because of {e}")
                     if not _should_retry_error(e, error_messages, should_retry_5xx):
                         raise
 
                     attempts += 1
                     if attempts >= max_retries:
                         raise
+
+                    _log_retry(e, attempts, max_retries)
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))
@@ -393,13 +408,14 @@ def retry_on_error(
                     return func(*args, **kwargs)
                 except (APIError, APIConnectionError) as e:
                     e = cast(UniqueError, e)
-                    logger.error(f"Retrying because of {e}")
                     if not _should_retry_error(e, error_messages, should_retry_5xx):
                         raise
 
                     attempts += 1
                     if attempts >= max_retries:
                         raise
+
+                    _log_retry(e, attempts, max_retries)
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))

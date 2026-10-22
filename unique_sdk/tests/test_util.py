@@ -117,6 +117,55 @@ def test_retry_on_error__does_not_retry__http_4xx(mock_sleep) -> None:
 
 @pytest.mark.ai
 @patch("time.sleep", return_value=None)
+def test_retry_on_error__does_not_log__when_not_retried(mock_sleep, caplog) -> None:
+    """Purpose: Verify an error that is not retried writes no retry log.
+    Why this matters: A "Retrying" line before an immediate raise is misleading.
+    Setup summary: Raise a content-filter 400 and capture the unique logger.
+    """
+
+    @retry_on_error(max_retries=3, error_messages=[])
+    def func():
+        raise APIError("filtered", http_status=400, code="content_filter")
+
+    with caplog.at_level("DEBUG", logger="unique"), pytest.raises(APIError):
+        func()
+
+    assert caplog.records == []
+
+
+@pytest.mark.ai
+@patch("time.sleep", return_value=None)
+def test_retry_on_error__logs_retry_fields_without_message(mock_sleep, caplog) -> None:
+    """Purpose: Verify a retry logs code, status and correlation id, not the message.
+    Why this matters: The message can carry upstream provider text.
+    Setup summary: Raise a retryable 503 with a legacy original error twice.
+    """
+    source = APIError(
+        "upstream failed",
+        http_status=503,
+        code="provider_unavailable",
+        original_error="provider_error: secret upstream text",
+        params={"retryable": True, "correlationId": "req_1"},
+    )
+
+    @retry_on_error(max_retries=3, error_messages=[], should_retry_5xx=True)
+    def func():
+        raise source
+
+    with caplog.at_level("DEBUG", logger="unique"), pytest.raises(APIError):
+        func()
+
+    assert [record.getMessage() for record in caplog.records] == [
+        "Retrying Unique API call, attempt 2 of 3: "
+        "code=provider_unavailable http_status=503 correlation_id=req_1",
+        "Retrying Unique API call, attempt 3 of 3: "
+        "code=provider_unavailable http_status=503 correlation_id=req_1",
+    ]
+    assert all(record.levelname == "WARNING" for record in caplog.records)
+
+
+@pytest.mark.ai
+@patch("time.sleep", return_value=None)
 def test_retry_on_error__does_not_retry__5xx_marked_not_retryable(mock_sleep) -> None:
     """Purpose: Verify a 5xx with params.retryable false is returned on the first attempt.
     Why this matters: node-chat marks unknown and provider_auth_failed as not retryable.
