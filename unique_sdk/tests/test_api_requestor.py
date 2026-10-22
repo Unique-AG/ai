@@ -461,3 +461,25 @@ def test_handle_error_response__rate_limited__returns_rate_limit_error() -> None
     assert error.params["retryable"] is True
     assert error.params["retryAfterSeconds"] == 7
     assert "(Original error)" not in str(error)
+
+
+@pytest.mark.ai
+def test_handle_error_response__error_code__ignores_cause_status() -> None:
+    """Purpose: Verify the HTTP status decides the error type when error.code is set.
+    Why this matters: The contract reads cause only for bodies without error.code.
+    Setup summary: Pass a rate_limited 429 whose legacy cause says 500.
+    """
+    requestor = APIRequestor(user_id="user_id", company_id="company_id")
+    body = {
+        "error": {
+            "code": "rate_limited",
+            "message": "The model is temporarily rate-limited.",
+            "params": {"retryable": True, "correlationId": "corr-3"},
+            "cause": {"status": 500, "error": {"message": "upstream"}},
+        }
+    }
+
+    with pytest.raises(RateLimitError) as caught:
+        requestor.handle_error_response("{}", 429, body, {})
+
+    assert caught.value.http_status == 429

@@ -392,15 +392,6 @@ class APIRequestor(object):
         cause = error_data.get("cause", {})
         if isinstance(cause, str):
             cause = {"error": {"message": cause}, "status": rcode}
-        status = cause.get("status", rcode)
-
-        _util.log_info(
-            "Unique error received",
-            error_code=status,
-            error_type=error_data.get("type"),
-            error_message=error_data.get("message"),
-            error_params=_util.redacted_error_params(error_data.get("params")),
-        )
 
         cause_error = cause.get("error") or {}
         cause_code = cause_error.get("code")
@@ -409,6 +400,15 @@ class APIRequestor(object):
         message = error_data.get("message") or cause_message
         code = error_data.get("code") or cause_code
         params = error_data.get("params") or cause_error.get("params")
+        status = rcode if error_data.get("code") else cause.get("status", rcode)
+
+        _util.log_info(
+            "Unique error received",
+            error_code=status,
+            error_type=error_data.get("type"),
+            error_message=error_data.get("message"),
+            error_params=_util.redacted_error_params(error_data.get("params")),
+        )
 
         original_error = None
         if cause_code or cause_message:
