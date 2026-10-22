@@ -28,6 +28,7 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing import (
     ContentProcessingError,
     ContentProcessingTimeoutError,
     process_content,
+    resolve_handler_policy,
 )
 from unique_search_proxy_client.web.core.crawlers.basic.user_agent import (
     random_user_agent,
@@ -95,6 +96,19 @@ def _http_error_result(
         content_type=content_type,
         raw=raw,
         status_code=response.status_code,
+    )
+
+
+def _unprocessed_content_type_result(
+    display_url: str,
+    content_type: str | None,
+) -> CrawlUrlResult:
+    _LOGGER.info("Basic crawl skipped unprocessed content type %s", content_type)
+    return crawl_upstream_error(
+        display_url,
+        f"Content type {content_type or 'unknown'} is not processed",
+        content_type=content_type,
+        code=ProxyErrorCode.UNSUPPORTED_CONTENT_TYPE.value,
     )
 
 
@@ -198,10 +212,18 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                             content_type=content_type,
                             status_code=response.status_code,
                         )
-                    if not include_raw and response.is_error:
-                        return _http_error_result(
-                            display_url, response, content_type, raw=None
-                        )
+                    if not include_raw:
+                        if response.is_error:
+                            return _http_error_result(
+                                display_url, response, content_type, raw=None
+                            )
+                        if (
+                            resolve_handler_policy(content_type, content_type_handlers)
+                            is not ContentTypeHandlerPolicy.ALLOW
+                        ):
+                            return _unprocessed_content_type_result(
+                                display_url, content_type
+                            )
                     body = await read_capped_body(
                         response,
                         max_bytes=http_client_settings.max_response_bytes,

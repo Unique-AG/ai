@@ -514,7 +514,7 @@ def test_crawl_records_per_url_outcome_metrics(client: TestClient) -> None:
 
 
 @pytest.mark.ai
-def test_crawl_returns_pdf_content_type_without_raw(client: TestClient) -> None:
+def test_crawl_rejects_pdf__when_pdf_processing_disabled(client: TestClient) -> None:
     resp = client.post(
         "/v1/crawl",
         json={
@@ -524,10 +524,68 @@ def test_crawl_returns_pdf_content_type_without_raw(client: TestClient) -> None:
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
-    assert result["error"] is None
+    assert result["error"]["code"] == ProxyErrorCode.UNSUPPORTED_CONTENT_TYPE.value
+    assert "application/pdf" in result["error"]["message"]
     assert result["contentType"] == "application/pdf"
     assert result["raw"] is None
     assert result["content"] is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("headers", "expected_content_type"),
+    [
+        ({"content-type": "application/pdf"}, "application/pdf"),
+        ({"content-type": "image/png"}, "image/png"),
+        ({}, None),
+    ],
+)
+async def test_crawl_pinned__skips_body__for_unprocessed_content_type(
+    headers: dict[str, str],
+    expected_content_type: str | None,
+) -> None:
+    """
+    Purpose: Verify pages of unprocessed types are rejected from their headers alone.
+    Why this matters: Downloading a body the proxy would discard costs memory
+        and budget for nothing; binary bodies also inflate when decoded as text.
+    Setup summary: One URL streams a body with an unprocessed (or missing)
+        content type, another serves HTML; assert only the first errors, its
+        body is never read, and the HTML page still succeeds.
+    """
+    skipped_body_read: list[bool] = []
+
+    async def skipped_body() -> AsyncIterator[bytes]:
+        skipped_body_read.append(True)
+        yield b"%PDF-1.4"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["Host"] == "binary.example":
+            return httpx.Response(200, headers=headers, content=skipped_body())
+        return httpx.Response(
+            200, text=_HTML_PAGE, headers={"content-type": "text/html"}
+        )
+
+    http_client, _ = _recording_client(handler)
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        skipped_result, html_result = await crawler.crawl_pinned(
+            _plain_crawl_request(
+                "https://binary.example/file", "https://html.example/page"
+            ),
+            [
+                _pinned_target("https://binary.example/file", "binary.example"),
+                _pinned_target("https://html.example/page", "html.example"),
+            ],
+        )
+
+    assert skipped_result.error is not None
+    assert skipped_result.error.code == ProxyErrorCode.UNSUPPORTED_CONTENT_TYPE.value
+    assert skipped_result.content_type == expected_content_type
+    assert skipped_body_read == []
+    assert html_result.error is None
+    assert html_result.content is not None
 
 
 @pytest.mark.ai
@@ -606,7 +664,7 @@ _ALL_PROCESSING_DISABLED = {
 
 
 @pytest.mark.ai
-def test_crawl_without_processing_leaves_content_null(client: TestClient) -> None:
+def test_crawl_without_processing_rejects_page(client: TestClient) -> None:
     resp = client.post(
         "/v1/crawl",
         json={
@@ -617,7 +675,7 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
-    assert result["error"] is None
+    assert result["error"]["code"] == ProxyErrorCode.UNSUPPORTED_CONTENT_TYPE.value
     assert result["contentType"] == "text/html"
     assert result["raw"] is None
     assert result["content"] is None
@@ -756,7 +814,9 @@ async def test_crawl_pinned__stops_gzip_bomb_at_decoded_limit(
     bomb = gzip.compress(b"\0" * (4 * 1024 * 1024))
     http_client, _ = _recording_client(
         lambda _: httpx.Response(
-            200, headers={"content-encoding": "gzip"}, content=bomb
+            200,
+            headers={"content-encoding": "gzip", "content-type": "text/html"},
+            content=bomb,
         ),
     )
 

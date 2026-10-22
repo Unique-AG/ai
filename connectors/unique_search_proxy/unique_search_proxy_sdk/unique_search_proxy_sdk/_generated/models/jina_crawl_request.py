@@ -26,8 +26,8 @@ class JinaCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
-        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including HTTP error bodies. For
-            debugging and benchmarks. Default: False.
+        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including bodies the crawler would
+            otherwise skip (unprocessed content types, HTTP errors). For debugging and benchmarks. Default: False.
         crawler (Literal['Jina'] | Unset): Provider discriminator; must be `Jina` for this config. Default: 'Jina'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         return_format (JinaCrawlRequestReturnFormat | Unset): Jina Reader output format: `markdown`, `html`, `text`,

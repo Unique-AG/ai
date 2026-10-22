@@ -23,8 +23,8 @@ class TavilyCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
-        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including HTTP error bodies. For
-            debugging and benchmarks. Default: False.
+        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including bodies the crawler would
+            otherwise skip (unprocessed content types, HTTP errors). For debugging and benchmarks. Default: False.
         crawler (Literal['Tavily'] | Unset): Provider discriminator; must be `Tavily` for this config. Default:
             'Tavily'.
         timeout (int | Unset): Request timeout in seconds Default: 30.

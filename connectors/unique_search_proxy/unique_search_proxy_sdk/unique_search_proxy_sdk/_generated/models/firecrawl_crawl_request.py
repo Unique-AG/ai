@@ -29,8 +29,8 @@ class FirecrawlCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
-        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including HTTP error bodies. For
-            debugging and benchmarks. Default: False.
+        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including bodies the crawler would
+            otherwise skip (unprocessed content types, HTTP errors). For debugging and benchmarks. Default: False.
         crawler (Literal['Firecrawl'] | Unset): Provider discriminator; must be `Firecrawl` for this config. Default:
             'Firecrawl'.
         timeout (int | Unset): Request timeout in seconds Default: 30.

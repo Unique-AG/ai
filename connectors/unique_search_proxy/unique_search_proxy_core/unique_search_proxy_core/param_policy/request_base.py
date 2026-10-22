@@ -31,7 +31,8 @@ class CrawlRequestBase(BaseModel):
     include_raw: bool = Field(
         default=False,
         description=(
-            "Return each URL's upstream response in `raw`, including HTTP error "
-            "bodies. For debugging and benchmarks."
+            "Return each URL's upstream response in `raw`, including bodies the "
+            "crawler would otherwise skip (unprocessed content types, HTTP "
+            "errors). For debugging and benchmarks."
         ),
     )
