@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, override
+from typing import Any, override
 
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
@@ -23,29 +21,18 @@ from unique_web_search.metrics import (
 from unique_web_search.services.proxy.bridge import (
     search_proxy_client_enabled,
 )
-from unique_web_search.services.proxy.mappers import (
-    agent_answer_text,
-    agent_citations,
-)
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
 from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.services.search_engine.utils.grounding import (
-    CitationBulletParserStrategy,
-)
 from unique_web_search.services.search_engine.utils.grounding.bing import (
+    BingCitationParser,
     create_and_process_run,
     credentials_are_valid,
     get_credentials,
     get_project_client,
 )
-
-if TYPE_CHECKING:
-    from unique_search_proxy_sdk._generated.models.agent_search_response import (
-        AgentSearchResponse,
-    )
 
 
 class BingSearchConfig(BingAgentConfig):
@@ -71,7 +58,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
     ):
         super().__init__(config, request_context=request_context)
         self.credentials = get_credentials()
-        self.citation_response_parser = CitationBulletParserStrategy()
+        self.citation_response_parser = BingCitationParser()
 
     @property
     def is_configured(self) -> bool:
@@ -109,16 +96,6 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         return invocation
 
     @override
-    async def _parse_agent_search_response(
-        self,
-        response: AgentSearchResponse,
-    ) -> list[WebSearchResult]:
-        return await self._parse_cited_answer(
-            agent_answer_text(response),
-            agent_citations(response),
-        )
-
-    @override
     async def _legacy_search(
         self,
         query: str,
@@ -134,9 +111,10 @@ class BingSearch(SearchEngine[BingSearchConfig]):
                 generation_instructions=self.config.generation_instructions,
             )
 
-        return await self._parse_cited_answer(answer, citations)
+        return await self._parse_agent_answer(answer, citations)
 
-    async def _parse_cited_answer(
+    @override
+    async def _parse_agent_answer(
         self,
         answer: str,
         citations: Sequence[AnswerSpanCitation],

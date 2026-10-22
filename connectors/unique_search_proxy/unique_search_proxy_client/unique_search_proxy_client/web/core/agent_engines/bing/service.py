@@ -9,7 +9,6 @@ import openai
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
-    build_bing_citation_instructions,
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.agent_engines.bing.settings import resolve_market
@@ -26,6 +25,9 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     bing_azure_transport,
     get_credentials,
     get_project_client,
+)
+from unique_search_proxy_client.web.core.agent_engines.bing.instructions import (
+    build_bing_citation_instructions,
 )
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
     stream_bing_grounding_agent,
@@ -128,10 +130,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                             endpoint=read_secret(creds.endpoint),
                             transport=azure_transport,
                         ) as project_client:
-                            async for (
-                                delta,
-                                raw_event,
-                            ) in stream_bing_grounding_agent(
+                            async for chunk in stream_bing_grounding_agent(
                                 project_client,
                                 http_client=http_client,
                                 query=request.query,
@@ -140,18 +139,14 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                                 grounding=grounding,
                                 timeout=request.timeout,
                             ):
-                                if delta:
-                                    answer_parts.append(delta)
-                                    yield AgentSearchDelta(text=delta)
-                                if raw_event:
-                                    raw_chunks.append(raw_event)
-                                    if raw_event.get("type") == "response.completed":
-                                        completed_answer = raw_event.get("answer")
-                                        citations = [
-                                            AnswerSpanCitation.model_validate(citation)
-                                            for citation in raw_event.get("citations")
-                                            or []
-                                        ]
+                                if chunk.delta:
+                                    answer_parts.append(chunk.delta)
+                                    yield AgentSearchDelta(text=chunk.delta)
+                                if chunk.raw_event:
+                                    raw_chunks.append(chunk.raw_event)
+                                if chunk.answer is not None:
+                                    completed_answer = chunk.answer
+                                    citations = list(chunk.citations)
                 break
             except Exception as exc:
                 retryable = (

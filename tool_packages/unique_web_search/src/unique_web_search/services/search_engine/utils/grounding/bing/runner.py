@@ -23,7 +23,6 @@ from openai.types.responses.response_text_delta_event import ResponseTextDeltaEv
 from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
     bing_agent_name,
-    build_bing_citation_instructions,
 )
 from unique_search_proxy_core.schema import AnswerSpanCitation
 
@@ -33,6 +32,7 @@ from unique_web_search.services.search_engine.utils.grounding.bing.client import
 )
 from unique_web_search.services.search_engine.utils.grounding.bing.models import (
     RESPONSE_RULE,
+    build_bing_citation_instructions,
 )
 from unique_web_search.settings import env_settings
 

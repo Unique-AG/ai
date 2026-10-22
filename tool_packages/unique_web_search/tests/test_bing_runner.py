@@ -22,7 +22,6 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
     bing_agent_config_hash,
     bing_agent_name,
-    build_bing_citation_instructions,
 )
 
 from unique_web_search.invocation_stats import collector
@@ -38,6 +37,7 @@ from unique_web_search.services.search_engine.utils.grounding.bing.models import
     RESPONSE_RULE,
     GroundingWithBingResults,
     ResultItem,
+    build_bing_citation_instructions,
 )
 from unique_web_search.services.search_engine.utils.grounding.bing.runner import (
     _extract_response_url_citations,

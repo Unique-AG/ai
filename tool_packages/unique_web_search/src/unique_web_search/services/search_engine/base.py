@@ -24,6 +24,7 @@ from unique_web_search.services.proxy.bridge import (
 )
 from unique_web_search.services.proxy.mappers import (
     agent_answer_text,
+    agent_citations,
     map_agent_answer,
     map_search_response,
 )
@@ -32,9 +33,9 @@ from unique_web_search.services.search_engine.schema import (
 )
 
 if TYPE_CHECKING:
-    from unique_search_proxy_sdk._generated.models.agent_search_response import (
-        AgentSearchResponse,
-    )
+    from collections.abc import Sequence
+
+    from unique_search_proxy_core.schema import AnswerSpanCitation
 
     from unique_web_search.services.search_engine.utils.grounding.response_parsing import (
         ResponseParser,
@@ -76,7 +77,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     it, otherwise it reroutes to the local legacy implementation.
     """
 
-    # Set by agent engines that use the default ``_parse_agent_search_response``.
+    # Set by agent engines that use the default ``_parse_agent_answer``.
     response_parsers: list[ResponseParser]
 
     def __init__(
@@ -184,22 +185,23 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 engine=engine.value,
                 **invocation,
             )
-        results = await self._parse_agent_search_response(response)
+        results = await self._parse_agent_answer(
+            agent_answer_text(response),
+            agent_citations(response),
+        )
         return await self._postprocess_results(results)
 
-    async def _parse_agent_search_response(
+    async def _parse_agent_answer(
         self,
-        response: AgentSearchResponse,
+        answer: str,
+        citations: Sequence[AnswerSpanCitation],
     ) -> list[WebSearchResult]:
-        """Turn the Search Proxy's agent search response into results.
+        """Turn an agent answer into results.
 
-        Parses only the answer text. Engines whose provider attaches more to
-        the answer override this, as Bing does to use its citations.
+        Parses only the answer text. Engines whose provider cites its sources
+        alongside the answer override this, as Bing does.
         """
-        return await map_agent_answer(
-            agent_answer_text(response),
-            self.response_parsers,
-        )
+        return await map_agent_answer(answer, self.response_parsers)
 
     def _agent_proxy_invocation(
         self,

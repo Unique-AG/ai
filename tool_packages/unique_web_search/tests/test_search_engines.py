@@ -41,8 +41,8 @@ from unique_web_search.services.search_engine.google import GoogleSearch
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.services.search_engine.utils.grounding import (
-    CitationBulletParserStrategy,
+from unique_web_search.services.search_engine.utils.grounding.bing import (
+    BingCitationParser,
 )
 from unique_web_search.services.search_engine.vertexai import (
     VertexAI,
@@ -142,7 +142,7 @@ class TestBingSearchInit:
         search = BingSearch(BingSearchConfig())
 
         # Assert
-        assert isinstance(search.citation_response_parser, CitationBulletParserStrategy)
+        assert isinstance(search.citation_response_parser, BingCitationParser)
 
     @pytest.mark.ai
     def test_bing_config__loads_saved_config_with_retired_language_model(self) -> None:
@@ -338,18 +338,29 @@ class TestBingAgentSearchResponseParsing:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_parse_agent_search_response__maps_citation_urls(self) -> None:
+    async def test_proxy_search__maps_citation_urls(self, mocker) -> None:
         """
         Purpose: Verify the Search Proxy path maps cited lines onto the citation URLs.
         Why this matters: Citation URLs are the only trusted source of result URLs.
-        Setup summary: Build an agent search response with one cited bullet; parse it.
+        Setup summary: Proxy returns one cited bullet; search through the proxy path.
         """
         # Arrange
+        mocker.patch(
+            "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+            True,
+        )
+        mock_open_client = mocker.patch(
+            "unique_web_search.services.search_engine.base.open_search_proxy_client",
+        )
+        mock_client = AsyncMock()
+        mock_client.agent_search.search.return_value = self._agent_search_response(
+            *_cited_answer()
+        )
+        mock_open_client.return_value.__aenter__.return_value = mock_client
         search = BingSearch(BingSearchConfig())
-        response = self._agent_search_response(*_cited_answer())
 
         # Act
-        results = await search._parse_agent_search_response(response)
+        results = await search.search("test query")
 
         # Assert
         assert [result.url for result in results] == ["https://example.com"]
@@ -357,7 +368,7 @@ class TestBingAgentSearchResponseParsing:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_parse_agent_search_response__bad_citation__keeps_the_rest(
+    async def test_parse_agent_answer__bad_citation__keeps_the_rest(
         self,
     ) -> None:
         """
@@ -378,14 +389,13 @@ class TestBingAgentSearchResponseParsing:
                 "end_index": answer.index("[2]") + 3,
             }
         )
-        response = self._agent_search_response(answer, [good, bad])
         citations_before = _metric_count(
             "grounding_dropped_citations_total", "non_http_url"
         )
         lines_before = _metric_count("grounding_dropped_lines_total", "no_citation")
 
         # Act
-        results = await search._parse_agent_search_response(response)
+        results = await search._parse_agent_answer(answer, [good, bad])
 
         # Assert
         assert [(result.url, result.content) for result in results] == [

@@ -25,6 +25,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.errors import EngineNotConfiguredError, UpstreamError
 from unique_search_proxy_core.http_client import DirectRoute
+from unique_search_proxy_core.schema import AnswerSpanCitation
 
 from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
     cleanup_auto_provisioned_bing_agents,
@@ -37,6 +38,7 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client as get_openai_client_from_client_module,
 )
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
+    BingStreamChunk,
     _extract_response_url_citations,
     _is_missing_agent_error,
     create_bing_agent,
@@ -75,8 +77,8 @@ def _bing_service() -> BingAgentSearchService:
 async def _fake_stream(
     *_args: Any,
     **_kwargs: Any,
-) -> AsyncIterator[tuple[str, Any]]:
-    yield "agent answer text", {"messages": []}
+) -> AsyncIterator[BingStreamChunk]:
+    yield BingStreamChunk("agent answer text", {"messages": []})
 
 
 def _stream_error(
@@ -335,7 +337,7 @@ class TestBingAgentSearchService:
         async def transient_then_success(
             *_args: Any,
             **_kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
+        ) -> AsyncIterator[BingStreamChunk]:
             nonlocal calls
             calls += 1
             if calls < 3:
@@ -343,7 +345,7 @@ class TestBingAgentSearchService:
                     "The model deployment encountered an error processing your request",
                     code="server_error",
                 )
-            yield "agent answer text", {"messages": []}
+            yield BingStreamChunk("agent answer text", {"messages": []})
 
         with (
             patch(
@@ -388,10 +390,10 @@ class TestBingAgentSearchService:
         async def partial_then_failure(
             *_args: Any,
             **_kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
+        ) -> AsyncIterator[BingStreamChunk]:
             nonlocal calls
             calls += 1
-            yield "partial", {"type": "response.output_text.delta"}
+            yield BingStreamChunk("partial", {"type": "response.output_text.delta"})
             raise _stream_error(
                 "The model deployment encountered an error processing your request",
                 code="server_error",
@@ -434,24 +436,22 @@ class TestBingAgentSearchService:
         async def _cited_stream(
             *_args: Any,
             **_kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
-            yield "Grounded claim", {}
-            yield (
+        ) -> AsyncIterator[BingStreamChunk]:
+            yield BingStreamChunk("Grounded claim", {})
+            yield BingStreamChunk(
                 "",
-                {
-                    "type": "response.completed",
-                    "answer": "Grounded claim [1]",
-                    "citations": [
-                        {
-                            "url": "https://canonical.example/source",
-                            "title": "Canonical source",
-                            "marker": "[1]",
-                            "startIndex": 15,
-                            "endIndex": 18,
-                            "outputItemId": "msg-1",
-                        }
-                    ],
-                },
+                {"type": "response.completed"},
+                answer="Grounded claim [1]",
+                citations=[
+                    AnswerSpanCitation(
+                        url="https://canonical.example/source",
+                        title="Canonical source",
+                        marker="[1]",
+                        start_index=15,
+                        end_index=18,
+                        output_item_id="msg-1",
+                    )
+                ],
             )
 
         with (
@@ -497,9 +497,9 @@ class TestBingAgentSearchService:
         async def _recording_stream(
             *_args: Any,
             **kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
+        ) -> AsyncIterator[BingStreamChunk]:
             recorded.update(kwargs)
-            yield "agent answer text", {}
+            yield BingStreamChunk("agent answer text", {})
 
         with (
             patch(
@@ -558,9 +558,9 @@ class TestBingAgentSearchService:
         async def _recording_stream(
             *_args: Any,
             **kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
+        ) -> AsyncIterator[BingStreamChunk]:
             recorded.update(kwargs)
-            yield "agent answer text", {}
+            yield BingStreamChunk("agent answer text", {})
 
         with (
             patch(
@@ -927,9 +927,10 @@ class TestCreateAndStreamOptimistic:
             ]
 
         assert len(chunks) == 1
-        assert chunks[0][0] == "agent answer text"
-        assert chunks[0][1]["type"] == "response.completed"
-        assert chunks[0][1]["answer"] == "agent answer text"
+        assert chunks[0].delta == "agent answer text"
+        assert chunks[0].raw_event["type"] == "response.completed"
+        assert "answer" not in chunks[0].raw_event
+        assert chunks[0].answer == "agent answer text"
         assert stream.closed is True
 
 

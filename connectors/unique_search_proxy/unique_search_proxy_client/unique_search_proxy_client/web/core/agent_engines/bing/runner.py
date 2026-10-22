@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
+from typing import NamedTuple
 
 import openai
 from azure.ai.projects.aio import AIProjectClient
@@ -37,11 +38,25 @@ from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, rea
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
+    "BingStreamChunk",
     "create_bing_agent",
     "get_bing_grounding_tool",
     "resolve_bing_agent_name",
     "stream_bing_grounding_agent",
 ]
+
+
+class BingStreamChunk(NamedTuple):
+    """One step of a Bing Responses stream.
+
+    ``answer`` and ``citations`` are set only for the completed response, and
+    the citation offsets point into ``answer``.
+    """
+
+    delta: str
+    raw_event: dict
+    answer: str | None = None
+    citations: Sequence[AnswerSpanCitation] = ()
 
 
 def resolve_bing_agent_name(
@@ -146,8 +161,8 @@ async def stream_bing_grounding_agent(
     instructions: str,
     grounding: BingGroundingConfiguration,
     timeout: float,
-) -> AsyncIterator[tuple[str, dict]]:
-    """Stream Bing-grounded Responses events as ``(delta_text, raw_event)`` pairs.
+) -> AsyncIterator[BingStreamChunk]:
+    """Stream Bing-grounded Responses events as :class:`BingStreamChunk` items.
 
     Optimistically calls Responses with a hash-derived agent name. If the agent
     is missing, creates it once and retries.
@@ -210,26 +225,30 @@ async def stream_bing_grounding_agent(
             if isinstance(event, ResponseTextDeltaEvent):
                 if event.delta:
                     emitted_text = True
-                    yield event.delta, event.model_dump(mode="json", warnings="none")
+                    yield BingStreamChunk(
+                        event.delta, event.model_dump(mode="json", warnings="none")
+                    )
             elif isinstance(event, ResponseCompletedEvent):
                 response = event.response
                 output_text = response.output_text
-                completed_citations = _extract_response_url_citations(response)
+                citations = _extract_response_url_citations(response)
                 raw_completed = {
                     "type": event.type,
                     "response": response.model_dump(mode="json", warnings="none"),
-                    "answer": output_text,
-                    "citations": [
-                        citation.model_dump(by_alias=True)
-                        for citation in completed_citations
-                    ],
                 }
                 # Foundry sometimes delivers the full answer only on completion.
                 if output_text and not emitted_text:
                     emitted_text = True
-                    yield output_text, raw_completed
+                    yield BingStreamChunk(
+                        output_text,
+                        raw_completed,
+                        answer=output_text,
+                        citations=citations,
+                    )
                 else:
-                    yield "", raw_completed
+                    yield BingStreamChunk(
+                        "", raw_completed, answer=output_text, citations=citations
+                    )
 
 
 async def _create_responses_stream(
