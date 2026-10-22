@@ -31,6 +31,9 @@ from unique_search_proxy_client.web.monitoring.metrics import (
     record_search_error,
     record_search_success,
 )
+from unique_search_proxy_client.web.settings.request_limits import (
+    request_limits_settings,
+)
 
 router = APIRouter(tags=["search"])
 _LOGGER = logging.getLogger(__name__)
@@ -63,7 +66,7 @@ async def search(
 ) -> SearchResponse:
     engine = body.engine
     engine_id = engine.value if hasattr(engine, "value") else str(engine)
-    timeout = body.timeout
+    timeout = min(body.timeout, request_limits_settings.max_timeout_seconds)
     started = time.perf_counter()
     _LOGGER.info("search start engine=%s timeout=%ss", engine_id, timeout)
 

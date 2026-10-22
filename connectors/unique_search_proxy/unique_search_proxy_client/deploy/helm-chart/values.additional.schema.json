@@ -541,6 +541,24 @@
             "maxUrlLength": {
               "description": "Maps to env var REQUEST_LIMITS_MAX_URL_LENGTH.",
               "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentFetches": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_FETCHES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentCrawls": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        },
+        "timeouts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxTimeoutSeconds": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_TIMEOUT_SECONDS.",
+              "$ref": "#/$defs/valueSourceInteger"
             }
           }
         }

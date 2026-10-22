@@ -23,6 +23,7 @@ from unique_search_proxy_client.web.api.v1.openapi_examples import (
 )
 from unique_search_proxy_client.web.context import get_request_context
 from unique_search_proxy_client.web.core.client import get_http_client_registry
+from unique_search_proxy_client.web.core.crawl_limiter import get_crawl_limiter
 from unique_search_proxy_client.web.core.crawlers.factory import get_crawler_service
 from unique_search_proxy_client.web.core.crawlers.pinned_egress import (
     PinnedEgressCrawler,
@@ -93,7 +94,7 @@ async def crawl(
     body: CrawlRequest = Body(openapi_examples=CRAWL_OPENAPI_EXAMPLES),  # type: ignore[valid-type]
 ) -> CrawlResponse:
     crawler_id = body.crawler
-    timeout = body.timeout
+    timeout = min(body.timeout, request_limits_settings.max_timeout_seconds)
     started = time.perf_counter()
     _LOGGER.info(
         "crawl start crawler=%s urls=%d timeout=%ss",
@@ -104,7 +105,7 @@ async def crawl(
 
     try:
         _enforce_url_limits(body.urls)
-        async with asyncio.timeout(timeout):
+        async with get_crawl_limiter(request.app).slot(), asyncio.timeout(timeout):
             registry = get_http_client_registry(request.app)
             client = await registry.client_for(get_request_context())
             gate = await apply_url_safety_gate(
@@ -142,6 +143,7 @@ async def crawl(
             crawl_body = body.model_copy(
                 update={
                     "urls": [target.display_url for target in gate.allowed_targets],
+                    "timeout": timeout,
                 },
             )
 

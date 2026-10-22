@@ -108,7 +108,12 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
             raise ValueError(msg)
 
         timeout = request.timeout
-        semaphore = asyncio.Semaphore(request.max_concurrent_requests)
+        semaphore = asyncio.Semaphore(
+            min(
+                request.max_concurrent_requests,
+                request_limits_settings.max_concurrent_fetches,
+            ),
+        )
         budget = ByteBudget(request_limits_settings.max_crawl_response_bytes)
         return list(
             await asyncio.gather(

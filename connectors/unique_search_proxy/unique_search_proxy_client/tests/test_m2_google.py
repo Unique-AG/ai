@@ -519,3 +519,40 @@ class TestGoogleSearchEndpoint:
 
         assert resp.status_code == 200
         assert len(resp.json()["curated"]) == 2
+
+
+@pytest.mark.ai
+def test_search__clamps_timeout__when_above_server_ceiling(
+    google_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify a search timeout above the server ceiling is lowered.
+    Why this matters: Callers must not hold a worker longer than allowed.
+    Setup summary: Ceiling 1s, request timeout 600s, engine sleeping 2s;
+        assert 504 reporting the 1s ceiling.
+    """
+    import asyncio
+
+    import unique_search_proxy_client.web.api.v1.search as search_module
+
+    monkeypatch.setattr(
+        search_module,
+        "request_limits_settings",
+        search_module.request_limits_settings.model_copy(
+            update={"max_timeout_seconds": 1},
+        ),
+    )
+
+    async def slow_search(
+        self: GoogleSearchService,
+        call: GoogleSearchRequest,
+    ) -> tuple[Any, list]:
+        await asyncio.sleep(2)
+        return {}, []
+
+    monkeypatch.setattr(GoogleSearchService, "search", slow_search)
+    resp = google_client.post("/v1/search", json={**_search_body(), "timeout": 600})
+
+    assert resp.status_code == 504
+    assert "after 1s" in resp.json()["error"]["message"]

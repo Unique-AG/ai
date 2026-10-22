@@ -846,3 +846,57 @@ async def test_crawl_pinned__skips_fetch__when_crawl_budget_exhausted(
     assert second.error is not None
     assert second.error.code == ProxyErrorCode.RESPONSE_TOO_LARGE.value
     assert len(requests) == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__clamps_fetch_concurrency__when_above_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify maxConcurrentRequests cannot exceed the server ceiling.
+    Why this matters: Concurrent fetches multiply in-flight sockets and bytes.
+    Setup summary: Ceiling 2, request 10 concurrent over 6 URLs with a
+        handler that yields; assert at most 2 fetches were in flight.
+    """
+    import asyncio
+
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "request_limits_settings",
+        service_module.request_limits_settings.model_copy(
+            update={"max_concurrent_fetches": 2},
+        ),
+    )
+    in_flight = 0
+    peak = 0
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal in_flight, peak
+        in_flight += 1
+        peak = max(peak, in_flight)
+        await asyncio.sleep(0.01)
+        in_flight -= 1
+        return httpx.Response(200, text="ok")
+
+    urls = [f"https://{name}.example/" for name in "abcdef"]
+    request = parse_crawl_request(
+        {
+            "urls": urls,
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "maxConcurrentRequests": 10,
+        },
+    )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        crawler = BasicCrawlerService(http_client=client)
+        results = await crawler.crawl_pinned(
+            request,
+            [_pinned_target(url, url.split("/")[2]) for url in urls],
+        )
+
+    assert all(result.error is None for result in results)
+    assert peak == 2
