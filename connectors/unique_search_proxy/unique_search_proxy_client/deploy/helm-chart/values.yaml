@@ -169,6 +169,10 @@ httpClient:
     maxKeepaliveConnections: 20
     maxResponseKib: 5120
 
+requestLimits:
+  crawl:
+    maxCrawlResponseKib: 10240
+
 urlSafety:
   enabled: true
   redirects:

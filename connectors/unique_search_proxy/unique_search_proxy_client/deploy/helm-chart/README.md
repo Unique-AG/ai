@@ -81,6 +81,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | probes.startup.httpGet.port | string | `"http"` |  |
 | probes.startup.initialDelaySeconds | int | `10` |  |
 | probes.startup.periodSeconds | int | `10` |  |
+| requestLimits.crawl.maxCrawlResponseKib | int | `10240` |  |
 | resources.limits.memory | string | `"384Mi"` |  |
 | resources.requests.cpu | string | `"100m"` |  |
 | resources.requests.memory | string | `"256Mi"` |  |

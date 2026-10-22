@@ -115,10 +115,45 @@ def install_response_size_cap(
     return client
 
 
+class ByteBudget:
+    """Shared allowance of decoded body bytes across several responses.
+
+    Bounds what one caller keeps in memory at once, e.g. every page of a crawl
+    request, which a per-response limit alone cannot do. Not thread-safe; share
+    it only between tasks of one event loop.
+    """
+
+    def __init__(self, max_bytes: int) -> None:
+        self._max_bytes = max_bytes
+        self._used = 0
+
+    @property
+    def exhausted(self) -> bool:
+        return self._used >= self._max_bytes
+
+    def consume(self, num_bytes: int) -> None:
+        """Reserve bytes, raising once the budget is exceeded.
+
+        Raises:
+            ResponseTooLargeError: When the reservation exceeds the budget.
+        """
+        self._used += num_bytes
+        if self._used > self._max_bytes:
+            raise ResponseTooLargeError(
+                f"Combined upstream responses exceeded the {self._max_bytes} "
+                "byte budget",
+            )
+
+    def release(self, num_bytes: int) -> None:
+        """Return bytes from a body that was discarded."""
+        self._used = max(0, self._used - num_bytes)
+
+
 async def read_capped_body(
     response: httpx.Response,
     *,
     max_bytes: int | None,
+    budget: ByteBudget | None = None,
 ) -> bytes:
     """Read a streamed response body, limiting its decompressed size.
 
@@ -129,25 +164,38 @@ async def read_capped_body(
         response (httpx.Response): Response opened with ``stream=True``.
         max_bytes (int | None): Largest decoded body allowed. ``None`` reads
             the whole body.
+        budget (ByteBudget | None): Shared budget the body is charged against.
+            Bytes are returned to it when the read fails.
 
     Returns:
         bytes: The decoded response body.
 
     Raises:
-        ResponseTooLargeError: When the decoded body exceeds ``max_bytes``.
+        ResponseTooLargeError: When the decoded body exceeds ``max_bytes`` or
+            the shared budget.
     """
     chunks: list[bytes] = []
     received = 0
-    async for chunk in response.aiter_bytes():
-        received += len(chunk)
-        if max_bytes is not None and received > max_bytes:
-            raise ResponseTooLargeError.for_limit(max_bytes)
-        chunks.append(chunk)
+    charged = 0
+    try:
+        async for chunk in response.aiter_bytes():
+            received += len(chunk)
+            if max_bytes is not None and received > max_bytes:
+                raise ResponseTooLargeError.for_limit(max_bytes)
+            if budget is not None:
+                charged += len(chunk)
+                budget.consume(len(chunk))
+            chunks.append(chunk)
+    except BaseException:
+        if budget is not None:
+            budget.release(charged)
+        raise
     return b"".join(chunks)
 
 
 __all__ = [
     "MAX_RESPONSE_BYTES_EXTENSION",
+    "ByteBudget",
     "ResponseHook",
     "install_response_size_cap",
     "read_capped_body",

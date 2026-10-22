@@ -2308,6 +2308,23 @@
         }
       }
     },
+    "requestLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Request Limits configuration. Generated from RequestLimitsSettings (REQUEST_LIMITS_* env vars).",
+      "properties": {
+        "crawl": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxCrawlResponseKib": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
     "urlSafety": {
       "type": "object",
       "additionalProperties": false,

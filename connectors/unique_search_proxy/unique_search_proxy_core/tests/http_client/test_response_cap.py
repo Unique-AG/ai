@@ -11,6 +11,7 @@ import pytest
 from unique_search_proxy_core.errors import ResponseTooLargeError
 from unique_search_proxy_core.http_client import (
     MAX_RESPONSE_BYTES_EXTENSION,
+    ByteBudget,
     ProxyCredentials,
     ProxySettings,
     async_client_factory,
@@ -303,3 +304,89 @@ async def test_build_async_client__keeps_env_proxy__for_direct_route(
         assert transport is not client._transport
     finally:
         await client.aclose()
+
+
+@pytest.mark.ai
+def test_byte_budget__raises__when_consumption_exceeds_budget() -> None:
+    """
+    Purpose: Verify ByteBudget raises once reservations exceed its size.
+    Why this matters: The budget is what bounds a whole crawl's memory.
+    Setup summary: 10-byte budget; consume 6 then 6; assert the second raises.
+    """
+    budget = ByteBudget(10)
+    budget.consume(6)
+
+    with pytest.raises(ResponseTooLargeError, match="10 byte budget"):
+        budget.consume(6)
+
+
+@pytest.mark.ai
+def test_byte_budget__reports_exhausted__when_fully_used() -> None:
+    """
+    Purpose: Verify exhausted flips exactly when the budget is fully used.
+    Why this matters: Callers skip remaining fetches once it is exhausted.
+    Setup summary: 10-byte budget; consume 10; assert exhausted.
+    """
+    budget = ByteBudget(10)
+
+    budget.consume(10)
+
+    assert budget.exhausted is True
+
+
+@pytest.mark.ai
+def test_byte_budget__frees_room__when_bytes_released() -> None:
+    """
+    Purpose: Verify released bytes can be consumed again.
+    Why this matters: A discarded body must not keep holding budget.
+    Setup summary: Consume 10 of 10, release 4, consume 4; assert no error.
+    """
+    budget = ByteBudget(10)
+    budget.consume(10)
+
+    budget.release(4)
+    budget.consume(4)
+
+    assert budget.exhausted is True
+
+
+@pytest.mark.ai
+async def test_read_capped_body__releases_budget__when_read_fails() -> None:
+    """
+    Purpose: Verify a failed read returns its charged bytes to the budget.
+    Why this matters: Bytes of a discarded body are not held in memory.
+    Setup summary: 4 KiB budget, 2 KiB per-body cap, 3 KiB body; assert the
+        read fails and the budget is back to empty.
+    """
+    budget = ByteBudget(4096)
+
+    async with _capped_client(
+        lambda _: httpx.Response(200, content=_body_of(3072)), max_bytes=None
+    ) as client:
+        async with client.stream("GET", "https://example.com") as response:
+            with pytest.raises(ResponseTooLargeError):
+                await read_capped_body(response, max_bytes=2048, budget=budget)
+
+    budget.consume(4096)
+    assert budget.exhausted is True
+
+
+@pytest.mark.ai
+async def test_read_capped_body__charges_budget__when_read_succeeds() -> None:
+    """
+    Purpose: Verify a successful read keeps its bytes charged to the budget.
+    Why this matters: Kept bodies must count toward the request's total.
+    Setup summary: 4 KiB budget, read a 3 KiB body; assert 1 more KiB fits
+        and anything beyond raises.
+    """
+    budget = ByteBudget(4096)
+
+    async with _capped_client(
+        lambda _: httpx.Response(200, content=b"a" * 3072), max_bytes=None
+    ) as client:
+        async with client.stream("GET", "https://example.com") as response:
+            await read_capped_body(response, max_bytes=None, budget=budget)
+
+    budget.consume(1024)
+    with pytest.raises(ResponseTooLargeError):
+        budget.consume(1)

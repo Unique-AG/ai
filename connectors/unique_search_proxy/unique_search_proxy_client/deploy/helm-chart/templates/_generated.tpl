@@ -139,6 +139,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.httpClient.tuning.maxKeepaliveConnections | quote }}
 - name: HTTP_CLIENT_MAX_RESPONSE_KIB
   value: {{ .Values.httpClient.tuning.maxResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB
+  value: {{ .Values.requestLimits.crawl.maxCrawlResponseKib | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -293,6 +295,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.httpClient.tuning.maxKeepaliveConnections | quote }}
 - name: HTTP_CLIENT_MAX_RESPONSE_KIB
   value: {{ .ctx.Values.httpClient.tuning.maxResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB
+  value: {{ .ctx.Values.requestLimits.crawl.maxCrawlResponseKib | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
