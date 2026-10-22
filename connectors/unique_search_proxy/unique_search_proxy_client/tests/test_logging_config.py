@@ -60,8 +60,10 @@ class TestLoggingConfig:
         capfd: pytest.CaptureFixture[str],
     ) -> None:
         configure_logging("error")
-
-        logging.getLogger("unique_search_proxy_core.usage").info('{"event": "x"}')
+        try:
+            logging.getLogger("unique_search_proxy_core.usage").info('{"event": "x"}')
+        finally:
+            configure_logging()
 
         assert capfd.readouterr().err == '{"event": "x"}\n'
 
