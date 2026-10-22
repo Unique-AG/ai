@@ -1384,6 +1384,14 @@
                 false
               ]
             },
+            "folder": {
+              "type": "string",
+              "description": "Grafana folder for provisioned dashboards (ConfigMap annotation grafana_folder). Defaults to apps.",
+              "examples": [
+                "apps",
+                "connectors"
+              ]
+            },
             "replacements": {
               "type": "object",
               "description": "Map of placeholder to resolved datasource UID. Dashboard JSON files should use %%PLACEHOLDER%% markers (e.g. %%PROMETHEUS_UID%%) instead of hardcoded UIDs. Each entry replaces a marker with the actual UID before the ConfigMap is rendered. The dedicated chart sets defaults; customer overlays override per tenant.",
