@@ -88,7 +88,7 @@ Built-in providers register in `register_builtin_providers()` during `create_app
 | `GET /ready` | Readiness (httpx pool + registered providers) |
 | `GET /v1/configuration/providers` | Registered search engine, agent engine, and crawler ids |
 | `POST /v1/search` | Standard search (flat body: `engine`, `query`, provider params, `timeout`) |
-| `POST /v1/agent-search` | Grounded agent search — opaque `answer` + `raw` |
+| `POST /v1/agent-search` | Grounded agent search — opaque `answer` + provider `citations` + `raw` |
 | `POST /v1/agent-search/stream` | Same, streamed as SSE (`delta` + `done`) |
 | `POST /v1/crawl` | Crawl URLs (flat body: `crawler`, `urls`, `timeout`, …) |
 | `GET /metrics` | Prometheus (when enabled) |
@@ -163,7 +163,7 @@ Each result requires `url`, `title`, and `snippet`; `content` is optional.
 
 ### 5.3 Agent search (`POST /v1/agent-search`)
 
-Thin egress — proxy returns opaque agent text; callers own parsing and citation extraction:
+Thin egress — proxy returns opaque agent text and the citations the provider attached to it (Bing: Foundry `url_citation` annotations, with offsets into the answer); callers own parsing:
 
 ```json
 {

@@ -112,8 +112,9 @@ class AgentSearchEngine(ABC, Generic[AgentRequestT]):
     """Agent (grounded) search engine contract for v1 providers.
 
     Implementations call the upstream agent/grounding provider and return opaque
-    ``answer`` text plus ``raw`` provider payload. Content resolution is left to
-    consumers; this layer stays provider-egress only.
+    ``answer`` text, the ``citations`` the provider attached to it, and ``raw``
+    provider payload. Content resolution is left to consumers; this layer stays
+    provider-egress only.
     """
 
     engine_id: str

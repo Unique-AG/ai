@@ -767,6 +767,14 @@
             "description": "Agent response text as returned by the provider (opaque to the proxy)",
             "default": ""
           },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerSpanCitation"
+            },
+            "type": "array",
+            "title": "Citations",
+            "description": "Sources cited in the answer. Only Grounding with Bing Search reports citations; other engines return an empty list."
+          },
           "raw": {
             "title": "Raw",
             "description": "Opaque provider payload"
@@ -778,7 +786,64 @@
           "query"
         ],
         "title": "Agent Search Response",
-        "description": "Result of an agent-based (grounded) search.\n\nThin egress contract: opaque ``answer`` text from the provider plus ``raw``\nfor debugging. Consumers interpret ``answer`` (JSON parsing, citations, etc.)."
+        "description": "Result of an agent-based (grounded) search.\n\nThin egress contract: opaque ``answer`` text from the provider, the\ncitations the provider attached to it, and ``raw`` for debugging. Consumers\ninterpret ``answer`` (JSON parsing, mapping citations, etc.)."
+      },
+      "AnswerSpanCitation": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL of the cited source"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Title of the cited source"
+          },
+          "marker": {
+            "type": "string",
+            "title": "Marker",
+            "description": "Answer text between start_index and end_index"
+          },
+          "startIndex": {
+            "type": "integer",
+            "title": "Start Index",
+            "description": "Character offset in the answer where the marker starts"
+          },
+          "endIndex": {
+            "type": "integer",
+            "title": "End Index",
+            "description": "Character offset in the answer just past the marker"
+          },
+          "outputItemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Item Id",
+            "description": "Output item the citation is attached to, if the provider reports one"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "marker",
+          "startIndex",
+          "endIndex"
+        ],
+        "title": "Answer Span Citation",
+        "description": "A source cited at a specific span of the answer text.\n\nGrounding with Bing Search reports these as ``url_citation`` annotations:\nthe agent writes a marker such as ``\u30104:0\u2020source\u3011`` into its answer, and\nFoundry attaches the source to that marker's character span."
       },
       "BasicCrawlRequest": {
         "properties": {

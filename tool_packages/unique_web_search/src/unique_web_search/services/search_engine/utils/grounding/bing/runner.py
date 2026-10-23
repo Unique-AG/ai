@@ -12,10 +12,8 @@ from azure.ai.projects.models import (
     PromptAgentDefinition,
 )
 from openai.types.responses import ResponseStreamEvent
+from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
-from openai.types.responses.response_output_item_done_event import (
-    ResponseOutputItemDoneEvent,
-)
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import (
     AnnotationURLCitation,
@@ -26,20 +24,15 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
     bing_agent_name,
 )
+from unique_search_proxy_core.schema import AnswerSpanCitation
 
 from unique_web_search.invocation_stats import collector
-from unique_web_search.services.search_engine.schema import (
-    WebSearchResult,
-)
-from unique_web_search.services.search_engine.utils.grounding import (
-    ResponseParser,
-    convert_response_to_search_results,
-)
 from unique_web_search.services.search_engine.utils.grounding.bing.client import (
     get_openai_client,
 )
 from unique_web_search.services.search_engine.utils.grounding.bing.models import (
     RESPONSE_RULE,
+    build_bing_citation_instructions,
 )
 from unique_web_search.settings import env_settings
 
@@ -179,10 +172,9 @@ async def create_and_process_run(
     agent_client: AIProjectClient,
     query: str,
     grounding: BingGroundingConfiguration,
-    response_parsers_strategies: list[ResponseParser],
     generation_instructions: str,
-) -> list[WebSearchResult]:
-    """Execute a Bing-grounded agent run and return parsed search results.
+) -> tuple[str, list[AnswerSpanCitation]]:
+    """Execute a Bing-grounded agent run and return its answer and citations.
 
     Optimistically calls Responses with a hash-derived agent name. If the agent
     is missing, creates it once and retries.
@@ -191,25 +183,22 @@ async def create_and_process_run(
         agent_client: Azure AI project client used to manage agents.
         query: The search query to send to the agent.
         grounding: Bing tool knobs (result count, market, language, freshness).
-        response_parsers_strategies: Ordered list of parsing strategies to try
-            when converting the agent's free-text response into structured results.
         generation_instructions: Per-request system instructions for the agent.
+
+    Returns:
+        The answer text and its citations, with offsets into that text.
 
     Raises:
         Exception: If the agent run fails.
-        ValueError: If none of the parser strategies can parse the response.
     """
-    instructions = f"{generation_instructions}\n{RESPONSE_RULE}"
     model = env_settings.azure_ai_bing_agent_model
-    answer = await _run_responses_agent(
+    return await _run_responses_agent(
         agent_client,
         query=query,
         model=model,
-        instructions=instructions,
+        instructions=build_bing_citation_instructions(generation_instructions),
         grounding=grounding,
     )
-
-    return await convert_response_to_search_results(answer, response_parsers_strategies)
 
 
 async def _run_responses_agent(
@@ -219,7 +208,7 @@ async def _run_responses_agent(
     model: str,
     instructions: str,
     grounding: BingGroundingConfiguration,
-) -> str:
+) -> tuple[str, list[AnswerSpanCitation]]:
     """Invoke the agent via Responses API and return the full output text.
 
     Instructions must already be baked into the agent version — Foundry returns
@@ -247,13 +236,23 @@ async def _run_responses_agent(
             resolved_name,
             exc,
         )
-        await create_bing_agent(
-            agent_client,
-            agent_name=resolved_name,
-            model=model,
-            instructions=instructions,
-            grounding=grounding,
-        )
+        try:
+            await create_bing_agent(
+                agent_client,
+                agent_name=resolved_name,
+                model=model,
+                instructions=instructions,
+                grounding=grounding,
+            )
+        except UnicodeDecodeError:
+            # Foundry can persist the agent but return a compressed create response
+            # that azure-core fails to decode. The Responses retry below verifies
+            # whether creation actually succeeded.
+            _LOGGER.warning(
+                "Could not decode create response for Bing agent %s; "
+                "verifying creation through Responses",
+                resolved_name,
+            )
         stream = await _create_responses_stream(
             openai_client,
             agent_name=resolved_name,
@@ -261,33 +260,25 @@ async def _run_responses_agent(
         )
 
     answer_parts: list[str] = []
-    citation_replacements: list[tuple[str, str]] = []
-    emitted_text = False
+    citations: list[AnswerSpanCitation] = []
+    completed_answer: str | None = None
 
     async with stream:
         async for event in stream:
             if isinstance(event, ResponseTextDeltaEvent):
                 if event.delta:
-                    emitted_text = True
                     answer_parts.append(event.delta)
-            elif isinstance(event, ResponseOutputItemDoneEvent):
-                citation_replacements.extend(_extract_markdown_citations(event))
             elif isinstance(event, ResponseCompletedEvent):
-                output_text = event.response.output_text
-                # Foundry sometimes delivers the full answer only on completion.
-                if output_text and not emitted_text:
-                    emitted_text = True
-                    answer_parts.append(output_text)
+                completed_answer = event.response.output_text
+                citations = _extract_response_url_citations(event.response)
                 collector.record_token_usage(
                     model_name=model,
                     usage=event.response.usage,
                     source="web_search.grounding.bing",
                 )
 
-    answer = "".join(answer_parts)
-    for marker, markdown_link in citation_replacements:
-        answer = answer.replace(marker, markdown_link)
-    return answer
+    answer = completed_answer if completed_answer is not None else "".join(answer_parts)
+    return answer, citations
 
 
 async def _create_responses_stream(
@@ -316,23 +307,76 @@ async def _create_responses_stream(
     return stream
 
 
-def _extract_markdown_citations(
-    event: ResponseOutputItemDoneEvent,
-) -> list[tuple[str, str]]:
-    """Extract (placeholder, markdown-link) pairs from a message output item."""
-    item = event.item
-    if not isinstance(item, ResponseOutputMessage) or not item.content:
-        return []
-    text_content = item.content[-1]
-    if not isinstance(text_content, ResponseOutputText):
+def _extract_message_url_citations(
+    item: ResponseOutputMessage,
+    *,
+    start_index_offset: int = 0,
+) -> list[AnswerSpanCitation]:
+    """Turn the URL annotations on one output message into citations.
+
+    Args:
+        item: A completed assistant message. Its text can be split across
+            several ``output_text`` parts, and each annotation's offsets are
+            relative to the part it is attached to.
+        start_index_offset: Length of the answer text before this message, so
+            the returned offsets point into the full answer.
+
+    Returns:
+        One citation per URL annotation, carrying the marker text the
+        annotation spans and its offsets into the full answer. Annotations
+        without a URL or with an empty span are skipped.
+    """
+    if not item.content:
         return []
 
-    replacements: list[tuple[str, str]] = []
-    for annotation in text_content.annotations:
-        if not isinstance(annotation, AnnotationURLCitation):
+    citations: list[AnswerSpanCitation] = []
+    text_offset = start_index_offset
+    for text_content in item.content:
+        if not isinstance(text_content, ResponseOutputText):
             continue
-        marker = text_content.text[annotation.start_index : annotation.end_index]
-        title = annotation.title or annotation.url
-        if annotation.url and marker:
-            replacements.append((marker, f"[{title}]({annotation.url})"))
-    return replacements
+        for annotation in text_content.annotations or []:
+            if not isinstance(annotation, AnnotationURLCitation):
+                continue
+            marker = text_content.text[annotation.start_index : annotation.end_index]
+            if annotation.url and marker:
+                citations.append(
+                    AnswerSpanCitation(
+                        url=annotation.url,
+                        title=annotation.title,
+                        marker=marker,
+                        start_index=text_offset + annotation.start_index,
+                        end_index=text_offset + annotation.end_index,
+                        output_item_id=item.id,
+                    )
+                )
+        text_offset += len(text_content.text)
+    return citations
+
+
+def _extract_response_url_citations(
+    response: Response,
+) -> list[AnswerSpanCitation]:
+    """Extract citations with offsets into ``response.output_text``."""
+    citations: list[AnswerSpanCitation] = []
+    text_offset = 0
+    for item in response.output or []:
+        if not isinstance(item, ResponseOutputMessage):
+            continue
+        citations.extend(
+            _extract_message_url_citations(
+                item,
+                start_index_offset=text_offset,
+            )
+        )
+        text_offset += sum(
+            len(content.text)
+            for content in item.content or []
+            if isinstance(content, ResponseOutputText)
+        )
+
+    _LOGGER.info(
+        "Foundry Bing citation annotations response_id=%s citation_count=%d",
+        response.id,
+        len(citations),
+    )
+    return citations

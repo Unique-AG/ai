@@ -35,7 +35,7 @@ class TestAgentSearchSchemas:
         )
         payload = response.model_dump(by_alias=True)
         assert payload["answer"] == "agent text"
-        assert "citations" not in payload
+        assert payload["citations"] == []
 
     @pytest.mark.unit
     def test_stream_event_union_delta_and_done(self) -> None:
