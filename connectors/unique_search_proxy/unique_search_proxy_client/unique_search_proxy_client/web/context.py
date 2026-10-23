@@ -13,7 +13,13 @@ _REQUEST_CONTEXT: ContextVar[RequestContext] = ContextVar(
     default=LOCAL_REQUEST_CONTEXT,
 )
 
-_CONTEXT_FIELDS: Final[tuple[str, ...]] = ("company_id", "user_id", "chat_id")
+_CONTEXT_FIELDS: Final[tuple[str, ...]] = (
+    "company_id",
+    "user_id",
+    "chat_id",
+    "entry_point",
+    "caller",
+)
 
 
 def bind_request_context(context: RequestContext) -> Token[RequestContext]:
