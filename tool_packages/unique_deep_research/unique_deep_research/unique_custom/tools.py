@@ -15,6 +15,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import Tool, tool
 from markdownify import markdownify
 from pydantic import BaseModel, Field
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogEvent,
@@ -163,7 +164,9 @@ async def web_search(query: str, config: RunnableConfig) -> str:
     ].tools.web_tools_config.show_full_page_result
 
     search_engine_service = get_search_engine_service(
-        engine_config, configurable["language_model_service"]
+        engine_config,
+        configurable["language_model_service"],
+        request_context=configurable.get("request_context", LOCAL_REQUEST_CONTEXT),
     )
 
     # Perform the search

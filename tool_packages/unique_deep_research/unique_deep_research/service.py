@@ -19,6 +19,7 @@ from openai.types.responses.response_output_text import (
 )
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
+from unique_search_proxy_core.context import EntryPoint, RequestContext
 from unique_toolkit._common.execution import safe_execute_async
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
@@ -546,6 +547,13 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "message_id": self.chat_service.assistant_message_id,
                 "citation_manager": citation_manager,
                 "additional_openai_proxy_headers": additional_openai_proxy_headers,
+                "request_context": RequestContext(
+                    company_id=self.company_id,
+                    user_id=self.user_id,
+                    chat_id=self.chat_id,
+                    user_metadata=self.event.payload.user_metadata or {},
+                    entry_point=EntryPoint.DEEP_RESEARCH,
+                ),
             },
         }
 
