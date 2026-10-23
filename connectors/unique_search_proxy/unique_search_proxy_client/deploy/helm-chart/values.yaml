@@ -6,10 +6,14 @@ selectorComponentLabel: server
 # ════ Compute ═════════════════════════════════════════════════════════════════
 
 # ── Deployment ────────────────────────────────────────────────────────────────
+# -- Use at least 2 in production. A single pod is unavailable while its node is drained, and the PodDisruptionBudget only renders with more than 1.
+replicaCount: 1
+
 env:
   LOG_LEVEL: info
   TIMEOUT: "120"
-  WORKERS: "4"
+  # -- Python worker processes per pod. Each runs up to `requestLimits.crawl.maxConcurrentCrawls` crawls at once and holds its own memory. For more capacity, add replicas rather than workers.
+  WORKERS: "2"
 
 image:
   pullPolicy: IfNotPresent
@@ -38,10 +42,11 @@ securityContext:
 
 resources:
   requests:
-    cpu: 100m
-    memory: 256Mi
+    cpu: "1"
+    # -- Sized for the default 2 workers. Memory grows with each worker, so raise it and the limit together with `env.WORKERS`.
+    memory: 2Gi
   limits:
-    memory: 384Mi
+    memory: 4Gi
 
 probes:
   enabled: true
@@ -175,7 +180,7 @@ requestLimits:
     maxUrlsPerCrawl: 100
     maxUrlLength: 2048
     maxConcurrentFetches: 10
-    maxConcurrentCrawls: 2
+    maxConcurrentCrawls: 4
   timeouts:
     maxTimeoutSeconds: 120
 
