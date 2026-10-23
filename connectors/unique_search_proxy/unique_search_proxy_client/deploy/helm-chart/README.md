@@ -37,7 +37,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | deployment.revisionHistoryLimit | int | `3` |  |
 | env.LOG_LEVEL | string | `"info"` |  |
 | env.TIMEOUT | string | `"120"` |  |
-| env.WORKERS | string | `"2"` | Python worker processes per pod. Each runs up to `requestLimits.crawl.maxConcurrentCrawls` crawls at once and holds its own memory. For more capacity, add replicas rather than workers. |
+| env.WORKERS | string | `"2"` |  |
 | firecrawl.connection.apiEndpoint | string | `"https://api.firecrawl.dev"` |  |
 | firecrawl.connection.apiVersion | string | `"v2"` |  |
 | firecrawl.enabled | bool | `false` |  |
@@ -98,7 +98,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | probes.startup.httpGet.port | string | `"http"` |  |
 | probes.startup.initialDelaySeconds | int | `10` |  |
 | probes.startup.periodSeconds | int | `10` |  |
-| replicaCount | int | `1` | Use at least 2 in production. A single pod is unavailable while its node is drained, and the PodDisruptionBudget only renders with more than 1. |
+| replicaCount | int | `1` | Use at least 2 in production. |
 | requestLimits.crawl.maxConcurrentCrawls | int | `4` |  |
 | requestLimits.crawl.maxConcurrentFetches | int | `10` |  |
 | requestLimits.crawl.maxCrawlResponseKib | int | `10240` |  |
@@ -107,7 +107,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | requestLimits.timeouts.maxTimeoutSeconds | int | `120` |  |
 | resources.limits.memory | string | `"4Gi"` |  |
 | resources.requests.cpu | string | `"1"` |  |
-| resources.requests.memory | string | `"2Gi"` | Sized for the default 2 workers. Memory grows with each worker, so raise it and the limit together with `env.WORKERS`. |
+| resources.requests.memory | string | `"2Gi"` |  |
 | securityContext.allowPrivilegeEscalation | bool | `false` |  |
 | securityContext.capabilities.drop[0] | string | `"ALL"` |  |
 | securityContext.readOnlyRootFilesystem | bool | `true` |  |
