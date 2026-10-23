@@ -72,7 +72,7 @@ If you find yourself in a situation where some information is missing from Uniqu
 
 ### 🛠️ How to go this route?
 
-You can find detailed examples of how to develop MCP servers and integrate them with Unique AI in the [tutorials on MCP](../tutorials/mcp/).
+You can find detailed examples of how to develop MCP servers and integrate them with Unique AI in the [tutorials on MCP](../Tutorials/mcp/).
 
 ## 🏗️ Option 3: Develop a Custom Module/Agent
 
