@@ -1,0 +1,178 @@
+name: "[CD] Search proxy to uniquecr"
+
+# Copy a published stable search-proxy release (image + Helm chart) from GHCR
+# into uniquecr, the registry customers pull from. Nothing is rebuilt.
+#
+# GHCR tags can be moved after the build, so the image is copied by digest and
+# only if cd-containerize.yaml signed it at this release tag and its revision
+# label is the tag commit. A version that already exists in uniquecr is never
+# overwritten. The chart is copied as published and skipped if uniquecr has it.
+#
+# Called by cd-publish after helm-publish. To retry by hand, run it on the tag:
+#   gh workflow run cd-uniquecr-search-proxy.yaml --ref unique-search-proxy-v<version>
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: 'Release tag to copy (e.g. unique-search-proxy-v2026.44.0). Must be the ref of the calling run.'
+        required: true
+        type: string
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-to-uniquecr:
+    runs-on: ubuntu-latest
+    # Holds CLIENT_ID/TENANT_ID/SUBSCRIPTION_ID of the uniquecr push principal and
+    # only admits unique-search-proxy-v* tags (infrastructure: providers/github/unique-ag/repos/ai.yaml).
+    environment: uniquecr-github-oidc
+    timeout-minutes: 20
+    concurrency:
+      group: uniquecr-search-proxy-${{ inputs.release_tag || github.ref_name }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # Azure OIDC login and keyless cosign signing
+    env:
+      SOURCE_IMAGE: ghcr.io/unique-ag/ai/search-proxy
+      SOURCE_CHART: oci://ghcr.io/unique-ag/ai/helm/search-proxy
+      TARGET_ACR: uniquecr
+      TARGET_REGISTRY: uniquecr.azurecr.io
+      TARGET_IMAGE_REPOSITORY: unique-ag/ai/search-proxy
+      TARGET_CHART_REPOSITORY: helm/search-proxy
+    steps:
+      - name: Resolve the release
+        id: release
+        env:
+          INPUT_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          if [ "$GITHUB_REF" != "refs/tags/${tag}" ]; then
+            echo "::error::Run this on the search-proxy release tag (refs/tags/unique-search-proxy-v<version>), not on ${GITHUB_REF}."
+            exit 1
+          fi
+          if ! [[ "$tag" =~ ^unique-search-proxy-v([0-9]{4}\.[0-9]{1,2}\.[0-9]+)$ ]]; then
+            echo "::error::${tag} is not a stable search-proxy release tag (unique-search-proxy-vYYYY.WW.PATCH)."
+            exit 1
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Verify the GHCR image
+        id: image
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          digest=$(docker buildx imagetools inspect "${SOURCE_IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}')
+          if ! [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "::error::Could not resolve a digest for ${SOURCE_IMAGE}:${VERSION} (got '${digest}')."
+            exit 1
+          fi
+          source_ref="${SOURCE_IMAGE}@${digest}"
+          if ! cosign verify "$source_ref" \
+            --certificate-identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/cd-containerize.yaml@refs/tags/${TAG}" \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com > /dev/null; then
+            echo "::error::${source_ref} has no valid cosign signature from cd-containerize.yaml at ${TAG}."
+            exit 1
+          fi
+          revision=$(docker buildx imagetools inspect "$source_ref" --format '{{json .Image}}' \
+            | jq -r '.config.Labels["org.opencontainers.image.revision"] // empty')
+          if [ "$revision" != "$GITHUB_SHA" ]; then
+            echo "::error::${source_ref} comes from ${revision:-an unknown commit}, not from the commit ${GITHUB_SHA} of ${TAG}."
+            exit 1
+          fi
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Azure as uniquecr pusher (OIDC)
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
+        with:
+          client-id: ${{ vars.CLIENT_ID }}
+          tenant-id: ${{ vars.TENANT_ID }}
+          subscription-id: ${{ vars.SUBSCRIPTION_ID }}
+
+      - name: Login to uniquecr
+        run: |
+          set -euo pipefail
+          az acr login --name "$TARGET_ACR"
+          token=$(az acr login --name "$TARGET_ACR" --expose-token --output tsv --query accessToken)
+          echo "::add-mask::$token"
+          echo "$token" | helm registry login "$TARGET_REGISTRY" \
+            --username 00000000-0000-0000-0000-000000000000 \
+            --password-stdin
+
+      - name: Copy the image to uniquecr
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          digest_of() {
+            local output error
+            error=$(mktemp)
+            if output=$(docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>"$error"); then
+              echo "$output"
+            elif grep -qiE 'not found|NAME_UNKNOWN|MANIFEST_UNKNOWN|404' "$error"; then
+              echo ""
+            else
+              echo "::error::Could not look up $1: $(cat "$error")" >&2
+              return 1
+            fi
+          }
+          target="${TARGET_REGISTRY}/${TARGET_IMAGE_REPOSITORY}:${VERSION}"
+          existing=$(digest_of "$target")
+          if [ -z "$existing" ]; then
+            docker buildx imagetools create --tag "$target" "${SOURCE_IMAGE}@${DIGEST}"
+          elif [ "$existing" != "$DIGEST" ]; then
+            echo "::error::${target} is ${existing}, not ${DIGEST}. Delete the tag by hand if uniquecr is wrong. This workflow never overwrites a released tag."
+            exit 1
+          else
+            echo "::notice::${target} already holds ${DIGEST}."
+          fi
+
+      - name: Sign the uniquecr image
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          image="${TARGET_REGISTRY}/${TARGET_IMAGE_REPOSITORY}@${DIGEST}"
+          cosign sign --yes "$image"
+          cosign verify "$image" \
+            --certificate-identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/cd-uniquecr-search-proxy.yaml@refs/tags/${TAG}" \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+
+      - name: Copy the chart to uniquecr
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          target="oci://${TARGET_REGISTRY}/${TARGET_CHART_REPOSITORY}"
+          if helm show chart "$target" --version "$VERSION" > /dev/null 2>&1; then
+            echo "::notice::${target} ${VERSION} already exists, skipping push."
+            exit 0
+          fi
+          helm pull "$SOURCE_CHART" --version "$VERSION" --destination "$RUNNER_TEMP"
+          helm push "${RUNNER_TEMP}/search-proxy-${VERSION}.tgz" "oci://${TARGET_REGISTRY}/${TARGET_CHART_REPOSITORY%/*}"
+
+      - name: Write summary
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          {
+            echo "### search-proxy ${VERSION} in uniquecr"
+            echo ""
+            echo "- Image: \`${TARGET_REGISTRY}/${TARGET_IMAGE_REPOSITORY}:${VERSION}@${DIGEST}\`"
+            echo "- Chart: \`helm pull oci://${TARGET_REGISTRY}/${TARGET_CHART_REPOSITORY} --version ${VERSION}\`"
+            echo ""
+            echo "The chart is the GHCR chart unchanged, so its default \`image.registry\` is \`ghcr.io\`. Set \`image.registry=${TARGET_REGISTRY}\` to pull the image from uniquecr."
+          } >> "$GITHUB_STEP_SUMMARY"
