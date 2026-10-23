@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026.44.1](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.44.0...unique-search-proxy-v2026.44.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **search-proxy:** default to 2 workers with 4 crawls each ([#2627](https://github.com/Unique-AG/ai/issues/2627)) ([9db6ec0](https://github.com/Unique-AG/ai/commit/9db6ec099512a97986a2f75caf8ea2bcc1a88352))
+* **search-proxy:** patch Trivy CVEs in image and deps [UN-28041] ([d70572b](https://github.com/Unique-AG/ai/commit/d70572b9aa668e9a82b27f497d6c5f702caa7cd3))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.42.0...unique-search-proxy-v2026.44.0) (2026-10-23)
 
 
