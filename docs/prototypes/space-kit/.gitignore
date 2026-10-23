@@ -1,0 +1,11 @@
+# Personal machine config: points at env files, holds no secrets itself.
+envs.yaml
+# Append-only record of what this machine created, plus dry-run payloads.
+ledger/
+# Env files and keys never live here; ignore them anyway in case.
+*.env
+.env*
+unique.env.*
+__pycache__/
+.pytest_cache/
+.ruff_cache/

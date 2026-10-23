@@ -1,0 +1,9 @@
+# Copy to envs.yaml (gitignored). Paths to env files, never their values.
+# An env file may use these names (or the uqadm names, see the README):
+#   UNIQUE_APP_KEY, UNIQUE_API_BASE, UNIQUE_APP_ID, UNIQUE_USER_ID,
+#   UNIQUE_COMPANY_ID
+env_files:
+  qa: /path/to/unique.env.qa
+  local: /path/to/unique.env.local
+# Only for the optional registration feature (can be ignored).
+harness_eval_home: /path/to/harness-eval

@@ -1,0 +1,9 @@
+# Switch the harness and model of a template, keep tools and MCP.
+# Check the key names first with: python3 -m space_kit show <template> --env qa
+env: qa
+name: cx-gpt56-medium
+template: assistant_REPLACE_WITH_TEMPLATE_ID
+set:
+  strategy: codex
+  codex.model: AZURE_GPT_56_SOL_2026_0709
+  codex.modelReasoningEffort: medium
