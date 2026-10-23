@@ -193,6 +193,13 @@ async def agent_search_stream(
             exc.code.value if hasattr(exc.code, "value") else str(exc.code),
             time.perf_counter() - started,
         )
+        record_request_usage(
+            "agent_search",
+            engine_id,
+            units=1,
+            succeeded=succeeded,
+            started=started,
+        )
         raise _agent_search_request_context(exc, engine_id=engine_id) from exc
     except Exception as exc:
         record_agent_search_error(engine_id, "INTERNAL_ERROR", 0.0)

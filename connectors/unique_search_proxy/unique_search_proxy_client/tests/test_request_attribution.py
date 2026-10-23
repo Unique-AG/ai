@@ -339,14 +339,20 @@ class TestUsageRecording:
             EntryPoint.PUBLIC_API,
         )
 
+    @pytest.mark.parametrize(
+        "error",
+        [RuntimeError("no engine"), UpstreamError("no egress")],
+        ids=["unexpected", "proxy_error"],
+    )
     def test_agent_search_stream_setup_failure_records_error(
         self,
         client: TestClient,
         usage_records: list[UsageRecord],
+        error: Exception,
     ) -> None:
         with patch(
             "unique_search_proxy_client.web.api.v1.agent_search.get_agent_engine_service",
-            side_effect=RuntimeError("no engine"),
+            side_effect=error,
         ):
             response = client.post(
                 "/v1/agent-search/stream",
