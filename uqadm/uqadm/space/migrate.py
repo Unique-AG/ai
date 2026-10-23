@@ -127,7 +127,47 @@ def assistant_prompt_params_from_source(
     return out
 
 
-def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
+def mcp_servers_params_from_source(
+    attachments: object,
+) -> list[dict[str, Any]]:
+    """Map ``assistantMcpServers`` of a fetched space to the public API's ``mcpServers``.
+
+    The API treats every listed server as a complete selection: tools that are
+    not listed are disabled, and ``tools: []`` disables the server. A disabled
+    attachment and an attachment without enabled tools therefore both map to
+    ``tools: []``. Export-only fields (``id``, ``assistantId``, timestamps,
+    ``name``) are dropped.
+
+    Not handled here (needs ``GET /mcp/servers``): tools the server no longer
+    exposes are rejected by the API, and space-restricted servers cannot be
+    attached on create. Server ids are environment specific, so only call this
+    when source and destination are the same environment.
+    """
+    if not isinstance(attachments, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for attachment in attachments:
+        if not isinstance(attachment, dict):
+            continue
+        server_id = attachment.get("mcpServerId")
+        if not isinstance(server_id, str) or not server_id:
+            continue
+        tools: list[dict[str, Any]] = []
+        if attachment.get("isEnabled") is not False:
+            for tool in attachment.get("tools") or []:
+                if (
+                    isinstance(tool, dict)
+                    and isinstance(tool.get("name"), str)
+                    and tool.get("isEnabled") is True
+                ):
+                    tools.append({"name": tool["name"], "isEnabled": True})
+        out.append({"mcpServerId": server_id, "tools": tools})
+    return out
+
+
+def build_create_params(
+    src: dict[str, Any], *, include_mcp_servers: bool = False
+) -> dict[str, Any]:
     modules = [module_params_from_source(m) for m in src.get("modules") or []]
     params: dict[str, Any] = {
         "name": src["name"],
@@ -170,6 +210,10 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
         params["assistantPrompts"] = assistant_prompt_params_from_source(
             src["assistantPrompts"]
         )
+    if include_mcp_servers:
+        mcp_servers = mcp_servers_params_from_source(src.get("assistantMcpServers"))
+        if mcp_servers:
+            params["mcpServers"] = mcp_servers
     return params
 
 
@@ -192,7 +236,9 @@ def build_module_updates_from_pairs(
     return updates
 
 
-def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
+def build_update_kwargs(
+    src: dict[str, Any], *, include_mcp_servers: bool = False
+) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     simple = (
         "name",
@@ -232,6 +278,10 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
         kwargs["assistantPrompts"] = assistant_prompt_params_from_source(
             src["assistantPrompts"]
         )
+    if include_mcp_servers:
+        mcp_servers = mcp_servers_params_from_source(src.get("assistantMcpServers"))
+        if mcp_servers:
+            kwargs["mcpServers"] = mcp_servers
     return kwargs
 
 
@@ -344,11 +394,17 @@ def cmd_migrate(
             )
 
     mcp = src_space.get("assistantMcpServers") or []
-    if mcp:
+    include_mcp_servers = bool(mcp) and not cross_env
+    if mcp and cross_env:
         typer.echo(
-            f"Warning: source lists {len(mcp)} MCP server binding(s); "
-            "these are not migrated by this command.",
+            f"Warning: skipping {len(mcp)} MCP server binding(s); "
+            "server ids are not portable across environments.",
             err=True,
+        )
+    elif mcp:
+        typer.echo(
+            f"Note: migrating {len(mcp)} MCP server binding(s) with their "
+            "tool selection (same environment).",
         )
 
     if with_knowledge and cross_env:
@@ -361,7 +417,9 @@ def cmd_migrate(
     assistant_access = list(src_space.get("assistantAccess") or [])
 
     if dst_space_id is None:
-        create_params = build_create_params(src_space)
+        create_params = build_create_params(
+            src_space, include_mcp_servers=include_mcp_servers
+        )
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space on destination with name="
@@ -424,7 +482,7 @@ def cmd_migrate(
 
     update_modules = build_module_updates_from_pairs(pairs)
 
-    update_kw = build_update_kwargs(src_space)
+    update_kw = build_update_kwargs(src_space, include_mcp_servers=include_mcp_servers)
     if update_modules:
         update_kw["modules"] = update_modules
 
