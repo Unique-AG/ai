@@ -32,6 +32,9 @@ ENV PYTHONFAULTHANDLER=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
+# glibc caps malloc arenas at 8 per core of the node, not of the pod's CPU limit
+ENV MALLOC_ARENA_MAX=2
+
 # uid 1000 is what the Helm chart pins as runAsUser
 RUN useradd -m -u 1000 appuser
 
