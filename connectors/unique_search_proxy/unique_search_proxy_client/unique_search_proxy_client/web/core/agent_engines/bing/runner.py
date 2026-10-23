@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
+from typing import NamedTuple
 
 import openai
 from azure.ai.projects.aio import AIProjectClient
@@ -14,10 +15,8 @@ from azure.ai.projects.models import (
 )
 from httpx import AsyncClient
 from openai.types.responses import ResponseStreamEvent
+from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
-from openai.types.responses.response_output_item_done_event import (
-    ResponseOutputItemDoneEvent,
-)
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import (
     AnnotationURLCitation,
@@ -28,6 +27,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
     BingGroundingConfiguration,
     bing_agent_name,
 )
+from unique_search_proxy_core.schema import AnswerSpanCitation
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client,
@@ -38,11 +38,25 @@ from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, rea
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = [
+    "BingStreamChunk",
     "create_bing_agent",
     "get_bing_grounding_tool",
     "resolve_bing_agent_name",
     "stream_bing_grounding_agent",
 ]
+
+
+class BingStreamChunk(NamedTuple):
+    """One step of a Bing Responses stream.
+
+    ``answer`` and ``citations`` are set only for the completed response, and
+    the citation offsets point into ``answer``.
+    """
+
+    delta: str
+    raw_event: dict
+    answer: str | None = None
+    citations: Sequence[AnswerSpanCitation] = ()
 
 
 def resolve_bing_agent_name(
@@ -147,8 +161,8 @@ async def stream_bing_grounding_agent(
     instructions: str,
     grounding: BingGroundingConfiguration,
     timeout: float,
-) -> AsyncIterator[tuple[str, dict]]:
-    """Stream Bing-grounded Responses events as ``(delta_text, raw_event)`` pairs.
+) -> AsyncIterator[BingStreamChunk]:
+    """Stream Bing-grounded Responses events as :class:`BingStreamChunk` items.
 
     Optimistically calls Responses with a hash-derived agent name. If the agent
     is missing, creates it once and retries.
@@ -181,13 +195,23 @@ async def stream_bing_grounding_agent(
             resolved_name,
             exc,
         )
-        await create_bing_agent(
-            project_client,
-            agent_name=resolved_name,
-            model=model,
-            instructions=instructions,
-            grounding=grounding,
-        )
+        try:
+            await create_bing_agent(
+                project_client,
+                agent_name=resolved_name,
+                model=model,
+                instructions=instructions,
+                grounding=grounding,
+            )
+        except UnicodeDecodeError:
+            # Foundry can persist the agent but return a compressed create response
+            # that azure-core fails to decode. The Responses retry below verifies
+            # whether creation actually succeeded.
+            _LOGGER.warning(
+                "Could not decode create response for Bing agent %s; "
+                "verifying creation through Responses",
+                resolved_name,
+            )
         stream = await _create_responses_stream(
             openai_client,
             agent_name=resolved_name,
@@ -201,21 +225,13 @@ async def stream_bing_grounding_agent(
             if isinstance(event, ResponseTextDeltaEvent):
                 if event.delta:
                     emitted_text = True
-                    yield event.delta, event.model_dump(mode="json", warnings="none")
-            elif isinstance(event, ResponseOutputItemDoneEvent):
-                citations = _extract_url_citations(event)
-                if citations:
-                    yield (
-                        "",
-                        {
-                            "type": event.type,
-                            "citations": citations,
-                            "event": event.model_dump(mode="json", warnings="none"),
-                        },
+                    yield BingStreamChunk(
+                        event.delta, event.model_dump(mode="json", warnings="none")
                     )
             elif isinstance(event, ResponseCompletedEvent):
                 response = event.response
                 output_text = response.output_text
+                citations = _extract_response_url_citations(response)
                 raw_completed = {
                     "type": event.type,
                     "response": response.model_dump(mode="json", warnings="none"),
@@ -223,9 +239,16 @@ async def stream_bing_grounding_agent(
                 # Foundry sometimes delivers the full answer only on completion.
                 if output_text and not emitted_text:
                     emitted_text = True
-                    yield output_text, raw_completed
+                    yield BingStreamChunk(
+                        output_text,
+                        raw_completed,
+                        answer=output_text,
+                        citations=citations,
+                    )
                 else:
-                    yield "", raw_completed
+                    yield BingStreamChunk(
+                        "", raw_completed, answer=output_text, citations=citations
+                    )
 
 
 async def _create_responses_stream(
@@ -258,15 +281,76 @@ async def _create_responses_stream(
     return stream
 
 
-def _extract_url_citations(event: ResponseOutputItemDoneEvent) -> list[str]:
-    item = event.item
-    if not isinstance(item, ResponseOutputMessage) or not item.content:
+def _extract_message_url_citations(
+    item: ResponseOutputMessage,
+    *,
+    start_index_offset: int = 0,
+) -> list[AnswerSpanCitation]:
+    """Turn the URL annotations on one output message into citations.
+
+    Args:
+        item: A completed assistant message. Its text can be split across
+            several ``output_text`` parts, and each annotation's offsets are
+            relative to the part it is attached to.
+        start_index_offset: Length of the answer text before this message, so
+            the returned offsets point into the full answer.
+
+    Returns:
+        One citation per URL annotation, carrying the marker text the
+        annotation spans and its offsets into the full answer. Annotations
+        without a URL or with an empty span are skipped.
+    """
+    if not item.content:
         return []
-    text_content = item.content[-1]
-    if not isinstance(text_content, ResponseOutputText):
-        return []
-    return [
-        annotation.url
-        for annotation in text_content.annotations
-        if isinstance(annotation, AnnotationURLCitation) and annotation.url
-    ]
+
+    citations: list[AnswerSpanCitation] = []
+    text_offset = start_index_offset
+    for text_content in item.content:
+        if not isinstance(text_content, ResponseOutputText):
+            continue
+        for annotation in text_content.annotations or []:
+            if not isinstance(annotation, AnnotationURLCitation):
+                continue
+            marker = text_content.text[annotation.start_index : annotation.end_index]
+            if annotation.url and marker:
+                citations.append(
+                    AnswerSpanCitation(
+                        url=annotation.url,
+                        title=annotation.title,
+                        marker=marker,
+                        start_index=text_offset + annotation.start_index,
+                        end_index=text_offset + annotation.end_index,
+                        output_item_id=item.id,
+                    )
+                )
+        text_offset += len(text_content.text)
+    return citations
+
+
+def _extract_response_url_citations(
+    response: Response,
+) -> list[AnswerSpanCitation]:
+    """Extract citations with offsets into ``response.output_text``."""
+    citations: list[AnswerSpanCitation] = []
+    text_offset = 0
+    for item in response.output or []:
+        if not isinstance(item, ResponseOutputMessage):
+            continue
+        citations.extend(
+            _extract_message_url_citations(
+                item,
+                start_index_offset=text_offset,
+            )
+        )
+        text_offset += sum(
+            len(content.text)
+            for content in item.content or []
+            if isinstance(content, ResponseOutputText)
+        )
+
+    _LOGGER.info(
+        "Foundry Bing citation annotations response_id=%s citation_count=%d",
+        response.id,
+        len(citations),
+    )
+    return citations

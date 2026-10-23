@@ -634,6 +634,19 @@
           }
         }
       }
+    },
+    "networkPolicy": {
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "allowDisabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow networkPolicy.enabled=false. Set only if another control restricts who can reach search-proxy."
+        }
+      }
     }
   }
 }

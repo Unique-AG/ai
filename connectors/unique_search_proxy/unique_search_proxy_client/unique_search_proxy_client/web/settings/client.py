@@ -7,7 +7,7 @@ from unique_search_proxy_core.http_client import (
     ProxyUsernameSource,
 )
 
-from unique_search_proxy_client.web.helm.metadata import helm_settings
+from unique_search_proxy_client.web.helm.metadata import EgressProxyHost, helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
 
 HTTP_CLIENT_ENV_PREFIX = "HTTP_CLIENT_"
@@ -21,7 +21,7 @@ HTTP_CLIENT_ENV_PREFIX = "HTTP_CLIENT_"
     # the proxy fields, not by a chart-only toggle. Gating it would silently drop
     # proxy config from overlays that set it without ``enabled: true``.
     gated=False,
-    egress=None,
+    egress=EgressProxyHost(),
     env_prefix=HTTP_CLIENT_ENV_PREFIX,
     sections={
         "tuning": [

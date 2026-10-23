@@ -16,6 +16,9 @@ def test_metrics__exports_histograms_and_counters__for_instrumented_paths() -> N
     """
     assert isinstance(metrics_module.search_duration, Histogram)
     assert isinstance(metrics_module.search_errors, Counter)
+    assert isinstance(metrics_module.grounding_parse_failures, Counter)
+    assert isinstance(metrics_module.grounding_dropped_citations, Counter)
+    assert isinstance(metrics_module.grounding_dropped_lines, Counter)
     assert isinstance(metrics_module.tool_duration, Histogram)
     assert isinstance(metrics_module.tool_errors, Counter)
     assert isinstance(metrics_module.llm_duration, Histogram)

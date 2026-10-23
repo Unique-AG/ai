@@ -12,15 +12,13 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.agent_engines.bing.settings import resolve_market
-from unique_search_proxy_core.agent_engines.resolve import (
-    resolve_output_schema_for_engine,
-)
 from unique_search_proxy_core.errors import UpstreamError
 from unique_search_proxy_core.schema import (
     AgentSearchDelta,
     AgentSearchDone,
     AgentSearchResponse,
     AgentSearchStreamEvent,
+    AnswerSpanCitation,
 )
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
@@ -28,14 +26,14 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_credentials,
     get_project_client,
 )
+from unique_search_proxy_client.web.core.agent_engines.bing.instructions import (
+    build_bing_citation_instructions,
+)
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
     stream_bing_grounding_agent,
 )
 from unique_search_proxy_client.web.core.agent_engines.service_base import (
     AgentSearchEngineService,
-)
-from unique_search_proxy_client.web.core.agent_engines.structured_output import (
-    build_agent_instructions,
 )
 from unique_search_proxy_client.web.core.provider_response import transport_error_raw
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
@@ -110,12 +108,12 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
             raise RuntimeError("HTTP client is required for Bing")
 
         answer_parts: list[str] = []
+        completed_answer: str | None = None
         raw_chunks: list[dict] = []
+        citations: list[AnswerSpanCitation] = []
 
-        output_schema = resolve_output_schema_for_engine(request.engine)
-        instructions = build_agent_instructions(
-            generation_instructions=request.generation_instructions,
-            output_schema=output_schema,
+        instructions = build_bing_citation_instructions(
+            request.generation_instructions,
         )
         grounding = BingGroundingConfiguration(
             fetch_size=request.fetch_size,
@@ -132,10 +130,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                             endpoint=read_secret(creds.endpoint),
                             transport=azure_transport,
                         ) as project_client:
-                            async for (
-                                delta,
-                                raw_event,
-                            ) in stream_bing_grounding_agent(
+                            async for chunk in stream_bing_grounding_agent(
                                 project_client,
                                 http_client=http_client,
                                 query=request.query,
@@ -144,11 +139,14 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                                 grounding=grounding,
                                 timeout=request.timeout,
                             ):
-                                if delta:
-                                    answer_parts.append(delta)
-                                    yield AgentSearchDelta(text=delta)
-                                if raw_event:
-                                    raw_chunks.append(raw_event)
+                                if chunk.delta:
+                                    answer_parts.append(chunk.delta)
+                                    yield AgentSearchDelta(text=chunk.delta)
+                                if chunk.raw_event:
+                                    raw_chunks.append(chunk.raw_event)
+                                if chunk.answer is not None:
+                                    completed_answer = chunk.answer
+                                    citations = list(chunk.citations)
                 break
             except Exception as exc:
                 retryable = (
@@ -163,6 +161,8 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                     ) from exc
 
                 raw_chunks.clear()
+                completed_answer = None
+                citations = []
                 retry_delay = _STREAM_RETRY_DELAYS_SECONDS[attempt - 1]
                 _LOGGER.warning(
                     "Bing response failed before output; retrying attempt %d/%d "
@@ -175,11 +175,14 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
                 )
                 await asyncio.sleep(retry_delay)
 
-        answer = "".join(answer_parts)
+        answer = (
+            completed_answer if completed_answer is not None else "".join(answer_parts)
+        )
         response = AgentSearchResponse(
             engine=AgentEngineType.BING.value,
             query=request.query,
             answer=answer,
+            citations=citations,
             raw=raw_chunks if len(raw_chunks) != 1 else raw_chunks[0],
         )
         yield AgentSearchDone(response=response)

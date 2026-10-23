@@ -88,11 +88,11 @@ Built-in providers register in `register_builtin_providers()` during `create_app
 | `GET /ready` | Readiness (httpx pool + registered providers) |
 | `GET /v1/configuration/providers` | Registered search engine, agent engine, and crawler ids |
 | `POST /v1/search` | Standard search (flat body: `engine`, `query`, provider params, `timeout`) |
-| `POST /v1/agent-search` | Grounded agent search — opaque `answer` + `raw` |
+| `POST /v1/agent-search` | Grounded agent search — opaque `answer` + provider `citations` + `raw` |
 | `POST /v1/agent-search/stream` | Same, streamed as SSE (`delta` + `done`) |
 | `POST /v1/crawl` | Crawl URLs (flat body: `crawler`, `urls`, `timeout`, …) |
 | `GET /metrics` | Prometheus (when enabled) |
-| `/docs` | Swagger UI with preset examples |
+| `/docs` | Swagger UI with preset examples (only when `EXPOSE_DOCS=true`) |
 
 OpenAPI spec: `openapi.json` (input for [SDK codegen](../unique_search_proxy_sdk/README.md)).
 
@@ -163,7 +163,7 @@ Each result requires `url`, `title`, and `snippet`; `content` is optional.
 
 ### 5.3 Agent search (`POST /v1/agent-search`)
 
-Thin egress — proxy returns opaque agent text; callers own parsing and citation extraction:
+Thin egress — proxy returns opaque agent text and the citations the provider attached to it (Bing: Foundry `url_citation` annotations, with offsets into the answer); callers own parsing:
 
 ```json
 {
@@ -282,7 +282,7 @@ uv run python scripts/generate_sdk.py
 ## 8. Dev testing
 
 1. Start the server and configure `.env` (`.env.example` sets `REQUIRE_CONTEXT_HEADERS=false` for local use; production keeps enforcement enabled).
-2. **Swagger** — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset. Context headers default to `local` in the UI.
+2. **Swagger** (if `EXPOSE_DOCS=true`) — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset. Context headers default to `local` in the UI.
 3. **CLI** — same presets from the terminal (`scripts/try_presets.py` sends the same local context headers):
 
 ```bash

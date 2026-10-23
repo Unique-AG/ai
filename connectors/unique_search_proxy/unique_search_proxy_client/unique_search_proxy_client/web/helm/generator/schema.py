@@ -129,6 +129,16 @@ def build_additional_schema(groups: tuple[HelmSettingsGroup, ...]) -> dict[str, 
         for group in groups
         if group.helm_key is not None
     }
+    properties["networkPolicy"] = {
+        "properties": {
+            "enabled": {"type": "boolean", "default": True},
+            "allowDisabled": {
+                "type": "boolean",
+                "default": False,
+                "description": "Allow networkPolicy.enabled=false. Set only if another control restricts who can reach search-proxy.",
+            },
+        }
+    }
     return {
         "$schema": "https://json-schema.org/draft-07/schema#",
         "properties": properties,
