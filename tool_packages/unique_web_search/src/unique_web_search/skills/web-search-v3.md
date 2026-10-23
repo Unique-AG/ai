@@ -46,8 +46,14 @@ flowchart TD
 - **`payload`** (object, per call) — Shape depends on `command`:
   - For `"search"`:
     - **`gap`** — One atomic, verifiable facet (not the whole user question).
-    - **`query`** — Short keyword line (~3-8 words). One facet per call—use
-      parallel `search` calls instead of one long query.
+    - **`query`** — Follow the live tool schema, which reflects the configured
+      search-engine mode:
+      - **Standard engine** — Use a short keyword line (~3–8 words).
+      - **Agent engine** — Use one comprehensive natural-language research
+        request that preserves the user's full intent, context, and constraints;
+        do not condense it into keywords.
+      Keep one facet in `gap` per call in either mode, using parallel `search`
+      calls for independent facets.
   - For `"read_urls"`:
     - **`urls`** — HTTP(S) URLs to crawl for full-page text. Use only URLs
       returned by a prior `search` call or pasted by the user — **never
@@ -83,8 +89,10 @@ calls as needed). Each gap should:
 
 - Use **`command: "search"`** when you need the search engine to discover
   sources or craft a query. Set `payload.gap` to the specific gap you're
-  trying to fill and `payload.query` to one focused 3-8 keyword string. For
-  time-sensitive topics, include the current year or month in the query.
+  trying to fill. Set `payload.query` according to its live schema description:
+  use focused keywords for a standard engine, or a complete natural-language
+  research request for an agent engine. For time-sensitive topics, include the
+  current year or month in either query form.
 - Use **`command: "read_urls"`** when the URL(s) to read are already known:
   the user pasted them, asked you to read a specific page, **or** a
   previous `search` call returned them and snippets are not enough. Pass
@@ -194,8 +202,10 @@ fragment), **Not found** (reasonable search/refinement tried), **Related**
 
 ## Anti-patterns (do not do these)
 
-- Packing several sub-questions into one bloated `query`. Split them across
-  calls instead, one `gap` per call.
+- Packing several independent sub-questions into one `query`. Split them across
+  calls instead, one `gap` per call. An agent-engine query can be detailed, but
+  its detail should preserve intent and constraints for that gap—not merge
+  unrelated gaps.
 - Running `command: "search"` "just in case" before reading a URL the user
   already provided.
 - Calling `command: "read_urls"` with paraphrased or invented URLs — only
@@ -211,6 +221,11 @@ fragment), **Not found** (reasonable search/refinement tried), **Related**
 
 ## Worked examples
 
+The keyword-shaped `query` values below illustrate **standard-engine mode**.
+In **agent-engine mode**, preserve the same single `gap` per call but replace
+the keyword string with a comprehensive natural-language request, as shown in
+the first example.
+
 ### Simple — one search is enough
 
 User: "What is the current US Fed funds target rate?"
@@ -222,6 +237,19 @@ User: "What is the current US Fed funds target rate?"
   "payload": {
     "gap": "Current Fed funds target rate range and effective date.",
     "query": "current Fed funds target rate"
+  }
+}
+```
+
+Agent-engine form for the same gap:
+
+```json
+{
+  "command": "search",
+  "phase": "target",
+  "payload": {
+    "gap": "Current Fed funds target rate range and effective date.",
+    "query": "Research the current US federal funds target rate range and the date it took effect. Preserve the user's request for the current value and prioritize authoritative, up-to-date US Federal Reserve information."
   }
 }
 ```
