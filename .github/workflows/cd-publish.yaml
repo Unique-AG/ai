@@ -152,6 +152,8 @@ jobs:
       release_tag: ${{ github.event.release.tag_name }}
 
   uniquecr-import:
+    # release-only, stable search-proxy only: copies the image and chart that
+    # containerize and helm-publish just pushed to GHCR into uniquecr.
     needs: [helm-publish]
     if: >-
       needs.helm-publish.result == 'success'
@@ -160,9 +162,7 @@ jobs:
       && startsWith(github.event.release.tag_name, 'unique-search-proxy-v')
     permissions:
       contents: read
-      packages: read
-      id-token: write
+      id-token: write # Azure OIDC login and keyless cosign signing in cd-uniquecr-search-proxy.yaml
     uses: ./.github/workflows/cd-uniquecr-search-proxy.yaml
     with:
-      version: ${{ replace(github.event.release.tag_name, 'unique-search-proxy-v', '') }}
-    secrets: inherit
+      release_tag: ${{ github.event.release.tag_name }}
