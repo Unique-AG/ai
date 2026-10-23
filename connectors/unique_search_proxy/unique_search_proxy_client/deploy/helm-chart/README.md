@@ -1,6 +1,6 @@
 # search-proxy
 
-![Version: 2026.44.0](https://img.shields.io/badge/Version-2026.44.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.44.0](https://img.shields.io/badge/AppVersion-2026.44.0-informational?style=flat-square)
+![Version: 2026.44.1](https://img.shields.io/badge/Version-2026.44.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.44.1](https://img.shields.io/badge/AppVersion-2026.44.1-informational?style=flat-square)
 
 Dedicated Helm chart for the Unique search proxy connector
 
@@ -59,7 +59,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"unique-ag/ai/search-proxy"` |  |
-| image.tag | string | `"2026.44.0"` |  |
+| image.tag | string | `"2026.44.1"` |  |
 | image.useDigest | bool | `false` |  |
 | internalServices.dependents.assistantsCore.name | string | `"assistants-core"` |  |
 | internalServices.dependents.assistantsCore.namespace | string | `"chat"` |  |
