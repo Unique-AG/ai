@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.42.0...unique-toolkit-v2026.44.0) (2026-10-23)
+
+
+### Features
+
+* **sdk, toolkit:** raise LanguageModelCallError from the LLM error contract ([#2603](https://github.com/Unique-AG/ai/issues/2603)) ([f61ca2d](https://github.com/Unique-AG/ai/commit/f61ca2d94cd76978a00b81c6024ecea5736b41b2))
+* **sdk:** add optional `excludeGptRequest` to `Message.list` and ([dd38954](https://github.com/Unique-AG/ai/commit/dd38954fce2063d7c243cb94223450cc8b49575f))
+* **search:** add merge strategy and score options ([#2565](https://github.com/Unique-AG/ai/issues/2565)) ([5d71779](https://github.com/Unique-AG/ai/commit/5d71779b93aced9e08fed0a6222980c49b94fd16))
+* **toolkit:** add claude-haiku-5-5 model info [UN-27193] ([#2546](https://github.com/Unique-AG/ai/issues/2546)) ([81252d1](https://github.com/Unique-AG/ai/commit/81252d1304d7882f49e9f2c95bf0b65a50c33c75))
+* **toolkit:** add vertex-gemini-4-argon model info [UN-27413] ([#2562](https://github.com/Unique-AG/ai/issues/2562)) ([fcb9622](https://github.com/Unique-AG/ai/commit/fcb96223e4218a9f5acc6d406687c78279fbec79))
+* **web-search:** gate Customized API proxy rollout [UN-26736] ([#2538](https://github.com/Unique-AG/ai/issues/2538)) ([6b85a0e](https://github.com/Unique-AG/ai/commit/6b85a0ef8b1ab15c2ae7a717c52ada7d2a84eeba))
+
+
+### Bug Fixes
+
+* **orchestrator:** prevent parallel tool context overflow [UN-27401] ([#2575](https://github.com/Unique-AG/ai/issues/2575)) ([95ec9ec](https://github.com/Unique-AG/ai/commit/95ec9ec8bc94033dea7e04c045fac6783327750f))
+* **toolkit:** drop default reasoning effort for Claude Opus 4.5 [UN-27202] ([#2549](https://github.com/Unique-AG/ai/issues/2549)) ([91dac19](https://github.com/Unique-AG/ai/commit/91dac199344a62181f2d39825ce7dd72df5d2afe))
+* **toolkit:** skip stored gptRequest when loading chat history [UN-27512] ([#2602](https://github.com/Unique-AG/ai/issues/2602)) ([dd38954](https://github.com/Unique-AG/ai/commit/dd38954fce2063d7c243cb94223450cc8b49575f))
+* **toolkit:** stop overflow retry from resending an already-withheld batch [UN-27401] ([#2588](https://github.com/Unique-AG/ai/issues/2588)) ([2d88170](https://github.com/Unique-AG/ai/commit/2d881704e716068ad5291f77b6a1b39b27e686b0))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.40.0...unique-toolkit-v2026.42.0) (2026-10-09)
 
 

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.42.0...unique-web-search-v2026.44.0) (2026-10-23)
+
+
+### Features
+
+* **web-search:** gate Customized API proxy rollout [UN-26736] ([#2538](https://github.com/Unique-AG/ai/issues/2538)) ([6b85a0e](https://github.com/Unique-AG/ai/commit/6b85a0ef8b1ab15c2ae7a717c52ada7d2a84eeba))
+* **web-search:** send entry point from chat tool and deep research [UN-24394] ([#2522](https://github.com/Unique-AG/ai/issues/2522)) ([d876c2b](https://github.com/Unique-AG/ai/commit/d876c2b0dae580022494429b4b48ef66546d4622))
+
+
+### Bug Fixes
+
+* **search-proxy:** resolve Vertex redirects safely [UN-26738] ([#2599](https://github.com/Unique-AG/ai/issues/2599)) ([540cd90](https://github.com/Unique-AG/ai/commit/540cd9089e4bdcb82c96189c9dadfba64890e388))
+* **web-search:** stop logging crawled URLs and search queries [UN-27835] ([#2600](https://github.com/Unique-AG/ai/issues/2600)) ([454dff2](https://github.com/Unique-AG/ai/commit/454dff2247a074ae7dd5d80f6c81e3c4476fa9ee))
+* **web-search:** use Foundry citation URLs for Bing results [UN-26467] ([#2614](https://github.com/Unique-AG/ai/issues/2614)) ([c3fabcf](https://github.com/Unique-AG/ai/commit/c3fabcfa333714e79cea3160ed201789950fb171))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.40.0...unique-web-search-v2026.42.0) (2026-10-09)
 
 
