@@ -264,6 +264,8 @@ or cloud metadata targets, or configure network routing or private DNS.
 
 With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct metric aggregation.
 
+**Sizing.** By default a pod runs 2 workers (`WORKERS`), and each worker runs up to 4 crawls at once (`REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS`), so 8 per pod. The Helm chart requests 1 CPU and 2 GiB of memory with a 4 GiB limit, and the image sets `MALLOC_ARENA_MAX=2`. Each worker is a separate Python process with its own memory, so add replicas rather than workers for more capacity. Run at least 2 replicas in production.
+
 ---
 
 ## 7. Quick start
