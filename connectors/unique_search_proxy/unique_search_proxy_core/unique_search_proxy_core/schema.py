@@ -171,8 +171,9 @@ class CrawlUrlResult(BaseModel):
     raw: Any | None = Field(
         default=None,
         description=(
-            "Upstream provider response for this URL (JSON object or text wrapper); "
-            "included on success and on per-URL failures for debugging"
+            "Upstream provider response for this URL (JSON object or text wrapper). "
+            "Null unless the request sets `includeRaw`, except for transport and "
+            "provider error details on failures"
         ),
     )
 

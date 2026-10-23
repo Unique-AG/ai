@@ -26,6 +26,8 @@ class BasicCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
+        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including HTTP error bodies. For
+            debugging and benchmarks. Default: False.
         crawler (Literal['Basic'] | Unset): Provider discriminator; must be `Basic` for this config. Default: 'Basic'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         content_types (ContentTypes | Unset): Per-type activation flags for basic-crawler content processing.
@@ -33,6 +35,7 @@ class BasicCrawlRequest:
     """
 
     urls: list[str]
+    include_raw: bool | Unset = False
     crawler: Literal["Basic"] | Unset = "Basic"
     timeout: int | Unset = 30
     content_types: ContentTypes | Unset = UNSET
@@ -41,6 +44,8 @@ class BasicCrawlRequest:
 
     def to_dict(self) -> dict[str, Any]:
         urls = self.urls
+
+        include_raw = self.include_raw
 
         crawler = self.crawler
 
@@ -59,6 +64,8 @@ class BasicCrawlRequest:
                 "urls": urls,
             }
         )
+        if include_raw is not UNSET:
+            field_dict["includeRaw"] = include_raw
         if crawler is not UNSET:
             field_dict["crawler"] = crawler
         if timeout is not UNSET:
@@ -72,10 +79,12 @@ class BasicCrawlRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.content_types import ContentTypes
+        from ..models.content_types import ContentTypes  # noqa: PLC0415
 
         d = dict(src_dict)
         urls = cast(list[str], d.pop("urls"))
+
+        include_raw = d.pop("includeRaw", UNSET)
 
         crawler = cast(Literal["Basic"] | Unset, d.pop("crawler", UNSET))
         if crawler != "Basic" and not isinstance(crawler, Unset):
@@ -94,6 +103,7 @@ class BasicCrawlRequest:
 
         basic_crawl_request = cls(
             urls=urls,
+            include_raw=include_raw,
             crawler=crawler,
             timeout=timeout,
             content_types=content_types,
