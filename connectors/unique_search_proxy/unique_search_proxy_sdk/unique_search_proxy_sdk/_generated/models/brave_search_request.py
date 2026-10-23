@@ -44,7 +44,9 @@ class BraveSearchRequest:
             format `<language_code>-<country_code>`. For more, see RFC 9110. Default: BraveSearchRequestUILanguage.EN_US.
         units (BraveSearchRequestUnitsType0 | None | Unset): Measurement units for location-rich results: `metric` or
             `imperial`.
-        summary (bool | Unset): Enable summary key generation in web search results (Brave summarizer). Default: True.
+        summary (bool | Unset): Ask Brave to return a summarizer key with the results (Brave `summary`). This does not
+            generate a summary: the summary comes from a separate call to Brave's Summarizer API with that key, which this
+            integration does not make. Default: False.
         include_fetch_metadata (bool | Unset): Include fetch metadata in the Brave response. Default: False.
         safesearch (BraveSearchRequestSafeSearch | Unset): Adult content filter: `off`, `moderate` (API default), or
             `strict`. Default: BraveSearchRequestSafeSearch.MODERATE.
@@ -77,7 +79,7 @@ class BraveSearchRequest:
     operators: bool | Unset = True
     ui_lang: BraveSearchRequestUILanguage | Unset = BraveSearchRequestUILanguage.EN_US
     units: BraveSearchRequestUnitsType0 | None | Unset = UNSET
-    summary: bool | Unset = True
+    summary: bool | Unset = False
     include_fetch_metadata: bool | Unset = False
     safesearch: BraveSearchRequestSafeSearch | Unset = (
         BraveSearchRequestSafeSearch.MODERATE
