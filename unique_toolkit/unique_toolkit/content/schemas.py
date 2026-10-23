@@ -70,6 +70,11 @@ class ContentChunk(BaseModel):
         description="The end page of the chunk. For document chunks this is the end page of the document.",
     )
 
+    score: float | None = Field(
+        default=None,
+        description="The relevance score of the chunk. Only set when the search requested scores. Scores are comparable within a single search type only.",
+    )
+
     object: str | None = None
     metadata: ContentMetadata | None = None
     internally_stored_at: datetime | None = None
@@ -200,6 +205,35 @@ class Content(BaseModel):
             timezone.utc
         )
 
+    def has_ingestion_failed(self) -> bool:
+        """Whether the platform reported a failed ingestion for this content.
+
+        All failure states of the platform's ``IngestionState`` enum share the
+        ``FAILED`` prefix (e.g. ``FAILED_PARSING``, ``FAILED_MALWARE_FOUND``).
+        """
+        return self.ingestion_state is not None and self.ingestion_state.startswith(
+            "FAILED"
+        )
+
+    def is_ingestion_in_progress(self) -> bool:
+        """Whether the content is still being ingested and is not yet searchable."""
+        return self.ingestion_state in _INGESTION_IN_PROGRESS_STATES
+
+
+_INGESTION_IN_PROGRESS_STATES: frozenset[str] = frozenset(
+    {
+        "QUEUED",
+        "MALWARE_SCANNING",
+        "METADATA_VALIDATION",
+        "EXTRACTING_METADATA",
+        "INGESTION_READING",
+        "INGESTION_CHUNKING",
+        "INGESTION_EMBEDDING",
+        "RE_INGESTING",
+        "RETRYING",
+    }
+)
+
 
 class ContentReference(BaseModel):
     model_config = model_config
@@ -263,6 +297,18 @@ class ContentReference(BaseModel):
 class ContentSearchType(StrEnum):
     COMBINED = "COMBINED"
     VECTOR = "VECTOR"
+
+
+class ContentSearchMergeStrategy(StrEnum):
+    """How a ``COMBINED`` search merges vector and full-text results.
+
+    Ignored by single-source search types. When omitted, the backend applies its
+    configured default.
+    """
+
+    ZIP = "ZIP"
+    RRF = "RRF"
+    DBSF = "DBSF"
 
 
 class ContentSearchResult(BaseModel):

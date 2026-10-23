@@ -20,13 +20,22 @@ from unique_search_proxy_core.http_client.credentials import (
     SettingsProxyCredentials,
     resolver_from_settings,
 )
+from unique_search_proxy_core.http_client.response_cap import (
+    ResponseHook,
+    response_size_cap_hook,
+)
 from unique_search_proxy_core.http_client.secrets import read_secret_mapping
 from unique_search_proxy_core.http_client.settings import (
     ProxyAuthMode,
     ProxySettings,
 )
+from unique_search_proxy_core.url_safety.settings import url_safety_settings
 
 _LOGGER = logging.getLogger(__name__)
+_PROXY_REMEDIATION = (
+    "Either set URL_SAFETY_ENABLED=true to enable application URL-safety checks, "
+    "or configure an authenticated corporate proxy for all egress."
+)
 
 
 @dataclass(frozen=True)
@@ -50,6 +59,14 @@ class ProxiedRoute:
 
 
 EgressRoute = DirectRoute | ProxiedRoute
+
+
+@dataclass(frozen=True)
+class ResolvedEgress:
+    """HTTP client and route resolved from one request credential set."""
+
+    http_client: AsyncClient
+    route: EgressRoute
 
 
 def _get_proxy_host_and_port(settings: ProxySettings) -> tuple[str, int]:
@@ -81,6 +98,10 @@ def _get_cert_args(settings: ProxySettings) -> tuple[str, str] | str:
 
 def _proxy_headers(settings: ProxySettings) -> dict[str, str]:
     return read_secret_mapping(settings.proxy_headers)
+
+
+def _event_hooks(settings: ProxySettings) -> dict[str, list[ResponseHook]]:
+    return {"response": [response_size_cap_hook(settings.max_response_bytes)]}
 
 
 def _build_httpx_proxy(
@@ -161,6 +182,7 @@ def build_async_client(
                 trust_env=route.trust_env,
                 timeout=timeout,
                 limits=limits,
+                event_hooks=_event_hooks(settings),
             )
         case ProxiedRoute():
             return AsyncClient(
@@ -171,6 +193,7 @@ def build_async_client(
                 cert=route.cert,
                 timeout=timeout,
                 limits=limits,
+                event_hooks=_event_hooks(settings),
             )
 
 
@@ -194,6 +217,7 @@ def async_client_factory(
                 verify=route.verify,
                 trust_env=route.trust_env,
                 timeout=effective_timeout,
+                event_hooks=_event_hooks(settings),
             )
         case ProxiedRoute():
             return partial(
@@ -204,7 +228,53 @@ def async_client_factory(
                 trust_env=route.trust_env,
                 cert=route.cert,
                 timeout=effective_timeout,
+                event_hooks=_event_hooks(settings),
             )
+
+
+def _validate_url_safety_proxy_configuration(proxy: ProxySettings) -> None:
+    """Reject unsafe egress before the registry can return an HTTP client."""
+    if url_safety_settings.enabled:
+        return
+
+    if (
+        not proxy.proxy_host
+        or proxy.proxy_port is None
+        or not 1 <= proxy.proxy_port <= 65535
+    ):
+        raise ValueError(
+            "URL_SAFETY_ENABLED=false disables application URL-safety checks, "
+            "but no usable corporate proxy endpoint is configured: proxy_host "
+            "must be non-empty and proxy_port must be between 1 and 65535. "
+            + _PROXY_REMEDIATION,
+        )
+
+    uses_authenticated_proxy = proxy.proxy_auth_mode != "none"
+    uses_proxy_for_every_user = (
+        proxy.proxy_username_source == "user_metadata"
+        and not proxy.per_user_proxy_company_ids
+    )
+    if not uses_authenticated_proxy and not uses_proxy_for_every_user:
+        raise ValueError(
+            "URL_SAFETY_ENABLED=false disables application URL-safety checks, "
+            "but the current proxy settings do not route every request through "
+            "an authenticated corporate proxy. Direct or partially proxied "
+            "egress is incompatible. " + _PROXY_REMEDIATION,
+        )
+
+    if proxy.proxy_auth_mode == "ssl_tls" and proxy.proxy_ssl_cert_path is None:
+        raise ValueError(
+            "URL_SAFETY_ENABLED=false disables application URL-safety checks, "
+            "but SSL/TLS proxy authentication is missing proxy_ssl_cert_path. "
+            + _PROXY_REMEDIATION,
+        )
+
+    _LOGGER.warning(
+        "Application URL safety checks are disabled because "
+        "URL_SAFETY_ENABLED=false. All egress must use a configured corporate "
+        "proxy. Note: the corporate proxy URL-safety policy is not verified by "
+        "the application."
+    )
 
 
 class HttpClientRegistry:
@@ -223,6 +293,12 @@ class HttpClientRegistry:
         *,
         fixed_client: AsyncClient | None = None,
     ) -> None:
+        if fixed_client is None:
+            _validate_url_safety_proxy_configuration(settings)
+            _LOGGER.info(
+                "Outbound response size limit: %s bytes",
+                settings.max_response_bytes or "unlimited",
+            )
         self._settings = settings
         self._resolver = resolver
         self._fixed_client = fixed_client
@@ -262,20 +338,51 @@ class HttpClientRegistry:
             fixed_client=client,
         )
 
-    async def client_for(self, context: RequestContext) -> AsyncClient:
-        """Return the cached client for the request's resolved credentials."""
-        if self._fixed_client is not None:
-            return self._fixed_client
+    async def egress_for(self, context: RequestContext) -> ResolvedEgress:
+        """Return the cached client and route for one credential resolution."""
+        if self._closed:
+            raise RuntimeError("HTTP client registry is closed")
+        credentials = self._resolver.resolve(context)
+        return await self._egress_for_credentials(credentials)
+
+    async def settings_egress(self) -> ResolvedEgress:
+        """Return egress for process-level work using settings credentials."""
+        if self._closed:
+            raise RuntimeError("HTTP client registry is closed")
+        if (
+            self._settings.proxy_username_source == "user_metadata"
+            and self._settings.proxy_auth_mode == "none"
+        ):
+            raise ValidationProxyError(
+                "Process-level egress cannot use request-scoped proxy credentials; "
+                "configure settings-backed username/password or mTLS credentials",
+            )
+        credentials = SettingsProxyCredentials(self._settings).resolve(
+            RequestContext(
+                company_id="__settings__",
+                user_id="local",
+                chat_id="local",
+            ),
+        )
+        return await self._egress_for_credentials(credentials)
+
+    async def _egress_for_credentials(
+        self,
+        credentials: ProxyCredentials,
+    ) -> ResolvedEgress:
         if self._closed:
             raise RuntimeError("HTTP client registry is closed")
 
-        credentials = self._resolver.resolve(context)
+        route = build_route(self._settings, credentials)
+        if self._fixed_client is not None:
+            return ResolvedEgress(http_client=self._fixed_client, route=route)
+
         evicted: AsyncClient | None = None
         async with self._lock:
             cached = self._clients.get(credentials)
             if cached is not None:
                 self._clients.move_to_end(credentials)
-                return cached
+                return ResolvedEgress(http_client=cached, route=route)
 
             client = build_async_client(
                 self._settings,
@@ -298,7 +405,11 @@ class HttpClientRegistry:
 
         if evicted is not None:
             await evicted.aclose()
-        return client
+        return ResolvedEgress(http_client=client, route=route)
+
+    async def client_for(self, context: RequestContext) -> AsyncClient:
+        """Return the cached client for the request's resolved credentials."""
+        return (await self.egress_for(context)).http_client
 
     @property
     def is_open(self) -> bool:
@@ -332,6 +443,7 @@ __all__ = [
     "EgressRoute",
     "HttpClientRegistry",
     "ProxiedRoute",
+    "ResolvedEgress",
     "async_client_factory",
     "build_async_client",
     "build_route",

@@ -144,6 +144,23 @@ Response includes **curated** normalised results and opaque **raw** provider pay
 }
 ```
 
+Customized API endpoints must return a JSON object with a `results` array:
+
+```json
+{
+  "results": [
+    {
+      "url": "https://example.com",
+      "title": "Example",
+      "snippet": "Result summary",
+      "content": "Optional full content"
+    }
+  ]
+}
+```
+
+Each result requires `url`, `title`, and `snippet`; `content` is optional.
+
 ### 5.3 Agent search (`POST /v1/agent-search`)
 
 Thin egress — proxy returns opaque agent text; callers own parsing and citation extraction:
@@ -210,7 +227,20 @@ Settings use pydantic-settings with per-provider env vars. Copy `.env.example` t
 | VertexAI agent | `VERTEXAI_AGENT_` | `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (optional) |
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
+| URL safety | `URL_SAFETY_` | `URL_SAFETY_ENABLED` |
 | Container | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL` |
+
+`URL_SAFETY_ENABLED` defaults to `true` when unset. Setting it to `false`
+disables application-level SSRF checks and is accepted only when every request
+uses a configured authenticated corporate proxy; incompatible direct or partial
+proxy routing fails during startup. The application cannot verify that the
+proxy implements equivalent URL-safety controls, so this state is highlighted
+in the Prometheus metric and Grafana dashboard.
+
+`CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS` is a JSON array of exact
+operator-approved Customized API hostnames or IPs that may use RFC 1918 or IPv6
+unique-local addresses. It does not apply to crawler targets, permit localhost
+or cloud metadata targets, or configure network routing or private DNS.
 
 With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct metric aggregation.
 

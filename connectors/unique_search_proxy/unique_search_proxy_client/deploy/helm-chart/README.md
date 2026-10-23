@@ -1,6 +1,6 @@
 # search-proxy
 
-![Version: 2026.40.0](https://img.shields.io/badge/Version-2026.40.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.40.0](https://img.shields.io/badge/AppVersion-2026.40.0-informational?style=flat-square)
+![Version: 2026.42.0](https://img.shields.io/badge/Version-2026.42.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.42.0](https://img.shields.io/badge/AppVersion-2026.42.0-informational?style=flat-square)
 
 Dedicated Helm chart for the Unique search proxy connector
 
@@ -43,11 +43,12 @@ Dedicated Helm chart for the Unique search proxy connector
 | httpClient.tuning.httpClientCacheSize | int | `128` |  |
 | httpClient.tuning.maxConnections | int | `100` |  |
 | httpClient.tuning.maxKeepaliveConnections | int | `20` |  |
+| httpClient.tuning.maxResponseKib | int | `5120` |  |
 | httpClient.tuning.poolTimeoutSeconds | float | `30` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"unique-ag/ai/search-proxy"` |  |
-| image.tag | string | `"2026.40.0"` |  |
+| image.tag | string | `"2026.42.0"` |  |
 | image.useDigest | bool | `false` |  |
 | jina.connection.apiDomain | string | `"jina.ai"` |  |
 | jina.connection.deployment | string | `"global"` |  |
@@ -80,6 +81,12 @@ Dedicated Helm chart for the Unique search proxy connector
 | probes.startup.httpGet.port | string | `"http"` |  |
 | probes.startup.initialDelaySeconds | int | `10` |  |
 | probes.startup.periodSeconds | int | `10` |  |
+| requestLimits.crawl.maxConcurrentCrawls | int | `2` |  |
+| requestLimits.crawl.maxConcurrentFetches | int | `10` |  |
+| requestLimits.crawl.maxCrawlResponseKib | int | `10240` |  |
+| requestLimits.crawl.maxUrlLength | int | `2048` |  |
+| requestLimits.crawl.maxUrlsPerCrawl | int | `100` |  |
+| requestLimits.timeouts.maxTimeoutSeconds | int | `120` |  |
 | resources.limits.memory | string | `"384Mi"` |  |
 | resources.requests.cpu | string | `"100m"` |  |
 | resources.requests.memory | string | `"256Mi"` |  |
@@ -97,6 +104,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | urlSafety.network.allowedSchemes[0] | string | `"http"` |  |
 | urlSafety.network.allowedSchemes[1] | string | `"https"` |  |
 | urlSafety.network.clusterLocalSuffix | string | `".cluster.local"` |  |
+| urlSafety.network.customApiTrustedPrivateHosts | list | `[]` |  |
 | urlSafety.network.localhostHosts[0] | string | `"localhost"` |  |
 | urlSafety.network.localhostHosts[1] | string | `"localhost.localdomain"` |  |
 | urlSafety.network.metadataHosts[0] | string | `"100.100.100.200"` |  |

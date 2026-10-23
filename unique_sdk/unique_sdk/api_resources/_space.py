@@ -19,7 +19,11 @@ class Space(APIResource["Space"]):
         return "space"
 
     UiType: TypeAlias = Literal[
-        "MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"
+        "MAGIC_TABLE",
+        "UNIQUE_CUSTOM",
+        "TRANSLATION",
+        "UNIQUE_AI",
+        "SWAPPABLE_INTELLIGENCE",
     ]
 
     class ModuleParams(TypedDict):
@@ -57,6 +61,24 @@ class Space(APIResource["Space"]):
         isExclusive: bool
         configuration: dict[str, Any]
 
+    class McpServerToolParams(TypedDict):
+        name: str
+        isEnabled: bool
+
+    class McpServerParams(TypedDict):
+        """
+        An MCP server (connector) to attach to a space.
+
+        Only listed servers change. ``tools`` is the complete selection for the server:
+        listed tools take ``isEnabled``, unlisted tools are disabled, and an empty list
+        disables the server for the space. Omit ``tools`` to enable every callable tool.
+        Applied after MCP tool entries in module configurations, so it wins for a server
+        that appears in both. Use ``MCP.list_servers`` for the ids and tool names.
+        """
+
+        mcpServerId: str
+        tools: NotRequired[list["Space.McpServerToolParams"] | None]
+
     class CreateSpaceParams(RequestOptions):
         name: str
         fallbackModule: str
@@ -77,6 +99,7 @@ class Space(APIResource["Space"]):
         isSubAgent: NotRequired[bool | None]
         subAgentSettings: NotRequired["Space.SubAgentSettings | None"]
         subAgentIds: NotRequired[list[str] | None]
+        mcpServers: NotRequired[list["Space.McpServerParams"] | None]
 
     class UpdateParams(RequestOptions):
         name: NotRequired[str | None]
@@ -98,6 +121,7 @@ class Space(APIResource["Space"]):
         isSubAgent: NotRequired[bool | None]
         subAgentSettings: NotRequired["Space.SubAgentSettings | None"]
         subAgentIds: NotRequired[list[str] | None]
+        mcpServers: NotRequired[list["Space.McpServerParams"] | None]
 
     class AccessEntry(TypedDict):
         entityId: str
@@ -148,10 +172,13 @@ class Space(APIResource["Space"]):
         Attributes:
             skip: Number of messages to skip. Server default: 0.
             take: Number of messages to return. Server default: 10, max: 100.
+            excludeGptRequest: When True, `gptRequest` is not loaded and is
+                returned as None on every message. Server default: False.
         """
 
         skip: NotRequired[int]
         take: NotRequired[int]
+        excludeGptRequest: NotRequired[bool]
 
     class GetSpacesParams(RequestOptions):
         """
@@ -261,6 +288,10 @@ class Space(APIResource["Space"]):
         messages: list["Space.Message"]
         totalCount: int
 
+    class McpServerTool(TypedDict):
+        name: str
+        isEnabled: bool
+
     class McpServer(TypedDict):
         """
         Represents an MCP server associated with a space.
@@ -271,8 +302,26 @@ class Space(APIResource["Space"]):
         assistantId: str
         mcpServerId: str
         isEnabled: bool
+        tools: NotRequired[list["Space.McpServerTool"]]
         createdAt: str
         updatedAt: str
+
+    class McpServerStatus(TypedDict):
+        """
+        The calling user's own state for an MCP server enabled on a space.
+        """
+
+        mcpServerId: str
+        name: str
+        isEnabled: bool
+        requiresOAuth: bool
+        isOAuth2Connected: bool
+        oauth2Url: str | None
+        enabledToolNames: list[str]
+
+    class McpServerStatusResponse(TypedDict):
+        spaceId: str
+        mcpServers: list["Space.McpServerStatus"]
 
     class Module(TypedDict):
         """
@@ -909,5 +958,47 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def get_mcp_server_status(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.McpServerStatusResponse":
+        """
+        Get the MCP servers enabled on a space with the calling user's own OAuth
+        connection state (``isOAuth2Connected``, ``oauth2Url``).
+        """
+        return cast(
+            "Space.McpServerStatusResponse",
+            cls._static_request(
+                "get",
+                f"/space/{space_id}/mcp-servers/status",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_mcp_server_status_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.McpServerStatusResponse":
+        """
+        Async get the MCP servers enabled on a space with the calling user's own OAuth
+        connection state (``isOAuth2Connected``, ``oauth2Url``).
+        """
+        return cast(
+            "Space.McpServerStatusResponse",
+            await cls._static_request_async(
+                "get",
+                f"/space/{space_id}/mcp-servers/status",
+                user_id,
+                company_id,
             ),
         )

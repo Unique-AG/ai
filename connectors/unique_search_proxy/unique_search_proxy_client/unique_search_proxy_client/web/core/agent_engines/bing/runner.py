@@ -12,6 +12,7 @@ from azure.ai.projects.models import (
     BingGroundingTool,
     PromptAgentDefinition,
 )
+from httpx import AsyncClient
 from openai.types.responses import ResponseStreamEvent
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
 from openai.types.responses.response_output_item_done_event import (
@@ -140,10 +141,12 @@ def _is_missing_agent_error(exc: BaseException, *, agent_name: str) -> bool:
 async def stream_bing_grounding_agent(
     project_client: AIProjectClient,
     *,
+    http_client: AsyncClient | None = None,
     query: str,
     model: str,
     instructions: str,
     grounding: BingGroundingConfiguration,
+    timeout: float,
 ) -> AsyncIterator[tuple[str, dict]]:
     """Stream Bing-grounded Responses events as ``(delta_text, raw_event)`` pairs.
 
@@ -158,13 +161,17 @@ async def stream_bing_grounding_agent(
         instructions=instructions,
         grounding=grounding,
     )
-    openai_client = get_openai_client(project_client)
+    openai_client = get_openai_client(
+        project_client,
+        http_client=http_client,
+    )
 
     try:
         stream = await _create_responses_stream(
             openai_client,
             agent_name=resolved_name,
             query=query,
+            timeout=timeout,
         )
     except Exception as exc:
         if not _is_missing_agent_error(exc, agent_name=resolved_name):
@@ -185,6 +192,7 @@ async def stream_bing_grounding_agent(
             openai_client,
             agent_name=resolved_name,
             query=query,
+            timeout=timeout,
         )
 
     emitted_text = False
@@ -225,6 +233,7 @@ async def _create_responses_stream(
     *,
     agent_name: str,
     query: str,
+    timeout: float,
 ) -> openai.AsyncStream[ResponseStreamEvent]:
     started = time.perf_counter()
     stream = await openai_client.responses.create(
@@ -236,6 +245,9 @@ async def _create_responses_stream(
                 "type": "agent_reference",
             }
         },
+        # The shared egress client defaults to 30s, while Bing requests allow
+        # longer runs. The API's outer deadline still caps total request time.
+        timeout=timeout,
     )
     elapsed_ms = (time.perf_counter() - started) * 1000
     _LOGGER.info(

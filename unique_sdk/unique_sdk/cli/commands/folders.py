@@ -6,6 +6,7 @@ import os
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_folder_info
+from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
 
 
@@ -40,8 +41,60 @@ def _metadata_filter_denies_folder(state: ShellState, scope_id: str | None) -> b
     return not state.folder_allowed_by_metadata_filter(scope_id)
 
 
+def _existing_folder_id(state: ShellState, folder_path: str) -> str | None:
+    """Return the scope id at *folder_path* when that exact folder exists."""
+    try:
+        info = unique_sdk.Folder.get_info(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            folderPath=folder_path,
+        )
+    except (ValueError, unique_sdk.UniqueError):
+        return None
+    folder_id = info.get("id")
+    if not folder_id:
+        return None
+    try:
+        actual = canonical_folder_path(
+            state.config.user_id,
+            state.config.company_id,
+            folder_id,
+        )
+    except (ValueError, unique_sdk.UniqueError):
+        return None
+    if not same_folder_path(actual, folder_path):
+        return None
+    return folder_id
+
+
+def _created_folder_error(
+    state: ShellState,
+    scope_id: str | None,
+    folder_path: str,
+) -> str | None:
+    """Return an ``mkdir:`` error when *scope_id* is not exactly *folder_path*.
+
+    ``create_paths`` can return the ``/home-<userId>`` id in place of the leaf.
+    A failed lookup is a refusal: printing ``Created:`` would claim the folder
+    exists.
+    """
+    if not scope_id:
+        return f"mkdir: refused to create {folder_path}"
+    try:
+        actual = canonical_folder_path(
+            state.config.user_id,
+            state.config.company_id,
+            scope_id,
+        )
+    except (ValueError, unique_sdk.UniqueError) as e:
+        return f"mkdir: refused to create {folder_path}: {e}"
+    if not same_folder_path(actual, folder_path):
+        return f"mkdir: refused to create {folder_path}: resolved to {actual}"
+    return None
+
+
 def cmd_mkdir(state: ShellState, name: str) -> str:
-    """Create a new folder under the current directory."""
+    """Create a folder by relative name or absolute path."""
     # A per-message metaDataFilter *replaces* the static scopeIds, so the
     # static-scope check must not over-deny an in-filter destination; the
     # normalized path is gated against the filter below. See UN-21780.
@@ -49,11 +102,12 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
         state.workspace_metadata_filter is None
         and not state.is_folder_target_within_workspace(name)
     ):
-        return "mkdir: permission denied (outside workspace scope)"
+        return f"mkdir: permission denied: refused {name} (outside workspace scope)"
     # Resolve the destination (collapsing any `..`) and gate the *path*, not
     # just the current scope id: `mkdir ../../Other/X` would otherwise pass a
     # cwd-only check and create structure outside the per-message task scope.
-    full_path = os.path.normpath(f"{state.cwd.rstrip('/')}/{name}")
+    path = name if name.startswith("/") else f"{state.cwd.rstrip('/')}/{name}"
+    full_path = os.path.normpath(path)
     if not state.folder_path_allowed_by_metadata_filter(full_path):
         return (
             "mkdir: permission denied: destination is outside your task scope "
@@ -67,11 +121,26 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
         )
         created = result.get("createdFolders", [])
         if created:
-            last = created[-1]
-            return f"Created: {full_path} ({last['id']})"
-        return f"Created: {full_path}"
+            last_id = created[-1].get("id")
+            mismatch = _created_folder_error(state, last_id, full_path)
+            if mismatch:
+                return mismatch
+            return f"Created: {full_path} ({last_id})"
+        existing_id = _existing_folder_id(state, full_path)
+        if existing_id:
+            return f"Created: {full_path} ({existing_id})"
+        return f"mkdir: refused to create {full_path}"
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"mkdir: {e}"
+
+
+def is_mkdir_error_output(output: str) -> bool:
+    """Return True when *output* is a ``cmd_mkdir`` error.
+
+    Success text is ``Created: ...``. Scope denials and API failures both
+    start with ``mkdir:`` and must exit non-zero from the one-shot CLI.
+    """
+    return output.startswith("mkdir:")
 
 
 def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:

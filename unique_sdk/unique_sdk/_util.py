@@ -333,6 +333,35 @@ class class_method_variant(object):
         return _wrapper
 
 
+def _should_retry_error(
+    error: UniqueError,
+    error_messages: list[str],
+    should_retry_5xx: bool,
+) -> bool:
+    status = error.http_status
+    if status is not None and 400 <= status < 500:
+        return False
+    if isinstance(error.params, Mapping) and error.params.get("retryable") is False:
+        return False
+    if should_retry_5xx and status is not None and 500 <= status < 600:
+        return True
+    return any(err_msg.lower() in str(error).lower() for err_msg in error_messages)
+
+
+def _log_retry(error: UniqueError, attempt: int, max_retries: int) -> None:
+    # str(error) can carry upstream provider text via original_error.
+    params = error.params if isinstance(error.params, Mapping) else {}
+    logger.warning(
+        "Retrying Unique API call, attempt %d of %d: "
+        "code=%s http_status=%s correlation_id=%s",
+        attempt + 1,
+        max_retries,
+        error.code,
+        error.http_status,
+        params.get("correlationId"),
+    )
+
+
 def retry_on_error(
     error_messages: list[str],
     max_retries: int = 3,
@@ -341,6 +370,13 @@ def retry_on_error(
     error_class=APIError,
     should_retry_5xx=False,
 ):
+    """Retry ``APIError`` and ``APIConnectionError``.
+
+    4xx responses and errors with ``params.retryable`` false are not retried.
+    After the last attempt ``error_class`` is raised with the last error as
+    its ``__cause__``.
+    """
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         async def async_wrapper(*args, **kwargs) -> Any:
@@ -350,25 +386,16 @@ def retry_on_error(
                     return await func(*args, **kwargs)
                 except (APIError, APIConnectionError) as e:
                     e = cast(UniqueError, e)
-                    logger.error(f"Retrying because of {e}")
-                    should_retry = any(
-                        err_msg.lower() in str(e).lower() for err_msg in error_messages
-                    )
-                    # Add 5xx check if `should_retry_5xx` is True
-                    has_valid_status = (
-                        hasattr(e, "http_status") and e.http_status is not None
-                    )
-                    if should_retry_5xx and has_valid_status:
-                        should_retry = should_retry or (
-                            500 <= int(cast(int, e.http_status)) < 600
-                        )
-
-                    if not should_retry:
-                        raise e  # Raise the error if no retry condition is met
+                    if not _should_retry_error(e, error_messages, should_retry_5xx):
+                        raise
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise error_class(f"Failed after {max_retries} attempts: {e}")
+                        raise error_class(
+                            f"Failed after {max_retries} attempts: {e}"
+                        ) from e
+
+                    _log_retry(e, attempts, max_retries)
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))
@@ -382,25 +409,16 @@ def retry_on_error(
                     return func(*args, **kwargs)
                 except (APIError, APIConnectionError) as e:
                     e = cast(UniqueError, e)
-                    logger.error(f"Retrying because of {e}")
-                    should_retry = any(
-                        err_msg.lower() in str(e).lower() for err_msg in error_messages
-                    )
-                    # Add 5xx check if `should_retry_5xx` is True
-                    has_valid_status = (
-                        hasattr(e, "http_status") and e.http_status is not None
-                    )
-                    if should_retry_5xx and has_valid_status:
-                        should_retry = should_retry or (
-                            500 <= int(cast(int, e.http_status)) < 600
-                        )
-
-                    if not should_retry:
-                        raise e  # Raise the error if no retry condition is met
+                    if not _should_retry_error(e, error_messages, should_retry_5xx):
+                        raise
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise error_class(f"Failed after {max_retries} attempts: {e}")
+                        raise error_class(
+                            f"Failed after {max_retries} attempts: {e}"
+                        ) from e
+
+                    _log_retry(e, attempts, max_retries)
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))

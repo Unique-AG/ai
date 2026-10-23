@@ -7,9 +7,11 @@ import os
 from pathlib import Path
 from unittest.mock import ANY, MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 import unique_sdk
+from unique_sdk._error import PermissionError as SdkPermissionError
 from unique_sdk.cli.cli import main
 
 
@@ -42,9 +44,11 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "/" in result.output
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd(self, mock: MagicMock) -> None:
+    def test_cd(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         runner = CliRunner()
         result = runner.invoke(main, ["cd", "Reports"])
         assert result.exit_code == 0
@@ -58,13 +62,24 @@ class TestClickCLI:
         result = runner.invoke(main, ["ls"])
         assert result.exit_code == 0
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir(self, mock: MagicMock) -> None:
+    def test_mkdir(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        mock_path.return_value = {"folderPath": "/Test"}
         runner = CliRunner()
         result = runner.invoke(main, ["mkdir", "Test"])
         assert result.exit_code == 0
         assert "Created" in result.output
+
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_error_exits_nonzero(self, mock: MagicMock) -> None:
+        """A failed mkdir exits with code 1."""
+        mock.side_effect = ValueError("Invalid request parameters")
+        runner = CliRunner()
+        result = runner.invoke(main, ["mkdir", "/demo/x"])
+        assert result.exit_code == 1
+        assert "mkdir:" in result.output
 
     @patch("unique_sdk.Folder.delete")
     def test_rmdir(self, mock: MagicMock) -> None:
@@ -259,8 +274,59 @@ class TestClickCLI:
     def test_upload_nonexistent(self) -> None:
         runner = CliRunner()
         result = runner.invoke(main, ["upload", "/nonexistent/file.pdf"])
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "local file not found" in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.cli.cmd_upload")
+    def test_upload_error_exits_nonzero(self, mock_upload: MagicMock) -> None:
+        """Purpose: A refused upload exits non-zero even without a permission denial.
+        Why this matters: Agents chained on exit code and reported uploads that did not happen.
+        Setup summary: cmd_upload returns a folder-not-found line for a home path.
+        """
+        mock_upload.return_value = (
+            "upload: folder not found: /home-user_1/second-brain/clients/X"
+        )
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["upload", "./page.md", "/home-user_1/second-brain/clients/X/"],
+        )
+        assert result.exit_code == 1
+        assert "folder not found: /home-user_1/second-brain/clients/X" in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_refused_exits_nonzero(
+        self, mock_create: MagicMock, mock_info: MagicMock
+    ) -> None:
+        """Purpose: mkdir exits non-zero when the folder was not created.
+        Why this matters: An empty create response used to print Created and exit 0.
+        Setup summary: create_paths returns no folders and the path lookup misses.
+        """
+        mock_create.return_value = {"createdFolders": []}
+        mock_info.side_effect = ValueError("not found")
+        runner = CliRunner()
+        result = runner.invoke(main, ["mkdir", "/home-user_1/second-brain/clients/X"])
+        assert result.exit_code == 1
+        assert "refused to create /home-user_1/second-brain/clients/X" in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_unlistable_exits_nonzero(self, mock_ls: MagicMock) -> None:
+        """Purpose: A not-listable folder exits non-zero.
+        Why this matters: An empty listing was indistinguishable from a folder with no files.
+        Setup summary: cmd_ls returns a cannot-list line that is not a permission denial.
+        """
+        mock_ls.return_value = (
+            "ls: cannot list /home-user_1/second-brain/clients: "
+            "resolved to /home-user_1 instead (not listable here)"
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, ["ls", "/home-user_1/second-brain/clients"])
+        assert result.exit_code == 1
+        assert "not listable here" in result.output
 
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
@@ -350,8 +416,280 @@ class TestClickCLI:
             main,
             ["mcp", "-c", "chat_1", "-m", "msg_1", "not json"],
         )
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "mcp:" in result.output
+
+    @pytest.mark.ai
+    def test_mcp__invalid_json__exits_1_with_unchanged_message(self) -> None:
+        """Purpose: Invalid JSON is a failed connector call.
+
+        Why this matters: An exit code of 0 makes the chat step look
+        successful, so the agent treats a bad payload as a result.
+
+        Setup summary: Invoke mcp with a non-JSON payload and assert exit 1
+        plus the existing mcp: Invalid JSON line, with no traceback.
+        """
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["mcp", "-c", "chat_1", "-m", "msg_1", "not json"],
+        )
+        assert result.exit_code == 1
+        assert "mcp: Invalid JSON:" in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    def test_mcp__missing_name__exits_1_with_unchanged_message(self) -> None:
+        """Purpose: A payload without name is a failed connector call.
+
+        Why this matters: The command used to print the validation error and
+        exit 0, which a chat step records as completed.
+
+        Setup summary: Invoke mcp with a JSON object that has no name and
+        assert exit 1 plus the existing missing-name line.
+        """
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["mcp", "-c", "chat_1", "-m", "msg_1", '{"arguments": {}}'],
+        )
+        assert result.exit_code == 1
+        assert 'mcp: Missing required field "name" in JSON payload.' in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("error", "message"),
+        [
+            (
+                unique_sdk.InvalidRequestError(
+                    "MCP server not found. Unable to call tool.",
+                    None,
+                ),
+                "MCP server not found. Unable to call tool.",
+            ),
+            (
+                unique_sdk.AuthenticationError("unauthorized"),
+                "unauthorized",
+            ),
+            (SdkPermissionError("forbidden"), "forbidden"),
+            (
+                unique_sdk.APIConnectionError("connection reset"),
+                "connection reset",
+            ),
+        ],
+        ids=[
+            "invalid_request",
+            "authentication",
+            "permission",
+            "connection",
+        ],
+    )
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__sdk_error__exits_1_without_traceback(
+        self,
+        mock_call: MagicMock,
+        error: Exception,
+        message: str,
+    ) -> None:
+        """Purpose: SDK errors print one mcp: line and exit 1.
+
+        Why this matters: InvalidRequestError and its siblings are not
+        subclasses of APIError, so they used to escape as a traceback.
+
+        Setup summary: Raise each SDK error from the tool call and assert
+        exit 1, the mcp: line, and no traceback.
+        """
+        mock_call.side_effect = error
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert f"mcp: {message}" in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__api_error__exits_1_with_unchanged_message(
+        self, mock_call: MagicMock
+    ) -> None:
+        """Purpose: APIError still prints mcp: and now exits 1.
+
+        Why this matters: A 5xx used to be caught and printed, then the
+        process exited 0, so the step looked completed.
+
+        Setup summary: Raise APIError from the tool call and assert exit 1
+        with the same mcp: line as before.
+        """
+        mock_call.side_effect = unique_sdk.APIError("API failed")
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert "mcp: API failed" in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__is_error_result__exits_1_and_prints_formatted_result(
+        self, mock_call: MagicMock
+    ) -> None:
+        """Purpose: A tool result with isError exits 1 and stays formatted.
+
+        Why this matters: The connector already marked the result as an
+        error, but the process exited 0, so the step looked completed.
+
+        Setup summary: Return a tool result with isError set and assert
+        exit 1, the (ERROR) tag, and the formatted text.
+        """
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = True
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "nope"}]
+        mock_call.return_value = resp
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert "MCP tool call: tool (ERROR)" in result.output
+        assert "[text] nope" in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__is_error_absent__exits_0(self, mock_call: MagicMock) -> None:
+        """Purpose: A result that omits isError is still a success.
+
+        Why this matters: Some backends only return content. Treating a
+        missing flag as an error would fail successful connector calls.
+
+        Setup summary: Return a response with content and no isError
+        attribute and assert exit 0 without an (ERROR) tag.
+        """
+
+        class _ContentOnly:
+            def __init__(self) -> None:
+                self.name = "tool"
+                self.mcpServerId = "srv_1"
+                self.content = [{"type": "text", "text": "ok"}]
+
+        mock_call.return_value = _ContentOnly()
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 0
+        assert "MCP tool call: tool" in result.output
+        assert "(ERROR)" not in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.commands.mcp.format_mcp_response")
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__formatter_error_on_success__exits_0(
+        self, call_mock: MagicMock, fmt_mock: MagicMock
+    ) -> None:
+        """Purpose: A formatter bug on a successful result still exits 0.
+
+        Why this matters: The tool call worked. Failing the step would hide
+        a successful connector result behind an exit code.
+
+        Setup summary: Return a successful tool result, raise from the
+        formatter, and assert the fallback text with exit 0.
+        """
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = False
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "payload"}]
+        call_mock.return_value = resp
+        fmt_mock.side_effect = RuntimeError("boom")
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 0
+        assert "mcp: formatter error (boom); raw response:" in result.output
+        assert "Traceback" not in result.output
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.commands.mcp.format_mcp_response")
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp__formatter_error_on_is_error__exits_1(
+        self, call_mock: MagicMock, fmt_mock: MagicMock
+    ) -> None:
+        """Purpose: A formatter bug does not hide an isError tool result.
+
+        Why this matters: Error payloads are the ones most likely to break
+        formatting. Exiting 0 would record the failed call as completed.
+
+        Setup summary: Return a tool result with isError set, raise from the
+        formatter, and assert the fallback text with exit 1.
+        """
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = True
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "nope"}]
+        call_mock.return_value = resp
+        fmt_mock.side_effect = RuntimeError("boom")
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert "mcp: formatter error (boom); raw response:" in result.output
+        assert "Traceback" not in result.output
 
     # -- Schedule commands --
 
@@ -383,6 +721,7 @@ class TestClickCLI:
         task.id = "task_1"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = None
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -411,6 +750,7 @@ class TestClickCLI:
         task.id = "task_new"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -428,6 +768,8 @@ class TestClickCLI:
                 "create",
                 "--cron",
                 "0 9 * * 1-5",
+                "--timezone",
+                "Europe/Zurich",
                 "--assistant",
                 "ast_1",
                 "--prompt",
@@ -436,6 +778,60 @@ class TestClickCLI:
         )
         assert result.exit_code == 0
         assert "Created scheduled task task_new" in result.output
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
+
+    def test_schedule_create_missing_timezone(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "create",
+                "--cron",
+                "0 9 * * 1-5",
+                "--assistant",
+                "ast_1",
+                "--prompt",
+                "Report",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "timezone" in result.output.lower() or "Missing option" in result.output
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create_short_timezone_flag(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_new"
+        task.name = None
+        task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = True
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "create",
+                "-c",
+                "0 9 * * 1-5",
+                "-tz",
+                "Europe/Zurich",
+                "-a",
+                "ast_1",
+                "-p",
+                "Report",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_schedule_create_error_exit_code(self, mock: MagicMock) -> None:
@@ -448,6 +844,8 @@ class TestClickCLI:
                 "create",
                 "--cron",
                 "bad",
+                "--timezone",
+                "Europe/Zurich",
                 "--assistant",
                 "ast_1",
                 "--prompt",
@@ -463,6 +861,7 @@ class TestClickCLI:
         task.id = "task_new"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -480,6 +879,8 @@ class TestClickCLI:
                 "create",
                 "-c",
                 "0 9 * * 1-5",
+                "-tz",
+                "Europe/Zurich",
                 "-a",
                 "ast_1",
                 "-p",
@@ -496,6 +897,7 @@ class TestClickCLI:
         task.id = "task_new"
         task.name = "Daily sales report"
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -513,6 +915,8 @@ class TestClickCLI:
                 "create",
                 "-c",
                 "0 9 * * 1-5",
+                "-tz",
+                "Europe/Zurich",
                 "-a",
                 "ast_1",
                 "-p",
@@ -530,6 +934,7 @@ class TestClickCLI:
         task.id = "task_1"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = None
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -550,6 +955,7 @@ class TestClickCLI:
         task.id = "task_1"
         task.name = None
         task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
         task.assistantId = "ast_1"
         task.assistantName = "Bot"
         task.chatId = None
@@ -563,6 +969,48 @@ class TestClickCLI:
         result = runner.invoke(main, ["schedule", "update", "task_1", "--disable"])
         assert result.exit_code == 0
         assert "Updated" in result.output
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_cron_without_timezone(self, mock: MagicMock) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["schedule", "update", "task_1", "--cron", "0 9 * * 1-5"]
+        )
+        assert result.exit_code == 1
+        assert "--timezone is required when changing --cron" in result.output
+        mock.assert_not_called()
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_cron_with_timezone(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_1"
+        task.name = None
+        task.cronExpression = "0 9 * * 1-5"
+        task.timezone = "Europe/Zurich"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = True
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "update",
+                "task_1",
+                "--cron",
+                "0 9 * * 1-5",
+                "--timezone",
+                "Europe/Zurich",
+            ],
+        )
+        assert result.exit_code == 0
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     @patch("unique_sdk.ScheduledTask.modify")
     def test_schedule_update_error_exit_code(self, mock: MagicMock) -> None:

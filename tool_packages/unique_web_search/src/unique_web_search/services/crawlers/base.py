@@ -12,6 +12,7 @@ from unique_search_proxy_core.url_safety import (
 )
 
 from unique_web_search.metrics import crawl_blocked
+from unique_web_search.services.httpx_logging import hide_httpx_request_logs
 from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
     search_proxy_client_enabled,
@@ -41,16 +42,17 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         self._request_context = request_context
 
     async def crawl(self, urls: list[str]) -> list[str]:
-        if search_proxy_client_enabled:
-            return await self._proxy_crawl(urls)
+        with hide_httpx_request_logs():
+            if search_proxy_client_enabled:
+                return await self._proxy_crawl(urls)
 
-        try:
-            targets = await UrlSafetyService.validate_batch_urls(urls)
-        except CrawlTargetValidationError as exc:
-            for target in exc.blocked_targets:
-                crawl_blocked.labels(reason_category=target.category).inc()
-            raise
-        return await self._legacy_crawl(targets)
+            try:
+                targets = await UrlSafetyService.validate_batch_urls(urls)
+            except CrawlTargetValidationError as exc:
+                for target in exc.blocked_targets:
+                    crawl_blocked.labels(reason_category=target.category).inc()
+                raise
+            return await self._legacy_crawl(targets)
 
     async def _proxy_crawl(self, urls: list[str]) -> list[str]:
         """Dump deployment config fields into the generic proxy crawl call."""

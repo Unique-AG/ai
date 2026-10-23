@@ -477,10 +477,58 @@
       ]
     },
     {
+      "id": 14,
+      "type": "stat",
+      "title": "Application URL safety",
+      "description": "Red means application-level SSRF checks are disabled and URL safety is delegated to a configured corporate proxy. The worst state across selected instances is shown.",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 3, "w": 4, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "min": 0,
+          "max": 1,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "color": "red", "index": 0, "text": "DISABLED — PROXY CONFIGURED" },
+                "1": { "color": "green", "index": 1, "text": "ENABLED" }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": [ "lastNotNull" ], "fields": "", "values": false },
+        "graphMode": "none",
+        "colorMode": "background",
+        "textMode": "auto",
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "min(unique_search_proxy_url_safety_application_checks_enabled{job=~\"$job\"})",
+          "instant": true,
+          "legendFormat": "application checks"
+        }
+      ]
+    },
+    {
       "id": 20,
       "type": "row",
       "title": "Crawl — per-URL outcomes",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
       "collapsed": false
     },
     {
@@ -489,7 +537,7 @@
       "title": "Per-URL outcomes (url/s)",
       "description": "Individual URL outcomes per second, stacked. Success vs error per crawler — a batch with partial failures shows both series.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 12 },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
@@ -535,7 +583,7 @@
       "title": "Error codes — share of failures",
       "description": "Distribution of per-URL failures by normalized error code over the selected time range.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 9, "w": 6, "x": 12, "y": 9 },
+      "gridPos": { "h": 9, "w": 6, "x": 12, "y": 12 },
       "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
       "options": {
         "pieType": "donut",
@@ -560,7 +608,7 @@
       "title": "Top upstream HTTP statuses",
       "description": "Most frequent upstream HTTP statuses (403, 404, 500, ...) among per-URL failures over the selected time range. Only failures that received an HTTP response carry a status.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 9 },
+      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 12 },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
@@ -593,7 +641,7 @@
       "title": "Per-URL errors by code & HTTP status (url/s)",
       "description": "Failure rate broken down by normalized error code and upstream HTTP status. Spikes reveal which failure mode is growing.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 18 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 21 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": []
@@ -622,7 +670,7 @@
       "title": "Error counts by code & HTTP status",
       "description": "Total per-URL failures over the selected time range, grouped by crawler, error code and upstream HTTP status (blank status = no HTTP response: timeout, transport, blocked, processing). Footer sums the total.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 18 },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 21 },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -672,7 +720,7 @@
       "id": 30,
       "type": "row",
       "title": "Crawl — batches & URL safety",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
       "collapsed": false
     },
     {
@@ -681,7 +729,7 @@
       "title": "Batch request rate (req/s, incl. errors)",
       "description": "Crawl batch requests per second per crawler, including batches that failed outright.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 28 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 31 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": []
@@ -705,7 +753,7 @@
       "title": "Batch latency p50 / p95 / p99 (s)",
       "description": "End-to-end crawl batch latency percentiles per crawler.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 28 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 31 },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 0, "lineWidth": 1 } }, "overrides": [] },
       "options": {
         "legend": {
@@ -743,7 +791,7 @@
       "title": "Batch errors & safety blocks (per/s)",
       "description": "Whole-batch failures by error code, plus URLs blocked by the URL safety policy by reason category.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 28 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 31 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": []
@@ -773,7 +821,7 @@
       "title": "Batch counts by crawler",
       "description": "Successful crawl batches over the selected time range, per crawler. One batch is one /v1/crawl request. Footer sums the total.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 36 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 39 },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -819,7 +867,7 @@
       "title": "URL counts by crawler / outcome",
       "description": "Per-URL outcomes over the selected time range, per crawler. Recorded for every crawler including Tavily, Firecrawl, and Jina. Footer sums the total.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 36 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 39 },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -865,7 +913,7 @@
       "title": "Batch failure counts by crawler / code",
       "description": "Whole-batch crawl failures over the selected time range (timeouts, upstream errors). Per-URL failures are in URL counts / the per-URL error table. Footer sums the total.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 36 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 39 },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -909,7 +957,7 @@
       "id": 40,
       "type": "row",
       "title": "Search",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
       "collapsed": false
     },
     {
@@ -918,7 +966,7 @@
       "title": "Search rate by engine (req/s, incl. errors)",
       "description": "Search requests per second per engine, including failed requests.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 45 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 48 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": []
@@ -942,7 +990,7 @@
       "title": "Search errors by engine / code (err/s)",
       "description": "Failed search requests per second, by engine and normalized error code.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 45 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 48 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": []
@@ -966,7 +1014,7 @@
       "title": "Search latency p50 / p95 / p99 (s)",
       "description": "Search request latency percentiles per engine.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 45 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 48 },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 0, "lineWidth": 1 } }, "overrides": [] },
       "options": {
         "legend": {
@@ -1004,7 +1052,7 @@
       "title": "Search counts by engine",
       "description": "Successful search requests over the selected time range, per engine. Footer sums the total.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 53 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -1050,7 +1098,7 @@
       "title": "Search failure counts by engine / code",
       "description": "Failed search requests over the selected time range, grouped by engine and normalized error code. Footer sums the total.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 53 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 56 },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -1094,7 +1142,7 @@
       "id": 50,
       "type": "row",
       "title": "Agent search",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 61 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 64 },
       "collapsed": false
     },
     {
@@ -1103,7 +1151,7 @@
       "title": "Agent search rate by engine (req/s, incl. errors)",
       "description": "Agent (grounded) search requests per second per engine, including failed requests.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 62 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 65 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": []
@@ -1127,7 +1175,7 @@
       "title": "Agent search errors by engine / code (err/s)",
       "description": "Failed agent search requests per second, by engine and normalized error code.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 62 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 65 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": []
@@ -1151,7 +1199,7 @@
       "title": "Agent search latency p50 / p95 / p99 (s)",
       "description": "Agent search latency percentiles per engine.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 62 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 65 },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 0, "lineWidth": 1 } }, "overrides": [] },
       "options": {
         "legend": {
@@ -1189,7 +1237,7 @@
       "title": "Agent search counts by engine",
       "description": "Successful agent search requests over the selected time range, per engine. Footer sums the total.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 70 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 73 },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -1235,7 +1283,7 @@
       "title": "Agent search failure counts by engine / code",
       "description": "Failed agent search requests over the selected time range, grouped by engine and normalized error code. Footer sums the total.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 70 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 73 },
       "fieldConfig": {
         "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto", "filterable": true } },
         "overrides": [
@@ -1279,7 +1327,7 @@
       "id": 60,
       "type": "row",
       "title": "HTTP / service health",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 78 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 81 },
       "collapsed": false
     },
     {
@@ -1288,7 +1336,7 @@
       "title": "HTTP request rate by path & status (req/s)",
       "description": "Inbound HTTP traffic per endpoint and response status.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 79 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 82 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": [
@@ -1317,7 +1365,7 @@
       "title": "HTTP latency p50 / p95 / p99 by path (s)",
       "description": "Endpoint latency percentiles.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 79 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 82 },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 0, "lineWidth": 1 } }, "overrides": [] },
       "options": {
         "legend": {
@@ -1355,7 +1403,7 @@
       "title": "Top-level API errors by code (err/s)",
       "description": "Errors returned to clients across ALL endpoints (search, agent search, crawl), by normalized error code. Incremented by the global ProxyError handler — e.g. a crawl batch timeout appears here as UPSTREAM_TIMEOUT.",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 79 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 82 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "lineWidth": 1 } },
         "overrides": []

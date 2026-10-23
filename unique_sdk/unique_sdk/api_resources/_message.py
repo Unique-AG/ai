@@ -76,6 +76,7 @@ class Message(APIResource["Message"]):
 
     class ListParams(RequestOptions):
         chatId: str
+        excludeGptRequest: NotRequired[bool]
 
     class RetrieveParams(RequestOptions):
         chatId: str

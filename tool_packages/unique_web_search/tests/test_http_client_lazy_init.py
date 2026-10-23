@@ -14,3 +14,32 @@ def test_http_client_module_does_not_init_registry_on_import() -> None:
 
     assert module._registry is None
     assert not hasattr(module, "async_client")
+
+
+@pytest.mark.ai
+def test_http_client_registry__disabled_mode_without_proxy__fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify direct web-search egress rejects disabled checks without a proxy.
+    Why this matters: The legacy tool path must not bypass SSRF checks without a proxy.
+    Setup summary: Disable checks, return direct proxy settings, and initialize.
+    """
+    module = importlib.import_module("unique_web_search.services.client.http_client")
+    import unique_search_proxy_core.http_client.client as core_client_module
+    from unique_search_proxy_core.http_client import ProxySettings
+    from unique_search_proxy_core.url_safety import UrlSafetySettings
+
+    monkeypatch.setattr(module, "_registry", None)
+    monkeypatch.setattr(
+        core_client_module,
+        "url_safety_settings",
+        UrlSafetySettings(enabled=False),
+    )
+    monkeypatch.setattr(module, "proxy_settings_from_env", ProxySettings)
+
+    with pytest.raises(
+        ValueError,
+        match="no usable corporate proxy endpoint is configured",
+    ):
+        module.get_http_client_registry()

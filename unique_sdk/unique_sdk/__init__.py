@@ -34,6 +34,7 @@ from unique_sdk._error import APIConnectionError as APIConnectionError
 from unique_sdk._error import APIError as APIError
 from unique_sdk._error import AuthenticationError as AuthenticationError
 from unique_sdk._error import InvalidRequestError as InvalidRequestError
+from unique_sdk._error import RateLimitError as RateLimitError
 from unique_sdk._error import (
     SignatureVerificationError as SignatureVerificationError,
 )

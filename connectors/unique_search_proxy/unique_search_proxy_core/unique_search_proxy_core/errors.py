@@ -132,3 +132,15 @@ class EmptySearchResultsError(ProxyError):
     code = ProxyErrorCode.EMPTY_SEARCH_RESULTS
     status_code = 404
     retryable = False
+
+
+class ResponseTooLargeError(ProxyError):
+    """An upstream response body exceeded the configured byte limit."""
+
+    code = ProxyErrorCode.RESPONSE_TOO_LARGE
+    status_code = 502
+    retryable = False
+
+    @classmethod
+    def for_limit(cls, max_bytes: int) -> ResponseTooLargeError:
+        return cls(f"Upstream response exceeded the {max_bytes} byte limit")

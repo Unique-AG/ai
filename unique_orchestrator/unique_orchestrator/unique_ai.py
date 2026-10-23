@@ -13,12 +13,17 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.history_manager.context_overflow import (
+    ContextOverflowGuard,
+    is_context_window_exceeded_error,
+)
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
     SupportsInvocationStats,
 )
+from unique_toolkit.agentic.loop_runner.base import _LoopIterationRunnerKwargs
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -631,7 +636,7 @@ class UniqueAI:
         )
         self._record_loop_debug_params(other_options)
 
-        kwargs: dict = dict(
+        kwargs: _LoopIterationRunnerKwargs = dict(
             messages=messages,
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
@@ -645,10 +650,36 @@ class UniqueAI:
             other_options=other_options,
         )
 
+        overflow_guard = ContextOverflowGuard(
+            logger=self._logger,
+            history_manager=self._history_manager,
+            token_counter=self._chat_service,
+            model=self._config.space.language_model,
+        )
+
+        async def _recompose() -> None:
+            await self._recompose_messages(kwargs)
+
+        await overflow_guard.preflight_token_budget(kwargs, _recompose)
+
+        try:
+            return await self._run_loop_iteration(kwargs)
+        except Exception as exc:
+            if not is_context_window_exceeded_error(exc):
+                raise
+            return await overflow_guard.retry_after_overflow(
+                exc,
+                recompose=_recompose,
+                run_iteration=lambda: self._run_loop_iteration(kwargs),
+            )
+
+    async def _run_loop_iteration(
+        self, kwargs: _LoopIterationRunnerKwargs
+    ) -> LanguageModelStreamResponse:
         # Experimental Feature UN-17905
         if self._config.agent.experimental.open_file_tool_config.enabled:
             try:
-                return await self._loop_iteration_runner(**kwargs)
+                return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
             except Exception as exc:
                 if not self._open_file_runtime.should_retry_without_files(exc):
                     raise
@@ -658,13 +689,19 @@ class UniqueAI:
                 )
                 self._file_fallback_occurred = True
                 kwargs["messages"] = self._open_file_runtime.prepare_retry_messages(
-                    messages=messages
+                    messages=kwargs["messages"]
                 )
                 kwargs["tools"] = self._tool_manager.get_tool_definitions()  # type: ignore (as above)
                 kwargs["tool_choices"] = self._tool_manager.get_forced_tools()  # type: ignore (as above)
-                return await self._loop_iteration_runner(**kwargs)
+                return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
 
-        return await self._loop_iteration_runner(**kwargs)
+        return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
+
+    async def _recompose_messages(self, kwargs: _LoopIterationRunnerKwargs) -> None:
+        kwargs["messages"] = await self._compose_message_plan_execution()
+        kwargs["content_chunks"] = (
+            self._history_manager.get_content_chunks_for_backend()
+        )
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(

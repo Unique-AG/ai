@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
 
+import httpx
 from openai import APIStatusError, AsyncOpenAI
 from tenacity import (
     AsyncRetrying,
@@ -25,6 +27,11 @@ logger = logging.getLogger(__name__)
 
 UPLOAD_MAX_RETRIES = 2
 UPLOAD_RETRY_BASE_DELAY = 0.5
+
+# Read timeout must stay above node-chat's own upload retry window (~95s) so we
+# never abandon a request the proxy is still retrying, which would double-upload.
+UPLOAD_CONNECT_TIMEOUT_SECONDS = 5.0
+UPLOAD_READ_TIMEOUT_SECONDS = 120.0
 
 # The `/public/openai-proxy/containers/*/files` route enforces a request-body
 # size cap (see UN-23109); Azure OpenAI/node-chat surfaces this as an
@@ -81,6 +88,24 @@ def build_upload_retry() -> AsyncRetrying:
     )
 
 
+def build_upload_client(client: AsyncOpenAI) -> AsyncOpenAI:
+    """Return a client variant tuned for container-file uploads.
+
+    SDK-level retries are disabled (``max_retries=0``) so that
+    ``build_upload_retry`` is the single retry owner with full visibility in
+    logs, and the read timeout is capped so a hung upstream costs
+    ``UPLOAD_READ_TIMEOUT_SECONDS`` instead of the SDK's 600s default.
+    """
+    return client.with_options(
+        max_retries=0,
+        timeout=httpx.Timeout(
+            UPLOAD_CONNECT_TIMEOUT_SECONDS,
+            read=UPLOAD_READ_TIMEOUT_SECONDS,
+            write=UPLOAD_READ_TIMEOUT_SECONDS,
+        ),
+    )
+
+
 def check_file_already_uploaded(
     content_id: str,
     memory: CodeExecutionShortTermMemorySchema,
@@ -117,16 +142,18 @@ async def upload_file_to_container(
         container_id,
     )
 
+    upload_started = time.monotonic()
     openai_file = await build_upload_retry()(
-        client.containers.files.create,
+        build_upload_client(client).containers.files.create,
         container_id=container_id,
         file=(filename, file_content),
     )
     logger.info(
-        "File %s successfully uploaded as OpenAI file %s in container %s",
+        "File %s successfully uploaded as OpenAI file %s in container %s in %.1fs",
         content_id,
         openai_file.id,
         container_id,
+        time.monotonic() - upload_started,
     )
 
     return openai_file.path

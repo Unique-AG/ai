@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, cast
 
@@ -40,6 +41,8 @@ from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_PARALLEL = 10
+MAX_SEARCH_QUERIES = 8
+SEARCH_CONCURRENCY = 4
 _SNIPPET_PREVIEW_LIMIT = 200
 _CONTENT_PREVIEW_LIMIT = 500
 _WEB_REFS_LOG_RELATIVE_PATH = Path(".unique") / "web-refs.jsonl"
@@ -231,14 +234,18 @@ def _format_search_results(payload: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip()
 
 
+def _search_results_projection(payload: dict[str, Any]) -> dict[str, Any]:
+    """Stable projection — drops the SDK envelope ``object`` discriminator."""
+    return {
+        "engine": payload.get("engine"),
+        "query": payload.get("query"),
+        "results": payload.get("results", []),
+    }
+
+
 def _format_search_results_json(payload: dict[str, Any]) -> str:
-    """Stable JSON projection — drops the SDK envelope ``object`` discriminator."""
     return json.dumps(
-        {
-            "engine": payload.get("engine"),
-            "query": payload.get("query"),
-            "results": payload.get("results", []),
-        },
+        _search_results_projection(payload),
         indent=2,
         ensure_ascii=False,
     )
@@ -385,6 +392,40 @@ def cmd_web_search(
         chat_id: Optional chat id this call is made on behalf of. When
             set, the space's Web Search toggle is enforced server-side.
     """
+    options = _search_request_options(
+        fetch_size=fetch_size,
+        include_content=include_content,
+        engine_config_raw=engine_config_raw,
+        crawler_config_raw=crawler_config_raw,
+        config_path=config_path,
+        chat_id=chat_id,
+    )
+    if isinstance(options, str):
+        return options
+
+    payload = _fetch_search_payload(state, query, options)
+    if isinstance(payload, str):
+        return payload
+
+    try:
+        payload = _annotate_web_results_for_citations(payload)
+    except UnsafeRefsLogPathError as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+    if output_json:
+        return _format_search_results_json(payload)
+    return _format_search_results(payload)
+
+
+def _search_request_options(
+    *,
+    fetch_size: int | None,
+    include_content: bool,
+    engine_config_raw: str | None,
+    crawler_config_raw: str | None,
+    config_path: str | None,
+    chat_id: str | None,
+) -> dict[str, Any] | str:
+    """Build the request fields shared by every query, or return an error string."""
     file_overrides = _load_file_overrides(config_path)
     if isinstance(file_overrides, str):
         return file_overrides
@@ -402,34 +443,147 @@ def cmd_web_search(
     if fetch_size is None:
         fetch_size = file_overrides.fetch_size
 
-    params: dict[str, Any] = {"query": query}
+    options: dict[str, Any] = {}
     if fetch_size is not None:
-        params["fetchSize"] = fetch_size
+        options["fetchSize"] = fetch_size
     if include_content:
-        params["includeContent"] = True
+        options["includeContent"] = True
     if engine_override is not None:
-        params["searchEngineConfig"] = engine_override
+        options["searchEngineConfig"] = engine_override
     if crawler_override is not None:
-        params["crawlerConfig"] = crawler_override
+        options["crawlerConfig"] = crawler_override
     if chat_id:
-        params["chatId"] = chat_id
+        options["chatId"] = chat_id
+    return options
 
+
+def _fetch_search_payload(
+    state: ShellState,
+    query: str,
+    options: dict[str, Any],
+) -> dict[str, Any] | str:
+    """Run one search request; return the payload, or an error string."""
     try:
         resource = unique_sdk.WebSearch.search(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
-            **params,
+            query=query,
+            **options,
         )
-    except (ValueError, unique_sdk.APIError) as exc:
+    except (ValueError, unique_sdk.UniqueError) as exc:
         return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+    return _payload_from_resource(resource)
 
-    try:
-        payload = _annotate_web_results_for_citations(_payload_from_resource(resource))
-    except UnsafeRefsLogPathError as exc:
-        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+
+def cmd_web_search_many(
+    state: ShellState,
+    queries: list[str],
+    fetch_size: int | None = None,
+    include_content: bool = False,
+    engine_config_raw: str | None = None,
+    crawler_config_raw: str | None = None,
+    output_json: bool = False,
+    config_path: str | None = None,
+    chat_id: str | None = None,
+) -> str:
+    """Run several web searches in one call and return one block per query.
+
+    Requests run concurrently, at most ``SEARCH_CONCURRENCY`` at a time.
+    Citation numbers are assigned afterwards, one query at a time in the
+    order given, so ``[websourceN]`` is the same on every run. A URL found
+    by several queries keeps one number; the manifest gets one row per search.
+
+    A failed query shows its own error and does not drop the others. The
+    output is a ``web-search:`` error only when every query failed.
+    ``output_json`` returns a list with one entry per query: the usual
+    ``{engine, query, results}`` object, or ``{query, error}`` on failure.
+    """
+    if not queries:
+        return f"{WEB_SEARCH_ERROR_PREFIX} no queries provided."
+    if len(queries) > MAX_SEARCH_QUERIES:
+        return (
+            f"{WEB_SEARCH_ERROR_PREFIX} too many queries ({len(queries)}); "
+            f"the limit is {MAX_SEARCH_QUERIES} per call. "
+            "Split them across several calls."
+        )
+
+    options = _search_request_options(
+        fetch_size=fetch_size,
+        include_content=include_content,
+        engine_config_raw=engine_config_raw,
+        crawler_config_raw=crawler_config_raw,
+        config_path=config_path,
+        chat_id=chat_id,
+    )
+    if isinstance(options, str):
+        return options
+
+    with ThreadPoolExecutor(
+        max_workers=min(SEARCH_CONCURRENCY, len(queries))
+    ) as executor:
+        fetched = list(
+            executor.map(
+                lambda query: _fetch_search_payload(state, query, options), queries
+            )
+        )
+
+    outcomes: list[dict[str, Any] | str] = []
+    for item in fetched:
+        if isinstance(item, str):
+            outcomes.append(item)
+            continue
+        try:
+            outcomes.append(_annotate_web_results_for_citations(item))
+        except UnsafeRefsLogPathError as exc:
+            return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+
+    failures = [
+        f"{query!r}: {outcome}"
+        for query, outcome in zip(queries, outcomes, strict=True)
+        if isinstance(outcome, str)
+    ]
+    if len(failures) == len(queries):
+        return (
+            f"{WEB_SEARCH_ERROR_PREFIX} all {len(queries)} queries failed.\n"
+            + "\n".join(failures)
+        )
+
     if output_json:
-        return _format_search_results_json(payload)
-    return _format_search_results(payload)
+        return _format_many_search_results_json(queries, outcomes)
+    return _format_many_search_results(queries, outcomes)
+
+
+def _format_many_search_results(
+    queries: list[str],
+    outcomes: list[dict[str, Any] | str],
+) -> str:
+    blocks: list[str] = []
+    failed = 0
+    for position, (query, outcome) in enumerate(
+        zip(queries, outcomes, strict=True), start=1
+    ):
+        header = f"=== query {position}/{len(queries)} ==="
+        if isinstance(outcome, str):
+            failed += 1
+            blocks.append(f"{header}\nquery: {query!r}\nERROR: {outcome}")
+            continue
+        blocks.append(f"{header}\n{_format_search_results(outcome)}")
+    if failed:
+        blocks.append(f"{failed} of {len(queries)} queries failed.")
+    return "\n\n".join(blocks)
+
+
+def _format_many_search_results_json(
+    queries: list[str],
+    outcomes: list[dict[str, Any] | str],
+) -> str:
+    entries = [
+        {"query": query, "error": outcome}
+        if isinstance(outcome, str)
+        else _search_results_projection(outcome)
+        for query, outcome in zip(queries, outcomes, strict=True)
+    ]
+    return json.dumps(entries, indent=2, ensure_ascii=False)
 
 
 def cmd_web_crawl(

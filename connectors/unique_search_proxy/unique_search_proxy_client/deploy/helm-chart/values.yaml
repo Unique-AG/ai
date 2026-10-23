@@ -15,7 +15,7 @@ image:
   pullPolicy: IfNotPresent
   registry: ghcr.io
   repository: unique-ag/ai/search-proxy
-  tag: "2026.40.0" # x-release-please-version
+  tag: "2026.42.0" # x-release-please-version
   useDigest: false # not yet supported for out-of-tree charts
 
 ports:
@@ -167,6 +167,17 @@ httpClient:
     poolTimeoutSeconds: 30.0
     maxConnections: 100
     maxKeepaliveConnections: 20
+    maxResponseKib: 5120
+
+requestLimits:
+  crawl:
+    maxCrawlResponseKib: 10240
+    maxUrlsPerCrawl: 100
+    maxUrlLength: 2048
+    maxConcurrentFetches: 10
+    maxConcurrentCrawls: 2
+  timeouts:
+    maxTimeoutSeconds: 120
 
 urlSafety:
   enabled: true
@@ -187,6 +198,7 @@ urlSafety:
       - 169.254.170.2
       - metadata.azure.internal
       - metadata.google.internal
+    customApiTrustedPrivateHosts: []
     clusterLocalSuffix: .cluster.local
     serviceSuffix: .svc
 # @helm-gen:end providers

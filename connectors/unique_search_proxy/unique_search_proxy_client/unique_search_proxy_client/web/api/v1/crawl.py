@@ -9,6 +9,7 @@ from unique_search_proxy_core.crawlers.config_types import CrawlRequest
 from unique_search_proxy_core.errors import (
     ProxyError,
     UpstreamTimeoutError,
+    ValidationProxyError,
     attach_request_context,
 )
 from unique_search_proxy_core.schema import (
@@ -22,6 +23,7 @@ from unique_search_proxy_client.web.api.v1.openapi_examples import (
 )
 from unique_search_proxy_client.web.context import get_request_context
 from unique_search_proxy_client.web.core.client import get_http_client_registry
+from unique_search_proxy_client.web.core.crawl_limiter import get_crawl_limiter
 from unique_search_proxy_client.web.core.crawlers.factory import get_crawler_service
 from unique_search_proxy_client.web.core.crawlers.pinned_egress import (
     PinnedEgressCrawler,
@@ -35,6 +37,9 @@ from unique_search_proxy_client.web.monitoring.metrics import (
     record_crawl_success,
     record_crawl_url_outcomes,
 )
+from unique_search_proxy_client.web.settings.request_limits import (
+    request_limits_settings,
+)
 
 router = APIRouter(tags=["crawl"])
 _LOGGER = logging.getLogger(__name__)
@@ -46,6 +51,21 @@ def _crawl_request_context(exc: ProxyError, *, crawler_id: str) -> ProxyError:
         request="crawl",
         provider=crawler_id,
     )
+
+
+def _enforce_url_limits(urls: list[str]) -> None:
+    limits = request_limits_settings
+    if len(urls) > limits.max_urls_per_crawl:
+        raise ValidationProxyError(
+            f"Crawl request lists {len(urls)} URLs; "
+            f"at most {limits.max_urls_per_crawl} are allowed",
+        )
+    for index, url in enumerate(urls):
+        if len(url) > limits.max_url_length:
+            raise ValidationProxyError(
+                f"URL at index {index} is {len(url)} characters long; "
+                f"at most {limits.max_url_length} are allowed",
+            )
 
 
 def _url_outcomes(results: list[CrawlUrlResult]) -> list[tuple[str, str, str]]:
@@ -74,7 +94,7 @@ async def crawl(
     body: CrawlRequest = Body(openapi_examples=CRAWL_OPENAPI_EXAMPLES),  # type: ignore[valid-type]
 ) -> CrawlResponse:
     crawler_id = body.crawler
-    timeout = body.timeout
+    timeout = min(body.timeout, request_limits_settings.max_timeout_seconds)
     started = time.perf_counter()
     _LOGGER.info(
         "crawl start crawler=%s urls=%d timeout=%ss",
@@ -84,7 +104,8 @@ async def crawl(
     )
 
     try:
-        async with asyncio.timeout(timeout):
+        _enforce_url_limits(body.urls)
+        async with get_crawl_limiter(request.app).slot(), asyncio.timeout(timeout):
             registry = get_http_client_registry(request.app)
             client = await registry.client_for(get_request_context())
             gate = await apply_url_safety_gate(
@@ -122,6 +143,7 @@ async def crawl(
             crawl_body = body.model_copy(
                 update={
                     "urls": [target.display_url for target in gate.allowed_targets],
+                    "timeout": timeout,
                 },
             )
 

@@ -1,12 +1,28 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
+from unique_search_proxy_core.url_safety import dns
 from unique_search_proxy_core.url_safety.settings import url_safety_settings
 
 
-def validate_target_cheap(url: str) -> tuple[str, str] | None:
+def is_trusted_private_host(
+    hostname: str,
+    trusted_private_hosts: Collection[str],
+) -> bool:
+    normalized_host = hostname.rstrip(".").lower()
+    return normalized_host in {
+        host.rstrip(".").lower() for host in trusted_private_hosts
+    }
+
+
+def validate_target_cheap(
+    url: str,
+    *,
+    trusted_private_hosts: Collection[str] = (),
+) -> tuple[str, str] | None:
     """Static validation only — no DNS. Returns (category, reason) if blocked, None otherwise."""
     if not url:
         return "empty", "URL is empty"
@@ -30,10 +46,19 @@ def validate_target_cheap(url: str) -> tuple[str, str] | None:
     ):
         return "localhost", "Target points to a localhost host"
 
-    if normalized_host.endswith(url_safety_settings.service_suffix):
+    trusted_private_host = is_trusted_private_host(
+        normalized_host,
+        trusted_private_hosts,
+    )
+
+    if not trusted_private_host and normalized_host.endswith(
+        url_safety_settings.service_suffix
+    ):
         return "cluster", "Target points to an internal service host"
 
-    if normalized_host.endswith(url_safety_settings.cluster_local_suffix):
+    if not trusted_private_host and normalized_host.endswith(
+        url_safety_settings.cluster_local_suffix
+    ):
         return "cluster", "Target points to an internal cluster-local host"
 
     try:
@@ -41,12 +66,14 @@ def validate_target_cheap(url: str) -> tuple[str, str] | None:
     except ValueError:
         pass
     else:
-        if not target_ip.is_global:
+        if not target_ip.is_global and not (
+            trusted_private_host and dns.is_trusted_private_address(normalized_host)
+        ):
             return "private", "Target points to a private or special-use IP address"
 
         return None
 
-    if "." not in normalized_host:
+    if not trusted_private_host and "." not in normalized_host:
         return "cluster", "Target points to a single-label internal host"
 
     return None

@@ -30,6 +30,7 @@ from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
 )
 
@@ -357,6 +358,8 @@ class ContentService:
         metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -373,6 +376,8 @@ class ContentService:
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
+            merge_strategy (ContentSearchMergeStrategy | None, optional): How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+            include_scores (bool | None, optional): When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -404,6 +409,8 @@ class ContentService:
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
                 score_threshold=score_threshold,
+                merge_strategy=merge_strategy,
+                include_scores=include_scores,
             )
             return searches
         except Exception as e:
@@ -424,6 +431,8 @@ class ContentService:
         metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -440,6 +449,8 @@ class ContentService:
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
+            merge_strategy (ContentSearchMergeStrategy | None, optional): How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+            include_scores (bool | None, optional): When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -470,6 +481,8 @@ class ContentService:
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
                 score_threshold=score_threshold,
+                merge_strategy=merge_strategy,
+                include_scores=include_scores,
             )
             return searches
         except Exception as e:
@@ -480,6 +493,7 @@ class ContentService:
         self,
         where: dict[str, Any],
         chat_id: str | None = None,
+        include_failed_content: bool = False,
     ) -> list[Content]:
         """
         Performs a search in the knowledge base by filter (and not a smilarity search)
@@ -487,6 +501,8 @@ class ContentService:
 
         Args:
             where (dict): The search criteria.
+            chat_id (str | None): Chat to scope the search to; defaults to the service's chat.
+            include_failed_content (bool): Also return content whose ingestion failed.
 
         Returns:
             list[Content]: The search results.
@@ -498,18 +514,22 @@ class ContentService:
             company_id=self._company_id,
             chat_id=chat_id,
             where=where,
+            include_failed_content=include_failed_content,
         )
 
     async def search_contents_async(
         self,
         where: dict[str, Any],
         chat_id: str | None = None,
+        include_failed_content: bool = False,
     ) -> list[Content]:
         """
         Performs an asynchronous search for content files in the knowledge base by filter.
 
         Args:
             where (dict): The search criteria.
+            chat_id (str | None): Chat to scope the search to; defaults to the service's chat.
+            include_failed_content (bool): Also return content whose ingestion failed.
 
         Returns:
             list[Content]: The search results.
@@ -521,6 +541,7 @@ class ContentService:
             company_id=self._company_id,
             chat_id=chat_id,
             where=where,
+            include_failed_content=include_failed_content,
         )
 
     def search_content_on_chat(self, chat_id: str) -> list[Content]:

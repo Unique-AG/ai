@@ -81,11 +81,12 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `switchableLanguageModels` (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when `allowModelSwitching` is True. See [`Space.SwitchableLanguageModel`](#spaceswitchablelanguagemodel) for structure.
     - `isExternal` (bool, optional) - Whether the space is external
     - `isPinned` (bool, optional) - Whether the space is pinned
-    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type
+    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI", "SWAPPABLE_INTELLIGENCE"], optional) - UI type. `SWAPPABLE_INTELLIGENCE` creates a Unique AI Conduct space: use one `SwappableIntelligence` module as `fallbackModule` and put the harness settings in its `configuration`.
     - `settings` (Dict, optional) - Space settings
     - `isSubAgent` (bool, optional) - Set to `True` to create the space as a sub-agent
     - `subAgentSettings` (Dict, optional) - Tool settings for a sub-agent. See [`Space.SubAgentSettings`](#spacesubagentsettings) for structure.
     - `subAgentIds` (List[str], optional) - Full list of sub-agent assistant IDs to link to this parent space
+    - `mcpServers` (List[McpServerParams], optional) - MCP servers (connectors) to attach, each with its tool selection. See [`Space.McpServerParams`](#spacemcpserverparams). An unknown `mcpServerId` returns 404; a space-restricted server, an unknown tool name, or enabling a tool the company has disabled returns 400. Nothing is created when the input is rejected.
 
     **Returns:**
 
@@ -175,6 +176,60 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     )
     ```
 
+    **Example - Create a Conduct Space from a Template Space:**
+
+    Read the setup of an existing Conduct space with `Space.get_space`, then create a new space from it. Change the name, instructions or tool selection before you create it.
+
+    ```python
+    template = unique_sdk.Space.get_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_conduct_template",
+    )
+
+    space = unique_sdk.Space.create_space(
+        user_id=user_id,
+        company_id=company_id,
+        name="Due Diligence Agent",
+        uiType="SWAPPABLE_INTELLIGENCE",
+        fallbackModule=template["fallbackModule"],
+        modules=[
+            {
+                "name": module["name"],
+                "weight": module["weight"],
+                "configuration": module["configuration"],
+            }
+            for module in template["modules"]
+        ],
+        settings=template["settings"] or {},
+        mcpServers=[
+            {"mcpServerId": server["mcpServerId"], "tools": server["tools"]}
+            for server in template["assistantMcpServers"]
+        ],
+    )
+    ```
+
+    **Example - Attach MCP Servers on Creation:**
+
+    ```python
+    servers = unique_sdk.MCP.list_servers(user_id=user_id, company_id=company_id)
+    jira = next(s for s in servers["mcpServers"] if s["name"] == "Jira")
+
+    space = unique_sdk.Space.create_space(
+        user_id=user_id,
+        company_id=company_id,
+        name="Issue Triage Assistant",
+        fallbackModule="UniqueAi",
+        modules=[{"name": "UniqueAi", "weight": 10000}],
+        mcpServers=[
+            {
+                "mcpServerId": jira["id"],
+                "tools": [{"name": "search_issues", "isEnabled": True}],
+            }
+        ],
+    )
+    ```
+
 ??? example "`unique_sdk.Space.update_space` - Update a space"
 
     !!! info "Compatibility"
@@ -202,10 +257,11 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `allowModelSwitching` (bool, optional) - Whether end users may switch the language model in chat
     - `switchableLanguageModels` (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when `allowModelSwitching` is True. Pass an empty list to clear the allowlist. See [`Space.SwitchableLanguageModel`](#spaceswitchablelanguagemodel) for structure.
     - `allowEndUserSpace` (bool, optional) - Allow end users to create custom spaces from this assistant
-    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy.
+    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI", "SWAPPABLE_INTELLIGENCE"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy. A space cannot be converted to or from an Embedded App.
     - `isSubAgent` (bool, optional) - Whether the space is a sub-agent
     - `subAgentSettings` (Dict, optional) - Tool settings for a sub-agent. See [`Space.SubAgentSettings`](#spacesubagentsettings) for structure.
     - `subAgentIds` (List[str], optional) - Full replacement list of caller-visible linked sub-agent assistant IDs. Pass `[]` to remove all caller-visible linked sub-agents. Omit the field to keep existing links unchanged. Linked sub-agents hidden from the caller because they lack Use access are preserved by the API.
+    - `mcpServers` (List[McpServerParams], optional) - MCP servers to attach or change. Only listed servers change; servers that are not listed keep their state. Pass `"tools": []` to disable a server for the space. See [`Space.McpServerParams`](#spacemcpserverparams).
 
     **Returns:**
 
@@ -283,6 +339,43 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
         space_id="assistant_parent",
         subAgentIds=[]
     )
+    ```
+
+    **Example - Disable an MCP Server for the Space:**
+
+    ```python
+    space = unique_sdk.Space.update_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_parent",
+        mcpServers=[{"mcpServerId": "mcp_server_u3x61phmqxvlhswjlm3byvvr", "tools": []}],
+    )
+    ```
+
+??? example "`unique_sdk.Space.get_mcp_server_status` - Get MCP server status for the caller"
+
+    Get the MCP servers enabled on a space with the calling user's own connection state. Use it after installing a space to find servers the user still has to sign in to. Never returns other users' state.
+
+    **Parameters:**
+
+    - `space_id` (str, required) - The ID of the space
+
+    **Returns:**
+
+    Returns a [`McpServerStatusResponse`](#spacemcpserverstatusresponse) object.
+
+    **Example:**
+
+    ```python
+    status = unique_sdk.Space.get_mcp_server_status(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_abc123",
+    )
+
+    for server in status["mcpServers"]:
+        if server["requiresOAuth"] and not server["isOAuth2Connected"]:
+            print(f"Sign in to {server['name']}: {server['oauth2Url']}")
     ```
 
 ??? example "`unique_sdk.Space.get_space_access` - Get space access entries"
@@ -582,6 +675,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `chat_id` (str, required) - Chat ID to retrieve messages from
     - `skip` (int, optional) - Number of messages to skip (default: 0)
     - `take` (int, optional) - Number of messages to return (default: 10, max: 100)
+    - `excludeGptRequest` (bool, optional) - When `True`, `gptRequest` is not loaded and is returned as `None` on every message. It holds each message's full prompt history and can be very large on long chats. Defaults to `False`. Platform releases without support reject the parameter with a 400, so only pass it when the platform supports it.
 
     **Returns:**
 
@@ -999,10 +1093,42 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `assistantId` (str) - Associated assistant/space ID
     - `mcpServerId` (str) - MCP server ID
     - `isEnabled` (bool) - Whether the MCP server is enabled
+    - `tools` (List[McpServerTool]) - Tool selection on this space, sorted by name. Each entry has `name` (str) and `isEnabled` (bool).
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `updatedAt` (str) - Last update timestamp (ISO 8601)
 
     **Used in:** `Space.assistantMcpServers`
+
+#### Space.McpServerParams {#spacemcpserverparams}
+
+??? note "The `Space.McpServerParams` type attaches an MCP server (connector) to a space"
+
+    **Fields:**
+
+    - `mcpServerId` (str) - MCP server ID from [`MCP.list_servers`](mcp.md)
+    - `tools` (List[McpServerToolParams] | None, optional) - The complete tool selection for this server. Each entry has `name` (str) and `isEnabled` (bool). Listed tools take the given state, unlisted tools are disabled, and an empty list disables the server for the space. Omit to enable every tool the company has enabled.
+
+    Module configurations can also reference MCP tools (`configuration.mcpTool` with `mcpServerId`). Those entries are applied first, so `mcpServers` wins for a server that appears in both.
+
+    **Used in:** `Space.create_space()`, `Space.update_space()`
+
+#### Space.McpServerStatusResponse {#spacemcpserverstatusresponse}
+
+??? note "The `Space.McpServerStatusResponse` object contains the caller's MCP server state for a space"
+
+    **Fields:**
+
+    - `spaceId` (str) - Space ID
+    - `mcpServers` (List[McpServerStatus]) - Servers enabled on the space, sorted by name:
+        - `mcpServerId` (str) - MCP server ID
+        - `name` (str) - MCP server name
+        - `isEnabled` (bool) - Whether the server is enabled for the space
+        - `requiresOAuth` (bool) - Whether each user has to sign in before the server's tools run
+        - `isOAuth2Connected` (bool) - Whether the calling user has a usable connection
+        - `oauth2Url` (str | None) - URL the calling user opens to connect. `None` when connected or when no sign-in is needed.
+        - `enabledToolNames` (List[str]) - Tools enabled on the space that the caller can run
+
+    **Returned by:** `Space.get_mcp_server_status()`
 
 #### Space.Module {#spacemodule}
 

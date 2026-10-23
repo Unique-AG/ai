@@ -77,6 +77,7 @@ class Base(BaseSettings):
     custom_web_search_api_additional_query_params: str | None = None
     custom_web_search_api_additional_body_params: str | None = None
     custom_web_search_api_client_config: str | None = None
+    custom_web_search_api_trusted_private_hosts: list[str] = []
 
     # Proxy settings
     ## Shared settings

@@ -1,6 +1,6 @@
 [project]
 name = "unique_sdk"
-version = "2026.40.0"
+version = "2026.42.0"
 description = ""
 readme = "README.md"
 license = { text = "MIT" }
@@ -43,7 +43,9 @@ module-root = ""
 exclude-newer = "2 weeks"
 
 [dependency-groups]
-dev = []
+dev = [
+    "python-dotenv>=1.2.2",
+]
 
 [tool.deptry]
 known_first_party = ["unique_sdk"]
@@ -60,7 +62,8 @@ extend-select = ["I"]
 
 [tool.basedpyright]
 typeCheckingMode = "recommended"
-include = ["unique_sdk"]
+include = ["unique_sdk", "examples/basics"]
+extraPaths = ["examples/basics"]
 exclude = ["build", "**/__pycache__", "**/tests/**", "**/test_*.py"]
 allowedUntypedLibraries = ["openai.types.responses", "openai.types.shared_params"]
 # Suppress rules that require full annotation coverage of legacy internals —

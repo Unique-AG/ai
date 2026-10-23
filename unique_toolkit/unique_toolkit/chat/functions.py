@@ -35,6 +35,9 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
 )
+from unique_toolkit.language_model.errors import (
+    _reraise_as_language_model_call_error,
+)
 from unique_toolkit.language_model.functions import (
     _prepare_all_completions_params_util,
 )
@@ -555,12 +558,22 @@ def list_messages(
     event_user_id: str,
     event_company_id: str,
     chat_id: str,
+    exclude_gpt_request: bool = False,
 ) -> ListObject[unique_sdk.Message]:
+    """List the messages of a chat.
+
+    Set `exclude_gpt_request` to skip loading each message's stored LLM request
+    (returned as `None`); it holds the full prompt history and can reach
+    hundreds of MB for long chats. Platforms without support ignore it.
+    """
     try:
+        params: unique_sdk.Message.ListParams = {"chatId": chat_id}
+        if exclude_gpt_request:
+            params["excludeGptRequest"] = True
         messages = unique_sdk.Message.list(
             user_id=event_user_id,
             company_id=event_company_id,
-            chatId=chat_id,
+            **params,
         )
         return messages
     except Exception as e:
@@ -572,12 +585,17 @@ async def list_messages_async(
     event_user_id: str,
     event_company_id: str,
     chat_id: str,
+    exclude_gpt_request: bool = False,
 ) -> ListObject[unique_sdk.Message]:
+    """Async variant of `list_messages`."""
     try:
+        params: unique_sdk.Message.ListParams = {"chatId": chat_id}
+        if exclude_gpt_request:
+            params["excludeGptRequest"] = True
         messages = await unique_sdk.Message.list_async(
             user_id=event_user_id,
             company_id=event_company_id,
-            chatId=chat_id,
+            **params,
         )
         return messages
     except Exception as e:
@@ -590,7 +608,12 @@ def get_full_history(
     event_company_id: str,
     event_payload_chat_id: str,
 ) -> list[ChatMessage]:
-    messages = list_messages(event_user_id, event_company_id, event_payload_chat_id)
+    messages = list_messages(
+        event_user_id,
+        event_company_id,
+        event_payload_chat_id,
+        exclude_gpt_request=True,
+    )
     messages = filter_valid_messages(messages)
 
     return [ChatMessage.model_validate(msg) for msg in messages]
@@ -605,6 +628,7 @@ async def get_full_history_async(
         event_user_id,
         event_company_id,
         event_payload_chat_id,
+        exclude_gpt_request=True,
     )
     messages = filter_valid_messages(messages)
 
@@ -933,7 +957,7 @@ def stream_complete_with_references(
         return LanguageModelStreamResponse(**response)
     except Exception as e:
         _LOGGER.error(f"Error streaming completion: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 @deprecated("Use stream_complete_with_references_async instead")
@@ -1030,7 +1054,7 @@ async def stream_complete_with_references_async(
         return LanguageModelStreamResponse(**response)
     except Exception as e:
         _LOGGER.error(f"Error streaming completion: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 def _get_model_dump_or_none(model: BaseModel | None) -> dict[str, Any] | None:

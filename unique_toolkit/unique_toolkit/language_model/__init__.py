@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any
 
 from .constants import DOMAIN_NAME
 from .default_language_model import DEFAULT_LANGUAGE_MODEL, DEFAULT_GPT_4o
+from .errors import LanguageModelCallError as LanguageModelCallError
 from .functions import (
     stream_complete_with_references_openai as stream_complete_with_references_openai,
 )
@@ -59,6 +60,7 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     "LanguageModel",
+    "LanguageModelCallError",
     "LanguageModelName",
     "Prompt",
     "LanguageModelAssistantMessage",

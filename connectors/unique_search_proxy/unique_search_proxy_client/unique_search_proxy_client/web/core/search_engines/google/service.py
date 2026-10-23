@@ -82,7 +82,7 @@ class GoogleSearchService(SearchEngineService[GoogleSearchRequest]):
             if not page_results:
                 if not len(curated.results):
                     raise EmptySearchResultsError(
-                        f"Google search returned no results for query {request.query!r}",
+                        "Google search returned no results",
                     )
                 break
             curated = curated.extend(page_results)

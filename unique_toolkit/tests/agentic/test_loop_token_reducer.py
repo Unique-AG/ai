@@ -256,6 +256,23 @@ def test_effective_token_limit__returns_correct_value__with_safety_margin_AI(
 
 
 @pytest.mark.ai
+def test_tighten_effective_token_limit__scales_limit__and_compounds_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify tightening shrinks the effective limit and repeated calls compound.
+    Why this matters: After a provider overflow the reducer must aim lower for the rest of the run.
+    """
+    initial = loop_token_reducer._effective_token_limit
+
+    loop_token_reducer.tighten_effective_token_limit(0.5)
+    loop_token_reducer.tighten_effective_token_limit(0.5)
+
+    assert loop_token_reducer._effective_token_limit == int(int(initial * 0.5) * 0.5)
+    assert loop_token_reducer._exceeds_token_limit(initial // 2)
+
+
+@pytest.mark.ai
 def test_exceeds_token_limit__returns_false__when_under_limit_AI(
     loop_token_reducer: LoopTokenReducer,
     mock_reference_manager: ReferenceManager,

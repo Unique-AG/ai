@@ -29,6 +29,7 @@ HTTP_CLIENT_ENV_PREFIX = "HTTP_CLIENT_"
             "max_connections",
             "max_keepalive_connections",
             "http_client_cache_size",
+            "max_response_kib",
         ],
     },
 )

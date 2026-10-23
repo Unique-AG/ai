@@ -48,7 +48,7 @@ class Truncate:
             _LOGGER.warning("Truncate strategy is disabled, skipping")
             return page
 
-        _LOGGER.info(f"Truncating page {page.url} with truncate strategy")
+        _LOGGER.info("Truncating page with truncate strategy")
         tokens = self._encoder(page.content)
         if len(tokens) > self._config.max_tokens:
             page.content = self._decoder(tokens[: self._config.max_tokens])

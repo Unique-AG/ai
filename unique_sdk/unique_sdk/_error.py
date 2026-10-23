@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 
 
 class UniqueError(Exception):
@@ -10,6 +10,7 @@ class UniqueError(Exception):
     code: str | None
     request_id: str | None
     original_error: Exception | str | None
+    params: dict[str, Any] | str | None
 
     def __init__(
         self,
@@ -20,6 +21,7 @@ class UniqueError(Exception):
         headers: dict[str, str] | None = None,
         code: str | None = None,
         original_error: Exception | str | None = None,
+        params: dict[str, Any] | str | None = None,
     ):
         super(UniqueError, self).__init__(message)
 
@@ -41,6 +43,7 @@ class UniqueError(Exception):
         self.code = code
         self.request_id = self.headers.get("request-id", None)
         self.original_error = original_error
+        self.params = params
 
     def __str__(self):
         msg = self._message or "<empty message>"
@@ -51,7 +54,7 @@ class UniqueError(Exception):
 
 class UniqueErrorWithParamsCode(UniqueError):
     # str included: InvalidRequestError callers pass plain strings (e.g. "id")
-    params: dict[str, str] | str | None
+    params: dict[str, Any] | str | None
 
     def __init__(
         self,
@@ -62,12 +65,18 @@ class UniqueErrorWithParamsCode(UniqueError):
         headers: dict[str, str] | None = None,
         code: str | None = None,
         original_error: Exception | str | None = None,
-        params: dict[str, str] | str | None = None,
+        params: dict[str, Any] | str | None = None,
     ):
         super().__init__(
-            message, http_body, http_status, json_body, headers, code, original_error
+            message,
+            http_body,
+            http_status,
+            json_body,
+            headers,
+            code,
+            original_error,
+            params,
         )
-        self.params = params
 
     def __repr__(self):
         return "%s(message=%r, params=%r, code=%r, http_status=%r, request_id=%r)" % (
@@ -109,6 +118,10 @@ class AuthenticationError(UniqueError):
 
 
 class PermissionError(UniqueError):
+    pass
+
+
+class RateLimitError(APIError):
     pass
 
 

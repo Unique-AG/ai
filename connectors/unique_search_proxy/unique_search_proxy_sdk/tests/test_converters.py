@@ -58,6 +58,28 @@ class TestToSdkSearchRequest:
         assert body["searchRecencyFilter"] == "day"
 
     @pytest.mark.ai
+    def test_custom_api(self) -> None:
+        """
+        Purpose: Verify Custom API fields survive core-to-SDK conversion.
+        Why this matters: The endpoint and headers must reach Search Proxy intact.
+        Setup summary: Parse a Custom API request and inspect its serialized body.
+        """
+        request = parse_search_request(
+            {
+                "engine": "custom_api",
+                "query": "hello",
+                "apiEndpoint": "https://api.example.com/search",
+                "apiHeaders": '{"Authorization": "Bearer token"}',
+            },
+        )
+        sdk_body = to_sdk_search_request(request)
+        assert isinstance(sdk_body, SdkSearchBody)
+        body = sdk_body.to_dict()
+        assert body["engine"] == "custom_api"
+        assert body["apiEndpoint"] == "https://api.example.com/search"
+        assert body["apiHeaders"] == '{"Authorization": "Bearer token"}'
+
+    @pytest.mark.ai
     def test_tavily_crawl(self) -> None:
         request = parse_crawl_request(
             {
