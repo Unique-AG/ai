@@ -73,31 +73,35 @@ months, after you have told the user it would not.
 
 ## Timezone handling (critical)
 
-**The platform runs all cron schedules in UTC.** The user almost certainly thinks in their local timezone. You **must** account for this difference or tasks will fire at the wrong time.
+**Write the cron in the user's local wall-clock time and always pass `--timezone`.** The
+platform evaluates the cron in that IANA timezone and keeps the local run time across daylight
+saving changes. Never convert local times to UTC. Never mention UTC equivalents or daylight
+saving shifts to the user.
 
-**Before creating or updating a schedule:**
-1. Check if you already know the user's timezone (from prior conversation, system info, or profile).
-2. If you do **not** know it, **ask**: "What timezone are you in? (e.g. Europe/Zurich, US/Eastern, Asia/Tokyo)"
-3. Convert the user's desired local time to UTC before building the cron expression.
-4. Confirm back in the **user's local timezone**, and mention the UTC equivalent.
+The CLI **rejects** `schedule create` without `--timezone`, and rejects `schedule update` that
+changes `--cron` without `--timezone`.
 
-**Conversion examples (Europe/Zurich, CET = UTC+1 / CEST = UTC+2):**
-
-| User says (local) | Season | UTC offset | Cron (UTC) |
-|--------------------|--------|------------|------------|
-| "9:00 AM" | Winter (CET) | UTC+1 | `0 8 * * *` |
-| "9:00 AM" | Summer (CEST) | UTC+2 | `0 7 * * *` |
-| "5:30 PM" | Winter (CET) | UTC+1 | `30 16 * * *` |
-| "midnight" | Winter (CET) | UTC+1 | `0 23 * * *` (previous day in UTC) |
+**Where the timezone comes from, in order:**
+1. The `User's timezone` line in the system prompt (browser-detected IANA name).
+2. A timezone already established earlier in the conversation.
+3. Otherwise, **ask**: "What timezone are you in? (e.g. Europe/Zurich, America/New_York, Asia/Tokyo)"
 
 **Rules:**
-- Always tell the user the schedule in **their local time** first, then add "(UTC: HH:MM)" in parentheses.
-- If the timezone has DST, warn the user: "Note: when daylight saving changes, the task will shift by one hour in your local time since the platform runs in UTC."
-- For interval-based schedules like "every 15 minutes" or "every 2 hours", timezone conversion is not needed — just mention that these run around the clock in UTC.
-- Store the user's timezone mentally for the rest of the conversation so you don't ask again.
+- Use **IANA names only** (`Europe/Zurich`, `America/New_York`, `Asia/Tokyo`). Never use
+  abbreviations (`CET`, `EST`) or UTC offsets (`+02:00`, `UTC+2`). The platform rejects them.
+- Pass `--timezone <IANA>` on every `create`, and on every `update` that changes `--cron`.
+- Write the cron for the user's local time. "9:00 AM in Zurich" → `-c "0 9 * * *"` `-tz Europe/Zurich`.
+- Confirm back in the user's local time only. Do **not** add "(UTC: …)" or warn about DST.
+- For interval schedules like "every 15 minutes", still pass `--timezone`.
+- Store the user's timezone for the rest of the conversation so you don't ask again.
+- To schedule explicitly in UTC, pass `--timezone UTC`.
+
+**Legacy tasks without a timezone:** If `schedule get` shows `Timezone: UTC` on a task the user
+thinks of in local time, any update to its schedule **must** pass the new local cron and
+`--timezone` together. Changing only the timezone reinterprets the old UTC cron as local time.
 
 **Example confirmation:**
-> "Done — scheduled to run **every weekday at 9:00 AM (your time, Europe/Zurich)**. That's 7:00 AM UTC in summer / 8:00 AM UTC in winter. Note: the exact local time will shift by 1 hour when daylight saving changes."
+> "Done — scheduled to run **every weekday at 9:00 AM your time (Europe/Zurich)**."
 
 ## Agent workflow for creating a task
 
@@ -114,11 +118,12 @@ Before running `schedule create`, **resolve / ask the user**:
 1. **Assistant** — Use `$UNIQUE_ASSISTANT_ID` (the current assistant). Do not
    ask. Do not run `unique-cli schedule list` to "find" one. Do not start an
    elicitation. If the env var is missing, surface that as an error and stop.
-2. **Timezone** — If not already known, ask for it first. You need this to convert times correctly.
+2. **Timezone** — Prefer the `User's timezone` line in the system prompt. If
+   missing and not already known, ask. You need an IANA name for `--timezone`.
 3. **New chat or existing chat?**
    - **New chat each run** (default) — omit `--chat-id`. Each execution creates a fresh chat.
    - **Continue an existing chat** — the user must provide a chat ID (starts with `chat_`). Pass it via `--chat-id`.
-4. **When should it run?** — Ask in plain language (e.g. "every weekday at 9 AM"). Convert to a UTC cron expression.
+4. **When should it run?** — Ask in plain language (e.g. "every weekday at 9 AM"). Translate to a **local-time** cron expression; do not convert to UTC.
 5. **Prompt text** — what the assistant should do on each trigger.
 6. **Name** — **you write it, do not ask for it.** Derive a short, descriptive label from the
    prompt (a few words, title-style, e.g. "Daily sales report", "Weekly pipeline review").
@@ -145,7 +150,7 @@ Only pass `--chat-id` when the user explicitly wants to continue a specific chat
 unique-cli schedule list
 ```
 
-Output shows a table with status, name, cron expression, assistant, prompt snippet, task ID, and last run time. A task saved without a name shows its prompt snippet in the name column.
+Output shows a table with status, name, cron expression, timezone, assistant, prompt snippet, task ID, and last run time. A task saved without a name shows its prompt snippet in the name column.
 
 ## Get Task Details
 
@@ -159,13 +164,14 @@ Shows full details of a single task including all fields.
 
 Always pass `--assistant "$UNIQUE_ASSISTANT_ID"` so the task runs on the
 current assistant. Do not substitute a literal `assistant_…` ID and do not
-ask the user to provide one.
+ask the user to provide one. Always pass `--timezone` with an IANA name.
 
 ### New chat each run (default — no `--chat-id`)
 
 ```bash
 unique-cli schedule create \
   --cron "0 9 * * 1-5" \
+  --timezone Europe/Zurich \
   --assistant "$UNIQUE_ASSISTANT_ID" \
   --prompt "Generate the daily sales report and email it to the team" \
   --name "Daily sales report"
@@ -176,6 +182,7 @@ unique-cli schedule create \
 ```bash
 unique-cli schedule create \
   --cron "0 9 * * 1-5" \
+  --timezone Europe/Zurich \
   --assistant "$UNIQUE_ASSISTANT_ID" \
   --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
   --prompt "Append today's numbers to the running report" \
@@ -186,7 +193,8 @@ unique-cli schedule create \
 
 | Option | Short | Required | Description |
 |--------|-------|----------|-------------|
-| `--cron` | `-c` | Yes | 5-field cron expression |
+| `--cron` | `-c` | Yes | 5-field cron expression in the user's local time |
+| `--timezone` | `-tz` | Yes | IANA timezone the cron runs in (e.g. `Europe/Zurich`). Use `UTC` for UTC. |
 | `--assistant` | `-a` | Yes | Assistant ID to execute (starts with `assistant_`). **Always pass `"$UNIQUE_ASSISTANT_ID"`** — never ask the user. |
 | `--prompt` | `-p` | Yes | Prompt text sent each run |
 | `--name` | `-n` | No | Short label shown in the UI (≤128 chars). **Always pass one** — you generate it; without it the UI falls back to the prompt text |
@@ -195,7 +203,7 @@ unique-cli schedule create \
 
 ### Translating user requests to cron
 
-The user will describe schedules in plain language. Translate silently:
+The user will describe schedules in plain language. Translate silently into **local-time** cron:
 
 | User says | Cron expression |
 |-----------|-----------------|
@@ -230,10 +238,11 @@ Day-of-week mapping: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
 ## Update a Scheduled Task
 
 Only the fields you provide are changed; everything else stays the same.
+When changing `--cron`, you **must** also pass `--timezone`.
 
 ```bash
-# Change the schedule
-unique-cli schedule update <task_id> --cron "0 9 * * 1-5"
+# Change the schedule (timezone required with --cron)
+unique-cli schedule update <task_id> --cron "0 9 * * 1-5" --timezone Europe/Zurich
 
 # Disable a task
 unique-cli schedule update <task_id> --disable
@@ -249,7 +258,8 @@ unique-cli schedule update <task_id> --chat-id none
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--cron` | `-c` | Updated cron expression |
+| `--cron` | `-c` | Updated cron expression (requires `--timezone`) |
+| `--timezone` | `-tz` | IANA timezone the cron runs in (required with `--cron`) |
 | `--assistant` | `-a` | Updated assistant ID (starts with `assistant_`) |
 | `--prompt` | `-p` | Updated prompt text |
 | `--name` | `-n` | Updated label (`none` to clear it and fall back to the prompt) |
@@ -271,40 +281,38 @@ This action cannot be undone.
 
 User: "Schedule a daily sales report every weekday at 9 AM"
 
-Agent (if timezone unknown): "What timezone are you in?"
-
-User: "Zurich"
-
-Agent thinks: Europe/Zurich, currently CEST (UTC+2), so 9:00 AM local = 7:00 AM UTC → cron `0 7 * * 1-5`. The assistant is the current one (`$UNIQUE_ASSISTANT_ID`); no need to ask.
+Agent thinks: System prompt has `User's timezone: Europe/Zurich`. Local cron is `0 9 * * 1-5`. The assistant is the current one (`$UNIQUE_ASSISTANT_ID`); no need to ask.
 
 Run:
 ```bash
 unique-cli schedule create \
-  -c "0 7 * * 1-5" \
+  -c "0 9 * * 1-5" \
+  -tz Europe/Zurich \
   -a "$UNIQUE_ASSISTANT_ID" \
   -p "Generate the daily sales report and email it to the team" \
   -n "Daily sales report"
 ```
 
-Respond: "Done — I created **Daily sales report**, running **every weekday (Mon–Fri) at 9:00 AM your time (Europe/Zurich)**. That's 7:00 AM UTC. A new chat will be created for each run. Note: when clocks change for daylight saving, the task will shift by one hour in your local time."
+Respond: "Done — I created **Daily sales report**, running **every weekday (Mon–Fri) at 9:00 AM your time (Europe/Zurich)**. A new chat will be created for each run."
 
 ### Set up a recurring task that continues the same chat
 
 User: "I want to add daily numbers to an existing report chat at 9 AM"
 
-Agent thinks: Already know timezone is Europe/Zurich (CEST), 9 AM local = 7 AM UTC. Assistant is the current one (`$UNIQUE_ASSISTANT_ID`).
+Agent thinks: Already know timezone is Europe/Zurich. Local cron is `0 9 * * 1-5`. Assistant is the current one (`$UNIQUE_ASSISTANT_ID`).
 
 Run:
 ```bash
 unique-cli schedule create \
-  -c "0 7 * * 1-5" \
+  -c "0 9 * * 1-5" \
+  -tz Europe/Zurich \
   -a "$UNIQUE_ASSISTANT_ID" \
   --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
   -p "Append today's numbers to the running report" \
   -n "Running report top-up"
 ```
 
-Respond: "Done — I created **Running report top-up**, running **every weekday (Mon–Fri) at 9:00 AM your time** (7:00 AM UTC), continuing chat `chat_b7ze6mpv0edy324yhjj1d92t`."
+Respond: "Done — I created **Running report top-up**, running **every weekday (Mon–Fri) at 9:00 AM your time**, continuing chat `chat_b7ze6mpv0edy324yhjj1d92t`."
 
 ### Pause and resume a task
 
@@ -322,25 +330,25 @@ Respond: "The task is **active** again and will run on its next scheduled time."
 
 User: "Change it to run every hour instead"
 
-Agent thinks: "every hour" is interval-based, no timezone conversion needed.
+Agent thinks: Interval schedule; still pass the known timezone.
 
 Run:
 ```bash
-unique-cli schedule update <task_id> --cron "0 * * * *"
+unique-cli schedule update <task_id> --cron "0 * * * *" --timezone Europe/Zurich
 ```
 
-Respond: "Updated — the task now runs **every hour**, on the hour (UTC). Since this is interval-based, it runs at the same wall-clock intervals regardless of timezone."
+Respond: "Updated — the task now runs **every hour**, on the hour."
 
 User: "Actually, make it run at 6:30 PM my time on Fridays"
 
-Agent thinks: Europe/Zurich CEST (UTC+2), 6:30 PM = 16:30 UTC → cron `30 16 * * 5`
+Agent thinks: Europe/Zurich, local 6:30 PM → cron `30 18 * * 5`.
 
 Run:
 ```bash
-unique-cli schedule update <task_id> --cron "30 16 * * 5"
+unique-cli schedule update <task_id> --cron "30 18 * * 5" --timezone Europe/Zurich
 ```
 
-Respond: "Updated — the task now runs **every Friday at 6:30 PM your time** (4:30 PM UTC)."
+Respond: "Updated — the task now runs **every Friday at 6:30 PM your time**."
 
 ## SDK Usage (Python)
 
@@ -357,6 +365,7 @@ task = unique_sdk.ScheduledTask.create(
     user_id="user_123",
     company_id="company_456",
     cronExpression="0 9 * * 1-5",
+    timezone="Europe/Zurich",
     assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
     prompt="Generate daily report",
     name="Daily report",
@@ -367,6 +376,7 @@ task = unique_sdk.ScheduledTask.create(
     user_id="user_123",
     company_id="company_456",
     cronExpression="0 9 * * 1-5",
+    timezone="Europe/Zurich",
     assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
     chatId="chat_b7ze6mpv0edy324yhjj1d92t",
     prompt="Append today's data",
@@ -401,7 +411,8 @@ unique_sdk.ScheduledTask.delete(
 )
 ```
 
-All methods have `*_async` variants for async usage.
+All methods have `*_async` variants for async usage. Omitting `timezone` on create keeps
+UTC behaviour for backward compatibility; the CLI always requires it.
 
 ## Prerequisites
 

@@ -1,0 +1,96 @@
+name: "[CI] Terraform"
+
+on:
+  workflow_call:
+    inputs:
+      changes:
+        description: 'Pre-computed changes JSON from ci.yaml (skips detection when set)'
+        required: false
+        type: string
+        default: ''
+      matrix:
+        description: 'Pre-computed matrix JSON from ci.yaml (skips select-packages when set)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.filter.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/detect-changes
+        if: inputs.matrix == ''
+        id: detect
+
+      - uses: ./.github/actions/get-packages-matrix
+        if: inputs.matrix == ''
+        id: pkgs
+
+      - name: Select packages
+        if: inputs.matrix == ''
+        id: select
+        uses: ./.github/actions/select-packages
+        with:
+          packages: ${{ steps.pkgs.outputs.packages }}
+          selected: ''
+          changes: ${{ inputs.changes || steps.detect.outputs.changes }}
+
+      - name: Filter packages that ship Terraform
+        id: filter
+        env:
+          RAW_MATRIX: ${{ inputs.matrix || steps.select.outputs.matrix }}
+        run: |
+          INCLUDE=$(jq -c '.include // []' <<<"$RAW_MATRIX")
+          OUT='[]'
+          LEN=$(jq 'length' <<<"$INCLUDE")
+          for i in $(seq 0 $((LEN - 1))); do
+            ENTRY=$(jq -c ".[$i]" <<<"$INCLUDE")
+            DIR=$(jq -r '.dir' <<<"$ENTRY")
+            if [[ -d "$DIR/deploy/terraform" ]]; then
+              OUT=$(jq -c ". + [$ENTRY]" <<<"$OUT")
+            fi
+          done
+          echo "matrix={\"include\":$OUT}" >> "$GITHUB_OUTPUT"
+
+  terraform-validate:
+    needs: prepare
+    if: fromJson(needs.prepare.outputs.matrix).include[0] != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    name: terraform-${{ matrix.id }}
+    env:
+      PACKAGE_DIR: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.13.4
+
+      - name: Validate Terraform modules
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' dir; do
+            echo "Validating: $dir"
+            terraform fmt -check -recursive "$dir"
+            terraform -chdir="$dir" init -backend=false
+            terraform -chdir="$dir" validate
+            terraform -chdir="$dir" test
+          done < <(find "$PACKAGE_DIR/deploy/terraform" -mindepth 2 -maxdepth 2 -type d -print0)

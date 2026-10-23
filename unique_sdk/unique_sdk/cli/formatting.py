@@ -162,6 +162,7 @@ def format_scheduled_task(task: ScheduledTask) -> str:
         ["ID:", getattr(task, "id", "?")],
         ["Name:", getattr(task, "name", None) or "(falls back to prompt)"],
         ["Cron:", getattr(task, "cronExpression", "?")],
+        ["Timezone:", getattr(task, "timezone", None) or "UTC"],
         [
             "Assistant:",
             getattr(task, "assistantName", None) or getattr(task, "assistantId", "?"),
@@ -186,6 +187,7 @@ def format_scheduled_tasks(tasks: list[ScheduledTask]) -> str:
     for t in tasks:
         task_id = getattr(t, "id", "?")
         cron = getattr(t, "cronExpression", "?")
+        timezone = getattr(t, "timezone", None) or "UTC"
         enabled = "on" if getattr(t, "enabled", False) else "off"
         assistant = getattr(t, "assistantName", None) or getattr(t, "assistantId", "?")
         prompt = getattr(t, "prompt", "")
@@ -195,9 +197,20 @@ def format_scheduled_tasks(tasks: list[ScheduledTask]) -> str:
         # Mirrors the web UI: an unnamed task is identified by its prompt snippet.
         label = getattr(t, "name", None) or snippet
         last_run = _format_date(getattr(t, "lastRunAt", None))
-        rows.append([enabled, label, cron, assistant, snippet, task_id, last_run])
+        rows.append(
+            [enabled, label, cron, timezone, assistant, snippet, task_id, last_run]
+        )
 
-    header = ["STATUS", "NAME", "CRON", "ASSISTANT", "PROMPT", "ID", "LAST RUN"]
+    header = [
+        "STATUS",
+        "NAME",
+        "CRON",
+        "TIMEZONE",
+        "ASSISTANT",
+        "PROMPT",
+        "ID",
+        "LAST RUN",
+    ]
     lines = [f"{len(tasks)} scheduled task(s):\n"]
     all_rows = [header] + rows
     lines.extend(_pad_columns(all_rows))

@@ -31,6 +31,7 @@ def test_all_registry_groups_have_helm_keys() -> None:
         "httpClient",
         "jina",
         "perplexitySearch",
+        "requestLimits",
         "tavily",
         "urlSafety",
         "vertexaiAgent",
@@ -46,7 +47,8 @@ def test_provider_groups_are_gated_but_always_on_config_is_not() -> None:
     gated = {g.helm_key: g.gated for g in helm_generated_groups()}
     assert gated["httpClient"] is False
     assert gated["urlSafety"] is False
-    provider_keys = set(gated) - {"httpClient", "urlSafety"}
+    assert gated["requestLimits"] is False
+    provider_keys = set(gated) - {"httpClient", "requestLimits", "urlSafety"}
     assert provider_keys, "expected at least one gated provider group"
     assert all(gated[key] for key in provider_keys)
 
@@ -59,13 +61,16 @@ def test_generated_schema_contains_all_provider_blocks() -> None:
         block = properties[group.helm_key]
         if not group.gated:
             # Non-gated groups get no synthetic ``enabled`` helm gate. A real
-            # activation field (urlSafety.enabled) still appears; httpClient has
-            # none.
+            # activation field (urlSafety.enabled) still appears; httpClient and
+            # requestLimits have none.
             if group.helm_key == "urlSafety":
                 assert block["properties"]["enabled"]["default"] is True
                 assert "connection" not in block["properties"]
                 assert "redirects" in block["properties"]
                 assert "network" in block["properties"]
+            elif group.helm_key == "requestLimits":
+                assert "enabled" not in block["properties"]
+                assert "crawl" in block["properties"]
             else:
                 assert "enabled" not in block["properties"]
                 assert "connection" in block["properties"]
@@ -104,7 +109,14 @@ def test_generated_template_env_vars_match_pydantic_names() -> None:
             if not field.emit_in_template:
                 continue
             assert field.env_var in template
-            assert env_var_name(field.python_name, group.env_prefix) == field.env_var
+            assert (
+                env_var_name(
+                    field.python_name,
+                    group.env_prefix,
+                    group.model.model_fields[field.python_name],
+                )
+                == field.env_var
+            )
 
 
 def test_generated_values_yaml_has_provider_markers() -> None:
@@ -221,9 +233,17 @@ def test_url_safety_lists_are_overridable_in_chart() -> None:
 
     schema = json.loads((CHART_DIR / "values.additional.schema.json").read_text())
     network = schema["properties"]["urlSafety"]["properties"]["network"]["properties"]
-    for key in ("allowedSchemes", "localhostHosts", "metadataHosts"):
+    for key in (
+        "allowedSchemes",
+        "localhostHosts",
+        "metadataHosts",
+        "customApiTrustedPrivateHosts",
+    ):
         assert network[key]["type"] == "array"
         assert network[key]["items"] == {"type": "string"}
+    assert network["customApiTrustedPrivateHosts"]["description"] == (
+        "Maps to env var CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS."
+    )
 
     template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
     assert (

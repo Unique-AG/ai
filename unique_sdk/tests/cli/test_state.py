@@ -85,9 +85,11 @@ class TestShellState:
         result = s.cd("..")
         assert result == "/"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd_relative(self, mock_get_info) -> None:  # type: ignore[no-untyped-def]
+    def test_cd_relative(self, mock_get_info, mock_get_path) -> None:  # type: ignore[no-untyped-def]
         mock_get_info.return_value = {"id": "scope_reports"}
+        mock_get_path.return_value = {"folderPath": "/Reports"}
         s = ShellState(_config())
         result = s.cd("Reports")
         assert result == "/Reports"
@@ -98,9 +100,11 @@ class TestShellState:
             folderPath="/Reports",
         )
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd_absolute(self, mock_get_info) -> None:  # type: ignore[no-untyped-def]
+    def test_cd_absolute(self, mock_get_info, mock_get_path) -> None:  # type: ignore[no-untyped-def]
         mock_get_info.return_value = {"id": "scope_q1"}
+        mock_get_path.return_value = {"folderPath": "/Company/Reports/Q1"}
         s = ShellState(_config())
         result = s.cd("/Company/Reports/Q1")
         assert result == "/Company/Reports/Q1"
@@ -116,9 +120,11 @@ class TestShellState:
         assert result == "/Company/Reports"
         assert s.scope_id == "scope_abc"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd_parent(self, mock_get_info) -> None:  # type: ignore[no-untyped-def]
+    def test_cd_parent(self, mock_get_info, mock_get_path) -> None:  # type: ignore[no-untyped-def]
         mock_get_info.return_value = {"id": "scope_reports"}
+        mock_get_path.return_value = {"folderPath": "/Company/Reports"}
         s = ShellState(_config())
         s._path = "/Company/Reports/Q1"
         s._scope_id = "scope_q1"

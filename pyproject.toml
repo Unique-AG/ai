@@ -7,7 +7,7 @@ readme = "README.md"
 license = "Proprietary"
 requires-python = ">=3.11"
 dependencies = [
-    "unique-toolkit>=2026.40.0",
+    "unique-toolkit>=2026.42.0",
     "griffe-pydantic>=1.1.8",
 ]
 
@@ -61,33 +61,42 @@ conflicts = [
     ],
 ]
 constraint-dependencies = [
-    "aiohttp>=3.14.1",
+    "aiohttp>=3.14.4",
+    "anyio>=4.14.2",
     "authlib>=1.6.12",
-    "copier>=9.14.1",
+    "copier>=9.15.2",
     "crawl4ai>=0.9.0",
-    "cryptography>=48.0.1",
+    "cryptography>=50.0.0",
     "deepdiff>=8.6.2",
     "fastmcp>=3.2.0",
+    "fsspec>=2026.6.0",
+    "httplib2>=0.32.0",
     "idna>=3.15",
     "langchain>=1.3.9",
     "langchain-core>=1.3.3",
     "langchain-openai>=1.1.14",
+    "langgraph-sdk>=0.4.4",
     "langsmith>=0.8.18",
     # litellm 1.83.5–1.83.13 hard-pin python-dotenv==1.0.1 (upstream regression);
     # 1.83.14 relaxes it; 1.84+ relaxes openai==2.24.0.
-    "litellm>=1.84.0",
+    "litellm>=1.88.6",
     "lxml>=6.1.0",
     "mcp>=1.28.1",
-    "pillow>=12.2.0",
+    "mkdocs-material>=9.7.7",
+    "multidict>=6.9.1",
+    "openapi-python-client>=0.29.1",
+    "pillow>=12.3.0",
+    "pyasn1>=0.6.4",
     "pydantic-settings>=2.14.2",
     "pygments>=2.20.0",
-    "pymdown-extensions>=10.21.3",
+    "pymdown-extensions>=11.0.1",
     "pytest>=9.0.3",
     "python-multipart>=0.0.31",
     "requests>=2.33.0",
+    "soupsieve>=2.9",
     "starlette>=1.3.1",
     "tornado>=6.5.5",
-    "urllib3>=2.7.0",
+    "urllib3>=2.8.0",
 ]
 # crawl4ai pins lxml>=5.3,<6.dev0; override to 6.x for XXE fix (Dependabot #742).
 override-dependencies = [

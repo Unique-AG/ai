@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.40.0...unique-search-proxy-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Bug Fixes
+
+* **search-proxy:** validate disabled URL safety proxy config ([#2518](https://github.com/Unique-AG/ai/issues/2518)) ([b6ecd31](https://github.com/Unique-AG/ai/commit/b6ecd31475f591c6c051edef9623015935469644))
+* **search-proxy:** validate redirects during basic crawl ([#2521](https://github.com/Unique-AG/ai/issues/2521)) ([7098320](https://github.com/Unique-AG/ai/commit/70983209f43191e2a634aa08d2e39a921ef4653f))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
 ## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.38.0...unique-search-proxy-v2026.40.0) (2026-09-24)
 
 

@@ -19,6 +19,7 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
 from unique_search_proxy_client.web.core.client.service import (
     create_http_client_registry,
 )
+from unique_search_proxy_client.web.core.crawl_limiter import CrawlLimiter
 from unique_search_proxy_client.web.core.providers import register_builtin_providers
 from unique_search_proxy_client.web.error_handlers import register_exception_handlers
 from unique_search_proxy_client.web.logging_config import (
@@ -28,6 +29,9 @@ from unique_search_proxy_client.web.logging_config import (
 from unique_search_proxy_client.web.middleware.context import RequestContextMiddleware
 from unique_search_proxy_client.web.monitoring import setup_prometheus
 from unique_search_proxy_client.web.settings.app import app_settings
+from unique_search_proxy_client.web.settings.request_limits import (
+    request_limits_settings,
+)
 from unique_search_proxy_client.web.startup_report import (
     log_startup_settings_report,
 )
@@ -60,10 +64,13 @@ logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 async def lifespan(app: FastAPI):
     _LOGGER.info("Starting Unique Search Proxy...")
     log_startup_settings_report(_LOGGER)
-    await maybe_cleanup_auto_provisioned_bing_agents_on_start()
     registry = await create_http_client_registry()
     app.state.http_client_registry = registry
+    app.state.crawl_limiter = CrawlLimiter(
+        request_limits_settings.max_concurrent_crawls,
+    )
     try:
+        await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
         yield
     finally:
         await aclose_private_endpoint_http_client()

@@ -59,6 +59,22 @@ class ProxySettings(BaseSettings):
     pool_timeout_seconds: float = 30.0
     max_connections: int = 100
     max_keepalive_connections: int = 20
+    # KiB rather than bytes: Helm renders numbers >= 1e6 in scientific notation,
+    # which pydantic cannot parse back into an int.
+    max_response_kib: int | None = Field(
+        default=5 * 1024,
+        ge=1,
+        description=(
+            "Largest upstream response body, in KiB, any outbound request may "
+            "deliver before it is aborted. None disables the limit."
+        ),
+    )
+
+    @property
+    def max_response_bytes(self) -> int | None:
+        if self.max_response_kib is None:
+            return None
+        return self.max_response_kib * 1024
 
     @model_validator(mode="after")
     def _validate_proxy_credentials_config(self) -> Self:

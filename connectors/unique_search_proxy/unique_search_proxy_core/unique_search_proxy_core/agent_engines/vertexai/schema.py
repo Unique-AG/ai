@@ -57,6 +57,10 @@ class VertexAIAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.VERTEXAI
         default=vertex_ai_env_settings.force_activate_enterprise_search,
         validate_default=True,
     )
+    enable_redirect_resolution: bool = Field(
+        default=True,
+        description="Whether to enable redirect resolution.",
+    )
 
     @field_validator("enable_enterprise_search", mode="before")
     @classmethod

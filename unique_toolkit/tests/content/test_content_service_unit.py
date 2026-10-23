@@ -83,6 +83,8 @@ class TestContentServiceUnit:
                 },
                 contentIds=None,
                 scoreThreshold=None,
+                mergeStrategy=None,
+                includeScores=None,
             )
 
     def test_search_contents(self):
@@ -186,6 +188,8 @@ class TestContentServiceUnit:
                 },
                 contentIds=None,
                 scoreThreshold=None,
+                mergeStrategy=None,
+                includeScores=None,
             )
 
     @pytest.mark.asyncio

@@ -137,6 +137,20 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .Values.httpClient.tuning.maxKeepaliveConnections | quote }}
+- name: HTTP_CLIENT_MAX_RESPONSE_KIB
+  value: {{ .Values.httpClient.tuning.maxResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB
+  value: {{ .Values.requestLimits.crawl.maxCrawlResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_URLS_PER_CRAWL
+  value: {{ .Values.requestLimits.crawl.maxUrlsPerCrawl | quote }}
+- name: REQUEST_LIMITS_MAX_URL_LENGTH
+  value: {{ .Values.requestLimits.crawl.maxUrlLength | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_FETCHES
+  value: {{ .Values.requestLimits.crawl.maxConcurrentFetches | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS
+  value: {{ .Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
+- name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
+  value: {{ .Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -147,6 +161,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.urlSafety.network.localhostHosts | toJson | quote }}
 - name: URL_SAFETY_METADATA_HOSTS
   value: {{ .Values.urlSafety.network.metadataHosts | toJson | quote }}
+- name: CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS
+  value: {{ .Values.urlSafety.network.customApiTrustedPrivateHosts | toJson | quote }}
 - name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
   value: {{ .Values.urlSafety.network.clusterLocalSuffix | quote }}
 - name: URL_SAFETY_SERVICE_SUFFIX
@@ -287,6 +303,20 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .ctx.Values.httpClient.tuning.maxKeepaliveConnections | quote }}
+- name: HTTP_CLIENT_MAX_RESPONSE_KIB
+  value: {{ .ctx.Values.httpClient.tuning.maxResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB
+  value: {{ .ctx.Values.requestLimits.crawl.maxCrawlResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_URLS_PER_CRAWL
+  value: {{ .ctx.Values.requestLimits.crawl.maxUrlsPerCrawl | quote }}
+- name: REQUEST_LIMITS_MAX_URL_LENGTH
+  value: {{ .ctx.Values.requestLimits.crawl.maxUrlLength | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_FETCHES
+  value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentFetches | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS
+  value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
+- name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
+  value: {{ .ctx.Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -297,6 +327,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.urlSafety.network.localhostHosts | toJson | quote }}
 - name: URL_SAFETY_METADATA_HOSTS
   value: {{ .ctx.Values.urlSafety.network.metadataHosts | toJson | quote }}
+- name: CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS
+  value: {{ .ctx.Values.urlSafety.network.customApiTrustedPrivateHosts | toJson | quote }}
 - name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
   value: {{ .ctx.Values.urlSafety.network.clusterLocalSuffix | quote }}
 - name: URL_SAFETY_SERVICE_SUFFIX

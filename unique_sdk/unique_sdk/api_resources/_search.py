@@ -35,6 +35,8 @@ class Search(APIResource["Search"]):
         contentIds: NotRequired[list[str] | None]
         scoreThreshold: NotRequired[float | None]
         qdrantParams: NotRequired["Search.QdrantSearchParams | None"]
+        mergeStrategy: NotRequired[Literal["ZIP", "RRF", "DBSF"] | None]
+        includeScores: NotRequired[bool | None]
 
     id: str
     chunkId: str
@@ -48,6 +50,8 @@ class Search(APIResource["Search"]):
     startPage: int
     endPage: int
     metadata: dict[str, Any] | None
+    # Only present when the request sets includeScores.
+    score: float | None
 
     @classmethod
     def create(

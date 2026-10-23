@@ -2632,6 +2632,53 @@
             "maxKeepaliveConnections": {
               "description": "Maps to env var HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS.",
               "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxResponseKib": {
+              "description": "Maps to env var HTTP_CLIENT_MAX_RESPONSE_KIB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
+    "requestLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Request Limits configuration. Generated from RequestLimitsSettings (REQUEST_LIMITS_* env vars).",
+      "properties": {
+        "crawl": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxCrawlResponseKib": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxUrlsPerCrawl": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_URLS_PER_CRAWL.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxUrlLength": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_URL_LENGTH.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentFetches": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_FETCHES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentCrawls": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        },
+        "timeouts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxTimeoutSeconds": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_TIMEOUT_SECONDS.",
+              "$ref": "#/$defs/valueSourceInteger"
             }
           }
         }
@@ -2684,6 +2731,13 @@
             },
             "metadataHosts": {
               "description": "Maps to env var URL_SAFETY_METADATA_HOSTS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "customApiTrustedPrivateHosts": {
+              "description": "Maps to env var CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS.",
               "type": "array",
               "items": {
                 "type": "string"

@@ -31,6 +31,9 @@ from unique_search_proxy_client.web.settings.providers import (
     tavily_crawl_credentials,
     vertexai_agent_credentials,
 )
+from unique_search_proxy_client.web.settings.request_limits import (
+    request_limits_settings,
+)
 
 
 @dataclass(frozen=True)
@@ -61,6 +64,7 @@ _REGISTERED_INSTANCES: tuple[BaseSettings, ...] = (
     jina_crawl_credentials,
     firecrawl_crawl_credentials,
     http_client_settings,
+    request_limits_settings,
     prometheus_settings,
 )
 

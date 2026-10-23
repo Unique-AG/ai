@@ -6,7 +6,11 @@ Implementations wrap standard search APIs and grounding (agent) providers behind
 
 ```python
 # SearchEngine.search (services/search_engine/base.py)
-if search_proxy_client_enabled and engine is proxy-supported:
+if (
+    search_proxy_client_enabled
+    and engine is proxy-supported            # config.engine is SearchEngineType / AgentEngineType
+    and await self._proxy_routing_enabled()  # per-engine gate; Custom API checks its feature flag
+):
     return await self._proxy_search(...)   # standard → /v1/search; agent → /v1/agent-search
 return await self._legacy_search(...)      # direct provider call from this process
 ```
@@ -15,7 +19,7 @@ return await self._legacy_search(...)      # direct provider call from this proc
 |------|---------|-------|--------|
 | **Standard** | Google | yes | yes |
 | **Standard** | Brave, Perplexity | yes | **raises** (proxy-only) |
-| **Standard** | Custom API | never | always |
+| **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
 Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Bing/VertexAI).
@@ -127,13 +131,20 @@ Config: `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityCon
 PERPLEXITY_API_KEY=...
 ```
 
-### Custom API Search (always local)
+### Custom API Search
 
-**Provider:** your REST endpoint · **Never proxy-routed**
+**Provider:** your REST endpoint · **Proxy:** legacy + proxy
 
-Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (`LocalSearchEngineType.CUSTOM_API`)
+Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (engine `SearchEngineType.CUSTOM_API`; registered under `LocalSearchEngineType.CUSTOM_API`)
 
-Response must be JSON with a `results` array of `{url, title, snippet, content?}`.
+Response must be JSON with a `results` or legacy `curated` array of
+`{url, title, snippet, content?}`. When
+`FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736` is enabled, the endpoint
+is validated against the Search Proxy URL-safety policy, DNS is pinned, and
+redirects are rejected. Exact private hosts can be operator-approved with
+`CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS`; this exception applies only to
+Customized API endpoints. Use the same value in assistants-core for accurate
+report-only metrics before proxy routing is enabled.
 
 ```bash
 CUSTOM_WEB_SEARCH_API_ENDPOINT=https://your-api.example.com/search
@@ -201,7 +212,14 @@ BING_AGENT_DEFAULT_MARKET=fr-FR
 
 **Provider:** Gemini + Google Search grounding on Vertex AI · Config extends `VertexAIAgentConfig`.
 
-Requires GCP ADC / workload identity. Fields include `vertexai_model_name`, `generation_instructions`, `enable_entreprise_search`, `enable_redirect_resolution`, `requires_scraping`.
+Requires GCP ADC / workload identity. Fields include `vertexai_model_name`,
+`generation_instructions`, `enable_entreprise_search`,
+`enable_redirect_resolution`, and `requires_scraping`.
+
+In proxy mode, Vertex grounding redirect URLs are resolved by Search Proxy,
+where every redirect hop passes URL-safety and shared egress controls. Legacy
+mode returns redirect URLs unchanged instead of resolving them directly from
+assistants-core.
 
 ```bash
 VERTEXAI_AGENT_DEFAULT_VERTEX_AI_MODEL_NAME=gemini-3-flash-preview

@@ -58,9 +58,27 @@ from unique_sdk.cli.commands.files import (
 from unique_sdk.cli.commands.files import (
     is_permission_denied_output as _is_permission_denied_output,
 )
+from unique_sdk.cli.commands.files import (
+    is_upload_error_output as _is_upload_error_output,
+)
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.folders import (
+    is_mkdir_error_output as _is_mkdir_error_output,
+)
 from unique_sdk.cli.commands.mcp import cmd_mcp
-from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.mcp import (
+    is_error_output as _is_mcp_error_output,
+)
+from unique_sdk.cli.commands.navigation import (
+    LS_DEFAULT_LIMIT,
+    LS_MAX_LIMIT,
+    cmd_cd,
+    cmd_ls,
+    cmd_pwd,
+)
+from unique_sdk.cli.commands.navigation import (
+    is_ls_error_output as _is_ls_error_output,
+)
 from unique_sdk.cli.commands.read import cmd_read
 from unique_sdk.cli.commands.read import (
     is_error_output as _is_read_error_output,
@@ -93,6 +111,7 @@ from unique_sdk.cli.commands.subagent import (
 from unique_sdk.cli.commands.web_search import (
     cmd_web_crawl,
     cmd_web_search,
+    cmd_web_search_many,
 )
 from unique_sdk.cli.commands.web_search import (
     is_error_output as _is_web_search_error_output,
@@ -296,13 +315,44 @@ def cd(ctx: click.Context, target: str) -> None:
 
 @main.command()
 @click.argument("target", required=False, default=None)
+@click.option(
+    "--limit",
+    "-l",
+    type=int,
+    default=LS_DEFAULT_LIMIT,
+    show_default=True,
+    help=f"Max folders and max files to show (1-{LS_MAX_LIMIT}).",
+)
+@click.option(
+    "--skip",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Skip this many folders and files first (for paging).",
+)
+@click.option(
+    "--all",
+    "-a",
+    "all_items",
+    is_flag=True,
+    help=f"Show up to {LS_MAX_LIMIT} folders and {LS_MAX_LIMIT} files.",
+)
 @click.pass_context
-def ls(ctx: click.Context, target: str | None) -> None:
+def ls(
+    ctx: click.Context,
+    target: str | None,
+    limit: int,
+    skip: int,
+    all_items: bool,
+) -> None:
     """List folders and files in a directory.
 
     \b
     Without TARGET, lists the current directory. With TARGET, lists
     the specified folder (by name, absolute path, or scope ID).
+    Shows 50 folders and 50 files by default. When a folder holds more,
+    the output says "showing ... of N" and prints the command for the
+    rest: use --skip to page, --limit to show more, or --all.
 
     \b
     Output columns: TYPE  NAME  ID  SIZE  UPDATED
@@ -314,28 +364,34 @@ def ls(ctx: click.Context, target: str | None) -> None:
       unique-cli ls              List root folders
       unique-cli ls /Reports     List a specific path
       unique-cli ls scope_abc    List by scope ID
+      unique-cli ls /Reports --skip 50    Next page of a large folder
+      unique-cli ls /Reports --all        Up to 1000 folders and files
     """
-    output = cmd_ls(LazyState.get(ctx), target)
-    emit(output)
+    output = cmd_ls(
+        LazyState.get(ctx), target, skip=skip, limit=limit, all_items=all_items
+    )
+    emit(output, is_error=_is_ls_error_output)
 
 
 @main.command()
 @click.argument("name")
 @click.pass_context
 def mkdir(ctx: click.Context, name: str) -> None:
-    """Create a new folder under the current directory.
+    """Create a folder by relative name or absolute path.
 
     \b
-    NAME is the folder name to create. Nested paths are supported
-    (e.g., "A/B/C" creates the full hierarchy).
+    A relative NAME is created under the current directory. An absolute
+    path (starting with /) is created from the root, including under
+    /home-<userId>. Nested paths create the full hierarchy.
 
     \b
     Examples:
       unique-cli mkdir Q2
       unique-cli mkdir "2025/Q1"
+      unique-cli mkdir /home-user_1/second-brain/clients/X
     """
     output = cmd_mkdir(LazyState.get(ctx), name)
-    emit(output)
+    emit(output, is_error=_is_mkdir_error_output)
 
 
 @main.command()
@@ -415,7 +471,7 @@ def upload(ctx: click.Context, local_path: str, destination: str | None) -> None
       unique-cli upload ./report.pdf /Archive/2025/
     """
     output = cmd_upload(LazyState.get(ctx), local_path, destination)
-    emit(output)
+    emit(output, is_error=_is_upload_error_output)
 
 
 @main.command()
@@ -841,7 +897,7 @@ def mcp(
     """
     resolved_message_id = _resolve_cli_message_id(ctx, message_id, required=True)
     resolved_chat_id = _resolve_cli_chat_id(ctx, chat_id, required=True)
-    click.echo(
+    emit(
         cmd_mcp(
             LazyState.get(ctx),
             chat_id=resolved_chat_id or "",
@@ -849,7 +905,8 @@ def mcp(
             payload=payload,
             file=file_path,
             stdin=use_stdin,
-        )
+        ),
+        is_error=_is_mcp_error_output,
     )
 
 
@@ -1024,6 +1081,12 @@ def schedule_get(ctx: click.Context, task_id: str) -> None:
     help="Prompt text sent to the assistant on each trigger.",
 )
 @click.option(
+    "--timezone",
+    "-tz",
+    required=True,
+    help="IANA timezone the cron runs in, e.g. Europe/Zurich. Use UTC for UTC.",
+)
+@click.option(
     "--name",
     "-n",
     default=None,
@@ -1046,6 +1109,7 @@ def schedule_create(
     cron: str,
     assistant_id: str,
     prompt: str,
+    timezone: str,
     name: str | None,
     chat_id: str | None,
     disabled: bool,
@@ -1055,7 +1119,7 @@ def schedule_create(
     \b
     Defines a cron schedule, an assistant, and a prompt. The task
     will execute the assistant with the given prompt on every cron
-    match.
+    match. The cron is evaluated in --timezone.
 
     \b
     Cron expression format (5 fields):
@@ -1065,18 +1129,20 @@ def schedule_create(
     Examples:
       unique-cli schedule create \\
         --cron "0 9 * * 1-5" \\
+        --timezone Europe/Zurich \\
         --assistant clx1abc2d0001abcdef123456 \\
         --prompt "Generate the daily sales report" \\
         --name "Daily sales report"
 
       unique-cli schedule create \\
-        -c "*/15 * * * *" -a clx1abc -p "Check inbox" --disabled
+        -c "*/15 * * * *" -tz Europe/Zurich -a clx1abc -p "Check inbox" --disabled
     """
     output = cmd_schedule_create(
         LazyState.get(ctx),
         cron=cron,
         assistant_id=assistant_id,
         prompt=prompt,
+        timezone=timezone,
         name=name,
         chat_id=chat_id,
         enabled=not disabled,
@@ -1095,6 +1161,12 @@ def schedule_create(
 @click.option("--prompt", "-p", default=None, help="Updated prompt text.")
 @click.option("--name", "-n", default=None, help="Updated label (use 'none' to clear).")
 @click.option("--chat-id", default=None, help="Updated chat ID (use 'none' to clear).")
+@click.option(
+    "--timezone",
+    "-tz",
+    default=None,
+    help="IANA timezone the cron runs in (required with --cron).",
+)
 @click.option("--enable", is_flag=True, default=False, help="Enable the task.")
 @click.option("--disable", is_flag=True, default=False, help="Disable the task.")
 @click.pass_context
@@ -1106,6 +1178,7 @@ def schedule_update(
     prompt: str | None,
     name: str | None,
     chat_id: str | None,
+    timezone: str | None,
     enable: bool,
     disable: bool,
 ) -> None:
@@ -1114,10 +1187,11 @@ def schedule_update(
     \b
     TASK_ID is the scheduled task identifier. Only the fields you
     provide will be changed; everything else stays the same.
+    --timezone is required whenever --cron is given.
 
     \b
     Examples:
-      unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5"
+      unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5" --timezone Europe/Zurich
       unique-cli schedule update clx3ghi4f --disable
       unique-cli schedule update clx3ghi4f --enable --prompt "New prompt"
       unique-cli schedule update clx3ghi4f --chat-id none
@@ -1151,6 +1225,7 @@ def schedule_update(
         prompt=prompt,
         name=resolved_name,
         chat_id=resolved_chat_id,
+        timezone=timezone,
         enabled=enabled,
     )
     click.echo(output)
@@ -2112,6 +2187,7 @@ Examples:
   unique-cli web-search search "quarterly earnings 2026"
   unique-cli web-search search "AI regulation" -n 10
   unique-cli web-search search "python tutorial" --json
+  unique-cli web-search search "git history" "redis history" "docker history"
   unique-cli web-search search "sustainability" --include-content --json
   unique-cli web-search search "tax reform" \\
     --engine-config '{"searchEngineName":"Google","fetchSize":3}'
@@ -2120,7 +2196,7 @@ Examples:
 
 
 @web_search_group.command("search", help=_SEARCH_HELP)
-@click.argument("query")
+@click.argument("queries", nargs=-1, required=True)
 @click.option(
     "--fetch-size",
     "-n",
@@ -2176,7 +2252,7 @@ Examples:
 @click.pass_context
 def web_search_search_cmd(
     ctx: click.Context,
-    query: str,
+    queries: tuple[str, ...],
     fetch_size: int | None,
     include_content: bool,
     engine_config_raw: str | None,
@@ -2187,17 +2263,30 @@ def web_search_search_cmd(
 ) -> None:
     """Search the web via the Unique public API."""
     resolved_config = _resolve_web_search_config_path(ctx, config_path)
-    output = cmd_web_search(
-        LazyState.get(ctx),
-        query,
-        fetch_size=fetch_size,
-        include_content=include_content,
-        engine_config_raw=engine_config_raw,
-        crawler_config_raw=crawler_config_raw,
-        output_json=output_json,
-        config_path=resolved_config,
-        chat_id=_resolve_cli_chat_id(ctx, chat_id),
-    )
+    if len(queries) == 1:
+        output = cmd_web_search(
+            LazyState.get(ctx),
+            queries[0],
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+            chat_id=_resolve_cli_chat_id(ctx, chat_id),
+        )
+    else:
+        output = cmd_web_search_many(
+            LazyState.get(ctx),
+            list(queries),
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+            chat_id=_resolve_cli_chat_id(ctx, chat_id),
+        )
     _emit_web_search(ctx, output)
 
 

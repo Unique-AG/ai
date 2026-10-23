@@ -16,10 +16,16 @@ from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.errors import (
+    _reraise_as_language_model_call_error,
+)
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
     ModelCapabilities,
+)
+from unique_toolkit.language_model.provider_token_count import (
+    build_provider_token_count_payload,
 )
 from unique_toolkit.language_model.reference import (
     add_references_to_message,
@@ -130,7 +136,7 @@ def complete(
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.error(f"Error completing: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 async def complete_async(
@@ -170,8 +176,8 @@ async def complete_async(
 
     Raises:
     ------
-        Exception: If an error occurs during the request, an exception is raised
-        and logged.
+        LanguageModelCallError: The API returned the LLM error contract.
+        Exception: Any other request failure is logged and re-raised.
 
     """
     if not user_id:
@@ -214,7 +220,7 @@ async def complete_async(
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.exception(f"Error completing: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 def _add_tools_to_options(
@@ -748,3 +754,35 @@ async def stream_complete_with_references_openai(
     except Exception as e:
         logger.error("Error streaming completion (model=%s): %s", model_name_, e)
         raise
+
+
+async def count_tokens_with_provider_async(
+    *,
+    company_id: str,
+    user_id: str,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+    model_name: LanguageModelName | str,
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    other_options: dict[str, Any] | None = None,
+) -> int:
+    """Count the completion payload with LiteLLM's provider-backed counter."""
+    options, model, messages_dict, _ = _prepare_all_completions_params_util(
+        messages=messages,
+        model_name=model_name,
+        temperature=temperature,
+        tools=tools,
+        other_options=other_options,
+    )
+    raw_tools = options.get("tools")
+    payload = build_provider_token_count_payload(
+        model=model,
+        messages=messages_dict,
+        tools=raw_tools if isinstance(raw_tools, list) else None,
+    )
+    response = await unique_sdk.Integrated.count_tokens_async(
+        user_id=user_id,
+        company_id=company_id,
+        **payload,
+    )
+    return response["input_tokens"]

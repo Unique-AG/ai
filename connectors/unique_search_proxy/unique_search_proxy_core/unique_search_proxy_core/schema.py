@@ -4,7 +4,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal, overload
 
 import humps
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 
@@ -52,6 +52,7 @@ class ProxyErrorCode(StrEnum):
     ENGINE_NOT_CONFIGURED = "ENGINE_NOT_CONFIGURED"
     UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT"
     EMPTY_SEARCH_RESULTS = "EMPTY_SEARCH_RESULTS"
+    RESPONSE_TOO_LARGE = "RESPONSE_TOO_LARGE"
 
 
 class ErrorDetail(BaseModel):
@@ -97,7 +98,9 @@ class WebSearchResult(BaseModel):
 
 class WebSearchResults(BaseModel):
     model_config = camelized_model_config
-    results: list[WebSearchResult]
+    results: list[WebSearchResult] = Field(
+        validation_alias=AliasChoices("results", "curated")
+    )
 
     def __len__(self) -> int:
         return len(self.results)

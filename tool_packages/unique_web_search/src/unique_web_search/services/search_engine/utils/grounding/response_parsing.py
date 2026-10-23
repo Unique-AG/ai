@@ -46,21 +46,19 @@ async def convert_response_to_search_results(
 
 
 class JsonConversionStrategy(ResponseParser):
-    """Extract a fenced JSON block from the response and validate it directly.
+    """Validate a ``GroundingSearchResults``-shaped JSON response directly.
 
-    Expects the response to contain a ``GroundingSearchResults``-shaped
-    JSON object wrapped in a ```json ... ``` code fence.
+    Accepts JSON wrapped in a ```json ... ``` code fence or a bare JSON object.
 
     Raises:
-        ValueError: If no JSON code fence is found in the response.
+        ValueError: If the response does not contain valid results JSON.
     """
 
     async def __call__(self, response: str) -> list[WebSearchResult]:
         json_match = _JSON_PATTERN.search(response)
-        if not json_match:
-            raise ValueError("No JSON found in the response")
+        payload = json_match.group(1) if json_match else response
         return GroundingSearchResults.model_validate_json(
-            json_match.group(1)
+            payload
         ).to_web_search_results()
 
 
