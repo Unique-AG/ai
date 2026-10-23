@@ -75,7 +75,7 @@ class RequestLimitsSettings(BaseSettings):
         ),
     )
     max_concurrent_crawls: int = Field(
-        default=2,
+        default=4,
         ge=1,
         description=(
             "Crawl requests one worker process runs at once. Requests beyond "

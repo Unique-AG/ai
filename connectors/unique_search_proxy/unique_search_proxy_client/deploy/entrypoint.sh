@@ -4,7 +4,7 @@ set -e
 # Configuration with sensible defaults
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8080}"
-WORKERS="${WORKERS:-4}"
+WORKERS="${WORKERS:-2}"
 TIMEOUT="${TIMEOUT:-120}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
 
