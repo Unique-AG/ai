@@ -19,7 +19,7 @@ Platform services need web search, grounded agent research, and URL crawling —
 The proxy exposes three **capabilities**:
 
 1. **Standard search** — query a search engine, get normalised results (`google`, `brave`, `perplexity`)
-2. **Agent search (grounding)** — grounded research via LLM agents (`bing`, `vertexai`); returns opaque text for the caller to parse
+2. **Agent search (grounding)** — grounded research via LLM agents (`bing`, `vertexai`); returns opaque text, plus any citations the provider attached to it, for the caller to parse
 3. **URL crawl** — fetch and extract page content (`Basic`, `Tavily`, `Jina`, `Firecrawl`)
 
 ---
@@ -144,7 +144,7 @@ sequenceDiagram
 2. **Client owns execution** — secrets, egress, and provider SDKs stay in the proxy pod.
 3. **SDK owns transport** — thin OpenAPI wrapper; no duplicated business logic.
 4. **Flat HTTP bodies** — no nested `config` + `invocation` on the wire; merge happens in core before the call.
-5. **Thin agent egress** — agent search returns opaque `answer`; parsing is a caller concern.
+5. **Thin agent egress** — agent search returns opaque `answer` and the `citations` the provider attached to it; parsing is a caller concern.
 6. **Fail closed** — missing credentials → `503 ENGINE_NOT_CONFIGURED` with env var names.
 
 ---

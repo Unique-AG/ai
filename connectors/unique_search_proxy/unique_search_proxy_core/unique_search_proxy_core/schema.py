@@ -186,11 +186,42 @@ class SearchResponse(BaseModel):
     curated: list[WebSearchResult]
 
 
+class AnswerSpanCitation(BaseModel):
+    """A source cited at a specific span of the answer text.
+
+    Grounding with Bing Search reports these as ``url_citation`` annotations:
+    the agent writes a marker such as ``【4:0†source】`` into its answer, and
+    Foundry attaches the source to that marker's character span.
+    """
+
+    model_config = camelized_model_config
+
+    url: str = Field(description="URL of the cited source")
+    title: str | None = Field(
+        default=None,
+        description="Title of the cited source",
+    )
+    marker: str = Field(
+        description="Answer text between start_index and end_index",
+    )
+    start_index: int = Field(
+        description="Character offset in the answer where the marker starts",
+    )
+    end_index: int = Field(
+        description="Character offset in the answer just past the marker",
+    )
+    output_item_id: str | None = Field(
+        default=None,
+        description="Output item the citation is attached to, if the provider reports one",
+    )
+
+
 class AgentSearchResponse(BaseModel):
     """Result of an agent-based (grounded) search.
 
-    Thin egress contract: opaque ``answer`` text from the provider plus ``raw``
-    for debugging. Consumers interpret ``answer`` (JSON parsing, citations, etc.).
+    Thin egress contract: opaque ``answer`` text from the provider, the
+    citations the provider attached to it, and ``raw`` for debugging. Consumers
+    interpret ``answer`` (JSON parsing, mapping citations, etc.).
     """
 
     model_config = camelized_model_config
@@ -200,6 +231,13 @@ class AgentSearchResponse(BaseModel):
     answer: str = Field(
         default="",
         description="Agent response text as returned by the provider (opaque to the proxy)",
+    )
+    citations: list[AnswerSpanCitation] = Field(
+        default_factory=list,
+        description=(
+            "Sources cited in the answer. Only Grounding with Bing Search "
+            "reports citations; other engines return an empty list."
+        ),
     )
     raw: Any = Field(default=None, description="Opaque provider payload")
 

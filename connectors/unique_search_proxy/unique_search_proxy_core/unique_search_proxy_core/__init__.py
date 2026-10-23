@@ -19,6 +19,8 @@ from unique_search_proxy_core.errors import (
     ValidationProxyError,
 )
 from unique_search_proxy_core.schema import (
+    AgentSearchResponse,
+    AnswerSpanCitation,
     CrawlResponse,
     ErrorDetail,
     ErrorResponse,
@@ -35,6 +37,8 @@ __all__ = [
     "RequestContext",
     "USER_ID_HEADER",
     "BadRequestProxyError",
+    "AgentSearchResponse",
+    "AnswerSpanCitation",
     "CrawlResponse",
     "EmptySearchResultsError",
     "EngineNotConfiguredError",

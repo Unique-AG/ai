@@ -136,7 +136,7 @@ flowchart TB
 
 | Module | Responsibility |
 |--------|----------------|
-| `schema.py` | Shared API models: `SearchResponse`, `AgentSearchResponse`, `CrawlResponse`, `WebSearchResult`, `ErrorResponse`, SSE events |
+| `schema.py` | Shared API models: `SearchResponse`, `AgentSearchResponse` (+ `AnswerSpanCitation`), `CrawlResponse`, `WebSearchResult`, `ErrorResponse`, SSE events |
 | `errors.py` | `ProxyError` hierarchy and stable `ProxyErrorCode` enum |
 | `param_policy/exposable_param.py` | `ExposableParam` value object, factory-default merge, type introspection, OpenAPI naming |
 | `param_policy/exposable_config.py` | `ExposableParamsConfig` — the `exposed_params_model()` / `merge()` lifecycle shared by search and agent config bases |

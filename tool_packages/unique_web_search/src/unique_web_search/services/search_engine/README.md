@@ -31,7 +31,7 @@ Deployment configs for Google / Brave / Perplexity (and agent base fields) live 
 | | Standard | Agent (grounding) |
 |--|----------|-------------------|
 | Proxy route | `POST /v1/search` | `POST /v1/agent-search` |
-| Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text → parsed locally |
+| Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text (+ provider `citations`) → parsed locally |
 | LLM knobs | `ExposableParam` + `config.merge()` | `ExposableParam` (Bing only) |
 | Typical scrape | Often yes (Google) | Often no (`requires_scraping=false`) |
 
@@ -158,7 +158,13 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 
 ### Bing (Grounding with Bing)
 
-**Provider:** Azure AI Foundry Agent with Bing grounding · Config extends `BingAgentConfig` with `requires_scraping`, `language_model`, etc.
+**Provider:** Azure AI Foundry Agent with Bing grounding · Config extends `BingAgentConfig` with `requires_scraping`.
+
+The agent answers with one bullet per source, each ending in a citation marker.
+`BingCitationParser` (`utils/grounding/bing/citation_parsing.py`) turns each
+cited source into one result, taking its URL and title only from Foundry's
+`url_citation` annotations. Unusable citations and lines are dropped one by one
+and counted in the `grounding_*` metrics rather than failing the whole answer.
 
 | Field | Notes |
 |-------|-------|

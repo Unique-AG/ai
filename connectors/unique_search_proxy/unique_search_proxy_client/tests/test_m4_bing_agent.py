@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, call, patch
@@ -10,7 +11,10 @@ from openai import APIError, InternalServerError, NotFoundError
 from openai.types.responses.response import Response
 from openai.types.responses.response_completed_event import ResponseCompletedEvent
 from openai.types.responses.response_output_message import ResponseOutputMessage
-from openai.types.responses.response_output_text import ResponseOutputText
+from openai.types.responses.response_output_text import (
+    AnnotationURLCitation,
+    ResponseOutputText,
+)
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 from unique_search_proxy_core.agent_engines.bing import settings as bing_settings
 from unique_search_proxy_core.agent_engines.bing.grounding import (
@@ -22,6 +26,7 @@ from unique_search_proxy_core.agent_engines.bing.grounding import (
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.errors import EngineNotConfiguredError, UpstreamError
 from unique_search_proxy_core.http_client import DirectRoute
+from unique_search_proxy_core.schema import AnswerSpanCitation
 
 from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
     cleanup_auto_provisioned_bing_agents,
@@ -33,7 +38,12 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client as get_openai_client_from_client_module,
 )
+from unique_search_proxy_client.web.core.agent_engines.bing.instructions import (
+    build_bing_citation_instructions,
+)
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
+    BingStreamChunk,
+    _extract_response_url_citations,
     _is_missing_agent_error,
     create_bing_agent,
     get_bing_grounding_tool,
@@ -71,8 +81,8 @@ def _bing_service() -> BingAgentSearchService:
 async def _fake_stream(
     *_args: Any,
     **_kwargs: Any,
-) -> AsyncIterator[tuple[str, Any]]:
-    yield "agent answer text", {"messages": []}
+) -> AsyncIterator[BingStreamChunk]:
+    yield BingStreamChunk("agent answer text", {"messages": []})
 
 
 def _stream_error(
@@ -86,6 +96,104 @@ def _stream_error(
         request=httpx.Request("POST", "https://example.azure.com/responses"),
         body=body,
     )
+
+
+@pytest.mark.ai
+def test_extract_response_url_citations_returns_annotation_payload() -> None:
+    text = "Grounded answer [1]"
+    annotation = AnnotationURLCitation.model_construct(
+        type="url_citation",
+        url="https://canonical.example/article",
+        title="Canonical article",
+        start_index=16,
+        end_index=19,
+    )
+    content = ResponseOutputText.model_construct(
+        type="output_text",
+        text=text,
+        annotations=[annotation],
+        logprobs=[],
+    )
+    message = ResponseOutputMessage.model_construct(
+        type="message",
+        id="msg-citation",
+        role="assistant",
+        status="completed",
+        content=[content],
+    )
+    response = Response.model_construct(
+        id="resp-citation",
+        created_at=0,
+        model="gpt-5.1",
+        object="response",
+        output=[message],
+        parallel_tool_calls=True,
+        tool_choice="auto",
+        tools=[],
+    )
+
+    with patch(
+        "unique_search_proxy_client.web.core.agent_engines.bing.runner._LOGGER"
+    ) as logger:
+        citations = _extract_response_url_citations(response)
+
+    assert len(citations) == 1
+    assert citations[0].url == "https://canonical.example/article"
+    assert citations[0].marker == "[1]"
+    logger.info.assert_called_once()
+    assert logger.info.call_args.args[1:] == ("resp-citation", 1)
+
+
+@pytest.mark.ai
+def test_response_citation_offsets_cover_concatenated_output_items() -> None:
+    messages: list[ResponseOutputMessage] = []
+    for item_id, text, start, end, url in [
+        ("msg-1", "First [1]", 6, 9, "https://canonical.example/one"),
+        ("msg-2", "Second [2]", 7, 10, "https://canonical.example/two"),
+    ]:
+        annotation = AnnotationURLCitation.model_construct(
+            type="url_citation",
+            url=url,
+            title=item_id,
+            start_index=start,
+            end_index=end,
+        )
+        content = ResponseOutputText.model_construct(
+            type="output_text",
+            text=text,
+            annotations=[annotation],
+            logprobs=[],
+        )
+        messages.append(
+            ResponseOutputMessage.model_construct(
+                type="message",
+                id=item_id,
+                role="assistant",
+                status="completed",
+                content=[content],
+            )
+        )
+    response = Response.model_construct(
+        id="resp-multiple-items",
+        created_at=0,
+        model="gpt-5.1",
+        object="response",
+        output=messages,
+        parallel_tool_calls=True,
+        tool_choice="auto",
+        tools=[],
+    )
+
+    citations = _extract_response_url_citations(response)
+
+    assert response.output_text == "First [1]Second [2]"
+    assert [(item.start_index, item.end_index) for item in citations] == [
+        (6, 9),
+        (16, 19),
+    ]
+    assert [
+        response.output_text[item.start_index : item.end_index] for item in citations
+    ] == ["[1]", "[2]"]
 
 
 class _CloseableAsyncStream:
@@ -233,7 +341,7 @@ class TestBingAgentSearchService:
         async def transient_then_success(
             *_args: Any,
             **_kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
+        ) -> AsyncIterator[BingStreamChunk]:
             nonlocal calls
             calls += 1
             if calls < 3:
@@ -241,7 +349,7 @@ class TestBingAgentSearchService:
                     "The model deployment encountered an error processing your request",
                     code="server_error",
                 )
-            yield "agent answer text", {"messages": []}
+            yield BingStreamChunk("agent answer text", {"messages": []})
 
         with (
             patch(
@@ -286,10 +394,10 @@ class TestBingAgentSearchService:
         async def partial_then_failure(
             *_args: Any,
             **_kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
+        ) -> AsyncIterator[BingStreamChunk]:
             nonlocal calls
             calls += 1
-            yield "partial", {"type": "response.output_text.delta"}
+            yield BingStreamChunk("partial", {"type": "response.output_text.delta"})
             raise _stream_error(
                 "The model deployment encountered an error processing your request",
                 code="server_error",
@@ -321,6 +429,58 @@ class TestBingAgentSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_search_exposes_typed_citations(self, bing_env: None) -> None:
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+
+        async def _cited_stream(
+            *_args: Any,
+            **_kwargs: Any,
+        ) -> AsyncIterator[BingStreamChunk]:
+            yield BingStreamChunk("Grounded claim", {})
+            yield BingStreamChunk(
+                "",
+                {"type": "response.completed"},
+                answer="Grounded claim [1]",
+                citations=[
+                    AnswerSpanCitation(
+                        url="https://canonical.example/source",
+                        title="Canonical source",
+                        marker="[1]",
+                        start_index=15,
+                        end_index=18,
+                        output_item_id="msg-1",
+                    )
+                ],
+            )
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=_cited_stream,
+            ),
+        ):
+            result = await _bing_service().search(_bing_request())
+
+        assert result.answer == "Grounded claim [1]"
+        assert len(result.citations) == 1
+        assert result.citations[0].url == "https://canonical.example/source"
+        assert result.citations[0].marker == "[1]"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_request_knobs_reach_the_grounding_configuration(
         self, bing_env: None
     ) -> None:
@@ -341,9 +501,9 @@ class TestBingAgentSearchService:
         async def _recording_stream(
             *_args: Any,
             **kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
+        ) -> AsyncIterator[BingStreamChunk]:
             recorded.update(kwargs)
-            yield "agent answer text", {}
+            yield BingStreamChunk("agent answer text", {})
 
         with (
             patch(
@@ -402,9 +562,9 @@ class TestBingAgentSearchService:
         async def _recording_stream(
             *_args: Any,
             **kwargs: Any,
-        ) -> AsyncIterator[tuple[str, Any]]:
+        ) -> AsyncIterator[BingStreamChunk]:
             recorded.update(kwargs)
-            yield "agent answer text", {}
+            yield BingStreamChunk("agent answer text", {})
 
         with (
             patch(
@@ -476,6 +636,72 @@ class TestGetBingGroundingTool:
         assert config.market is None
         assert config.set_lang is None
         assert config.freshness is None
+
+
+_BENCHMARKED_PROMPT_SHA256 = (
+    "12b6b575b1db60479de29265fd70d44da07858ba3cb1867b0466f6172868d752"
+)
+
+
+class TestBuildBingCitationInstructions:
+    @pytest.mark.ai
+    def test_build_bing_citation_instructions__matches_benchmarked_prompt(
+        self,
+    ) -> None:
+        """
+        Purpose: Pin the rendered citation prompt to the benchmarked text.
+        Why this matters: The prompt is part of the Foundry agent name hash, so any
+            edit provisions new agents, and unique_web_search pins the same hash
+            because both copies feed the same citation parser.
+        Setup summary: Render with fixed admin text and compare the SHA-256 digest.
+        """
+        rendered = build_bing_citation_instructions("Test instructions")
+
+        assert (
+            hashlib.sha256(rendered.encode()).hexdigest() == _BENCHMARKED_PROMPT_SHA256
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "generation_instructions",
+        [
+            "Answer {{ query }} briefly.",
+            "{% if x %}Use x.{% endif %}",
+            "Keep {# this #} note.",
+        ],
+    )
+    def test_build_bing_citation_instructions__keeps_jinja_syntax_in_admin_text(
+        self, generation_instructions: str
+    ) -> None:
+        """
+        Purpose: Verify admin-supplied text is inserted verbatim, not evaluated.
+        Why this matters: Generation instructions come from the space config; if
+            they were part of the template source, Jinja syntax in them would be
+            executed or silently dropped.
+        Setup summary: Render admin text containing Jinja syntax and assert it
+            appears unchanged before the citation section.
+        """
+        rendered = build_bing_citation_instructions(generation_instructions)
+
+        assert rendered.startswith(
+            f"{generation_instructions}\n\n## Source-isolated evidence list\n"
+        )
+
+    @pytest.mark.ai
+    def test_build_bing_citation_instructions__strips_trailing_admin_whitespace(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify trailing whitespace in admin text does not widen the gap
+            before the citation section.
+        Why this matters: Admin text often ends with newlines; extra whitespace
+            would change the agent name for an equivalent prompt.
+        Setup summary: Render text with trailing newlines and spaces and assert a
+            single blank line separates it from the citation section.
+        """
+        rendered = build_bing_citation_instructions("Be helpful.\n\n  ")
+
+        assert rendered.startswith("Be helpful.\n\n## Source-isolated evidence list\n")
 
 
 class TestConfigHashAndAgentName:
@@ -701,6 +927,49 @@ class TestCreateAndStreamOptimistic:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_stream_verifies_agent_after_undecodable_create_response(
+        self, bing_env: None
+    ) -> None:
+        expected_name = bing_agent_name(
+            model="gpt-5.1",
+            instructions="Be helpful.",
+            grounding=_grounding(),
+        )
+        missing = NotFoundError(
+            message=f"Agent {expected_name} not found",
+            response=MagicMock(status_code=404, headers={}),
+            body=None,
+        )
+        mock_openai = MagicMock()
+        mock_openai.responses.create = AsyncMock(
+            side_effect=[missing, _fake_response_stream()],
+        )
+        mock_client = MagicMock()
+        mock_client.agents.create_version = AsyncMock(
+            side_effect=UnicodeDecodeError("utf-8", b"\x8b", 0, 1, "invalid"),
+        )
+
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.bing.runner.get_openai_client",
+            return_value=mock_openai,
+        ):
+            chunks = [
+                item
+                async for item in stream_bing_grounding_agent(
+                    mock_client,
+                    query="hello",
+                    model="gpt-5.1",
+                    instructions="Be helpful.",
+                    grounding=_grounding(),
+                    timeout=120,
+                )
+            ]
+
+        assert chunks[0][0] == "agent answer text"
+        assert mock_openai.responses.create.await_count == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_stream_falls_back_to_completed_output_text(
         self, bing_env: None
     ) -> None:
@@ -728,8 +997,10 @@ class TestCreateAndStreamOptimistic:
             ]
 
         assert len(chunks) == 1
-        assert chunks[0][0] == "agent answer text"
-        assert chunks[0][1]["type"] == "response.completed"
+        assert chunks[0].delta == "agent answer text"
+        assert chunks[0].raw_event["type"] == "response.completed"
+        assert "answer" not in chunks[0].raw_event
+        assert chunks[0].answer == "agent answer text"
         assert stream.closed is True
 
 

@@ -40,7 +40,7 @@ Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `v
 
 ### Agent search (grounding)
 
-An upstream AI agent / grounded model searches and returns opaque text that this tool parses into `WebSearchResult`s.
+An upstream AI agent / grounded model searches and returns opaque text that this tool parses into `WebSearchResult`s. Bing results take their URLs only from the citations Foundry attaches to the answer, never from the answer text.
 
 | Engine | Proxy | Notes |
 |--------|-------|-------|

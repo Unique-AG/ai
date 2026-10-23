@@ -10,6 +10,8 @@ safety net that catches template variable mismatches before they produce degrade
 output.
 """
 
+import hashlib
+
 import pytest
 from unique_toolkit._common.utils.jinja.render import render_template
 
@@ -37,6 +39,9 @@ from unique_web_search.services.content_processing.processing_strategies.schema 
     LLMProcessorResponse,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.search_engine.utils.grounding.bing.models import (
+    build_bing_citation_instructions,
+)
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -763,3 +768,76 @@ class TestPromptConfigFields:
             f"  Missing: {expected_fields - actual_fields}\n"
             f"  Extra:   {actual_fields - expected_fields}"
         )
+
+
+# ---------------------------------------------------------------------------
+# bing/citation_instructions.j2
+# ---------------------------------------------------------------------------
+
+_BENCHMARKED_BING_PROMPT_SHA256 = (
+    "12b6b575b1db60479de29265fd70d44da07858ba3cb1867b0466f6172868d752"
+)
+
+
+class TestBingCitationInstructionsTemplate:
+    """Tests for bing/citation_instructions.j2 used by the Bing grounding agent."""
+
+    @pytest.mark.ai
+    def test_build_bing_citation_instructions__matches_benchmarked_prompt(
+        self,
+    ) -> None:
+        """
+        Purpose: Pin the rendered citation prompt to the benchmarked text.
+        Why this matters: The prompt is part of the Foundry agent name hash, so any
+            edit provisions new agents, and the search proxy client pins the same
+            hash because both copies feed the same citation parser.
+        Setup summary: Render with fixed admin text and compare the SHA-256 digest.
+        """
+        rendered = build_bing_citation_instructions("Test instructions")
+
+        assert (
+            hashlib.sha256(rendered.encode()).hexdigest()
+            == _BENCHMARKED_BING_PROMPT_SHA256
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "generation_instructions",
+        [
+            "Answer {{ query }} briefly.",
+            "{% if x %}Use x.{% endif %}",
+            "Keep {# this #} note.",
+        ],
+    )
+    def test_build_bing_citation_instructions__keeps_jinja_syntax_in_admin_text(
+        self, generation_instructions: str
+    ) -> None:
+        """
+        Purpose: Verify admin-supplied text is inserted verbatim, not evaluated.
+        Why this matters: Generation instructions come from the space config; if
+            they were part of the template source, Jinja syntax in them would be
+            executed or silently dropped.
+        Setup summary: Render admin text containing Jinja syntax and assert it
+            appears unchanged before the citation section.
+        """
+        rendered = build_bing_citation_instructions(generation_instructions)
+
+        assert rendered.startswith(
+            f"{generation_instructions}\n\n## Source-isolated evidence list\n"
+        )
+
+    @pytest.mark.ai
+    def test_build_bing_citation_instructions__strips_trailing_admin_whitespace(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify trailing whitespace in admin text does not widen the gap
+            before the citation section.
+        Why this matters: Admin text often ends with newlines; extra whitespace
+            would change the agent name for an equivalent prompt.
+        Setup summary: Render text with trailing newlines and spaces and assert a
+            single blank line separates it from the citation section.
+        """
+        rendered = build_bing_citation_instructions("Be helpful.\n\n  ")
+
+        assert rendered.startswith("Be helpful.\n\n## Source-isolated evidence list\n")

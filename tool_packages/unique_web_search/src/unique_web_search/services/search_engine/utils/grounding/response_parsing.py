@@ -33,14 +33,37 @@ async def convert_response_to_search_results(
     Raises:
         ValueError: If every strategy fails to parse the response.
     """
-    for strategy in conversion_strategies:
+    for strategy_index, strategy in enumerate(conversion_strategies):
+        strategy_name = strategy.__class__.__name__
+        is_fallback = strategy_index > 0
         try:
             _LOGGER.info(
-                f"Trying parsing response with strategy: {strategy.__class__.__name__}"
+                "Trying grounding response parser strategy=%s strategy_index=%d "
+                "fallback=%s",
+                strategy_name,
+                strategy_index,
+                is_fallback,
             )
-            return await strategy(response)
-        except Exception as e:
-            _LOGGER.exception(f"Error converting response to search results: {e}")
+            results = await strategy(response)
+            _LOGGER.info(
+                "Grounding response parser succeeded strategy=%s strategy_index=%d "
+                "fallback=%s result_count=%d",
+                strategy_name,
+                strategy_index,
+                is_fallback,
+                len(results),
+            )
+            return results
+        except Exception as exc:
+            # Parse errors can quote the answer text, so only the type is logged.
+            _LOGGER.warning(
+                "Grounding response parser failed strategy=%s strategy_index=%d "
+                "fallback=%s error_type=%s",
+                strategy_name,
+                strategy_index,
+                is_fallback,
+                type(exc).__name__,
+            )
             continue
     raise ValueError("No conversion strategy found for the response")
 

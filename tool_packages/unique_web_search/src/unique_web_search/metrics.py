@@ -15,6 +15,21 @@ custom_api_url_safety_report = m.counter(
     "Report-only URL safety outcomes for legacy Custom API searches",
     ["outcome", "reason_category"],
 )
+grounding_parse_failures = m.counter(
+    "grounding_parse_failures_total",
+    "Grounded agent answers that yielded no usable sources",
+    ["engine", "reason"],
+)
+grounding_dropped_citations = m.counter(
+    "grounding_dropped_citations_total",
+    "Citations dropped from grounded agent answers because they failed validation",
+    ["engine", "reason"],
+)
+grounding_dropped_lines = m.counter(
+    "grounding_dropped_lines_total",
+    "Answer lines dropped from grounded agent answers",
+    ["engine", "reason"],
+)
 
 # End-to-End Tool (P1)
 tool_duration = m.histogram(
