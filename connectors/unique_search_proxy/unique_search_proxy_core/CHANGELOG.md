@@ -1,5 +1,30 @@
 # Changelog
 
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.42.0...unique-search-proxy-core-v2026.44.0) (2026-10-23)
+
+
+### Features
+
+* **search-proxy:** add Customized API provider [UN-26736] ([#2537](https://github.com/Unique-AG/ai/issues/2537)) ([12428e5](https://github.com/Unique-AG/ai/commit/12428e5d3e2568b3d3058ccb964fd85dcaea81a2))
+* **search-proxy:** attribute web search requests to company, user and entry point [UN-24394] ([#2520](https://github.com/Unique-AG/ai/issues/2520)) ([5714fbd](https://github.com/Unique-AG/ai/commit/5714fbdac325d42af0b87eaf4843568c3ba8655e))
+* **web-search:** gate Customized API proxy rollout [UN-26736] ([#2538](https://github.com/Unique-AG/ai/issues/2538)) ([6b85a0e](https://github.com/Unique-AG/ai/commit/6b85a0ef8b1ab15c2ae7a717c52ada7d2a84eeba))
+
+
+### Bug Fixes
+
+* **search-proxy:** bound total bytes per crawl request ([#2584](https://github.com/Unique-AG/ai/issues/2584)) ([91630e4](https://github.com/Unique-AG/ai/commit/91630e4579a87c2845b69abb8505bb9171bc8a73))
+* **search-proxy:** cap decoded crawl bodies ([#2583](https://github.com/Unique-AG/ai/issues/2583)) ([7d86f34](https://github.com/Unique-AG/ai/commit/7d86f34085d37e19ef8bb66d8e6094d1fec0d6b4))
+* **search-proxy:** cap outbound response size ([#2582](https://github.com/Unique-AG/ai/issues/2582)) ([2997f00](https://github.com/Unique-AG/ai/commit/2997f0028fb5265f45645b719e9c193fc3cf8f89))
+* **search-proxy:** resolve Vertex redirects safely [UN-26738] ([#2599](https://github.com/Unique-AG/ai/issues/2599)) ([540cd90](https://github.com/Unique-AG/ai/commit/540cd9089e4bdcb82c96189c9dadfba64890e388))
+* **search-proxy:** route agent search through egress proxy ([#2559](https://github.com/Unique-AG/ai/issues/2559)) ([52eee59](https://github.com/Unique-AG/ai/commit/52eee59cfafc6c7bf5e9b7ec2e2a5216a783f5ee))
+* **web-search:** stop logging crawled URLs and search queries [UN-27835] ([#2600](https://github.com/Unique-AG/ai/issues/2600)) ([454dff2](https://github.com/Unique-AG/ai/commit/454dff2247a074ae7dd5d80f6c81e3c4476fa9ee))
+* **web-search:** use Foundry citation URLs for Bing results [UN-26467] ([#2614](https://github.com/Unique-AG/ai/issues/2614)) ([c3fabcf](https://github.com/Unique-AG/ai/commit/c3fabcfa333714e79cea3160ed201789950fb171))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.40.0...unique-search-proxy-core-v2026.42.0) (2026-10-09)
 
 
