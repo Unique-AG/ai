@@ -32,7 +32,7 @@ Query → normalised results (URL / title / snippet / optional content). Optiona
 | Engine | Proxy | Notes |
 |--------|-------|-------|
 | Google | legacy + proxy | Requires scraping by default |
-| Brave | **proxy-only** | Rich snippets; `ExposableParam` knobs |
+| Brave | **proxy-only** | Rich snippets; configurable `requires_scraping`; `ExposableParam` knobs |
 | Perplexity | **proxy-only** | Content extraction knobs; `ExposableParam` |
 | Custom API | legacy + proxy | Your REST endpoint; proxy mode rejects redirects |
 

@@ -4,7 +4,10 @@ import pytest
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 
-from unique_web_search.services.search_engine.brave import BraveSearch
+from unique_web_search.services.search_engine.brave import (
+    BraveSearch,
+    BraveSearchConfig,
+)
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
@@ -34,6 +37,15 @@ class TestBraveSearchConfig:
         assert config.country.expose is False
         assert config.country.value == "US"
 
+    def test_requires_scraping_defaults_to_false(self):
+        assert BraveSearchConfig().requires_scraping is False
+
+    def test_requires_scraping_parses_from_camel_case_space_config(self):
+        config = BraveSearchConfig.model_validate(
+            {"engine": "brave", "requiresScraping": True}
+        )
+        assert config.requires_scraping is True
+
 
 @pytest.fixture
 def _mock_brave_settings():
@@ -57,6 +69,10 @@ class TestBraveSearchInit:
     def test_requires_scraping_defaults_to_false(self, _mock_brave_settings):
         search = BraveSearch(BraveConfig())
         assert search.requires_scraping is False
+
+    def test_requires_scraping_follows_config(self, _mock_brave_settings):
+        search = BraveSearch(BraveSearchConfig(requires_scraping=True))
+        assert search.requires_scraping is True
 
 
 class TestBraveSearch:
@@ -117,3 +133,27 @@ class TestBraveSearch:
                 snippet="Details",
             )
         ]
+
+    @pytest.mark.asyncio
+    async def test_proxy_search_omits_requires_scraping(self, _mock_brave_settings):
+        search = BraveSearch(BraveSearchConfig(requires_scraping=True))
+        mock_search = AsyncMock(return_value=Mock(curated=[]))
+
+        with (
+            patch(
+                "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+                True,
+            ),
+            patch(
+                "unique_web_search.services.search_engine.base.open_search_proxy_client"
+            ) as mock_open_client,
+        ):
+            mock_client = AsyncMock()
+            mock_client.search.search = mock_search
+            mock_open_client.return_value.__aenter__.return_value = mock_client
+
+            await search.search("test query")
+
+        call_kwargs = mock_search.await_args.kwargs
+        assert call_kwargs["engine"] == "brave"
+        assert "requires_scraping" not in call_kwargs

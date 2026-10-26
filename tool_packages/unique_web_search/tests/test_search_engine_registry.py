@@ -8,7 +8,7 @@ from unique_search_proxy_core.search_engines import SearchEngineType
 
 from unique_web_search.services.search_engine import (
     BingSearchConfig,
-    BraveConfig,
+    BraveSearchConfig,
     CustomAPIConfig,
     GoogleConfig,
     PerplexityConfig,
@@ -22,7 +22,7 @@ _EXPECTED_CONFIG_BASES: dict[
     type,
 ] = {
     SearchEngineType.GOOGLE: GoogleConfig,
-    SearchEngineType.BRAVE: BraveConfig,
+    SearchEngineType.BRAVE: BraveSearchConfig,
     SearchEngineType.PERPLEXITY: PerplexityConfig,
     AgentEngineType.BING: BingSearchConfig,
     AgentEngineType.VERTEXAI: VertexAIConfig,

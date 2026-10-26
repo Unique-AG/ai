@@ -22,7 +22,7 @@ return await self._legacy_search(...)      # direct provider call from this proc
 | **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
-Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Bing/VertexAI).
+Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Bing/VertexAI).
 
 ---
 
@@ -97,9 +97,9 @@ GOOGLE_SEARCH_ENGINE_ID=...
 
 ### Brave Search (proxy-only)
 
-**Provider:** Brave Search API · **Requires scraping:** typically no (rich snippets) · **Legacy:** not supported
+**Provider:** Brave Search API · **Requires scraping:** configurable, default no (rich snippets) · **Legacy:** not supported
 
-Config: `unique_search_proxy_core.search_engines.brave.schema.BraveConfig`
+Config: `unique_web_search.services.search_engine.brave.BraveSearchConfig` (extends `unique_search_proxy_core.search_engines.brave.schema.BraveConfig` with `requires_scraping`, which is never sent to the proxy)
 
 Fixed bools include `extra_snippets`, `spellcheck`, `text_decorations`. Exposable knobs include country, search language, result filter, and related locale fields (see schema for full list).
 
