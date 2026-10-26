@@ -235,6 +235,12 @@ class TestBuildWebPageChunk:
         chunk = _build_web_page_chunk(fake_page, "some text", 0)
         assert fake_page.display_link in chunk.content
 
+    @pytest.mark.ai
+    def test_build_chunk__url_in_content(self, fake_page: WebSearchResult) -> None:
+        """The model needs the exact URL to plan read_url steps on search results."""
+        chunk = _build_web_page_chunk(fake_page, "", 0)
+        assert f"<URL>{fake_page.url}</URL>" in chunk.content
+
 
 # ---------------------------------------------------------------------------
 # Full run integration test
