@@ -19,7 +19,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://ghcr.io/unique-ag/helm | base | 0.1.0-7ddb46 |
+| oci://ghcr.io/unique-ag/helm | base | 0.1.0-4c726f |
 
 ## Values
 
