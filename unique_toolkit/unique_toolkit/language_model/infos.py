@@ -3502,9 +3502,9 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_000_000, token_limit_output=384_000
                     ),
-                    # Same V4 effort scale as Pro: high or max.
-                    default_options={"reasoning_effort": "high"},
-                    supported_reasoning_efforts=["high", "max"],
+                    # Together's route rejects reasoning_effort for this model;
+                    # it reasons by default.
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_GLM_5_1:
                 return cls(
@@ -3687,9 +3687,8 @@ class LanguageModelInfo(BaseModel):
                         token_limit_output=128_000,
                     ),
                     published_at=date(2026, 7, 27),
-                    # reasoning_effort is low, high, or max.
-                    default_options={"reasoning_effort": "low"},
-                    supported_reasoning_efforts=["low", "high", "max"],
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high", "max"],
                 )
             case LanguageModelName.LITELLM_QWEN_3:
                 return cls(
