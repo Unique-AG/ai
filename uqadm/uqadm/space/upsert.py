@@ -14,6 +14,7 @@ from unique_sdk import Space
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.env import config_for_slot
 from uqadm.core.payload_files import load_json_or_yaml_mapping
+from uqadm.space.mcp_match import McpMatch, echo_mcp_dry_run, merge_mcp_servers
 from uqadm.space.migrate import (
     build_create_params,
     build_module_updates_from_pairs,
@@ -34,13 +35,6 @@ def _emit_snapshot_warnings(snapshot: dict[str, Any]) -> None:
         typer.echo(
             f"Note: snapshot lists {len(scope_rules)} scope rule(s); "
             "these are not applied by upsert (same limitation as migrate).",
-            err=True,
-        )
-    mcp = snapshot.get("assistantMcpServers") or []
-    if mcp:
-        typer.echo(
-            f"Warning: snapshot lists {len(mcp)} MCP server binding(s); "
-            "these are not applied by upsert.",
             err=True,
         )
     prompts = snapshot.get("assistantPrompts")
@@ -79,6 +73,7 @@ def cmd_upsert(
     target_space_id: str | None,
     dry_run: bool,
     cwd: Path | None,
+    mcp_match: McpMatch = "id",
 ) -> None:
     """Apply ``file_path`` snapshot to ``slot`` (create if ``target_space_id`` is None)."""
     try:
@@ -105,12 +100,21 @@ def cmd_upsert(
 
     if dst_space_id is None:
         create_params = build_create_params(snapshot)
+        create_params = merge_mcp_servers(
+            create_params,
+            snapshot,
+            user_id=cfg.user_id,
+            company_id=cfg.company_id,
+            match=mcp_match,
+            destination_space_id=None,
+        )
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space with name="
                 f"{create_params['name']!r} and "
                 f"{len(create_params['modules'])} module(s)."
             )
+            echo_mcp_dry_run(create_params)
             if assistant_access:
                 typer.echo(
                     f"Dry-run: would sync {len(assistant_access)} access entr(y/ies)."
@@ -173,12 +177,21 @@ def cmd_upsert(
     update_kw = build_update_kwargs(snapshot)
     if update_modules:
         update_kw["modules"] = update_modules
+    update_kw = merge_mcp_servers(
+        update_kw,
+        snapshot,
+        user_id=cfg.user_id,
+        company_id=cfg.company_id,
+        match=mcp_match,
+        destination_space_id=dst_space_id,
+    )
 
     if dry_run:
         typer.echo(
             f"Dry-run: would update_space {dst_space_id!r} with fields "
             f"{sorted(update_kw.keys())!r}."
         )
+        echo_mcp_dry_run(update_kw)
         if assistant_access:
             typer.echo(
                 f"Dry-run: would merge access via add_space_access "

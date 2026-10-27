@@ -135,6 +135,18 @@ def space_upsert(
             "--dry-run", help="Print actions without calling create/update APIs."
         ),
     ] = False,
+    mcp_match: Annotated[
+        Literal["id", "name"],
+        typer.Option(
+            "--mcp-match",
+            help=(
+                "How to match snapshot MCP servers to the destination. "
+                "id keeps a binding whose mcpServerId exists there. "
+                "name keeps a binding only when exactly one destination "
+                "server has that name, and sends that destination id."
+            ),
+        ),
+    ] = "id",
 ) -> None:
     """Create or update a space from a snapshot file.
 
@@ -155,6 +167,7 @@ def space_upsert(
         target_space_id=target_space_id,
         dry_run=dry_run,
         cwd=_get_cwd(ctx),
+        mcp_match=mcp_match,
     )
 
 
@@ -237,6 +250,18 @@ def space_migrate(
             help="Reserved for same-environment extended migration (currently informational only).",
         ),
     ] = False,
+    mcp_match: Annotated[
+        Literal["id", "name"],
+        typer.Option(
+            "--mcp-match",
+            help=(
+                "How to match source MCP servers to the destination. "
+                "id keeps a binding whose mcpServerId exists there. "
+                "name keeps a binding only when exactly one destination "
+                "server has that name, and sends that destination id."
+            ),
+        ),
+    ] = "id",
 ) -> None:
     """Clone assistant configuration from source space to destination."""
     cmd_migrate(
@@ -244,6 +269,7 @@ def space_migrate(
         destination,
         dry_run=dry_run,
         with_knowledge=with_knowledge,
+        mcp_match=mcp_match,
         cwd=_get_cwd(ctx),
     )
 
