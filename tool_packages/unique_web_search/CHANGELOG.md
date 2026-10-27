@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.44.2](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.44.1...unique-web-search-v2026.44.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **web-search:** show result URLs to the model in web page chunks ([#2640](https://github.com/Unique-AG/ai/issues/2640)) ([e79bf9a](https://github.com/Unique-AG/ai/commit/e79bf9a9cefbf4c729445bcf62626af14b4f4ac3))
+
 ## [2026.44.1](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.44.0...unique-web-search-v2026.44.1) (2026-10-23)
 
 
