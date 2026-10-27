@@ -32,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _PLACEHOLDER_CONTENT_TEMPLATE = """\
 <WebPageChunk>
+    <URL>{{ url }}</URL>
     <Domain>{{ domain }}</Domain>
     <Snippet>{{ snippet }}</Snippet>
     {% if content %}
@@ -222,6 +223,7 @@ def _build_web_page_chunk(
         snippet=page.snippet,
         content=render_template(
             _PLACEHOLDER_CONTENT_TEMPLATE,
+            url=page.url,
             domain=page.display_link,
             snippet=page.snippet,
             content=chunk,
