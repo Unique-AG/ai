@@ -38,6 +38,9 @@ ENV MALLOC_ARENA_MAX=2
 # uid 1000 is what the Helm chart pins as runAsUser
 RUN useradd -m -u 1000 appuser
 
+# The app runs from /app/.venv; the base image's system pip is unused and only adds CVEs.
+RUN /usr/local/bin/python -m pip uninstall -y pip
+
 WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
