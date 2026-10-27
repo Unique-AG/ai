@@ -6,6 +6,8 @@ on:
       - ".github/scripts/**"
       - ".github/workflows/scripts-test.yaml"
       - ".github/actions/get-packages-matrix/package_configuration.json"
+      - ".github/actions/container-image-vuln-gate/**"
+      - ".github/actions/pull-request-labels/**"
   push:
     branches:
       - main
@@ -13,6 +15,8 @@ on:
       - ".github/scripts/**"
       - ".github/workflows/scripts-test.yaml"
       - ".github/actions/get-packages-matrix/package_configuration.json"
+      - ".github/actions/container-image-vuln-gate/**"
+      - ".github/actions/pull-request-labels/**"
 
 jobs:
   test-scripts:
@@ -47,3 +51,20 @@ jobs:
               --start-directory .github/scripts/tests \
               --pattern 'test_*.py' \
               --verbose
+
+  test-actions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+
+      - name: Run composite action unit tests
+        run: node --test .github/actions/container-image-vuln-gate/*.test.mjs .github/actions/pull-request-labels/*.test.mjs

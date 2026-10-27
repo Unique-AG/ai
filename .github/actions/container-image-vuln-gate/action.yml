@@ -1,0 +1,159 @@
+name: Container image vulnerability gate
+description: >
+  Scan a pre-built docker image tar and the Dockerfile runtime base with Trivy,
+  and fail PRs on patchable findings introduced after the runtime base unless
+  security-exception is set.
+
+inputs:
+  image_tar:
+    description: Path to the docker save tar produced by a prior build step
+    required: true
+  docker_dockerfile_path:
+    description: Path to the Dockerfile
+    required: true
+  fail_severity:
+    description: Severities that block pull requests when introduced and fixable (comma-separated)
+    required: false
+    default: CRITICAL,HIGH
+  warn_severity:
+    description: Severities that are annotated as warnings when introduced and fixable (comma-separated)
+    required: false
+    default: MEDIUM
+  trivy_version:
+    description: Trivy CLI version to install
+    required: false
+    default: v0.74.0
+  trivy_timeout:
+    description: Trivy scan timeout
+    required: false
+    default: 20m
+  summary_template:
+    description: Path to the Trivy markdown summary template
+    required: false
+    default: .github/trivy-templates/image-summary-markdown.tpl
+  security_exception_label:
+    description: PR label that records an accepted exception and bypasses patchable-finding failures
+    required: false
+    default: security-exception
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve final runtime base image
+      id: runtime-base
+      shell: bash
+      env:
+        DOCKERFILE_PATH: ${{ inputs.docker_dockerfile_path }}
+        DOCKER_BUILD_ARGS: ''
+      run: node "${{ github.action_path }}/resolve-runtime-base.mjs"
+    - name: Check live pull request labels
+      id: security-exception
+      uses: ./.github/actions/pull-request-labels
+      with:
+        github_token: ${{ github.token }}
+        label: ${{ inputs.security_exception_label }}
+    - name: Resolve severity tiers
+      id: resolve-severities
+      shell: bash
+      env:
+        INPUT_FAIL: ${{ inputs.fail_severity }}
+        INPUT_WARN: ${{ inputs.warn_severity }}
+      run: node "${{ github.action_path }}/resolve-severities.mjs"
+    - name: Install Trivy
+      uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+      with:
+        version: ${{ inputs.trivy_version }}
+        cache: true
+    - id: trivy-db-hour
+      shell: bash
+      run: echo "hour=$(date -u +%Y-%m-%dT%H)" >> "$GITHUB_OUTPUT"
+    - name: Cache Trivy databases
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cache/trivy/db
+          ~/.cache/trivy/java-db
+        key: trivy-db-${{ runner.os }}-${{ steps.trivy-db-hour.outputs.hour }}
+    - name: Scan runtime base and final image
+      shell: bash
+      env:
+        RUNTIME_BASE_IMAGE: ${{ steps.runtime-base.outputs.runtime_base_image }}
+        IMAGE_TAR: ${{ inputs.image_tar }}
+        TRIVY_SEVERITY: ${{ steps.resolve-severities.outputs.scan_severity }}
+        TRIVY_TIMEOUT: ${{ inputs.trivy_timeout }}
+      run: |
+        set -euo pipefail
+        cache_dir="${HOME}/.cache/trivy"
+        mkdir -p "$cache_dir"
+        export TRIVY_DISABLE_VEX_NOTICE=true
+
+        # Trivy's own repository fallback does not trigger on a mirror layer 404.
+        download_with_fallback() {
+          local download_flag="$1" repo_flag="$2" cached_metadata="$3"
+          shift 3
+          for attempt in 1 2 3; do
+            for repo in "$@"; do
+              if trivy image --cache-dir "$cache_dir" "$download_flag" "$repo_flag" "$repo"; then
+                return 0
+              fi
+            done
+            sleep $((attempt * 10))
+          done
+          if [ -f "$cached_metadata" ]; then
+            echo "::warning::Trivy ${download_flag} failed on every repository; scanning with the cached database"
+            return 0
+          fi
+          return 1
+        }
+        download_with_fallback --download-db-only --db-repository "$cache_dir/db/metadata.json" \
+          mirror.gcr.io/aquasec/trivy-db:2 ghcr.io/aquasecurity/trivy-db:2
+        download_with_fallback --download-java-db-only --java-db-repository "$cache_dir/java-db/metadata.json" \
+          mirror.gcr.io/aquasec/trivy-java-db:1 ghcr.io/aquasecurity/trivy-java-db:1
+
+        common=(
+          --cache-dir "$cache_dir"
+          --skip-db-update
+          --skip-java-db-update
+          --scanners vuln
+          --severity "$TRIVY_SEVERITY"
+          --timeout "$TRIVY_TIMEOUT"
+          --list-all-pkgs
+          --format json
+          --platform linux/amd64
+          --exit-code 0
+        )
+
+        trivy image "${common[@]}" \
+          --output base-trivy-results.json \
+          "$RUNTIME_BASE_IMAGE"
+
+        trivy image "${common[@]}" \
+          --output trivy-results.json \
+          --input "$IMAGE_TAR"
+    - name: Render Trivy reports
+      shell: bash
+      env:
+        SUMMARY_TEMPLATE: ${{ inputs.summary_template }}
+      run: |
+        set -euo pipefail
+        if [ ! -s trivy-results.json ]; then
+          exit 0
+        fi
+        trivy convert --format table --scanners vuln trivy-results.json || true
+        if [ -f "$SUMMARY_TEMPLATE" ]; then
+          trivy convert --format template \
+            --template @"$SUMMARY_TEMPLATE" \
+            trivy-results.json > trivy-report.md || true
+          if [ -s trivy-report.md ]; then
+            cat trivy-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
+    - name: Evaluate vulnerability gate
+      shell: bash
+      env:
+        RUNTIME_BASE_IMAGE: ${{ steps.runtime-base.outputs.runtime_base_image }}
+        FAIL_SEVERITY: ${{ steps.resolve-severities.outputs.fail_severity }}
+        WARN_SEVERITY: ${{ steps.resolve-severities.outputs.warn_severity }}
+        SECURITY_EXCEPTION: ${{ steps.security-exception.outputs.has_label }}
+        IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+      run: node "${{ github.action_path }}/evaluate-gate.mjs"

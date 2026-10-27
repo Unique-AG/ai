@@ -35,7 +35,6 @@ jobs:
       matrix: ${{ steps.filter.outputs.matrix }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        if: inputs.matrix == ''
         with:
           persist-credentials: false
 
@@ -43,8 +42,21 @@ jobs:
         if: inputs.matrix == ''
         id: detect
 
+      # The package filters in detect-changes miss the shared lockfile and the gate itself.
+      - name: Detect shared image inputs
+        if: github.event_name != 'workflow_dispatch'
+        id: shared
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+        with:
+          filters: |
+            image_inputs:
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/actions/container-image-vuln-gate/**'
+              - '.github/actions/pull-request-labels/**'
+              - '.github/workflows/ci-containerize.yaml'
+
       - uses: ./.github/actions/get-packages-matrix
-        if: inputs.matrix == ''
         id: pkgs
 
       - name: Select packages
@@ -60,8 +72,14 @@ jobs:
         id: filter
         env:
           RAW_MATRIX: ${{ inputs.matrix || steps.select.outputs.matrix }}
+          PACKAGES: ${{ steps.pkgs.outputs.packages }}
+          SHARED_INPUTS_CHANGED: ${{ steps.shared.outputs.image_inputs }}
         run: |
-          MATRIX=$(jq -c '{include: [.include[]? | select(.containerize == true)]}' <<<"$RAW_MATRIX")
+          if [ "$SHARED_INPUTS_CHANGED" = "true" ]; then
+            MATRIX=$(jq -c '{include: [.[] | select(.containerize == true)]}' <<<"$PACKAGES")
+          else
+            MATRIX=$(jq -c '{include: [.include[]? | select(.containerize == true)]}' <<<"$RAW_MATRIX")
+          fi
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
 
   containerize:
@@ -72,6 +90,7 @@ jobs:
     permissions:
       contents: read
       packages: read
+      pull-requests: read # live security-exception label lookup in the vuln gate
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
@@ -111,28 +130,8 @@ jobs:
           cache-from: type=registry,ref=${{ env.GHCR_REPO }}:cache
           outputs: type=docker,dest=${{ steps.image-tar.outputs.path }}
 
-      - name: Scan the image
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_DISABLE_VEX_NOTICE: "true"
+      - name: Vulnerability gate
+        uses: ./.github/actions/container-image-vuln-gate
         with:
-          scan-type: image
-          input: ${{ steps.image-tar.outputs.path }}
-          format: json
-          output: trivy-results.json
-          severity: CRITICAL,HIGH
-          scanners: vuln
-          ignore-unfixed: true
-          exit-code: "0"
-          timeout: 20m
-          cache: true
-
-      - name: Report the findings
-        if: hashFiles('trivy-results.json') != ''
-        continue-on-error: true
-        run: |
-          trivy convert --format template \
-            --template @.github/trivy-templates/image-summary-markdown.tpl \
-            trivy-results.json >> "$GITHUB_STEP_SUMMARY"
-          jq -r '.Results[]?.Vulnerabilities[]? | "::warning title=Image finding::\(.PkgName) \(.InstalledVersion) → \(.FixedVersion) \(.VulnerabilityID) (\(.Severity))"' trivy-results.json
+          image_tar: ${{ steps.image-tar.outputs.path }}
+          docker_dockerfile_path: ${{ matrix.dir }}/deploy/Dockerfile
