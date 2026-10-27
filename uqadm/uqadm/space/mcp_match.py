@@ -7,13 +7,14 @@ from typing import Any, Literal
 
 import typer
 from unique_sdk import MCP
+from unique_sdk.api_resources._mcp import McpServerDto
 
 McpMatch = Literal["id", "name"]
 
 
 def resolve_mcp_attachments(
     source_bindings: list[dict[str, Any]],
-    destination_servers: list[dict[str, Any]],
+    destination_servers: list[McpServerDto],
     *,
     match: McpMatch,
     destination_space_id: str | None,
@@ -29,8 +30,6 @@ def resolve_mcp_attachments(
     seen_destination_ids: set[str] = set()
 
     for binding in source_bindings:
-        if not isinstance(binding, dict):
-            continue
         label = _binding_label(binding)
         if binding.get("isEnabled") is False:
             warnings.append(_drop(label, "source binding is disabled"))
@@ -41,8 +40,8 @@ def resolve_mcp_attachments(
             warnings.append(_drop(label, reason or "no matching destination server"))
             continue
 
-        destination_id = server.get("id")
-        if not isinstance(destination_id, str) or not destination_id:
+        destination_id = server["id"]
+        if not destination_id:
             warnings.append(_drop(label, "destination server has no id"))
             continue
 
@@ -107,12 +106,9 @@ def merge_mcp_servers(
         )
         return params
 
-    servers = listed.get("mcpServers") or []
-    if not isinstance(servers, list):
-        servers = []
     attachments, warnings = resolve_mcp_attachments(
         bindings,
-        [server for server in servers if isinstance(server, dict)],
+        listed.get("mcpServers") or [],
         match=match,
         destination_space_id=destination_space_id,
     )
@@ -137,9 +133,9 @@ def echo_mcp_dry_run(params: dict[str, Any]) -> None:
 
 def _find_destination(
     binding: dict[str, Any],
-    destination_servers: list[dict[str, Any]],
+    destination_servers: list[McpServerDto],
     match: McpMatch,
-) -> tuple[dict[str, Any] | None, str | None]:
+) -> tuple[McpServerDto | None, str | None]:
     if match == "name":
         name = binding.get("name")
         if not isinstance(name, str) or not name:
@@ -163,17 +159,16 @@ def _find_destination(
 
 
 def _space_restriction_reason(
-    server: dict[str, Any],
+    server: McpServerDto,
     destination_space_id: str | None,
 ) -> str | None:
-    if not server.get("isSpaceRestricted"):
+    if not server["isSpaceRestricted"]:
         return None
     if destination_space_id is None:
         return (
             "server is space-restricted and cannot be attached while creating a space"
         )
-    allowed = server.get("allowedSpaceIds") or []
-    if not isinstance(allowed, list) or destination_space_id not in allowed:
+    if destination_space_id not in server["allowedSpaceIds"]:
         return (
             "server is space-restricted and is not allowed for space "
             f"{destination_space_id}"
@@ -183,7 +178,7 @@ def _space_restriction_reason(
 
 def _tool_selection(
     binding: dict[str, Any],
-    server: dict[str, Any],
+    server: McpServerDto,
 ) -> tuple[list[dict[str, Any]] | None, list[str], str | None]:
     """Return tools to send, warnings, and a drop reason.
 
@@ -243,12 +238,8 @@ def _enabled_tool_names(binding: dict[str, Any]) -> list[str] | None:
     return names
 
 
-def _destination_tool_names(server: dict[str, Any]) -> set[str]:
-    names: set[str] = set()
-    for tool in server.get("tools") or []:
-        if isinstance(tool, dict) and isinstance(tool.get("name"), str):
-            names.add(tool["name"])
-    return names
+def _destination_tool_names(server: McpServerDto) -> set[str]:
+    return {tool["name"] for tool in server["tools"]}
 
 
 def _binding_label(binding: dict[str, Any]) -> str:
