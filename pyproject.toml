@@ -129,7 +129,6 @@ override-dependencies = [
 # TODO: drop after 2026-11-04, when the global cooldown reaches these CVE fixes.
 "certifi" = "2026-10-21T00:00:00Z"
 "pillow" = "2026-10-21T00:00:00Z"
-# TODO: drop after 2026-11-01, when the global cooldown reaches this CVE fix.
 "filelock" = "2026-10-18T00:00:00Z"
 
 [tool.uv.sources]
