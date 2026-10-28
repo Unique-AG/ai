@@ -1,8 +1,8 @@
 """Webhook entry point: the platform pushes events to this app.
 
-Use this one in production. The app needs a URL the platform can reach, so
-locally you need a tunnel such as ngrok. If you cannot expose a port, run
-`sse.py` instead.
+This is the transport to use once the module has a URL the platform can
+reach. Locally that means a tunnel such as ngrok. If you cannot expose a
+port, run `sse.py` instead.
 """
 
 import logging
@@ -33,4 +33,6 @@ if __name__ == "__main__":
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
+    # reload restarts the process when the code changes. It suits this local
+    # tutorial run. Leave it off for a deployed process.
     uvicorn.run("mcp_custom_module.app:app", host="0.0.0.0", port=5001, reload=True)
