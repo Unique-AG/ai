@@ -14,8 +14,6 @@ from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.invocation_stats import collector
 from unique_web_search.metrics import (
-    crawl_duration,
-    crawl_errors,
     llm_duration,
     llm_errors,
     search_duration,
@@ -305,13 +303,9 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
         return search_results
 
     async def _crawl(self, web_search_results: list[WebSearchResult]) -> list[str]:
-        crawler = self.crawler_service.config.crawler.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
-        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
-            crawl_results = await self.crawler_service.crawl(
-                [result.url for result in web_search_results]
-            )
+        crawl_results = await self._crawl_search_result_pages(web_search_results)
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(
