@@ -164,6 +164,7 @@ Periodically review enabled connectors and tools to ensure they remain relevant 
 - [MCP Demo](mcp_demo.md) - Building a simple MCP server example
 - [MCP Search](mcp_search.md) - Building an MCP server with search functionality
 - [Production MCP Server Template](mcp_server_template.md) - Production-ready template with Keycloak OIDC auth, K8s health checks, and deployment infrastructure
+- [Calling MCP Tools from a Custom Module](mcp_custom_module.md) - Consuming the space's MCP tools from your own external module
 - [Tools Overview](https://unique-ch.atlassian.net/wiki/spaces/PUBDOC/pages/Tools+Overview) - Understanding all tools available in Spaces
 - [Create Spaces](https://unique-ch.atlassian.net/wiki/spaces/PUBDOC/pages/Create+Spaces) - Complete guide to space configuration
 - [MCP Protocol Specification](https://modelcontextprotocol.io) - Technical details about the Model Context Protocol
