@@ -77,7 +77,7 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
             exclude_none=True,
         )
         async with open_search_proxy_client(
-            timeout=float(self.config.timeout),
+            timeout=self._proxy_client_timeout,
             context=self._request_context,
         ) as client:
             response = await client.crawl.crawl(
