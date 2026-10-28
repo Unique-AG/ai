@@ -2,7 +2,7 @@
 
 ## 📌 Overview
 
-[Using MCP Tools in Unique AI](mcp_unique_ai.md) covers enabling MCP tools on a standard Unique AI space, where the built-in agent decides when to call them. This guide covers the other case: a space driven by your **own external module**, where your code receives the connected servers and calls the tools itself.
+[Using MCP Tools in Unique AI](mcp_unique_ai.md) covers enabling MCP tools on a standard Unique AI space, where the built-in agent decides when to call them. This guide covers the other case: a space driven by your **own external module**, where your code receives the space's MCP tools and calls them itself.
 
 The division of labour matters, and it is the part most people get wrong. Your module does not discover MCP servers, and it does not handle OAuth. The space owns both. Your module only consumes the result.
 
@@ -29,7 +29,7 @@ sequenceDiagram
     Platform-->>Chat: Not connected → authorization URL
     Chat->>Chat: Show "Connect" banner
     Note over Chat: User authenticates with the MCP server
-    Chat->>Module: Event with the connected servers and their tools
+    Chat->>Module: Event with the space's MCP tools
     Module->>Platform: MCP.call_tool(...)
     Platform-->>Module: Tool result
 ```
@@ -87,13 +87,13 @@ Anywhere else — `mcp.tools`, `agent.tools`, or a `tools` array nested deeper �
 
 Saving the space turns the entries above into the space's MCP server assignments. From then on the chat asks each server whether the current user is authenticated and shows a **Connect** banner above the message box for any server that is not; **Reconnect** appears when a session expires mid-chat.
 
-Your module renders none of this and cannot trigger it. It only sees the outcome: servers the user has connected arrive on the event, and the rest do not. A module that finds no servers should say so rather than fail a tool call.
+Your module renders none of this and cannot trigger it. On each message the platform sends the tools it resolved for the space. Each tool includes `isConnected`. That flag means the chat-service instance that built the event currently holds a live client for the tool. It is often `false` for a tool you can still call, so do not filter on it — doing so hides working tools. An empty list means nothing was resolved for the turn. Say so, and point at the banner, rather than failing a tool call.
 
 One more condition applies to the banner specifically: a server surfaces only when at least one of its tools is enabled. A server whose tools are all disabled still gets its assignment row, but users are never prompted to connect it.
 
 ## 📨 What the event carries
 
-On `unique.chat.external-module.chosen`, the connected servers arrive on `payload.mcpServers`, each with its tools. Your stored `languageModel` is available on `payload.configuration`.
+On `unique.chat.external-module.chosen`, the tools the platform resolved arrive on `payload.mcpServers`. Your stored `languageModel` is available on `payload.configuration`. Do not treat `isConnected` as "the user finished the Connect banner" — see above.
 
 !!! danger "Tool names differ between the configuration and the event"
     The configuration stores the bare name (`jira_search`). The event delivers the **namespaced** `<server>_<tool>` form (`atlassian_jira_search`), and that is the name `MCP.call_tool` expects. Calling with the bare name will not route.
@@ -119,7 +119,7 @@ The SSE path additionally needs `UNIQUE_AUTH_COMPANY_ID` and `UNIQUE_AUTH_USER_I
 
 ## 💬 Using it
 
-Send any message in the space and the module replies with its configured model and the tools currently connected for you. To call a tool, send its name and arguments as JSON:
+Send any message in the space and the module replies with its configured model and the tools on the event. To call a tool, send its name and arguments as JSON:
 
 ```json
 { "name": "atlassian_jira_search", "arguments": { "jql": "project = UN" } }

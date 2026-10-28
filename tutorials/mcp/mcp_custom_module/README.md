@@ -3,8 +3,8 @@
 An external module that calls the MCP tools configured on its space.
 
 The module does not discover MCP servers on its own. The space decides which
-servers it may use, and the platform hands the connected ones to the module on
-every message.
+servers it may use, and the platform hands the tools it resolved to the module
+on every message.
 
 ## 1. Configure the module
 
@@ -65,8 +65,12 @@ assignments. From then on the chat itself asks each server whether the current
 user is authenticated, and shows a **Connect** banner above the message box for
 any server that is not. **Reconnect** appears when a session expires mid-chat.
 
-This module renders none of that. It only sees the result: servers the user has
-connected arrive on the event, and the rest do not.
+This module renders none of that. On each message the platform sends the tools
+it resolved for the space. Each tool includes `isConnected`. That flag means
+the chat-service instance that built the event currently holds a live client
+for the tool. It is often `false` for a tool you can still call, so this
+example does not filter on it — doing so hides working tools. An empty list
+means nothing was resolved for the turn. Say so, and point at the banner.
 
 ## 3. Run it
 
@@ -113,10 +117,10 @@ arrive while it is down are lost for good.
 ## 4. Use it
 
 Send any message in the space. The module replies with its configured model
-and the tools currently connected for you:
+and the tools on the event:
 
 ```
-Model `AZURE_GPT_4o_2024_1120`. Connected MCP tools:
+Model `AZURE_GPT_4o_2024_1120`. MCP tools on this event:
 
 - **Atlassian**
     - `atlassian_jira_search` — Search Jira issues using JQL
@@ -134,16 +138,17 @@ Note the names. The event carries the namespaced `<server>_<tool>` form, which
 is what `MCP.call_tool` expects. The bare names in the stored configuration
 (`jira_search`) will not route.
 
-If nothing is connected, the module says so and stops, rather than failing a
-tool call.
+If the event carries no tools, the module says so and stops, rather than
+failing a tool call.
 
 ## How the handler works
 
 `handler.py` is a single `handle_event(event: ChatEvent) -> int`, shared by both
 entry points:
 
-- `event.payload.mcp_servers` — servers connected for this user, each with its
-  tools. Empty means the user has not connected anything yet.
+- `event.payload.mcp_servers` — the tools the platform resolved for this turn.
+  Empty means nothing was resolved. Do not filter on `is_connected`; see
+  section 2.
 - `event.payload.configuration` — the module configuration from step 1, which
   is where `languageModel` is read from.
 - `unique_sdk.MCP.call_tool(...)` — runs a tool, addressed by its namespaced

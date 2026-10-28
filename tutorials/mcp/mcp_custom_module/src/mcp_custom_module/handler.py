@@ -1,9 +1,11 @@
 """Answers one chat message, calling the space's MCP tools when asked to.
 
-The platform decides which MCP servers belong to the space (see
-`module_configuration.example.json`) and which of them the current user has
-authenticated. This module only consumes the result: every server that is
-connected for this user arrives on `event.payload.mcp_servers`.
+The platform puts the tools it resolved for the space on
+`event.payload.mcp_servers`. Each tool has `is_connected`, but that flag
+means the chat-service instance that built the event currently holds a live
+client for the tool. It is often false for a tool the user can still call,
+so this example does not filter on it. An empty list means nothing was
+resolved for the turn.
 
 Both entry points share this handler — `app.py` receives events over a
 webhook, `sse.py` over the event socket.
@@ -24,19 +26,20 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 logger = logging.getLogger(__name__)
 
 NOT_CONNECTED_MESSAGE = (
-    "No MCP server is connected for you yet.\n\n"
-    "The space has MCP tools configured, so the chat shows a **Connect** "
+    "No MCP tools arrived on this event.\n\n"
+    "If the space has MCP tools configured, the chat shows a **Connect** "
     "banner above the message box. Connect there, then send your message "
     "again."
 )
 
 
 def _tool_catalog(mcp_servers: list[McpServer]) -> str:
-    """The connected tools, by server.
+    """The tools on the event, by server.
 
     Tool names here are the namespaced `<server>_<tool>` form. That is the name
     `MCP.call_tool` expects, and it differs from the bare name stored on the
-    module configuration.
+    module configuration. `tool.is_connected` is not consulted: it tracks a
+    live client on one service instance, not whether the user can call the tool.
     """
     lines: list[str] = []
     for server in mcp_servers:
@@ -110,7 +113,7 @@ def handle_event(event: ChatEvent) -> int:
     mcp_servers = event.payload.mcp_servers
 
     logger.info(
-        "Module %s: %d connected MCP server(s)", event.payload.name, len(mcp_servers)
+        "Module %s: %d MCP server(s) on the event", event.payload.name, len(mcp_servers)
     )
 
     if not mcp_servers:
@@ -132,7 +135,7 @@ def handle_event(event: ChatEvent) -> int:
 
         chat_service.modify_assistant_message(
             content=(
-                f"`{name}` is not one of the connected tools.\n\n"
+                f"`{name}` is not one of the tools on this event.\n\n"
                 f"{_tool_catalog(mcp_servers)}"
             ),
             set_completed_at=True,
@@ -149,8 +152,8 @@ def handle_event(event: ChatEvent) -> int:
         .system_message_append(
             content=(
                 "You are a helpful assistant in a space with MCP tools. You "
-                "cannot call them yourself in this example. These tools are "
-                f"connected for this user:\n{catalog}"
+                "cannot call them yourself in this example. These tools arrived "
+                f"on this event:\n{catalog}"
             )
         )
         .user_message_append(content=user_text)
@@ -161,7 +164,7 @@ def handle_event(event: ChatEvent) -> int:
         messages=messages,
         model_name=model_name,
         start_text=(
-            f"Model `{model_name}`. Connected MCP tools:\n\n{catalog}\n\n"
+            f"Model `{model_name}`. MCP tools on this event:\n\n{catalog}\n\n"
             'Send `{"name": "<tool>", "arguments": {}}` to call one.\n\n---\n\n'
         ),
     )

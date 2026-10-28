@@ -133,7 +133,7 @@ The two sides of the run see different things, and this is the part that surpris
 | Orchestrator event | No | Only for built-in agent spaces |
 | Sub-agent event | Yes — its own, on `payload.mcpServers` | — |
 
-The connected servers of a sub-agent arrive on the **sub-agent's** event, when that space runs. The orchestrator's event carries only the orchestrator's own servers. There is no payload field that hands a parent its children's tools.
+A sub-agent's MCP tools arrive on the **sub-agent's** event, when that space runs. The orchestrator's event carries only the orchestrator's own servers. There is no payload field that hands a parent its children's tools.
 
 Spaces driven by one of the platform's built-in agents (Unique AI, Conduct) get `SubAgentTool` entries injected into their configuration, so those agents can delegate on their own. A custom module gets no such entry and must call the sub-agent space itself, by assistant id:
 
@@ -155,7 +155,7 @@ answer = await send_message_and_wait_for_completion(
 
 `correlation` ties the sub-agent's chat back to the message that triggered it, so the delegation stays traceable.
 
-From there the sub-agent's own module runs as in the single-space guide: it reads `event.payload.mcp_servers`, finds the tools the user connected, and calls them with their namespaced `<server>_<tool>` names. [`tutorials/mcp/mcp_custom_module`](https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_custom_module) is a runnable module that does exactly that, and works unchanged as a sub-agent.
+From there the sub-agent's own module runs as in the single-space guide: it reads `event.payload.mcp_servers` and calls tools by their namespaced `<server>_<tool>` names. As on that page, `isConnected` is not a login check and is not a reason to drop a tool. [`tutorials/mcp/mcp_custom_module`](https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_custom_module) is a runnable module that does exactly that, and works unchanged as a sub-agent.
 
 ## 🧭 Putting it together
 
