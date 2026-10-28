@@ -87,7 +87,7 @@ Anywhere else — `mcp.tools`, `agent.tools`, or a `tools` array nested deeper �
 
 Saving the space turns the entries above into the space's MCP server assignments. From then on the chat asks each server whether the current user is authenticated and shows a **Connect** banner above the message box for any server that is not; **Reconnect** appears when a session expires mid-chat.
 
-Your module renders none of this and cannot trigger it. On each message the platform sends the tools it resolved for the space. Each tool includes `isConnected`. That flag means the chat-service instance that built the event currently holds a live client for the tool. It is often `false` for a tool you can still call, so do not filter on it — doing so hides working tools. An empty list means nothing was resolved for the turn. Say so, and point at the banner, rather than failing a tool call.
+Your module renders none of this and cannot trigger it. On each message the platform sends the tools it resolved for the space. Each tool includes `isConnected`. That flag means the chat-service instance that built the event currently holds a live client for the tool. It is often `false` for a tool you can still call, so do not filter on it — doing so hides working tools. An empty list means nothing was resolved for the turn. Say so, and point at the banner, rather than failing a tool call. Do the same when `MCP.call_tool` raises: the webhook runs your handler in the background, so an uncaught error leaves the assistant message spinning.
 
 One more condition applies to the banner specifically: a server surfaces only when at least one of its tools is enabled. A server whose tools are all disabled still gets its assignment row, but users are never prompted to connect it.
 

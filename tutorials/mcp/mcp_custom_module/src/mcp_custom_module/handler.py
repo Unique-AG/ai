@@ -92,14 +92,28 @@ def _result_text(response: unique_sdk.MCP) -> str:
 
 
 def _call_tool(event: ChatEvent, name: str, arguments: dict[str, Any]) -> str:
-    response = unique_sdk.MCP.call_tool(
-        user_id=event.user_id,
-        company_id=event.company_id,
-        name=name,
-        chatId=event.payload.chat_id,
-        messageId=event.payload.assistant_message.id,
-        arguments=arguments,
-    )
+    """Call one tool and return the text to show the user.
+
+    A raised call leaves the assistant message spinning, because the webhook
+    runs the handler in the background and the event socket only logs the
+    error. Say what happened instead, the same way an empty tool list does.
+    """
+    try:
+        response = unique_sdk.MCP.call_tool(
+            user_id=event.user_id,
+            company_id=event.company_id,
+            name=name,
+            chatId=event.payload.chat_id,
+            messageId=event.payload.assistant_message.id,
+            arguments=arguments,
+        )
+    except Exception:
+        logger.exception("MCP call %s failed", name)
+        return (
+            f"`{name}` could not be called.\n\n"
+            "If the server is not connected, use the **Connect** banner "
+            "above the message box and send the request again."
+        )
 
     body = _result_text(response)
     if getattr(response, "isError", False):

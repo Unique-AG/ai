@@ -152,7 +152,8 @@ entry points:
 - `event.payload.configuration` — the module configuration from step 1, which
   is where `languageModel` is read from.
 - `unique_sdk.MCP.call_tool(...)` — runs a tool, addressed by its namespaced
-  name, scoped to this chat and assistant message.
+  name, scoped to this chat and assistant message. If the call raises, the
+  handler replies with that fact so the assistant message still completes.
 - `ChatService` — writes the reply onto the assistant message the platform
   already created for this turn.
 
