@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/search/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/search/">
       
       
         <link rel="prev" href="../scheduled_task/">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2445,6 +2445,8 @@
 <li><code>metaDataFilter</code> (Dict[str, Any], optional) - UniqueQL metadata filter</li>
 <li><code>contentIds</code> (List[str], optional) - Filter search to specific content IDs</li>
 <li><code>qdrantParams</code> (<a href="#qdrantsearchparams"><code>QdrantSearchParams</code></a>, optional) - Qdrant search parameters for fine-tuning vector search behavior</li>
+<li><code>mergeStrategy</code> (Literal["ZIP", "RRF", "DBSF"], optional) - How a <code>COMBINED</code> search merges vector and full-text results. Ignored by the single-source search types. Defaults to the server configuration</li>
+<li><code>includeScores</code> (bool, optional) - Return the <code>score</code> of each result. Vector search returns a similarity score, full-text search a BM25 score, and <code>COMBINED</code> with <code>RRF</code> or <code>DBSF</code> a fused score, so scores are only comparable within one search type</li>
 </ul>
 <p><strong>Returns:</strong></p>
 <p>Returns a list of <a href="#search"><code>Search</code></a> objects.</p>
@@ -2553,7 +2555,7 @@
 <li><code>startPage</code> (int) - Starting page number</li>
 <li><code>endPage</code> (int) - Ending page number</li>
 <li><code>metadata</code> (Dict[str, Any] | None) - Custom metadata dictionary</li>
-<li><code>score</code> (float, optional) - Similarity score (may be present in API response)</li>
+<li><code>score</code> (float, optional) - Relevance score. Present only when the request sets <code>includeScores</code></li>
 </ul>
 <p><strong>Returned by:</strong> <code>Search.create()</code></p>
 </details>
@@ -2687,7 +2689,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

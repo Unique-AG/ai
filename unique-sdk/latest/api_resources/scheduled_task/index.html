@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/scheduled_task/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/scheduled_task/">
       
       
         <link rel="prev" href="../mcp/">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2390,17 +2390,18 @@
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Each scheduled task defines:</p>
 <ul>
-<li>A <strong>cron expression</strong> (5-field, UTC) controlling when the task fires</li>
+<li>A <strong>cron expression</strong> (5-field) controlling when the task fires</li>
+<li>An optional <strong>timezone</strong> (IANA) the cron is evaluated in (omit for UTC)</li>
 <li>An <strong>assistant</strong> to execute on each trigger</li>
 <li>A <strong>prompt</strong> sent to the assistant</li>
 <li>An optional <strong>name</strong>, a short label shown in the UI (the prompt is displayed when it is absent)</li>
 <li>An optional <strong>chat ID</strong> to continue an existing conversation (omit for a new chat each run)</li>
 <li>An <strong>enabled</strong> flag to pause/resume execution</li>
 </ul>
-<p>The platform evaluates all enabled tasks every minute and triggers execution for those whose cron expression matches the current time.</p>
-<div class="admonition note">
-<p class="admonition-title">All times are UTC</p>
-<p>Cron expressions are evaluated in UTC. Convert local times before creating or updating schedules.</p>
+<p>The platform evaluates all enabled tasks every minute and triggers execution for those whose cron expression matches the current time in the task's timezone.</p>
+<div class="admonition tip">
+<p class="admonition-title">Timezone</p>
+<p>Pass an IANA <code>timezone</code> (e.g. <code>Europe/Zurich</code>) and write the cron in that local wall-clock time. The platform keeps the local run time across daylight saving changes. Omitting <code>timezone</code> keeps UTC behaviour for backward compatibility.</p>
 </div>
 <h2 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h2>
 <details class="example">
@@ -2413,6 +2414,7 @@
 <li><code>cronExpression</code> (str, required) - 5-field cron expression (e.g. <code>"0 9 * * 1-5"</code>)</li>
 <li><code>assistantId</code> (str, required) - ID of the assistant to execute (starts with <code>assistant_</code>)</li>
 <li><code>prompt</code> (str, required) - Prompt text sent to the assistant on each trigger</li>
+<li><code>timezone</code> (str, optional) - IANA timezone the cron runs in (e.g. <code>"Europe/Zurich"</code>). Omit for UTC.</li>
 <li><code>name</code> (str, optional) - Short label shown in the UI, at most 128 characters. Falls back to the prompt when omitted.</li>
 <li><code>chatId</code> (str, optional) - Chat ID to continue (starts with <code>chat_</code>). Omit for a new chat each run.</li>
 <li><code>enabled</code> (bool, optional) - Whether the task is active. Defaults to <code>True</code>.</li>
@@ -2424,6 +2426,7 @@
     <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;user_123&quot;</span><span class="p">,</span>
     <span class="n">company_id</span><span class="o">=</span><span class="s2">&quot;company_456&quot;</span><span class="p">,</span>
     <span class="n">cronExpression</span><span class="o">=</span><span class="s2">&quot;0 9 * * 1-5&quot;</span><span class="p">,</span>
+    <span class="n">timezone</span><span class="o">=</span><span class="s2">&quot;Europe/Zurich&quot;</span><span class="p">,</span>
     <span class="n">assistantId</span><span class="o">=</span><span class="s2">&quot;assistant_cvj3fd7x8hpt1hfp0akqu1rq&quot;</span><span class="p">,</span>
     <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;Generate the daily sales report&quot;</span><span class="p">,</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Daily sales report&quot;</span><span class="p">,</span>
@@ -2435,6 +2438,7 @@
     <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;user_123&quot;</span><span class="p">,</span>
     <span class="n">company_id</span><span class="o">=</span><span class="s2">&quot;company_456&quot;</span><span class="p">,</span>
     <span class="n">cronExpression</span><span class="o">=</span><span class="s2">&quot;0 9 * * 1-5&quot;</span><span class="p">,</span>
+    <span class="n">timezone</span><span class="o">=</span><span class="s2">&quot;Europe/Zurich&quot;</span><span class="p">,</span>
     <span class="n">assistantId</span><span class="o">=</span><span class="s2">&quot;assistant_cvj3fd7x8hpt1hfp0akqu1rq&quot;</span><span class="p">,</span>
     <span class="n">chatId</span><span class="o">=</span><span class="s2">&quot;chat_b7ze6mpv0edy324yhjj1d92t&quot;</span><span class="p">,</span>
     <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;Append today&#39;s numbers to the running report&quot;</span><span class="p">,</span>
@@ -2445,6 +2449,7 @@
     <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;user_123&quot;</span><span class="p">,</span>
     <span class="n">company_id</span><span class="o">=</span><span class="s2">&quot;company_456&quot;</span><span class="p">,</span>
     <span class="n">cronExpression</span><span class="o">=</span><span class="s2">&quot;*/15 * * * *&quot;</span><span class="p">,</span>
+    <span class="n">timezone</span><span class="o">=</span><span class="s2">&quot;Europe/Zurich&quot;</span><span class="p">,</span>
     <span class="n">assistantId</span><span class="o">=</span><span class="s2">&quot;assistant_cvj3fd7x8hpt1hfp0akqu1rq&quot;</span><span class="p">,</span>
     <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;Check for new support tickets&quot;</span><span class="p">,</span>
     <span class="n">enabled</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -2490,6 +2495,7 @@
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Name: </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">task</span><span class="o">.</span><span class="n">prompt</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cron: </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">cronExpression</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Timezone: </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">timezone</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">&#39;UTC&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Assistant: </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">assistantName</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">assistantId</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Prompt: </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">prompt</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Enabled: </span><span class="si">{</span><span class="n">task</span><span class="o">.</span><span class="n">enabled</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -2504,6 +2510,7 @@
 <li><code>company_id</code> (str, required) - Company identifier</li>
 <li><code>id</code> (str, required) - The scheduled task identifier</li>
 <li><code>cronExpression</code> (str, optional) - Updated cron expression</li>
+<li><code>timezone</code> (str | None, optional) - Updated IANA timezone. Pass <code>None</code> to switch back to UTC.</li>
 <li><code>assistantId</code> (str, optional) - Updated assistant ID</li>
 <li><code>prompt</code> (str, optional) - Updated prompt text</li>
 <li><code>name</code> (str | None, optional) - Updated label. Pass <code>None</code> to clear it and fall back to the prompt.</li>
@@ -2526,6 +2533,7 @@
     <span class="n">company_id</span><span class="o">=</span><span class="s2">&quot;company_456&quot;</span><span class="p">,</span>
     <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;task_abc123&quot;</span><span class="p">,</span>
     <span class="n">cronExpression</span><span class="o">=</span><span class="s2">&quot;0 */2 * * *&quot;</span><span class="p">,</span>
+    <span class="n">timezone</span><span class="o">=</span><span class="s2">&quot;Europe/Zurich&quot;</span><span class="p">,</span>
     <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;Check inbox every 2 hours&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -2572,6 +2580,7 @@
     <span class="n">user_id</span><span class="o">=</span><span class="s2">&quot;user_123&quot;</span><span class="p">,</span>
     <span class="n">company_id</span><span class="o">=</span><span class="s2">&quot;company_456&quot;</span><span class="p">,</span>
     <span class="n">cronExpression</span><span class="o">=</span><span class="s2">&quot;0 9 * * 1-5&quot;</span><span class="p">,</span>
+    <span class="n">timezone</span><span class="o">=</span><span class="s2">&quot;Europe/Zurich&quot;</span><span class="p">,</span>
     <span class="n">assistantId</span><span class="o">=</span><span class="s2">&quot;assistant_cvj3fd7x8hpt1hfp0akqu1rq&quot;</span><span class="p">,</span>
     <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;Generate daily report&quot;</span><span class="p">,</span>
 <span class="p">)</span>
@@ -2585,7 +2594,8 @@
 <li><code>id</code> (str) - Unique task identifier</li>
 <li><code>object</code> (str) - Object type (<code>"scheduled_task"</code>)</li>
 <li><code>name</code> (str | None) - The task's own label, or <code>None</code> when it falls back to the prompt. Distinct from <code>assistantName</code> below.</li>
-<li><code>cronExpression</code> (str) - 5-field cron expression (UTC)</li>
+<li><code>cronExpression</code> (str) - 5-field cron expression</li>
+<li><code>timezone</code> (str | None) - IANA timezone the cron is evaluated in, or <code>None</code> for UTC</li>
 <li><code>assistantId</code> (str) - ID of the assistant to execute</li>
 <li><code>assistantName</code> (str | None) - Display name of the assistant</li>
 <li><code>chatId</code> (str | None) - Chat ID to continue, or <code>None</code> for new chat each run</li>
@@ -2598,7 +2608,7 @@
 <p><strong>Returned by:</strong> <code>create()</code>, <code>list()</code>, <code>retrieve()</code>, <code>modify()</code></p>
 </details>
 <h2 id="cron-expression-reference">Cron Expression Reference<a class="headerlink" href="#cron-expression-reference" title="Permanent link">&para;</a></h2>
-<p>Cron expressions use 5 fields (UTC):</p>
+<p>Cron expressions use 5 fields and are evaluated in the task's timezone:</p>
 <div class="highlight"><pre><span></span><code>┌───────────── minute (0–59)
 │ ┌───────────── hour (0–23)
 │ │ ┌───────────── day of month (1–31)
@@ -2621,19 +2631,19 @@
 </tr>
 <tr>
 <td><code>0 9 * * 1-5</code></td>
-<td>Weekdays at 09:00 UTC</td>
+<td>Weekdays at 09:00 local</td>
 </tr>
 <tr>
 <td><code>0 0 * * *</code></td>
-<td>Daily at midnight UTC</td>
+<td>Daily at midnight local</td>
 </tr>
 <tr>
 <td><code>0 8 1 * *</code></td>
-<td>1<sup>st</sup> of every month at 08:00 UTC</td>
+<td>1<sup>st</sup> of every month at 08:00 local</td>
 </tr>
 <tr>
 <td><code>30 17 * * 5</code></td>
-<td>Every Friday at 17:30 UTC</td>
+<td>Every Friday at 17:30 local</td>
 </tr>
 </tbody>
 </table>
@@ -2707,7 +2717,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/2026.42.0/knowledge_base/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/2026.44.0/knowledge_base/">
       
       
         <link rel="prev" href="../chat/advanced_rendering/">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3545,9 +3545,22 @@
 <p><strong>How it works:</strong></p>
 <ul>
 <li>Performs both vector (semantic) and keyword (full-text) search in parallel</li>
-<li>Merges and ranks results using a hybrid scoring algorithm</li>
+<li>Merges the two result lists with <code>merge_strategy</code></li>
 <li>Returns the most relevant matches from both search types</li>
 </ul>
+<p><strong><code>merge_strategy</code></strong> (<code>ContentSearchMergeStrategy</code>, optional). Ignored unless <code>search_type</code> is <code>COMBINED</code>. When omitted, the backend uses its configured default.</p>
+<ul>
+<li><code>ZIP</code> interleaves the vector and full-text lists and keeps each result's original score</li>
+<li><code>RRF</code> (reciprocal rank fusion) and <code>DBSF</code> (distribution-based score fusion) replace those scores with one fused score</li>
+</ul>
+<p><strong><code>include_scores</code></strong> (optional). When true, each returned <code>ContentChunk</code> has <code>score</code> set.</p>
+<ul>
+<li>Vector search: a similarity score</li>
+<li>Full-text search: a BM25 score</li>
+<li><code>COMBINED</code> with <code>RRF</code> or <code>DBSF</code>: the fused score</li>
+<li><code>COMBINED</code> with <code>ZIP</code>: the original score from whichever list the chunk came from</li>
+</ul>
+<p>Scores are only comparable within one search type. A vector similarity and a BM25 score are not on the same scale.</p>
 <p><strong>Recommended as the default search type for most use cases.</strong></p>
 <h3 id="content-file-search">Content File Search<a class="headerlink" href="#content-file-search" title="Permanent link">&para;</a></h3>
 <p>Search for complete content files (not chunks) by metadata. This is useful when you want to find whole files rather than text snippets.</p>
@@ -3655,7 +3668,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

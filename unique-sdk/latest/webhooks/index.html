@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/webhooks/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.44.0/webhooks/">
       
       
         <link rel="prev" href="../utilities/chat_in_space/">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2637,6 +2637,14 @@
         <span class="n">text</span><span class="o">=</span><span class="n">response_text</span><span class="p">,</span>
     <span class="p">)</span>
 </code></pre></div>
+<p><strong>MCP tools:</strong> a module can call the MCP tools configured on its space. The
+space assigns the servers and handles per-user authentication; connected
+servers then arrive on every event. See
+<a href="../../../Tutorials/mcp/mcp_custom_module/">Calling MCP Tools from a Custom Module</a>
+for the configuration fields and a runnable module, with both a FastAPI
+webhook and an event-socket (SSE) entry point for local development, and
+<a href="../../../Tutorials/mcp/mcp_subagents/">MCP Tools Across Sub-Agents</a>
+when the space delegates to sub-agents that carry their own servers.</p>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <details class="example">
 <summary>Use Async Processing for Long Operations</summary>
@@ -2726,7 +2734,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

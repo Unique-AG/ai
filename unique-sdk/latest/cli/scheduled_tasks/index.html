@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/scheduled_tasks/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/scheduled_tasks/">
       
       
         <link rel="prev" href="../commands/">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2388,8 +2388,8 @@
 <div class="highlight"><pre><span></span><code>/&gt; schedule list
 1 scheduled task(s):
 
-STATUS  NAME                CRON           ASSISTANT     PROMPT               ID          LAST RUN
-on      Daily sales report  0 9 * * 1-5    Report Bot    Generate the daily…  task_abc    2026-04-01 09:00
+STATUS  NAME                CRON           TIMEZONE        ASSISTANT     PROMPT               ID          LAST RUN
+on      Daily sales report  0 9 * * 1-5    Europe/Zurich   Report Bot    Generate the daily…  task_abc    2026-04-01 09:00
 </code></pre></div>
 <hr />
 <h2 id="schedule-get">schedule get<a class="headerlink" href="#schedule-get" title="Permanent link">&para;</a></h2>
@@ -2418,6 +2418,7 @@ on      Daily sales report  0 9 * * 1-5    Report Bot    Generate the daily…  
 <div class="highlight"><pre><span></span><code>ID:         task_abc123
 Name:       Daily sales report
 Cron:       0 9 * * 1-5
+Timezone:   Europe/Zurich
 Assistant:  Report Bot (assistant_cvj3fd7x8hpt1hfp0akqu1rq)
 Chat ID:    (new chat each run)
 Prompt:     Generate the daily sales report
@@ -2430,7 +2431,7 @@ Updated:    2026-04-01 09:00
 <h2 id="schedule-create">schedule create<a class="headerlink" href="#schedule-create" title="Permanent link">&para;</a></h2>
 <p>Create a new scheduled task.</p>
 <p><strong>Synopsis:</strong></p>
-<div class="highlight"><pre><span></span><code>schedule create --cron &lt;expr&gt; --assistant &lt;id&gt; --prompt &lt;text&gt; [--name &lt;text&gt;] [--chat-id &lt;id&gt;] [--disabled]
+<div class="highlight"><pre><span></span><code>schedule create --cron &lt;expr&gt; --timezone &lt;tz&gt; --assistant &lt;id&gt; --prompt &lt;text&gt; [--name &lt;text&gt;] [--chat-id &lt;id&gt;] [--disabled]
 </code></pre></div>
 <p><strong>Options:</strong></p>
 <table>
@@ -2447,7 +2448,13 @@ Updated:    2026-04-01 09:00
 <td><code>--cron</code></td>
 <td><code>-c</code></td>
 <td>Yes</td>
-<td>5-field cron expression (UTC)</td>
+<td>5-field cron expression in the given timezone</td>
+</tr>
+<tr>
+<td><code>--timezone</code></td>
+<td><code>-tz</code></td>
+<td>Yes</td>
+<td>IANA timezone the cron runs in (e.g. <code>Europe/Zurich</code>). Use <code>UTC</code> for UTC.</td>
 </tr>
 <tr>
 <td><code>--assistant</code></td>
@@ -2485,6 +2492,7 @@ Updated:    2026-04-01 09:00
 <div class="highlight"><pre><span></span><code><span class="c1"># Create a weekday report task</span>
 unique-cli<span class="w"> </span>schedule<span class="w"> </span>create<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--cron<span class="w"> </span><span class="s2">&quot;0 9 * * 1-5&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--timezone<span class="w"> </span>Europe/Zurich<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--assistant<span class="w"> </span>assistant_cvj3fd7x8hpt1hfp0akqu1rq<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--prompt<span class="w"> </span><span class="s2">&quot;Generate the daily sales report&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--name<span class="w"> </span><span class="s2">&quot;Daily sales report&quot;</span>
@@ -2492,27 +2500,30 @@ unique-cli<span class="w"> </span>schedule<span class="w"> </span>create<span cl
 <span class="c1"># Continue an existing chat</span>
 unique-cli<span class="w"> </span>schedule<span class="w"> </span>create<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-c<span class="w"> </span><span class="s2">&quot;0 9 * * 1-5&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-tz<span class="w"> </span>Europe/Zurich<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-a<span class="w"> </span>assistant_cvj3fd7x8hpt1hfp0akqu1rq<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--chat-id<span class="w"> </span>chat_b7ze6mpv0edy324yhjj1d92t<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-p<span class="w"> </span><span class="s2">&quot;Append today&#39;s numbers to the running report&quot;</span>
 
 <span class="c1"># Create disabled</span>
 unique-cli<span class="w"> </span>schedule<span class="w"> </span>create<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-c<span class="w"> </span><span class="s2">&quot;*/15 * * * *&quot;</span><span class="w"> </span>-a<span class="w"> </span>assistant_cvj3fd7x8hpt1hfp0akqu1rq<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-c<span class="w"> </span><span class="s2">&quot;*/15 * * * *&quot;</span><span class="w"> </span>-tz<span class="w"> </span>Europe/Zurich<span class="w"> </span>-a<span class="w"> </span>assistant_cvj3fd7x8hpt1hfp0akqu1rq<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-p<span class="w"> </span><span class="s2">&quot;Check for new tickets&quot;</span><span class="w"> </span>--disabled
 </code></pre></div>
 <p><strong>Interactive shell:</strong></p>
-<div class="highlight"><pre><span></span><code>/&gt; schedule create -c &quot;0 9 * * 1-5&quot; -a assistant_cvj3fd7x8hpt1hfp0akqu1rq -p &quot;Daily report&quot; -n &quot;Daily report&quot;
+<div class="highlight"><pre><span></span><code>/&gt; schedule create -c &quot;0 9 * * 1-5&quot; -tz Europe/Zurich -a assistant_cvj3fd7x8hpt1hfp0akqu1rq -p &quot;Daily report&quot; -n &quot;Daily report&quot;
 Created scheduled task task_abc123
 
 ID:         task_abc123
 Name:       Daily sales report
 Cron:       0 9 * * 1-5
+Timezone:   Europe/Zurich
 ...
 </code></pre></div>
 <hr />
 <h2 id="schedule-update">schedule update<a class="headerlink" href="#schedule-update" title="Permanent link">&para;</a></h2>
-<p>Update an existing scheduled task. Only the fields you provide are changed.</p>
+<p>Update an existing scheduled task. Only the fields you provide are changed.
+<code>--timezone</code> is required whenever <code>--cron</code> is given.</p>
 <p><strong>Synopsis:</strong></p>
 <div class="highlight"><pre><span></span><code>schedule update &lt;task_id&gt; [options]
 </code></pre></div>
@@ -2544,7 +2555,12 @@ Cron:       0 9 * * 1-5
 <tr>
 <td><code>--cron</code></td>
 <td><code>-c</code></td>
-<td>Updated cron expression</td>
+<td>Updated cron expression (requires <code>--timezone</code>)</td>
+</tr>
+<tr>
+<td><code>--timezone</code></td>
+<td><code>-tz</code></td>
+<td>IANA timezone the cron runs in (required with <code>--cron</code>)</td>
 </tr>
 <tr>
 <td><code>--assistant</code></td>
@@ -2584,7 +2600,7 @@ Cron:       0 9 * * 1-5
 </div>
 <p><strong>Examples:</strong></p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Change the schedule</span>
-unique-cli<span class="w"> </span>schedule<span class="w"> </span>update<span class="w"> </span>task_abc123<span class="w"> </span>--cron<span class="w"> </span><span class="s2">&quot;0 */2 * * *&quot;</span>
+unique-cli<span class="w"> </span>schedule<span class="w"> </span>update<span class="w"> </span>task_abc123<span class="w"> </span>--cron<span class="w"> </span><span class="s2">&quot;0 */2 * * *&quot;</span><span class="w"> </span>--timezone<span class="w"> </span>Europe/Zurich
 
 <span class="c1"># Disable a task</span>
 unique-cli<span class="w"> </span>schedule<span class="w"> </span>update<span class="w"> </span>task_abc123<span class="w"> </span>--disable
@@ -2622,7 +2638,7 @@ Deleted<span class="w"> </span>scheduled<span class="w"> </span>task<span class=
 </code></pre></div>
 <hr />
 <h2 id="cron-expression-reference">Cron Expression Reference<a class="headerlink" href="#cron-expression-reference" title="Permanent link">&para;</a></h2>
-<p>Cron expressions use 5 fields and are evaluated in <strong>UTC</strong>:</p>
+<p>Cron expressions use 5 fields and are evaluated in the task's <strong>timezone</strong>:</p>
 <div class="highlight"><pre><span></span><code>┌───────────── minute (0–59)
 │ ┌───────────── hour (0–23)
 │ │ ┌───────────── day of month (1–31)
@@ -2645,19 +2661,19 @@ Deleted<span class="w"> </span>scheduled<span class="w"> </span>task<span class=
 </tr>
 <tr>
 <td><code>0 9 * * 1-5</code></td>
-<td>Weekdays at 09:00 UTC</td>
+<td>Weekdays at 09:00 local</td>
 </tr>
 <tr>
 <td><code>0 0 * * *</code></td>
-<td>Daily at midnight UTC</td>
+<td>Daily at midnight local</td>
 </tr>
 <tr>
 <td><code>0 8 1 * *</code></td>
-<td>1<sup>st</sup> of every month at 08:00 UTC</td>
+<td>1<sup>st</sup> of every month at 08:00 local</td>
 </tr>
 <tr>
 <td><code>30 17 * * 5</code></td>
-<td>Every Friday at 17:30 UTC</td>
+<td>Every Friday at 17:30 local</td>
 </tr>
 <tr>
 <td><code>0 */2 * * *</code></td>
@@ -2667,7 +2683,7 @@ Deleted<span class="w"> </span>scheduled<span class="w"> </span>task<span class=
 </table>
 <div class="admonition tip">
 <p class="admonition-title">Timezone</p>
-<p>All cron expressions are in UTC. Convert your local time before creating schedules. For example, 9:00 AM Central European Summer Time (CEST, UTC+2) is <code>0 7 * * *</code> in UTC.</p>
+<p>Pass <code>--timezone</code> with an IANA name (e.g. <code>Europe/Zurich</code>) and write the cron in that local wall-clock time. The platform keeps the local run time across daylight saving changes. Use <code>--timezone UTC</code> for an explicit UTC schedule.</p>
 </div>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2739,7 +2755,7 @@ Deleted<span class="w"> </span>scheduled<span class="w"> </span>task<span class=
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

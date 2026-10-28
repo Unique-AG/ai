@@ -1,203 +1,203 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/architecture/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/architecture/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/uniqueql/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/uniqueql/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/webhooks/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/webhooks/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/agentic_table/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/agentic_table/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/analytics_order/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/analytics_order/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/benchmarking/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/benchmarking/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/briefing/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/briefing/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/chat_completion/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/chat_completion/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/content/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/content/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/context_memory/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/context_memory/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/elicitation/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/elicitation/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/embeddings/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/embeddings/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/folder/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/folder/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/group/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/group/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/llm_models/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/llm_models/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/mcp/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/mcp/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/message/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/message/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/message_assessment/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/message_assessment/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/message_execution/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/message_execution/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/message_log/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/message_log/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/message_tool/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/message_tool/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/module/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/module/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/scheduled_task/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/scheduled_task/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/search/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/search/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/search_string/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/search_string/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/short_term_memory/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/short_term_memory/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/space/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/space/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/user/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/user/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/agentic_table/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/agentic_table/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/commands/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/commands/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/configuration/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/configuration/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/elicitation/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/elicitation/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/scheduled_tasks/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/scheduled_tasks/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/search/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/search/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/getting_started/configuration/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/getting_started/configuration/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/getting_started/installation/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/getting_started/installation/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/getting_started/quickstart/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/getting_started/quickstart/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/tutorials/folder_updates/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/tutorials/folder_updates/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/tutorials/get_contents/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/tutorials/get_contents/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/tutorials/openai_scripts/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/tutorials/openai_scripts/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/utilities/analytics_order_run/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/utilities/analytics_order_run/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/utilities/benchmarking_run/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/utilities/benchmarking_run/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/utilities/chat_history/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/utilities/chat_history/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/utilities/chat_in_space/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/utilities/chat_in_space/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/utilities/file_io/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/utilities/file_io/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/utilities/sources/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/utilities/sources/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
     <url>
-         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.42.0/utilities/token/</loc>
-         <lastmod>2026-10-14</lastmod>
+         <loc>https://unique-ag.github.io/ai/unique-sdk/2026.44.0/utilities/token/</loc>
+         <lastmod>2026-10-28</lastmod>
     </url>
 </urlset>

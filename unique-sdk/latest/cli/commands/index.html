@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/cli/commands/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/commands/">
       
       
         <link rel="prev" href="../">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2762,9 +2762,9 @@
 <p>If the target folder does not exist, an error is shown and the directory is unchanged.</p>
 <hr />
 <h3 id="ls">ls<a class="headerlink" href="#ls" title="Permanent link">&para;</a></h3>
-<p>List folders and files in the current (or specified) directory.</p>
+<p>List folders and files in the current (or specified) directory. At the root (<code>/</code>) it lists folders only, because every file belongs to a folder. Empty files (0 bytes, including uploads still in progress) are not listed.</p>
 <p><strong>Synopsis:</strong></p>
-<div class="highlight"><pre><span></span><code>ls [target]
+<div class="highlight"><pre><span></span><code>ls [target] [--limit N] [--skip N] [--all]
 </code></pre></div>
 <p><strong>Arguments:</strong></p>
 <table>
@@ -2779,8 +2779,22 @@
 <td><code>target</code></td>
 <td>Optional. Folder name, absolute path, or scope ID to list. Defaults to current directory.</td>
 </tr>
+<tr>
+<td><code>--limit</code>, <code>-l</code></td>
+<td>Maximum number of folders and of files to show (1-1000). Default 50.</td>
+</tr>
+<tr>
+<td><code>--skip</code></td>
+<td>Skip this many folders and files first, to page through a large folder. Default 0.</td>
+</tr>
+<tr>
+<td><code>--all</code>, <code>-a</code></td>
+<td>Show up to 1000 folders and 1000 files. Cannot be combined with <code>--limit</code>.</td>
+</tr>
 </tbody>
 </table>
+<p>By default <code>ls</code> shows the first 50 folders and the first 50 files. When a folder holds more, the output says which rows are shown and prints the command for the rest (see below).</p>
+<p>Pages are read one after another, so if files are added or removed while you page through a folder, a row can be skipped or listed twice. <code>--skip</code> is not supported at a task-scoped root.</p>
 <p><strong>Output format:</strong></p>
 <div class="highlight"><pre><span></span><code>/Reports&gt; ls
 DIR   Q1/                scope_jkl012               2025-01-15 08:00
@@ -2821,6 +2835,12 @@ FILE  summary.docx       cont_xyz789      128 KB    2025-03-10 09:15
 </tbody>
 </table>
 <p>The summary line at the bottom shows total counts.</p>
+<p>When the listing is cut off, the output ends with the range shown and the next command:</p>
+<div class="highlight"><pre><span></span><code>0 folder(s), 100 file(s)
+showing files 1-50 of 100
+more: unique-cli ls /Reports/Q1 --skip 50 (or: unique-cli ls /Reports/Q1 --all)
+</code></pre></div>
+<p>In a task-scoped chat some files may be hidden. The note then says <code>read</code> instead of <code>showing</code> and names how many rows the scope hid, for example <code>read files 1-50 of 100 (13 file(s) hidden by task scope)</code>.</p>
 <p><strong>One-shot examples:</strong></p>
 <div class="highlight"><pre><span></span><code><span class="c1"># List root</span>
 unique-cli<span class="w"> </span>ls
@@ -2830,6 +2850,12 @@ unique-cli<span class="w"> </span>ls<span class="w"> </span>/Reports/Q1
 
 <span class="c1"># List by scope ID</span>
 unique-cli<span class="w"> </span>ls<span class="w"> </span>scope_abc123
+
+<span class="c1"># Next page of a large folder</span>
+unique-cli<span class="w"> </span>ls<span class="w"> </span>/Reports/Q1<span class="w"> </span>--skip<span class="w"> </span><span class="m">50</span>
+
+<span class="c1"># Everything in a folder (up to 1000 folders and 1000 files)</span>
+unique-cli<span class="w"> </span>ls<span class="w"> </span>/Reports/Q1<span class="w"> </span>--all
 </code></pre></div>
 <hr />
 <h2 id="folder-operations">Folder Operations<a class="headerlink" href="#folder-operations" title="Permanent link">&para;</a></h2>
@@ -3372,7 +3398,7 @@ Search files: search &lt;query&gt; [--folder &lt;path|id&gt;] [--metadata key=va
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

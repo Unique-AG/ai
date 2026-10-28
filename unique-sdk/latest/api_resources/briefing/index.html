@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.42.0/api_resources/briefing/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.44.0/api_resources/briefing/">
       
       
         <link rel="prev" href="../benchmarking/">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -801,6 +801,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#example-create-retrieve-and-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: create, retrieve, and delete
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -839,6 +850,17 @@
     <span class="md-ellipsis">
       
         Briefing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deletedobject" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeletedObject
       
     </span>
   </a>
@@ -2289,6 +2311,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#example-create-retrieve-and-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: create, retrieve, and delete
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2327,6 +2360,17 @@
     <span class="md-ellipsis">
       
         Briefing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deletedobject" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeletedObject
       
     </span>
   </a>
@@ -2386,105 +2430,164 @@
 
 
 <h1 id="briefing-api">Briefing API<a class="headerlink" href="#briefing-api" title="Permanent link">&para;</a></h1>
-<p>The Briefing API creates or replaces the briefing attached to an assistant using the assistant’s identifier. The API upserts the briefing with that id as its external id (see <code>PUT /briefings/{assistantId}</code> and <code>#/components/schemas/PublicUpsertBriefingRequestDto</code> in the public OpenAPI specification).</p>
+<p>The Briefing API manages the briefing attached to an assistant using the assistant’s identifier (see <code>PUT /briefings/{assistantId}</code> and <code>#/components/schemas/PublicUpsertBriefingRequestDto</code> in the public OpenAPI specification).</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Use this API when you need to:</p>
 <ul>
-<li>Attach or update briefing text for a specific assistant (space)</li>
+<li>Read, attach, or update briefing text for a specific assistant (space)</li>
+<li>Remove a briefing attachment from an assistant (the shared record may remain)</li>
 <li>Keep assistant briefing content in sync from automation or admin tools</li>
 </ul>
-<p>Callers must have permission to manage the target assistant; the server returns <code>403</code> when access is denied and <code>404</code> when the assistant does not exist.</p>
-<p>With the default <a href="../../getting_started/configuration/"><code>api_base</code></a> (typically ending in <code>/public/chat-gen2</code>), the SDK issues <code>PUT {api_base}/briefings/{assistantId}</code> — for example <code>https://gateway.example/public/chat-gen2/briefings/assistant_…</code>. Override <code>unique_sdk.api_base</code> or <code>UNIQUE_API_BASE</code> if your deployment uses a different gateway prefix.</p>
+<p>Callers must have permission to manage the target assistant; the server returns <code>403</code> when access is denied and <code>404</code> when the assistant or briefing attachment does not exist.</p>
+<p>Briefings are served on the <strong>unique-api</strong> gateway surface (see QA OpenAPI at <code>https://gateway.qa.unique.app/unique-api/openapi.json</code>). Set <code>unique_sdk.api_base</code> (or <code>UNIQUE_API_BASE</code> / <code>UNIQUE_API_BASE_URL</code>) to your gateway prefix ending in <strong><code>/unique-api</code></strong>, e.g. <code>https://gateway.unique.app/unique-api</code> — not <code>/public/chat-gen2</code> and not the bare gateway host alone.</p>
+<h2 id="example-create-retrieve-and-delete">Example: create, retrieve, and delete<a class="headerlink" href="#example-create-retrieve-and-delete" title="Permanent link">&para;</a></h2>
+<p>Runnable script: <a href="../../examples/basics/briefing_crud.py"><code>examples/basics/briefing_crud.py</code></a> (SDK setup via <a href="../../examples/basics/sdk_env.py"><code>sdk_env.py</code></a> → <code>unique_sdk.cli.config.load_config</code>; not shipped in the PyPI wheel). Add <code>examples/basics/.env</code> with <code>UNIQUE_*</code> credentials, <code>ASSISTANT_ID</code>, and <code>UNIQUE_API_BASE_URL</code> (a bare <code>https://gateway…</code> host is auto-suffixed with <code>/unique-api</code> in the example helper). From the <code>unique_sdk</code> directory:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>examples/basics/briefing_crud.py
+</code></pre></div>
+<p>The script upserts a briefing (<code>upsert_for_assistant</code>), retrieves it (<code>retrieve_for_assistant</code>), then deletes the attachment (<code>delete_for_assistant</code>). Async variants: <code>*_async</code> on the same methods.</p>
 <h2 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h2>
 <details class="example">
-<summary><code>unique_sdk.Briefing.upsert_for_assistant</code> - Upsert briefing for an assistant</summary>
-<p>Create or update the briefing for the assistant identified by <code>assistant_id</code>. The HTTP request is <code>PUT /briefings/{assistantId}</code> with a JSON body matching OpenAPI <code>PublicUpsertBriefingRequestDto</code>: <strong><code>text</code></strong> (required, non-empty string, max length <strong>4000</strong>), <strong><code>generatedAt</code></strong> (ISO 8601 date/time — if omitted or blank, the SDK sends current UTC time), and <strong><code>prompts</code></strong> (required list, max <strong>200</strong> items; each item has <strong><code>title</code></strong> max <strong>100</strong> and <strong><code>body</code></strong> max <strong>4000</strong> characters — this is the full replacement set persisted in order).</p>
+<summary><code>unique_sdk.Briefing.retrieve_for_assistant</code> - Retrieve briefing for an assistant</summary>
+<p>Returns the briefing attached to the assistant identified by <code>assistant_id</code> (<code>GET /briefings/{assistantId}</code>).</p>
 <p><strong>Parameters:</strong></p>
 <ul>
-<li><code>user_id</code> (str, required) — Authenticated user id (forwarded via <code>x-user-id</code>).</li>
-<li><code>company_id</code> (str, required) — Company scope (forwarded via <code>x-company-id</code>).</li>
-<li><code>assistant_id</code> (str, required) — Assistant the briefing attaches to (path segment; URI-encoded when necessary). Matches OpenAPI path <code>assistantId</code> (max length <strong>128</strong>).</li>
-<li><code>text</code> (str, required unless legacy aliases below are used) — Briefing body. Must be ≤ 4000 characters.</li>
-<li><code>generatedAt</code> (str, optional) — Timestamp for this briefing revision in ISO 8601. If omitted or blank, the SDK sends the <strong>current UTC</strong> time (recommended for automated updates).</li>
-<li><code>prompts</code> (list, required) — Full replacement list of prompts (max <strong>200</strong>). Each element is <code>{"title": str, "body": str}</code>. Pass <code>[]</code> to clear prompts on the server.</li>
-<li><code>markdown</code> (str, optional) — Legacy alias; sent as <strong><code>text</code></strong> in JSON.</li>
-<li><code>content</code> (str, optional) — Legacy alias; sent as <strong><code>text</code></strong> in JSON.</li>
+<li><code>user_id</code> (str, required)</li>
+<li><code>company_id</code> (str, required)</li>
+<li><code>assistant_id</code> (str, required) — Max length <strong>128</strong> on the API.</li>
 </ul>
-<p><strong>Returns:</strong></p>
-<p>Returns a <a href="#briefing"><code>Briefing</code></a> instance (<code>200</code>).</p>
+<p><strong>Returns:</strong> A <a href="#briefing"><code>Briefing</code></a> instance (<code>200</code>).</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">briefing</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Briefing</span><span class="o">.</span><span class="n">retrieve_for_assistant</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">assistant_id</span><span class="o">=</span><span class="n">assistant_id</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">briefing</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">])</span>
+</code></pre></div>
+</details>
+<details class="example">
+<summary><code>unique_sdk.Briefing.retrieve_for_assistant_async</code> - Async retrieve</summary>
+<p>Same as <strong><code>retrieve_for_assistant</code></strong>, but asynchronous.</p>
+</details>
+<details class="example">
+<summary><code>unique_sdk.Briefing.upsert_for_assistant</code> - Upsert briefing for an assistant</summary>
+<p>Create or update the briefing for the assistant identified by <code>assistant_id</code> (<code>PUT /briefings/{assistantId}</code>) with a JSON body matching OpenAPI <code>PublicUpsertBriefingRequestDto</code>:</p>
+<ul>
+<li><strong><code>text</code></strong> (required, non-empty, max <strong>4000</strong>)</li>
+<li><strong><code>generatedAt</code></strong> (ISO 8601 — if omitted or blank, the SDK sends current UTC time)</li>
+<li><strong><code>prompts</code></strong> (required list, max <strong>200</strong>; each item: <strong><code>title</code></strong> max <strong>100</strong>, <strong><code>body</code></strong> max <strong>4000</strong>)</li>
+<li><strong><code>title</code></strong> (optional display title, max <strong>100</strong>)</li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>user_id</code>, <code>company_id</code>, <code>assistant_id</code> (required)</li>
+<li><code>text</code>, <code>generatedAt</code>, <code>prompts</code>, <code>title</code> — see above</li>
+<li><code>markdown</code> / <code>content</code> — Legacy aliases sent as <strong><code>text</code></strong></li>
+</ul>
+<p><strong>Returns:</strong> A <a href="#briefing"><code>Briefing</code></a> instance (<code>200</code>).</p>
 <p><strong>Example:</strong></p>
 <div class="highlight"><pre><span></span><code><span class="n">briefing</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Briefing</span><span class="o">.</span><span class="n">upsert_for_assistant</span><span class="p">(</span>
     <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
     <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
     <span class="n">assistant_id</span><span class="o">=</span><span class="n">assistant_external_id</span><span class="p">,</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;# Role</span><span class="se">\n</span><span class="s2">Assist users with onboarding...&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Today&#39;s Briefing&quot;</span><span class="p">,</span>
     <span class="n">generatedAt</span><span class="o">=</span><span class="s2">&quot;2026-04-29T06:46:06.789Z&quot;</span><span class="p">,</span>
     <span class="n">prompts</span><span class="o">=</span><span class="p">[</span>
         <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;First idea&quot;</span><span class="p">,</span> <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="s2">&quot;Ask about priorities.&quot;</span><span class="p">},</span>
-        <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Follow-up&quot;</span><span class="p">,</span> <span class="s2">&quot;body&quot;</span><span class="p">:</span> <span class="s2">&quot;Summarize next steps.&quot;</span><span class="p">},</span>
     <span class="p">],</span>
 <span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Briefing id: </span><span class="si">{</span><span class="n">briefing</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> assistant=</span><span class="si">{</span><span class="n">briefing</span><span class="p">[</span><span class="s1">&#39;assistantId&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div>
 </details>
 <details class="example">
 <summary><code>unique_sdk.Briefing.upsert_for_assistant_async</code> - Async upsert</summary>
-<p>Same behavior as <strong><code>upsert_for_assistant</code></strong> above, but asynchronous.</p>
-<p><strong>Parameters:</strong></p>
-<p>Same as the synchronous method.</p>
-<p><strong>Returns:</strong></p>
-<p>Returns a <a href="#briefing"><code>Briefing</code></a> instance.</p>
+<p>Same behavior as <strong><code>upsert_for_assistant</code></strong>, but asynchronous.</p>
+</details>
+<details class="example">
+<summary><code>unique_sdk.Briefing.delete_for_assistant</code> - Delete briefing attachment for an assistant</summary>
+<p>Detaches the briefing from the assistant (<code>DELETE /briefings/{assistantId}</code>). The underlying briefing record is preserved when other assistants in the tenant still reference it.</p>
+<p><strong>Returns:</strong> A <a href="#deletedobject"><code>DeletedObject</code></a> (<code>200</code>).</p>
 <p><strong>Example:</strong></p>
-<div class="highlight"><pre><span></span><code><span class="n">briefing</span> <span class="o">=</span> <span class="k">await</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Briefing</span><span class="o">.</span><span class="n">upsert_for_assistant_async</span><span class="p">(</span>
+<div class="highlight"><pre><span></span><code><span class="n">result</span> <span class="o">=</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">Briefing</span><span class="o">.</span><span class="n">delete_for_assistant</span><span class="p">(</span>
     <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
     <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
-    <span class="n">assistant_id</span><span class="o">=</span><span class="n">assistant_external_id</span><span class="p">,</span>
-    <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Updated briefing text.&quot;</span><span class="p">,</span>
-    <span class="n">prompts</span><span class="o">=</span><span class="p">[],</span>
+    <span class="n">assistant_id</span><span class="o">=</span><span class="n">assistant_id</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;deleted&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span>
 </code></pre></div>
+</details>
+<details class="example">
+<summary><code>unique_sdk.Briefing.delete_for_assistant_async</code> - Async delete</summary>
+<p>Same as <strong><code>delete_for_assistant</code></strong>, but asynchronous.</p>
 </details>
 <h2 id="input-and-return-types">Input and return types<a class="headerlink" href="#input-and-return-types" title="Permanent link">&para;</a></h2>
 <h4 id="upsertforassistantparams">UpsertForAssistantParams<a class="headerlink" href="#upsertforassistantparams" title="Permanent link">&para;</a></h4>
 <details class="note">
 <summary>Request body (<code>PublicUpsertBriefingRequestDto</code>)</summary>
-<p>Keyword arguments become the JSON object sent as <code>application/json</code>.</p>
-<p><strong>Fields:</strong></p>
 <ul>
-<li><code>text</code> (str) — Primary field for briefing body (<strong>max 4000</strong> characters on the API).</li>
-<li><code>generatedAt</code> (str, optional) — ISO 8601 string; omitted or empty → SDK uses current UTC.</li>
-<li><code>prompts</code> (list of <code>{title, body}</code>) — Required on the wire. Max <strong>200</strong> entries; <strong><code>title</code></strong> max <strong>100</strong>, <strong><code>body</code></strong> max <strong>4000</strong> characters each.</li>
-<li><code>markdown</code> / <code>content</code> — Optional legacy aliases mapped to <strong><code>text</code></strong> before sending.</li>
+<li><code>text</code>, <code>generatedAt</code>, <code>prompts</code> — Required on the wire (see upsert method above).</li>
+<li><code>title</code> — Optional display title (max <strong>100</strong>).</li>
+<li><code>markdown</code> / <code>content</code> — Legacy aliases mapped to <strong><code>text</code></strong>.</li>
 </ul>
-<p>Optional per-call overrides (<code>api_key</code>, <code>api_base</code>, <code>headers</code>) apply to SDK transport only and are <strong>not</strong> included in the JSON body; see <a href="../../getting_started/configuration/">Configuration</a> for global defaults.</p>
+<p>Per-call <code>api_key</code>, <code>api_base</code>, and <code>headers</code> are transport-only and not sent in the JSON body.</p>
 </details>
 <h4 id="briefing">Briefing<a class="headerlink" href="#briefing" title="Permanent link">&para;</a></h4>
 <details class="note">
-<summary>The <code>Briefing</code> resource object</summary>
-<p><strong>Typical fields (aligned with <code>#/components/schemas/PublicBriefingDto</code> where exposed):</strong></p>
+<summary>The <code>Briefing</code> resource object (<code>PublicBriefingDto</code>)</summary>
 <ul>
-<li><code>id</code> (str) — Briefing identifier</li>
-<li><code>object</code> (str) — Often <code>"briefing"</code> for typed SDK responses</li>
-<li><code>assistantId</code> (str) — Assistant this briefing is attached to</li>
-<li><code>text</code> (str, optional) — Stored briefing body when returned</li>
-<li><code>generatedAt</code> (str, optional) — Generation timestamp (ISO 8601) when returned</li>
-<li><code>prompts</code> (list, optional) — Ordered prompt rows when returned (see <code>PublicBriefingPromptDto</code>)</li>
-<li><code>content</code> / <code>markdown</code> — May appear depending on API version</li>
-<li><code>title</code> (str, optional) — If exposed by the API</li>
-<li><code>createdAt</code>, <code>updatedAt</code> (str, optional)</li>
+<li><code>object</code> — <code>"briefing"</code></li>
+<li><code>externalId</code> — Stable external identifier (assistant id when attached per-assistant)</li>
+<li><code>text</code>, <code>generatedAt</code>, <code>title</code>, <code>createdAt</code>, <code>updatedAt</code></li>
+<li><code>prompts</code> — Ordered prompt rows when returned</li>
 </ul>
-<p><strong>Returned by:</strong> <code>upsert_for_assistant()</code>, <code>upsert_for_assistant_async()</code></p>
+<p>Legacy fields such as <code>assistantId</code> or <code>id</code> may still appear depending on API version.</p>
+<p><strong>Returned by:</strong> <code>retrieve_for_assistant()</code>, <code>upsert_for_assistant()</code> (+ async variants)</p>
+</details>
+<h4 id="deletedobject">DeletedObject<a class="headerlink" href="#deletedobject" title="Permanent link">&para;</a></h4>
+<details class="note">
+<summary>Delete response</summary>
+<ul>
+<li><code>object</code> — <code>"deleted-briefing"</code></li>
+<li><code>id</code> — Echoes the <code>assistantId</code> from the URL</li>
+<li><code>deleted</code> — Whether the detach succeeded</li>
+</ul>
+<p><strong>Returned by:</strong> <code>delete_for_assistant()</code> (+ async variant)</p>
 </details>
 <h2 id="http-status-semantics">HTTP status semantics<a class="headerlink" href="#http-status-semantics" title="Permanent link">&para;</a></h2>
-<p>The underlying route can return:</p>
-<ul>
-<li><code>200</code> — Briefing created or updated and attached to the assistant.</li>
-<li><code>400</code> — Invalid request parameters (e.g. empty <code>text</code>, invalid <code>generatedAt</code>).</li>
-<li><code>401</code> — Missing or invalid authentication.</li>
-<li><code>403</code> — Caller lacks manage access to the assistant.</li>
-<li><code>404</code> — Assistant not found.</li>
-<li><code>422</code> — Request could not be processed due to an upstream service error.</li>
-</ul>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Typical cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>200</code></td>
+<td>Success</td>
+</tr>
+<tr>
+<td><code>400</code></td>
+<td>Invalid parameters</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>Missing or invalid authentication</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>Insufficient access to the assistant</td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>Assistant or briefing attachment not found</td>
+</tr>
+<tr>
+<td><code>422</code></td>
+<td>Upstream service error</td>
+</tr>
+</tbody>
+</table>
 <h2 id="related-resources">Related resources<a class="headerlink" href="#related-resources" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../space/">Space API</a> — Create and configure assistants (spaces)</li>
@@ -2554,7 +2657,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
