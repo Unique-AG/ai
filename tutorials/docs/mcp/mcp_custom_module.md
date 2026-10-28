@@ -112,7 +112,7 @@ The same handler is reachable two ways:
 | `uv run python -m mcp_custom_module.app` | FastAPI webhook, built with `build_unique_custom_app` | Production. Needs a URL the platform can reach, so a tunnel such as ngrok while developing. |
 | `uv run python -m mcp_custom_module.sse` | Event socket (SSE) | Development on a machine that cannot expose a port. The connection opens outbound, so no public URL and no tunnel. |
 
-The SSE path additionally needs `UNIQUE_AUTH_COMPANY_ID` and `UNIQUE_AUTH_USER_ID` — the stream runs on behalf of those credentials — and at least one of `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS` or `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE`. The stream carries every `unique.chat.external-module.chosen` event the app can see, and with both filters unset every event is dropped.
+The SSE path additionally needs `UNIQUE_AUTH_COMPANY_ID` and `UNIQUE_AUTH_USER_ID` — the stream runs on behalf of those credentials — and at least one of `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS` or `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE`. The stream carries every `unique.chat.external-module.chosen` event the app can see, and with both filters unset every event is dropped. The example leaves both commented out on purpose. The webhook applies the same filter, so a copied placeholder answers HTTP 200 "Event filtered out" and the handler never runs. Fill a filter in only for `sse.py`, or when the webhook should ignore other spaces.
 
 !!! warning "The event socket is for development only"
     It has no delivery guarantee and no replay, and it closes after about ten minutes. The example reconnects, but events that arrive while it is down are lost.

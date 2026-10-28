@@ -109,7 +109,9 @@ behalf of those credentials.
 Also set at least one of `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS` or
 `UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE`. The stream carries every
 `unique.chat.external-module.chosen` event this app can see, and with both
-unset every event is dropped.
+unset every event is dropped. The example file leaves both commented out: the
+webhook applies the same filter, and a leftover placeholder drops every event
+with HTTP 200 "Event filtered out".
 
 **Development only.** The socket has no delivery guarantee and no replay, and
 it closes after about ten minutes. The script reconnects, but events that
