@@ -275,7 +275,8 @@ uqadm space upsert -f backup.yaml --dry-run
 | `-f`, `--file FILE` | Local snapshot (`.json`, `.yaml`, or `.yml`). Required. |
 | `--slot SLOT` | Credential slot (default: configured default slot). |
 | `--target SPACE_ID` | Space id or URL to update. Omit to create a new space. |
-| `--dry-run` | Print actions without calling create/update APIs. |
+| `--dry-run` | Print actions without calling create/update APIs. Dry-run still lists destination MCP servers so the match warnings are real. |
+| `--mcp-match` | `id` (default) or `name`. See MCP matching below. |
 
 ### `space diff`
 
@@ -310,8 +311,9 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 |--------|-------------|
 | `--source SPEC` | Source space (`slot:space_id` or `slot:URL`). Space id required. |
 | `--destination SPEC` | `slot` / `slot:` to create; `slot:space_id` or `slot:URL` to update. |
-| `--dry-run` | Print actions without making API write calls. |
+| `--dry-run` | Print actions without making API write calls. Dry-run still lists destination MCP servers so the match warnings are real. |
 | `--with-knowledge` | Reserved; currently informational only. |
+| `--mcp-match` | `id` (default) or `name`. See MCP matching below. |
 
 **Endpoint spec format** (`slot:space_id` or `slot:URL`):
 
@@ -324,7 +326,11 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 
 Supported URL path markers: `/space/<id>`, `/custom-space/<id>`, `/swappable-intelligence-space/<id>`.
 
-Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, and modules matched by name. Scope rules, MCP bindings, and briefings are not migrated.
+Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, modules matched by name, and MCP servers that exist on the destination. Scope rules and briefings are not migrated.
+
+`space migrate` and `space upsert` read snapshot `assistantMcpServers` and `GET /mcp/servers` on the destination before create or update. `--mcp-match id` keeps a binding whose `mcpServerId` is in that list. `--mcp-match name` keeps a binding only when exactly one destination server has that exact name, and sends the destination id. Each dropped server is printed with its name, source id, and reason (no id, no name, ambiguous name, space-restricted, or no remaining tools). If every server is dropped, `mcpServers` is omitted so bindings already on the destination stay as they are.
+
+Tool replay never sends `tools: []`, which would disable the server. When the snapshot lists enabled tool names, only names that exist on the destination server are sent, and the rest are warned. When the snapshot has no tool list, `tools` is omitted and every callable tool on that server is enabled. Space-restricted servers are attached only when updating a space whose id is in `allowedSpaceIds`; creating a space skips them. `mcpServerId` values inside module `configuration` are copied as stored and are not rewritten. The chat Connect banner uses the attachment, which carries the destination id.
 
 ### `space model-replace`
 
