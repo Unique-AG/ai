@@ -164,8 +164,9 @@ def test_crawl_url_safety__gate_respects_request_timeout(
         _urls: list[str],
         *,
         redirect_http_client: object | None = None,
+        deadline: float | None = None,
     ) -> UrlSafetyGateResult:
-        del redirect_http_client
+        del redirect_http_client, deadline
         await asyncio.sleep(2)
         return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
 

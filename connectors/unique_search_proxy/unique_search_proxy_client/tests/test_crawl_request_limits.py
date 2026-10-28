@@ -196,8 +196,9 @@ def test_crawl__clamps_timeout__when_above_server_ceiling(
         _urls: list[str],
         *,
         redirect_http_client: object | None = None,
+        deadline: float | None = None,
     ) -> UrlSafetyGateResult:
-        del redirect_http_client
+        del redirect_http_client, deadline
         await asyncio.sleep(2)
         return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
 
