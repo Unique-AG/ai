@@ -159,7 +159,17 @@ def handle_event(event: ChatEvent) -> int:
     # No tool call requested: answer with the configured model and show what is
     # wired up, so the example is useful without a live Atlassian or GitHub call.
     catalog = _tool_catalog(mcp_servers)
-    model_name = event.payload.configuration["languageModel"]
+    model_name = event.payload.configuration.get("languageModel")
+    if not isinstance(model_name, str) or not model_name:
+        chat_service.modify_assistant_message(
+            content=(
+                "This module has no `languageModel` in its configuration.\n\n"
+                "Set it to a model registered for your company, then send "
+                "your message again."
+            ),
+            set_completed_at=True,
+        )
+        return 0
 
     messages = (
         OpenAIMessageBuilder()

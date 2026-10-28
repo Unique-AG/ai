@@ -93,7 +93,7 @@ One more condition applies to the banner specifically: a server surfaces only wh
 
 ## 📨 What the event carries
 
-On `unique.chat.external-module.chosen`, the tools the platform resolved arrive on `payload.mcpServers`. Your stored `languageModel` is available on `payload.configuration`. Do not treat `isConnected` as "the user finished the Connect banner" — see above.
+On `unique.chat.external-module.chosen`, the tools the platform resolved arrive on `payload.mcpServers`. Your stored `languageModel` is available on `payload.configuration` when you set it; the example replies and stops when the field is missing, rather than raising. Do not treat `isConnected` as "the user finished the Connect banner" — see above.
 
 !!! danger "Tool names differ between the configuration and the event"
     The configuration stores the bare name (`jira_search`). The event delivers the **namespaced** `<server>_<tool>` form (`atlassian_jira_search`), and that is the name `MCP.call_tool` expects. Calling with the bare name will not route.
