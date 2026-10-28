@@ -135,7 +135,9 @@ The two sides of the run see different things, and this is the part that surpris
 
 A sub-agent's MCP tools arrive on the **sub-agent's** event, when that space runs. The orchestrator's event carries only the orchestrator's own servers. There is no payload field that hands a parent its children's tools.
 
-Spaces driven by one of the platform's built-in agents (Unique AI, Conduct) get `SubAgentTool` entries injected into their configuration, so those agents can delegate on their own. A custom module gets no such entry and must call the sub-agent space itself, by assistant id:
+Spaces driven by one of the platform's built-in agents (Unique AI, Conduct) get `SubAgentTool` entries injected into their configuration, so those agents can delegate on their own. A custom module gets no such entry and must call the sub-agent space itself, by assistant id.
+
+`max_wait` defaults to 60 seconds. A sub-agent that calls MCP tools often needs longer, so pass it. 180 below is an illustration, not a tuned limit:
 
 ```python
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
@@ -145,6 +147,7 @@ answer = await send_message_and_wait_for_completion(
     company_id=event.company_id,
     assistant_id=sub_agent_assistant_id,
     text="Summarise the open issues for project UN",
+    max_wait=180,
     correlation={
         "parentMessageId": event.payload.assistant_message.id,
         "parentChatId": event.payload.chat_id,
