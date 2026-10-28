@@ -15,7 +15,7 @@ nav:
     - Unique credentials <-> Tools: mcp/mcp_search.md
     - Production MCP Server Template: mcp/mcp_server_template.md
     - Using MCP Tools in Unique AI: mcp/mcp_unique_ai.md
-    - MCP Tools in a Custom Module: mcp/mcp_custom_module.md
+    - Calling MCP Tools from a Custom Module: mcp/mcp_custom_module.md
     - MCP Tools Across Sub-Agents: mcp/mcp_subagents.md
 
 markdown_extensions:

@@ -48,7 +48,9 @@ def example_configuration() -> ModuleConfiguration:
     """The configuration shipped as `module_configuration.example.json`.
 
     Replace the server ids with the ids of your own MCP servers, and the tool
-    names with names those servers advertise.
+    names with names those servers advertise. `language_model` is an example
+    of a model name; use one registered for your company. The sample will go
+    stale as models are retired.
     """
     return ModuleConfiguration(
         language_model="AZURE_GPT_4o_2024_1120",

@@ -69,6 +69,8 @@ MCP tools are declared as entries on the module's `tools` array. Two fields are 
 
 Add more tools from the same server as further entries carrying the same `mcpServerId`.
 
+`languageModel` is whichever model is registered for your company. The name in the sample is only an example and will go stale.
+
 ### Where the `tools` array may sit
 
 The platform looks in exactly two places, and there is no recursive search:

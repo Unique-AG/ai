@@ -45,8 +45,9 @@ Add further tools for the same server as more entries carrying the same
 the platform reads `space.tools` instead of `tools`.
 
 `languageModel` is the model this module answers with. Use a model registered
-for your company. If the field is missing, the module says so instead of
-raising — a `KeyError` here would leave the assistant message spinning.
+for your company. The name in the sample is only an example and will go stale.
+If the field is missing, the module says so instead of raising — a `KeyError`
+here would leave the assistant message spinning.
 
 `configuration.py` builds the same JSON from Pydantic models, if you generate
 your configuration in code:

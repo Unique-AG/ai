@@ -13,6 +13,9 @@ It does — but only when the spaces are linked. The chat asks for the servers o
 - An MCP server already registered for your organization — see [MCP Fundamentals](mcp_fundamentals.md) and [MCP Connectors for Admins](https://unique-ch.atlassian.net/wiki/x/EoD4Yg)
 - Familiarity with the tool-entry configuration from [Calling MCP Tools from a Custom Module](mcp_custom_module.md)
 
+!!! note "Read from the platform sources, October 2026"
+    Which spaces the Connect banner asks about, and what each module event carries, was read from the chat service. It has not been re-checked on a live tenant.
+
 ## 🏗️ How it fits together
 
 ```mermaid
