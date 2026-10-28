@@ -23,6 +23,8 @@ class TavilyCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
+        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including HTTP error bodies. For
+            debugging and benchmarks. Default: False.
         crawler (Literal['Tavily'] | Unset): Provider discriminator; must be `Tavily` for this config. Default:
             'Tavily'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
@@ -41,6 +43,7 @@ class TavilyCrawlRequest:
     """
 
     urls: list[str]
+    include_raw: bool | Unset = False
     crawler: Literal["Tavily"] | Unset = "Tavily"
     timeout: int | Unset = 30
     extract_depth: TavilyCrawlRequestExtractDepth | Unset = (
@@ -58,6 +61,8 @@ class TavilyCrawlRequest:
 
     def to_dict(self) -> dict[str, Any]:
         urls = self.urls
+
+        include_raw = self.include_raw
 
         crawler = self.crawler
 
@@ -96,6 +101,8 @@ class TavilyCrawlRequest:
                 "urls": urls,
             }
         )
+        if include_raw is not UNSET:
+            field_dict["includeRaw"] = include_raw
         if crawler is not UNSET:
             field_dict["crawler"] = crawler
         if timeout is not UNSET:
@@ -121,6 +128,8 @@ class TavilyCrawlRequest:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         urls = cast(list[str], d.pop("urls"))
+
+        include_raw = d.pop("includeRaw", UNSET)
 
         crawler = cast(Literal["Tavily"] | Unset, d.pop("crawler", UNSET))
         if crawler != "Tavily" and not isinstance(crawler, Unset):
@@ -168,6 +177,7 @@ class TavilyCrawlRequest:
 
         tavily_crawl_request = cls(
             urls=urls,
+            include_raw=include_raw,
             crawler=crawler,
             timeout=timeout,
             extract_depth=extract_depth,

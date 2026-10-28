@@ -197,6 +197,26 @@ def test_firecrawl_crawl_route(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["results"][0]["content"] == "# Firecrawl markdown"
+    assert body["results"][0]["raw"] is None
+
+
+@pytest.mark.ai
+def test_firecrawl_crawl_route_returns_raw__when_include_raw(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com"],
+            "crawler": CrawlerType.FIRECRAWL.value,
+            "timeout": 30,
+            "includeRaw": True,
+        },
+    )
+    assert response.status_code == 200
+    result = response.json()["results"][0]
+    assert result["content"] == "# Firecrawl markdown"
+    assert result["raw"] is not None
 
 
 @pytest.mark.ai

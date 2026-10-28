@@ -212,6 +212,8 @@ Per-URL outcomes — one URL failing does not fail the batch:
 
 Crawler discriminators: `Basic`, `Tavily`, `Jina`, `Firecrawl`.
 
+Results carry `content` (markdown); `raw` stays null unless the request sets `"includeRaw": true`, which is meant for debugging and benchmarks.
+
 ### 5.5 Errors
 
 Structured envelope on all non-2xx responses:

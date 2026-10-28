@@ -26,6 +26,8 @@ class JinaCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
+        include_raw (bool | Unset): Return each URL's upstream response in `raw`, including HTTP error bodies. For
+            debugging and benchmarks. Default: False.
         crawler (Literal['Jina'] | Unset): Provider discriminator; must be `Jina` for this config. Default: 'Jina'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         return_format (JinaCrawlRequestReturnFormat | Unset): Jina Reader output format: `markdown`, `html`, `text`,
@@ -52,6 +54,7 @@ class JinaCrawlRequest:
     """
 
     urls: list[str]
+    include_raw: bool | Unset = False
     crawler: Literal["Jina"] | Unset = "Jina"
     timeout: int | Unset = 30
     return_format: JinaCrawlRequestReturnFormat | Unset = (
@@ -77,6 +80,8 @@ class JinaCrawlRequest:
 
     def to_dict(self) -> dict[str, Any]:
         urls = self.urls
+
+        include_raw = self.include_raw
 
         crawler = self.crawler
 
@@ -170,6 +175,8 @@ class JinaCrawlRequest:
                 "urls": urls,
             }
         )
+        if include_raw is not UNSET:
+            field_dict["includeRaw"] = include_raw
         if crawler is not UNSET:
             field_dict["crawler"] = crawler
         if timeout is not UNSET:
@@ -215,6 +222,8 @@ class JinaCrawlRequest:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         urls = cast(list[str], d.pop("urls"))
+
+        include_raw = d.pop("includeRaw", UNSET)
 
         crawler = cast(Literal["Jina"] | Unset, d.pop("crawler", UNSET))
         if crawler != "Jina" and not isinstance(crawler, Unset):
@@ -358,6 +367,7 @@ class JinaCrawlRequest:
 
         jina_crawl_request = cls(
             urls=urls,
+            include_raw=include_raw,
             crawler=crawler,
             timeout=timeout,
             return_format=return_format,
