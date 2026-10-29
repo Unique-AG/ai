@@ -179,6 +179,7 @@ unique-cli elicit ask "<question>" \
 |-----------|------------------|
 | Clarifying an ambiguous request | Yes |
 | Confirming a destructive / irreversible action | Yes, always |
+| Sending text that leaves the platform (Slack, Teams, email) | Yes, always -- with the text as an editable field (see "Outbound content") |
 | Picking among 2+ concrete options | Yes |
 | Gathering structured data (rating, date, options) | Yes |
 | Quick status update / "I'll start now" message | No -- just talk |
@@ -251,12 +252,53 @@ unique-cli elicit ask "Permanently delete /Archive/2024 and everything inside it
 
 Proceed **only** if the `Status:` is `ACCEPTED`. Treat `DECLINED`, `REJECTED`, `CANCELLED`, or `EXPIRED` all as "do not proceed" -- tell the user you stopped and return control. Put everything the user needs to decide into the message text, since the form has no fields.
 
+This shape is only for actions with nothing to edit. Never use it to confirm text you are about to send: a draft in the message text is read-only, and Confirm sends it unchanged. Use "Outbound content" below instead.
+
 Confirm on a form with fields is the same consent. If you still need inputs
 (e.g. which folder to delete), ask for them and state the consequence in the
 same `elicit ask` message, then act on `ACCEPTED` -- do not add a checkbox for
 the consent. Only split into a second, empty-schema confirmation when the
 consequence depends on the answers and the user should see it before you act
 (e.g. "Archive/2024 holds 1,234 files, 3 shared with other teams").
+
+### Outbound content (message, email)
+
+Use this before you send text that leaves the platform: a Slack or Teams post, an email, any message to another person. The user must be able to correct the text before it goes out.
+
+- The message names only the action and the target ("Post this brief to #ps-efg?"). Never put the draft in the message.
+- The draft goes in a required `body` string with `"multiline": true` and `"default"` set to the draft. The form opens with the draft in an editable text box. For an email, add a `subject` string the same way.
+- Recipients and channel stay in the message. Do not make them editable here.
+- On `ACCEPTED` or `RESPONDED`, send the `body` (and `subject`) from `Response:`, never your earlier draft. The user may have changed it.
+- On any other terminal status, send nothing.
+
+A draft usually contains quotes and newlines, so do not paste it into a single-quoted `--schema`. Write the draft to a file, then build the schema with `json.dumps`:
+
+```bash
+schema=$(python3 -c '
+import json, pathlib
+draft = pathlib.Path("outbox/ps-efg-brief.md").read_text()
+print(json.dumps({
+    "type": "object",
+    "properties": {
+        "body": {"type": "string", "title": "Message", "multiline": True, "default": draft}
+    },
+    "required": ["body"],
+}))')
+
+unique-cli elicit ask "Post this brief to #ps-efg?" \
+  --chat-id "$UNIQUE_CHAT_ID" \
+  --tool-name "confirm_slack_post" \
+  --schema "$schema"
+```
+
+The reply carries the final text:
+
+```
+Status:     RESPONDED
+Response:   {"body": "Thanks for your brief. I had lunch with ..."}
+```
+
+If the send tool also requires platform confirmation, the platform shows its own "Allow tool call" prompt after this one. Call the tool once, with the edited text, and wait on that prompt as your instructions describe.
 
 ### Structured form (multiple fields)
 
@@ -409,6 +451,7 @@ esac
 10. **Don't spam elicitations.** One well-designed form with a few related fields is better than five sequential yes/no questions.
 11. **Cap each elicitation at 5 questions.** If you need more than 5 answers, split them into multiple focused elicitations so the user can respond confidently.
 12. **Never make a single blocking call longer than your harness's Bash foreground timeout, unless your instructions say your environment supervises the wait.** In Pattern A, use `--expires-in` on `elicit create` to set the real, human-scale deadline (e.g. 7200s / 2 hours), but keep each individual `elicit wait --timeout N` call short (≈90s) and loop until a terminal status or the overall deadline is reached. In Pattern B, `--expires-in` on `elicit ask` does the same job, decoupled from the (now safely long) `--timeout` your supervisor manages. Never call `elicit ask` with a multi-minute `--timeout` from an agent harness unless Pattern B applies.
+13. **Make outbound text editable.** Before you send a message or email, put the draft in an editable `body` field with the draft as its `default`, never in the message text. Send what comes back in `Response:`. See "Outbound content" above.
 
 ## Prerequisites
 
