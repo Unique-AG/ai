@@ -7,6 +7,7 @@ from typing import Any, cast, overload
 import jinja2
 from typing_extensions import deprecated
 from unique_skill_tool.service import SkillTool
+from unique_toolkit.agentic.chat_title import ChatTitleGenerator
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     AnalyticsLanguageModel,
     DebugInfoManager,
@@ -73,6 +74,9 @@ from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.settings import env_settings
 from unique_orchestrator.utils import resolve_other_options
 
+# Holds back message completion when the answer finishes before the title.
+_CHAT_TITLE_WAIT_SECONDS = 15
+
 
 def _load_invocation_stats_from_debug_info(
     debug_info: dict[str, Any],
@@ -124,6 +128,7 @@ class UniqueAI:
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
+        chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -150,6 +155,7 @@ class UniqueAI:
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
+        chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None: ...
 
     def __init__(
@@ -175,6 +181,7 @@ class UniqueAI:
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
+        chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -196,6 +203,7 @@ class UniqueAI:
 
         self._evaluation_manager = evaluation_manager
         self._postprocessor_manager = postprocessor_manager
+        self._chat_title_generator = chat_title_generator
         self._latest_assistant_id: str = event.payload.assistant_message.id
         self._mcp_servers = mcp_servers
         self._streaming_handler = streaming_handler
@@ -246,6 +254,31 @@ class UniqueAI:
             set_completed_at=True,
         )
 
+    def _start_chat_title_generation(self) -> asyncio.Task[str | None] | None:
+        if self._chat_title_generator is None:
+            return None
+        user_message = self._event.payload.user_message
+        return asyncio.create_task(
+            self._chat_title_generator.run(
+                user_message.original_text or user_message.text
+            )
+        )
+
+    async def _finish_chat_title_generation(
+        self, task: asyncio.Task[str | None] | None
+    ) -> None:
+        if task is None or self._chat_title_generator is None:
+            return
+        if self._chat_service.cancellation.is_cancelled:
+            task.cancel()
+            return
+        try:
+            await asyncio.wait_for(task, timeout=_CHAT_TITLE_WAIT_SECONDS)
+        except TimeoutError:
+            self._logger.warning("Chat title generation timed out.")
+            return
+        self._invocation_stats.extend(self._chat_title_generator.invocation_stats)
+
     # @track(name="loop_agent_run")  # Group traces together
     async def run(self):
         """
@@ -284,6 +317,7 @@ class UniqueAI:
         sub = self._chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
         )
+        chat_title_task = self._start_chat_title_generation()
         try:
             max_iterations = self._config.effective_max_loop_iterations
             for i in range(max_iterations):
@@ -387,6 +421,7 @@ class UniqueAI:
                 },
             )
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
+            await self._finish_chat_title_generation(chat_title_task)
             skills_debug_info = self._get_activated_skills_debug_info()
             self._debug_info_manager.add("skills", skills_debug_info)
             tool_names = {
@@ -486,6 +521,8 @@ class UniqueAI:
             await self._chat_service.update_debug_info_async(debug_info=debug_info)
             invocations_persisted = True
         finally:
+            if chat_title_task is not None and not chat_title_task.done():
+                chat_title_task.cancel()
             if not invocations_persisted:
                 if isinstance(self._loop_iteration_runner, SupportsInvocationStats):
                     self._invocation_stats.extend(
