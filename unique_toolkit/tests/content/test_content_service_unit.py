@@ -979,14 +979,14 @@ class TestGetDocumentsUploadedToChatAsync:
     @pytest.mark.asyncio
     async def test__returns_only_file_content__when_mixed_keys_returned(self) -> None:
         """
-        Purpose: Verify get_documents_uploaded_to_chat_async filters out non-file entries,
-                 returning only items whose key is recognised as a file.
-        Why this matters: The chat content endpoint returns all owner-scoped content;
-                          the method must silently drop non-file items (e.g. images, web clips)
-                          so callers receive a clean list of uploadable documents.
-        Setup summary: Mock unique_sdk.Content.search_async to return one file key
-                       (report.pdf) and one non-file key (screenshot.png). Assert only
-                       the file entry is returned.
+        Purpose: Verify get_documents_uploaded_to_chat_async keeps stored uploads
+                 that are not images, including types outside the old MIME catalog.
+        Why this matters: UN-27570 stores types outside the old MIME catalog.
+                          Dropping them here hides the upload from search and the
+                          orchestrator. Images stay on the image path.
+        Setup summary: Mock search_async with a PDF, a PNG, and a non-catalog
+                       upload. Assert the PDF and the non-catalog upload are
+                       returned and the PNG is not.
         """
         file_content_raw = {
             "id": "content_file_1",
@@ -1006,19 +1006,31 @@ class TestGetDocumentsUploadedToChatAsync:
             "createdAt": "2024-01-01T00:00:00Z",
             "updatedAt": "2024-01-01T00:00:00Z",
         }
+        webm_content_raw = {
+            "id": "content_video_1",
+            "key": "clip.webm",
+            "title": "Clip",
+            "url": "http://test.com/clip.webm",
+            "chunks": [],
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
+        }
 
         with patch.object(
             unique_sdk.Content, "search_async", new_callable=AsyncMock
         ) as mock_search_async:
-            mock_search_async.return_value = [file_content_raw, image_content_raw]
+            mock_search_async.return_value = [
+                file_content_raw,
+                image_content_raw,
+                webm_content_raw,
+            ]
 
             result = await self.service.get_documents_uploaded_to_chat_async()
 
         assert isinstance(result, list)
-        assert len(result) == 1
-        assert isinstance(result[0], Content)
-        assert result[0].id == "content_file_1"
-        assert result[0].key == "report.pdf"
+        assert [item.id for item in result] == ["content_file_1", "content_video_1"]
+        assert all(isinstance(item, Content) for item in result)
+        assert [item.key for item in result] == ["report.pdf", "clip.webm"]
 
         mock_search_async.assert_called_once_with(
             user_id="test_user",

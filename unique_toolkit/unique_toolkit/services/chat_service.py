@@ -21,7 +21,7 @@ from unique_toolkit._common.metadata_filter_scope import (
     build_folder_id_in_clause,
     merge_scope_clause_into_metadata_filter,
 )
-from unique_toolkit._common.utils.files import is_file_content, is_image_content
+from unique_toolkit._common.utils.files import is_image_content
 from unique_toolkit.agentic.message_log_order import next_message_log_order
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.cancellation import CancellationWatcher
@@ -2086,10 +2086,13 @@ class ChatService(ChatServiceDeprecated):
         images: list[Content] = []
         files: list[Content] = []
         for c in contents:
-            if is_file_content(filename=c.key):
-                files.append(c)
+            # Admission is the platform's job (open by default, blocklist on the
+            # server). Image extensions are attached as vision input; every other
+            # stored upload is a document.
             if is_image_content(filename=c.key):
                 images.append(c)
+            else:
+                files.append(c)
         return images, files
 
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
