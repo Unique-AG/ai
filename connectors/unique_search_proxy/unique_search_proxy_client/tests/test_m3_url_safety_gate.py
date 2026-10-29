@@ -174,6 +174,10 @@ def test_crawl_url_safety__gate_respects_request_timeout(
         "unique_search_proxy_client.web.api.v1.crawl.apply_url_safety_gate",
         slow_gate,
     )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.api.v1.crawl._SAFETY_NET_GRACE_SECONDS",
+        0.5,
+    )
 
     response = client.post(
         "/v1/crawl",

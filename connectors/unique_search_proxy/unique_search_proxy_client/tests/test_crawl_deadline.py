@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Generator
 from typing import Any
 
@@ -16,6 +17,7 @@ from unique_search_proxy_core.url_safety import (
     UrlSafetyService,
 )
 
+import unique_search_proxy_client.web.api.v1.crawl as crawl_module
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.crawlers.basic.service import (
     BasicCrawlerService,
@@ -29,6 +31,8 @@ from unique_search_proxy_client.web.core.url_safety.gate import (
 _HTML_PAGE = "<html><body><h1>Hello</h1><p>World</p></body></html>"
 _HANGING_HOST = "hang.example"
 _HANG_SECONDS = 30
+_SLOW_TO_CANCEL_HOST = "slow-cancel.example"
+_SLOW_CANCEL_SECONDS = 1.0
 
 
 def _host(request: httpx.Request) -> str:
@@ -39,8 +43,15 @@ def _host(request: httpx.Request) -> str:
 
 
 async def _origin(request: httpx.Request) -> httpx.Response:
-    if _host(request) == _HANGING_HOST:
+    host = _host(request)
+    if host == _HANGING_HOST:
         await asyncio.sleep(_HANG_SECONDS)
+    elif host == _SLOW_TO_CANCEL_HOST:
+        try:
+            await asyncio.sleep(_HANG_SECONDS)
+        except asyncio.CancelledError:
+            await asyncio.sleep(_SLOW_CANCEL_SECONDS)
+            raise
     return httpx.Response(
         200,
         text=_HTML_PAGE,
@@ -184,8 +195,74 @@ def test_crawl__returns_partial_results__when_one_page_hangs(
 
 
 @pytest.mark.ai
+def test_crawl__returns_partial_results__when_cancelled_page_finishes_late(
+    client: TestClient,
+) -> None:
+    """
+    Purpose: Verify pages that finished are returned even when cancelling the rest runs late.
+    Why this matters: Under load a worker can finish cancelling pages seconds
+        after the deadline; that must delay the response, not turn it into a 504.
+    Setup summary: Timeout 1s; one page takes 1s to unwind after cancellation,
+        past the request timeout; assert 200 with the other page's content.
+    """
+    response = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/article", f"https://{_SLOW_TO_CANCEL_HOST}/"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 1,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    assert response.status_code == 200
+    fast, slow = response.json()["results"]
+    assert "Hello" in fast["content"]
+    assert slow["error"]["code"] == ProxyErrorCode.UPSTREAM_TIMEOUT.value
+
+
+@pytest.mark.ai
+def test_crawl__fails_request_at_timeout__when_unpinned_crawler_hangs(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify crawlers without pinned egress still fail the request at its timeout.
+    Why this matters: Tavily, Jina and Firecrawl have no per-URL deadline; the
+        later safety net must not give them extra time.
+    Setup summary: A crawler service whose crawl hangs; timeout 1s; assert 504
+        well before the safety net would fire.
+    """
+
+    class HangingCrawler:
+        async def crawl(self, _request: object) -> list[object]:
+            await asyncio.sleep(_HANG_SECONDS)
+            return []
+
+    monkeypatch.setattr(
+        crawl_module,
+        "get_crawler_service",
+        lambda *_args, **_kwargs: HangingCrawler(),
+    )
+
+    started = time.monotonic()
+    response = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/article"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 1,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    assert response.status_code == 504
+    assert time.monotonic() - started < 3
+
+
+@pytest.mark.ai
 @pytest.mark.usefixtures("hanging_url_safety_check")
-def test_crawl__returns_partial_results__when_url_safety_check_hangs(
+def test_crawl__returns_per_url_results__when_url_safety_check_hangs(
     client: TestClient,
 ) -> None:
     """
