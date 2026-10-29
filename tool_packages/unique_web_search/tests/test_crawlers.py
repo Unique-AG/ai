@@ -542,8 +542,8 @@ class TestBaseCrawlerValidationFlow:
     ) -> None:
         """
         Purpose: Verify the Basic crawler's proxy client timeout exceeds the crawl timeout.
-        Why this matters: The proxy returns partial results just before the crawl timeout; a client timing out at the same moment discards them.
-        Setup summary: Basic crawler with a 10s timeout and a mocked proxy client; assert the client is opened with 15s.
+        Why this matters: A busy proxy can answer up to 5s after the crawl timeout; a client that gives up first discards the finished pages.
+        Setup summary: Basic crawler with a 10s timeout and a mocked proxy client; assert the client is opened with 20s.
         """
         import unique_web_search.services.crawlers.basic as basic_module
 
@@ -558,7 +558,7 @@ class TestBaseCrawlerValidationFlow:
 
         await crawler._proxy_crawl(["https://example.com"])
 
-        assert mock_open_client.call_args.kwargs["timeout"] == 15.0
+        assert mock_open_client.call_args.kwargs["timeout"] == 20.0
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -569,7 +569,7 @@ class TestBaseCrawlerValidationFlow:
         """
         Purpose: Verify crawlers using the shared proxy path open the client with a timeout above the crawl timeout.
         Why this matters: Same race as the Basic crawler, for every crawler that does not override ``_proxy_crawl``.
-        Setup summary: Jina crawler with a 10s timeout and a mocked proxy client; assert the client is opened with 15s.
+        Setup summary: Jina crawler with a 10s timeout and a mocked proxy client; assert the client is opened with 20s.
         """
         import unique_web_search.services.crawlers.base as base_module
         from unique_web_search.services.crawlers.jina import JinaCrawler
@@ -586,4 +586,4 @@ class TestBaseCrawlerValidationFlow:
 
         await crawler._proxy_crawl(["https://example.com"])
 
-        assert mock_open_client.call_args.kwargs["timeout"] == 15.0
+        assert mock_open_client.call_args.kwargs["timeout"] == 20.0
