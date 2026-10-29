@@ -121,48 +121,51 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
             ),
         )
         budget = ByteBudget(request_limits_settings.max_crawl_response_bytes)
-        return list(
-            await asyncio.gather(
-                *[
-                    self._crawl_one_before_deadline(
+        results = await asyncio.gather(
+            *[
+                self._crawl_one_before_deadline(
+                    self._crawl_one(
+                        client,
                         allowed_target.display_url,
-                        self._crawl_one(
-                            client,
-                            allowed_target.display_url,
-                            resolved_target=allowed_target.resolved,
-                            timeout=timeout,
-                            semaphore=semaphore,
-                            budget=budget,
-                            content_type_handlers=request.content_types.to_handlers(),
-                        ),
-                        deadline=deadline,
+                        resolved_target=allowed_target.resolved,
                         timeout=timeout,
-                    )
-                    for allowed_target in allowed_targets
-                ],
-            ),
+                        semaphore=semaphore,
+                        budget=budget,
+                        content_type_handlers=request.content_types.to_handlers(),
+                    ),
+                    deadline=deadline,
+                )
+                for allowed_target in allowed_targets
+            ],
         )
+        missed = sum(result is None for result in results)
+        if missed:
+            _LOGGER.warning(
+                "Basic crawl missed the request deadline timeout=%ss pages=%d",
+                timeout,
+                missed,
+            )
+        return [
+            result
+            if result is not None
+            else crawl_deadline_missed(
+                allowed_target.display_url,
+                f"Crawl did not finish before the {timeout}s request deadline",
+            )
+            for allowed_target, result in zip(allowed_targets, results, strict=True)
+        ]
 
     async def _crawl_one_before_deadline(
         self,
-        display_url: str,
         crawl: Coroutine[Any, Any, CrawlUrlResult],
         *,
         deadline: float | None,
-        timeout: int,
-    ) -> CrawlUrlResult:
+    ) -> CrawlUrlResult | None:
         try:
             async with asyncio.timeout_at(deadline):
                 return await crawl
         except TimeoutError:
-            _LOGGER.warning(
-                "Basic crawl missed the request deadline timeout=%ss",
-                timeout,
-            )
-            return crawl_deadline_missed(
-                display_url,
-                f"Crawl did not finish before the {timeout}s request deadline",
-            )
+            return None
 
     async def _crawl_one(
         self,

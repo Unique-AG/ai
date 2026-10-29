@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import Generator
 from typing import Any
@@ -163,6 +164,58 @@ async def test_crawl_pinned__returns_finished_pages__when_one_page_misses_deadli
     assert results[1].content is None
     assert results[2].error is None
     assert results[2].content is not None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__logs_one_warning_without_urls__when_pages_miss_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify missed pages produce one warning with a count and no URLs.
+    Why this matters: URLs can contain CID, and one line per hanging page floods
+        the logs when many pages in a batch stall.
+    Setup summary: Two hanging targets and one fast target; deadline 0.2s ahead;
+        assert a single deadline warning with pages=2 and no hostnames.
+    """
+    hanging_urls = [f"https://{_HANGING_HOST}/one", f"https://{_HANGING_HOST}/two"]
+    urls = ["https://a.example/", *hanging_urls]
+    request = parse_crawl_request(
+        {
+            "urls": urls,
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+    targets = [
+        _pinned_target(urls[0], "a.example"),
+        *[_pinned_target(url, _HANGING_HOST) for url in hanging_urls],
+    ]
+    monkeypatch.setattr(
+        logging.getLogger("unique_search_proxy_client"), "propagate", True
+    )
+    caplog.set_level(logging.WARNING)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(_origin)) as http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        await crawler.crawl_pinned(
+            request,
+            targets,
+            deadline=asyncio.get_running_loop().time() + 0.2,
+        )
+
+    deadline_warnings = [
+        record.getMessage()
+        for record in caplog.records
+        if "missed the request deadline" in record.getMessage()
+    ]
+    assert deadline_warnings == [
+        "Basic crawl missed the request deadline timeout=10s pages=2"
+    ]
+    assert _HANGING_HOST not in caplog.text
+    assert "a.example" not in caplog.text
 
 
 @pytest.mark.ai
