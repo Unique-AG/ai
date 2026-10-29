@@ -69,6 +69,7 @@ constraint-dependencies = [
     "crawl4ai>=0.9.0",
     "cryptography>=50.0.0",
     "deepdiff>=8.6.2",
+    "dnspython>=2.9.0",
     "fastmcp>=3.2.0",
     "fsspec>=2026.6.0",
     "httplib2>=0.32.0",
@@ -100,7 +101,9 @@ constraint-dependencies = [
     "urllib3>=2.8.0",
 ]
 # crawl4ai pins lxml>=5.3,<6.dev0; override to 6.x for XXE fix (Dependabot #742).
+# entangled-cli 2.4.0 (docs) pins filelock<4; override to 4.2.1+ for CVE-2026-112940.
 override-dependencies = [
+    "filelock>=4.2.1",
     "lxml>=6.1.0",
 ]
 
@@ -124,6 +127,7 @@ override-dependencies = [
 "unique-quartr" = false
 # TODO: drop after 2026-11-04, when the global cooldown reaches these CVE fixes.
 "certifi" = "2026-10-21T00:00:00Z"
+"filelock" = "2026-10-21T00:00:00Z"
 "pillow" = "2026-10-21T00:00:00Z"
 
 [tool.uv.sources]

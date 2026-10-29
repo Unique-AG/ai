@@ -77,6 +77,10 @@ jobs:
     name: Containerize
     needs: detect-changes
     uses: ./.github/workflows/ci-containerize.yaml
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: read
     with:
       changes: ${{ needs.detect-changes.outputs.changes }}
       matrix: ${{ needs.detect-changes.outputs.matrix }}
