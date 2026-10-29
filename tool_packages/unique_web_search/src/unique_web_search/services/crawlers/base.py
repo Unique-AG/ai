@@ -24,9 +24,9 @@ CrawlerConfig = TypeVar(
     bound=BaseCrawlerConfig,
 )
 
-# The proxy spends up to the crawl timeout on the pages, so the client must
-# wait longer than that to receive the partial results.
-_PROXY_CLIENT_TIMEOUT_MARGIN_SECONDS = 5.0
+# A busy proxy worker can answer up to 5 s after the crawl timeout. Waiting
+# longer than that makes sure the finished pages still reach the tool.
+_PROXY_CLIENT_TIMEOUT_MARGIN_SECONDS = 10.0
 
 
 class BaseCrawler(ABC, Generic[CrawlerConfig]):
