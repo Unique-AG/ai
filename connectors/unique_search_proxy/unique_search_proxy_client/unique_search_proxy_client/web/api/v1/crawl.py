@@ -48,9 +48,8 @@ _LOGGER = logging.getLogger(__name__)
 # Callers often use the crawl timeout as their HTTP client timeout. Finishing
 # this much earlier lets the response reach them before they give up.
 _RESPONSE_HEADROOM_SECONDS = 0.5
-# The request-wide timeout only catches work that ignores the deadline. A busy
-# worker can finish cancelling pages seconds late, and that must delay the
-# response, not discard the pages that finished.
+# Only catches work that ignores the deadline. A busy worker that cancels pages
+# late must delay the response, not drop the pages that finished.
 _SAFETY_NET_GRACE_SECONDS = 5.0
 
 
