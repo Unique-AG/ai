@@ -307,6 +307,34 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
         )
 
+    async def update_chat_title_async(
+        self, title: str, *, is_generated: bool = False
+    ) -> None:
+        """Rename the current chat.
+
+        Args:
+            title (str): The new chat title. Must be non-empty.
+            is_generated (bool): Set when an assistant generated the title. The
+                platform then applies it only while the chat still has its
+                prompt-based title and raises an HTTP 409 error otherwise.
+
+        """
+        if is_generated:
+            await unique_sdk.Space.update_chat_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                chat_id=self._chat_id,
+                title=title,
+                isGenerated=True,
+            )
+            return
+        await unique_sdk.Space.update_chat_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            title=title,
+        )
+
     # Message Methods
     ############################################################################
 

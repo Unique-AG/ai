@@ -50,6 +50,7 @@ def _make_common_components(uploaded_documents):
         a2a_manager=MagicMock(),
         mcp_servers=[],
         user_memory_text="",
+        chat_title_generator=None,
     )
 
 
