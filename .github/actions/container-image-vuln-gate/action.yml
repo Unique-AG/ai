@@ -35,6 +35,10 @@ inputs:
     description: PR label that records an accepted exception and bypasses patchable-finding failures
     required: false
     default: security-exception
+  report_only:
+    description: Report fail-tier findings as warnings instead of failing the pull request. Scan and coverage errors still fail.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -156,4 +160,5 @@ runs:
         WARN_SEVERITY: ${{ steps.resolve-severities.outputs.warn_severity }}
         SECURITY_EXCEPTION: ${{ steps.security-exception.outputs.has_label }}
         IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+        REPORT_ONLY: ${{ inputs.report_only }}
       run: node "${{ github.action_path }}/evaluate-gate.mjs"

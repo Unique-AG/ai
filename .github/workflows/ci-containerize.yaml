@@ -132,13 +132,8 @@ jobs:
 
       # Release PRs only report, so a search-proxy finding doesn't hold every package's release.
       - name: Vulnerability gate
-        id: vuln-gate
         uses: ./.github/actions/container-image-vuln-gate
-        continue-on-error: ${{ github.event.pull_request.user.login == 'gh-release-workflow[bot]' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'release-please--') }}
         with:
           image_tar: ${{ steps.image-tar.outputs.path }}
           docker_dockerfile_path: ${{ matrix.dir }}/deploy/Dockerfile
-
-      - name: Report gate findings on release PRs
-        if: steps.vuln-gate.outcome == 'failure'
-        run: echo "::warning title=Vulnerability gate::Release PR, so blocking findings are reported only. See the job summary."
+          report_only: ${{ github.event.pull_request.user.login == 'gh-release-workflow[bot]' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'release-please--') }}

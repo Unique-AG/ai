@@ -65,6 +65,7 @@ function scan(diffIds, vulnerabilities, { osPackages, languagePackages }) {
 function runEvaluator({
 	finalFindings,
 	securityException = false,
+	reportOnly = false,
 	omitFinalScan = false,
 	finalOsPackages = basePackages,
 	finalLanguagePackages = applicationPackages,
@@ -109,6 +110,7 @@ function runEvaluator({
 			WARN_SEVERITY: warnSeverity,
 			IS_PULL_REQUEST: "true",
 			SECURITY_EXCEPTION: String(securityException),
+			REPORT_ONLY: String(reportOnly),
 		},
 	});
 	result.summary = fs.existsSync(summaryPath)
@@ -271,6 +273,36 @@ test("security-exception bypasses an introduced blocking finding", () => {
 		result.stdout,
 		/::warning title=Patchable introduced vulnerability/,
 	);
+});
+
+test("report-only passes a pull request with an introduced blocking finding", () => {
+	const result = runEvaluator({
+		finalFindings: [introducedCriticalFinding],
+		reportOnly: true,
+	});
+
+	assert.equal(result.status, 0);
+	assert.match(
+		result.stdout,
+		/::warning title=Patchable introduced vulnerability::.*CVE-2024-0002 \(CRITICAL\)/,
+	);
+	assert.match(
+		result.stdout,
+		/::warning title=Vulnerability gate::Report-only run — 1 fail-tier finding/,
+	);
+	assert.match(result.summary, /Report-only run/);
+});
+
+test("report-only still fails closed on a scan coverage problem", () => {
+	const result = runEvaluator({
+		finalFindings: [introducedCriticalFinding],
+		reportOnly: true,
+		finalOsPackages: [],
+		finalLanguagePackages: [],
+	});
+
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /Final scan lists no packages/);
 });
 
 test("fails closed when the fail tier is empty", () => {

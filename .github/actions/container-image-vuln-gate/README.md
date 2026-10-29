@@ -8,6 +8,8 @@ Every run logs scan coverage (layers, OS and language package counts per image) 
 
 Callers pass `fail_severity` and `warn_severity` to override the defaults for a single image.
 
+`report_only: true` reports fail-tier findings as warnings instead of failing the pull request. Missing scans, coverage problems and invalid tiers still fail. This repo sets it on release-please PRs, so this input is not in the monorepo copy.
+
 The Trivy vulnerability and Java databases are cached per UTC hour, with no fallback to older entries. Downloads try `mirror.gcr.io`, then `ghcr.io`, three times with backoff. When every attempt fails, the scan uses the cached database and emits a warning; it fails only when no cached database exists.
 
 Base resolution supports stage aliases, global `ARG` defaults, and `docker_build_args`. Label API errors, unresolved variables, `scratch`, missing scan metadata, a base-layer mismatch, a final scan without packages, or a final image listing fewer packages than its base fail closed.

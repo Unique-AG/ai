@@ -16,6 +16,7 @@ const {
 	WARN_SEVERITY = "",
 	IS_PULL_REQUEST = "false",
 	SECURITY_EXCEPTION = "false",
+	REPORT_ONLY = "false",
 	GITHUB_STEP_SUMMARY = "",
 } = process.env;
 
@@ -188,6 +189,8 @@ function main() {
 
 	const isPullRequest = IS_PULL_REQUEST === "true";
 	const hasSecurityException = SECURITY_EXCEPTION === "true";
+	const reportOnly = REPORT_ONLY === "true";
+	const blocks = isPullRequest && !hasSecurityException && !reportOnly;
 
 	if (introducedBlocking.length === 0) {
 		appendSummary("✅ No blocking vulnerabilities introduced by this image.\n");
@@ -216,15 +219,10 @@ function main() {
 	);
 
 	for (const finding of introducedBlocking) {
-		console.log(
-			githubAnnotation(
-				finding,
-				isPullRequest && !hasSecurityException ? "error" : "warning",
-			),
-		);
+		console.log(githubAnnotation(finding, blocks ? "error" : "warning"));
 	}
 
-	if (isPullRequest && !hasSecurityException) {
+	if (blocks) {
 		console.error(
 			`::error::${introducedBlocking.length} patchable introduced finding(s) in the fail tier (${FAIL_SEVERITY}). Fix the application image or add the security-exception label and re-run this job.`,
 		);
@@ -234,6 +232,13 @@ function main() {
 	if (hasSecurityException) {
 		appendSummary(
 			"\nsecurity-exception label set — introduced blocking findings reported as warnings only.\n",
+		);
+	} else if (reportOnly) {
+		console.log(
+			`::warning title=Vulnerability gate::Report-only run — ${introducedBlocking.length} fail-tier finding(s) reported as warnings. See the job summary.`,
+		);
+		appendSummary(
+			"\nReport-only run — introduced blocking findings reported as warnings only.\n",
 		);
 	} else {
 		appendSummary(
