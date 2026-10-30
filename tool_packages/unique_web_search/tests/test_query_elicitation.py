@@ -8,6 +8,7 @@ from unique_toolkit.elicitation import (
     ElicitationFailedException,
     ElicitationStatus,
 )
+from unique_toolkit.monitoring import REGISTRY
 
 from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.query_elicitation import (
@@ -19,7 +20,8 @@ from unique_web_search.services.query_elicitation import (
 def _build_service(
     *,
     enabled: bool = True,
-    max_query_length: int = 200,
+    max_query_length: int | None = None,
+    engine: str = "google",
 ) -> tuple[QueryElicitationService, Mock, WebSearchDebugInfo]:
     chat_service = Mock()
     chat_service.elicitation.create_async = AsyncMock(
@@ -36,6 +38,7 @@ def _build_service(
             max_query_length=max_query_length,
         ),
         debug_info=debug_info,
+        engine=engine,
     )
     return service, chat_service, debug_info
 
@@ -105,6 +108,69 @@ async def test_query_elicitation__truncates_proposed_queries__to_max_query_lengt
     assert queries_schema["items"]["maxLength"] == 10
     assert result == ["0123456789", "short"]
     assert debug_info.elicitation_prompt_change is False
+
+
+@pytest.mark.ai
+async def test_query_elicitation__keeps_queries_whole__when_no_max_query_length() -> (
+    None
+):
+    """
+    Purpose: Verify the length limit is opt-in: without it queries are neither cut nor limited.
+    Why this matters: Agent-mode engines propose long natural-language queries that must stay intact.
+    Setup summary: Leave the limit unset, propose and accept a long query, assert schema and result.
+    """
+    long_query = "a" * 500
+    service, chat_service, _ = _build_service()
+    chat_service.elicitation.get_async.return_value = SimpleNamespace(
+        id="elicitation-id",
+        status=ElicitationStatus.ACCEPTED,
+        response_content={"queries": [long_query]},
+    )
+
+    with patch(
+        "unique_web_search.services.query_elicitation.asyncio.sleep",
+        new_callable=AsyncMock,
+    ):
+        result = await service([long_query])
+
+    queries_schema = chat_service.elicitation.create_async.call_args.kwargs[
+        "json_schema"
+    ]["properties"]["queries"]
+    assert queries_schema["default"] == [long_query]
+    assert "maxLength" not in queries_schema["items"]
+    assert result == [long_query]
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_query_elicitation__records_proposed_query_lengths__by_engine_and_query_review(
+    enabled: bool,
+) -> None:
+    """
+    Purpose: Verify every proposed query's length is recorded before truncation, with or without review.
+    Why this matters: The metric shows how long each engine's queries are, to tune the limit.
+    Setup summary: Propose two queries under a 10-character limit, then read the histogram sum and count.
+    """
+    engine = f"pytest_query_length_{enabled}"
+    labels = {"engine": engine, "query_review": str(enabled).lower()}
+    service, chat_service, _ = _build_service(
+        enabled=enabled, max_query_length=10, engine=engine
+    )
+    chat_service.elicitation.get_async.return_value = SimpleNamespace(
+        id="elicitation-id",
+        status=ElicitationStatus.ACCEPTED,
+        response_content={"queries": ["short"]},
+    )
+
+    with patch(
+        "unique_web_search.services.query_elicitation.asyncio.sleep",
+        new_callable=AsyncMock,
+    ):
+        await service(["0123456789 overflow", "short"])
+
+    metric = "unique_web_search_query_length_characters"
+    assert REGISTRY.get_sample_value(f"{metric}_count", labels) == 2
+    assert REGISTRY.get_sample_value(f"{metric}_sum", labels) == 24
 
 
 @pytest.mark.ai

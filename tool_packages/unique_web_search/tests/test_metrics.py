@@ -25,6 +25,7 @@ def test_metrics__exports_histograms_and_counters__for_instrumented_paths() -> N
     assert isinstance(metrics_module.llm_errors, Counter)
     assert isinstance(metrics_module.crawl_duration, Histogram)
     assert isinstance(metrics_module.crawl_errors, Counter)
+    assert isinstance(metrics_module.query_length, Histogram)
 
 
 @pytest.mark.ai

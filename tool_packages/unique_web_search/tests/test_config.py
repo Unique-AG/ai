@@ -103,13 +103,13 @@ class TestQueryElicitationConfig:
         assert config.timeout_seconds == 60
 
     @pytest.mark.ai
-    def test_query_elicitation_config__defaults_max_query_length_to_200__on_creation(
+    def test_query_elicitation_config__has_no_max_query_length__on_creation(
         self,
     ) -> None:
         """
-        Purpose: Verify QueryElicitationConfig defaults max_query_length to 200.
-        Why this matters: The default caps how much text a reviewed query can carry.
-        Setup summary: Create config with defaults, verify max_query_length is 200.
+        Purpose: Verify QueryElicitationConfig leaves the query length limit off by default.
+        Why this matters: A default limit would cut the long queries agent-mode engines use.
+        Setup summary: Create config with defaults, verify max_query_length is None.
         """
         # Arrange
         from unique_web_search.services.query_elicitation import QueryElicitationConfig
@@ -118,7 +118,23 @@ class TestQueryElicitationConfig:
         config = QueryElicitationConfig()
 
         # Assert
-        assert config.max_query_length == 200
+        assert config.max_query_length is None
+
+    @pytest.mark.ai
+    def test_query_elicitation_config__rejects_zero_max_query_length__on_validation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify an enabled query length limit must be at least one character.
+        Why this matters: A zero limit would cut every query to an empty string.
+        Setup summary: Create config with max_query_length=0, verify validation fails.
+        """
+        from pydantic import ValidationError
+
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        with pytest.raises(ValidationError):
+            QueryElicitationConfig(max_query_length=0)
 
 
 class TestAnswerGenerationConfig:
