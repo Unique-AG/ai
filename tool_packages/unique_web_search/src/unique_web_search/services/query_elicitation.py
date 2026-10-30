@@ -6,9 +6,10 @@ allowing users to review and modify proposed search queries before execution.
 
 import asyncio
 import logging
-from typing import Self
+from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.elicitation import (
@@ -20,6 +21,7 @@ from unique_toolkit.elicitation import (
     ElicitationStatus,
 )
 
+from unique_web_search.metrics import query_length
 from unique_web_search.schema import WebSearchDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,6 +42,25 @@ class QueryElicitationConfig(BaseModel):
         ge=1,
         le=300,
     )
+    max_query_length: Annotated[
+        int | None,
+        RJSFMetaTag(
+            {
+                "ui:field": "nullableActive",
+                "ui:fieldReplacesAnyOrOneOf": True,
+                "ui:widget": "updown",
+                "ui:options": {
+                    "activeLabel": "Limit query length",
+                    "activeValue": 200,
+                },
+            }
+        ),
+    ] = Field(
+        default=None,
+        title="Maximum Query Length",
+        description="Maximum number of characters per search query during review. Longer queries proposed by the AI are shortened to this length. When off, queries have no length limit.",
+        ge=1,
+    )
 
 
 class QueryElicitationModel(BaseModel):
@@ -54,7 +75,9 @@ class QueryElicitationModel(BaseModel):
     queries: list[str] = Field(description="The queries to search the web for")
 
     @classmethod
-    def create_model_with_default_queries(cls, queries: list[str]) -> type[Self]:
+    def create_model_with_default_queries(
+        cls, queries: list[str], max_length: int | None
+    ) -> type[Self]:
         """Create a model with default query values.
 
         This method dynamically creates a Pydantic model where the root field
@@ -64,6 +87,8 @@ class QueryElicitationModel(BaseModel):
 
         Args:
             queries: List of default query strings to pre-populate
+            max_length: Maximum number of characters per query, exposed to the
+                form as the items' ``maxLength``. ``None`` means no limit.
 
         Returns:
             A new model class with default values set
@@ -71,7 +96,7 @@ class QueryElicitationModel(BaseModel):
         model = create_model(
             cls.__name__,
             queries=(
-                list[str],
+                list[Annotated[str, Field(max_length=max_length)]],
                 Field(
                     default=queries,
                 ),
@@ -95,6 +120,7 @@ class QueryElicitationService:
         display_name: str,
         config: QueryElicitationConfig,
         debug_info: WebSearchDebugInfo,
+        engine: str,
     ):
         """Initialize the query elicitation service.
 
@@ -103,19 +129,29 @@ class QueryElicitationService:
             display_name: Display name for the tool in elicitation UI
             config: Elicitation configuration
             debug_info: Web search debug information updated with the outcome
+            engine: Search engine name, used as a metric label
         """
         self._chat_service = chat_service
         self._display_name = display_name
         self._config = config
         self._debug_info = debug_info
+        self._engine = engine
 
     async def __call__(self, queries: list[str]) -> list[str]:
+        self._record_query_lengths(queries)
+
         if not self._config.enable_elicitation:
             return queries
 
+        max_length = self._config.max_query_length
+        if max_length is not None:
+            queries = [query[:max_length] for query in queries]
+
         _LOGGER.info("Creating elicitation...")
 
-        model = QueryElicitationModel.create_model_with_default_queries(queries)
+        model = QueryElicitationModel.create_model_with_default_queries(
+            queries, max_length
+        )
         elicitation = await self._chat_service.elicitation.create_async(
             mode=ElicitationMode.FORM,
             tool_name=self._display_name,
@@ -155,6 +191,16 @@ class QueryElicitationService:
                         "Ask if they would like to retry the search with specific queries, or if they can describe what information they're looking for so you can help formulate appropriate search queries for the next approval.",
                     )
 
+                if max_length is not None and any(
+                    len(query) > max_length for query in submitted_queries
+                ):
+                    raise ElicitationFailedException(
+                        context=f"The user approved the web search request, but at least one search query is longer than the {max_length}-character limit.",
+                        instruction="The web search tool did not execute. "
+                        f"Tell the user that each search query can be at most {max_length} characters, "
+                        "and ask them to retry with shorter queries.",
+                    )
+
                 return submitted_queries
 
             elif elicitation.status == ElicitationStatus.DECLINED:
@@ -172,3 +218,11 @@ class QueryElicitationService:
         raise ElicitationExpiredException(
             f"Query elicitation {elicitation.id} not accepted"
         )
+
+    def _record_query_lengths(self, queries: list[str]) -> None:
+        labels = query_length.labels(
+            engine=self._engine,
+            query_review=str(self._config.enable_elicitation).lower(),
+        )
+        for query in queries:
+            labels.observe(len(query))
