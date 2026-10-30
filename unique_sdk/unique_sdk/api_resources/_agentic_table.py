@@ -331,6 +331,12 @@ class AgenticTable(APIResource["AgenticTable"]):
         tableId: str
         artifactTypes: list[MagicTableArtifactType]
 
+    class CompleteSheet(RequestOptions):
+        """Body for `POST /magic-table/{tableId}/complete` (mark a sheet completed)."""
+
+        tableId: str
+        addToLibrary: NotRequired[bool]
+
     class CreateSheetMetadata(RequestOptions):
         """Body for `POST /magic-table/{tableId}/sheet/metadata` (create sheet metadata entries)."""
 
@@ -633,6 +639,36 @@ class AgenticTable(APIResource["AgenticTable"]):
         the Content API.
         """
         url = f"/magic-table/{params['tableId']}/generate-artifact"
+        params.pop("tableId")
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def complete_sheet(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.CompleteSheet"],
+    ) -> MagicTableActionResult:
+        """Mark a sheet completed (`POST /magic-table/{tableId}/complete`).
+
+        Only the sheet owner or a caller with Can manage access is accepted.
+        Rejected while a run is in progress. When the sheet has a Review
+        Status column, every content row must already be in a final state.
+        ``addToLibrary`` copies those rows into the space answer library and
+        needs knowledge write access. It is rejected when the sheet is already
+        the answer library. Confirm with ``get_sheet_data``: ``sheetStatus``
+        is ``COMPLETED``.
+        """
+        url = f"/magic-table/{params['tableId']}/complete"
         params.pop("tableId")
         return cast(
             MagicTableActionResult,
