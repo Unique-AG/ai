@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.44.0...unique-toolkit-v2026.46.0) (2026-10-30)
+
+
+### Bug Fixes
+
+* **toolkit:** correct Kimi K3 and DeepSeek V4.1 Flash reasoning efforts [UN-28191] ([#2646](https://github.com/Unique-AG/ai/issues/2646)) ([bb59fe3](https://github.com/Unique-AG/ai/commit/bb59fe3d6531094ba2e4439ceecdac38ffffd5f6))
+* **toolkit:** price cache reads and writes at their own rates [UN-28490] ([#2663](https://github.com/Unique-AG/ai/issues/2663)) ([3c43851](https://github.com/Unique-AG/ai/commit/3c438518189372af229a955abcc600593ce87685))
+* **toolkit:** render configurable prompt templates in a jinja sandbox ([#2658](https://github.com/Unique-AG/ai/issues/2658)) ([87c67c7](https://github.com/Unique-AG/ai/commit/87c67c74384077953e88447a113614be7f701633))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.42.0...unique-toolkit-v2026.44.0) (2026-10-23)
 
 
