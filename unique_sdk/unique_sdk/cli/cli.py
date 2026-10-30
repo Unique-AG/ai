@@ -545,7 +545,7 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
 
 
 @main.command(name="cite")
-@click.argument("name_or_id")
+@click.argument("names_or_ids", nargs=-1, required=True)
 @click.option(
     "--pages",
     "-p",
@@ -569,19 +569,22 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
 @click.pass_context
 def cite(
     ctx: click.Context,
-    name_or_id: str,
+    names_or_ids: tuple[str, ...],
     pages: str | None,
     read_method: str,
 ) -> None:
-    """Declare page citations for a file.
+    """Declare page citations for one or more files.
 
     \b
     Registers [filesourceN] markers for pages you referenced in your answer.
     Does NOT read or extract the file — use your own tools for that.
-    NAME_OR_ID can be a file path, current-directory file name, or content ID.
+    Each NAME_OR_ID can be a file path, current-directory file name, or
+    content ID. Pass several to cite them in one call.
     --read-method is mandatory: it records how you read the page(s).
     --pages is optional; omit it to cite the whole file (e.g. non-paginated
-    formats).
+    formats). With several files, --pages and --read-method apply to each.
+    A file that fails does not stop the others; the exit code is non-zero
+    when any file failed.
 
     \b
     Examples:
@@ -589,9 +592,19 @@ def cite(
       unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
       unique-cli cite cont_abc123 --pages 1-4 --read-method indexed
       unique-cli cite notes.docx --read-method text
+      unique-cli cite a.xlsx b.xlsx c.csv --read-method text
     """
-    output = cmd_cite_file(LazyState.get(ctx), name_or_id, pages, read_method)
-    emit(output, is_error=_is_cite_error_output)
+    state = LazyState.get(ctx)
+    any_failed = False
+    for name_or_id in names_or_ids:
+        output = cmd_cite_file(state, name_or_id, pages, read_method)
+        if _is_cite_error_output(output):
+            any_failed = True
+            click.echo(output, err=True)
+        else:
+            click.echo(output)
+    if any_failed:
+        raise SystemExit(1)
 
 
 @main.command(name="read")
