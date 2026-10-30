@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from unique_sdk.cli.metadata_filter import MetadataFilter
 
 
@@ -185,6 +187,43 @@ class TestFolderNavigation:
         )
         assert mf.allows_folder_scope("scope_sub")
         assert not mf.allows_folder_scope("scope_x")
+
+    @pytest.mark.ai
+    def test_notcontains_child_is_not_navigable(self) -> None:
+        """Purpose: A folder excluded under a selected folder cannot be opened.
+        Why this matters: CID in that folder was reachable with ls and cd.
+        Setup summary: Grant /KB and exclude /KB/Excluded.
+        """
+        mf, _ = _make_filter(
+            {
+                "and": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_parent",
+                    },
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "notContains",
+                        "value": "scope_excluded",
+                    },
+                ]
+            },
+            scope_paths={
+                "scope_parent": "/KB",
+                "scope_excluded": "/KB/Excluded",
+                "scope_nested": "/KB/Excluded/Nested",
+                "scope_sibling": "/KB/Allowed",
+                "scope_lookalike": "/KB/Excluded Extra",
+            },
+        )
+        assert mf.allows_folder_scope("scope_parent")
+        assert mf.allows_folder_scope("scope_sibling")
+        assert mf.allows_folder_scope("scope_lookalike")
+        assert not mf.allows_folder_scope("scope_excluded")
+        assert not mf.allows_folder_scope("scope_nested")
+        assert mf.allows_folder_path("/KB/Allowed")
+        assert not mf.allows_folder_path("/KB/Excluded/Nested")
 
     def test_allows_folder_path_blocks_dotdot_escape(self) -> None:
         mf, _ = _make_filter(

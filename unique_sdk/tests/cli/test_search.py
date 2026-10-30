@@ -594,9 +594,10 @@ def _uploaded_state(
 ) -> ShellState:
     """A state carrying an uploaded-document scope (as the runner would write).
 
-    ``ShellState`` loads ``.unique-uploaded.json`` from cwd at construction; the
-    autouse fixture pins cwd to an empty ``tmp_path`` so nothing is loaded, and
-    we set the resolved attributes directly to mimic a populated config.
+    ``ShellState`` loads ``.unique-uploaded.json`` from the workspace root at
+    construction; the autouse fixture pins cwd to an empty ``tmp_path`` so
+    nothing is loaded, and we set the resolved attributes directly to mimic a
+    populated config.
     """
     s = _state()
     s.uploaded_search_chat_id = chat_id
@@ -697,8 +698,8 @@ class TestCmdUploadedSearch:
 
 class TestUploadedConfigLoading:
     # The autouse ``_isolate_kb_search_refs_manifest`` fixture pins cwd to this
-    # test's ``tmp_path``, so writing ``.unique-uploaded.json`` there and then
-    # constructing ``ShellState`` exercises the real cwd-based loader.
+    # test's ``tmp_path``. With no ``UNIQUE_WORKSPACE_DIR``, the workspace root
+    # is that cwd, so writing ``.unique-uploaded.json`` there exercises the loader.
     def test_loads_chat_id_and_content_ids_from_file(self, tmp_path: Path) -> None:
         (tmp_path / ".unique-uploaded.json").write_text(
             json.dumps({"chatId": "chat_x", "contentIds": ["cont_1", "cont_2"]}),

@@ -127,16 +127,64 @@ def _collect_navigable_folder_ids(
         return folder_ids
     if _is_negated_operator(node.get("operator")):
         return folder_ids
+    for scope_id in _folder_scope_ids(node):
+        if scope_id not in folder_ids:
+            folder_ids.append(scope_id)
+    return folder_ids
+
+
+def _folder_scope_ids(node: dict[Any, Any]) -> list[str]:
+    """Folder scope ids named by a ``folderIdPath`` leaf, else an empty list."""
     path = node.get("path")
     field = path[0] if isinstance(path, list) and path else path
-    if field == "folderIdPath":
-        value = node.get("value")
-        values = value if isinstance(value, list) else [value]
-        for v in values:
-            scope_id = _extract_target_scope_id(v)
-            if scope_id and scope_id not in folder_ids:
-                folder_ids.append(scope_id)
+    if field != "folderIdPath":
+        return []
+    value = node.get("value")
+    values = value if isinstance(value, list) else [value]
+    scope_ids: list[str] = []
+    for item in values:
+        scope_id = _extract_target_scope_id(item)
+        if scope_id and scope_id not in scope_ids:
+            scope_ids.append(scope_id)
+    return scope_ids
+
+
+def _collect_excluded_folder_ids(
+    node: Any, folder_ids: list[str] | None = None
+) -> list[str]:
+    """Folder scope ids a navigable grant must still keep out.
+
+    A space exclusion is ``and(contains parent, notContains child)``. The
+    child sits on the same conjunctive spine as the grant, so ``ls`` and
+    ``cd`` have to refuse it and everything under it. An exclusion inside a
+    mixed ``or`` is conditional and is left to per-document checks. See
+    UN-28458.
+    """
+    if folder_ids is None:
+        folder_ids = []
+    if not isinstance(node, dict):
+        return folder_ids
+    if "and" in node:
+        for child in node.get("and") or []:
+            _collect_excluded_folder_ids(child, folder_ids)
+        return folder_ids
+    if "or" in node:
+        children = node.get("or") or []
+        if children and all(_is_folder_only_subtree(c) for c in children):
+            for child in children:
+                _collect_excluded_folder_ids(child, folder_ids)
+        return folder_ids
+    if not _is_negated_operator(node.get("operator")):
+        return folder_ids
+    for scope_id in _folder_scope_ids(node):
+        if scope_id not in folder_ids:
+            folder_ids.append(scope_id)
     return folder_ids
+
+
+def _path_is_inside_any(target: str, roots: list[str]) -> bool:
+    """True when *target* is one of *roots* or a descendant of one."""
+    return any(target == root or target.startswith(root + "/") for root in roots)
 
 
 def _collect_filter_targets(
@@ -357,9 +405,15 @@ class MetadataFilter:
         """Folder scope ids the filter grants for navigation (ls/cd into).
 
         Excludes folders only reachable as an ``or`` alternative to a
-        ``contentId`` allowlist, which are not standalone-browsable.
+        ``contentId`` allowlist, which are not standalone-browsable. Also
+        drops a grant that the same spine excludes outright.
         """
-        return _collect_navigable_folder_ids(self._tree)
+        excluded = set(_collect_excluded_folder_ids(self._tree))
+        return [
+            scope_id
+            for scope_id in _collect_navigable_folder_ids(self._tree)
+            if scope_id not in excluded
+        ]
 
     def _navigable_folder_paths(self) -> list[str]:
         return [
@@ -370,11 +424,23 @@ class MetadataFilter:
             if p
         ]
 
+    def _excluded_folder_paths(self) -> list[str]:
+        return [
+            path
+            for path in (
+                self._resolve_scope_path(scope_id)
+                for scope_id in _collect_excluded_folder_ids(self._tree)
+            )
+            if path
+        ]
+
     def allows_folder_scope(self, scope_id: str) -> bool:
         """True if *scope_id* is inside one of the filter's navigable scopes.
 
         Gates explicit folder targets (e.g. ``ls <path>``) so navigation cannot
-        enumerate folders outside the per-message scope.
+        enumerate folders outside the per-message scope. A folder under a
+        grant is still refused when a ``notContains`` (or other negated
+        ``folderIdPath``) leaf on the same spine names it. See UN-28458.
         """
         folder_paths = self._navigable_folder_paths()
         if not folder_paths:
@@ -382,9 +448,9 @@ class MetadataFilter:
         target_path = self._resolve_scope_path(scope_id)
         if not target_path:
             return False
-        return any(
-            target_path == p or target_path.startswith(p + "/") for p in folder_paths
-        )
+        if _path_is_inside_any(target_path, self._excluded_folder_paths()):
+            return False
+        return _path_is_inside_any(target_path, folder_paths)
 
     def allows_folder_path(self, folder_path: str) -> bool:
         """True if an absolute folder *path* lies within a navigable scope.
@@ -397,7 +463,9 @@ class MetadataFilter:
         if not paths:
             return False
         norm = os.path.normpath(folder_path)
-        return any(norm == p or norm.startswith(p + "/") for p in paths)
+        if _path_is_inside_any(norm, self._excluded_folder_paths()):
+            return False
+        return _path_is_inside_any(norm, paths)
 
     def scope(self) -> tuple[list[str], list[str]]:
         """Return ``(folder_paths, content_ids)`` referenced by the filter.
