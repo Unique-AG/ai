@@ -12,6 +12,7 @@ from unique_sdk.cli.config import Config
 from unique_sdk.cli.metadata_filter import MetadataFilter
 from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
+from unique_sdk.cli.workspace import workspace_root
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
 _UPLOADED_CONFIG_FILENAME = ".unique-uploaded.json"
@@ -20,8 +21,8 @@ _CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
 
 
 def _load_search_config() -> dict[str, Any]:
-    """Load ``.unique-search.json`` from the cwd, or ``{}`` when absent/invalid."""
-    config_path = Path.cwd() / _SEARCH_CONFIG_FILENAME
+    """Load ``.unique-search.json`` from the workspace root, not the shell cwd."""
+    config_path = workspace_root() / _SEARCH_CONFIG_FILENAME
     if not config_path.is_file():
         return {}
     try:
@@ -32,7 +33,7 @@ def _load_search_config() -> dict[str, Any]:
 
 
 def _load_uploaded_config() -> dict[str, Any]:
-    """Load ``.unique-uploaded.json`` from the cwd, or ``{}`` when absent/invalid.
+    """Load ``.unique-uploaded.json`` from the workspace root, or ``{}`` when absent or invalid.
 
     Written by the Swappable Intelligence runner when the task carries per-row
     uploaded documents (an Agentic Table row's ``selectedUploadedFiles``). It
@@ -41,7 +42,7 @@ def _load_uploaded_config() -> dict[str, Any]:
     the knowledge-base folder scopes, so the scope-bound ``unique-cli search``
     structurally cannot return them. See UN-21780.
     """
-    config_path = Path.cwd() / _UPLOADED_CONFIG_FILENAME
+    config_path = workspace_root() / _UPLOADED_CONFIG_FILENAME
     if not config_path.is_file():
         return {}
     try:
@@ -61,7 +62,7 @@ def _load_mcp_tool_configs() -> dict[str, dict[str, Any]]:
     Keyed by the same namespaced tool name the agent passes to ``unique-cli
     mcp``. Returns ``{}`` when absent or invalid.
     """
-    config_path = Path.cwd() / _MCP_TOOLS_CONFIG_FILENAME
+    config_path = workspace_root() / _MCP_TOOLS_CONFIG_FILENAME
     if not config_path.is_file():
         return {}
     try:
@@ -562,6 +563,17 @@ class ShellState:
     def prompt(self) -> str:
         return f"{self._path}> "
 
+    def _require_navigable_folder(self, scope_id: str) -> None:
+        """Refuse a folder the per-message filter excludes. See UN-28458."""
+        if self._metadata_filter is None:
+            return
+        if self.folder_allowed_by_metadata_filter(scope_id):
+            return
+        raise ValueError(
+            "permission denied: target is outside your task scope "
+            f"({self.scope_denial_hint()})."
+        )
+
     def _enter_folder(self, scope_id: str, folder_path: str) -> str:
         """Store *folder_path* only when *scope_id* is that exact folder."""
         actual = canonical_folder_path(
@@ -571,6 +583,7 @@ class ShellState:
         )
         if not same_folder_path(actual, folder_path):
             raise ValueError(f"cannot change to {folder_path}: resolved to {actual}")
+        self._require_navigable_folder(scope_id)
         self._scope_id = scope_id
         self._path = folder_path
         return self._path
@@ -618,6 +631,7 @@ class ShellState:
                 company_id=self.config.company_id,
                 scope_id=target,
             )
+            self._require_navigable_folder(info["id"])
             self._scope_id = info["id"]
             self._path = path_resp["folderPath"]
             return self._path
