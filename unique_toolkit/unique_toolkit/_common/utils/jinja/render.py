@@ -1,7 +1,6 @@
 from typing import Any
 
-from jinja2 import Template
-
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.utils.jinja.schema import Jinja2PromptParams
 
 
@@ -15,4 +14,4 @@ def render_template(
 
     params.update(kwargs)
 
-    return Template(template, lstrip_blocks=True).render(**params)
+    return sandboxed_template(template, lstrip_blocks=True).render(**params)

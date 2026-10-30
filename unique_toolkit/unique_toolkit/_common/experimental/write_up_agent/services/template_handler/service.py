@@ -1,6 +1,6 @@
 """Template handler service."""
 
-from jinja2 import Template, TemplateError
+from jinja2 import TemplateError
 
 from unique_toolkit._common.experimental.write_up_agent.schemas import (
     GroupData,
@@ -18,6 +18,7 @@ from unique_toolkit._common.experimental.write_up_agent.services.template_handle
 from unique_toolkit._common.experimental.write_up_agent.services.template_handler.utils import (
     parse_template,
 )
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 
 
 # TODO [UN-16142]: Simplify template logic
@@ -44,7 +45,7 @@ class TemplateHandler:
         self._template = template
 
         try:
-            self._jinja_template = Template(template, lstrip_blocks=True)
+            self._jinja_template = sandboxed_template(template, lstrip_blocks=True)
         except TemplateError as e:
             snippet = template[:100] + "..." if len(template) > 100 else template
             raise TemplateParsingError(

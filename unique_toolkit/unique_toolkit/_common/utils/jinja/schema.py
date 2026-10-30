@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Annotated, Any
 
-from jinja2 import Template
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -12,6 +11,7 @@ from pydantic import (
     WrapSerializer,
 )
 
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit.agentic.tools.tool import Tool
 
 
@@ -21,7 +21,7 @@ class Jinja2PromptParams(BaseModel):
     def render_template(self, template: str) -> str:
         params = self.model_dump(exclude_none=True, mode="json")
 
-        return Template(template, lstrip_blocks=True).render(**params)
+        return sandboxed_template(template, lstrip_blocks=True).render(**params)
 
 
 class ToolPromptParams(Jinja2PromptParams):

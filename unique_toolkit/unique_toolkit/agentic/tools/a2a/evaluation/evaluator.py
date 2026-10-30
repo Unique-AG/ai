@@ -2,10 +2,10 @@ import logging
 from typing import Any, NamedTuple, override
 
 import unique_sdk
-from jinja2 import Template
 from pydantic import BaseModel
 
 from unique_toolkit._common.execution import failsafe
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
 from unique_toolkit.agentic.evaluation.exception import EvaluatorException
 from unique_toolkit.agentic.evaluation.schemas import (
@@ -292,7 +292,9 @@ class SubAgentEvaluationService(Evaluation):
             MessagesBuilder()
             .system_message_append(self._config.summarization_system_message)
             .user_message_append(
-                Template(self._config.summarization_user_message_template).render(
+                sandboxed_template(
+                    self._config.summarization_user_message_template
+                ).render(
                     sub_agents=sub_agents_display_data,
                 )
             )

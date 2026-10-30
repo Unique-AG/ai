@@ -1,8 +1,8 @@
 import json
 from logging import getLogger
 
-from jinja2 import Template
 from unique_toolkit import LanguageModelService
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.validators import LMI
 
 from unique_swot.services.generation.agentic.exceptions import (
@@ -47,11 +47,11 @@ async def create_new_section(
     }
 
     ## Prepare the prompt
-    system_prompt = Template(prompts_config.system_prompt).render(
+    system_prompt = sandboxed_template(prompts_config.system_prompt).render(
         component=component,
         company_name=company_name,
     )
-    user_message = Template(prompts_config.user_prompt).render(
+    user_message = sandboxed_template(prompts_config.user_prompt).render(
         facts=facts,
         instruction=instruction,
         model_name=SWOTReportComponentSection.__name__,
@@ -117,13 +117,13 @@ async def update_existing_section(
     }
 
     ## Prepare the system prompt
-    system_prompt = Template(prompts_config.system_prompt).render(
+    system_prompt = sandboxed_template(prompts_config.system_prompt).render(
         component=component,
         company_name=company_name,
     )
 
     ## Prepare the user message
-    user_message = Template(prompts_config.user_prompt).render(
+    user_message = sandboxed_template(prompts_config.user_prompt).render(
         instruction=instruction,
         facts=facts,
         section=existing_section.model_dump_json(indent=1),

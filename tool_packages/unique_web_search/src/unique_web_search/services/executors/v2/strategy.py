@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import cast
 
-from jinja2 import Template
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit.language_model import LanguageModelFunction
 
 from unique_web_search.services.executors.context import (
@@ -44,7 +44,9 @@ class WebSearchV2Strategy(WebSearchModeStrategy):
     def system_prompt(self, ctx: WebSearchToolContext) -> str:
         """Render the V2 Jinja system prompt with plan examples and schema hint."""
         engine_mode = resolve_search_engine_mode(ctx.search_engine_config)
-        return Template(self.mode_config.tool_description_for_system_prompt).render(
+        return sandboxed_template(
+            self.mode_config.tool_description_for_system_prompt
+        ).render(
             max_steps=self.mode_config.max_steps,
             date_string=ctx.date_string,
             search_engine_mode=engine_mode.value,

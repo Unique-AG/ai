@@ -2,8 +2,8 @@ import json
 from typing import Any
 from urllib.parse import quote as encodeURIComponent
 
-from jinja2 import Template
 from unique_toolkit._common.utils.jinja.helpers import get_parent_dir, load_template
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.utils.jinja.schema import Jinja2PromptParams
 from unique_toolkit.language_model import LanguageModelMessage
 
@@ -70,4 +70,4 @@ class FollowUpQuestionResponseParams(Jinja2PromptParams):
     def render_template(self, template: str) -> str:
         params = self.custom_model_dump()
 
-        return Template(template, lstrip_blocks=True).render(**params)
+        return sandboxed_template(template, lstrip_blocks=True).render(**params)
