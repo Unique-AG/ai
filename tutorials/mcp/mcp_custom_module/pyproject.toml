@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [{ name = "Sadique Sheik", email = "sadique@unique.ch" }]
 requires-python = ">=3.12"
 dependencies = [
-    "unique-toolkit[fastapi]>=2026.40.0",
+    "unique-toolkit[fastapi]>=2026.46.0",
 ]
 
 [build-system]
