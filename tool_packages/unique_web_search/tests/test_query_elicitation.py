@@ -5,6 +5,7 @@ import pytest
 from unique_toolkit.elicitation import (
     ElicitationDeclinedException,
     ElicitationExpiredException,
+    ElicitationFailedException,
     ElicitationStatus,
 )
 
@@ -18,6 +19,7 @@ from unique_web_search.services.query_elicitation import (
 def _build_service(
     *,
     enabled: bool = True,
+    max_query_length: int = 200,
 ) -> tuple[QueryElicitationService, Mock, WebSearchDebugInfo]:
     chat_service = Mock()
     chat_service.elicitation.create_async = AsyncMock(
@@ -31,6 +33,7 @@ def _build_service(
         config=QueryElicitationConfig(
             enable_elicitation=enabled,
             timeout_seconds=1,
+            max_query_length=max_query_length,
         ),
         debug_info=debug_info,
     )
@@ -71,6 +74,63 @@ async def test_query_elicitation__records_accepted_outcome(
     assert result == submitted_queries
     assert serialized_debug_info["elicitation_approval"] is True
     assert serialized_debug_info["elicitation_prompt_change"] is expected_prompt_change
+
+
+@pytest.mark.ai
+async def test_query_elicitation__truncates_proposed_queries__to_max_query_length() -> (
+    None
+):
+    """
+    Purpose: Verify proposed queries are cut to the limit and the form receives the limit.
+    Why this matters: The review form must never be pre-filled beyond what the user may submit.
+    Setup summary: Propose one over-long query, accept the defaults, assert schema and result.
+    """
+    service, chat_service, debug_info = _build_service(max_query_length=10)
+    chat_service.elicitation.get_async.return_value = SimpleNamespace(
+        id="elicitation-id",
+        status=ElicitationStatus.ACCEPTED,
+        response_content={"queries": ["0123456789", "short"]},
+    )
+
+    with patch(
+        "unique_web_search.services.query_elicitation.asyncio.sleep",
+        new_callable=AsyncMock,
+    ):
+        result = await service(["0123456789 overflow", "short"])
+
+    queries_schema = chat_service.elicitation.create_async.call_args.kwargs[
+        "json_schema"
+    ]["properties"]["queries"]
+    assert queries_schema["default"] == ["0123456789", "short"]
+    assert queries_schema["items"]["maxLength"] == 10
+    assert result == ["0123456789", "short"]
+    assert debug_info.elicitation_prompt_change is False
+
+
+@pytest.mark.ai
+async def test_query_elicitation__raises__when_submitted_query_exceeds_max_query_length() -> (
+    None
+):
+    """
+    Purpose: Verify a submitted query over the limit is rejected before any search runs.
+    Why this matters: Clients that bypass the form's limit must not send long text to the engine.
+    Setup summary: Accept a response with an over-long query and assert the failure.
+    """
+    service, chat_service, _ = _build_service(max_query_length=10)
+    chat_service.elicitation.get_async.return_value = SimpleNamespace(
+        id="elicitation-id",
+        status=ElicitationStatus.ACCEPTED,
+        response_content={"queries": ["01234567890"]},
+    )
+
+    with (
+        patch(
+            "unique_web_search.services.query_elicitation.asyncio.sleep",
+            new_callable=AsyncMock,
+        ),
+        pytest.raises(ElicitationFailedException, match="10-character limit"),
+    ):
+        await service(["original query"])
 
 
 @pytest.mark.ai

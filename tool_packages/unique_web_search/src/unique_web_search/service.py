@@ -147,7 +147,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        return self._mode_strategy.system_prompt(self._tool_context())
+        system_prompt = self._mode_strategy.system_prompt(self._tool_context())
+        elicitation_config = self.config.query_elicitation_config
+        if not elicitation_config.enable_elicitation:
+            return system_prompt
+        return (
+            f"{system_prompt}\n\n"
+            f"Keep each search query under {elicitation_config.max_query_length} characters. "
+            "Longer queries are cut off before the user reviews them."
+        )
 
     def tool_format_information_for_system_prompt(self) -> str:
         return self._mode_strategy.format_information_for_system_prompt(

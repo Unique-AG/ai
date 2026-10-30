@@ -102,6 +102,24 @@ class TestQueryElicitationConfig:
         # Assert
         assert config.timeout_seconds == 60
 
+    @pytest.mark.ai
+    def test_query_elicitation_config__defaults_max_query_length_to_200__on_creation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify QueryElicitationConfig defaults max_query_length to 200.
+        Why this matters: The default caps how much text a reviewed query can carry.
+        Setup summary: Create config with defaults, verify max_query_length is 200.
+        """
+        # Arrange
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        # Act
+        config = QueryElicitationConfig()
+
+        # Assert
+        assert config.max_query_length == 200
+
 
 class TestAnswerGenerationConfig:
     """Test cases for AnswerGenerationConfig."""
