@@ -40,6 +40,9 @@ def _exponential_buckets(start: float, ceiling: float, count: int) -> tuple[floa
 _SEARCH_LATENCY_BUCKETS = _linear_buckets(ceiling=5.0, steps=20)
 _CRAWL_LATENCY_BUCKETS = _linear_buckets(ceiling=60.0, steps=20)
 _AGENT_SEARCH_LATENCY_BUCKETS = _linear_buckets(ceiling=120.0, steps=20)
+# Half-second steps up to 10s, so checks that hit the per-hop redirect timeout
+# (5s by default) show up as their own bucket.
+_URL_SAFETY_CHECK_LATENCY_BUCKETS = _linear_buckets(ceiling=10.0, steps=20)
 
 # One histogram covers every endpoint, from sub-second /v1/search to /v1/agent-search
 # runs approaching 120s — exponential buckets keep resolution useful at both ends.
@@ -93,6 +96,12 @@ crawl_blocked_total = m.counter(
     "crawl_blocked_total",
     "Crawl targets blocked by URL safety policy",
     ["reason_category"],
+)
+url_safety_check_duration_seconds = m.histogram(
+    "url_safety_check_duration_seconds",
+    "Time to check one crawl URL (redirect probes and DNS), by outcome",
+    ["outcome"],
+    buckets=_URL_SAFETY_CHECK_LATENCY_BUCKETS,
 )
 url_safety_application_checks_enabled = m.gauge(
     "url_safety_application_checks_enabled",
@@ -180,6 +189,11 @@ def record_crawl_url_outcomes(
 
 def record_crawl_blocked(reason_category: str, count: int = 1) -> None:
     crawl_blocked_total.labels(reason_category=reason_category).inc(count)
+
+
+def record_url_safety_check(outcome: str, duration_seconds: float) -> None:
+    """Record one URL check; ``outcome`` is allowed, blocked or unfinished."""
+    url_safety_check_duration_seconds.labels(outcome=outcome).observe(duration_seconds)
 
 
 def set_url_safety_application_checks_enabled(enabled: bool) -> None:

@@ -549,6 +549,10 @@
             "maxConcurrentCrawls": {
               "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS.",
               "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentUrlChecks": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_URL_CHECKS.",
+              "$ref": "#/$defs/valueSourceInteger"
             }
           }
         },

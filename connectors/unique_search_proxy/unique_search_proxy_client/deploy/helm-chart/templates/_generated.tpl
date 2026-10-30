@@ -149,6 +149,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.requestLimits.crawl.maxConcurrentFetches | quote }}
 - name: REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS
   value: {{ .Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_URL_CHECKS
+  value: {{ .Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
 - name: URL_SAFETY_ENABLED
@@ -315,6 +317,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentFetches | quote }}
 - name: REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS
   value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_URL_CHECKS
+  value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .ctx.Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
 - name: URL_SAFETY_ENABLED
