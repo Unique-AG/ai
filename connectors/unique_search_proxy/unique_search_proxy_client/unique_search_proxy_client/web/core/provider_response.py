@@ -91,6 +91,16 @@ def crawl_forbidden_target(url: str, message: str) -> CrawlUrlResult:
     )
 
 
+def crawl_deadline_missed(url: str, message: str) -> CrawlUrlResult:
+    """Build a per-URL crawl failure for a URL that missed the request deadline."""
+    return crawl_upstream_error(
+        url,
+        message,
+        code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
+        content_type=None,
+    )
+
+
 def raise_for_upstream_response(
     response: httpx.Response,
     *,

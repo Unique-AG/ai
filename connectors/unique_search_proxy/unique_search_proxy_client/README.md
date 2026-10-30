@@ -212,6 +212,8 @@ Per-URL outcomes — one URL failing does not fail the batch:
 
 Crawler discriminators: `Basic`, `Tavily`, `Jina`, `Firecrawl`.
 
+**Timeout:** with `Basic`, URLs still loading just before `timeout` come back as per-URL `UPSTREAM_TIMEOUT` results next to the finished pages. A busy worker can send the response up to 5 s after `timeout`, so set your HTTP client timeout at least 5 s above it. The other crawlers fail the whole batch with a `504` at `timeout`.
+
 ### 5.5 Errors
 
 Structured envelope on all non-2xx responses:

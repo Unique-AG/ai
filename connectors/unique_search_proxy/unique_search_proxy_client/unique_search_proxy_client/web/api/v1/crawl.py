@@ -45,6 +45,13 @@ from unique_search_proxy_client.web.usage import record_request_usage
 router = APIRouter(tags=["crawl"])
 _LOGGER = logging.getLogger(__name__)
 
+# Callers often use the crawl timeout as their HTTP client timeout. Finishing
+# this much earlier lets the response reach them before they give up.
+_RESPONSE_HEADROOM_SECONDS = 0.5
+# Only catches work that ignores the deadline. A busy worker that cancels pages
+# late must delay the response, not drop the pages that finished.
+_SAFETY_NET_GRACE_SECONDS = 5.0
+
 
 def _crawl_request_context(exc: ProxyError, *, crawler_id: str) -> ProxyError:
     return attach_request_context(
@@ -108,12 +115,18 @@ async def crawl(
 
     try:
         _enforce_url_limits(body.urls)
-        async with get_crawl_limiter(request.app).slot(), asyncio.timeout(timeout):
+        async with (
+            get_crawl_limiter(request.app).slot(),
+            asyncio.timeout(timeout + _SAFETY_NET_GRACE_SECONDS),
+        ):
+            request_deadline = asyncio.get_running_loop().time() + timeout
+            deadline = request_deadline - _RESPONSE_HEADROOM_SECONDS
             registry = get_http_client_registry(request.app)
             client = await registry.client_for(get_request_context())
             gate = await apply_url_safety_gate(
                 body.urls,
                 redirect_http_client=client,
+                deadline=deadline,
             )
             units = len(gate.allowed_targets)
             if not gate.allowed_targets:
@@ -126,7 +139,7 @@ async def crawl(
                 )
                 merged_results = merge_crawl_results(
                     body.urls,
-                    blocked_by_index=gate.blocked_by_index,
+                    uncrawled_by_index=gate.uncrawled_by_index,
                     crawler_results=[],
                 )
                 record_crawl_url_outcomes(
@@ -157,9 +170,11 @@ async def crawl(
                 crawler_results = await crawler.crawl_pinned(
                     crawl_body,
                     gate.allowed_targets,
+                    deadline=deadline,
                 )
             else:
-                crawler_results = await crawler.crawl(crawl_body)
+                async with asyncio.timeout_at(request_deadline):
+                    crawler_results = await crawler.crawl(crawl_body)
         succeeded = True
     except TimeoutError as exc:
         record_crawl_error(
@@ -217,7 +232,7 @@ async def crawl(
     record_crawl_success(crawler_id, len(body.urls), duration)
     merged_results = merge_crawl_results(
         body.urls,
-        blocked_by_index=gate.blocked_by_index,
+        uncrawled_by_index=gate.uncrawled_by_index,
         crawler_results=crawler_results,
     )
     record_crawl_url_outcomes(crawler_id, _url_outcomes(merged_results))
