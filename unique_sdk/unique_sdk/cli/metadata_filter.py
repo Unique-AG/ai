@@ -152,14 +152,7 @@ def _folder_scope_ids(node: dict[Any, Any]) -> list[str]:
 def _collect_excluded_folder_ids(
     node: Any, folder_ids: list[str] | None = None
 ) -> list[str]:
-    """Folder scope ids a navigable grant must still keep out.
-
-    A space exclusion is ``and(contains parent, notContains child)``. The
-    child sits on the same conjunctive spine as the grant, so ``ls`` and
-    ``cd`` have to refuse it and everything under it. An exclusion inside a
-    mixed ``or`` is conditional and is left to per-document checks. See
-    UN-28458.
-    """
+    """Negated ``folderIdPath`` leaves on the navigable spine."""
     if folder_ids is None:
         folder_ids = []
     if not isinstance(node, dict):
@@ -435,13 +428,7 @@ class MetadataFilter:
         ]
 
     def allows_folder_scope(self, scope_id: str) -> bool:
-        """True if *scope_id* is inside one of the filter's navigable scopes.
-
-        Gates explicit folder targets (e.g. ``ls <path>``) so navigation cannot
-        enumerate folders outside the per-message scope. A folder under a
-        grant is still refused when a ``notContains`` (or other negated
-        ``folderIdPath``) leaf on the same spine names it. See UN-28458.
-        """
+        """True if *scope_id* is in a navigable scope and not under an exclusion."""
         folder_paths = self._navigable_folder_paths()
         if not folder_paths:
             return False

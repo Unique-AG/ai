@@ -21,11 +21,7 @@ _CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
 
 
 def _load_search_config() -> dict[str, Any]:
-    """Load ``.unique-search.json`` from the workspace root.
-
-    A shell ``cd`` must not drop the file: search would then run with no
-    scope. ``$UNIQUE_WORKSPACE_DIR`` is that root. See UN-28458.
-    """
+    """Load ``.unique-search.json`` from the workspace root, not the shell cwd."""
     config_path = workspace_root() / _SEARCH_CONFIG_FILENAME
     if not config_path.is_file():
         return {}
