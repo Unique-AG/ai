@@ -21,6 +21,10 @@ from unique_internal_search.uploaded_search.config import (
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.utils.jinja.sandbox import (
+    TemplateError,
+    validate_sandboxed_template,
+)
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -309,6 +313,15 @@ class UniqueAIPromptConfig(BaseToolConfig):
         title="User Metadata",
         description="User metadata fields to be ingested in the system prompt.",
     )
+
+    @field_validator("system_prompt_template", "user_message_prompt_template")
+    @classmethod
+    def validate_prompt_template(cls, value: str) -> str:
+        try:
+            return validate_sandboxed_template(value)
+        except TemplateError as exc:
+            detail = (exc.message or str(exc)).strip()
+            raise ValueError(f"Invalid prompt template: {detail}") from exc
 
 
 class UniqueAIServices(BaseToolConfig):

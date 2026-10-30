@@ -1,9 +1,12 @@
 import jinja2
 import pytest
-from jinja2.exceptions import SecurityError
+from jinja2.exceptions import SecurityError, TemplateSyntaxError
 
 from unique_toolkit._common.utils.jinja.render import render_template
-from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
+from unique_toolkit._common.utils.jinja.sandbox import (
+    sandboxed_template,
+    validate_sandboxed_template,
+)
 from unique_toolkit._common.utils.jinja.schema import Jinja2PromptParams
 
 RCE_PAYLOADS = [
@@ -56,6 +59,31 @@ class TestSandboxedTemplate:
             sandboxed_template(
                 "{{ tool.__class__.__init__.__globals__['os'].popen('id').read() }}"
             ).render(tool=Tool())
+
+
+@pytest.mark.ai
+class TestValidateSandboxedTemplate:
+    def test_accepts_benign_template(self) -> None:
+        assert validate_sandboxed_template(BENIGN_TEMPLATE) == BENIGN_TEMPLATE
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            *RCE_PAYLOADS,
+            "{{ self._TemplateReference__context }}",
+            "{{ namespace.__init__ }}",
+            "{{ obj.mro() }}",
+            "{{ gen.gi_frame }}",
+        ],
+    )
+    def test_rejects_unsafe_attribute_access_statically(self, payload: str) -> None:
+        with pytest.raises(SecurityError):
+            validate_sandboxed_template(payload)
+
+    @pytest.mark.parametrize("malformed", ["{{ unclosed", "{{ x | unknown_filter }}"])
+    def test_rejects_syntax_and_filter_errors(self, malformed: str) -> None:
+        with pytest.raises(TemplateSyntaxError):
+            validate_sandboxed_template(malformed)
 
 
 @pytest.mark.ai
