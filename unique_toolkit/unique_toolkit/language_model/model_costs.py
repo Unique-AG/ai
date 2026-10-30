@@ -145,7 +145,12 @@ def calculate_invocation_cost_usd(
     token_usage: LanguageModelTokenUsage,
     catalog: ModelCostCatalog | None = None,
 ) -> float | None:
-    """Calculate invocation cost using prompt and completion token totals."""
+    """Calculate invocation cost, pricing cache reads and writes at their own rates.
+
+    Mirrors node-chat's ``ModelCostService.computeSpent`` so debug-info spend and
+    the platform ledger agree. Cache reads and writes are counted inside
+    ``prompt_tokens``; a row without a cache rate bills them at ``input``.
+    """
 
     if token_usage.prompt_tokens is None or token_usage.completion_tokens is None:
         return None
@@ -163,10 +168,32 @@ def calculate_invocation_cost_usd(
     if model_cost is None:
         return None
 
-    input_multiplier, completion_multiplier = model_cost.multipliers_for(
-        token_usage.prompt_tokens
+    prompt_tokens = token_usage.prompt_tokens
+    cache_read_tokens = min(token_usage.cached_tokens or 0, prompt_tokens)
+    cache_write_tokens = min(
+        token_usage.cache_write_tokens or 0, prompt_tokens - cache_read_tokens
     )
+    uncached_tokens = prompt_tokens - cache_read_tokens - cache_write_tokens
+    cache_read_rate = (
+        model_cost.cached_input
+        if model_cost.cached_input is not None
+        else model_cost.input
+    )
+    # The usage payload does not say which TTL a write used; node-chat bills an
+    # unsplit write at the 5-minute rate too.
+    cache_write_rate = (
+        model_cost.cache_write
+        if model_cost.cache_write is not None
+        else model_cost.input
+    )
+
+    input_multiplier, completion_multiplier = model_cost.multipliers_for(prompt_tokens)
     return (
-        token_usage.prompt_tokens * model_cost.input * input_multiplier
+        (
+            uncached_tokens * model_cost.input
+            + cache_read_tokens * cache_read_rate
+            + cache_write_tokens * cache_write_rate
+        )
+        * input_multiplier
         + token_usage.completion_tokens * model_cost.completion * completion_multiplier
     ) / _TOKENS_PER_MILLION

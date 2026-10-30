@@ -449,6 +449,145 @@ models:
     assert cost == pytest.approx(0.004)
 
 
+_CACHE_CATALOG = """
+costSchemaVersion: 1
+models:
+  AZURE_GPT_61_SOL_2026_0929:
+    input: 2
+    completion: 10
+    cachedInput: 0.1
+    cacheWrite: 2.5
+    longContextThreshold: 272000
+    longContextInputMultiplier: 2
+    longContextCompletionMultiplier: 1.5
+  no-cache-rates:
+    input: 2
+    completion: 10
+"""
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("usage", "expected"),
+    [
+        (
+            LanguageModelTokenUsage(
+                prompt_tokens=18_580, cached_tokens=18_577, completion_tokens=40
+            ),
+            (3 * 2 + 18_577 * 0.1 + 40 * 10) / 1e6,
+        ),
+        (
+            LanguageModelTokenUsage(
+                prompt_tokens=95_553,
+                cached_tokens=19_076,
+                cache_write_tokens=76_474,
+                completion_tokens=404,
+            ),
+            (3 * 2 + 19_076 * 0.1 + 76_474 * 2.5 + 404 * 10) / 1e6,
+        ),
+    ],
+)
+def test_calculate_invocation_cost_usd__prices_cache_buckets_at_their_own_rates(
+    tmp_path: Path, usage: LanguageModelTokenUsage, expected: float
+) -> None:
+    """Purpose: Verify cache reads and writes are billed at cachedInput/cacheWrite.
+    Why this matters: Pricing every prompt token at the input rate made debug-info
+    spend (and every consumer of it, e.g. benchmarking) disagree with node-chat's
+    ledger; a mostly-cached call was overstated ~16x.
+    Setup summary: Price two GPT-6.1 Sol main-loop calls captured on QA.
+    """
+    catalog = load_model_cost_catalog(
+        _write_catalog(tmp_path / "c.yaml", _CACHE_CATALOG)
+    )
+
+    cost = calculate_invocation_cost_usd("AZURE_GPT_61_SOL_2026_0929", usage, catalog)
+
+    assert cost == pytest.approx(expected)
+
+
+@pytest.mark.ai
+def test_calculate_invocation_cost_usd__bills_cache_at_input_rate_without_cache_prices(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify a row without cache rates bills cached tokens at input.
+    Why this matters: node-chat falls back the same way; anything else would
+    silently undercount spend for rows whose cache pricing is not verified yet.
+    Setup summary: Price a cached call on a row with only input/completion.
+    """
+    catalog = load_model_cost_catalog(
+        _write_catalog(tmp_path / "c.yaml", _CACHE_CATALOG)
+    )
+
+    cost = calculate_invocation_cost_usd(
+        "no-cache-rates",
+        LanguageModelTokenUsage(
+            prompt_tokens=1_000,
+            cached_tokens=600,
+            cache_write_tokens=300,
+            completion_tokens=100,
+        ),
+        catalog,
+    )
+
+    assert cost == pytest.approx((1_000 * 2 + 100 * 10) / 1e6)
+
+
+@pytest.mark.ai
+def test_calculate_invocation_cost_usd__caps_cache_buckets_at_prompt_tokens(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify over-reported cache counts never price negative input.
+    Why this matters: Provider payloads can disagree; cost must stay bounded by
+    the prompt the call actually sent.
+    Setup summary: Report more cache tokens than prompt tokens and price it.
+    """
+    catalog = load_model_cost_catalog(
+        _write_catalog(tmp_path / "c.yaml", _CACHE_CATALOG)
+    )
+
+    cost = calculate_invocation_cost_usd(
+        "AZURE_GPT_61_SOL_2026_0929",
+        LanguageModelTokenUsage(
+            prompt_tokens=1_000,
+            cached_tokens=800,
+            cache_write_tokens=800,
+            completion_tokens=0,
+        ),
+        catalog,
+    )
+
+    assert cost == pytest.approx((800 * 0.1 + 200 * 2.5) / 1e6)
+
+
+@pytest.mark.ai
+def test_calculate_invocation_cost_usd__applies_long_context_multiplier_to_cache(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify the long-context tier also re-prices cache buckets.
+    Why this matters: node-chat applies the input multiplier to cache reads and
+    writes; the toolkit must match or long cached prompts drift apart.
+    Setup summary: Price a cached request just above the 272K threshold.
+    """
+    catalog = load_model_cost_catalog(
+        _write_catalog(tmp_path / "c.yaml", _CACHE_CATALOG)
+    )
+
+    cost = calculate_invocation_cost_usd(
+        "AZURE_GPT_61_SOL_2026_0929",
+        LanguageModelTokenUsage(
+            prompt_tokens=272_001,
+            cached_tokens=200_000,
+            cache_write_tokens=72_000,
+            completion_tokens=1_000,
+        ),
+        catalog,
+    )
+
+    assert cost == pytest.approx(
+        ((1 * 2 + 200_000 * 0.1 + 72_000 * 2.5) * 2 + 1_000 * 10 * 1.5) / 1e6
+    )
+
+
 _SOL_CATALOG = """
 costSchemaVersion: 1
 models:
