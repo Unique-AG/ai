@@ -83,6 +83,8 @@ unique-cli cite report.pdf --pages 3,5,7 --read-method text
 unique-cli cite cont_abc123 --pages 1-4 --read-method vision
 # Non-paginated files (Excel, CSV, txt): omit --pages to cite the whole file
 unique-cli cite data.xlsx --read-method text
+# Several files in one call (--pages and --read-method apply to each)
+unique-cli cite a.xlsx b.xlsx c.csv --read-method text
 
 # Delete a file
 unique-cli rm report.pdf
@@ -222,10 +224,18 @@ answer, declare citations. `cite` works on **any** file type, not just PDFs.
 unique-cli cite report.pdf --pages 3,5 --read-method text
 unique-cli cite cont_abc123 --pages 1-4 --read-method vision
 unique-cli cite data.xlsx --read-method text          # non-paginated: omit --pages
+unique-cli cite a.xlsx b.xlsx c.csv --read-method text # several files, one call
 ```
 
 This registers `[filesourceN]` markers. Use them inline in your answer.
 The platform converts `[filesourceN]` into footnotes and clickable reference chips.
+
+**Cite several files in ONE call.** Each `unique-cli cite` process takes seconds to
+start, so pass every file with the same `--read-method` (and the same `--pages`, if
+any) to a single call. A file that fails does not stop the others, and the command
+exits non-zero when any file failed — read stderr for the failing file. You may chain
+the call at the end of your last file-reading command (`... && unique-cli cite ...`)
+instead of spending a separate tool call on it.
 
 **Which page number to cite.** `cite` expects **physical page positions** (1-based) — the same positions ingestion assigns and that `unique-cli read` prints as `[p.N]` / `[p.N-M]` prefixes. NEVER cite a printed page number from a header/footer; those often differ from the physical position.
 
