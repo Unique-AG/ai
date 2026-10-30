@@ -645,6 +645,26 @@
       "type": "object",
       "description": "Extra labels added to every pod"
     },
+    "responsibility": {
+      "type": "object",
+      "description": "Teams responsible for the workload, rendered as unique.app/application-owner and unique.app/operations-owner labels on all resources and pods. The operations owner also defaults the alert team label.",
+      "properties": {
+        "application": {
+          "type": "string",
+          "description": "Team that develops the application",
+          "examples": [
+            "team-a"
+          ]
+        },
+        "operations": {
+          "type": "string",
+          "description": "Team that operates the application. An explicit alert team wins; when unset or empty it falls back to the application owner.",
+          "examples": [
+            "team-b"
+          ]
+        }
+      }
+    },
     "podAnnotations": {
       "type": "object",
       "description": "Extra annotations added to every pod"
@@ -1067,6 +1087,29 @@
                 "description": "Volumes added only to this hook Job pod spec",
                 "items": {
                   "type": "object"
+                }
+              },
+              "argocd": {
+                "type": "object",
+                "description": "Argo CD sync options for this hook Job. When hook is set, Argo CD ignores this Job's helm.sh/hook annotations; other hook Jobs keep their Helm hook mapping.",
+                "additionalProperties": false,
+                "properties": {
+                  "hook": {
+                    "type": "string",
+                    "description": "Rendered as argocd.argoproj.io/hook",
+                    "enum": [
+                      "PreSync",
+                      "Sync",
+                      "PostSync",
+                      "SyncFail",
+                      "PostDelete",
+                      "Skip"
+                    ]
+                  },
+                  "syncWave": {
+                    "type": "integer",
+                    "description": "Rendered as argocd.argoproj.io/sync-wave"
+                  }
                 }
               }
             }
@@ -1746,6 +1789,30 @@
               "examples": [
                 "uniqueapp.azurecr.io"
               ]
+            }
+          }
+        },
+        "internalServices": {
+          "type": "object",
+          "description": "Optional environment-wide name/namespace values for internalServices keys. Only takes effect for a chart's internalServices.dependencies/dependents field that is itself written as a base.internalService.registryOr tpl expression in that chart's values.yaml; absent or empty has no effect.",
+          "properties": {
+            "registry": {
+              "type": "object",
+              "description": "Map of internalServices logical key to the name/namespace a chart's base.internalService.registryOr call for that key resolves to. A present, non-empty entry here takes precedence over the call's own chart-level fallback.",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Value returned for this key's name field."
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "Value returned for this key's namespace field."
+                  }
+                }
+              }
             }
           }
         }
