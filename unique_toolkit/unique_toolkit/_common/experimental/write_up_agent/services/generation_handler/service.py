@@ -3,8 +3,6 @@
 import logging
 from typing import Any, Callable
 
-from jinja2 import Template
-
 from unique_toolkit._common.experimental.write_up_agent.schemas import (
     GroupData,
     ProcessedGroup,
@@ -21,6 +19,7 @@ from unique_toolkit._common.experimental.write_up_agent.services.generation_hand
     PromptBuildError,
     TokenLimitError,
 )
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
@@ -285,14 +284,14 @@ class GenerationHandler:
         """
         try:
             # Build system prompt
-            system_prompt = Template(
+            system_prompt = sandboxed_template(
                 self._config.prompts_config.system_prompt_template
             ).render(
                 common_instruction=self._config.common_instruction,
             )
 
             # Build user prompt with section name
-            user_prompt = Template(
+            user_prompt = sandboxed_template(
                 self._config.prompts_config.user_prompt_template
             ).render(
                 section_name=section_name,

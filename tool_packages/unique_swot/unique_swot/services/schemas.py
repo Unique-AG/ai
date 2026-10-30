@@ -9,8 +9,8 @@ analysis steps, and results.
 from enum import StrEnum
 from typing import Callable, Generic, TypeVar
 
-from jinja2 import Template
 from pydantic import BaseModel, Field
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 
 from unique_swot.services.generation.context import SWOTComponent
 
@@ -145,5 +145,5 @@ class SWOTResult(SWOT[SWOTStepResult]):
     def to_markdown_report(
         self, markdown_jinja_template: str, processor: Callable[[str], str]
     ) -> str:
-        report = Template(markdown_jinja_template).render(**self.model_dump())
+        report = sandboxed_template(markdown_jinja_template).render(**self.model_dump())
         return processor(report)

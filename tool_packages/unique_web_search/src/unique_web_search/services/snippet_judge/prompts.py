@@ -1,6 +1,6 @@
 """Prompts for the snippet judge (stage 1: explain and score)."""
 
-import jinja2
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 
 SNIPPET_JUDGE_SYSTEM_PROMPT = """You evaluate web search results for relevance to a user's objective. You will receive an objective and a numbered list of search results (title, snippet, URL). For each result, output:
 1. A short explanation of why it is or is not relevant to the objective.
@@ -32,7 +32,7 @@ def build_user_prompt(
 
     ``template`` is a Jinja2 string with variables ``objective`` and ``numbered_results``.
     """
-    return jinja2.Template(template).render(
+    return sandboxed_template(template).render(
         objective=objective,
         numbered_results=numbered_results,
     )

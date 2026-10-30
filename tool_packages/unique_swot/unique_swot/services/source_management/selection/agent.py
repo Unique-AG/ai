@@ -1,7 +1,7 @@
 from logging import getLogger
 
-from jinja2 import Template
 from unique_toolkit import LanguageModelService
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import Content
 
@@ -68,7 +68,9 @@ class SourceSelectionAgent:
         return response
 
     def _compose_system_prompt(self, *, company_name: str) -> str:
-        template = Template(self._source_selection_config.prompt_config.system_prompt)
+        template = sandboxed_template(
+            self._source_selection_config.prompt_config.system_prompt
+        )
         return template.render(company_name=company_name)
 
     def _compose_user_prompt(self, *, company_name: str, content: Content) -> str:
@@ -77,7 +79,9 @@ class SourceSelectionAgent:
         ]
         selected_chunks_texts = [chunk.text for chunk in selected_chunks]
 
-        template = Template(self._source_selection_config.prompt_config.user_prompt)
+        template = sandboxed_template(
+            self._source_selection_config.prompt_config.user_prompt
+        )
         return template.render(
             company_name=company_name, selected_chunks=selected_chunks_texts
         )

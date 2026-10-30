@@ -1,8 +1,8 @@
 from logging import getLogger
 from typing import AsyncIterator, Generator
 
-from jinja2 import Template
 from unique_toolkit import LanguageModelService
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import Content
 
@@ -76,13 +76,17 @@ class SourceIterationAgent:
         return self._handle_results(results=response)
 
     def _compose_system_prompt(self, *, objective: str) -> str:
-        template = Template(self._source_iteration_config.prompt_config.system_prompt)
+        template = sandboxed_template(
+            self._source_iteration_config.prompt_config.system_prompt
+        )
         return template.render(objective=objective)
 
     def _compose_user_prompt(self, *, contents: list[Content]) -> str:
         contents_list = list(self._return_contents(contents=contents))
 
-        template = Template(self._source_iteration_config.prompt_config.user_prompt)
+        template = sandboxed_template(
+            self._source_iteration_config.prompt_config.user_prompt
+        )
         return template.render(contents=contents_list)
 
     def _return_contents(

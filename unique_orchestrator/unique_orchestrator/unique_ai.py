@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from logging import Logger
 from typing import Any, cast, overload
 
-import jinja2
 from typing_extensions import deprecated
 from unique_skill_tool.service import SkillTool
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     AnalyticsLanguageModel,
     DebugInfoManager,
@@ -758,7 +758,7 @@ class UniqueAI:
         return messages
 
     async def _render_user_prompt(self) -> str:
-        user_message_template = jinja2.Template(
+        user_message_template = sandboxed_template(
             self._config.agent.prompt_config.user_message_prompt_template
         )
 
@@ -814,7 +814,7 @@ class UniqueAI:
             self._history_manager.get_tool_calls(), ["subagent"]
         )
 
-        system_prompt_template = jinja2.Template(
+        system_prompt_template = sandboxed_template(
             self._config.agent.prompt_config.system_prompt_template
         )
 

@@ -1,7 +1,7 @@
 from logging import getLogger
 
-from jinja2 import Template
 from unique_toolkit import LanguageModelService
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
 
@@ -29,11 +29,11 @@ class SummarizationAgent:
         markdown_report: str,
     ) -> str:
         # Render the report with compatible citations for streaming
-        user_prompt = Template(
+        user_prompt = sandboxed_template(
             self.summarization_config.prompt_config.user_prompt
         ).render(company_name=company_name, report=markdown_report)
 
-        system_prompt = Template(
+        system_prompt = sandboxed_template(
             self.summarization_config.prompt_config.system_prompt
         ).render()
 

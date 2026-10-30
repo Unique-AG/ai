@@ -1,9 +1,9 @@
 from logging import getLogger
 from typing import Callable
 
-from jinja2 import Template
 from unique_toolkit import ChatService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 
 from unique_swot.services.citations import CitationManager
 from unique_swot.services.generation.models.base import SWOTReportComponents
@@ -48,7 +48,7 @@ class ReportDeliveryService:
         body: str | None = None,
     ) -> str:
         # Render using the template
-        markdown_report = Template(
+        markdown_report = sandboxed_template(
             self._renderer_config.report_structure_template
         ).render(
             executive_summary=executive_summary,
@@ -57,7 +57,7 @@ class ReportDeliveryService:
         return citation_fn(markdown_report)
 
     def render_body(self, result: SWOTReportComponents) -> str:
-        return Template(self._renderer_config.report_body_template).render(
+        return sandboxed_template(self._renderer_config.report_body_template).render(
             **result.model_dump(),
         )
 
@@ -91,7 +91,9 @@ class ReportDeliveryService:
 
         number_of_citations = len(self._citation_manager.get_citations_for_docx())
 
-        full_report = Template(self._renderer_config.report_structure_template).render(
+        full_report = sandboxed_template(
+            self._renderer_config.report_structure_template
+        ).render(
             executive_summary=executive_summary,
             body=body,
             citations=self._citation_manager.get_citations_for_docx()
@@ -136,7 +138,7 @@ class ReportDeliveryService:
         """
 
         # Render using the template
-        markdown_report = Template(markdown_jinja_template).render(
+        markdown_report = sandboxed_template(markdown_jinja_template).render(
             **consolidated_reports.model_dump()
         )
         return processor(markdown_report)
