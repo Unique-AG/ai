@@ -1,7 +1,9 @@
 from functools import cache
 
-from jinja2 import Template
+from jinja2 import Template, TemplateError
 from jinja2.sandbox import SandboxedEnvironment
+
+__all__ = ["TemplateError", "sandboxed_template"]
 
 
 @cache

@@ -283,14 +283,21 @@ class EvaluationConfig(BaseToolConfig):
 # ------------------------------------------------------------
 
 
+DEFAULT_SYSTEM_PROMPT_TEMPLATE: str = (
+    Path(__file__).parent / "prompts" / "system_prompt.jinja2"
+).read_text()
+
+DEFAULT_USER_MESSAGE_PROMPT_TEMPLATE: str = (
+    Path(__file__).parent / "prompts" / "user_message_prompt.jinja2"
+).read_text()
+
+
 class UniqueAIPromptConfig(BaseToolConfig):
     system_prompt_template: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(rows=25),
     ] = Field(
-        default_factory=lambda: (
-            Path(__file__).parent / "prompts" / "system_prompt.jinja2"
-        ).read_text(),
+        default_factory=lambda: DEFAULT_SYSTEM_PROMPT_TEMPLATE,
         description="The system prompt template as a Jinja2 template string.",
     )
 
@@ -298,9 +305,7 @@ class UniqueAIPromptConfig(BaseToolConfig):
         str,
         RJSFMetaTag.StringWidget.textarea(rows=4),
     ] = Field(
-        default_factory=lambda: (
-            Path(__file__).parent / "prompts" / "user_message_prompt.jinja2"
-        ).read_text(),
+        default_factory=lambda: DEFAULT_USER_MESSAGE_PROMPT_TEMPLATE,
         description="The user message prompt template as a Jinja2 template string.",
     )
 

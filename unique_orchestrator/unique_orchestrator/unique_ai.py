@@ -6,7 +6,10 @@ from typing import Any, cast, overload
 
 from typing_extensions import deprecated
 from unique_skill_tool.service import SkillTool
-from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
+from unique_toolkit._common.utils.jinja.sandbox import (
+    TemplateError,
+    sandboxed_template,
+)
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     AnalyticsLanguageModel,
     DebugInfoManager,
@@ -69,7 +72,11 @@ from unique_orchestrator._builders.inject_tool_reminders import (
     inject_tool_reminders_into_user_message,
 )
 from unique_orchestrator._builders.skill_setup import preload_invoked_skills
-from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.config import (
+    DEFAULT_SYSTEM_PROMPT_TEMPLATE,
+    DEFAULT_USER_MESSAGE_PROMPT_TEMPLATE,
+    UniqueAIConfig,
+)
 from unique_orchestrator.settings import env_settings
 from unique_orchestrator.utils import resolve_other_options
 
@@ -757,11 +764,25 @@ class UniqueAI:
         messages = inject_tool_reminders_into_user_message(messages, tool_reminders)
         return messages
 
-    async def _render_user_prompt(self) -> str:
-        user_message_template = sandboxed_template(
-            self._config.agent.prompt_config.user_message_prompt_template
-        )
+    def _render_prompt_template(
+        self,
+        *,
+        template_source: str,
+        default_template_source: str,
+        template_name: str,
+        context: dict[str, Any],
+    ) -> str:
+        try:
+            return sandboxed_template(template_source).render(**context)
+        except TemplateError as exc:
+            self._logger.warning(
+                "Failed to render configured %s (%s); falling back to default template.",
+                template_name,
+                type(exc).__name__,
+            )
+            return sandboxed_template(default_template_source).render(**context)
 
+    async def _render_user_prompt(self) -> str:
         tool_descriptions_with_user_prompts = [
             prompts.tool_user_prompt
             for prompts in self._tool_manager.get_tool_prompts()
@@ -793,17 +814,21 @@ class UniqueAI:
             use_sub_agent_references = False
             sub_agent_referencing_instructions = None
 
-        user_msg = user_message_template.render(
-            query=query,
-            tool_descriptions=tool_descriptions,
-            used_tools=used_tools,
-            mcp_server_user_prompts=list(mcp_server_user_prompts),
-            tool_descriptions_with_user_prompts=tool_descriptions_with_user_prompts,
-            use_sub_agent_references=use_sub_agent_references,
-            sub_agent_referencing_instructions=sub_agent_referencing_instructions,
-            user_metadata=user_metadata,
+        return self._render_prompt_template(
+            template_source=self._config.agent.prompt_config.user_message_prompt_template,
+            default_template_source=DEFAULT_USER_MESSAGE_PROMPT_TEMPLATE,
+            template_name="user_message_prompt_template",
+            context={
+                "query": query,
+                "tool_descriptions": tool_descriptions,
+                "used_tools": used_tools,
+                "mcp_server_user_prompts": list(mcp_server_user_prompts),
+                "tool_descriptions_with_user_prompts": tool_descriptions_with_user_prompts,
+                "use_sub_agent_references": use_sub_agent_references,
+                "sub_agent_referencing_instructions": sub_agent_referencing_instructions,
+                "user_metadata": user_metadata,
+            },
         )
-        return user_msg
 
     async def _render_system_prompt(self) -> str:
         # TODO: Collect tool information here and adapt to system prompt
@@ -812,10 +837,6 @@ class UniqueAI:
         used_tools = [t.name for t in self._history_manager.get_tool_calls()]
         sub_agent_calls = self._tool_manager.filter_tool_calls(
             self._history_manager.get_tool_calls(), ["subagent"]
-        )
-
-        system_prompt_template = sandboxed_template(
-            self._config.agent.prompt_config.system_prompt_template
         )
 
         date_string = datetime.now().strftime("%A %B %d, %Y")
@@ -849,24 +870,28 @@ class UniqueAI:
                 + self._config.space.user_space_instructions
             )
 
-        system_message = system_prompt_template.render(
-            model_info=self._config.space.language_model.model_dump(mode="json"),
-            date_string=date_string,
-            tool_descriptions=tool_descriptions,
-            used_tools=used_tools,
-            project_name=self._config.space.project_name,
-            custom_instructions=custom_instructions,
-            max_tools_per_iteration=self._config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
-            max_loop_iterations=self._config.effective_max_loop_iterations,
-            current_iteration=self.current_iteration_index + 1,
-            mcp_server_system_prompts=mcp_server_system_prompts,
-            use_sub_agent_references=use_sub_agent_references,
-            sub_agent_referencing_instructions=sub_agent_referencing_instructions,
-            user_metadata=user_metadata,
-            uploaded_documents_expired=uploaded_documents_expired,
-            user_memory=self._user_memory_text,
+        return self._render_prompt_template(
+            template_source=self._config.agent.prompt_config.system_prompt_template,
+            default_template_source=DEFAULT_SYSTEM_PROMPT_TEMPLATE,
+            template_name="system_prompt_template",
+            context={
+                "model_info": self._config.space.language_model.model_dump(mode="json"),
+                "date_string": date_string,
+                "tool_descriptions": tool_descriptions,
+                "used_tools": used_tools,
+                "project_name": self._config.space.project_name,
+                "custom_instructions": custom_instructions,
+                "max_tools_per_iteration": self._config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
+                "max_loop_iterations": self._config.effective_max_loop_iterations,
+                "current_iteration": self.current_iteration_index + 1,
+                "mcp_server_system_prompts": mcp_server_system_prompts,
+                "use_sub_agent_references": use_sub_agent_references,
+                "sub_agent_referencing_instructions": sub_agent_referencing_instructions,
+                "user_metadata": user_metadata,
+                "uploaded_documents_expired": uploaded_documents_expired,
+                "user_memory": self._user_memory_text,
+            },
         )
-        return system_message
 
     def _finalize_loop_timing(self, loop_start: float) -> None:
         self._current_loop_timing["total_loop_time"] = round(
