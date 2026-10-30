@@ -151,9 +151,7 @@ jobs:
       publish_matrix: ${{ needs.resolve-package.outputs.matrix }}
       release_tag: ${{ github.event.release.tag_name }}
 
-  uniquecr-import:
-    # release-only, stable search-proxy only: copies the image and chart that
-    # containerize and helm-publish just pushed to GHCR into uniquecr.
+  uniquecr-copy:
     needs: [helm-publish]
     if: >-
       needs.helm-publish.result == 'success'

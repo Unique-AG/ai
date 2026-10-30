@@ -6,7 +6,7 @@ name: "[CD] Search proxy to uniquecr"
 # GHCR tags can be moved after the build, so the image is copied by digest and
 # only if cd-containerize.yaml signed it at this release tag and its revision
 # label is the tag commit. A version that already exists in uniquecr is never
-# overwritten. The chart is copied as published and skipped if uniquecr has it.
+# overwritten.
 #
 # Called by cd-publish after helm-publish. To retry by hand, run it on the tag:
 #   gh workflow run cd-uniquecr-search-proxy.yaml --ref unique-search-proxy-v<version>
@@ -26,8 +26,7 @@ permissions:
 jobs:
   publish-to-uniquecr:
     runs-on: ubuntu-latest
-    # Holds CLIENT_ID/TENANT_ID/SUBSCRIPTION_ID of the uniquecr push principal and
-    # only admits unique-search-proxy-v* tags (infrastructure: providers/github/unique-ag/repos/ai.yaml).
+    # Only admits unique-search-proxy-v* tags; managed in the infrastructure repo.
     environment: uniquecr-github-oidc
     timeout-minutes: 20
     concurrency:
