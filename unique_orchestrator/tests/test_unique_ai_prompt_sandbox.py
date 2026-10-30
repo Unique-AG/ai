@@ -1,4 +1,4 @@
-"""Prompt templates come from editable space module config and must render sandboxed."""
+"""Configurable prompt templates render through the shared Jinja sandbox."""
 
 from __future__ import annotations
 
