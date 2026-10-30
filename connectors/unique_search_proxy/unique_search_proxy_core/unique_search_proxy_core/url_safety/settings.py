@@ -45,7 +45,7 @@ class UrlSafetySettings(BaseSettings):
     cluster_local_suffix: str = ".cluster.local"
     service_suffix: str = ".svc"
     max_redirect_hops: int = 10
-    redirect_timeout_seconds: float = 10.0
+    redirect_timeout_seconds: float = 5.0
 
     model_config = SettingsConfigDict(
         extra="ignore",
