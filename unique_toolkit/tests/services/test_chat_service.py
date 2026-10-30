@@ -264,12 +264,10 @@ class TestFilterImagesAndDocuments:
         self,
     ) -> None:
         """
-        Purpose: Verify Outlook `.msg` and `.eml` chat uploads are returned as
-        documents alongside PDF/DOCX/TXT, while images and unknown extensions
-        are not.
-        Why this matters: UN-24575 — `.msg` was silently dropped from
-        `uploaded_documents`, so UniqueAI never registered UploadedSearch and
-        told the user no file was attached.
+        Purpose: Verify chat uploads are split into images and documents without
+        an extension allowlist.
+        Why this matters: UN-27570 stores types outside the old MIME catalog.
+        Dropping them here made the orchestrator report that no file was attached.
         Setup summary: Run the static filter over a mixed content list and
         compare the resulting keys.
         """
@@ -281,6 +279,7 @@ class TestFilterImagesAndDocuments:
             Content(id="cont_txt", key="notes.txt"),
             Content(id="cont_msg", key="mail.msg"),
             Content(id="cont_eml", key="mail.eml"),
+            Content(id="cont_webm", key="clip.webm"),
             Content(id="cont_png", key="photo.png"),
             Content(id="cont_exe", key="run.exe"),
         ]
@@ -293,6 +292,8 @@ class TestFilterImagesAndDocuments:
             "notes.txt",
             "mail.msg",
             "mail.eml",
+            "clip.webm",
+            "run.exe",
         ]
         assert [c.key for c in images] == ["photo.png"]
 

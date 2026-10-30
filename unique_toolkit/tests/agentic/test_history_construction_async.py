@@ -317,6 +317,50 @@ async def test_append_element_to_builder_async_with_file_contents():
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_append_element_to_builder_async_includes_webm_upload():
+    """Verify an upload outside the old MIME catalog is listed in model history.
+
+    Purpose: A stored upload is serialized as a file and is not attached as an image.
+    Why this matters: UN-27570 stores types the old MIME allowlist hid from the
+    orchestrator even though upload succeeded.
+    Setup summary: Append one non-catalog upload with a serializer and no MIME mocks.
+    Assert the serializer output is in the user message and no image is attached.
+    """
+    from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+        ChatMessageWithContents,
+    )
+
+    webm = _make_file_content("clip.webm", "cont_webm")
+    builder = MagicMock()
+    msg = ChatMessageWithContents(
+        id="m1",
+        chat_id="c1",
+        text="see attached",
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime(2026, 1, 1, 12, 0),
+        contents=[webm],
+    )
+
+    await _append_element_to_builder_async(
+        builder=builder,
+        c=msg,
+        text="see attached",
+        include_images=ImageContentInclusion.ALL,
+        content_service=MagicMock(),
+        chat_id="c1",
+        file_content_serializer=lambda content: f"File: {content.key} ({content.id})",
+    )
+
+    builder.image_message_append.assert_not_called()
+    assert (
+        builder.message_append.call_args.kwargs["content"]
+        == "see attached\n\nFile: clip.webm (cont_webm)"
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_append_element_to_builder_async_without_file_serializer():
     """Verify uploaded files are omitted when no serializer is configured.
 
