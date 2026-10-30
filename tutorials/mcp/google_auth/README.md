@@ -2,7 +2,7 @@
 
 This tutorial demonstrates building an HTTP-streamable MCP server with FastMCP, with a focus on demonstrating how to authenticate with Google OAuth.
 
-Visit: [https://unique-ag.github.io/](https://unique-ag.github.io/ai/Tutorials/mcp_google_auth/) for the documentation.
+Visit: [https://unique-ag.github.io/](https://unique-ag.github.io/ai/Tutorials/mcp/mcp_google_auth/) for the documentation.
 
 ## Setup
 

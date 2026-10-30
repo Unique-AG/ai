@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Mapping
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,6 +14,9 @@ COMPANY_ID_HEADER = "x-unique-company-id"
 USER_ID_HEADER = "x-unique-user-id"
 CHAT_ID_HEADER = "x-unique-chat-id"
 USER_METADATA_HEADER = "x-unique-user-metadata"
+ENTRY_POINT_HEADER = "x-unique-entry-point"
+MESSAGE_ID_HEADER = "x-unique-message-id"
+SERVICE_ID_HEADER = "x-service-id"
 
 _CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
     ("company_id", COMPANY_ID_HEADER),
@@ -23,6 +27,23 @@ _CONTEXT_HEADER_FIELDS: tuple[tuple[str, str], ...] = (
 _LOGGER = logging.getLogger(__name__)
 
 
+class EntryPoint(StrEnum):
+    """Service where a search request entered the platform."""
+
+    CHAT_TOOL = "chat_tool"
+    PUBLIC_API = "public_api"
+    CONDUCT = "conduct"
+    UNIQUE_API = "unique_api"
+    GRAPHQL = "graphql"
+    DEEP_RESEARCH = "deep_research"
+    WEB_SEARCH_SERVICE = "web_search_service"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def _missing_(cls, value: object) -> EntryPoint:
+        return cls.UNKNOWN
+
+
 class RequestContext(BaseModel):
     """Caller identity for search-proxy requests."""
 
@@ -31,7 +52,28 @@ class RequestContext(BaseModel):
     company_id: str
     user_id: str
     chat_id: str
+    entry_point: EntryPoint = EntryPoint.UNKNOWN
+    # Calling service from ``x-service-id``; logged only, never enforced.
+    caller: str = "unknown"
+    # Reserved for analytics; optional until callers send it.
+    message_id: str | None = None
     user_metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def invalid_identity_headers(self) -> list[str]:
+        """Identity headers whose value is not a numeric id (``local``, blank, junk)."""
+        return [
+            header_name
+            for header_name, value in (
+                (COMPANY_ID_HEADER, self.company_id),
+                (USER_ID_HEADER, self.user_id),
+            )
+            if not (value.isascii() and value.isdecimal())
+        ]
+
+    @property
+    def is_attributed(self) -> bool:
+        return not self.invalid_identity_headers
 
     def to_headers(self) -> dict[str, str]:
         """Serialize context to the canonical HTTP header names."""
@@ -40,6 +82,10 @@ class RequestContext(BaseModel):
             USER_ID_HEADER: self.user_id,
             CHAT_ID_HEADER: self.chat_id,
         }
+        if self.entry_point is not EntryPoint.UNKNOWN:
+            headers[ENTRY_POINT_HEADER] = self.entry_point.value
+        if self.message_id:
+            headers[MESSAGE_ID_HEADER] = self.message_id
         if self.user_metadata:
             # ``ensure_ascii`` keeps the value latin-1 encodable, which HTTP
             # headers require.
@@ -78,6 +124,13 @@ class RequestContext(BaseModel):
                 values[field_name] = str(raw)
         return cls(
             **values,
+            entry_point=normalized.get(
+                ENTRY_POINT_HEADER.lower(),
+                fallback.entry_point,
+            ),
+            caller=normalized.get(SERVICE_ID_HEADER) or fallback.caller,
+            message_id=str(normalized.get(MESSAGE_ID_HEADER) or "").strip()
+            or fallback.message_id,
             user_metadata=_parse_user_metadata(
                 normalized.get(USER_METADATA_HEADER),
                 fallback=fallback.user_metadata,
@@ -119,8 +172,12 @@ LOCAL_REQUEST_CONTEXT = RequestContext(
 __all__ = [
     "CHAT_ID_HEADER",
     "COMPANY_ID_HEADER",
+    "ENTRY_POINT_HEADER",
+    "EntryPoint",
     "LOCAL_REQUEST_CONTEXT",
+    "MESSAGE_ID_HEADER",
     "RequestContext",
+    "SERVICE_ID_HEADER",
     "USER_ID_HEADER",
     "USER_METADATA_HEADER",
 ]

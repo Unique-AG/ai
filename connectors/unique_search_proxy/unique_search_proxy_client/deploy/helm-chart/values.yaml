@@ -6,16 +6,19 @@ selectorComponentLabel: server
 # ════ Compute ═════════════════════════════════════════════════════════════════
 
 # ── Deployment ────────────────────────────────────────────────────────────────
+# -- Use at least 2 in production.
+replicaCount: 1
+
 env:
   LOG_LEVEL: info
   TIMEOUT: "120"
-  WORKERS: "4"
+  WORKERS: "2"
 
 image:
   pullPolicy: IfNotPresent
   registry: ghcr.io
   repository: unique-ag/ai/search-proxy
-  tag: "2026.42.0" # x-release-please-version
+  tag: "2026.44.0" # x-release-please-version
   useDigest: false # not yet supported for out-of-tree charts
 
 ports:
@@ -38,10 +41,10 @@ securityContext:
 
 resources:
   requests:
-    cpu: 100m
-    memory: 256Mi
+    cpu: "1"
+    memory: 2Gi
   limits:
-    memory: 384Mi
+    memory: 4Gi
 
 probes:
   enabled: true
@@ -175,7 +178,7 @@ requestLimits:
     maxUrlsPerCrawl: 100
     maxUrlLength: 2048
     maxConcurrentFetches: 10
-    maxConcurrentCrawls: 2
+    maxConcurrentCrawls: 4
   timeouts:
     maxTimeoutSeconds: 120
 

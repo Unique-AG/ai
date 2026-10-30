@@ -555,7 +555,18 @@ def test_supported_reasoning_efforts_set_correctly():
     assert deepseek_v4.default_options["reasoning_effort"] == "high"
 
     kimi = LanguageModelInfo.from_name(LanguageModelName.LITELLM_KIMI_K3)
-    assert kimi.default_options["reasoning_effort"] == "low"
+    assert kimi.supported_reasoning_efforts == ["low", "medium", "high", "max"]
+    assert kimi.default_options["reasoning_effort"] == "medium"
+    _, effort = kimi.resolve_temp_and_reasoning(0.0, "medium")
+    assert effort == "medium"
+
+    deepseek_v41_flash = LanguageModelInfo.from_name(
+        LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH
+    )
+    assert deepseek_v41_flash.supported_reasoning_efforts == []
+    assert "reasoning_effort" not in deepseek_v41_flash.default_options
+    _, effort = deepseek_v41_flash.resolve_temp_and_reasoning(0.0, None)
+    assert effort is None
 
     # DeepSeek R1 has no reasoning_effort parameter
     deepseek = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)

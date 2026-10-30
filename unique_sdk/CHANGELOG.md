@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.42.0...unique-sdk-v2026.44.0) (2026-10-23)
+
+
+### Features
+
+* **cli:** accept several queries in one web-search call [UN-27454] ([#2572](https://github.com/Unique-AG/ai/issues/2572)) ([88ecd6a](https://github.com/Unique-AG/ai/commit/88ecd6a355c630d716a8ab53a3d68af1948fb905))
+* **sdk, toolkit:** raise LanguageModelCallError from the LLM error contract ([#2603](https://github.com/Unique-AG/ai/issues/2603)) ([f61ca2d](https://github.com/Unique-AG/ai/commit/f61ca2d94cd76978a00b81c6024ecea5736b41b2))
+* **sdk:** add optional `excludeGptRequest` to `Message.list` and ([dd38954](https://github.com/Unique-AG/ai/commit/dd38954fce2063d7c243cb94223450cc8b49575f))
+* **sdk:** add timezone to scheduled tasks and CLI [UN-26399] ([#2593](https://github.com/Unique-AG/ai/issues/2593)) ([db1d570](https://github.com/Unique-AG/ai/commit/db1d570f5a2506d85457a61b7c98986cd9c9795b))
+* **sdk:** create Conduct spaces and attach MCP servers [UN-27208] ([#2547](https://github.com/Unique-AG/ai/issues/2547)) ([426c594](https://github.com/Unique-AG/ai/commit/426c5944c5d4f0799a81dadb1c0c705d83a180e6))
+* **search:** add merge strategy and score options ([#2565](https://github.com/Unique-AG/ai/issues/2565)) ([5d71779](https://github.com/Unique-AG/ai/commit/5d71779b93aced9e08fed0a6222980c49b94fd16))
+* **unique_sdk:** Briefing GET/DELETE and upsert title (UN-21011) ([#1719](https://github.com/Unique-AG/ai/issues/1719)) ([c47e303](https://github.com/Unique-AG/ai/commit/c47e3036d547dfb4505053a5bb0b76c09c307757))
+
+
+### Bug Fixes
+
+* **cli:** bound filename resolve to stop whole-KB scans [UN-26945] ([#2561](https://github.com/Unique-AG/ai/issues/2561)) ([42df03e](https://github.com/Unique-AG/ai/commit/42df03ec3ec0cf86e6cf7aecceb2abf561187f36))
+* **cli:** exit 1 when unique-cli mcp fails [UN-27061] ([#2558](https://github.com/Unique-AG/ai/issues/2558)) ([b578bc7](https://github.com/Unique-AG/ai/commit/b578bc75eca45de781a7fc710475dc94f01a60e3))
+* **cli:** exit non-zero when mkdir, upload, or ls fails [UN-26713] ([#2553](https://github.com/Unique-AG/ai/issues/2553)) ([dbab9f3](https://github.com/Unique-AG/ai/commit/dbab9f34ae4f055750edcde0f94979d547b44379))
+* **cli:** list folder files without company-wide content read [UN-26552] ([#2596](https://github.com/Unique-AG/ai/issues/2596)) ([34299cc](https://github.com/Unique-AG/ai/commit/34299ccff4a6e982d84eba10339e1af595b7f01c))
+* **cli:** resolve absolute mkdir paths [UN-26812] ([#2542](https://github.com/Unique-AG/ai/issues/2542)) ([8b225bf](https://github.com/Unique-AG/ai/commit/8b225bfcc011d52f5734e13a45b37a2efd06523b))
+* **orchestrator:** prevent parallel tool context overflow [UN-27401] ([#2575](https://github.com/Unique-AG/ai/issues/2575)) ([95ec9ec](https://github.com/Unique-AG/ai/commit/95ec9ec8bc94033dea7e04c045fac6783327750f))
+* **sdk:** make unique-cli ls pageable and flag truncated output ([#2609](https://github.com/Unique-AG/ai/issues/2609)) ([99bb57a](https://github.com/Unique-AG/ai/commit/99bb57a4732c3ca5f87c35a66102a0953d7fa72d))
+* **toolkit:** skip stored gptRequest when loading chat history [UN-27512] ([#2602](https://github.com/Unique-AG/ai/issues/2602)) ([dd38954](https://github.com/Unique-AG/ai/commit/dd38954fce2063d7c243cb94223450cc8b49575f))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
 ## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.40.0...unique-sdk-v2026.42.0) (2026-10-09)
 
 

@@ -1083,7 +1083,7 @@ class TestWebSearchToolArgumentScreeningFeatureFlag:
 
 
 class TestWebSearchToolRequestContext:
-    """The tool forwards the chat event's user metadata to the search proxy."""
+    """The tool forwards the chat event's identity and entry point to the search proxy."""
 
     @staticmethod
     def _build_tool(
@@ -1136,3 +1136,13 @@ class TestWebSearchToolRequestContext:
         tool = self._build_tool(mock_web_search_config_v1, mocker, None)
 
         assert tool.request_context.user_metadata == {}
+
+    @pytest.mark.ai
+    def test_sends_chat_tool_entry_point_header(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        tool = self._build_tool(mock_web_search_config_v1, mocker, None)
+
+        assert tool.request_context.to_headers()["x-unique-entry-point"] == "chat_tool"

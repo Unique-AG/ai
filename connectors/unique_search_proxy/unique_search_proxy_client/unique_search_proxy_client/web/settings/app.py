@@ -15,6 +15,7 @@ APP_ENV_PREFIX = ""
 )
 class AppSettings(BaseSettings):
     require_context_headers: bool = True
+    reject_unattributed_requests: bool = False
     expose_docs: bool = False
 
 

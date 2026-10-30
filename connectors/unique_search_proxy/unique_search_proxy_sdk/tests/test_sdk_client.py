@@ -379,7 +379,9 @@ class TestRequestContextHeaders:
         from unique_search_proxy_core.context import (
             CHAT_ID_HEADER,
             COMPANY_ID_HEADER,
+            ENTRY_POINT_HEADER,
             USER_ID_HEADER,
+            EntryPoint,
             RequestContext,
         )
 
@@ -399,6 +401,7 @@ class TestRequestContextHeaders:
             company_id="company-1",
             user_id="user-1",
             chat_id="chat-1",
+            entry_point=EntryPoint.CHAT_TOOL,
         )
         http = httpx.AsyncClient(
             transport=httpx.MockTransport(handler),
@@ -418,3 +421,4 @@ class TestRequestContextHeaders:
         assert captured[COMPANY_ID_HEADER] == "company-1"
         assert captured[USER_ID_HEADER] == "user-1"
         assert captured[CHAT_ID_HEADER] == "chat-1"
+        assert captured[ENTRY_POINT_HEADER] == "chat_tool"
