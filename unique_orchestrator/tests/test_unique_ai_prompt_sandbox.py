@@ -81,9 +81,10 @@ class TestPromptTemplatesAreSandboxed:
         assert "be nice" in rendered
         assert "uid=" not in rendered
         unique_ai._logger.warning.assert_called_once_with(
-            "Failed to render configured %s (%s); falling back to default template.",
+            "Failed to render configured %s (%s: %s); falling back to default template.",
             "system_prompt_template",
             "SecurityError",
+            "access to attribute '__init__' of 'type' object is unsafe.",
         )
 
     @pytest.mark.asyncio
@@ -99,9 +100,10 @@ class TestPromptTemplatesAreSandboxed:
         assert "# User Query\nquery" in rendered
         assert "uid=" not in rendered
         unique_ai._logger.warning.assert_called_once_with(
-            "Failed to render configured %s (%s); falling back to default template.",
+            "Failed to render configured %s (%s: %s); falling back to default template.",
             "user_message_prompt_template",
             "SecurityError",
+            "access to attribute '__init__' of 'type' object is unsafe.",
         )
 
     @pytest.mark.asyncio
@@ -116,9 +118,10 @@ class TestPromptTemplatesAreSandboxed:
 
         assert "You are Unique AI Chat" in rendered
         unique_ai._logger.warning.assert_called_once_with(
-            "Failed to render configured %s (%s); falling back to default template.",
+            "Failed to render configured %s (%s: %s); falling back to default template.",
             "system_prompt_template",
             "TemplateSyntaxError",
+            "unexpected end of template, expected 'end of print statement'.",
         )
 
     @pytest.mark.asyncio
@@ -133,9 +136,10 @@ class TestPromptTemplatesAreSandboxed:
 
         assert "# User Query\nquery" in rendered
         unique_ai._logger.warning.assert_called_once_with(
-            "Failed to render configured %s (%s); falling back to default template.",
+            "Failed to render configured %s (%s: %s); falling back to default template.",
             "user_message_prompt_template",
             "TemplateSyntaxError",
+            "unexpected end of template, expected 'end of print statement'.",
         )
 
     @pytest.mark.asyncio

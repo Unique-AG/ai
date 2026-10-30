@@ -776,9 +776,10 @@ class UniqueAI:
             return sandboxed_template(template_source).render(**context)
         except TemplateError as exc:
             self._logger.warning(
-                "Failed to render configured %s (%s); falling back to default template.",
+                "Failed to render configured %s (%s: %s); falling back to default template.",
                 template_name,
                 type(exc).__name__,
+                exc.message or exc,
             )
             return sandboxed_template(default_template_source).render(**context)
 
