@@ -70,6 +70,7 @@ class ForbiddenTargetError(ProxyError):
 class RateLimitedError(ProxyError):
     code = ProxyErrorCode.RATE_LIMITED
     status_code = 429
+    retryable = True
 
     def __init__(
         self,
@@ -78,7 +79,7 @@ class RateLimitedError(ProxyError):
         retry_after_seconds: int | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(message, retryable=True, **kwargs)
+        super().__init__(message, **kwargs)
         self.retry_after_seconds = retry_after_seconds
 
 

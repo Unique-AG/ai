@@ -533,3 +533,57 @@ class TestBaseCrawlerValidationFlow:
         assert call_kwargs["crawler"] == CrawlerType.BASIC
         assert "timeout" in call_kwargs
         assert "max_concurrent_requests" in call_kwargs
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_proxy_crawl__client_waits_past_crawl_timeout__for_basic_crawler(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify the Basic crawler's proxy client timeout exceeds the crawl timeout.
+        Why this matters: A busy proxy can answer up to 5s after the crawl timeout; a client that gives up first discards the finished pages.
+        Setup summary: Basic crawler with a 10s timeout and a mocked proxy client; assert the client is opened with 20s.
+        """
+        import unique_web_search.services.crawlers.basic as basic_module
+
+        mock_client = MagicMock()
+        mock_client.crawl.crawl = AsyncMock(return_value=MagicMock())
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_open_client = MagicMock(return_value=mock_client)
+        monkeypatch.setattr(basic_module, "open_search_proxy_client", mock_open_client)
+        monkeypatch.setattr(basic_module, "map_crawl_response", MagicMock())
+        crawler = BasicCrawler(TitledBasicConfig(crawler=CrawlerType.BASIC, timeout=10))
+
+        await crawler._proxy_crawl(["https://example.com"])
+
+        assert mock_open_client.call_args.kwargs["timeout"] == 20.0
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_proxy_crawl__client_waits_past_crawl_timeout__for_base_crawler(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify crawlers using the shared proxy path open the client with a timeout above the crawl timeout.
+        Why this matters: Same race as the Basic crawler, for every crawler that does not override ``_proxy_crawl``.
+        Setup summary: Jina crawler with a 10s timeout and a mocked proxy client; assert the client is opened with 20s.
+        """
+        import unique_web_search.services.crawlers.base as base_module
+        from unique_web_search.services.crawlers.jina import JinaCrawler
+
+        mock_client = MagicMock()
+        mock_client.crawl.crawl = AsyncMock(return_value=MagicMock())
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_open_client = MagicMock(return_value=mock_client)
+        monkeypatch.setattr(base_module, "open_search_proxy_client", mock_open_client)
+        monkeypatch.setattr(base_module, "map_crawl_response", MagicMock())
+        jina_config_cls = CRAWLER_REGISTRY[CrawlerType.JINA].config_cls
+        crawler = JinaCrawler(jina_config_cls(crawler=CrawlerType.JINA, timeout=10))
+
+        await crawler._proxy_crawl(["https://example.com"])
+
+        assert mock_open_client.call_args.kwargs["timeout"] == 20.0

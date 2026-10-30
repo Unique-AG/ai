@@ -79,7 +79,12 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
 
         for result in results_nested:
             if isinstance(result, BaseException):
-                _LOGGER.exception(f"Error executing step: {result}")
+                # The exception message can carry the step's query or URL.
+                _LOGGER.error(
+                    "Error executing step company_id=%s error_type=%s",
+                    self.company_id,
+                    type(result).__name__,
+                )
             else:
                 results.extend(result)
 
@@ -162,10 +167,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         crawler = self.crawler_service.config.crawler.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {crawler}")
-        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
-            crawl_results = await self.crawler_service.crawl(
-                [result.url for result in results]
-            )
+        crawl_results = await self._crawl_search_result_pages(results)
         delta_time = time() - time_start
         for result, content in zip(results, crawl_results):
             result.content = content

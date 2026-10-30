@@ -24,6 +24,10 @@ CrawlerConfig = TypeVar(
     bound=BaseCrawlerConfig,
 )
 
+# A busy proxy worker can answer up to 5 s after the crawl timeout. Waiting
+# longer than that makes sure the finished pages still reach the tool.
+_PROXY_CLIENT_TIMEOUT_MARGIN_SECONDS = 10.0
+
 
 class BaseCrawler(ABC, Generic[CrawlerConfig]):
     """Base class for web-page crawlers.
@@ -58,7 +62,7 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         """Dump deployment config fields into the generic proxy crawl call."""
         params = self.config.model_dump(exclude={"crawler"}, exclude_none=True)
         async with open_search_proxy_client(
-            timeout=float(self.config.timeout),
+            timeout=self._proxy_client_timeout,
             context=self._request_context,
         ) as client:
             response = await client.crawl.crawl(
@@ -67,6 +71,10 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
                 **params,
             )
         return map_crawl_response(response, urls)
+
+    @property
+    def _proxy_client_timeout(self) -> float:
+        return float(self.config.timeout) + _PROXY_CLIENT_TIMEOUT_MARGIN_SECONDS
 
     @abstractmethod
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]: ...
