@@ -22,10 +22,12 @@ Commands fall into two groups:
 - **Read (Tier 0)** — `get-sheet`, `get-cell`, `cell-history`, `list-exports`.
   Never modify anything, never need confirmation.
 - **Write (Tier 1)** — `create-sheet`, `import`, `export`, `rerun-row`,
-  `set-cell`. These create a sheet, add questions and sources, start the agent
-  run, produce export artifacts, redo a single generated answer, or write
-  text you already have into one cell. None of them prompts for confirmation,
-  but they do change a shared artifact, so say what you did afterwards.
+  `set-cell`, `complete`. These create a sheet, add questions and sources,
+  start the agent run, produce export artifacts, redo a single generated
+  answer, write text you already have into one cell, or mark the sheet
+  completed. None of them prompts for confirmation, but they do change a
+  shared artifact, so say what you did afterwards. `complete` accepts only
+  the sheet owner or Can manage; Can edit and Can answer are rejected.
 
   `create-sheet`, `import`, and `export` only add. `rerun-row` asks the table
   agent to regenerate one **row** from sources (no text from you). `set-cell`
@@ -251,6 +253,25 @@ the `contentId` to download. An artifact entering `ERROR` fails fast.
 
 ```bash
 unique-cli agentic-table export mt_abc123 --type FULL_REPORT --wait
+```
+
+### Mark a sheet completed
+
+```bash
+unique-cli agentic-table complete <table_id> [--add-to-library]
+```
+
+Only the sheet owner or Can manage can complete a sheet. Can edit and Can
+answer are rejected (`agentic-table: permission denied`). Completion is
+rejected while a run is in progress. When the sheet has a Review Status
+column, every content row must already be in a final state.
+`--add-to-library` copies those rows into the space answer library and needs
+knowledge write access. It is rejected when the sheet is already the answer
+library. Confirm with `get-sheet`: `sheetStatus` is `COMPLETED`. Reopening a
+completed sheet is not supported.
+
+```bash
+unique-cli agentic-table complete mt_abc123 --add-to-library
 ```
 
 ## Full loop

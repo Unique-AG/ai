@@ -19,6 +19,7 @@ from unique_sdk.cli.commands.agentic_table import (
     is_error_output as _is_agentic_table_error_output,
 )
 from unique_sdk.cli.commands.agentic_table_write import (
+    cmd_complete_sheet,
     cmd_create_sheet,
     cmd_export,
     cmd_import,
@@ -230,6 +231,7 @@ Examples:
   unique-cli web-search crawl URL   Crawl a URL via the public API
   unique-cli browser get-dom        Read the user's live Chrome tab (a11y tree)
   unique-cli agentic-table get-sheet mt_abc123  Show a magic-table sheet summary
+  unique-cli agentic-table complete mt_abc123   Mark a magic-table sheet completed
 """
 
 
@@ -2394,8 +2396,10 @@ Work with Agentic Table (magic table) sheets over the public magic-table API.
 \b
 Reads (get-sheet / get-cell / cell-history / list-exports) are Tier 0: no
 confirmation, no side effects. Writes (create-sheet / import / rerun-row /
-set-cell / export) build and run a sheet — the full loop of create, populate,
-run, and export — plus re-answering a single row or writing one cell's text.
+set-cell / export / complete) build and run a sheet — the full loop of create,
+populate, run, and export — plus re-answering a single row, writing one cell's
+text, or marking the sheet completed. `complete` accepts only the owner or
+Can manage.
 Every call is scoped to the current user/company; sheet-role access (Owner / Can
 manage / Can edit) is enforced server-side and a denial is reported as
 `agentic-table: permission denied`.
@@ -2414,6 +2418,7 @@ Write subcommands:
   rerun-row      Re-run the agent for a single row (import cannot redo a row)
   set-cell       Write text into one cell by row/column order (no run)
   export         Generate export artifacts (report / question export)
+  complete       Mark a sheet completed (owner or Can manage only)
 
 \b
 Examples:
@@ -2422,6 +2427,7 @@ Examples:
   unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src --wait
   unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "Fee is 2%."
   unique-cli agentic-table export mt_abc123 --type FULL_REPORT --wait
+  unique-cli agentic-table complete mt_abc123 --add-to-library
 """
 
 
@@ -2978,6 +2984,51 @@ def agentic_table_export(
             artifact_types=list(artifact_types),
             wait=wait,
             timeout=timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="complete")
+@click.argument("table_id")
+@click.option(
+    "--add-to-library",
+    "add_to_library",
+    is_flag=True,
+    default=False,
+    help="Copy final rows into the space answer library. Needs knowledge write access.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_complete(
+    ctx: click.Context,
+    table_id: str,
+    add_to_library: bool,
+    output_json: bool,
+) -> None:
+    """Mark a sheet completed.
+
+    \b
+    Only the sheet owner or a caller with Can manage access is accepted.
+    Can edit and Can answer are rejected. Rejected while a run is in progress.
+    When the sheet has a Review Status column, every content row must already
+    be in a final state. --add-to-library is rejected when the sheet is already
+    the answer library. Confirm with get-sheet: sheetStatus is COMPLETED.
+    Reopening is not supported.
+
+    \b
+    Examples:
+      unique-cli agentic-table complete mt_abc123
+      unique-cli agentic-table complete mt_abc123 --add-to-library
+    """
+    emit(
+        cmd_complete_sheet(
+            LazyState.get(ctx),
+            table_id,
+            add_to_library=add_to_library,
             output_json=output_json,
         ),
         is_error=_is_agentic_table_error_output,
