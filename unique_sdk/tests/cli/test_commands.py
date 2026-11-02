@@ -513,6 +513,99 @@ class TestNavigation:
         assert "permission denied" not in result
         mock_folders.assert_called_once()
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_hides_excluded_child_folder(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: ls inside a selected folder omits an excluded child.
+        Why this matters: The excluded folder name and id are client data.
+        Setup summary: /KB contains Allowed and Excluded; the filter excludes Excluded.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_parent": {"folderPath": "/KB"},
+                "scope_excluded": {"folderPath": "/KB/Excluded"},
+                "scope_allowed": {"folderPath": "/KB/Allowed"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_folders.return_value = {
+            "folderInfos": [
+                _folder_info("Excluded", "scope_excluded"),
+                _folder_info("Allowed", "scope_allowed"),
+            ],
+            "totalCount": 2,
+        }
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        state = _state("/KB", "scope_parent")
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_parent",
+                },
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "notContains",
+                    "value": "scope_excluded",
+                },
+            ]
+        }
+        result = cmd_ls(state)
+        assert "Allowed/" in result
+        assert "Excluded/" not in result
+        assert "scope_excluded" not in result
+        assert "1 folder(s) hidden by task scope" in result
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_cd_into_excluded_folder_is_denied(
+        self, mock_info: MagicMock, mock_path: MagicMock
+    ) -> None:
+        """Purpose: unique-cli cd cannot enter an excluded folder.
+        Why this matters: Opening the folder lets the agent see its subfolders.
+        Setup summary: cwd is /KB; the target is the excluded child.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_parent": {"folderPath": "/KB"},
+                "scope_excluded": {"folderPath": "/KB/Excluded"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"id": "scope_excluded"}
+        state = _state("/KB", "scope_parent")
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_parent",
+                },
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "notContains",
+                    "value": "scope_excluded",
+                },
+            ]
+        }
+        result = cmd_cd(state, "/KB/Excluded")
+        assert result.startswith("cd: permission denied")
+        assert state.cwd == "/KB"
+        assert state.scope_id == "scope_parent"
+
     @patch("unique_sdk.Content.get_info")
     @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")

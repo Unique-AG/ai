@@ -338,16 +338,23 @@ def cmd_ls(
         # Folder-only filters keep every file (each passes the folderIdPath
         # leaf); the verdict is cached per content id. See UN-21780.
         # The paging note counts rows read from the server, before the scope filter.
+        scanned_folders = len(folders)
         scanned_files = len(files)
         if state.workspace_metadata_filter is not None:
+            folders = [
+                folder
+                for folder in folders
+                if state.folder_allowed_by_metadata_filter(str(folder.get("id", "")))
+            ]
             files = [
                 f for f in files if state.is_content_within_workspace(f.get("id", ""))
             ]
+        hidden_folders = scanned_folders - len(folders)
         note = _window_note(
             target if target is not None else resolved_path,
             skip,
             limit,
-            {"folders": len(folders), "files": scanned_files},
+            {"folders": scanned_folders, "files": scanned_files},
             {"folders": total_folders, "files": total_files},
             hidden_files=scanned_files - len(files),
         )
@@ -363,6 +370,8 @@ def cmd_ls(
                 f"\n{total_folders} folder(s), {len(files)} file(s) in task scope "
                 f"(of {total_files} in folder)"
             )
+            if hidden_folders:
+                summary += f" ({hidden_folders} folder(s) hidden by task scope)"
             return output + summary + note
 
         summary = f"\n{total_folders} folder(s), {total_files} file(s)"
