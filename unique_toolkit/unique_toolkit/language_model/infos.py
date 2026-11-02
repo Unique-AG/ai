@@ -117,6 +117,7 @@ class LanguageModelName(StrEnum):
     GEMINI_3_FLASH_PREVIEW = "litellm:gemini-3-flash-preview"
     GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
     GEMINI_4_ARGON = "litellm:gemini-4-argon"
+    GEMINI_4_CARBON = "litellm:gemini-4-carbon"
     GROK_4_1_FAST_NON_REASONING = "litellm:grok-4-1-fast-non-reasoning"
     GROK_4_1_FAST_REASONING = "litellm:grok-4-1-fast-reasoning"
     GROK_4_5 = "litellm:grok-4-5"
@@ -2538,6 +2539,32 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 10, 13),
                     # Supports thinking_level low, medium (default), and high.
                     # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides/gemini-4-argon
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
+                )
+            case LanguageModelName.GEMINI_4_CARBON:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-4-carbon",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # No public model card yet. Limits follow Gemini 4 Argon.
+                        # https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-carbon/
+                        token_limit_input=1_048_576,
+                        token_limit_output=65_536,
+                    ),
+                    published_at=date(2026, 10, 28),
+                    # Gemini 4 thinking levels are low, medium (default), and high.
+                    # https://ai.google.dev/gemini-api/docs/generate-content/thinking
                     default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
