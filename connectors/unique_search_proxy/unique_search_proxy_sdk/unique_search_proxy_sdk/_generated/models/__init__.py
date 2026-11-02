@@ -40,6 +40,7 @@ from .jina_crawl_request import JinaCrawlRequest
 from .jina_crawl_request_engine import JinaCrawlRequestEngine
 from .jina_crawl_request_retain_images_type_0 import JinaCrawlRequestRetainImagesType0
 from .jina_crawl_request_return_format import JinaCrawlRequestReturnFormat
+from .pdf_document_handle import PdfDocumentHandle
 from .per_url_error import PerUrlError
 from .perplexity_search_request import PerplexitySearchRequest
 from .perplexity_search_request_search_context_size import (
@@ -90,6 +91,7 @@ __all__ = (
     "JinaCrawlRequestEngine",
     "JinaCrawlRequestRetainImagesType0",
     "JinaCrawlRequestReturnFormat",
+    "PdfDocumentHandle",
     "PerplexitySearchRequest",
     "PerplexitySearchRequestSearchContextSize",
     "PerplexitySearchRequestSearchRecencyFilterType0",

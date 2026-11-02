@@ -49,7 +49,14 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         if "file.pdf" in url:
             return httpx.Response(
                 200,
-                text="%PDF-1.4",
+                content=b"%PDF-1.4\n%fake",
+                headers={"content-type": "application/pdf"},
+            )
+        if "large.pdf" in url:
+            # Just over the default inline budget when tests lower maxInlinePdfBytes.
+            return httpx.Response(
+                200,
+                content=b"%PDF-1.4\n" + (b"x" * 100),
                 headers={"content-type": "application/pdf"},
             )
         if "blocked.example" in host_header or "blocked.example" in url:
@@ -451,6 +458,11 @@ def test_crawl_records_per_url_outcome_metrics(client: TestClient) -> None:
 
 @pytest.mark.ai
 def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
+    """
+    Purpose: Verify disabled PDF processing returns content-type without raw bytes.
+    Why this matters: Untrusted PDF bodies must not be echoed in crawl results.
+    Setup summary: Crawl a PDF URL with default pdf=false and assert raw/content null.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -462,8 +474,9 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
     result = resp.json()["results"][0]
     assert result["error"] is None
     assert result["contentType"] == "application/pdf"
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
+    assert result.get("documentHandle") is None
 
 
 @pytest.mark.ai
@@ -521,6 +534,11 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
 
 @pytest.mark.ai
 def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
+    """
+    Purpose: Verify pdf=false skips extraction and omits raw PDF bytes.
+    Why this matters: Default deny must not process or retain PDF content.
+    Setup summary: Crawl with default toggles and assert a clean unprocessed result.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -531,12 +549,19 @@ def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
     assert resp.status_code == 200
     result = resp.json()["results"][0]
     assert result["error"] is None
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
 
 
 @pytest.mark.ai
-def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
+def test_crawl_pdf_allowed_uses_default_pypdf_extractor(
+    client: TestClient,
+) -> None:
+    """
+    Purpose: Verify enabling PDF uses the default pypdf adapter without a license gate.
+    Why this matters: Spaces should extract text-layer PDFs out of the box.
+    Setup summary: Allow pdf and crawl a minimal PDF; accept empty or unsupported.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -547,10 +572,145 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
-    assert result["error"] is not None
-    assert "PDF processing" in result["error"]["message"]
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
+    # Minimal synthetic PDF may be empty/unsupported; it must not require licensing.
+    if result["error"] is not None:
+        assert result["error"]["code"] in {
+            ProxyErrorCode.PDF_UNSUPPORTED.value,
+            ProxyErrorCode.UPSTREAM_ERROR.value,
+        }
+    else:
+        assert result["content"] is not None or result.get("documentHandle") is not None
 
+
+@pytest.mark.ai
+def test_crawl_pdf_allowed_extracts_with_fake_adapter(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the crawl path returns Markdown when a fake extractor is wired.
+    Why this matters: End-to-end PDF processing must work once an adapter is selected.
+    Setup summary: Monkeypatch get_pdf_processor with FakePdfExtractor and crawl a PDF.
+    """
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
+        FakeDocumentScanner,
+        FakePdfExtractor,
+        InProcessExtractionRunner,
+        PdfProcessor,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+        ExtractionOutcome,
+        ExtractionResult,
+        PageChunk,
+        ScanVerdict,
+    )
+
+    extractor = FakePdfExtractor(
+        result=ExtractionResult(
+            outcome=ExtractionOutcome.EXTRACTED,
+            chunks=(PageChunk(page_number=1, text="Rating calendar"),),
+            total_page_count=1,
+            adapter_name="fake",
+        )
+    )
+    processor = PdfProcessor(
+        extractor=extractor,
+        scanner=FakeDocumentScanner(verdict=ScanVerdict.CLEAN),
+        runner=InProcessExtractionRunner(extractor),
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring.get_pdf_processor",
+        lambda: processor,
+    )
+
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/file.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
+    assert result["error"] is None
+    assert result["content"] == "Rating calendar"
+    assert result["raw"] is None
+
+
+@pytest.mark.ai
+def test_crawl_pdf_hold_and_document_hold_download(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify large PDFs return a handle consumable via /v1/document-holds.
+    Why this matters: Worker pods need a one-time download path for oversized PDFs.
+    Setup summary: Lower maxInlinePdfBytes, crawl, then GET /v1/document-holds/{id}.
+    """
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
+        FakeDocumentScanner,
+        FakePdfExtractor,
+        InProcessExtractionRunner,
+        PdfDocumentHoldStore,
+        PdfHoldSettings,
+        PdfProcessor,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+        ScanVerdict,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring import (
+        reset_pdf_wiring_for_tests,
+    )
+
+    reset_pdf_wiring_for_tests()
+    hold_store = PdfDocumentHoldStore(
+        PdfHoldSettings(internal_base_url="http://testserver")
+    )
+    extractor = FakePdfExtractor()
+    processor = PdfProcessor(
+        extractor=extractor,
+        scanner=FakeDocumentScanner(verdict=ScanVerdict.CLEAN),
+        runner=InProcessExtractionRunner(extractor),
+        hold_store=hold_store,
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring.get_pdf_processor",
+        lambda: processor,
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.api.v1.document_holds.get_pdf_hold_store",
+        lambda: hold_store,
+    )
+
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/file.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True},
+            "maxInlinePdfBytes": 4,
+            "maxPdfBytes": 10_000,
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
+    assert result["error"] is None
+    assert result["content"] is None
+    handle = result["documentHandle"]
+    assert handle is not None
+    download = client.get(
+        f"/v1/document-holds/{handle['documentId']}",
+        headers={"Authorization": f"Bearer {handle['token']}"},
+    )
+    assert download.status_code == 200
+    assert download.content.startswith(b"%PDF-")
+    second = client.get(
+        f"/v1/document-holds/{handle['documentId']}",
+        headers={"Authorization": f"Bearer {handle['token']}"},
+    )
+    assert second.status_code == 404
 
 def _cap_crawler_bodies(monkeypatch: pytest.MonkeyPatch, *, max_kib: int) -> None:
     import unique_search_proxy_client.web.core.crawlers.basic.service as service_module

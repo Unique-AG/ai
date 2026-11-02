@@ -10,6 +10,9 @@ from unique_search_proxy_client.web.api.v1.context_headers import (
     document_request_context_headers,
 )
 from unique_search_proxy_client.web.api.v1.crawl import router as crawl_router
+from unique_search_proxy_client.web.api.v1.document_holds import (
+    router as document_holds_router,
+)
 from unique_search_proxy_client.web.api.v1.search import router as search_router
 
 v1_router = APIRouter(
@@ -20,5 +23,6 @@ v1_router.include_router(configuration_router)
 v1_router.include_router(search_router)
 v1_router.include_router(agent_search_router)
 v1_router.include_router(crawl_router)
+v1_router.include_router(document_holds_router)
 
 __all__ = ["v1_router"]

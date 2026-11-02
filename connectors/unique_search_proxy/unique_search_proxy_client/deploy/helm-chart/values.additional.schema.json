@@ -564,6 +564,44 @@
         }
       }
     },
+    "pdfProcessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "PDF Processing configuration. Generated from PdfSettings (PDF_* env vars).",
+      "properties": {
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scanPolicy": {
+              "description": "Maps to env var PDF_SCAN_POLICY.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "extractor": {
+              "description": "Maps to env var PDF_EXTRACTOR.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "maxHeldPdfBytes": {
+              "description": "Maps to env var PDF_MAX_HELD_PDF_BYTES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxHeldPdfDocuments": {
+              "description": "Maps to env var PDF_MAX_HELD_PDF_DOCUMENTS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "pdfHoldTtlSeconds": {
+              "description": "Maps to env var PDF_PDF_HOLD_TTL_SECONDS.",
+              "type": "number"
+            },
+            "internalBaseUrl": {
+              "description": "Maps to env var PDF_INTERNAL_BASE_URL.",
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
     "urlSafety": {
       "type": "object",
       "additionalProperties": false,

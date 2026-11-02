@@ -705,6 +705,11 @@
                       "pdf": false
                     },
                     "maxConcurrentRequests": 10,
+                    "maxPdfBytes": 10485760,
+                    "maxInlinePdfBytes": 2097152,
+                    "maxPdfPages": 50,
+                    "maxPdfPageChars": 20000,
+                    "maxPdfDocumentChars": 100000,
                     "urls": [
                       "https://example.com"
                     ]
@@ -724,6 +729,11 @@
                       "pdf": false
                     },
                     "maxConcurrentRequests": 10,
+                    "maxPdfBytes": 10485760,
+                    "maxInlinePdfBytes": 2097152,
+                    "maxPdfPages": 50,
+                    "maxPdfPageChars": 20000,
+                    "maxPdfDocumentChars": 100000,
                     "urls": [
                       "https://example.com"
                     ]
@@ -743,6 +753,11 @@
                       "pdf": false
                     },
                     "maxConcurrentRequests": 10,
+                    "maxPdfBytes": 10485760,
+                    "maxInlinePdfBytes": 2097152,
+                    "maxPdfPages": 50,
+                    "maxPdfPageChars": 20000,
+                    "maxPdfDocumentChars": 100000,
                     "urls": [
                       "https://example.com",
                       "https://www.example.org"
@@ -884,6 +899,124 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/document-holds/{document_id}": {
+      "get": {
+        "tags": [
+          "document-holds"
+        ],
+        "summary": "Download a held document",
+        "description": "Stream and consume a pod-local document hold created when a crawled PDF exceeded the inline extraction budget. Requires ``Authorization: Bearer <one-time-token>`` from the crawl handle.",
+        "operationId": "download_document_hold_v1_document_holds__document_id__get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-unique-company-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant company identifier.",
+              "default": "local",
+              "title": "X-Unique-Company-Id"
+            },
+            "description": "Tenant company identifier."
+          },
+          {
+            "name": "x-unique-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant user identifier.",
+              "default": "local",
+              "title": "X-Unique-User-Id"
+            },
+            "description": "Tenant user identifier."
+          },
+          {
+            "name": "x-unique-chat-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant chat or session identifier.",
+              "default": "local",
+              "title": "X-Unique-Chat-Id"
+            },
+            "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -1040,6 +1173,41 @@
             "title": "Maximum concurrent HTTP fetches",
             "description": "Maximum concurrent HTTP fetches",
             "default": 10
+          },
+          "maxPdfBytes": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Maximum PDF download size",
+            "description": "Hard ceiling for a single PDF download in bytes. Bodies above this limit are rejected during streaming.",
+            "default": 10485760
+          },
+          "maxInlinePdfBytes": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Maximum inline PDF size",
+            "description": "PDFs at or below this size are extracted inline. Larger admitted PDFs are held for download via /v1/document-holds.",
+            "default": 2097152
+          },
+          "maxPdfPages": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Maximum PDF pages",
+            "description": "Maximum number of pages to extract into the crawl response",
+            "default": 50
+          },
+          "maxPdfPageChars": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Maximum characters per PDF page",
+            "description": "Per-page Markdown character cap during extraction",
+            "default": 20000
+          },
+          "maxPdfDocumentChars": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Maximum PDF document characters",
+            "description": "Total Markdown character cap across extracted PDF pages",
+            "default": 100000
           }
         },
         "type": "object",
@@ -1556,7 +1724,7 @@
               }
             ],
             "title": "Content",
-            "description": "Markdown extracted from HTML responses; null when unprocessed"
+            "description": "Markdown extracted from HTML or PDF responses; null when unprocessed or when a document handle is returned instead"
           },
           "contentType": {
             "anyOf": [
@@ -1589,7 +1757,19 @@
               }
             ],
             "title": "Raw",
-            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging"
+            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging. Always null for PDF responses."
+          },
+          "documentHandle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PdfDocumentHandle"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Handle",
+            "description": "Pod-local hold for a PDF that exceeded the inline extraction budget; download via GET /v1/document-holds/{id} before expiry"
           }
         },
         "type": "object",
@@ -2230,6 +2410,58 @@
           "urls"
         ],
         "title": "Jina Crawl Request"
+      },
+      "PdfDocumentHandle": {
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "title": "Document Id",
+            "description": "Opaque id of the held PDF on the owning pod"
+          },
+          "downloadUrl": {
+            "type": "string",
+            "title": "Download Url",
+            "description": "Internal URL on the owning pod that streams the held bytes"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "One-time bearer token required by GET /v1/document-holds/{id}"
+          },
+          "expiresAt": {
+            "type": "string",
+            "title": "Expires At",
+            "description": "UTC expiry of the hold as an ISO-8601 string"
+          },
+          "byteSize": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "description": "Held PDF size in bytes"
+          },
+          "pageCount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count",
+            "description": "Page count when known at hold time; null when not inspected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documentId",
+          "downloadUrl",
+          "token",
+          "expiresAt",
+          "byteSize"
+        ],
+        "title": "Pdf Document Handle",
+        "description": "Short-lived reference to a pod-local PDF hold for out-of-band download."
       },
       "PerUrlError": {
         "properties": {

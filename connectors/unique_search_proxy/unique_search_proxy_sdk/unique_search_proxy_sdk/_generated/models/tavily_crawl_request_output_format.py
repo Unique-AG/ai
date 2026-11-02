@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class TavilyCrawlRequestOutputFormat(str, Enum):
+class TavilyCrawlRequestOutputFormat(StrEnum):
     MARKDOWN = "markdown"
     TEXT = "text"
 

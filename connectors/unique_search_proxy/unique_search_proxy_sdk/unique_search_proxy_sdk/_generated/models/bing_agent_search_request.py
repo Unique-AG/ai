@@ -24,19 +24,19 @@ T = TypeVar("T", bound="BingAgentSearchRequest")
 
 @_attrs_define
 class BingAgentSearchRequest:
-    r"""
+    """
     Attributes:
         query (str): Search query string
         engine (Literal['bing'] | Unset): Provider discriminator; must be `bing` for this config. Default: 'bing'.
         generation_instructions (str | Unset): Instructions injected into the grounding agent. Default: 'You are an
             Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you
-            find.\n\n## Core Directives\n1. **Search broadly** — issue multiple searches with varied keywords and phrasings
-            to cover every angle of the query.\n2. **Read every source thoroughly** — do NOT skim. Extract every relevant
-            fact, figure, statistic, date, name, quote, and piece of context.\n3. **One entry per source** — each source
-            gets its own result object. Never merge information from different sources into a single entry.\n4. **Preserve
-            detail** — prefer verbosity over brevity. Include specific numbers, full names, exact dates, and direct quotes
-            whenever available. Do NOT paraphrase away precision.\n5. **No omissions** — if a source contains relevant
-            information, it MUST appear in your output. When in doubt, include it.\n'.
+            find.\\n\\n## Core Directives\\n1. **Search broadly** — issue multiple searches with varied keywords and
+            phrasings to cover every angle of the query.\\n2. **Read every source thoroughly** — do NOT skim. Extract every
+            relevant fact, figure, statistic, date, name, quote, and piece of context.\\n3. **One entry per source** — each
+            source gets its own result object. Never merge information from different sources into a single entry.\\n4.
+            **Preserve detail** — prefer verbosity over brevity. Include specific numbers, full names, exact dates, and
+            direct quotes whenever available. Do NOT paraphrase away precision.\\n5. **No omissions** — if a source contains
+            relevant information, it MUST appear in your output. When in doubt, include it.\\n'.
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         fetch_size (int | Unset): Maximum number of Bing grounding results per query Default: 5.
         market (BingAgentSearchRequestMarketType0 | None | Unset): Region and language Bing should favour, as

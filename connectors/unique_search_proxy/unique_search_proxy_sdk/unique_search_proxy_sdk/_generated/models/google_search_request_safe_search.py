@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class GoogleSearchRequestSafeSearch(str, Enum):
+class GoogleSearchRequestSafeSearch(StrEnum):
     ACTIVE = "active"
     OFF = "off"
 

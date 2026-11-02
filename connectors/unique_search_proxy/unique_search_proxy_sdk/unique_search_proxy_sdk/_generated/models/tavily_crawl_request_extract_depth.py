@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class TavilyCrawlRequestExtractDepth(str, Enum):
+class TavilyCrawlRequestExtractDepth(StrEnum):
     ADVANCED = "advanced"
     BASIC = "basic"
 

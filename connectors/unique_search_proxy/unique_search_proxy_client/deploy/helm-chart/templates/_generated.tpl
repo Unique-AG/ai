@@ -151,6 +151,18 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: PDF_SCAN_POLICY
+  value: {{ .Values.pdfProcessing.connection.scanPolicy | quote }}
+- name: PDF_EXTRACTOR
+  value: {{ .Values.pdfProcessing.connection.extractor | quote }}
+- name: PDF_MAX_HELD_PDF_BYTES
+  value: {{ .Values.pdfProcessing.connection.maxHeldPdfBytes | quote }}
+- name: PDF_MAX_HELD_PDF_DOCUMENTS
+  value: {{ .Values.pdfProcessing.connection.maxHeldPdfDocuments | quote }}
+- name: PDF_PDF_HOLD_TTL_SECONDS
+  value: {{ .Values.pdfProcessing.connection.pdfHoldTtlSeconds | quote }}
+- name: PDF_INTERNAL_BASE_URL
+  value: {{ .Values.pdfProcessing.connection.internalBaseUrl | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -317,6 +329,18 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .ctx.Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: PDF_SCAN_POLICY
+  value: {{ .ctx.Values.pdfProcessing.connection.scanPolicy | quote }}
+- name: PDF_EXTRACTOR
+  value: {{ .ctx.Values.pdfProcessing.connection.extractor | quote }}
+- name: PDF_MAX_HELD_PDF_BYTES
+  value: {{ .ctx.Values.pdfProcessing.connection.maxHeldPdfBytes | quote }}
+- name: PDF_MAX_HELD_PDF_DOCUMENTS
+  value: {{ .ctx.Values.pdfProcessing.connection.maxHeldPdfDocuments | quote }}
+- name: PDF_PDF_HOLD_TTL_SECONDS
+  value: {{ .ctx.Values.pdfProcessing.connection.pdfHoldTtlSeconds | quote }}
+- name: PDF_INTERNAL_BASE_URL
+  value: {{ .ctx.Values.pdfProcessing.connection.internalBaseUrl | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS

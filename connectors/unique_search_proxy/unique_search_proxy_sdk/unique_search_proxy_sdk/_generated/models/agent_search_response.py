@@ -74,7 +74,7 @@ class AgentSearchResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.answer_span_citation import AnswerSpanCitation
+        from ..models.answer_span_citation import AnswerSpanCitation  # noqa: PLC0415
 
         d = dict(src_dict)
         engine = d.pop("engine")

@@ -143,8 +143,83 @@ async def safe_pinned_httpx_get(
     return response
 
 
+
+
+class ResponseBodyTooLargeError(ValueError):
+    """Raised when a streamed response exceeds the configured byte limit."""
+
+    def __init__(self, *, max_bytes: int, observed_bytes: int) -> None:
+        self.max_bytes = max_bytes
+        self.observed_bytes = observed_bytes
+        super().__init__(
+            f"Response body exceeded limit of {max_bytes} bytes "
+            f"(observed at least {observed_bytes})",
+        )
+
+
+async def read_response_body_bounded(
+    response: httpx.Response,
+    *,
+    max_bytes: int,
+) -> bytes:
+    """Read ``response`` body up to ``max_bytes``; raise when the limit is exceeded."""
+    if max_bytes < 1:
+        raise ValueError("max_bytes must be at least 1")
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in response.aiter_bytes():
+        if not chunk:
+            continue
+        total += len(chunk)
+        if total > max_bytes:
+            raise ResponseBodyTooLargeError(
+                max_bytes=max_bytes,
+                observed_bytes=total,
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+async def safe_pinned_httpx_get_bounded(
+    client: httpx.AsyncClient,
+    target: ResolvedCrawlTarget,
+    *,
+    headers: Mapping[str, str] | None = None,
+    timeout: float | httpx.Timeout,
+    max_redirect_hops: int,
+    enforce_url_safety: bool,
+    max_bytes: int,
+) -> tuple[httpx.Response, bytes]:
+    """GET a target with redirect safety, streaming the final body under ``max_bytes``."""
+    if max_bytes < 1:
+        raise ValueError("max_bytes must be at least 1")
+
+    async with safe_pinned_httpx_stream(
+        client,
+        target,
+        headers=headers,
+        timeout=timeout,
+        max_redirect_hops=max_redirect_hops,
+        enforce_url_safety=enforce_url_safety,
+    ) as response:
+        body = await read_response_body_bounded(response, max_bytes=max_bytes)
+        return (
+            httpx.Response(
+                status_code=response.status_code,
+                headers=response.headers,
+                content=body,
+                request=response.request,
+                extensions=response.extensions,
+            ),
+            body,
+        )
+
 __all__ = [
+    "ResponseBodyTooLargeError",
     "pinned_httpx_get_args",
+    "read_response_body_bounded",
     "safe_pinned_httpx_get",
+    "safe_pinned_httpx_get_bounded",
     "safe_pinned_httpx_stream",
 ]

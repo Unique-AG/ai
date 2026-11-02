@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class PerplexitySearchRequestSearchRecencyFilterType0(str, Enum):
+class PerplexitySearchRequestSearchRecencyFilterType0(StrEnum):
     DAY = "day"
     HOUR = "hour"
     MONTH = "month"
