@@ -62,6 +62,15 @@ class QueryElicitationConfig(BaseModel):
         ge=1,
     )
 
+    def query_length_instruction(self) -> str | None:
+        """Return the system-prompt sentence for the query length limit, or ``None`` when no limit applies."""
+        if not self.enable_elicitation or self.max_query_length is None:
+            return None
+        return (
+            f"Keep each search query under {self.max_query_length} characters. "
+            "Longer queries are cut off before the user reviews them."
+        )
+
 
 class QueryElicitationModel(BaseModel):
     """Model for query elicitation with support for default values.
