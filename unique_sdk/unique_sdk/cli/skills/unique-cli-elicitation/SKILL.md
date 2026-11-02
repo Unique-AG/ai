@@ -276,7 +276,7 @@ A draft usually contains quotes and newlines, so do not paste it into a single-q
 ```bash
 schema=$(python3 -c '
 import json, pathlib
-draft = pathlib.Path("outbox/ps-efg-brief.md").read_text()
+draft = pathlib.Path("./tmp/ps-efg-brief.md").read_text()
 print(json.dumps({
     "type": "object",
     "properties": {
@@ -294,7 +294,7 @@ unique-cli elicit ask "Post this brief to #ps-efg?" \
 The reply carries the final text:
 
 ```
-Status:     RESPONDED
+Status:     ACCEPTED
 Response:   {"body": "Thanks for your brief. I had lunch with ..."}
 ```
 
