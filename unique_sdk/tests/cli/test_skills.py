@@ -60,6 +60,17 @@ def test_search_skill_does_not_reference_uploaded_search() -> None:
     assert "searching uploaded documents" not in text
 
 
+def test_elicitation_skill_makes_outbound_text_editable() -> None:
+    """UN-27939: a draft placed in the message text renders read-only, so
+    Confirm sends it unchanged. The skill must teach the editable-field shape
+    for outbound text and send the returned value, not the draft."""
+    text = _read_skill("unique-cli-elicitation")
+    assert "### Outbound content" in text
+    assert '"multiline": True, "default": draft' in text
+    assert "never your earlier draft" in text
+    assert "Never use it to confirm text you are about to send" in text
+
+
 def test_agentic_table_skill_documents_every_command() -> None:
     """The agentic-table skill is ungated and carries the full command range,
     reads and writes alike. Awareness gating was rejected because a user's
