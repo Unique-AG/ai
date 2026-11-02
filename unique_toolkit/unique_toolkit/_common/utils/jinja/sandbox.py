@@ -57,6 +57,6 @@ def validate_sandboxed_template(source: str, *, lstrip_blocks: bool = False) -> 
         if attr is not None and (
             attr.startswith("_") or attr in _UNSAFE_STATIC_ATTRIBUTES
         ):
-            raise SecurityError(f"access to attribute {attr!r} is unsafe.")
+            raise SecurityError("access to private or internal attribute is unsafe.")
     env.from_string(source)
     return source

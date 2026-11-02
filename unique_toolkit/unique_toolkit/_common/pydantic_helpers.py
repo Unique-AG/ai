@@ -43,6 +43,7 @@ def get_configuration_dict(**kwargs: Unpack[ConfigDict]) -> ConfigDict:
     base: dict[str, object] = {
         "alias_generator": to_camel,
         "field_title_generator": field_title_generator,
+        "hide_input_in_errors": True,
         "model_title_generator": model_title_generator,
         "populate_by_name": True,
     }

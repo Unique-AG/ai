@@ -320,8 +320,9 @@ class UniqueAIPromptConfig(BaseToolConfig):
         try:
             return validate_sandboxed_template(value)
         except TemplateError as exc:
-            detail = (exc.message or str(exc)).strip()
-            raise ValueError(f"Invalid prompt template: {detail}") from exc
+            raise ValueError(
+                f"Invalid prompt template ({type(exc).__name__})."
+            ) from None
 
 
 class UniqueAIServices(BaseToolConfig):

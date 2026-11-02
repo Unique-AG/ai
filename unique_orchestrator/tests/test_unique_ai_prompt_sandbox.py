@@ -89,8 +89,13 @@ class TestPromptConfigValidation:
     def test_prompt_config_rejects_invalid_or_unsafe_templates(
         self, field_name: str, invalid_template: str
     ) -> None:
-        with pytest.raises(ValidationError, match="Invalid prompt template"):
-            UniqueAIPromptConfig(**{field_name: invalid_template})
+        secret_marker = "CID_SECRET_PROMPT_CONTENT"
+        with pytest.raises(
+            ValidationError, match="Invalid prompt template"
+        ) as exc_info:
+            UniqueAIPromptConfig(**{field_name: f"{secret_marker} {invalid_template}"})
+
+        assert secret_marker not in str(exc_info.value)
 
 
 @pytest.mark.ai
