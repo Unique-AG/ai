@@ -164,14 +164,19 @@ def test_crawl_url_safety__gate_respects_request_timeout(
         _urls: list[str],
         *,
         redirect_http_client: object | None = None,
+        deadline: float | None = None,
     ) -> UrlSafetyGateResult:
-        del redirect_http_client
+        del redirect_http_client, deadline
         await asyncio.sleep(2)
         return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
 
     monkeypatch.setattr(
         "unique_search_proxy_client.web.api.v1.crawl.apply_url_safety_gate",
         slow_gate,
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.api.v1.crawl._SAFETY_NET_GRACE_SECONDS",
+        0.5,
     )
 
     response = client.post(

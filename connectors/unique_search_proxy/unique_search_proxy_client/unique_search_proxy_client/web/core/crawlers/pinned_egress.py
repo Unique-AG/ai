@@ -16,6 +16,8 @@ class PinnedEgressCrawler(Protocol):
         self,
         request: BaseModel,
         allowed_targets: list[AllowedCrawlTarget],
+        *,
+        deadline: float | None = None,
     ) -> list[CrawlUrlResult]: ...
 
 
