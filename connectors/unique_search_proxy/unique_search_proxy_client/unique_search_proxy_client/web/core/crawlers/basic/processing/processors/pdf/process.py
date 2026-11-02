@@ -8,6 +8,7 @@ from pathlib import Path
 from unique_search_proxy_core.schema import (
     CrawlUrlResult,
     PdfDocumentHandle,
+    PerUrlError,
     ProxyErrorCode,
 )
 
@@ -48,11 +49,9 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class PdfProcessingLimits:
-    max_pdf_bytes: int
     max_inline_pdf_bytes: int
     max_pdf_pages: int
-    max_pdf_page_chars: int
-    max_pdf_document_chars: int
+    max_extracted_chars: int
     timeout_seconds: float
 
 
@@ -66,6 +65,26 @@ class PdfProcessingOutcome:
 
 def join_page_chunks(chunks: tuple[PageChunk, ...]) -> str:
     return "\n\n".join(chunk.text for chunk in chunks if chunk.text)
+
+
+def _pdf_limit_exceeded_result(
+    url: str,
+    message: str,
+    *,
+    document_handle: PdfDocumentHandle | None = None,
+) -> CrawlUrlResult:
+    """Fail closed for the LLM while optionally retaining a document-hold handle."""
+    return CrawlUrlResult(
+        url=url,
+        content=message,
+        content_type="application/pdf",
+        error=PerUrlError(
+            code=ProxyErrorCode.PDF_LIMIT_EXCEEDED.value,
+            message=message,
+        ),
+        raw=None,
+        document_handle=document_handle,
+    )
 
 
 def _map_extraction_error(
@@ -119,23 +138,14 @@ class PdfProcessor:
         media_type: str | None,
         limits: PdfProcessingLimits,
     ) -> PdfProcessingOutcome:
-        admission_error = admit_pdf_bytes(
-            body,
-            media_type=media_type,
-            max_bytes=limits.max_pdf_bytes,
-        )
+        admission_error = admit_pdf_bytes(body, media_type=media_type)
         if admission_error is not None:
-            code = (
-                ProxyErrorCode.PDF_LIMIT_EXCEEDED.value
-                if admission_error.code == "PDF_LIMIT_EXCEEDED"
-                else ProxyErrorCode.PDF_UNSUPPORTED.value
-            )
             return PdfProcessingOutcome(
                 error_result=crawl_upstream_error(
                     url,
                     admission_error.message,
                     content_type="application/pdf",
-                    code=code,
+                    code=ProxyErrorCode.PDF_UNSUPPORTED.value,
                     raw=None,
                 )
             )
@@ -193,15 +203,25 @@ class PdfProcessor:
                     handle.document_id,
                     handle.byte_size,
                 )
+                message = (
+                    "PDF exceeds the inline extraction limit of "
+                    f"{limits.max_inline_pdf_bytes} bytes "
+                    f"(received {len(body)} bytes). Content was not extracted."
+                )
                 return PdfProcessingOutcome(
                     document_handle=handle,
                     document_token=token,
+                    error_result=_pdf_limit_exceeded_result(
+                        url,
+                        message,
+                        document_handle=handle,
+                    ),
                 )
 
             extraction_limits = ExtractionLimits(
                 max_pages=limits.max_pdf_pages,
-                max_page_chars=limits.max_pdf_page_chars,
-                max_document_chars=limits.max_pdf_document_chars,
+                max_page_chars=limits.max_extracted_chars,
+                max_document_chars=limits.max_extracted_chars,
                 timeout_seconds=limits.timeout_seconds,
                 ocr_enabled=False,
             )
@@ -230,21 +250,31 @@ class PdfProcessor:
                     body,
                     page_count=result.total_page_count,
                 )
+                message = (
+                    "PDF exceeds the page limit of "
+                    f"{limits.max_pdf_pages} pages "
+                    f"(document has {result.total_page_count} pages). "
+                    "Content was not extracted."
+                )
                 return PdfProcessingOutcome(
                     document_handle=handle,
                     document_token=token,
+                    error_result=_pdf_limit_exceeded_result(
+                        url,
+                        message,
+                        document_handle=handle,
+                    ),
                 )
 
             content = join_page_chunks(result.chunks)
-            if len(content) > limits.max_pdf_document_chars:
+            if len(content) > limits.max_extracted_chars:
+                message = (
+                    "PDF extracted content exceeds the character limit of "
+                    f"{limits.max_extracted_chars} characters "
+                    f"(extracted {len(content)} characters)."
+                )
                 return PdfProcessingOutcome(
-                    error_result=crawl_upstream_error(
-                        url,
-                        "PDF extracted content exceeds document character limit",
-                        content_type="application/pdf",
-                        code=ProxyErrorCode.PDF_LIMIT_EXCEEDED.value,
-                        raw=None,
-                    )
+                    error_result=_pdf_limit_exceeded_result(url, message),
                 )
             return PdfProcessingOutcome(content=content)
 

@@ -155,8 +155,14 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.pdfProcessing.connection.scanPolicy | quote }}
 - name: PDF_EXTRACTOR
   value: {{ .Values.pdfProcessing.connection.extractor | quote }}
-- name: PDF_MAX_DOCUMENT_HOLD_BYTES
-  value: {{ .Values.pdfProcessing.connection.maxDocumentHoldBytes | quote }}
+- name: PDF_MAX_INLINE_PDF_MB
+  value: {{ .Values.pdfProcessing.connection.maxInlinePdfMb | quote }}
+- name: PDF_MAX_PDF_PAGES
+  value: {{ .Values.pdfProcessing.connection.maxPdfPages | quote }}
+- name: PDF_MAX_EXTRACTED_CHARS
+  value: {{ .Values.pdfProcessing.connection.maxExtractedChars | quote }}
+- name: PDF_MAX_DOCUMENT_HOLD_MB
+  value: {{ .Values.pdfProcessing.connection.maxDocumentHoldMb | quote }}
 - name: PDF_MAX_DOCUMENT_HOLD_DOCUMENTS
   value: {{ .Values.pdfProcessing.connection.maxDocumentHoldDocuments | quote }}
 - name: PDF_DOCUMENT_HOLD_TTL_SECONDS
@@ -333,8 +339,14 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.pdfProcessing.connection.scanPolicy | quote }}
 - name: PDF_EXTRACTOR
   value: {{ .ctx.Values.pdfProcessing.connection.extractor | quote }}
-- name: PDF_MAX_DOCUMENT_HOLD_BYTES
-  value: {{ .ctx.Values.pdfProcessing.connection.maxDocumentHoldBytes | quote }}
+- name: PDF_MAX_INLINE_PDF_MB
+  value: {{ .ctx.Values.pdfProcessing.connection.maxInlinePdfMb | quote }}
+- name: PDF_MAX_PDF_PAGES
+  value: {{ .ctx.Values.pdfProcessing.connection.maxPdfPages | quote }}
+- name: PDF_MAX_EXTRACTED_CHARS
+  value: {{ .ctx.Values.pdfProcessing.connection.maxExtractedChars | quote }}
+- name: PDF_MAX_DOCUMENT_HOLD_MB
+  value: {{ .ctx.Values.pdfProcessing.connection.maxDocumentHoldMb | quote }}
 - name: PDF_MAX_DOCUMENT_HOLD_DOCUMENTS
   value: {{ .ctx.Values.pdfProcessing.connection.maxDocumentHoldDocuments | quote }}
 - name: PDF_DOCUMENT_HOLD_TTL_SECONDS

@@ -15,19 +15,16 @@ def admit_pdf_bytes(
     body: bytes,
     *,
     media_type: str | None,
-    max_bytes: int,
 ) -> PdfAdmissionError | None:
-    """Return an admission error, or None when the body may be scanned/extracted."""
+    """Return an admission error, or None when the body may be scanned/extracted.
+
+    Download size is enforced by the shared HTTP response cap, not here.
+    """
     normalized = (media_type or "").strip().lower()
     if normalized != "application/pdf":
         return PdfAdmissionError(
             code="PDF_UNSUPPORTED",
             message=f"Expected application/pdf, got {normalized or 'unknown'}",
-        )
-    if len(body) > max_bytes:
-        return PdfAdmissionError(
-            code="PDF_LIMIT_EXCEEDED",
-            message=f"PDF exceeds maximum size of {max_bytes} bytes",
         )
     if not body.startswith(PDF_MAGIC):
         return PdfAdmissionError(

@@ -705,11 +705,6 @@
                       "pdf": false
                     },
                     "maxConcurrentRequests": 10,
-                    "maxPdfBytes": 10485760,
-                    "maxInlinePdfBytes": 2097152,
-                    "maxPdfPages": 50,
-                    "maxPdfPageChars": 20000,
-                    "maxPdfDocumentChars": 100000,
                     "urls": [
                       "https://example.com"
                     ]
@@ -729,11 +724,6 @@
                       "pdf": false
                     },
                     "maxConcurrentRequests": 10,
-                    "maxPdfBytes": 10485760,
-                    "maxInlinePdfBytes": 2097152,
-                    "maxPdfPages": 50,
-                    "maxPdfPageChars": 20000,
-                    "maxPdfDocumentChars": 100000,
                     "urls": [
                       "https://example.com"
                     ]
@@ -753,11 +743,6 @@
                       "pdf": false
                     },
                     "maxConcurrentRequests": 10,
-                    "maxPdfBytes": 10485760,
-                    "maxInlinePdfBytes": 2097152,
-                    "maxPdfPages": 50,
-                    "maxPdfPageChars": 20000,
-                    "maxPdfDocumentChars": 100000,
                     "urls": [
                       "https://example.com",
                       "https://www.example.org"
@@ -1173,41 +1158,6 @@
             "title": "Maximum concurrent HTTP fetches",
             "description": "Maximum concurrent HTTP fetches",
             "default": 10
-          },
-          "maxPdfBytes": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Maximum PDF download size",
-            "description": "Hard ceiling for a single PDF download in bytes. Bodies above this limit are rejected during streaming.",
-            "default": 10485760
-          },
-          "maxInlinePdfBytes": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Maximum inline PDF size",
-            "description": "PDFs at or below this size are extracted inline. Larger admitted PDFs are held for download via /v1/document-holds.",
-            "default": 2097152
-          },
-          "maxPdfPages": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Maximum PDF pages",
-            "description": "Maximum number of pages to extract into the crawl response",
-            "default": 50
-          },
-          "maxPdfPageChars": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Maximum characters per PDF page",
-            "description": "Per-page Markdown character cap during extraction",
-            "default": 20000
-          },
-          "maxPdfDocumentChars": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Maximum PDF document characters",
-            "description": "Total Markdown character cap across extracted PDF pages",
-            "default": 100000
           }
         },
         "type": "object",
@@ -1769,7 +1719,7 @@
               }
             ],
             "title": "Document Handle",
-            "description": "Pod-local hold for a PDF that exceeded the inline extraction budget; download via GET /v1/document-holds/{id} before expiry"
+            "description": "Optional pod-local hold when a PDF exceeded an extraction limit (typically with error.code PDF_LIMIT_EXCEEDED); download via GET /v1/document-holds/{id} before expiry. Crawl content is not extracted in this case \u2014 treat the per-URL error as the primary signal."
           }
         },
         "type": "object",

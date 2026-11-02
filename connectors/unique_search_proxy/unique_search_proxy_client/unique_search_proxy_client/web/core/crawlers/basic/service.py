@@ -47,6 +47,7 @@ from unique_search_proxy_client.web.core.provider_response import (
 from unique_search_proxy_client.web.core.url_safety.gate import AllowedCrawlTarget
 from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
 from unique_search_proxy_client.web.settings.client import http_client_settings
+from unique_search_proxy_client.web.settings.pdf import pdf_settings
 from unique_search_proxy_client.web.settings.request_limits import (
     request_limits_settings,
 )
@@ -222,12 +223,9 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                             content_type=content_type,
                             status_code=response.status_code,
                         )
-                    max_bytes = http_client_settings.max_response_bytes
-                    if content_type == _PDF_MEDIA_TYPE:
-                        max_bytes = min(max_bytes, request.max_pdf_bytes)
                     body = await read_capped_body(
                         response,
-                        max_bytes=max_bytes,
+                        max_bytes=http_client_settings.max_response_bytes,
                         budget=budget,
                     )
                     if content_type == _PDF_MEDIA_TYPE:
@@ -354,14 +352,9 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
 
         processor = self._resolve_pdf_processor()
         limits = PdfProcessingLimits(
-            max_pdf_bytes=request.max_pdf_bytes,
-            max_inline_pdf_bytes=min(
-                request.max_inline_pdf_bytes,
-                request.max_pdf_bytes,
-            ),
-            max_pdf_pages=request.max_pdf_pages,
-            max_pdf_page_chars=request.max_pdf_page_chars,
-            max_pdf_document_chars=request.max_pdf_document_chars,
+            max_inline_pdf_bytes=pdf_settings.max_inline_pdf_bytes,
+            max_pdf_pages=pdf_settings.max_pdf_pages,
+            max_extracted_chars=pdf_settings.max_extracted_chars,
             timeout_seconds=float(request.timeout),
         )
         try:

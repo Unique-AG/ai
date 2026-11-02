@@ -53,7 +53,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
                 headers={"content-type": "application/pdf"},
             )
         if "large.pdf" in url:
-            # Just over the default inline budget when tests lower maxInlinePdfBytes.
+            # Slightly larger than the tiny inline budget used in hold tests.
             return httpx.Response(
                 200,
                 content=b"%PDF-1.4\n" + (b"x" * 100),
@@ -645,9 +645,9 @@ def test_crawl_pdf_hold_and_document_hold_download(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Purpose: Verify large PDFs return a handle consumable via /v1/document-holds.
-    Why this matters: Worker pods need a one-time download path for oversized PDFs.
-    Setup summary: Lower maxInlinePdfBytes, crawl, then GET /v1/document-holds/{id}.
+    Purpose: Verify large PDFs fail with PDF_LIMIT_EXCEEDED and a consumable hold.
+    Why this matters: Crawl tools must surface the limit to the LLM; hold is secondary.
+    Setup summary: Lower PDF_MAX_INLINE_PDF_MB via stub, crawl, assert error, download hold.
     """
     from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
         FakeDocumentScanner,
@@ -683,6 +683,22 @@ def test_crawl_pdf_hold_and_document_hold_download(
         "unique_search_proxy_client.web.api.v1.document_holds.get_pdf_hold_store",
         lambda: hold_store,
     )
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    # Force inline budget below the fixture PDF so the hold/error path runs.
+    monkeypatch.setattr(
+        service_module,
+        "pdf_settings",
+        type(
+            "PdfSettingsStub",
+            (),
+            {
+                "max_inline_pdf_bytes": 4,
+                "max_pdf_pages": 50,
+                "max_extracted_chars": 100_000,
+            },
+        )(),
+    )
 
     resp = client.post(
         "/v1/crawl",
@@ -690,14 +706,14 @@ def test_crawl_pdf_hold_and_document_hold_download(
             "urls": ["https://example.com/file.pdf"],
             "crawler": CrawlerType.BASIC.value,
             "contentTypes": {"pdf": True},
-            "maxInlinePdfBytes": 4,
-            "maxPdfBytes": 10_000,
         },
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
-    assert result["error"] is None
-    assert result["content"] is None
+    assert result["error"] is not None
+    assert result["error"]["code"] == ProxyErrorCode.PDF_LIMIT_EXCEEDED.value
+    assert "inline extraction limit" in result["error"]["message"]
+    assert result["content"] == result["error"]["message"]
     handle = result["documentHandle"]
     assert handle is not None
     download = client.get(

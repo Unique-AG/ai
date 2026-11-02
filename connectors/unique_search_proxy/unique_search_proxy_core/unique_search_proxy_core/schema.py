@@ -207,8 +207,10 @@ class CrawlUrlResult(BaseModel):
     document_handle: PdfDocumentHandle | None = Field(
         default=None,
         description=(
-            "Pod-local hold for a PDF that exceeded the inline extraction budget; "
-            "download via GET /v1/document-holds/{id} before expiry"
+            "Optional pod-local hold when a PDF exceeded an extraction limit "
+            "(typically with error.code PDF_LIMIT_EXCEEDED); download via "
+            "GET /v1/document-holds/{id} before expiry. Crawl content is not "
+            "extracted in this case — treat the per-URL error as the primary signal."
         ),
     )
 

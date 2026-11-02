@@ -27,8 +27,9 @@ class CrawlUrlResult:
         error (None | PerUrlError | Unset):
         raw (Any | None | Unset): Upstream provider response for this URL (JSON object or text wrapper); included on
             success and on per-URL failures for debugging. Always null for PDF responses.
-        document_handle (None | PdfDocumentHandle | Unset): Pod-local hold for a PDF that exceeded the inline extraction
-            budget; download via GET /v1/document-holds/{id} before expiry
+        document_handle (None | PdfDocumentHandle | Unset): Optional pod-local hold when a PDF exceeded an extraction
+            limit (typically with error.code PDF_LIMIT_EXCEEDED); download via GET /v1/document-holds/{id} before expiry.
+            Crawl content is not extracted in this case — treat the per-URL error as the primary signal.
     """
 
     url: str

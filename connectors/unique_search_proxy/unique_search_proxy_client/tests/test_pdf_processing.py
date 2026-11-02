@@ -29,21 +29,17 @@ _PDF_BYTES = b"%PDF-1.4\n%content"
 
 def _limits(**overrides: object) -> PdfProcessingLimits:
     base = PdfProcessingLimits(
-        max_pdf_bytes=10_000,
         max_inline_pdf_bytes=5_000,
         max_pdf_pages=50,
-        max_pdf_page_chars=20_000,
-        max_pdf_document_chars=100_000,
+        max_extracted_chars=100_000,
         timeout_seconds=5.0,
     )
     if not overrides:
         return base
     data = {
-        "max_pdf_bytes": base.max_pdf_bytes,
         "max_inline_pdf_bytes": base.max_inline_pdf_bytes,
         "max_pdf_pages": base.max_pdf_pages,
-        "max_pdf_page_chars": base.max_pdf_page_chars,
-        "max_pdf_document_chars": base.max_pdf_document_chars,
+        "max_extracted_chars": base.max_extracted_chars,
         "timeout_seconds": base.timeout_seconds,
     }
     data.update(overrides)
@@ -60,7 +56,6 @@ def test_admit_pdf_bytes__rejects_missing_magic() -> None:
     error = admit_pdf_bytes(
         b"not-a-pdf",
         media_type="application/pdf",
-        max_bytes=1000,
     )
     assert error is not None
     assert error.code == "PDF_UNSUPPORTED"
@@ -192,9 +187,9 @@ async def test_pdf_processor__required_scanner_rejects_unavailable() -> None:
 @pytest.mark.asyncio
 async def test_pdf_processor__holds_over_inline_budget() -> None:
     """
-    Purpose: Verify oversized-but-admitted PDFs become document handles.
-    Why this matters: Large files must leave the inline Markdown path.
-    Setup summary: Set max_inline_pdf_bytes below body size and assert a hold.
+    Purpose: Verify oversized PDFs error with PDF_LIMIT_EXCEEDED and keep a hold.
+    Why this matters: LLM crawl tools must see a clear failure, not a silent hold.
+    Setup summary: Set max_inline_pdf_bytes below body size; assert error + handle.
     """
     hold_store = PdfDocumentHoldStore(
         PdfHoldSettings(document_hold_base_url="http://pod.local:2349")
@@ -210,10 +205,16 @@ async def test_pdf_processor__holds_over_inline_budget() -> None:
         media_type="application/pdf",
         limits=_limits(max_inline_pdf_bytes=4),
     )
-    assert outcome.error_result is None
-    assert outcome.content is None
+    assert outcome.error_result is not None
+    assert outcome.error_result.error is not None
+    assert (
+        outcome.error_result.error.code == ProxyErrorCode.PDF_LIMIT_EXCEEDED.value
+    )
+    assert "inline extraction limit" in outcome.error_result.error.message
+    assert outcome.error_result.content == outcome.error_result.error.message
     assert outcome.document_handle is not None
     assert outcome.document_handle.byte_size == len(_PDF_BYTES)
+    assert outcome.error_result.document_handle is not None
     consumed = hold_store.consume(
         outcome.document_handle.document_id,
         token=outcome.document_handle.token,

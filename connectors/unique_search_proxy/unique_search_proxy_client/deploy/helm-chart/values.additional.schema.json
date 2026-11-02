@@ -581,8 +581,20 @@
               "description": "Maps to env var PDF_EXTRACTOR.",
               "$ref": "#/$defs/valueSourceString"
             },
-            "maxDocumentHoldBytes": {
-              "description": "Maps to env var PDF_MAX_DOCUMENT_HOLD_BYTES.",
+            "maxInlinePdfMb": {
+              "description": "Maps to env var PDF_MAX_INLINE_PDF_MB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxPdfPages": {
+              "description": "Maps to env var PDF_MAX_PDF_PAGES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxExtractedChars": {
+              "description": "Maps to env var PDF_MAX_EXTRACTED_CHARS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxDocumentHoldMb": {
+              "description": "Maps to env var PDF_MAX_DOCUMENT_HOLD_MB.",
               "$ref": "#/$defs/valueSourceInteger"
             },
             "maxDocumentHoldDocuments": {
