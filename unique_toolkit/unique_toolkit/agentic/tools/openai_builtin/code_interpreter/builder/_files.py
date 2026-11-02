@@ -124,10 +124,10 @@ async def upload_file_to_container(
     content_service: ContentService,
     container_id: str,
 ) -> str:
+    # File names can contain client data. Log the content id only.
     logger.info(
-        "Uploading file %s (%s) to container %s",
+        "Uploading file %s to container %s",
         content_id,
-        filename,
         container_id,
     )
 

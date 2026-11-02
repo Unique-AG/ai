@@ -662,7 +662,8 @@ class KnowledgeBaseService:
 
             if mime_type is None:
                 _LOGGER.warning(
-                    f"No mime type found for file {local_file_path.name}, skipping"
+                    "No mime type found for a file in folder %s, skipping",
+                    scope_id,
                 )
                 continue
 
@@ -676,7 +677,8 @@ class KnowledgeBaseService:
 
                 if local_file_path.name in _existing_file_names:
                     _LOGGER.warning(
-                        f"File {local_file_path.name} already exists in folder {scope_id}, skipping"
+                        "A file already exists in folder %s, skipping",
+                        scope_id,
                     )
                     continue
 

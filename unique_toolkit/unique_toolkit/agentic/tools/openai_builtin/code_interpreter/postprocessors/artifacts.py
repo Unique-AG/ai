@@ -80,9 +80,9 @@ async def _upload_artifact_bytes(
     file_bytes: bytes,
     mime: str,
 ) -> Content:
+    # File names can contain client data. Log size and type only.
     _LOGGER.info(
-        "Uploading '%s' to knowledge base (%d bytes, mime type %s)",
-        file.filename,
+        "Uploading code interpreter artifact to knowledge base (%d bytes, mime type %s)",
         len(file_bytes),
         mime,
     )
@@ -114,17 +114,14 @@ async def _upload_office_artifact_with_preview(
         )
         if preview_path is None:
             _LOGGER.warning(
-                "Code interpreter Office artifact '%s' could not be converted "
+                "Code interpreter Office artifact could not be converted "
                 "to PDF; uploading without preview.",
-                file.filename,
             )
             return None
 
         source_path = output_dir / Path(file.filename).name
         _LOGGER.info(
-            "Uploading code interpreter Office artifact '%s' with PDF preview '%s'",
-            file.filename,
-            preview_path.name,
+            "Uploading code interpreter Office artifact with PDF preview",
         )
 
         uploaded = await asyncio.to_thread(
@@ -188,9 +185,8 @@ async def save_code_execution_artifact(
     if mime != raw_mime:
         _LOGGER.info(
             "MIME type '%s' is not supported by the Unique KB; "
-            "uploading '%s' as 'text/plain' so the file can be stored and downloaded.",
+            "uploading as 'text/plain' so the file can be stored and downloaded.",
             raw_mime,
-            file.filename,
         )
 
     return await _upload_artifact_bytes(
