@@ -225,6 +225,89 @@ class TestFolderNavigation:
         assert mf.allows_folder_path("/KB/Allowed")
         assert not mf.allows_folder_path("/KB/Excluded/Nested")
 
+    @pytest.mark.ai
+    def test_exclusion_inside_mixed_or_still_blocks_navigation(self) -> None:
+        """Purpose: A re-include under an exclusion stays closed to ls and cd.
+        Why this matters: ANDing a root grant used to drop the notContains.
+        Setup summary: Frontend re-include shape plus a contains-root clause.
+        """
+        contains_a = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_a",
+        }
+        excludes_x = {
+            "path": ["folderIdPath"],
+            "operator": "notContains",
+            "value": "scope_x",
+        }
+        contains_y = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_y",
+        }
+        message = {
+            "and": [{"or": [{"and": [{"or": [contains_a]}, excludes_x]}, contains_y]}]
+        }
+        combined = {
+            "and": [
+                message,
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_root",
+                },
+            ]
+        }
+        mf, _ = _make_filter(
+            combined,
+            scope_paths={
+                "scope_root": "/KB",
+                "scope_a": "/KB/A",
+                "scope_x": "/KB/A/X",
+                "scope_y": "/KB/A/X/Y",
+                "scope_z": "/KB/A/X/Z",
+            },
+        )
+        assert mf.navigable_folder_ids() == ["scope_root"]
+        assert mf.allows_folder_scope("scope_root")
+        assert mf.allows_folder_scope("scope_a")
+        assert not mf.allows_folder_scope("scope_x")
+        assert not mf.allows_folder_scope("scope_y")
+        assert not mf.allows_folder_scope("scope_z")
+
+    @pytest.mark.ai
+    def test_unresolved_exclusion_denies_navigation(self) -> None:
+        """Purpose: A missing exclusion path closes navigation for the turn.
+        Why this matters: A child whose path does resolve was still reachable.
+        Setup summary: Grant /KB/A; the excluded folder's path lookup fails.
+        """
+        mf, _ = _make_filter(
+            {
+                "and": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_parent",
+                    },
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "notContains",
+                        "value": "scope_x",
+                    },
+                ]
+            },
+            scope_paths={
+                "scope_parent": "/KB/A",
+                "scope_z": "/KB/A/X/Z",
+            },
+        )
+        assert not mf.allows_folder_scope("scope_x")
+        assert not mf.allows_folder_scope("scope_z")
+        assert not mf.allows_folder_scope("scope_parent")
+        assert not mf.allows_folder_path("/KB/A")
+        assert not mf.allows_folder_path("/KB/A/X/Z")
+
     def test_allows_folder_path_blocks_dotdot_escape(self) -> None:
         mf, _ = _make_filter(
             {"path": ["folderIdPath"], "operator": "contains", "value": "scope_a"},

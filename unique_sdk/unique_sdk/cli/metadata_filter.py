@@ -152,21 +152,16 @@ def _folder_scope_ids(node: dict[Any, Any]) -> list[str]:
 def _collect_excluded_folder_ids(
     node: Any, folder_ids: list[str] | None = None
 ) -> list[str]:
-    """Negated ``folderIdPath`` leaves on the navigable spine."""
+    """Every negated ``folderIdPath`` leaf in the tree."""
     if folder_ids is None:
         folder_ids = []
     if not isinstance(node, dict):
         return folder_ids
-    if "and" in node:
-        for child in node.get("and") or []:
-            _collect_excluded_folder_ids(child, folder_ids)
-        return folder_ids
-    if "or" in node:
-        children = node.get("or") or []
-        if children and all(_is_folder_only_subtree(c) for c in children):
-            for child in children:
+    for key in ("and", "or"):
+        if key in node:
+            for child in node.get(key) or []:
                 _collect_excluded_folder_ids(child, folder_ids)
-        return folder_ids
+            return folder_ids
     if not _is_negated_operator(node.get("operator")):
         return folder_ids
     for scope_id in _folder_scope_ids(node):
@@ -399,7 +394,7 @@ class MetadataFilter:
 
         Excludes folders only reachable as an ``or`` alternative to a
         ``contentId`` allowlist, which are not standalone-browsable. Also
-        drops a grant that the same spine excludes outright.
+        drops a grant named by any exclusion in the tree.
         """
         excluded = set(_collect_excluded_folder_ids(self._tree))
         return [
@@ -417,25 +412,33 @@ class MetadataFilter:
             if p
         ]
 
-    def _excluded_folder_paths(self) -> list[str]:
-        return [
-            path
-            for path in (
-                self._resolve_scope_path(scope_id)
-                for scope_id in _collect_excluded_folder_ids(self._tree)
-            )
-            if path
-        ]
+    def _excluded_scope_ids(self) -> list[str]:
+        return _collect_excluded_folder_ids(self._tree)
+
+    def _resolved_exclusion_paths(self) -> list[str] | None:
+        """Exclusion paths, or ``None`` when any exclusion failed to resolve."""
+        paths: list[str] = []
+        for scope_id in self._excluded_scope_ids():
+            path = self._resolve_scope_path(scope_id)
+            if not path:
+                return None
+            paths.append(path)
+        return paths
 
     def allows_folder_scope(self, scope_id: str) -> bool:
         """True if *scope_id* is in a navigable scope and not under an exclusion."""
+        if scope_id in self._excluded_scope_ids():
+            return False
+        excluded_paths = self._resolved_exclusion_paths()
+        if excluded_paths is None:
+            return False
         folder_paths = self._navigable_folder_paths()
         if not folder_paths:
             return False
         target_path = self._resolve_scope_path(scope_id)
         if not target_path:
             return False
-        if _path_is_inside_any(target_path, self._excluded_folder_paths()):
+        if _path_is_inside_any(target_path, excluded_paths):
             return False
         return _path_is_inside_any(target_path, folder_paths)
 
@@ -446,11 +449,14 @@ class MetadataFilter:
         scope id yet (e.g. a ``mkdir`` destination), so a ``..`` traversal can't
         create structure outside the task scope.
         """
+        excluded_paths = self._resolved_exclusion_paths()
+        if excluded_paths is None:
+            return False
         paths = self._navigable_folder_paths()
         if not paths:
             return False
         norm = os.path.normpath(folder_path)
-        if _path_is_inside_any(norm, self._excluded_folder_paths()):
+        if _path_is_inside_any(norm, excluded_paths):
             return False
         return _path_is_inside_any(norm, paths)
 
