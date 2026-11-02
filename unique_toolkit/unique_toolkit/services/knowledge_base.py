@@ -53,6 +53,7 @@ from unique_toolkit.content.schemas import (
     PaginatedContentInfos,
 )
 from unique_toolkit.content.smart_rules import Operator, Statement
+from unique_toolkit.log_redaction import redact_filename
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueContext
@@ -662,7 +663,8 @@ class KnowledgeBaseService:
 
             if mime_type is None:
                 _LOGGER.warning(
-                    "No mime type found for a file in folder %s, skipping",
+                    "No mime type found for %s in folder %s, skipping",
+                    redact_filename(local_file_path.name),
                     scope_id,
                 )
                 continue
@@ -677,7 +679,8 @@ class KnowledgeBaseService:
 
                 if local_file_path.name in _existing_file_names:
                     _LOGGER.warning(
-                        "A file already exists in folder %s, skipping",
+                        "File %s already exists in folder %s, skipping",
+                        redact_filename(local_file_path.name),
                         scope_id,
                     )
                     continue

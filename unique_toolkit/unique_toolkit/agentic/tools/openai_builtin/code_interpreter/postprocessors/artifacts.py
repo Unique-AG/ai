@@ -19,6 +19,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
     CodeInterpreterContainerFile,
 )
 from unique_toolkit.content.schemas import Content
+from unique_toolkit.log_redaction import redact_filename
 
 _CODE_EXECUTION_ARTIFACT_METADATA_KEY: str = "codeExecutionArtifactMetadata"
 
@@ -80,9 +81,9 @@ async def _upload_artifact_bytes(
     file_bytes: bytes,
     mime: str,
 ) -> Content:
-    # File names can contain client data. Log size and type only.
     _LOGGER.info(
-        "Uploading code interpreter artifact to knowledge base (%d bytes, mime type %s)",
+        "Uploading %s to knowledge base (%d bytes, mime type %s)",
+        redact_filename(file.filename),
         len(file_bytes),
         mime,
     )
@@ -114,14 +115,17 @@ async def _upload_office_artifact_with_preview(
         )
         if preview_path is None:
             _LOGGER.warning(
-                "Code interpreter Office artifact could not be converted "
+                "Code interpreter Office artifact %s could not be converted "
                 "to PDF; uploading without preview.",
+                redact_filename(file.filename),
             )
             return None
 
         source_path = output_dir / Path(file.filename).name
         _LOGGER.info(
-            "Uploading code interpreter Office artifact with PDF preview",
+            "Uploading code interpreter Office artifact %s with PDF preview %s",
+            redact_filename(file.filename),
+            redact_filename(preview_path.name),
         )
 
         uploaded = await asyncio.to_thread(
@@ -185,8 +189,9 @@ async def save_code_execution_artifact(
     if mime != raw_mime:
         _LOGGER.info(
             "MIME type '%s' is not supported by the Unique KB; "
-            "uploading as 'text/plain' so the file can be stored and downloaded.",
+            "uploading %s as 'text/plain' so the file can be stored and downloaded.",
             raw_mime,
+            redact_filename(file.filename),
         )
 
     return await _upload_artifact_bytes(

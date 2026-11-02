@@ -1334,6 +1334,7 @@ def test_replace_container_image_citation__logs_warning__when_no_sandbox_link(
     assert any(
         "cont_x" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert any("<redacted>.png" in r.message for r in caplog.records)
     assert not any("plot.png" in r.message for r in caplog.records)
 
 
