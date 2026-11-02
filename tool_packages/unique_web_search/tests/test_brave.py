@@ -46,6 +46,19 @@ class TestBraveSearchConfig:
         )
         assert config.requires_scraping is True
 
+    def test_requires_scraping_null_from_engine_switch_loads_as_false(self):
+        config = BraveSearchConfig.model_validate(
+            {"engine": "brave", "requiresScraping": None}
+        )
+        assert config.requires_scraping is False
+
+    def test_requires_scraping_schema_accepts_null_for_admin_form(self):
+        field_schema = BraveSearchConfig.model_json_schema(by_alias=True)["properties"][
+            "requiresScraping"
+        ]
+        assert field_schema["type"] == ["boolean", "null"]
+        assert field_schema["default"] is False
+
 
 @pytest.fixture
 def _mock_brave_settings():
