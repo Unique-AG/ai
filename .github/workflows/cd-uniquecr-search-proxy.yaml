@@ -1,15 +1,7 @@
 name: "[CD] Search proxy to uniquecr"
 
-# Copy a published stable search-proxy release (image + Helm chart) from GHCR
-# into uniquecr, the registry customers pull from. Nothing is rebuilt.
-#
-# GHCR tags can be moved after the build, so the image is copied by digest and
-# only if cd-containerize.yaml signed it at this release tag and its revision
-# label is the tag commit. A version that already exists in uniquecr is never
-# overwritten.
-#
-# Called by cd-publish after helm-publish. To retry by hand, run it on the tag:
-#   gh workflow run cd-uniquecr-search-proxy.yaml --ref unique-search-proxy-v<version>
+# Copy a stable search-proxy release (image by signed digest, Helm chart) from GHCR to uniquecr; never overwrites.
+# Called by cd-publish. To retry: gh workflow run cd-uniquecr-search-proxy.yaml --ref unique-search-proxy-v<version>
 
 on:
   workflow_call:
