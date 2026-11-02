@@ -18,6 +18,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterContainerFile,
 )
+from unique_toolkit.content.constants import ASSISTANT_GENERATED_METADATA_KEY
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.log_redaction import redact_filename
 
@@ -71,7 +72,8 @@ def _artifact_metadata(
             container_id=file.container_id,
             file_id=file.file_id,
             filepath=f"/mnt/data/{file.filename}",
-        ).model_dump()
+        ).model_dump(),
+        ASSISTANT_GENERATED_METADATA_KEY: True,
     }
 
 

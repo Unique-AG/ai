@@ -170,6 +170,7 @@ class ReportDeliveryService:
             content_name=document_name,
             mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             skip_ingestion=not ingest_docx,
+            metadata={"assistantGenerated": True},
         )
 
         # Create content reference

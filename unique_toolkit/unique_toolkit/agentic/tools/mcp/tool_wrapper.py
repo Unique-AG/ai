@@ -17,6 +17,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressRepo
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.constants import ASSISTANT_GENERATED_METADATA_KEY
 from unique_toolkit.content.functions import upload_content_from_bytes
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model import LanguageModelService
@@ -370,6 +371,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 chat_id=self._event.payload.chat_id,
                 skip_ingestion=True,
                 hide_in_chat=True,
+                metadata={ASSISTANT_GENERATED_METADATA_KEY: True},
             )
             content_id = content.id
         except Exception as e:
