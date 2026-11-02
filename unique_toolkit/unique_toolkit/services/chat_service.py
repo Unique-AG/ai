@@ -2086,9 +2086,6 @@ class ChatService(ChatServiceDeprecated):
         images: list[Content] = []
         files: list[Content] = []
         for c in contents:
-            # Admission is the platform's job (open by default, blocklist on the
-            # server). Image extensions are attached as vision input; every other
-            # stored upload is a document.
             if is_image_content(filename=c.key):
                 images.append(c)
             else:

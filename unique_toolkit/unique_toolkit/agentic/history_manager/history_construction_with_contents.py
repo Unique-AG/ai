@@ -253,10 +253,6 @@ def _split_contents(
         if selected_content_ids is not None and content.id not in selected_content_ids:
             continue
         serializable.append(content)
-        # Failed or expired uploads cannot be downloaded; they are still listed
-        # via the serializer but never attached as an image. Only image
-        # extensions are vision input. Every other stored upload stays in the
-        # text listing.
         if (
             FileUtils.is_image_content(content.key)
             and not content.has_ingestion_failed()

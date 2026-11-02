@@ -321,8 +321,8 @@ async def test_append_element_to_builder_async_includes_webm_upload():
     """Verify an upload outside the old MIME catalog is listed in model history.
 
     Purpose: A stored upload is serialized as a file and is not attached as an image.
-    Why this matters: UN-27570 stores types the old MIME allowlist hid from the
-    orchestrator even though upload succeeded.
+    Why this matters: The platform stores types the old MIME allowlist hid from
+    the orchestrator even though upload succeeded.
     Setup summary: Append one non-catalog upload with a serializer and no MIME mocks.
     Assert the serializer output is in the user message and no image is attached.
     """

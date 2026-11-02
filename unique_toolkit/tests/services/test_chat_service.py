@@ -266,7 +266,7 @@ class TestFilterImagesAndDocuments:
         """
         Purpose: Verify chat uploads are split into images and documents without
         an extension allowlist.
-        Why this matters: UN-27570 stores types outside the old MIME catalog.
+        Why this matters: The platform stores types outside the old MIME catalog.
         Dropping them here made the orchestrator report that no file was attached.
         Setup summary: Run the static filter over a mixed content list and
         compare the resulting keys.

@@ -981,7 +981,7 @@ class TestGetDocumentsUploadedToChatAsync:
         """
         Purpose: Verify get_documents_uploaded_to_chat_async keeps stored uploads
                  that are not images, including types outside the old MIME catalog.
-        Why this matters: UN-27570 stores types outside the old MIME catalog.
+        Why this matters: The platform stores types outside the old MIME catalog.
                           Dropping them here hides the upload from search and the
                           orchestrator. Images stay on the image path.
         Setup summary: Mock search_async with a PDF, a PNG, and a non-catalog
