@@ -10,7 +10,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 )
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
-from unique_toolkit.content.schemas import Content
+from unique_toolkit.content.schemas import Content, ContentChunk
 from unique_toolkit.services.chat_service import ChatService
 from unique_user_memory.user_memory import UserMemoryState
 
@@ -481,6 +481,7 @@ class TestSerializeUploadedFileForHistory:
             id="cont_1",
             key="report.pdf",
             ingestion_state=state,
+            chunks=[ContentChunk(text="page")],
         )
 
         result = serialize_uploaded_file_for_history(
@@ -492,6 +493,35 @@ class TestSerializeUploadedFileForHistory:
         assert result == (
             "User uploaded file: report.pdf (cont_1)\n"
             "- Searchable using UploadedSearchTool"
+        )
+
+    @pytest.mark.ai
+    def test_finished_upload_without_chunks_is_not_searchable(self) -> None:
+        """
+        Purpose: A FINISHED upload with no chunks is described as not searchable.
+        Why this matters: The platform writes FINISHED both after chunking and
+        when ingestion is skipped. Zero chunks means there is nothing to search.
+        Setup summary: Serialize a FINISHED content with no chunks, with
+        UploadedSearch available.
+        """
+        content = Content(
+            id="cont_1",
+            key="clip.webm",
+            ingestion_state="FINISHED",
+            chunks=[],
+            applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: clip.webm (cont_1)\n"
+            "- Not ingested; not searchable using UploadedSearchTool\n"
+            "- Available for processing in the code execution container"
         )
 
     def test_image_is_described_as_attached(self) -> None:
@@ -973,6 +1003,23 @@ class TestConfigureUploadedSearchToolIngestionFilter:
         common = self._run([doc])
         tool_names = [t.name for t in common.tool_manager_config.tools]
         assert UploadedSearchTool.name in tool_names
+
+    @pytest.mark.ai
+    def test_finished_with_no_chunks_is_excluded(self):
+        """
+        Purpose: A FINISHED upload with no chunks does not enable UploadedSearch.
+        Why this matters: FINISHED with zero chunks means ingestion was skipped.
+        Listing it as searchable tells the model it can search a file with no
+        chunks.
+        Setup summary: One FINISHED document with INGESTION mode and no chunks.
+        Assert UploadedSearch is not registered.
+        """
+        doc = self._make_doc({"uniqueIngestionMode": "INGESTION"})
+        doc.ingestion_state = "FINISHED"
+        doc.chunks = []
+        common = self._run([doc])
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name not in tool_names
 
     def test_skip_ingestion_mode_is_excluded(self):
         doc = self._make_doc({"uniqueIngestionMode": "SKIP_INGESTION"})
