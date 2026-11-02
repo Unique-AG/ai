@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.44.3](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.44.2...unique-search-proxy-v2026.44.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **search-proxy:** keep finished pages when a crawl hits its deadline ([#2653](https://github.com/Unique-AG/ai/issues/2653)) ([177a7e2](https://github.com/Unique-AG/ai/commit/177a7e226f5a2964759ac00c47fcd8c283fc3d90))
+
 ## [2026.44.2](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.44.1...unique-search-proxy-v2026.44.2) (2026-10-27)
 
 
