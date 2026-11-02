@@ -58,7 +58,7 @@ class QueryElicitationConfig(BaseModel):
     ] = Field(
         default=None,
         title="Maximum Query Length",
-        description="Maximum number of characters per search query during review. Longer queries proposed by the AI are shortened to this length. When off, queries have no length limit.",
+        description="Limits the number of characters in each search query.",
         ge=1,
     )
 
