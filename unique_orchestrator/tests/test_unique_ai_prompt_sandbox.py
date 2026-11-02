@@ -10,7 +10,7 @@ import pytest
 from jinja2.exceptions import SecurityError
 from pydantic import ValidationError
 
-from unique_orchestrator.config import UniqueAIPromptConfig
+from unique_orchestrator.config import UniqueAIConfig, UniqueAIPromptConfig
 
 if TYPE_CHECKING:
     from unique_orchestrator.unique_ai import UniqueAI
@@ -99,6 +99,13 @@ class TestPromptConfigValidation:
         error_text = str(exc_info.value)
         assert secret_marker not in error_text
         assert f"<redacted prompt {len(raw_template)} chars>" in error_text
+
+        with pytest.raises(
+            ValidationError, match="Invalid prompt template"
+        ) as outer_exc_info:
+            UniqueAIConfig(agent={"promptConfig": {field_name: raw_template}})
+
+        assert secret_marker not in str(outer_exc_info.value)
 
 
 @pytest.mark.ai

@@ -42,21 +42,15 @@ def sandboxed_template(source: str, *, lstrip_blocks: bool = False) -> Template:
 def validate_sandboxed_template(source: str, *, lstrip_blocks: bool = False) -> str:
     """Validate that ``source`` compiles and accesses no sandbox-forbidden attributes.
 
-    Raises ``jinja2.TemplateSyntaxError`` on malformed syntax or unknown
-    filters/tests and ``jinja2.exceptions.SecurityError`` on static access to
+    Raises ``jinja2.TemplateSyntaxError`` on malformed syntax (and top-level
+    unknown filters/tests; filters inside conditionals are resolved by Jinja at
+    render time) and ``jinja2.exceptions.SecurityError`` on static dot-access to
     private or internal Python attributes.
     """
     env = _sandboxed_environment(lstrip_blocks=lstrip_blocks)
     ast = env.parse(source)
-    for node in ast.find_all((nodes.Getattr, nodes.Getitem)):
-        attr: str | None = None
-        if isinstance(node, nodes.Getattr):
-            attr = node.attr
-        elif isinstance(node.arg, nodes.Const) and isinstance(node.arg.value, str):
-            attr = node.arg.value
-        if attr is not None and (
-            attr.startswith("_") or attr in _UNSAFE_STATIC_ATTRIBUTES
-        ):
+    for node in ast.find_all(nodes.Getattr):
+        if node.attr.startswith("_") or node.attr in _UNSAFE_STATIC_ATTRIBUTES:
             raise SecurityError("access to private or internal attribute is unsafe.")
     env.from_string(source)
     return source

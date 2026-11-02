@@ -21,6 +21,7 @@ from unique_internal_search.uploaded_search.config import (
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.utils.jinja.sandbox import (
     TemplateError,
     validate_sandboxed_template,
@@ -289,6 +290,8 @@ class EvaluationConfig(BaseToolConfig):
 
 
 class UniqueAIPromptConfig(BaseToolConfig):
+    model_config = get_configuration_dict(hide_input_in_errors=True)
+
     system_prompt_template: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(rows=25),
@@ -561,6 +564,8 @@ GPT_FRONTIER_MODELS: frozenset[LanguageModelName] = frozenset(
 
 
 class UniqueAIConfig(BaseToolConfig):
+    model_config = get_configuration_dict(hide_input_in_errors=True)
+
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
     agent: UniqueAIAgentConfig = UniqueAIAgentConfig()

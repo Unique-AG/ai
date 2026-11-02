@@ -66,6 +66,16 @@ class TestValidateSandboxedTemplate:
     def test_accepts_benign_template(self) -> None:
         assert validate_sandboxed_template(BENIGN_TEMPLATE) == BENIGN_TEMPLATE
 
+    def test_accepts_subscript_access_to_underscore_or_mro_dict_keys(self) -> None:
+        template = '{{ user_metadata["_dept"] }} {{ user_metadata["mro"] }}'
+        assert validate_sandboxed_template(template) == template
+        assert (
+            sandboxed_template(template).render(
+                user_metadata={"_dept": "Legal", "mro": "x"}
+            )
+            == "Legal x"
+        )
+
     @pytest.mark.parametrize(
         "payload",
         [
