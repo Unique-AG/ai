@@ -72,6 +72,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
+from unique_toolkit.log_redaction import redact_text
 from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
@@ -320,8 +321,9 @@ class UniqueAIPromptConfig(BaseToolConfig):
         try:
             return validate_sandboxed_template(value)
         except TemplateError as exc:
+            redacted = redact_text(value, label="prompt")
             raise ValueError(
-                f"Invalid prompt template ({type(exc).__name__})."
+                f"Invalid prompt template {redacted} ({type(exc).__name__})."
             ) from None
 
 

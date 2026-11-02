@@ -90,12 +90,15 @@ class TestPromptConfigValidation:
         self, field_name: str, invalid_template: str
     ) -> None:
         secret_marker = "CID_SECRET_PROMPT_CONTENT"
+        raw_template = f"{secret_marker} {invalid_template}"
         with pytest.raises(
             ValidationError, match="Invalid prompt template"
         ) as exc_info:
-            UniqueAIPromptConfig(**{field_name: f"{secret_marker} {invalid_template}"})
+            UniqueAIPromptConfig(**{field_name: raw_template})
 
-        assert secret_marker not in str(exc_info.value)
+        error_text = str(exc_info.value)
+        assert secret_marker not in error_text
+        assert f"<redacted prompt {len(raw_template)} chars>" in error_text
 
 
 @pytest.mark.ai
