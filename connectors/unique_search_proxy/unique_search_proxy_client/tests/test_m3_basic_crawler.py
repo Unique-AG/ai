@@ -666,7 +666,7 @@ def test_crawl_pdf_hold_and_document_hold_download(
 
     reset_pdf_wiring_for_tests()
     hold_store = PdfDocumentHoldStore(
-        PdfHoldSettings(internal_base_url="http://testserver")
+        PdfHoldSettings(document_hold_base_url="http://testserver")
     )
     extractor = FakePdfExtractor()
     processor = PdfProcessor(

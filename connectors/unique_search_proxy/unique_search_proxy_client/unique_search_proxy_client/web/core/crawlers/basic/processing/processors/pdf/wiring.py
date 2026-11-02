@@ -56,10 +56,10 @@ def get_pdf_hold_store(settings: PdfSettings | None = None) -> PdfDocumentHoldSt
         cfg = settings or pdf_settings
         _HOLD_STORE = PdfDocumentHoldStore(
             PdfHoldSettings(
-                max_held_pdf_bytes=cfg.max_held_pdf_bytes,
-                max_held_pdf_documents=cfg.max_held_pdf_documents,
-                pdf_hold_ttl_seconds=cfg.pdf_hold_ttl_seconds,
-                internal_base_url=cfg.internal_base_url,
+                max_document_hold_bytes=cfg.max_document_hold_bytes,
+                max_document_hold_documents=cfg.max_document_hold_documents,
+                document_hold_ttl_seconds=cfg.document_hold_ttl_seconds,
+                document_hold_base_url=cfg.document_hold_base_url,
             )
         )
     return _HOLD_STORE

@@ -581,20 +581,20 @@
               "description": "Maps to env var PDF_EXTRACTOR.",
               "$ref": "#/$defs/valueSourceString"
             },
-            "maxHeldPdfBytes": {
-              "description": "Maps to env var PDF_MAX_HELD_PDF_BYTES.",
+            "maxDocumentHoldBytes": {
+              "description": "Maps to env var PDF_MAX_DOCUMENT_HOLD_BYTES.",
               "$ref": "#/$defs/valueSourceInteger"
             },
-            "maxHeldPdfDocuments": {
-              "description": "Maps to env var PDF_MAX_HELD_PDF_DOCUMENTS.",
+            "maxDocumentHoldDocuments": {
+              "description": "Maps to env var PDF_MAX_DOCUMENT_HOLD_DOCUMENTS.",
               "$ref": "#/$defs/valueSourceInteger"
             },
-            "pdfHoldTtlSeconds": {
-              "description": "Maps to env var PDF_PDF_HOLD_TTL_SECONDS.",
+            "documentHoldTtlSeconds": {
+              "description": "Maps to env var PDF_DOCUMENT_HOLD_TTL_SECONDS.",
               "type": "number"
             },
-            "internalBaseUrl": {
-              "description": "Maps to env var PDF_INTERNAL_BASE_URL.",
+            "documentHoldBaseUrl": {
+              "description": "Maps to env var PDF_DOCUMENT_HOLD_BASE_URL.",
               "type": "string",
               "format": "uri"
             }

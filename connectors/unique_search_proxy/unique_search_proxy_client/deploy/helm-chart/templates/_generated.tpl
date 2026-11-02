@@ -155,14 +155,14 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.pdfProcessing.connection.scanPolicy | quote }}
 - name: PDF_EXTRACTOR
   value: {{ .Values.pdfProcessing.connection.extractor | quote }}
-- name: PDF_MAX_HELD_PDF_BYTES
-  value: {{ .Values.pdfProcessing.connection.maxHeldPdfBytes | quote }}
-- name: PDF_MAX_HELD_PDF_DOCUMENTS
-  value: {{ .Values.pdfProcessing.connection.maxHeldPdfDocuments | quote }}
-- name: PDF_PDF_HOLD_TTL_SECONDS
-  value: {{ .Values.pdfProcessing.connection.pdfHoldTtlSeconds | quote }}
-- name: PDF_INTERNAL_BASE_URL
-  value: {{ .Values.pdfProcessing.connection.internalBaseUrl | quote }}
+- name: PDF_MAX_DOCUMENT_HOLD_BYTES
+  value: {{ .Values.pdfProcessing.connection.maxDocumentHoldBytes | quote }}
+- name: PDF_MAX_DOCUMENT_HOLD_DOCUMENTS
+  value: {{ .Values.pdfProcessing.connection.maxDocumentHoldDocuments | quote }}
+- name: PDF_DOCUMENT_HOLD_TTL_SECONDS
+  value: {{ .Values.pdfProcessing.connection.documentHoldTtlSeconds | quote }}
+- name: PDF_DOCUMENT_HOLD_BASE_URL
+  value: {{ .Values.pdfProcessing.connection.documentHoldBaseUrl | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -333,14 +333,14 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.pdfProcessing.connection.scanPolicy | quote }}
 - name: PDF_EXTRACTOR
   value: {{ .ctx.Values.pdfProcessing.connection.extractor | quote }}
-- name: PDF_MAX_HELD_PDF_BYTES
-  value: {{ .ctx.Values.pdfProcessing.connection.maxHeldPdfBytes | quote }}
-- name: PDF_MAX_HELD_PDF_DOCUMENTS
-  value: {{ .ctx.Values.pdfProcessing.connection.maxHeldPdfDocuments | quote }}
-- name: PDF_PDF_HOLD_TTL_SECONDS
-  value: {{ .ctx.Values.pdfProcessing.connection.pdfHoldTtlSeconds | quote }}
-- name: PDF_INTERNAL_BASE_URL
-  value: {{ .ctx.Values.pdfProcessing.connection.internalBaseUrl | quote }}
+- name: PDF_MAX_DOCUMENT_HOLD_BYTES
+  value: {{ .ctx.Values.pdfProcessing.connection.maxDocumentHoldBytes | quote }}
+- name: PDF_MAX_DOCUMENT_HOLD_DOCUMENTS
+  value: {{ .ctx.Values.pdfProcessing.connection.maxDocumentHoldDocuments | quote }}
+- name: PDF_DOCUMENT_HOLD_TTL_SECONDS
+  value: {{ .ctx.Values.pdfProcessing.connection.documentHoldTtlSeconds | quote }}
+- name: PDF_DOCUMENT_HOLD_BASE_URL
+  value: {{ .ctx.Values.pdfProcessing.connection.documentHoldBaseUrl | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS

@@ -2421,7 +2421,7 @@
           "downloadUrl": {
             "type": "string",
             "title": "Download Url",
-            "description": "Internal URL on the owning pod that streams the held bytes"
+            "description": "URL on the owning pod that streams the held bytes (GET /v1/document-holds/{id})"
           },
           "token": {
             "type": "string",

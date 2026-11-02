@@ -197,7 +197,7 @@ async def test_pdf_processor__holds_over_inline_budget() -> None:
     Setup summary: Set max_inline_pdf_bytes below body size and assert a hold.
     """
     hold_store = PdfDocumentHoldStore(
-        PdfHoldSettings(internal_base_url="http://pod.local:2349")
+        PdfHoldSettings(document_hold_base_url="http://pod.local:2349")
     )
     processor = PdfProcessor(
         extractor=FakePdfExtractor(),

@@ -17,7 +17,7 @@ class PdfDocumentHandle:
 
     Attributes:
         document_id (str): Opaque id of the held PDF on the owning pod
-        download_url (str): Internal URL on the owning pod that streams the held bytes
+        download_url (str): URL on the owning pod that streams the held bytes (GET /v1/document-holds/{id})
         token (str): One-time bearer token required by GET /v1/document-holds/{id}
         expires_at (str): UTC expiry of the hold as an ISO-8601 string
         byte_size (int): Held PDF size in bytes

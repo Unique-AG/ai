@@ -37,12 +37,15 @@ class PdfSettings(BaseSettings):
             "Use fake for tests, or none/off to disable extraction."
         ),
     )
-    max_held_pdf_bytes: int = Field(default=50 * 1024 * 1024, ge=1)
-    max_held_pdf_documents: int = Field(default=16, ge=1)
-    pdf_hold_ttl_seconds: float = Field(default=120.0, gt=0)
-    internal_base_url: str = Field(
+    max_document_hold_bytes: int = Field(default=50 * 1024 * 1024, ge=1)
+    max_document_hold_documents: int = Field(default=16, ge=1)
+    document_hold_ttl_seconds: float = Field(default=120.0, gt=0)
+    document_hold_base_url: str = Field(
         default="http://127.0.0.1:2349",
-        description="Base URL advertised in document handles for this pod",
+        description=(
+            "Base URL of this pod advertised in documentHandle.downloadUrl "
+            "(path /v1/document-holds/{id} is appended)"
+        ),
     )
 
 

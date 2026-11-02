@@ -65,7 +65,10 @@ class PdfDocumentHandle(BaseModel):
 
     document_id: str = Field(description="Opaque id of the held PDF on the owning pod")
     download_url: str = Field(
-        description="Internal URL on the owning pod that streams the held bytes",
+        description=(
+            "URL on the owning pod that streams the held bytes "
+            "(GET /v1/document-holds/{id})"
+        ),
     )
     token: str = Field(
         description="One-time bearer token required by GET /v1/document-holds/{id}",

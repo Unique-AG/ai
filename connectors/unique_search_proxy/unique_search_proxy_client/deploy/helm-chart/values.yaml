@@ -186,10 +186,10 @@ pdfProcessing:
   connection:
     scanPolicy: disabled
     extractor: pypdf
-    maxHeldPdfBytes: 52428800
-    maxHeldPdfDocuments: 16
-    pdfHoldTtlSeconds: 120.0
-    internalBaseUrl: "http://127.0.0.1:2349"
+    maxDocumentHoldBytes: 52428800
+    maxDocumentHoldDocuments: 16
+    documentHoldTtlSeconds: 120.0
+    documentHoldBaseUrl: "http://127.0.0.1:2349"
 
 urlSafety:
   enabled: true

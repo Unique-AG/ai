@@ -189,7 +189,7 @@ class PdfProcessor:
             if len(body) > limits.max_inline_pdf_bytes:
                 handle, token = self._hold_store.hold(body)
                 _LOGGER.info(
-                    "PDF held for internal download document_id=%s byte_size=%s",
+                    "PDF held for document-hold download document_id=%s byte_size=%s",
                     handle.document_id,
                     handle.byte_size,
                 )

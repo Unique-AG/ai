@@ -14,10 +14,10 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pd
 
 @dataclass(frozen=True, slots=True)
 class PdfHoldSettings:
-    max_held_pdf_bytes: int = 50 * 1024 * 1024
-    max_held_pdf_documents: int = 16
-    pdf_hold_ttl_seconds: float = 120.0
-    internal_base_url: str = "http://127.0.0.1:2349"
+    max_document_hold_bytes: int = 50 * 1024 * 1024
+    max_document_hold_documents: int = 16
+    document_hold_ttl_seconds: float = 120.0
+    document_hold_base_url: str = "http://127.0.0.1:2349"
 
 
 class PdfDocumentHoldStore:
@@ -42,9 +42,9 @@ class PdfDocumentHoldStore:
 
     def _evict_oldest_until_fit(self, *, incoming_bytes: int) -> None:
         while self._documents and (
-            len(self._documents) >= self._settings.max_held_pdf_documents
+            len(self._documents) >= self._settings.max_document_hold_documents
             or sum(doc.byte_size for doc in self._documents.values()) + incoming_bytes
-            > self._settings.max_held_pdf_bytes
+            > self._settings.max_document_hold_bytes
         ):
             oldest_id = min(
                 self._documents,
@@ -66,7 +66,7 @@ class PdfDocumentHoldStore:
 
         document_id = str(uuid.uuid4())
         token = secrets.token_urlsafe(32)
-        expires_at = current + self._settings.pdf_hold_ttl_seconds
+        expires_at = current + self._settings.document_hold_ttl_seconds
         self._documents[document_id] = HeldPdfDocument(
             document_id=document_id,
             token=token,
@@ -76,7 +76,7 @@ class PdfDocumentHoldStore:
             payload=payload,
         )
         download_url = (
-            f"{self._settings.internal_base_url.rstrip('/')}"
+            f"{self._settings.document_hold_base_url.rstrip('/')}"
             f"/v1/document-holds/{document_id}"
         )
         handle = PdfDocumentHandle(
