@@ -214,6 +214,16 @@ def cmd_search(
         folder_scope_id: str | None = None
         if folder:
             folder_scope_id = _resolve_folder_to_scope_id(state, folder)
+            # Without a per-message filter, --folder replaces the static
+            # scopeIds, so it must lie inside them. See UN-28458.
+            if (
+                not state.workspace_metadata_filter
+                and not state.is_folder_target_within_workspace(folder_scope_id)
+            ):
+                return (
+                    f"{SEARCH_ERROR_PREFIX} permission denied: {folder} is "
+                    f"outside your task scope ({state.scope_denial_hint()})."
+                )
         elif state.scope_id and not state.workspace_metadata_filter:
             # The incidental cwd narrows search only when there is no
             # per-message filter. With a filter active, only an explicit

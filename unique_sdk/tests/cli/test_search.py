@@ -564,6 +564,50 @@ class TestCmdSearchCallShapes:
         assert mock.call_args[1]["scopeIds"] == ["scope_other"]
         assert mock.call_args[1]["metaDataFilter"] == wmf
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.search._resolve_folder_to_scope_id")
+    @patch("unique_sdk.Search.create")
+    def test_explicit_folder_outside_scope_ids_is_denied(
+        self, mock: MagicMock, mock_resolve: MagicMock, mock_path: MagicMock
+    ) -> None:
+        """Purpose: --folder cannot swap scopeIds for a folder outside them.
+        Why this matters: It searched a folder the space left out.
+        Setup summary: scopeIds grants /Company; --folder names /Excluded.
+        """
+        mock_resolve.return_value = "scope_excluded"
+        mock_path.side_effect = lambda **kw: {
+            "scope_company": {"folderPath": "/Company"},
+            "scope_excluded": {"folderPath": "/Excluded"},
+        }.get(kw.get("scope_id"), {"folderPath": ""})
+        s = _state()
+        s.workspace_scope_ids = ["scope_company"]
+        out = cmd_search(s, "q", folder="/Excluded")
+        assert out.startswith(f"{SEARCH_ERROR_PREFIX} permission denied")
+        mock.assert_not_called()
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.search._resolve_folder_to_scope_id")
+    @patch("unique_sdk.Search.create")
+    def test_explicit_folder_inside_scope_ids_narrows(
+        self, mock: MagicMock, mock_resolve: MagicMock, mock_path: MagicMock
+    ) -> None:
+        """Purpose: --folder still narrows to a subfolder of a scopeIds folder.
+        Why this matters: Agents narrow searches inside the granted tree.
+        Setup summary: scopeIds grants /Company; --folder names /Company/Reports.
+        """
+        mock.return_value = []
+        mock_resolve.return_value = "scope_reports"
+        mock_path.side_effect = lambda **kw: {
+            "scope_company": {"folderPath": "/Company"},
+            "scope_reports": {"folderPath": "/Company/Reports"},
+        }.get(kw.get("scope_id"), {"folderPath": ""})
+        s = _state()
+        s.workspace_scope_ids = ["scope_company"]
+        cmd_search(s, "q", folder="/Company/Reports")
+        assert mock.call_args[1]["scopeIds"] == ["scope_reports"]
+
     @patch("unique_sdk.Search.create")
     def test_api_error_includes_prefix(self, mock: MagicMock) -> None:
         mock.side_effect = unique_sdk.APIError("oops")

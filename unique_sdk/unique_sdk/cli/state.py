@@ -468,6 +468,16 @@ class ShellState:
             return True
         return self._metadata_filter.allows_folder_scope(scope_id)
 
+    def folder_navigable(self, scope_id: str) -> bool:
+        """True if ``ls``/``cd`` may open *scope_id* under the active scope.
+
+        The per-message filter decides when present; otherwise a non-empty
+        ``scopeIds`` list admits only those folders and their descendants.
+        """
+        if self._metadata_filter is not None:
+            return self.folder_allowed_by_metadata_filter(scope_id)
+        return self.is_folder_target_within_workspace(scope_id)
+
     def folder_path_allowed_by_metadata_filter(self, folder_path: str) -> bool:
         """True if an absolute folder *path* lies within a navigable scope.
 
@@ -564,10 +574,8 @@ class ShellState:
         return f"{self._path}> "
 
     def _require_navigable_folder(self, scope_id: str) -> None:
-        """Refuse a folder the per-message filter excludes. See UN-28458."""
-        if self._metadata_filter is None:
-            return
-        if self.folder_allowed_by_metadata_filter(scope_id):
+        """Refuse a folder outside the active scope. See UN-28458."""
+        if self.folder_navigable(scope_id):
             return
         raise ValueError(
             "permission denied: target is outside your task scope "
