@@ -2422,11 +2422,18 @@ class TestSearch:
         self, mock: MagicMock
     ) -> None:
         mock.return_value = []
-        with patch("unique_sdk.Folder.get_info") as mock_info:
+        with (
+            patch("unique_sdk.Folder.get_info") as mock_info,
+            patch("unique_sdk.Folder.get_folder_path") as mock_path,
+        ):
             mock_info.return_value = {"id": "scope_explicit"}
+            mock_path.side_effect = lambda **kw: {
+                "scope_ws": {"folderPath": "/WS"},
+                "scope_explicit": {"folderPath": "/WS/Reports"},
+            }.get(kw.get("scope_id"), {"folderPath": ""})
             state = _state()
             state.workspace_scope_ids = ["scope_ws"]
-            result = cmd_search(state, "query", folder="/Reports")
+            result = cmd_search(state, "query", folder="/WS/Reports")
         assert "No results found" in result
         call_kwargs = mock.call_args[1]
         assert call_kwargs["scopeIds"] == ["scope_explicit"]
