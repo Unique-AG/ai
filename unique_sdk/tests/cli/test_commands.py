@@ -606,6 +606,100 @@ class TestNavigation:
         assert state.cwd == "/KB"
         assert state.scope_id == "scope_parent"
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_of_folder_outside_scope_ids_is_denied(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: ls by name refuses a sibling folder absent from scopeIds.
+        Why this matters: Listing it showed a file the space left out.
+        Setup summary: scopeIds grants /Company; the target is /Excluded.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_company": {"folderPath": "/Company"},
+                "scope_excluded": {"folderPath": "/Excluded"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"id": "scope_excluded"}
+        state = _state()
+        state.workspace_scope_ids = ["scope_company"]
+        result = cmd_ls(state, "/Excluded")
+        assert result.startswith("ls: permission denied")
+        mock_folders.assert_not_called()
+        mock_files.assert_not_called()
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_cd_into_folder_outside_scope_ids_is_denied(
+        self, mock_info: MagicMock, mock_path: MagicMock
+    ) -> None:
+        """Purpose: unique-cli cd refuses a folder absent from scopeIds.
+        Why this matters: A folder the space omits must stay unreachable.
+        Setup summary: scopeIds grants /Company; the target is /Excluded.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_company": {"folderPath": "/Company"},
+                "scope_excluded": {"folderPath": "/Excluded"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"id": "scope_excluded"}
+        state = _state()
+        state.workspace_scope_ids = ["scope_company"]
+        result = cmd_cd(state, "/Excluded")
+        assert result.startswith("cd: permission denied")
+        assert state.cwd == "/"
+        assert state.scope_id is None
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_of_subfolder_inside_scope_ids_is_allowed(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: ls still opens a descendant of a scopeIds folder.
+        Why this matters: The allow-list grants the folder and its subtree.
+        Setup summary: scopeIds grants /Company; the target is /Company/Reports.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_company": {"folderPath": "/Company"},
+                "scope_reports": {"folderPath": "/Company/Reports"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"id": "scope_reports"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        state = _state()
+        state.workspace_scope_ids = ["scope_company"]
+        result = cmd_ls(state, "/Company/Reports")
+        assert "permission denied" not in result
+        mock_folders.assert_called_once()
+
     @patch("unique_sdk.Content.get_info")
     @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")

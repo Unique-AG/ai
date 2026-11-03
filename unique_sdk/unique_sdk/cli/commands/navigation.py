@@ -184,14 +184,10 @@ def cmd_ls(
         else:
             resolved_path, scope_id = state.cwd, state.scope_id
 
-        # A non-root target must lie inside the per-message scope: without
-        # this, `ls <path>` would enumerate out-of-scope folders/files that
-        # read/cite correctly deny. See UN-21780.
-        if (
-            scope_id is not None
-            and state.workspace_metadata_filter is not None
-            and not state.folder_allowed_by_metadata_filter(scope_id)
-        ):
+        # A non-root target must lie inside the task scope: without this,
+        # `ls <path>` would enumerate out-of-scope folders/files that
+        # read/cite correctly deny. See UN-21780 and UN-28458.
+        if scope_id is not None and not state.folder_navigable(scope_id):
             return (
                 f"ls: permission denied: target is outside your task scope "
                 f"({state.scope_denial_hint()})."
