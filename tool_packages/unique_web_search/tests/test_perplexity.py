@@ -10,7 +10,10 @@ from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexityConfig,
 )
 
-from unique_web_search.services.search_engine.perplexity import PerplexitySearch
+from unique_web_search.services.search_engine.perplexity import (
+    PerplexitySearch,
+    PerplexitySearchConfig,
+)
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
@@ -32,6 +35,28 @@ class TestPerplexitySearchConfig:
         config = PerplexityConfig()
         assert config.max_tokens is None
 
+    def test_requires_scraping_defaults_to_false(self):
+        assert PerplexitySearchConfig().requires_scraping is False
+
+    def test_requires_scraping_parses_from_camel_case_space_config(self):
+        config = PerplexitySearchConfig.model_validate(
+            {"engine": "perplexity", "requiresScraping": True}
+        )
+        assert config.requires_scraping is True
+
+    def test_requires_scraping_null_from_engine_switch_loads_as_false(self):
+        config = PerplexitySearchConfig.model_validate(
+            {"engine": "perplexity", "requiresScraping": None}
+        )
+        assert config.requires_scraping is False
+
+    def test_requires_scraping_schema_accepts_null_for_admin_form(self):
+        field_schema = PerplexitySearchConfig.model_json_schema(by_alias=True)[
+            "properties"
+        ]["requiresScraping"]
+        assert field_schema["type"] == ["boolean", "null"]
+        assert field_schema["default"] is False
+
 
 @pytest.fixture
 def _mock_perplexity_settings():
@@ -49,6 +74,14 @@ class TestPerplexitySearchInit:
     def test_is_configured_from_settings(self, _mock_perplexity_settings):
         search = PerplexitySearch(PerplexityConfig())
         assert search.is_configured is True
+
+    def test_requires_scraping_false_by_default(self, _mock_perplexity_settings):
+        search = PerplexitySearch(PerplexityConfig())
+        assert search.requires_scraping is False
+
+    def test_requires_scraping_follows_config(self, _mock_perplexity_settings):
+        search = PerplexitySearch(PerplexitySearchConfig(requires_scraping=True))
+        assert search.requires_scraping is True
 
 
 class TestPerplexitySearch:
@@ -132,3 +165,30 @@ class TestPerplexitySearch:
                 snippet="Details",
             )
         ]
+
+    @pytest.mark.asyncio
+    async def test_proxy_search_omits_requires_scraping(
+        self, _mock_perplexity_settings
+    ):
+        search = PerplexitySearch(PerplexitySearchConfig(requires_scraping=True))
+        mock_search = AsyncMock(return_value=Mock(curated=[]))
+
+        with (
+            patch(
+                "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+                True,
+            ),
+            patch(
+                "unique_web_search.services.search_engine.base.open_search_proxy_client"
+            ) as mock_open_client,
+        ):
+            mock_client = AsyncMock()
+            mock_client.search.search = mock_search
+            mock_open_client.return_value.__aenter__.return_value = mock_client
+
+            await search.search("test query")
+
+        assert mock_search.await_args is not None
+        call_kwargs = mock_search.await_args.kwargs
+        assert call_kwargs["engine"] == "perplexity"
+        assert "requires_scraping" not in call_kwargs
