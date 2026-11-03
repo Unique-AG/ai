@@ -22,7 +22,7 @@ return await self._legacy_search(...)      # direct provider call from this proc
 | **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
-Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Bing/VertexAI).
+Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Perplexity/Bing/VertexAI).
 
 ---
 
@@ -117,9 +117,9 @@ results = await search.search("privacy-focused search")  # requires SEARCH_PROXY
 
 ### Perplexity Search (proxy-only)
 
-**Provider:** Perplexity Search API · **Legacy:** not supported
+**Provider:** Perplexity Search API · **Requires scraping:** configurable, default no (page excerpts) · **Legacy:** not supported
 
-Config: `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityConfig`
+Config: `unique_web_search.services.search_engine.perplexity.PerplexitySearchConfig` (extends `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityConfig` with `requires_scraping`, which is never sent to the proxy)
 
 | Field | Notes |
 |-------|-------|

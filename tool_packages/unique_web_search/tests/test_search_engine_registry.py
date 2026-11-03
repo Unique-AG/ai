@@ -11,7 +11,7 @@ from unique_web_search.services.search_engine import (
     BraveSearchConfig,
     CustomAPIConfig,
     GoogleConfig,
-    PerplexityConfig,
+    PerplexitySearchConfig,
     VertexAIConfig,
 )
 from unique_web_search.services.search_engine.base import LocalSearchEngineType
@@ -23,7 +23,7 @@ _EXPECTED_CONFIG_BASES: dict[
 ] = {
     SearchEngineType.GOOGLE: GoogleConfig,
     SearchEngineType.BRAVE: BraveSearchConfig,
-    SearchEngineType.PERPLEXITY: PerplexityConfig,
+    SearchEngineType.PERPLEXITY: PerplexitySearchConfig,
     AgentEngineType.BING: BingSearchConfig,
     AgentEngineType.VERTEXAI: VertexAIConfig,
     LocalSearchEngineType.CUSTOM_API: CustomAPIConfig,

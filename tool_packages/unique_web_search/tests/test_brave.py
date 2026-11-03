@@ -167,6 +167,7 @@ class TestBraveSearch:
 
             await search.search("test query")
 
+        assert mock_search.await_args is not None
         call_kwargs = mock_search.await_args.kwargs
         assert call_kwargs["engine"] == "brave"
         assert "requires_scraping" not in call_kwargs
