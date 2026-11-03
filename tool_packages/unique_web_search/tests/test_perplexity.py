@@ -35,27 +35,31 @@ class TestPerplexitySearchConfig:
         config = PerplexityConfig()
         assert config.max_tokens is None
 
-    def test_requires_scraping_defaults_to_false(self):
-        assert PerplexitySearchConfig().requires_scraping is False
+    def test_requires_scraping_defaults_to_true(self):
+        assert PerplexitySearchConfig().requires_scraping is True
+
+    def test_requires_scraping_missing_from_space_config_loads_as_true(self):
+        config = PerplexitySearchConfig.model_validate({"engine": "perplexity"})
+        assert config.requires_scraping is True
 
     def test_requires_scraping_parses_from_camel_case_space_config(self):
         config = PerplexitySearchConfig.model_validate(
-            {"engine": "perplexity", "requiresScraping": True}
+            {"engine": "perplexity", "requiresScraping": False}
         )
-        assert config.requires_scraping is True
+        assert config.requires_scraping is False
 
-    def test_requires_scraping_null_from_engine_switch_loads_as_false(self):
+    def test_requires_scraping_null_from_engine_switch_loads_as_true(self):
         config = PerplexitySearchConfig.model_validate(
             {"engine": "perplexity", "requiresScraping": None}
         )
-        assert config.requires_scraping is False
+        assert config.requires_scraping is True
 
     def test_requires_scraping_schema_accepts_null_for_admin_form(self):
         field_schema = PerplexitySearchConfig.model_json_schema(by_alias=True)[
             "properties"
         ]["requiresScraping"]
         assert field_schema["type"] == ["boolean", "null"]
-        assert field_schema["default"] is False
+        assert field_schema["default"] is True
 
 
 @pytest.fixture
@@ -75,13 +79,13 @@ class TestPerplexitySearchInit:
         search = PerplexitySearch(PerplexityConfig())
         assert search.is_configured is True
 
-    def test_requires_scraping_false_by_default(self, _mock_perplexity_settings):
+    def test_requires_scraping_true_by_default(self, _mock_perplexity_settings):
         search = PerplexitySearch(PerplexityConfig())
-        assert search.requires_scraping is False
+        assert search.requires_scraping is True
 
     def test_requires_scraping_follows_config(self, _mock_perplexity_settings):
-        search = PerplexitySearch(PerplexitySearchConfig(requires_scraping=True))
-        assert search.requires_scraping is True
+        search = PerplexitySearch(PerplexitySearchConfig(requires_scraping=False))
+        assert search.requires_scraping is False
 
 
 class TestPerplexitySearch:
