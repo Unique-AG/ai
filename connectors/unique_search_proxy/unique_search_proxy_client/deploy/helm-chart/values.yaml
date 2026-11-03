@@ -179,6 +179,7 @@ requestLimits:
     maxUrlLength: 2048
     maxConcurrentFetches: 10
     maxConcurrentCrawls: 4
+    maxConcurrentUrlChecks: 3
   timeouts:
     maxTimeoutSeconds: 120
 
@@ -187,7 +188,7 @@ urlSafety:
   redirects:
     resolveRedirects: true
     maxRedirectHops: 10
-    redirectTimeoutSeconds: 10.0
+    redirectTimeoutSeconds: 5.0
   network:
     allowedSchemes:
       - http

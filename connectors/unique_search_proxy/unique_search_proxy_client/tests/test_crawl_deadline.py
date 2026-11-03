@@ -28,6 +28,7 @@ from unique_search_proxy_client.web.core.url_safety.gate import (
     AllowedCrawlTarget,
     apply_url_safety_gate,
 )
+from unique_search_proxy_client.web.monitoring import metrics as metrics_module
 
 _HTML_PAGE = "<html><body><h1>Hello</h1><p>World</p></body></html>"
 _HANGING_HOST = "hang.example"
@@ -343,16 +344,16 @@ def test_crawl__returns_per_url_results__when_url_safety_check_hangs(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_apply_url_safety_gate__times_out_unchecked_urls__at_deadline(
+async def test_apply_url_safety_gate__times_out_only_the_hanging_check__at_deadline(
     hanging_url_safety_check: list[str],
 ) -> None:
     """
-    Purpose: Verify the gate stops at the deadline and fails unchecked URLs alone.
-    Why this matters: Checks run one URL at a time, so a slow check must not
-        hold the request past its deadline, and timed-out URLs are not blocked.
+    Purpose: Verify a hanging check fails only its own URL at the deadline.
+    Why this matters: Checks run in parallel, so one slow redirect probe must
+        not keep the URLs after it from being checked and crawled.
     Setup summary: Validation hangs for the second of three URLs; deadline
-        0.2s ahead; assert the first is allowed, the third is never checked,
-        and the last two are timed out rather than blocked.
+        0.2s ahead; assert the other two are allowed and only the hanging one
+        is timed out rather than blocked.
     """
     urls = ["https://a.example/", f"https://{_HANGING_HOST}/", "https://b.example/"]
 
@@ -363,13 +364,107 @@ async def test_apply_url_safety_gate__times_out_unchecked_urls__at_deadline(
             deadline=asyncio.get_running_loop().time() + 0.2,
         )
 
-    assert [target.display_url for target in gate.allowed_targets] == [urls[0]]
-    assert hanging_url_safety_check == urls[:2]
+    assert [target.display_url for target in gate.allowed_targets] == [
+        urls[0],
+        urls[2],
+    ]
+    assert sorted(hanging_url_safety_check) == sorted(urls)
     assert gate.blocked_by_index == {}
-    assert sorted(gate.timed_out_by_index) == [1, 2]
+    assert list(gate.timed_out_by_index) == [1]
     hanging_error = gate.timed_out_by_index[1].error
-    unchecked_error = gate.timed_out_by_index[2].error
     assert hanging_error is not None
     assert hanging_error.code == ProxyErrorCode.UPSTREAM_TIMEOUT.value
-    assert unchecked_error is not None
-    assert unchecked_error.code == ProxyErrorCode.UPSTREAM_TIMEOUT.value
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_apply_url_safety_gate__runs_at_most_the_configured_checks__at_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the gate never runs more checks at once than configured.
+    Why this matters: Each check sends HEAD requests; the limit keeps one crawl
+        from probing many sites at the same moment.
+    Setup summary: Limit 2; validation sleeps briefly and tracks how many run
+        at once; five URLs; assert the peak is 2 and all URLs stay in order.
+    """
+    monkeypatch.setattr(
+        gate_module,
+        "request_limits_settings",
+        gate_module.request_limits_settings.model_copy(
+            update={"max_concurrent_url_checks": 2}
+        ),
+    )
+    validate = UrlSafetyService.validate_urls_individually
+    running = 0
+    peak = 0
+
+    async def track_concurrency(
+        urls: list[str],
+        *,
+        redirect_http_client: httpx.AsyncClient | None = None,
+    ) -> list[UrlSafetyOutcome]:
+        nonlocal running, peak
+        running += 1
+        peak = max(peak, running)
+        await asyncio.sleep(0.05)
+        running -= 1
+        return await validate(urls, redirect_http_client=redirect_http_client)
+
+    monkeypatch.setattr(
+        gate_module.UrlSafetyService,
+        "validate_urls_individually",
+        track_concurrency,
+    )
+    urls = [f"https://site{index}.example/" for index in range(5)]
+
+    async with httpx.AsyncClient() as http_client:
+        gate = await apply_url_safety_gate(urls, redirect_http_client=http_client)
+
+    assert peak == 2
+    assert [target.display_url for target in gate.allowed_targets] == urls
+
+
+def _url_safety_check_count(outcome: str) -> float:
+    [family] = metrics_module.url_safety_check_duration_seconds.collect()
+    return next(
+        (
+            sample.value
+            for sample in family.samples
+            if sample.name.endswith("_count") and sample.labels == {"outcome": outcome}
+        ),
+        0.0,
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("hanging_url_safety_check")
+async def test_apply_url_safety_gate__records_check_duration__by_outcome() -> None:
+    """
+    Purpose: Verify each URL check records its duration under its outcome.
+    Why this matters: The histogram shows how long checks take in production
+        and how many run into the deadline, which sizes the redirect timeout.
+    Setup summary: One public, one loopback and one hanging URL; deadline 0.2s
+        ahead; assert one more allowed, blocked and unfinished observation.
+    """
+    outcomes = ("allowed", "blocked", "unfinished")
+    before = {outcome: _url_safety_check_count(outcome) for outcome in outcomes}
+
+    async with httpx.AsyncClient() as http_client:
+        await apply_url_safety_gate(
+            [
+                "https://a.example/",
+                "http://127.0.0.1:8080",
+                f"https://{_HANGING_HOST}/",
+            ],
+            redirect_http_client=http_client,
+            deadline=asyncio.get_running_loop().time() + 0.2,
+        )
+
+    after = {outcome: _url_safety_check_count(outcome) for outcome in outcomes}
+    assert {outcome: after[outcome] - before[outcome] for outcome in outcomes} == {
+        "allowed": 1,
+        "blocked": 1,
+        "unfinished": 1,
+    }

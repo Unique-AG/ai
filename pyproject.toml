@@ -88,7 +88,7 @@ constraint-dependencies = [
     "multidict>=6.9.1",
     "openapi-python-client>=0.29.1",
     "pillow>=13.0.0",
-    "pyasn1>=0.6.4",
+    "pyasn1>=0.6.5",
     "pydantic-settings>=2.14.2",
     "pygments>=2.20.0",
     "pymdown-extensions>=11.0.1",
@@ -129,6 +129,8 @@ override-dependencies = [
 "certifi" = "2026-10-21T00:00:00Z"
 "filelock" = "2026-10-21T00:00:00Z"
 "pillow" = "2026-10-21T00:00:00Z"
+# TODO: drop after 2026-11-11, when the global cooldown reaches this CVE fix.
+"pyasn1" = "2026-10-28T00:00:00Z"
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }

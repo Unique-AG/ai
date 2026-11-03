@@ -101,6 +101,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | replicaCount | int | `1` | Use at least 2 in production. |
 | requestLimits.crawl.maxConcurrentCrawls | int | `4` |  |
 | requestLimits.crawl.maxConcurrentFetches | int | `10` |  |
+| requestLimits.crawl.maxConcurrentUrlChecks | int | `3` |  |
 | requestLimits.crawl.maxCrawlResponseKib | int | `10240` |  |
 | requestLimits.crawl.maxUrlLength | int | `2048` |  |
 | requestLimits.crawl.maxUrlsPerCrawl | int | `100` |  |
@@ -132,7 +133,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | urlSafety.network.metadataHosts[4] | string | `"metadata.google.internal"` |  |
 | urlSafety.network.serviceSuffix | string | `".svc"` |  |
 | urlSafety.redirects.maxRedirectHops | int | `10` |  |
-| urlSafety.redirects.redirectTimeoutSeconds | float | `10` |  |
+| urlSafety.redirects.redirectTimeoutSeconds | float | `5` |  |
 | urlSafety.redirects.resolveRedirects | bool | `true` |  |
 | vertexaiAgent.connection.credentialType | string | `"workload_identity"` |  |
 | vertexaiAgent.connection.serviceAccountScopes[0] | string | `"https://www.googleapis.com/auth/cloud-platform"` |  |

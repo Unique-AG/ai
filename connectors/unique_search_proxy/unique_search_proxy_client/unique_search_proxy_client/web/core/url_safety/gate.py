@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -16,7 +17,13 @@ from unique_search_proxy_client.web.core.provider_response import (
     crawl_deadline_missed,
     crawl_forbidden_target,
 )
-from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
+from unique_search_proxy_client.web.monitoring.metrics import (
+    record_crawl_blocked,
+    record_url_safety_check,
+)
+from unique_search_proxy_client.web.settings.request_limits import (
+    request_limits_settings,
+)
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -50,32 +57,30 @@ async def apply_url_safety_gate(
     deadline: float | None = None,
 ) -> UrlSafetyGateResult:
     """Partition crawl URLs into allowed, blocked and timed-out targets."""
+    check_slots = asyncio.Semaphore(request_limits_settings.max_concurrent_url_checks)
+    outcomes = await asyncio.gather(
+        *[
+            _validate_before_deadline(
+                url,
+                redirect_http_client=redirect_http_client,
+                check_slots=check_slots,
+                deadline=deadline,
+            )
+            for url in urls
+        ],
+    )
+
     allowed_targets: list[AllowedCrawlTarget] = []
     blocked_by_index: dict[int, CrawlUrlResult] = {}
     timed_out_by_index: dict[int, CrawlUrlResult] = {}
 
-    for index, url in enumerate(urls):
-        outcome = await _validate_before_deadline(
-            url,
-            redirect_http_client=redirect_http_client,
-            deadline=deadline,
-        )
+    for index, (url, outcome) in enumerate(zip(urls, outcomes, strict=True)):
         if outcome is None:
-            timed_out_by_index = {
-                unchecked_index: crawl_deadline_missed(
-                    unchecked_url.strip(),
-                    "URL safety check did not finish before the crawl deadline",
-                )
-                for unchecked_index, unchecked_url in enumerate(
-                    urls[index:],
-                    start=index,
-                )
-            }
-            _LOGGER.warning(
-                "URL safety checks missed the crawl deadline unchecked=%d",
-                len(timed_out_by_index),
+            timed_out_by_index[index] = crawl_deadline_missed(
+                url.strip(),
+                "URL safety check did not finish before the crawl deadline",
             )
-            break
+            continue
 
         if outcome.blocked is not None:
             record_crawl_blocked(outcome.blocked.category)
@@ -96,6 +101,12 @@ async def apply_url_safety_gate(
             ),
         )
 
+    if timed_out_by_index:
+        _LOGGER.warning(
+            "URL safety checks missed the crawl deadline unchecked=%d",
+            len(timed_out_by_index),
+        )
+
     return UrlSafetyGateResult(
         allowed_targets=allowed_targets,
         blocked_by_index=blocked_by_index,
@@ -107,18 +118,37 @@ async def _validate_before_deadline(
     url: str,
     *,
     redirect_http_client: AsyncClient,
+    check_slots: asyncio.Semaphore,
     deadline: float | None,
 ) -> UrlSafetyOutcome | None:
     """Return the URL's safety outcome, or ``None`` when the deadline passes first."""
     try:
-        async with asyncio.timeout_at(deadline):
-            [outcome] = await UrlSafetyService.validate_urls_individually(
-                [url],
+        async with asyncio.timeout_at(deadline), check_slots:
+            return await _validate_and_record(
+                url,
                 redirect_http_client=redirect_http_client,
             )
     except TimeoutError:
         return None
-    return outcome
+
+
+async def _validate_and_record(
+    url: str,
+    *,
+    redirect_http_client: AsyncClient,
+) -> UrlSafetyOutcome:
+    """Validate one URL and record how long the check took, by outcome."""
+    started = time.perf_counter()
+    outcome_label = "unfinished"
+    try:
+        [outcome] = await UrlSafetyService.validate_urls_individually(
+            [url],
+            redirect_http_client=redirect_http_client,
+        )
+        outcome_label = "allowed" if outcome.blocked is None else "blocked"
+        return outcome
+    finally:
+        record_url_safety_check(outcome_label, time.perf_counter() - started)
 
 
 def merge_crawl_results(
