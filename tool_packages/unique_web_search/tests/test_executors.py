@@ -1,14 +1,23 @@
 """Tests for WebSearchV1Executor, WebSearchV2Executor, and WebSearchV3Executor."""
 
+import logging
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
+import httpx
 import pytest
+from unique_search_proxy_core.errors import (
+    RateLimitedError,
+    UpstreamTimeoutError,
+    ValidationProxyError,
+)
+from unique_search_proxy_sdk.errors import UniqueSearchProxyClientError
 
 from unique_web_search.services.crawlers.url_safety import (
     CrawlTargetValidationError,
     UrlSafetyService,
 )
+from unique_web_search.services.executors import base_executor as base_executor_module
 from unique_web_search.services.executors.v1.config import RefineQueryMode
 from unique_web_search.services.executors.v1.executor import (
     RefinedQueries,
@@ -326,6 +335,50 @@ class TestWebSearchV1ExecutorRun:
         with pytest.raises(CrawlTargetValidationError):
             await executor.run()
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__processes_search_snippets__when_crawl_fails(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """
+        Purpose: Verify V1 continues with the search snippets when the crawl fails.
+        Why this matters: A crawl timeout used to fail the whole tool call, although the search results were usable.
+        Setup summary: Search returns two snippet-only results and the crawl raises ReadTimeout; assert content processing receives both results.
+        """
+        tool_parameters = WebSearchToolParameters(query="test query")
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(url="https://example.com/a", title="A", snippet="A"),
+                WebSearchResult(url="https://example.com/b", title="B", snippet="B"),
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=httpx.ReadTimeout("")
+        )
+        executor = WebSearchV1Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
+            refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
+            mode=RefineQueryMode.DEACTIVATED,
+        )
+
+        await executor.run()
+
+        processed_results = mock_executor_dependencies[
+            "content_processor"
+        ].run.call_args.args[1]
+        assert processed_results == [
+            WebSearchResult(url="https://example.com/a", title="A", snippet="A"),
+            WebSearchResult(url="https://example.com/b", title="B", snippet="B"),
+        ]
+
 
 class TestWebSearchExecutorSelectRelevantSources:
     """Tests for BaseWebSearchExecutor._select_relevant_sources()."""
@@ -619,6 +672,45 @@ class TestWebSearchV2ExecutorRun:
 
         assert isinstance(content_chunks, list)
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__logs_error_type_without_query__when_step_fails(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """
+        Purpose: Verify a failed step is logged by error type only.
+        Why this matters: Queries and URLs can contain client-identifying data and must stay out of logs.
+        Setup summary: The search raises an error whose message contains the query; assert the log names the error type and omits the query.
+        """
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            side_effect=RuntimeError(
+                "search failed for Python web scraping tutorial BeautifulSoup requests"
+            )
+        )
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            return_value=["content"]
+        )
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+
+        with caplog.at_level(logging.INFO):
+            await executor.run()
+
+        assert (
+            "Error executing step company_id=test-company error_type=RuntimeError"
+            in caplog.text
+        )
+        assert "BeautifulSoup" not in caplog.text
+
 
 class TestWebSearchV2ExecutorExecuteStep:
     """Tests for WebSearchV2Executor._execute_step() method."""
@@ -824,6 +916,195 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
 
         with pytest.raises(CrawlTargetValidationError):
             await executor._execute_search_step(step)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "crawl_error",
+        [
+            httpx.ReadTimeout(""),
+            httpx.ConnectError(""),
+            UpstreamTimeoutError("Crawler 'Basic' timed out after 10s"),
+            RateLimitedError("Crawl capacity is in use"),
+        ],
+        ids=["read_timeout", "connect_error", "proxy_timeout", "rate_limited"],
+    )
+    async def test_execute_search_step__keeps_snippets__when_crawl_fails_transiently(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+        crawl_error: Exception,
+    ) -> None:
+        """
+        Purpose: Verify a transient crawl failure keeps the step's search results with their snippets.
+        Why this matters: A crawl timeout used to drop every result of the step, so the answer lost those sources.
+        Setup summary: Search returns two snippet-only results and the crawl raises a transient error; assert both results are returned unchanged.
+        """
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(url="https://example.com/a", title="A", snippet="A"),
+                WebSearchResult(url="https://example.com/b", title="B", snippet="B"),
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=crawl_error
+        )
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+        step = Step(
+            step_type=StepType.SEARCH,
+            objective="Test search",
+            query_or_url="test query",
+        )
+
+        result = await executor._execute_search_step(step)
+
+        assert result == [
+            WebSearchResult(url="https://example.com/a", title="A", snippet="A"),
+            WebSearchResult(url="https://example.com/b", title="B", snippet="B"),
+        ]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_execute_search_step__logs_error_type_without_urls__when_crawl_fails(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """
+        Purpose: Verify a failed crawl is logged by error type without the crawled URLs.
+        Why this matters: Exception messages can contain URLs, which can contain client-identifying data.
+        Setup summary: The crawl raises a connection error whose message contains a URL; assert the log names the error type and omits the URL.
+        """
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(url="https://example.com/a", title="A", snippet="A"),
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=httpx.ConnectError("connection to https://example.com/a failed")
+        )
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+        step = Step(
+            step_type=StepType.SEARCH,
+            objective="Test search",
+            query_or_url="test query",
+        )
+
+        with caplog.at_level(logging.INFO):
+            await executor._execute_search_step(step)
+
+        assert "error_type=ConnectError" in caplog.text
+        assert "example.com" not in caplog.text
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "crawl_error",
+        [
+            UniqueSearchProxyClientError("Request failed with status 500: boom"),
+            ValidationProxyError(
+                "Crawl request lists 101 URLs; at most 100 are allowed"
+            ),
+        ],
+        ids=["unexpected_response", "validation_error"],
+    )
+    async def test_execute_search_step__raises__when_crawl_fails_non_transiently(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+        crawl_error: Exception,
+    ) -> None:
+        """
+        Purpose: Verify crawl errors that will not pass on their own still fail the step.
+        Why this matters: Falling back to snippets would hide config and contract bugs behind a warning.
+        Setup summary: The crawl raises a non-transient proxy error; assert the same error propagates.
+        """
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(url="https://example.com/a", title="A", snippet="A"),
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=crawl_error
+        )
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+        step = Step(
+            step_type=StepType.SEARCH,
+            objective="Test search",
+            query_or_url="test query",
+        )
+
+        with pytest.raises(type(crawl_error)):
+            await executor._execute_search_step(step)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_execute_search_step__records_crawl_error__when_crawl_fails(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify a crawl failure is still counted after the step recovers from it.
+        Why this matters: The crawl error metric is how failed crawls are monitored; recovering must not hide them.
+        Setup summary: Replace the crawl error counter with a mock and make the crawl raise ReadTimeout; assert the counter is labelled with the crawler and error type.
+        """
+        mock_crawl_errors = MagicMock()
+        monkeypatch.setattr(base_executor_module, "crawl_errors", mock_crawl_errors)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(url="https://example.com/a", title="A", snippet="A"),
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=httpx.ReadTimeout("")
+        )
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+        step = Step(
+            step_type=StepType.SEARCH,
+            objective="Test search",
+            query_or_url="test query",
+        )
+
+        await executor._execute_search_step(step)
+
+        mock_crawl_errors.labels.assert_called_once_with(
+            crawler="Basic", error_type="ReadTimeout"
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio

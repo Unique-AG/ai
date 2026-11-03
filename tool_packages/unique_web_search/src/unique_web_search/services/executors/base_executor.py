@@ -3,7 +3,9 @@ from abc import ABC, abstractmethod
 from time import time
 from typing import Generic, TypeVar
 
+import httpx
 from pydantic import BaseModel
+from unique_search_proxy_core.errors import RateLimitedError, UpstreamTimeoutError
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
@@ -13,7 +15,12 @@ from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.invocation_stats import collector
-from unique_web_search.metrics import llm_duration, llm_errors
+from unique_web_search.metrics import (
+    crawl_duration,
+    crawl_errors,
+    llm_duration,
+    llm_errors,
+)
 from unique_web_search.schema import (
     StepDebugInfo,
     WebPageChunk,
@@ -28,6 +35,15 @@ from unique_web_search.services.search_engine.schema import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Only failures that may pass on their own fall back to snippets. Config and
+# contract errors must keep failing visibly.
+_TRANSIENT_CRAWL_ERRORS = (
+    httpx.TimeoutException,
+    httpx.NetworkError,
+    UpstreamTimeoutError,
+    RateLimitedError,
+)
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -112,6 +128,32 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
     @abstractmethod
     async def run(self) -> list[ContentChunk]:
         raise NotImplementedError("Subclasses must implement this method.")
+
+    async def _crawl_search_result_pages(
+        self, web_search_results: list[WebSearchResult]
+    ) -> list[str]:
+        """Crawl the pages behind search results, one content string per result.
+
+        If the crawl times out, cannot reach the proxy or is rate limited, each
+        result keeps its current content so its title and snippet still reach
+        the model. Other errors propagate.
+        """
+        crawler = self.crawler_service.config.crawler.value
+        try:
+            with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
+                return await self.crawler_service.crawl(
+                    [result.url for result in web_search_results]
+                )
+        except _TRANSIENT_CRAWL_ERRORS as exc:
+            # Exception messages can carry URLs.
+            _LOGGER.warning(
+                "Company %s crawl failed, keeping search snippets crawler=%s pages=%d error_type=%s",
+                self.company_id,
+                crawler,
+                len(web_search_results),
+                type(exc).__name__,
+            )
+            return [result.content for result in web_search_results]
 
     async def _content_processing(
         self, objective: str, web_search_results: list[WebSearchResult]
