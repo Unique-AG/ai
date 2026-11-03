@@ -10,6 +10,24 @@ Terraform lives in the **infrastructure** repo. Look for existing `azurerm_cogni
 
 **Tip:** search the infrastructure repo for an existing model deployment (e.g. `gpt-5.4`) to find the exact Terraform module and variable pattern to replicate.
 
+## Azure quota (`sku_capacity`)
+
+`sku_capacity` is the deployment's share of a live Azure quota bucket. The bucket is **subscription + region + SKU** (`GlobalStandard` or `DataZoneStandard`). Two rows in the same subscription and the same region draw from one limit, even when they live in different tenant files. unique dev and unique qa/lz are that case: both Sweden Central, subscription `fb8bce09`.
+
+Set each row to `min(requested capacity, remaining quota)`. If several new deployments share a bucket, their capacities must **sum** to no more than the limit. Split the way the sibling model already does when the bucket is shared (GPT-6.1 Sol is 7500/7500 on dev and qa against a 15000 Global Standard limit).
+
+1. Region is the `oai_deployments_<region>` key the row sits under.
+2. Subscription id is that workspace's Terraform `subscription_id` (Atlantis workspace / tfvars).
+3. Read the live limit before writing the number. `currentValue` is what is already deployed; remaining is `limit - currentValue`. A new model is often `currentValue = 0`, so the row can use the full limit.
+
+```bash
+az cognitiveservices usage list --location <region> \
+  --subscription <subscription-id> \
+  --query "[?contains(name.value,'<model-name>')].{quota:name.value,used:currentValue,limit:limit}"
+```
+
+GPT-6.1 Terra (checked 2026-11-03) asked for 15000 Global Standard and 5000 Data Zone Standard. Live limits forced these clamps: us01 Global Standard 10000; skyline, sparkles, teapot, ch01, and tree/evx Data Zone Standard 3333; dev and qa 7500 each because they share one 15000 bucket. Rows already inside the limit stayed at the request. If a subscription is not available from the repo, say so in the PR and do not invent its capacity.
+
 ## Node-chat registration — code examples
 
 Three files in `next/services/node-chat/src/openai/`:

@@ -18,7 +18,7 @@ This skill guides the full lifecycle of deploying a new LLM model across the Uni
 - **monorepo** — LiteLLM proxy config (GitOps), node-chat backend (Azure track), Terraform
 - **ai repo** — toolkit language model registry (`LanguageModelInfo`)
 
-**Cardinal rule:** never guess token limits, capabilities, pricing, or provider strings. Always cite the source (model card URL, LiteLLM registry, Jira ticket, or PR). If no authoritative source exists, ask the user.
+**Cardinal rule:** never guess token limits, capabilities, pricing, provider strings, or Azure `sku_capacity`. Always cite the source (model card URL, LiteLLM registry, live Azure quota, Jira ticket, or PR). If no authoritative source exists, ask the user.
 
 ## When to use this skill
 
@@ -106,7 +106,9 @@ Edit `monorepo/gitops-resources/argocd/clusters/<cluster>/<env>/value-overlays/l
 
 Check [Azure AI Foundry](https://ai.azure.com/) first — the Deployments page lists all active model deployments with name, version, capacity, rate limits, and retirement dates.
 
-Confirm: Azure OpenAI account, model name + version, deployment names, capacity, API version.
+Confirm: Azure OpenAI account, model name + version, deployment names, API version.
+
+**Capacity is per subscription, region, and SKU.** Do not copy one `sku_capacity` onto every tenant. A platform request (for example Global Standard 15000 and Data Zone Standard 5000) is only the ceiling you ask for. The value written in `oai-models.yaml` is the minimum of that request and the live quota for that tenant. See [AZURE-NODE-CHAT.md](references/AZURE-NODE-CHAT.md#azure-quota-sku_capacity).
 
 ### B2) Terraform changes
 
