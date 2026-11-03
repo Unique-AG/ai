@@ -21,6 +21,12 @@ default_options={}
 
 The guard only checked if the key was present, not whether the value was non-null. The fix (v1.57.0) added `resolve_temp_and_reasoning()` which explicitly substitutes `None` with the model's declared default.
 
+## Azure `sku_capacity` is a live quota, not a platform-wide constant
+
+A requested quota (Global Standard 15000, Data Zone Standard 5000) is the ceiling. Each tenant's `sku_capacity` must fit the live Azure limit for that **subscription, region, and SKU**. Deployments that share a subscription and region share one bucket: unique dev and unique qa/lz both use Sweden Central in subscription `fb8bce09`, so two rows of 15000 ask for 30000 against a 15000 limit and Atlantis apply fails.
+
+Read the limit with `az cognitiveservices usage list` before writing the number. Clamp to the limit, and split a shared bucket the way the sibling model already does. The procedure is in [AZURE-NODE-CHAT.md](AZURE-NODE-CHAT.md#azure-quota-sku_capacity).
+
 ## Dual code paths: node-chat vs assistants-core
 
 Azure models are called through **two independent paths**:
