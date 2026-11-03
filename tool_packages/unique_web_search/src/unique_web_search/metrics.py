@@ -31,6 +31,13 @@ grounding_dropped_lines = m.counter(
     ["engine", "reason"],
 )
 
+query_length = m.histogram(
+    "query_length_characters",
+    "Length of AI-proposed search queries, before Query Review shortens them",
+    ["engine", "query_review"],
+    buckets=[50, 100, 150, 200, 300, 400, 500, 750, 1000, 2000],
+)
+
 # End-to-End Tool (P1)
 tool_duration = m.histogram(
     "tool_duration_seconds",

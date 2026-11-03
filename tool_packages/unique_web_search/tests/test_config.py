@@ -102,6 +102,81 @@ class TestQueryElicitationConfig:
         # Assert
         assert config.timeout_seconds == 60
 
+    @pytest.mark.ai
+    def test_query_elicitation_config__has_no_max_query_length__on_creation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify QueryElicitationConfig leaves the query length limit off by default.
+        Why this matters: A default limit would cut the long queries agent-mode engines use.
+        Setup summary: Create config with defaults, verify max_query_length is None.
+        """
+        # Arrange
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        # Act
+        config = QueryElicitationConfig()
+
+        # Assert
+        assert config.max_query_length is None
+
+    @pytest.mark.ai
+    def test_query_elicitation_config__rejects_zero_max_query_length__on_validation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify an enabled query length limit must be at least one character.
+        Why this matters: A zero limit would cut every query to an empty string.
+        Setup summary: Create config with max_query_length=0, verify validation fails.
+        """
+        from pydantic import ValidationError
+
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        with pytest.raises(ValidationError):
+            QueryElicitationConfig(max_query_length=0)
+
+    @pytest.mark.ai
+    def test_query_length_instruction__states_limit__when_review_on_and_limit_set(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify the query length instruction names the configured limit.
+        Why this matters: The model should propose queries that fit the review form uncut.
+        Setup summary: Enable query review with a 150-character limit, read the instruction.
+        """
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        config = QueryElicitationConfig(enable_elicitation=True, max_query_length=150)
+
+        instruction = config.query_length_instruction()
+
+        assert instruction is not None
+        assert "under 150 characters" in instruction
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("enable_elicitation", "max_query_length"),
+        [(False, 150), (True, None), (False, None)],
+    )
+    def test_query_length_instruction__returns_none__when_review_off_or_no_limit(
+        self,
+        enable_elicitation: bool,
+        max_query_length: int | None,
+    ) -> None:
+        """
+        Purpose: Verify there is no query length instruction unless review is on and a limit is set.
+        Why this matters: Queries are only shortened during review, so the prompt must not ask for short queries otherwise.
+        Setup summary: Build configs with review off or no limit, verify the instruction is None.
+        """
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        config = QueryElicitationConfig(
+            enable_elicitation=enable_elicitation, max_query_length=max_query_length
+        )
+
+        assert config.query_length_instruction() is None
+
 
 class TestAnswerGenerationConfig:
     """Test cases for AnswerGenerationConfig."""
