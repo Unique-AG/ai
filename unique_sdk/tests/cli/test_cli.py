@@ -1142,6 +1142,144 @@ class TestClickCLI:
         result = runner.invoke(main, ["cite", "report.pdf", "--pages", "3"])
         assert result.exit_code != 0
 
+    @staticmethod
+    def _write_chat_files(files: dict[str, str]) -> Path:
+        unique_dir = Path(".unique")
+        unique_dir.mkdir(parents=True, exist_ok=True)
+        (unique_dir / "chat-files.json").write_text(json.dumps(files), encoding="utf-8")
+        return unique_dir
+
+    @staticmethod
+    def _read_ref_rows(unique_dir: Path) -> list[dict[str, object]]:
+        refs_path = unique_dir / "file-refs.jsonl"
+        if not refs_path.exists():
+            return []
+        return [json.loads(line) for line in refs_path.read_text().splitlines()]
+
+    def test_cite_requires_at_least_one_file(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(main, ["cite", "--read-method", "text"])
+        assert result.exit_code != 0
+
+    def test_cite_single_file_output_and_row_unchanged(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            unique_dir = self._write_chat_files({"a.xlsx": "cont_a"})
+            result = runner.invoke(main, ["cite", "a.xlsx", "--read-method", "text"])
+            assert result.exit_code == 0
+            assert result.output == "[filesource1] -> a.xlsx page 0\n"
+            assert self._read_ref_rows(unique_dir) == [
+                {
+                    "sourceNumber": 1,
+                    "contentId": "cont_a",
+                    "filename": "a.xlsx",
+                    "page": 0,
+                    "readMethod": "text",
+                }
+            ]
+
+    def test_cite_several_files_numbers_sources_in_argument_order(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            unique_dir = self._write_chat_files(
+                {"a.xlsx": "cont_a", "b.xlsx": "cont_b", "c.csv": "cont_c"}
+            )
+            result = runner.invoke(
+                main,
+                ["cite", "c.csv", "a.xlsx", "b.xlsx", "--read-method", "text"],
+            )
+            assert result.exit_code == 0
+            assert result.output.splitlines() == [
+                "[filesource1] -> c.csv page 0",
+                "[filesource2] -> a.xlsx page 0",
+                "[filesource3] -> b.xlsx page 0",
+            ]
+            assert [
+                (row["sourceNumber"], row["contentId"], row["readMethod"])
+                for row in self._read_ref_rows(unique_dir)
+            ] == [(1, "cont_c", "text"), (2, "cont_a", "text"), (3, "cont_b", "text")]
+
+    def test_cite_several_files_same_rows_as_separate_calls(self) -> None:
+        files = {"a.xlsx": "cont_a", "b.xlsx": "cont_b", "c.csv": "cont_c"}
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            batched_dir = self._write_chat_files(files)
+            runner.invoke(
+                main,
+                ["cite", "a.xlsx", "b.xlsx", "c.csv", "--read-method", "text"],
+            )
+            batched_rows = self._read_ref_rows(batched_dir)
+        with runner.isolated_filesystem():
+            separate_dir = self._write_chat_files(files)
+            for name in ("a.xlsx", "b.xlsx", "c.csv"):
+                runner.invoke(main, ["cite", name, "--read-method", "text"])
+            separate_rows = self._read_ref_rows(separate_dir)
+        assert batched_rows == separate_rows
+
+    def test_cite_several_files_one_missing_still_cites_the_others(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            unique_dir = self._write_chat_files({"a.xlsx": "cont_a", "c.csv": "cont_c"})
+            result = runner.invoke(
+                main,
+                [
+                    "cite",
+                    "a.xlsx",
+                    "missing-file.xlsx",
+                    "c.csv",
+                    "--read-method",
+                    "text",
+                ],
+            )
+            assert result.exit_code == 1
+            assert "[filesource1] -> a.xlsx page 0" in result.output
+            assert "[filesource2] -> c.csv page 0" in result.output
+            assert "cite:" in result.output
+            assert [row["contentId"] for row in self._read_ref_rows(unique_dir)] == [
+                "cont_a",
+                "cont_c",
+            ]
+
+    def test_cite_several_files_error_goes_to_stderr_success_to_stdout(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            self._write_chat_files({"a.xlsx": "cont_a"})
+            result = runner.invoke(
+                main,
+                ["cite", "a.xlsx", "missing-file.xlsx", "--read-method", "text"],
+            )
+            assert result.exit_code == 1
+            assert result.stdout == "[filesource1] -> a.xlsx page 0\n"
+            assert result.stderr.startswith("cite:")
+
+    def test_cite_pages_on_non_paginated_file_fails_for_each_file(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            unique_dir = self._write_chat_files(
+                {"a.xlsx": "cont_a", "b.xlsx": "cont_b"}
+            )
+            result = runner.invoke(
+                main,
+                ["cite", "a.xlsx", "b.xlsx", "--pages", "2", "--read-method", "text"],
+            )
+            assert result.exit_code == 1
+            assert result.output.count("non-paginated") == 2
+            assert self._read_ref_rows(unique_dir) == []
+
+    def test_cite_same_file_twice_reuses_the_source_number(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            unique_dir = self._write_chat_files({"a.xlsx": "cont_a"})
+            result = runner.invoke(
+                main, ["cite", "a.xlsx", "a.xlsx", "--read-method", "text"]
+            )
+            assert result.exit_code == 0
+            assert result.output.splitlines() == [
+                "[filesource1] -> a.xlsx page 0",
+                "[filesource1] -> a.xlsx page 0 (already declared)",
+            ]
+            assert len(self._read_ref_rows(unique_dir)) == 1
+
 
 class TestDenialDetectors:
     """Unit tests for the dispatcher's denial/error detectors (UN-21780)."""

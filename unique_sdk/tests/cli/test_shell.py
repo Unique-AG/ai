@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from io import StringIO
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.shell import UniqueShell
@@ -635,3 +639,47 @@ class TestShellCite:
             out = _capture(_shell(), "cite report.pdf --pages 3 --read-method text")
         assert "[filesource1]" in out
         mock_cite.assert_called_once()
+
+    def test_cite_several_files_cites_each_name(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        unique_dir = tmp_path / ".unique"
+        unique_dir.mkdir()
+        (unique_dir / "chat-files.json").write_text(
+            json.dumps({"a.xlsx": "cont_a", "b.xlsx": "cont_b", "c.csv": "cont_c"}),
+            encoding="utf-8",
+        )
+        out = _capture(_shell(), "cite a.xlsx b.xlsx c.csv --read-method text")
+        assert out.splitlines() == [
+            "[filesource1] -> a.xlsx page 0",
+            "[filesource2] -> b.xlsx page 0",
+            "[filesource3] -> c.csv page 0",
+        ]
+        rows = [
+            json.loads(line)
+            for line in (unique_dir / "file-refs.jsonl").read_text().splitlines()
+        ]
+        assert [
+            (row["sourceNumber"], row["contentId"], row["page"], row["readMethod"])
+            for row in rows
+        ] == [
+            (1, "cont_a", 0, "text"),
+            (2, "cont_b", 0, "text"),
+            (3, "cont_c", 0, "text"),
+        ]
+
+    def test_cite_several_files_one_missing_still_cites_the_others(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        unique_dir = tmp_path / ".unique"
+        unique_dir.mkdir()
+        (unique_dir / "chat-files.json").write_text(
+            json.dumps({"a.xlsx": "cont_a", "c.csv": "cont_c"}), encoding="utf-8"
+        )
+        out = _capture(_shell(), "cite a.xlsx nope.xlsx c.csv --read-method text")
+        lines = out.splitlines()
+        assert lines[0] == "[filesource1] -> a.xlsx page 0"
+        assert lines[1].startswith("cite:")
+        assert lines[2] == "[filesource2] -> c.csv page 0"
