@@ -99,6 +99,7 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
             LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
             LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
             LanguageModelName.LITELLM_OPENAI_GPT_5,
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
@@ -119,6 +120,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
@@ -377,6 +379,43 @@ class TestLanguageModelInfos:
         assert model.token_limits.token_limit_output == 128_000
         assert model.default_options["reasoning_effort"] == "medium"
         assert model.supported_reasoning_efforts == [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+
+    @pytest.mark.ai
+    def test_gpt_61_terra_matches_published_limits(self):
+        """
+        Purpose: GPT-6.1 Terra registry facts match the published card.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff
+        and sizes requests from token_limits.
+        Setup summary: Load the LiteLLM and Azure GPT-6.1 Terra LanguageModelInfo.
+        Sources:
+        https://developers.openai.com/api/docs/models/gpt-6.1-terra
+        https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
+        """
+        model = LanguageModelInfo.from_name(
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA
+        )
+        azure = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026
+        )
+        assert model.info_cutoff_at == date(2026, 6, 1)
+        assert azure.info_cutoff_at == date(2026, 6, 1)
+        assert model.published_at == date(2026, 10, 26)
+        assert azure.published_at == date(2026, 10, 26)
+        assert model.version == "2026-10-26"
+        assert azure.version == "2026-10-26"
+        assert azure.provider == LanguageModelProvider.AZURE
+        assert model.provider == LanguageModelProvider.LITELLM
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "none",
             "low",
             "medium",
             "high",
