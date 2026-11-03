@@ -37,7 +37,6 @@ def _save_plot_to_content_service(
         scope_id=scope_id,
         skip_ingestion=True,
         mime_type=f"image/{image_format}",
-        metadata={"assistantGenerated": True},
     )
 
     return content.id
