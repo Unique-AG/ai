@@ -1,4 +1,4 @@
-"""Configurable prompt templates render through the shared Jinja sandbox."""
+"""Configurable prompt templates are validated at config load and rendered in a sandbox."""
 
 from __future__ import annotations
 
@@ -8,11 +8,15 @@ from unittest.mock import MagicMock
 
 import pytest
 from jinja2.exceptions import SecurityError
+from pydantic import ValidationError
+
+from unique_orchestrator.config import UniqueAIConfig, UniqueAIPromptConfig
 
 if TYPE_CHECKING:
     from unique_orchestrator.unique_ai import UniqueAI
 
 SSTI_PAYLOAD = "{{ namespace.__init__.__globals__.os.popen('id').read() }}"
+MALFORMED_TEMPLATE = "{{ unclosed"
 
 
 @pytest.fixture
@@ -65,6 +69,43 @@ def unique_ai(monkeypatch: pytest.MonkeyPatch) -> "UniqueAI":
         mcp_servers=[],
         loop_iteration_runner=MagicMock(),
     )
+
+
+@pytest.mark.ai
+class TestPromptConfigValidation:
+    def test_default_prompt_config_is_valid(self) -> None:
+        config = UniqueAIPromptConfig()
+        assert config.system_prompt_template
+        assert config.user_message_prompt_template
+
+    @pytest.mark.parametrize(
+        "field_name",
+        ["system_prompt_template", "user_message_prompt_template"],
+    )
+    @pytest.mark.parametrize(
+        "invalid_template",
+        [SSTI_PAYLOAD, "{{ self._TemplateReference__context }}", MALFORMED_TEMPLATE],
+    )
+    def test_prompt_config_rejects_invalid_or_unsafe_templates(
+        self, field_name: str, invalid_template: str
+    ) -> None:
+        secret_marker = "CID_SECRET_PROMPT_CONTENT"
+        raw_template = f"{secret_marker} {invalid_template}"
+        with pytest.raises(
+            ValidationError, match="Invalid prompt template"
+        ) as exc_info:
+            UniqueAIPromptConfig(**{field_name: raw_template})
+
+        error_text = str(exc_info.value)
+        assert secret_marker not in error_text
+        assert f"<redacted prompt {len(raw_template)} chars>" in error_text
+
+        with pytest.raises(
+            ValidationError, match="Invalid prompt template"
+        ) as outer_exc_info:
+            UniqueAIConfig(agent={"promptConfig": {field_name: raw_template}})
+
+        assert secret_marker not in str(outer_exc_info.value)
 
 
 @pytest.mark.ai

@@ -21,6 +21,11 @@ from unique_internal_search.uploaded_search.config import (
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit._common.utils.jinja.sandbox import (
+    TemplateError,
+    validate_sandboxed_template,
+)
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -68,6 +73,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
+from unique_toolkit.log_redaction import redact_text
 from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
@@ -284,6 +290,8 @@ class EvaluationConfig(BaseToolConfig):
 
 
 class UniqueAIPromptConfig(BaseToolConfig):
+    model_config = get_configuration_dict(hide_input_in_errors=True)
+
     system_prompt_template: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(rows=25),
@@ -309,6 +317,17 @@ class UniqueAIPromptConfig(BaseToolConfig):
         title="User Metadata",
         description="User metadata fields to be ingested in the system prompt.",
     )
+
+    @field_validator("system_prompt_template", "user_message_prompt_template")
+    @classmethod
+    def validate_prompt_template(cls, value: str) -> str:
+        try:
+            return validate_sandboxed_template(value)
+        except TemplateError as exc:
+            redacted = redact_text(value, label="prompt")
+            raise ValueError(
+                f"Invalid prompt template {redacted} ({type(exc).__name__})."
+            ) from None
 
 
 class UniqueAIServices(BaseToolConfig):
@@ -545,6 +564,8 @@ GPT_FRONTIER_MODELS: frozenset[LanguageModelName] = frozenset(
 
 
 class UniqueAIConfig(BaseToolConfig):
+    model_config = get_configuration_dict(hide_input_in_errors=True)
+
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
     agent: UniqueAIAgentConfig = UniqueAIAgentConfig()
