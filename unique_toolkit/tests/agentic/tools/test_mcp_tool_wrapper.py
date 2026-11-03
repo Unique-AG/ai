@@ -768,6 +768,9 @@ class TestMCPToolWrapperRun:
             assert "Here is the chart" in response.content
             assert "unique://content/content_abc123" in response.content
             assert "Include the image(s)" in response.content
+            assert mock_upload.call_args.kwargs["metadata"] == {
+                "assistantGenerated": True
+            }
 
     @pytest.mark.ai
     @pytest.mark.asyncio
