@@ -67,7 +67,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
       download <name|path|id> [dest] Download a file to local machine
       rm <name|path|id>         Delete a file
       mv <old|path|id> <new>    Rename a file
-      cite <name|path|id> [--pages] --read-method METHOD  Declare page citations
+      cite <name|path|id> [...] [--pages] --read-method METHOD  Declare page citations (one or more files)
 
     Search:
       search <query> [options]  Combined search (vector + full-text)
@@ -498,27 +498,28 @@ class UniqueShell(cmd.Cmd):
         self._print(cmd_download(self.state, name_or_id, local_dest))
 
     def do_cite(self, arg: str) -> None:
-        """Declare page citations for a file.
+        """Declare page citations for one or more files.
 
-        Usage: cite <name|path|content_id> [--pages RANGE] --read-method METHOD
+        Usage: cite <name|path|content_id> [...] [--pages RANGE] --read-method METHOD
 
         --read-method is mandatory (one of: text, vision, indexed). --pages is
-        optional; omit it to cite the whole file.
+        optional; omit it to cite the whole file. With several files, --pages
+        and --read-method apply to each; a file that fails does not stop the
+        others.
 
         Examples:
           /Reports> cite report.pdf --pages 3,5,7 --read-method text
           /Reports> cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
           /Reports> cite cont_abc123 --pages 1-4 --read-method indexed
           /Reports> cite notes.docx --read-method text
+          /Reports> cite a.xlsx b.xlsx c.csv --read-method text
         """
         from unique_sdk.cli.commands.cite_file import (
             READ_METHODS,
             cmd_cite_file,
         )
 
-        usage = (
-            "Usage: cite <name|path|content_id> [--pages RANGE] --read-method METHOD"
-        )
+        usage = "Usage: cite <name|path|content_id> [...] [--pages RANGE] --read-method METHOD"
         parts = shlex.split(arg)
         if not parts:
             self._print(usage)
@@ -555,7 +556,8 @@ class UniqueShell(cmd.Cmd):
                 f"cite: --read-method is required (one of: {', '.join(READ_METHODS)})"
             )
             return
-        self._print(cmd_cite_file(self.state, positional[0], pages, read_method))
+        for name_or_id in positional:
+            self._print(cmd_cite_file(self.state, name_or_id, pages, read_method))
 
     def _parse_int(self, raw: str, flag: str) -> tuple[int | None, bool]:
         """Parse an int option value, returning (value, ok). Prints on failure."""
