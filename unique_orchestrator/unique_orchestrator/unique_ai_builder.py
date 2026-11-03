@@ -14,6 +14,7 @@ from unique_stock_ticker.stock_ticker_postprocessor import (
     StockTickerPostprocessor,
 )
 from unique_toolkit import LanguageModelService, get_async_openai_client
+from unique_toolkit.agentic.chat_title import ChatTitleGenerator
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -161,13 +162,19 @@ async def build_unique_ai(
     logger: Logger,
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
+    enable_chat_title_generation: bool = False,
 ) -> UniqueAI:
     config = _apply_model_choice_override(event=event, logger=logger, config=config)
     _record_language_model_debug_info(
         debug_info_manager=debug_info_manager,
         config=config,
     )
-    common_components = await _build_common(event, logger, config)
+    common_components = await _build_common(
+        event,
+        logger,
+        config,
+        enable_chat_title_generation=enable_chat_title_generation,
+    )
 
     if (
         config.agent.experimental.responses_api_config.use_responses_api
@@ -209,6 +216,7 @@ class _CommonComponents(NamedTuple):
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
     user_memory_text: str
+    chat_title_generator: ChatTitleGenerator | None
 
 
 def _apply_model_choice_override(
@@ -309,6 +317,8 @@ async def _build_common(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
+    *,
+    enable_chat_title_generation: bool = False,
 ) -> _CommonComponents:
     chat_service = ChatService(event)
     message_step_logger = MessageStepLogger(chat_service)
@@ -456,6 +466,17 @@ async def _build_common(
                 with_settings_entry=False
             )
 
+    chat_title_generator = (
+        ChatTitleGenerator(
+            logger=logger,
+            chat_service=chat_service,
+            llm_service=llm_service,
+            language_model=config.space.language_model,
+        )
+        if enable_chat_title_generation
+        else None
+    )
+
     return _CommonComponents(
         chat_service=chat_service,
         content_service=content_service,
@@ -474,6 +495,7 @@ async def _build_common(
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
         message_step_logger=message_step_logger,
+        chat_title_generator=chat_title_generator,
     )
 
 
@@ -712,6 +734,7 @@ async def _build_responses(
             if selected_uploaded_content_ids is not None
             else None
         ),
+        chat_title_generator=common_components.chat_title_generator,
     )
 
 
@@ -809,6 +832,7 @@ async def _build_completions(
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
         user_memory_text=common_components.user_memory_text,
+        chat_title_generator=common_components.chat_title_generator,
     )
 
 
