@@ -1,0 +1,74 @@
+# Dex — consumer Identity Provider
+#
+# Dex acts as Alice's and Bob's home IdP.  Its tokens are presented to the
+# *consumer* MCP server, and later used as subject_token when exchanging at
+# the producer's IdP (Keycloak).
+#
+# Issuer must match what Keycloak discovers when it probes Dex's OIDC
+# discovery document, AND what the consumer JWTVerifier expects.  Because all
+# containers share the `pipeline` Docker network, we use the service name.
+issuer: http://dex:5556
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  skipApprovalScreen: true
+  responseTypes:
+    - code
+  # Enable the Resource Owner Password Credentials grant so demo/run_demo.py can
+  # obtain tokens without a browser.  Fine for demos; disable in production.
+  passwordConnector: local
+
+# Dex looks up users against this internal list.
+# Regenerate hashes: htpasswd -nbBC 10 _ <password>  (drop the "_:" prefix)
+enablePasswordDB: true
+
+staticPasswords:
+  - email: alice@consumer.local
+    # password: alice123
+    hash: "$2y$10$Z9aQu0Tpq12t5HM.phR0GO70CCJKoIsnv.0sWpFfCTmvtbHEJGL7m"
+    username: alice
+    # userID becomes part of the opaque `sub` claim in Dex tokens.
+    # Keycloak federates users by their external sub, so keep it stable.
+    userID: alice
+
+  - email: bob@consumer.local
+    # password: bob123
+    hash: "$2y$10$QPJUA7DjPQiE8YB3jEmMZuwRO8kCcMUeWCLJ9bogTTX1Ian8rhJ4S"
+    username: bob
+    userID: bob
+
+staticClients:
+  # ------------------------------------------------------------------ #
+  #  alice-desktop-app — public client used by the demo script          #
+  # ------------------------------------------------------------------ #
+  - id: alice-desktop-app
+    name: Alice Desktop App
+    # public: true → no client_secret required (PKCE / password grant).
+    public: true
+    redirectURIs:
+      - http://localhost:5555/callback   # unused in password-grant flow
+
+  # ------------------------------------------------------------------ #
+  #  resource-consumer-service — the consumer MCP server's OAuth client #
+  # ------------------------------------------------------------------ #
+  - id: resource-consumer-service
+    name: Resource Consumer Service
+    secret: consumer-service-secret
+    redirectURIs:
+      - http://consumer:8002/oauth/callback   # unused in machine-to-machine flow
+
+  # ------------------------------------------------------------------ #
+  #  keycloak-federation — Keycloak uses this to introspect/exchange    #
+  # ------------------------------------------------------------------ #
+  - id: keycloak-federation
+    name: Keycloak Federation Client
+    secret: keycloak-federation-secret
+    redirectURIs:
+      # Keycloak brokers Dex logins back through this endpoint.
+      - http://keycloak:8080/realms/producer/broker/dex/endpoint
+      - http://localhost:8080/realms/producer/broker/dex/endpoint
