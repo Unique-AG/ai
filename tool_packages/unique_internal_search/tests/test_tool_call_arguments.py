@@ -143,29 +143,6 @@ async def test_run__ignores_model_metadata_filter__searches_with_space_filter(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_run__ignores_model_chat_only__keeps_knowledge_base_search(
-    sdk_search: AsyncMock,
-) -> None:
-    """
-    Purpose: A chat_only argument written by the model must not switch the tool to chat-only mode.
-    Why this matters: chat_only is not part of the tool schema; chat-only mode drops the space filter.
-    Setup summary: Tool call with chat_only=True; assert the search runs on the knowledge base with the space filter.
-    """
-    # Arrange
-    tool = InternalSearchTool(
-        configuration=InternalSearchConfig(), event=_chat_event(SPACE_FILTER)
-    )
-
-    # Act
-    await tool.run(_tool_call("call_1", chat_only=True))
-
-    # Assert
-    assert _sent_filters(sdk_search) == [SPACE_FILTER]
-    assert sdk_search.await_args_list[0].kwargs["chatOnly"] is False
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
 async def test_run__parallel_calls_keep_space_filter__when_one_call_sets_chat_only(
     sdk_search: AsyncMock,
 ) -> None:

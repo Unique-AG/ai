@@ -541,8 +541,8 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         await message_logger.log_progress("_Retrieving search results_")
 
-        # Forward only declared arguments: an undeclared metadata_filter or
-        # chat_only from the model would replace or drop the space scope.
+        # Only search_string and content_ids: a model-supplied metadata_filter
+        # or chat_only would replace or drop the space scope.
         selected_chunks = await self.search(
             search_string=search_strings_data,
             content_ids=tool_call.arguments.get("content_ids"),
