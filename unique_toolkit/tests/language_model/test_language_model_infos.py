@@ -134,6 +134,7 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_PHOENIQS_LLAMA_4_MAVERICK,
             LanguageModelName.LITELLM_KIMI_K2_6,
             LanguageModelName.LITELLM_KIMI_K3,
+            LanguageModelName.LITELLM_KIMI_K3_1_PRO,
             LanguageModelName.LITELLM_QWEN_3,
             LanguageModelName.LITELLM_QWEN_3_THINKING,
             LanguageModelName.LITELLM_OPENAI_O1,

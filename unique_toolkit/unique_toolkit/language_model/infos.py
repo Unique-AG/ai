@@ -166,6 +166,7 @@ class LanguageModelName(StrEnum):
     LITELLM_PHOENIQS_LLAMA_4_MAVERICK = "litellm:phoeniqs-llama-4-maverick"
     LITELLM_KIMI_K2_6 = "litellm:kimi-k2.6"
     LITELLM_KIMI_K3 = "litellm:kimi-k3"
+    LITELLM_KIMI_K3_1_PRO = "litellm:kimi-k3.1-pro"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
     VERTEX_CLAUDE_HAIKU_5_5 = "litellm:vertex-claude-haiku-5-5"
@@ -3775,6 +3776,34 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 7, 27),
                     default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["low", "medium", "high", "max"],
+                )
+            case LanguageModelName.LITELLM_KIMI_K3_1_PRO:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.KIMI,
+                    version="kimi-k3.1-pro",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    # Context window is 1,048,576. max_completion_tokens
+                    # defaults to 131,072 and can be raised up to that window.
+                    # https://platform.kimi.ai/docs/guide/kimi-k3-1-pro-quickstart
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576,
+                        token_limit_output=131_072,
+                    ),
+                    published_at=date(2026, 10, 23),
+                    # Thinking is always on. Accepted efforts are low, high,
+                    # and max; the API default is max.
+                    # https://platform.kimi.ai/docs/api/models-overview
+                    default_options={"reasoning_effort": "max"},
+                    supported_reasoning_efforts=["low", "high", "max"],
                 )
             case LanguageModelName.LITELLM_QWEN_3:
                 return cls(

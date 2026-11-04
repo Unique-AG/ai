@@ -560,6 +560,12 @@ def test_supported_reasoning_efforts_set_correctly():
     _, effort = kimi.resolve_temp_and_reasoning(0.0, "medium")
     assert effort == "medium"
 
+    kimi_k31_pro = LanguageModelInfo.from_name(LanguageModelName.LITELLM_KIMI_K3_1_PRO)
+    assert kimi_k31_pro.supported_reasoning_efforts == ["low", "high", "max"]
+    assert kimi_k31_pro.default_options["reasoning_effort"] == "max"
+    _, effort = kimi_k31_pro.resolve_temp_and_reasoning(0.0, None)
+    assert effort == "max"
+
     deepseek_v41_flash = LanguageModelInfo.from_name(
         LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH
     )
