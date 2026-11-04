@@ -183,6 +183,14 @@ requestLimits:
   timeouts:
     maxTimeoutSeconds: 120
 
+pdfProcessing:
+  connection:
+    maxPdfPages: 100
+    maxExtractedChars: 100000
+    extractionTimeoutSeconds: 15.0
+    maxExtractionMemoryMb: 512
+    maxConcurrentExtractions: 1
+
 urlSafety:
   enabled: true
   redirects:

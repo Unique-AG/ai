@@ -30,6 +30,7 @@ def test_all_registry_groups_have_helm_keys() -> None:
         "googleSearch",
         "httpClient",
         "jina",
+        "pdfProcessing",
         "perplexitySearch",
         "requestLimits",
         "tavily",
@@ -48,7 +49,13 @@ def test_provider_groups_are_gated_but_always_on_config_is_not() -> None:
     assert gated["httpClient"] is False
     assert gated["urlSafety"] is False
     assert gated["requestLimits"] is False
-    provider_keys = set(gated) - {"httpClient", "requestLimits", "urlSafety"}
+    assert gated["pdfProcessing"] is False
+    provider_keys = set(gated) - {
+        "httpClient",
+        "requestLimits",
+        "urlSafety",
+        "pdfProcessing",
+    }
     assert provider_keys, "expected at least one gated provider group"
     assert all(gated[key] for key in provider_keys)
 
@@ -71,6 +78,9 @@ def test_generated_schema_contains_all_provider_blocks() -> None:
             elif group.helm_key == "requestLimits":
                 assert "enabled" not in block["properties"]
                 assert "crawl" in block["properties"]
+            elif group.helm_key == "pdfProcessing":
+                assert "enabled" not in block["properties"]
+                assert "connection" in block["properties"]
             else:
                 assert "enabled" not in block["properties"]
                 assert "connection" in block["properties"]

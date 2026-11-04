@@ -40,7 +40,10 @@ def _is_example_com_request(request: httpx.Request) -> bool:
 
 
 @pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+def client(
+    monkeypatch: pytest.MonkeyPatch,
+    make_pdf: Callable[[list[str]], bytes],
+) -> TestClient:
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
         host_header = request.headers.get("host", "")
@@ -49,7 +52,13 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         if "file.pdf" in url:
             return httpx.Response(
                 200,
-                text="%PDF-1.4",
+                content=make_pdf(["Rating calendar 2026"]),
+                headers={"content-type": "application/pdf"},
+            )
+        if "broken.pdf" in url:
+            return httpx.Response(
+                200,
+                content=b"%PDF-1.4\nnot really a pdf",
                 headers={"content-type": "application/pdf"},
             )
         if "blocked.example" in host_header or "blocked.example" in url:
@@ -450,7 +459,7 @@ def test_crawl_records_per_url_outcome_metrics(client: TestClient) -> None:
 
 
 @pytest.mark.ai
-def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
+def test_crawl_returns_pdf_content_type_without_body(client: TestClient) -> None:
     resp = client.post(
         "/v1/crawl",
         json={
@@ -462,7 +471,7 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
     result = resp.json()["results"][0]
     assert result["error"] is None
     assert result["contentType"] == "application/pdf"
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
 
 
@@ -531,12 +540,17 @@ def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
     assert resp.status_code == 200
     result = resp.json()["results"][0]
     assert result["error"] is None
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
 
 
 @pytest.mark.ai
-def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
+def test_crawl_pdf_allowed_returns_extracted_text(client: TestClient) -> None:
+    """
+    Purpose: Verify an enabled PDF comes back as its text, without the raw bytes.
+    Why this matters: This is the feature: answer questions from PDF content.
+    Setup summary: Crawl a one-page text PDF with contentTypes.pdf on.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -547,9 +561,41 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
-    assert result["error"] is not None
-    assert "PDF processing" in result["error"]["message"]
-    assert result["raw"] == "%PDF-1.4"
+    assert result["error"] is None
+    assert result["content"] == "Rating calendar 2026"
+    assert result["contentType"] == "application/pdf"
+    assert result["raw"] is None
+
+
+@pytest.mark.ai
+def test_crawl_broken_pdf_fails_only_its_own_url(client: TestClient) -> None:
+    """
+    Purpose: Verify an unreadable PDF fails its URL while the rest of the crawl succeeds.
+    Why this matters: One bad PDF must not cost the model the other sources.
+    Setup summary: Crawl a broken PDF, a valid PDF and an HTML page in one request.
+    """
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": [
+                "https://example.com/broken.pdf",
+                "https://example.com/file.pdf",
+                "https://example.com/article",
+            ],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True, "html": True},
+        },
+    )
+    assert resp.status_code == 200
+    broken, valid, html = resp.json()["results"]
+    assert broken["error"]["code"] == ProxyErrorCode.PDF_EXTRACTION_FAILED.value
+    assert broken["error"]["message"] == (
+        "The PDF could not be read; it may be damaged. Retrying will not help."
+    )
+    assert broken["content"] is None
+    assert valid["content"] == "Rating calendar 2026"
+    assert html["error"] is None
+    assert "Hello" in html["content"]
 
 
 def _cap_crawler_bodies(monkeypatch: pytest.MonkeyPatch, *, max_kib: int) -> None:

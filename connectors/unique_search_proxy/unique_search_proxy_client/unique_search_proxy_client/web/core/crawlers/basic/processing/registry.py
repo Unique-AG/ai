@@ -12,19 +12,18 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.errors import
 )
 from unique_search_proxy_client.web.core.crawlers.basic.processing.processors import (
     process_html,
-    process_pdf,
     process_plain_text,
 )
 
 ContentProcessor = Callable[..., Awaitable[str]]
 
 # Built-in processors keyed by exact media type. Register new types here.
+# application/pdf is binary and handled by the crawler via processing.pdf.
 CONTENT_TYPE_PROCESSORS: dict[str, ContentProcessor] = {
     "text/html": process_html,
     "application/xhtml+xml": process_html,
     "text/plain": process_plain_text,
     "text/markdown": process_plain_text,
-    "application/pdf": process_pdf,
 }
 
 

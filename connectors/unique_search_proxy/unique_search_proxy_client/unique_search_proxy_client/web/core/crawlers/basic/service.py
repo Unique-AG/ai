@@ -30,6 +30,11 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing import (
     ContentProcessingError,
     ContentProcessingTimeoutError,
     process_content,
+    resolve_handler_policy,
+)
+from unique_search_proxy_client.web.core.crawlers.basic.processing.pdf import (
+    PdfExtractionError,
+    extract_pdf_text,
 )
 from unique_search_proxy_client.web.core.crawlers.basic.user_agent import (
     random_user_agent,
@@ -43,6 +48,7 @@ from unique_search_proxy_client.web.core.provider_response import (
 from unique_search_proxy_client.web.core.url_safety.gate import AllowedCrawlTarget
 from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
 from unique_search_proxy_client.web.settings.client import http_client_settings
+from unique_search_proxy_client.web.settings.pdf import pdf_settings
 from unique_search_proxy_client.web.settings.request_limits import (
     request_limits_settings,
 )
@@ -53,6 +59,7 @@ _LOGGER = logging.getLogger(__name__)
 # brotli and zstd reach far higher compression ratios.
 _ACCEPT_ENCODING = "gzip, deflate"
 _COMPRESSING_CONTENT_ENCODINGS = frozenset({"gzip", "deflate"})
+_PDF_MEDIA_TYPE = "application/pdf"
 
 
 def _content_type_from_response(response: httpx.Response) -> str | None:
@@ -216,9 +223,11 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                         max_bytes=http_client_settings.max_response_bytes,
                         budget=budget,
                     )
-                    raw_body = body.decode(
-                        response.encoding or "utf-8",
-                        errors="replace",
+                    is_pdf = content_type == _PDF_MEDIA_TYPE and not response.is_error
+                    raw_body = (
+                        ""
+                        if is_pdf
+                        else body.decode(response.encoding or "utf-8", errors="replace")
                     )
             except CrawlTargetValidationError as exc:
                 blocked = exc.blocked_targets[0]
@@ -260,6 +269,14 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     raw=transport_error_raw(exc),
                 )
 
+            if is_pdf:
+                return await self._crawl_pdf(
+                    display_url,
+                    body,
+                    timeout=timeout,
+                    content_type_handlers=content_type_handlers,
+                )
+
             if response.is_error:
                 _LOGGER.warning(
                     "Basic crawl HTTP error http_status=%s",
@@ -290,6 +307,47 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 content_type=content_type,
                 error=None,
             )
+
+    async def _crawl_pdf(
+        self,
+        display_url: str,
+        body: bytes,
+        *,
+        timeout: int,
+        content_type_handlers: dict[str, ContentTypeHandlerPolicy],
+    ) -> CrawlUrlResult:
+        # PDF bytes are never echoed in ``raw``: binary is useless to callers and
+        # can be several MiB per URL.
+        policy = resolve_handler_policy(_PDF_MEDIA_TYPE, content_type_handlers)
+        if policy is not ContentTypeHandlerPolicy.ALLOW:
+            return CrawlUrlResult(
+                url=display_url,
+                content=None,
+                raw=None,
+                content_type=_PDF_MEDIA_TYPE,
+                error=None,
+            )
+
+        try:
+            pdf = await extract_pdf_text(
+                body,
+                timeout=min(float(timeout), pdf_settings.extraction_timeout_seconds),
+            )
+        except PdfExtractionError as exc:
+            _LOGGER.warning("Basic crawl PDF extraction failed outcome=%s", exc.outcome)
+            return crawl_upstream_error(
+                display_url,
+                exc.message,
+                content_type=_PDF_MEDIA_TYPE,
+                code=ProxyErrorCode.PDF_EXTRACTION_FAILED.value,
+            )
+        return CrawlUrlResult(
+            url=display_url,
+            content=pdf.content,
+            raw=None,
+            content_type=_PDF_MEDIA_TYPE,
+            error=None,
+        )
 
     async def _maybe_process_content(
         self,

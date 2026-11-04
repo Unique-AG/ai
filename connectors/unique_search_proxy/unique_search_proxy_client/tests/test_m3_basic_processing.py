@@ -23,9 +23,10 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.ht
 
 
 @pytest.mark.ai
-def test_processing_map_includes_html_and_pdf() -> None:
+def test_processing_map_includes_html_but_not_pdf() -> None:
     assert CONTENT_TYPE_PROCESSORS["text/html"] is process_html
-    assert "application/pdf" in CONTENT_TYPE_PROCESSORS
+    # PDFs are binary and read by the crawler's PDF path, not a text processor.
+    assert "application/pdf" not in CONTENT_TYPE_PROCESSORS
 
 
 @pytest.mark.ai
@@ -79,7 +80,7 @@ async def test_process_content_skips_forbidden_type() -> None:
 @pytest.mark.asyncio
 async def test_process_content_pdf_raises_when_allowed() -> None:
     handlers = {"application/pdf": ContentTypeHandlerPolicy.ALLOW}
-    with pytest.raises(ContentProcessingError, match="PDF processing"):
+    with pytest.raises(ContentProcessingError, match="No processor registered"):
         await process_content(
             "%PDF", "application/pdf", handlers=handlers, timeout=10.0
         )

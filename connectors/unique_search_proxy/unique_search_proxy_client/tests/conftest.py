@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import socket
+from collections.abc import Callable
 
 import pytest
 import unique_search_proxy_core.url_safety.dns as url_safety_dns
@@ -55,3 +56,50 @@ def disable_url_safety_redirects(monkeypatch: pytest.MonkeyPatch) -> None:
             update={"resolve_redirects": False}
         ),
     )
+
+
+def _make_pdf(pages: list[str]) -> bytes:
+    """Return a valid PDF with one line of Helvetica text per page."""
+    objects: list[bytes] = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        (
+            "<< /Type /Pages /Kids ["
+            + " ".join(f"{4 + 2 * index} 0 R" for index in range(len(pages)))
+            + f"] /Count {len(pages)} >>"
+        ).encode(),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    for index, text in enumerate(pages):
+        objects.append(
+            (
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+                "/Resources << /Font << /F1 3 0 R >> >> "
+                f"/Contents {5 + 2 * index} 0 R >>"
+            ).encode()
+        )
+        escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        stream = f"BT /F1 12 Tf 72 720 Td ({escaped}) Tj ET".encode("latin-1")
+        objects.append(
+            b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream"
+        )
+
+    out = bytearray(b"%PDF-1.4\n")
+    offsets: list[int] = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % number + body + b"\nendobj\n"
+    xref_offset = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    for offset in offsets:
+        out += b"%010d 00000 n \n" % offset
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        xref_offset,
+    )
+    return bytes(out)
+
+
+@pytest.fixture
+def make_pdf() -> Callable[[list[str]], bytes]:
+    """Build small text PDFs in tests without binary fixtures."""
+    return _make_pdf
