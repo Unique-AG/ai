@@ -7,59 +7,123 @@ from typing import Annotated, Any
 from dotenv import load_dotenv
 from fastapi.responses import FileResponse, JSONResponse
 from fastmcp import FastMCP
-from fastmcp.server.auth.oauth_proxy import OAuthProxy
-from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
 from pydantic import Field
 from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
+from starlette.responses import Response
 
 from db_tool_reconciliation import service as reconciliation_service
 from db_tool_reconciliation.prompts import (
+    DERIVE_BREAK_ACTIONS_DESCRIPTION,
     GET_COUNTERPARTY_EMAIL_CASHFLOWS_DESCRIPTION,
     GET_CUSTOMER_BOOK_CASHFLOWS_DESCRIPTION,
     MATCH_CASHFLOWS_DESCRIPTION,
     RESET_DEMO_DATA_DESCRIPTION,
     SAVE_COUNTERPARTY_EMAIL_CASHFLOW_DESCRIPTION,
+    tool_meta,
 )
 
 load_dotenv()
 
-ZITADEL_URL = os.getenv("ZITADEL_URL", "https://id.unique.app")
+def build_auth():
+    """Build the Zitadel OAuth proxy — but only when the upstream OAuth env vars
+    (UPSTREAM_CLIENT_ID / UPSTREAM_CLIENT_SECRET / ZITADEL_URL) are ALL present.
+    Returns ``None`` (open server) otherwise — the same pattern as the RM Agent
+    MCPs (mcp_advisory / mcp_crm): fine for this read-only, synthetic demo data,
+    and it spares every dashboard user a per-connector OAuth "Connect" login."""
+    upstream_client_id = os.getenv("UPSTREAM_CLIENT_ID")
+    upstream_client_secret = os.getenv("UPSTREAM_CLIENT_SECRET")
+    zitadel_url = os.getenv("ZITADEL_URL")
+    if not (upstream_client_id and upstream_client_secret and zitadel_url):
+        return None
 
-# Must match the upstream client used by the OAuthProxy below so the
-# token introspection call authenticates as the same Zitadel client.
-upstream_client_id = os.getenv("UPSTREAM_CLIENT_ID", "default_client_id")
-upstream_client_secret = os.getenv("UPSTREAM_CLIENT_SECRET", "default_client_secret")
+    from fastmcp.server.auth.oauth_proxy import OAuthProxy
+    from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
+    from key_value.aio.stores.postgresql import PostgreSQLStore
 
-base_url_env = os.getenv("BASE_URL_ENV", "https://default.ngrok-free.app")
-base_url_arg = sys.argv[1] if len(sys.argv) > 1 else base_url_env
+    base_url = sys.argv[1] if len(sys.argv) > 1 else os.getenv(
+        "BASE_URL_ENV", "https://default.ngrok-free.app"
+    )
 
-token_verifier = IntrospectionTokenVerifier(
-    introspection_url=f"{ZITADEL_URL}/oauth/v2/introspect",
-    client_id=upstream_client_id,
-    client_secret=upstream_client_secret,
-    client_auth_method="client_secret_basic",
-)
+    # Persist OAuth client registrations in Postgres so they survive restarts
+    # (the default in-memory registry breaks already-connected clients on redeploy).
+    pg_client_storage_url = os.getenv("PG_CLIENT_STORAGE_URL")
+    if pg_client_storage_url:
+        client_storage = PostgreSQLStore(url=pg_client_storage_url)
+    else:
+        pg_user = os.getenv("PGUSER", "postgres")
+        pg_password = os.getenv("PGPASSWORD", "postgres")
+        pg_host = os.getenv("PGHOST", "localhost")
+        pg_port = os.getenv("PGPORT", "5432")
+        pg_database = os.getenv("PGDATABASE", "reconciliationdb")
+        client_storage = PostgreSQLStore(
+            url=f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_database}"
+        )
 
-auth = OAuthProxy(
-    upstream_authorization_endpoint=f"{ZITADEL_URL}/oauth/v2/authorize",
-    upstream_token_endpoint=f"{ZITADEL_URL}/oauth/v2/token",
-    upstream_client_id=upstream_client_id,
-    upstream_client_secret=upstream_client_secret,
-    upstream_revocation_endpoint=f"{ZITADEL_URL}/oauth/v2/revoke",
-    token_verifier=token_verifier,
-    base_url=base_url_arg,
-    redirect_path=None,
-    issuer_url=None,
-    service_documentation_url=None,
-    allowed_client_redirect_uris=None,
-    valid_scopes=["email", "openid", "profile"],
-    forward_pkce=True,
-    token_endpoint_auth_method="client_secret_post",
-    extra_authorize_params=None,
-    extra_token_params=None,
-)
+    token_verifier = IntrospectionTokenVerifier(
+        introspection_url=f"{zitadel_url}/oauth/v2/introspect",
+        client_id=upstream_client_id,
+        client_secret=upstream_client_secret,
+        client_auth_method="client_secret_basic",
+    )
+    return OAuthProxy(
+        upstream_authorization_endpoint=f"{zitadel_url}/oauth/v2/authorize",
+        upstream_token_endpoint=f"{zitadel_url}/oauth/v2/token",
+        upstream_client_id=upstream_client_id,
+        upstream_client_secret=upstream_client_secret,
+        upstream_revocation_endpoint=f"{zitadel_url}/oauth/v2/revoke",
+        token_verifier=token_verifier,
+        base_url=base_url,
+        redirect_path=None,
+        issuer_url=None,
+        service_documentation_url=None,
+        allowed_client_redirect_uris=None,
+        valid_scopes=["email", "openid", "profile"],
+        forward_pkce=True,
+        token_endpoint_auth_method="client_secret_post",
+        extra_authorize_params=None,
+        extra_token_params=None,
+        client_storage=client_storage,
+    )
+
+class AdvertisePostAuthOnly(BaseHTTPMiddleware):
+    """Advertise only client_secret_post in the OAuth discovery metadata.
+
+    FastMCP's token endpoint (as of 3.4.4) only parses client credentials from
+    the request body, yet its metadata also advertises client_secret_basic.
+    The MCP TypeScript SDK prefers client_secret_basic when advertised, so
+    token exchanges from Unique's platform fail with 401 "Missing client_id".
+    Dropping basic from the advertised methods steers the SDK to
+    client_secret_post, which works.
+    """
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if not request.url.path.startswith("/.well-known/"):
+            return response
+        body = b"".join([chunk async for chunk in response.body_iterator])
+        try:
+            data = json.loads(body)
+            for key in (
+                "token_endpoint_auth_methods_supported",
+                "revocation_endpoint_auth_methods_supported",
+            ):
+                if isinstance(data.get(key), list) and "client_secret_post" in data[key]:
+                    data[key] = ["client_secret_post"]
+            body = json.dumps(data).encode()
+        except (ValueError, TypeError):
+            pass
+        headers = dict(response.headers)
+        headers.pop("content-length", None)
+        return Response(
+            content=body,
+            status_code=response.status_code,
+            headers=headers,
+            media_type=response.media_type,
+        )
+
 
 custom_middleware = [
     Middleware(
@@ -68,20 +132,18 @@ custom_middleware = [
         allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
-    )
+    ),
+    Middleware(AdvertisePostAuthOnly),
 ]
 
-mcp = FastMCP("Trade Reconciliation 🚀", auth=auth)
+mcp = FastMCP("Trade Reconciliation 🚀", auth=build_auth())
 
 
 @mcp.tool(
     name="Get_Customer_Book_Cashflows",
     title="Customer (book) cash flows",
     description=GET_CUSTOMER_BOOK_CASHFLOWS_DESCRIPTION,
-    meta={
-        "unique.app/icon": "database",
-        "unique.app/system-prompt": GET_CUSTOMER_BOOK_CASHFLOWS_DESCRIPTION,
-    },
+    meta=tool_meta("Get_Customer_Book_Cashflows", {"unique.app/icon": "database"}),
 )
 async def get_customer_book_cashflows(
     counterparty: Annotated[
@@ -141,10 +203,7 @@ async def get_customer_book_cashflows(
     name="Get_Counterparty_Email_Cashflows",
     title="Counterparty (email) cash flows",
     description=GET_COUNTERPARTY_EMAIL_CASHFLOWS_DESCRIPTION,
-    meta={
-        "unique.app/icon": "mail",
-        "unique.app/system-prompt": GET_COUNTERPARTY_EMAIL_CASHFLOWS_DESCRIPTION,
-    },
+    meta=tool_meta("Get_Counterparty_Email_Cashflows", {"unique.app/icon": "mail"}),
 )
 async def get_counterparty_email_cashflows(
     vendor: Annotated[
@@ -199,10 +258,7 @@ async def get_counterparty_email_cashflows(
     name="Match_Cashflows",
     title="Reconcile cash flows",
     description=MATCH_CASHFLOWS_DESCRIPTION,
-    meta={
-        "unique.app/icon": "link",
-        "unique.app/system-prompt": MATCH_CASHFLOWS_DESCRIPTION,
-    },
+    meta=tool_meta("Match_Cashflows", {"unique.app/icon": "link"}),
 )
 async def match_cashflows(
     email_ids: Annotated[
@@ -222,13 +278,21 @@ async def match_cashflows(
 
 
 @mcp.tool(
+    name="Derive_Break_Actions",
+    title="Derive break actions",
+    description=DERIVE_BREAK_ACTIONS_DESCRIPTION,
+    meta=tool_meta("Derive_Break_Actions", {"unique.app/icon": "sparkles"}),
+)
+async def derive_break_actions() -> str:
+    result: dict[str, Any] = reconciliation_service.derive_break_actions()
+    return json.dumps(result, default=str)
+
+
+@mcp.tool(
     name="Save_Counterparty_Email_Cashflow",
     title="Save counterparty (email) cash flow",
     description=SAVE_COUNTERPARTY_EMAIL_CASHFLOW_DESCRIPTION,
-    meta={
-        "unique.app/icon": "mail-plus",
-        "unique.app/system-prompt": SAVE_COUNTERPARTY_EMAIL_CASHFLOW_DESCRIPTION,
-    },
+    meta=tool_meta("Save_Counterparty_Email_Cashflow", {"unique.app/icon": "mail-plus"}),
 )
 async def save_counterparty_email_cashflow(
     amount: Annotated[
@@ -271,10 +335,7 @@ async def save_counterparty_email_cashflow(
     name="Reset_Demo_Data",
     title="Reset demo data",
     description=RESET_DEMO_DATA_DESCRIPTION,
-    meta={
-        "unique.app/icon": "rotate-ccw",
-        "unique.app/system-prompt": RESET_DEMO_DATA_DESCRIPTION,
-    },
+    meta=tool_meta("Reset_Demo_Data", {"unique.app/icon": "rotate-ccw"}),
 )
 async def reset_demo_data() -> str:
     result = reconciliation_service.reset_demo_data()

@@ -1,0 +1,12 @@
+.env
+.env.*
+.venv
+__pycache__
+*.pyc
+.git
+docker_compose.yaml
+.cursor
+.vscode
+deploy_pg.sh
+secrets.sh
+azure-pg-connection.txt
