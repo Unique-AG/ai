@@ -1337,7 +1337,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_is_chat_only__returns_true__when_tool_call_chat_only_is_true(
+    async def test_is_chat_only__ignores_tool_call_chat_only__when_config_disables_it(
         self,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
@@ -1346,9 +1346,9 @@ class TestInternalSearchTool:
         mock_chunk_relevancy_sorter: Any,
     ) -> None:
         """
-        Purpose: Verify is_chat_only returns True when tool_call.arguments.chat_only is True.
-        Why this matters: Allows tool call to override configuration and force chat-only mode.
-        Setup summary: Create tool with chat_only=False, call is_chat_only with tool_call containing chat_only=True.
+        Purpose: Verify is_chat_only ignores tool_call.arguments.chat_only.
+        Why this matters: chat_only is not a declared tool argument; chat-only mode drops the space filter (UN-28688).
+        Setup summary: Create tool with chat_only=False, call is_chat_only with tool_call containing chat_only=True, assert False.
         """
         # Arrange
         base_internal_search_config.chat_only = False
@@ -1386,7 +1386,7 @@ class TestInternalSearchTool:
             result = await tool.is_chat_only(tool_call=tool_call)
 
             # Assert
-            assert result is True
+            assert result is False
 
     @pytest.mark.ai
     @pytest.mark.asyncio
