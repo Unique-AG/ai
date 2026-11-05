@@ -3,7 +3,7 @@ import re
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
-    BATCH_NORMALIZATION_PATTERNS,
+    normalize_citations_to_brackets,
 )
 
 
@@ -84,9 +84,7 @@ def _preprocess_message(text: str) -> str:
     to ``<sup>N</sup>``. The streaming path uses ``NORMALIZATION_PATTERNS`` which
     outputs ``<sup>N</sup>`` directly.
     """
-    for pattern, replacement in BATCH_NORMALIZATION_PATTERNS:
-        text = re.sub(pattern, replacement, text)
-    return text
+    return normalize_citations_to_brackets(text)
 
 
 def _limit_consecutive_source_references(text: str) -> str:

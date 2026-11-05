@@ -28,8 +28,8 @@ class SourceSelectionMode(StrEnum):
     FROM_ORIGINAL_RESPONSE = "FROM_ORIGINAL_RESPONSE"
 
 
-# Must accept the same "source" separators as the node-chat reference normaliser
-# (`source[\s_]?(\d+)`), otherwise citations shown in the UI are invisible here.
+# Applied to the raw answer in addition to the batch citation normalisation, so
+# citation formats outside the platform-resolved set can still be configured.
 DEFAULT_REFERENCE_PATTERN = r"[\[<]?source[\s_]?(\d+)[>\]]?"
 
 
