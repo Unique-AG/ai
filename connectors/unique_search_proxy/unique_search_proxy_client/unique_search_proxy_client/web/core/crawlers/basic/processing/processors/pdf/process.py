@@ -182,7 +182,9 @@ class PdfProcessor:
             except Exception as exc:
                 record_crawl_pdf_extraction("failed", time.monotonic() - started)
                 _LOGGER.warning(
-                    "PDF extraction failed error_type=%s", type(exc).__name__
+                    "PDF extraction failed error_type=%s",
+                    type(exc).__name__,
+                    exc_info=exc,
                 )
                 raise ContentProcessingError(f"PDF extraction failed: {exc}") from exc
             duration = time.monotonic() - started
