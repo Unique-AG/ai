@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Coroutine
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -59,6 +60,13 @@ _LOGGER = logging.getLogger(__name__)
 _ACCEPT_ENCODING = "gzip, deflate"
 _COMPRESSING_CONTENT_ENCODINGS = frozenset({"gzip", "deflate"})
 _PDF_MEDIA_TYPE = "application/pdf"
+
+
+@dataclass(frozen=True)
+class _DownloadedPdf:
+    response: httpx.Response
+    body: bytes
+    pdf_allowed: bool
 
 
 def _content_type_from_response(response: httpx.Response) -> str | None:
@@ -184,6 +192,38 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
         budget: ByteBudget,
         content_type_handlers: dict[str, ContentTypeHandlerPolicy],
     ) -> CrawlUrlResult:
+        fetched = await self._fetch_one(
+            client,
+            display_url,
+            resolved_target=resolved_target,
+            request=request,
+            semaphore=semaphore,
+            budget=budget,
+            content_type_handlers=content_type_handlers,
+        )
+        if not isinstance(fetched, _DownloadedPdf):
+            return fetched
+        # After the fetch slot is released, so PDFs queued for extraction do not
+        # hold up the other URLs of the crawl.
+        return await self._handle_pdf_response(
+            display_url,
+            response=fetched.response,
+            body_bytes=fetched.body,
+            request=request,
+            pdf_allowed=fetched.pdf_allowed,
+        )
+
+    async def _fetch_one(
+        self,
+        client: AsyncClient,
+        display_url: str,
+        *,
+        resolved_target: ResolvedCrawlTarget,
+        request: BasicCrawlRequest,  # type: ignore[valid-type]
+        semaphore: asyncio.Semaphore,
+        budget: ByteBudget,
+        content_type_handlers: dict[str, ContentTypeHandlerPolicy],
+    ) -> CrawlUrlResult | _DownloadedPdf:
         async with semaphore:
             timeout = request.timeout
             pdf_allowed = (
@@ -229,11 +269,9 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                         budget=budget,
                     )
                     if content_type == _PDF_MEDIA_TYPE:
-                        return await self._handle_pdf_response(
-                            display_url,
+                        return _DownloadedPdf(
                             response=response,
-                            body_bytes=body,
-                            request=request,
+                            body=body,
                             pdf_allowed=pdf_allowed,
                         )
                     raw_body = body.decode(
@@ -252,7 +290,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 _LOGGER.warning("Basic crawl response too large: %s", exc.message)
                 code = (
                     ProxyErrorCode.PDF_LIMIT_EXCEEDED.value
-                    if content_type == _PDF_MEDIA_TYPE
+                    if content_type == _PDF_MEDIA_TYPE and pdf_allowed
                     else ProxyErrorCode.RESPONSE_TOO_LARGE.value
                 )
                 return crawl_upstream_error(

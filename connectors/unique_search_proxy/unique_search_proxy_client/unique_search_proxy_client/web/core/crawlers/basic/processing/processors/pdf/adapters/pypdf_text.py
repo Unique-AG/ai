@@ -1,11 +1,6 @@
-"""pypdf text-layer extraction without any proxy imports.
+"""pypdf text extraction, called in-process or run as a script by ``SubprocessExtractionRunner``.
 
-``PyPdfExtractor`` calls :func:`extract_text_layer` in-process.
-``SubprocessExtractionRunner`` runs this file as a script instead:
-``python -I pypdf_text.py <path> <max_pages> <max_page_chars> <max_document_chars>
-<memory_bytes> <cpu_seconds>`` prints one JSON payload to stdout. As a script it
-imports only the standard library and pypdf, so the child starts in tens of
-milliseconds and never loads the proxy's settings or credentials.
+Imports only the standard library and pypdf, so the child never loads proxy settings.
 """
 
 from __future__ import annotations
@@ -15,14 +10,12 @@ import resource
 import sys
 from typing import Any
 
-# Only on failures that depend on the file's bytes alone, so agents do not fetch
-# it again. Timeouts, crashes and non-PDF responses can differ on a retry.
+# Only for failures that depend on the file's bytes alone.
 _NOT_RETRYABLE = " Retrying will not help."
 
 
 def _clean(text: str) -> str:
-    # NUL breaks downstream storage, and lone surrogates from broken font maps
-    # would fail UTF-8 encoding of the whole crawl response.
+    # Lone surrogates from broken font maps would fail encoding of the whole response.
     return text.replace("\x00", "").encode("utf-8", "replace").decode("utf-8")
 
 
@@ -102,8 +95,7 @@ def extract_text_layer(
 def _limit_resources(memory_bytes: int, cpu_seconds: int) -> None:
     limits = (
         (resource.RLIMIT_AS, memory_bytes, memory_bytes),
-        # SIGXCPU at the soft limit, SIGKILL at the hard one: a backstop for the
-        # parent's wall-clock kill.
+        # Backstop for the parent's wall-clock kill.
         (resource.RLIMIT_CPU, cpu_seconds, cpu_seconds + 1),
     )
     for limit, soft, hard in limits:

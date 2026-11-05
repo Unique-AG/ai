@@ -70,11 +70,7 @@ def _content_from_result(
     result: ExtractionResult,
     limits: PdfProcessingLimits,
 ) -> tuple[str, bool]:
-    """Join the extracted pages within the character budget.
-
-    Returns the content, led by a note when the PDF was cut short, and whether
-    it was truncated.
-    """
+    """Join pages within the character budget; return the content and whether it was cut."""
     content = join_page_chunks(result.chunks)
     mid_page = any(chunk.truncated for chunk in result.chunks)
     if len(content) > limits.max_extracted_chars:
@@ -174,6 +170,9 @@ class PdfProcessor:
                 result = await self._runner.run(path, extraction_limits)
             except TimeoutError as exc:
                 record_crawl_pdf_extraction("timeout", time.monotonic() - started)
+                _LOGGER.warning(
+                    "PDF extraction timed out after %ss", limits.timeout_seconds
+                )
                 raise ContentProcessingTimeoutError(
                     f"PDF extraction timed out after {limits.timeout_seconds}s",
                 ) from exc
@@ -182,6 +181,9 @@ class PdfProcessor:
                 raise
             except Exception as exc:
                 record_crawl_pdf_extraction("failed", time.monotonic() - started)
+                _LOGGER.warning(
+                    "PDF extraction failed error_type=%s", type(exc).__name__
+                )
                 raise ContentProcessingError(f"PDF extraction failed: {exc}") from exc
             duration = time.monotonic() - started
 
@@ -190,6 +192,9 @@ class PdfProcessor:
                 ExtractionOutcome.FAILED,
             }:
                 record_crawl_pdf_extraction(result.outcome.value, duration)
+                _LOGGER.warning(
+                    "PDF extraction %s reason=%s", result.outcome.value, result.reason
+                )
                 return PdfProcessingOutcome(
                     error_result=_map_extraction_error(url, result)
                 )

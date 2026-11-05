@@ -25,7 +25,7 @@ dependencies = [
     "unique-toolkit[monitoring]>=2026.44.0",
     "unique-search-proxy-core>=2026.44.0",
     "openai>=1.105.0,<3",
-    "pypdf>=6.21.4,<7",
+    "pypdf==6.21.4",
 ]
 
 [dependency-groups]

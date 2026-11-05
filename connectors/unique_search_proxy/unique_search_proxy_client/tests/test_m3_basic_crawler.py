@@ -753,6 +753,132 @@ async def test_crawl_pinned__maps_oversized_body_to_per_url_error(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("pdf_enabled", "expected_code"),
+    [
+        (False, ProxyErrorCode.RESPONSE_TOO_LARGE),
+        (True, ProxyErrorCode.PDF_LIMIT_EXCEEDED),
+    ],
+)
+async def test_crawl_pinned__oversized_pdf_code__depends_on_pdf_content_type(
+    monkeypatch: pytest.MonkeyPatch,
+    pdf_enabled: bool,
+    expected_code: ProxyErrorCode,
+) -> None:
+    """
+    Purpose: Verify an oversized PDF keeps RESPONSE_TOO_LARGE unless PDF is enabled.
+    Why this matters: Spaces that keep PDF off must see the same errors as before.
+    Setup summary: 1 KiB cap and a 4 KiB PDF; assert the code with PDF off and on.
+    """
+    _cap_crawler_bodies(monkeypatch, max_kib=1)
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            200,
+            content=b"%PDF-1.4\n" + b"x" * 4096,
+            headers={"content-type": "application/pdf"},
+        ),
+    )
+    request = parse_crawl_request(
+        {
+            "urls": ["https://big.example/file.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"pdf": pdf_enabled},
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        (result,) = await crawler.crawl_pinned(
+            request,
+            [_pinned_target("https://big.example/file.pdf", "big.example")],
+        )
+
+    assert result.error is not None
+    assert result.error.code == expected_code.value
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__pdf_extraction__releases_fetch_slot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify a PDF waiting for extraction does not hold the crawl's fetch slot.
+    Why this matters: Queued PDFs would otherwise stall the other URLs of the crawl.
+    Setup summary: One fetch slot; the PDF's extraction waits until the HTML URL
+        after it has been fetched, which only happens if the slot was released.
+    """
+    import asyncio
+
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
+        FakePdfExtractor,
+        PdfProcessor,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+        ExtractionLimits,
+        ExtractionOutcome,
+        ExtractionResult,
+        PageChunk,
+    )
+
+    html_fetched = asyncio.Event()
+
+    class WaitForHtmlRunner:
+        async def run(self, path: object, limits: ExtractionLimits) -> ExtractionResult:
+            await html_fetched.wait()
+            return ExtractionResult(
+                outcome=ExtractionOutcome.EXTRACTED,
+                chunks=(PageChunk(page_number=1, text="PDF text"),),
+                total_page_count=1,
+                adapter_name="fake",
+            )
+
+    processor = PdfProcessor(extractor=FakePdfExtractor(), runner=WaitForHtmlRunner())
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring.get_pdf_processor",
+        lambda: processor,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["Host"] == "pdf.example":
+            return httpx.Response(
+                200,
+                content=b"%PDF-1.4\n%fake",
+                headers={"content-type": "application/pdf"},
+            )
+        html_fetched.set()
+        return httpx.Response(200, text="html")
+
+    http_client, _ = _recording_client(handler)
+    request = parse_crawl_request(
+        {
+            "urls": ["https://pdf.example/file.pdf", "https://html.example/"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 2,
+            "maxConcurrentRequests": 1,
+            "contentTypes": {"pdf": True},
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        pdf_result, html_result = await crawler.crawl_pinned(
+            request,
+            [
+                _pinned_target("https://pdf.example/file.pdf", "pdf.example"),
+                _pinned_target("https://html.example/", "html.example"),
+            ],
+            deadline=asyncio.get_running_loop().time() + 2,
+        )
+
+    assert pdf_result.error is None
+    assert pdf_result.content == "PDF text"
+    assert html_result.error is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_crawl_pinned__stops_gzip_bomb_at_decoded_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

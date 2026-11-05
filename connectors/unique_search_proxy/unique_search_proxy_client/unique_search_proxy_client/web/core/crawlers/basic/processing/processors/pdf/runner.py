@@ -64,14 +64,9 @@ class InProcessExtractionRunner:
 
 
 class SubprocessExtractionRunner:
-    """Runs pypdf in a short-lived child process that can be limited and killed.
+    """Runs pypdf in a child process with no environment, memory and CPU limits.
 
-    A timed-out thread keeps running, and running out of memory in-process takes
-    down every request on the worker. The child starts with an empty environment,
-    caps its own memory and CPU time, and is killed on timeout or cancellation.
-    At most ``max_concurrent`` children run per worker; other PDFs wait.
-
-    Raises ``TimeoutError`` when the child misses ``limits.timeout_seconds``.
+    At most ``max_concurrent`` run per worker; raises ``TimeoutError`` after killing the child.
     """
 
     def __init__(
