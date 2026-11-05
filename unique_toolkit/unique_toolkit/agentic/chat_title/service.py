@@ -62,7 +62,9 @@ def clean_title(raw: str) -> str | None:
 class ChatTitleGenerator:
     """Replaces the prompt-based title of a new chat with a short generated one.
 
-    Runs once per chat: it does nothing when the chat already has earlier turns.
+    Runs once per chat: it does nothing when the chat history has an earlier
+    user message. Assistant-only history, such as the segment a scheduled run
+    stores before its prompt, does not count as an earlier turn.
     Never raises; on any failure the existing title is kept. Logs carry no
     prompt or title text.
     """
@@ -93,8 +95,6 @@ class ChatTitleGenerator:
             return None
 
         try:
-            # Only an earlier user message makes a chat not new: a scheduled run
-            # in a multi-segment chat stores an assistant segment before its prompt.
             history = await self._chat_service.get_full_history_async()
             if any(message.role == ChatMessageRole.USER for message in history):
                 return None
