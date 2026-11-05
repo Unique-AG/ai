@@ -10,6 +10,9 @@ import resource
 import sys
 from typing import Any
 
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
+
 # Only for failures that depend on the file's bytes alone.
 _NOT_RETRYABLE = " Retrying will not help."
 
@@ -23,16 +26,9 @@ def extract_text_layer(
     path: str,
     *,
     max_pages: int,
-    max_page_chars: int,
-    max_document_chars: int,
+    max_chars: int,
 ) -> dict[str, Any]:
     """Return an extraction payload (see ``extraction_result_from_payload``)."""
-    try:
-        from pypdf import PdfReader
-        from pypdf.errors import PdfReadError
-    except ImportError as exc:
-        return {"outcome": "failed", "reason": f"pypdf is not installed: {exc}"}
-
     try:
         reader = PdfReader(path, strict=False)
     except PdfReadError:
@@ -46,7 +42,7 @@ def extract_text_layer(
             "reason": f"Failed to open PDF: {exc.__class__.__name__}",
         }
 
-    if getattr(reader, "is_encrypted", False):
+    if reader.is_encrypted:
         try:
             unlocked = reader.decrypt("")
         except Exception:  # noqa: BLE001 - library boundary
@@ -72,10 +68,10 @@ def extract_text_layer(
             "reason": f"Failed to read PDF pages: {exc.__class__.__name__}",
         }
     chunks: list[dict[str, Any]] = []
-    total_chars = 0
-    page_limit = min(total_pages, max_pages)
-
-    for index in range(page_limit):
+    remaining = max_chars
+    for index in range(min(total_pages, max_pages)):
+        if remaining <= 0:
+            break
         try:
             text = _clean(reader.pages[index].extract_text() or "")
         except Exception as exc:  # noqa: BLE001 - library boundary
@@ -85,17 +81,9 @@ def extract_text_layer(
                 "total_page_count": total_pages,
             }
 
-        truncated = False
-        if len(text) > max_page_chars:
-            text = text[:max_page_chars]
-            truncated = True
-        remaining = max_document_chars - total_chars
-        if remaining <= 0:
-            break
-        if len(text) > remaining:
-            text = text[:remaining]
-            truncated = True
-        total_chars += len(text)
+        truncated = len(text) > remaining
+        text = text[:remaining]
+        remaining -= len(text)
         chunks.append(
             {"page_number": index + 1, "text": text, "truncated": truncated},
         )
@@ -121,17 +109,10 @@ def _limit_resources(memory_bytes: int, cpu_seconds: int) -> None:
 
 def main(argv: list[str]) -> int:
     path = argv[1]
-    max_pages, max_page_chars, max_document_chars, memory_bytes, cpu_seconds = (
-        int(arg) for arg in argv[2:7]
-    )
+    max_pages, max_chars, memory_bytes, cpu_seconds = (int(arg) for arg in argv[2:6])
     _limit_resources(memory_bytes, cpu_seconds)
     try:
-        payload = extract_text_layer(
-            path,
-            max_pages=max_pages,
-            max_page_chars=max_page_chars,
-            max_document_chars=max_document_chars,
-        )
+        payload = extract_text_layer(path, max_pages=max_pages, max_chars=max_chars)
     except MemoryError:
         payload = {"outcome": "failed", "reason": "PDF needed too much memory"}
     json.dump(payload, sys.stdout)

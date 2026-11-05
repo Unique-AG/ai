@@ -33,8 +33,10 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing import (
     process_content,
 )
 from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.process import (
-    PdfProcessingLimits,
     PdfProcessor,
+)
+from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+    ExtractionLimits,
 )
 from unique_search_proxy_client.web.core.crawlers.basic.user_agent import (
     random_user_agent,
@@ -388,9 +390,9 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
             )
 
         processor = self._resolve_pdf_processor()
-        limits = PdfProcessingLimits(
-            max_pdf_pages=pdf_settings.max_pdf_pages,
-            max_extracted_chars=pdf_settings.max_extracted_chars,
+        limits = ExtractionLimits(
+            max_pages=pdf_settings.max_pdf_pages,
+            max_chars=pdf_settings.max_extracted_chars,
             timeout_seconds=min(
                 float(request.timeout),
                 pdf_settings.extraction_timeout_seconds,

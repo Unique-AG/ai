@@ -42,13 +42,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
-class PdfProcessingLimits:
-    max_pdf_pages: int
-    max_extracted_chars: int
-    timeout_seconds: float
-
-
-@dataclass(frozen=True, slots=True)
 class PdfProcessingOutcome:
     content: str | None = None
     error_result: CrawlUrlResult | None = None
@@ -68,14 +61,14 @@ def _truncation_note(*, last_page: int, total_pages: int, mid_page: bool) -> str
 
 def _content_from_result(
     result: ExtractionResult,
-    limits: PdfProcessingLimits,
+    limits: ExtractionLimits,
 ) -> tuple[str, bool]:
     """Join pages within the character budget; return the content and whether it was cut."""
     content = join_page_chunks(result.chunks)
     mid_page = any(chunk.truncated for chunk in result.chunks)
-    if len(content) > limits.max_extracted_chars:
+    if len(content) > limits.max_chars:
         # The page separators can push the joined text past the budget.
-        content = content[: limits.max_extracted_chars]
+        content = content[: limits.max_chars]
         mid_page = True
     total_pages = result.total_page_count or len(result.chunks)
     last_page = result.chunks[-1].page_number if result.chunks else 0
@@ -128,7 +121,7 @@ class PdfProcessor:
         *,
         url: str,
         media_type: str | None,
-        limits: PdfProcessingLimits,
+        limits: ExtractionLimits,
     ) -> PdfProcessingOutcome:
         admission_error = admit_pdf_bytes(body, media_type=media_type)
         if admission_error is not None:
@@ -158,16 +151,9 @@ class PdfProcessor:
             path = Path(scratch_dir) / "document.pdf"
             path.write_bytes(body)
 
-            extraction_limits = ExtractionLimits(
-                max_pages=limits.max_pdf_pages,
-                max_page_chars=limits.max_extracted_chars,
-                max_document_chars=limits.max_extracted_chars,
-                timeout_seconds=limits.timeout_seconds,
-                ocr_enabled=False,
-            )
             started = time.monotonic()
             try:
-                result = await self._runner.run(path, extraction_limits)
+                result = await self._runner.run(path, limits)
             except TimeoutError as exc:
                 record_crawl_pdf_extraction("timeout", time.monotonic() - started)
                 _LOGGER.warning(
@@ -215,7 +201,6 @@ class PdfProcessor:
 
 
 __all__ = [
-    "PdfProcessingLimits",
     "PdfProcessingOutcome",
     "PdfProcessor",
     "join_page_chunks",

@@ -10,25 +10,16 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pd
 )
 from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
     ExtractionLimits,
-    ExtractionOutcome,
     ExtractionResult,
     extraction_result_from_payload,
 )
 
 
 def _extract_sync(path: Path, limits: ExtractionLimits) -> ExtractionResult:
-    if limits.ocr_enabled:
-        return ExtractionResult(
-            outcome=ExtractionOutcome.UNSUPPORTED,
-            reason="OCR is disabled for Search Proxy PDF extraction",
-            adapter_name="pypdf",
-        )
-
     payload = extract_text_layer(
         str(path),
         max_pages=limits.max_pages,
-        max_page_chars=limits.max_page_chars,
-        max_document_chars=limits.max_document_chars,
+        max_chars=limits.max_chars,
     )
     return extraction_result_from_payload(payload, adapter_name="pypdf")
 

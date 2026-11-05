@@ -103,8 +103,7 @@ class SubprocessExtractionRunner:
             str(self._script),
             str(path),
             str(limits.max_pages),
-            str(limits.max_page_chars),
-            str(limits.max_document_chars),
+            str(limits.max_chars),
             str(self._max_memory_bytes),
             str(math.ceil(limits.timeout_seconds) + 1),
             stdin=asyncio.subprocess.DEVNULL,
@@ -113,7 +112,7 @@ class SubprocessExtractionRunner:
             env={},
         )
         output_limit = (
-            limits.max_document_chars * _OUTPUT_BYTES_PER_CHAR + _OUTPUT_OVERHEAD_BYTES
+            limits.max_chars * _OUTPUT_BYTES_PER_CHAR + _OUTPUT_OVERHEAD_BYTES
         )
         try:
             async with asyncio.timeout(limits.timeout_seconds):

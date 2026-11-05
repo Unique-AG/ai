@@ -18,7 +18,6 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.errors import
 from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
     FakePdfExtractor,
     InProcessExtractionRunner,
-    PdfProcessingLimits,
     PdfProcessor,
     SubprocessExtractionRunner,
     UnconfiguredPdfExtractor,
@@ -38,21 +37,9 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pd
 _PDF_BYTES = b"%PDF-1.4\n%content"
 
 
-def _limits(**overrides: object) -> PdfProcessingLimits:
-    base = PdfProcessingLimits(
-        max_pdf_pages=50,
-        max_extracted_chars=100_000,
-        timeout_seconds=5.0,
-    )
-    if not overrides:
-        return base
-    data = {
-        "max_pdf_pages": base.max_pdf_pages,
-        "max_extracted_chars": base.max_extracted_chars,
-        "timeout_seconds": base.timeout_seconds,
-    }
-    data.update(overrides)
-    return PdfProcessingLimits(**data)  # type: ignore[arg-type]
+def _limits(**overrides: object) -> ExtractionLimits:
+    base = ExtractionLimits(max_pages=50, max_chars=100_000, timeout_seconds=5.0)
+    return replace(base, **overrides)  # type: ignore[arg-type]
 
 
 @pytest.mark.ai
@@ -131,13 +118,7 @@ async def test_pypdf_extractor__opens_real_pdf() -> None:
         path.write_bytes(buffer.getvalue())
         result = await PyPdfExtractor().extract(
             path,
-            ExtractionLimits(
-                max_pages=50,
-                max_page_chars=20_000,
-                max_document_chars=100_000,
-                timeout_seconds=5.0,
-                ocr_enabled=False,
-            ),
+            _limits(),
         )
 
     assert result.adapter_name == "pypdf"
@@ -230,12 +211,7 @@ async def test_in_process_runner__maps_timeout() -> None:
     runner = InProcessExtractionRunner(SlowExtractor())
     result = await runner.run(
         path=__import__("pathlib").Path("."),
-        limits=ExtractionLimits(
-            max_pages=1,
-            max_page_chars=10,
-            max_document_chars=10,
-            timeout_seconds=0.01,
-        ),
+        limits=ExtractionLimits(max_pages=1, max_chars=10, timeout_seconds=0.01),
     )
     assert result.outcome is ExtractionOutcome.FAILED
     assert result.reason is not None
@@ -282,7 +258,7 @@ async def test_pdf_processor__truncates_over_page_limit_with_note() -> None:
             PageChunk(page_number=2, text="Page 2"),
             total_pages=5,
         ),
-        max_pdf_pages=2,
+        max_pages=2,
     )
 
     assert content == (
@@ -305,7 +281,7 @@ async def test_pdf_processor__truncates_over_character_limit_with_note() -> None
             PageChunk(page_number=2, text="B" * 10),
             total_pages=2,
         ),
-        max_extracted_chars=20,
+        max_chars=20,
     )
 
     assert content == (
@@ -338,7 +314,7 @@ async def test_pdf_processor__records_outcome_metrics(
 
     await _process(
         _fake_result(PageChunk(page_number=1, text="One"), total_pages=3),
-        max_pdf_pages=1,
+        max_pages=1,
     )
     await PdfProcessor(extractor=FakePdfExtractor()).process(
         b"<html></html>",
@@ -354,8 +330,7 @@ async def test_pdf_processor__records_outcome_metrics(
 
 _SUBPROCESS_LIMITS = ExtractionLimits(
     max_pages=50,
-    max_page_chars=20_000,
-    max_document_chars=100_000,
+    max_chars=100_000,
     timeout_seconds=10.0,
 )
 
@@ -555,7 +530,7 @@ async def test_subprocess_runner__contains_misbehaving_child(
 
     result = await runner.run(
         tmp_path / "unused.pdf",
-        replace(_SUBPROCESS_LIMITS, max_document_chars=1_000),
+        replace(_SUBPROCESS_LIMITS, max_chars=1_000),
     )
 
     assert result.outcome is ExtractionOutcome.FAILED

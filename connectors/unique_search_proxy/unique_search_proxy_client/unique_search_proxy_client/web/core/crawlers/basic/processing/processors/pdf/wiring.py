@@ -27,8 +27,6 @@ def build_pdf_extractor(settings: PdfSettings) -> PdfExtractor:
         return UnconfiguredPdfExtractor()
     if name == "fake":
         return FakePdfExtractor()
-    if name in {"", "pypdf", "default"}:
-        return PyPdfExtractor()
     return PyPdfExtractor()
 
 

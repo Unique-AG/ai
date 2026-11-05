@@ -7,7 +7,6 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pd
     UnconfiguredPdfExtractor,
 )
 from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.process import (
-    PdfProcessingLimits,
     PdfProcessingOutcome,
     PdfProcessor,
     join_page_chunks,
@@ -33,7 +32,6 @@ __all__ = [
     "InProcessExtractionRunner",
     "PageChunk",
     "PdfExtractor",
-    "PdfProcessingLimits",
     "PdfProcessingOutcome",
     "PdfProcessor",
     "SubprocessExtractionRunner",

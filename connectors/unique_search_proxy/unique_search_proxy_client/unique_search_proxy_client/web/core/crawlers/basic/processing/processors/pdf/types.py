@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path
 
 
 class ExtractionOutcome(StrEnum):
@@ -15,10 +14,8 @@ class ExtractionOutcome(StrEnum):
 @dataclass(frozen=True, slots=True)
 class ExtractionLimits:
     max_pages: int
-    max_page_chars: int
-    max_document_chars: int
+    max_chars: int
     timeout_seconds: float
-    ocr_enabled: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,18 +30,8 @@ class ExtractionResult:
     outcome: ExtractionOutcome
     chunks: tuple[PageChunk, ...] = ()
     total_page_count: int | None = None
-    duration_seconds: float = 0.0
     reason: str | None = None
     adapter_name: str = "unknown"
-
-
-@dataclass(frozen=True, slots=True)
-class AdmittedPdf:
-    """PDF bytes admitted after MIME and header checks."""
-
-    path: Path
-    byte_size: int
-    media_type: str = "application/pdf"
 
 
 def extraction_result_from_payload(
@@ -82,7 +69,6 @@ def extraction_result_from_payload(
 
 
 __all__ = [
-    "AdmittedPdf",
     "ExtractionLimits",
     "ExtractionOutcome",
     "ExtractionResult",

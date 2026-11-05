@@ -83,18 +83,15 @@ async def _main() -> int:
         help="Optional PDF path (defaults to a minimal synthetic PDF header file)",
     )
     parser.add_argument("--max-pages", type=int, default=50)
-    parser.add_argument("--max-page-chars", type=int, default=20_000)
-    parser.add_argument("--max-document-chars", type=int, default=100_000)
+    parser.add_argument("--max-chars", type=int, default=100_000)
     parser.add_argument("--timeout", type=float, default=30.0)
     args = parser.parse_args()
 
     adapter = _build_adapter(args.adapter)
     limits = ExtractionLimits(
         max_pages=args.max_pages,
-        max_page_chars=args.max_page_chars,
-        max_document_chars=args.max_document_chars,
+        max_chars=args.max_chars,
         timeout_seconds=args.timeout,
-        ocr_enabled=False,
     )
 
     if args.fixture is not None:
