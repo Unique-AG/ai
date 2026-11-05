@@ -51,7 +51,7 @@ class TestBasicCrawlerConfig:
         assert hasattr(config, "url_blocked_patterns")
         assert config.max_concurrent_requests == 10
         assert config.content_types.html is True
-        assert config.content_types.pdf is False
+        assert config.content_types.pdf is True
         assert config.url_blocked_patterns == [r".*\.pdf$"]
 
     def test_basic_crawler_config_custom_values(self):

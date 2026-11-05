@@ -47,6 +47,8 @@ class BasicConfig(CoreBasicConfig):
         title="URL blocked patterns",
         description=(
             "List of URL regex patterns to skip when crawling. "
+            "Ignored when crawling through the search proxy, where the content "
+            "type settings decide which file types are read. "
             "**Note:** This field will be deprecated in the future."
         ),
     )

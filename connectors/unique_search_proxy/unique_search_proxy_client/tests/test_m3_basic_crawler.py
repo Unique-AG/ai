@@ -463,13 +463,14 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
     """
     Purpose: Verify disabled PDF processing returns content-type without raw bytes.
     Why this matters: Untrusted PDF bodies must not be echoed in crawl results.
-    Setup summary: Crawl a PDF URL with default pdf=false and assert raw/content null.
+    Setup summary: Crawl a PDF URL with pdf=false and assert raw/content null.
     """
     resp = client.post(
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
             "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": False},
         },
     )
     assert resp.status_code == 200
@@ -537,14 +538,15 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
 def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
     """
     Purpose: Verify pdf=false skips extraction and omits raw PDF bytes.
-    Why this matters: Default deny must not process or retain PDF content.
-    Setup summary: Crawl with default toggles and assert a clean unprocessed result.
+    Why this matters: A space that turns PDF off must not process or retain PDF content.
+    Setup summary: Crawl with pdf=false and assert a clean unprocessed result.
     """
     resp = client.post(
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
             "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": False},
         },
     )
     assert resp.status_code == 200
@@ -585,14 +587,20 @@ def test_crawl_pdf_allowed_uses_default_pypdf_extractor(
 
 
 @pytest.mark.ai
+@pytest.mark.parametrize(
+    "content_types",
+    [{"pdf": True}, None],
+    ids=["pdf_on", "default_toggles"],
+)
 def test_crawl_pdf_allowed_extracts_with_fake_adapter(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
+    content_types: dict[str, bool] | None,
 ) -> None:
     """
     Purpose: Verify the crawl path returns Markdown when a fake extractor is wired.
-    Why this matters: End-to-end PDF processing must work once an adapter is selected.
-    Setup summary: Monkeypatch get_pdf_processor with FakePdfExtractor and crawl a PDF.
+    Why this matters: End-to-end PDF processing must work once an adapter is selected, and PDF is on by default.
+    Setup summary: Monkeypatch get_pdf_processor with FakePdfExtractor and crawl a PDF with PDF on and with default toggles.
     """
     from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
         FakePdfExtractor,
@@ -622,14 +630,13 @@ def test_crawl_pdf_allowed_extracts_with_fake_adapter(
         lambda: processor,
     )
 
-    resp = client.post(
-        "/v1/crawl",
-        json={
-            "urls": ["https://example.com/file.pdf"],
-            "crawler": CrawlerType.BASIC.value,
-            "contentTypes": {"pdf": True},
-        },
-    )
+    body: dict[str, object] = {
+        "urls": ["https://example.com/file.pdf"],
+        "crawler": CrawlerType.BASIC.value,
+    }
+    if content_types is not None:
+        body["contentTypes"] = content_types
+    resp = client.post("/v1/crawl", json=body)
     assert resp.status_code == 200
     result = resp.json()["results"][0]
     assert result["error"] is None

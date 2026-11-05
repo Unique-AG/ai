@@ -20,14 +20,14 @@ class ContentTypes:
         xhtml (bool | Unset): application/xhtml+xml Default: True.
         plain_text (bool | Unset): text/plain Default: True.
         markdown (bool | Unset): text/markdown Default: True.
-        pdf (bool | Unset): application/pdf Default: False.
+        pdf (bool | Unset): application/pdf Default: True.
     """
 
     html: bool | Unset = True
     xhtml: bool | Unset = True
     plain_text: bool | Unset = True
     markdown: bool | Unset = True
-    pdf: bool | Unset = False
+    pdf: bool | Unset = True
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
