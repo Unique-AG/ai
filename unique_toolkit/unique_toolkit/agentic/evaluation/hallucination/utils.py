@@ -5,6 +5,7 @@ from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
 from unique_toolkit.agentic.evaluation.exception import EvaluatorException
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
+    DEFAULT_REFERENCE_PATTERN,
     SourceSelectionMode,
     hallucination_required_input_fields,
 )
@@ -255,7 +256,7 @@ def context_text_from_stream_response(
     response: LanguageModelStreamResponse,
     selected_chunks: list[ContentChunk],
     source_selection_mode: SourceSelectionMode = SourceSelectionMode.FROM_ORIGINAL_RESPONSE,
-    reference_pattern: str = r"[\[<]?source(\d+)[>\]]?",
+    reference_pattern: str = DEFAULT_REFERENCE_PATTERN,
 ) -> list[str]:
     """Extract context text from stream response based on selected chunks.
 
@@ -378,6 +379,13 @@ def _from_original_response_source_selection_mode(
 
     # Remove duplicates and preserve order
     source_numbers = list(dict.fromkeys(int(num) for num in source_number_matches))
+
+    if not source_numbers and selected_chunks:
+        _LOGGER.warning(
+            f"No source citations matched pattern {reference_pattern!r} although "
+            f"{len(selected_chunks)} chunks are available; the hallucination "
+            "check will run without references."
+        )
 
     # Add bounds checking
     max_index = len(selected_chunks) - 1

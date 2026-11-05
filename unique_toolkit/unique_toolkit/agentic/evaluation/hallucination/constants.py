@@ -28,6 +28,11 @@ class SourceSelectionMode(StrEnum):
     FROM_ORIGINAL_RESPONSE = "FROM_ORIGINAL_RESPONSE"
 
 
+# Must accept the same "source" separators as the node-chat reference normaliser
+# (`source[\s_]?(\d+)`), otherwise citations shown in the UI are invisible here.
+DEFAULT_REFERENCE_PATTERN = r"[\[<]?source[\s_]?(\d+)[>\]]?"
+
+
 class HallucinationPromptsConfig(EvaluationMetricPromptsConfig):
     system_prompt_template: PromptType = Field(default_factory=system_prompt_loader)
     user_prompt_template: PromptType = Field(default_factory=user_prompt_loader)
@@ -37,7 +42,7 @@ class HallucinationConfig(EvaluationMetricConfig):
     source_selection_mode: SkipJsonSchema[SourceSelectionMode] = Field(
         default=SourceSelectionMode.FROM_ORIGINAL_RESPONSE
     )
-    reference_pattern: SkipJsonSchema[str] = Field(default=r"[\[<]?source(\d+)[>\]]?")
+    reference_pattern: SkipJsonSchema[str] = Field(default=DEFAULT_REFERENCE_PATTERN)
     enabled: SkipJsonSchema[bool] = False
     name: SkipJsonSchema[EvaluationMetricName] = EvaluationMetricName.HALLUCINATION
     language_model: LMI = LanguageModelInfo.from_name(

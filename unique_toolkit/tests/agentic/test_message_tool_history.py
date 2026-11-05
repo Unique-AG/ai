@@ -832,6 +832,24 @@ class TestCompactMessageTools:
         assert {item["source_number"] for item in parsed} == {0, 3}
 
     @pytest.mark.ai
+    def test_keeps_sources_cited_with_space_or_underscore(self):
+        """
+        Purpose: Sources cited as [source N] or [source_N] are treated as cited.
+        Why this matters: The chat backend resolves these forms into references,
+            so compaction must not strip the sources behind them (UN-28753).
+        Setup summary: Four sources [0-3], assistant cites 1 and 3 with a space
+            and an underscore → result contains exactly those two entries.
+        """
+        content = self._make_sources([0, 1, 2, 3])
+        records = [self._make_record(content)]
+        result = HistoryManager.compact_message_tools(
+            records=records,
+            assistant_text="Fact one [source 1] and fact two [source_3].",
+        )
+        parsed = json.loads(result[0].response.content)
+        assert {item["source_number"] for item in parsed} == {1, 3}
+
+    @pytest.mark.ai
     def test_keeps_all_when_all_cited(self):
         """
         Purpose: When all sources are cited nothing is stripped.
