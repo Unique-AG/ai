@@ -128,6 +128,7 @@ def test_content_types_defaults_enable_common_text_types() -> None:
         "application/xhtml+xml": ContentTypeHandlerPolicy.ALLOW,
         "text/plain": ContentTypeHandlerPolicy.ALLOW,
         "text/markdown": ContentTypeHandlerPolicy.ALLOW,
+        "application/pdf": ContentTypeHandlerPolicy.ALLOW,
     }
 
 

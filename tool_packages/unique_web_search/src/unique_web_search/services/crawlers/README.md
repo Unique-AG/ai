@@ -46,7 +46,7 @@ There is **no Crawl4AI** crawler.
 | Field | Default | Notes |
 |-------|---------|-------|
 | `timeout` | from base | Per-request timeout (seconds) |
-| `content_types` | html/xhtml/plain/markdown on; pdf off | Which MIME types to process |
+| `content_types` | all on, including pdf | Which MIME types to process; PDFs are only read through the search proxy |
 | `max_concurrent_requests` | `10` | Parallelism |
 | `url_blocked_patterns` | tool-local | Regex URL blocklist; **not** sent to the proxy |
 

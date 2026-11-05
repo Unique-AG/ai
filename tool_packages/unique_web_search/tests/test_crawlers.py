@@ -51,7 +51,7 @@ class TestBasicCrawlerConfig:
         assert hasattr(config, "url_blocked_patterns")
         assert config.max_concurrent_requests == 10
         assert config.content_types.html is True
-        assert config.content_types.pdf is False
+        assert config.content_types.pdf is True
         assert config.url_blocked_patterns == [r".*\.pdf$"]
 
     def test_basic_crawler_config_custom_values(self):
@@ -339,6 +339,36 @@ class TestBasicCrawlerCrawlUrl:
         result = await basic_crawler._crawl_url_with_client(client, target)
         assert "not allowed" in result
         client.get.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl_url__rejects_pdf__when_pdf_is_switched_on(self) -> None:
+        """
+        Purpose: Verify the direct crawl refuses PDFs even when the space turns PDF on.
+        Why this matters: Only the search proxy can read PDFs; the direct crawl would pass their bytes to the model as text.
+        Setup summary: Turn PDF on, serve a PDF from a URL without a .pdf suffix, and assert the crawl refuses it.
+        """
+        crawler = BasicCrawler(
+            TitledBasicConfig(crawler=CrawlerType.BASIC, content_types={"pdf": True})
+        )
+        response = httpx.Response(
+            200,
+            text="%PDF-1.4",
+            headers={"content-type": "application/pdf"},
+            request=httpx.Request("GET", "https://example.com/download"),
+        )
+        client = AsyncMock(spec=httpx.AsyncClient)
+        client.get.return_value = response
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com/download",
+            hostname="example.com",
+            resolved_ip="",
+            used_dns_resolution=False,
+        )
+
+        result = await crawler._crawl_url_with_client(client, target)
+
+        assert result == "Content type application/pdf is not allowed"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
