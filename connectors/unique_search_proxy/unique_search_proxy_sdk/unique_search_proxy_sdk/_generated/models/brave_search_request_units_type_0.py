@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class BraveSearchRequestUnitsType0(str, Enum):
+class BraveSearchRequestUnitsType0(StrEnum):
     IMPERIAL = "imperial"
     METRIC = "metric"
 

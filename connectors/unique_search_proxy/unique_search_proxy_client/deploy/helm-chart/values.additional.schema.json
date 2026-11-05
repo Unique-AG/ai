@@ -568,6 +568,56 @@
         }
       }
     },
+    "pdfProcessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "PDF Processing configuration. Generated from PdfSettings (PDF_* env vars).",
+      "properties": {
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scanPolicy": {
+              "description": "Maps to env var PDF_SCAN_POLICY.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "extractor": {
+              "description": "Maps to env var PDF_EXTRACTOR.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "maxInlinePdfMb": {
+              "description": "Maps to env var PDF_MAX_INLINE_PDF_MB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxPdfPages": {
+              "description": "Maps to env var PDF_MAX_PDF_PAGES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxExtractedChars": {
+              "description": "Maps to env var PDF_MAX_EXTRACTED_CHARS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxDocumentHoldMb": {
+              "description": "Maps to env var PDF_MAX_DOCUMENT_HOLD_MB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxDocumentHoldDocuments": {
+              "description": "Maps to env var PDF_MAX_DOCUMENT_HOLD_DOCUMENTS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "documentHoldTtlSeconds": {
+              "description": "Maps to env var PDF_DOCUMENT_HOLD_TTL_SECONDS.",
+              "type": "number"
+            },
+            "documentHoldBaseUrl": {
+              "description": "Maps to env var PDF_DOCUMENT_HOLD_BASE_URL.",
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
     "urlSafety": {
       "type": "object",
       "additionalProperties": false,

@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class JinaCrawlRequestRetainImagesType0(str, Enum):
+class JinaCrawlRequestRetainImagesType0(StrEnum):
     ALL = "all"
     ALL_P = "all_p"
     ALT = "alt"

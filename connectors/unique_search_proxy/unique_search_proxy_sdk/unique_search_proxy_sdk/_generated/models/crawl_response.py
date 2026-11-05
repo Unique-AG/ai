@@ -46,7 +46,7 @@ class CrawlResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.crawl_url_result import CrawlUrlResult
+        from ..models.crawl_url_result import CrawlUrlResult  # noqa: PLC0415
 
         d = dict(src_dict)
         crawler = d.pop("crawler")

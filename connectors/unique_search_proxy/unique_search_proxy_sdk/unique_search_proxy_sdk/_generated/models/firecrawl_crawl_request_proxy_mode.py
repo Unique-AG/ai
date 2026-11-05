@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class FirecrawlCrawlRequestProxyMode(str, Enum):
+class FirecrawlCrawlRequestProxyMode(StrEnum):
     AUTO = "auto"
     BASIC = "basic"
     ENHANCED = "enhanced"

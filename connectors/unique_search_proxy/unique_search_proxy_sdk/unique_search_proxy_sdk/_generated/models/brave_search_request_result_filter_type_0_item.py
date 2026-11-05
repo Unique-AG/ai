@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class BraveSearchRequestResultFilterType0Item(str, Enum):
+class BraveSearchRequestResultFilterType0Item(StrEnum):
     DISCUSSIONS = "discussions"
     FAQ = "faq"
     INFOBOX = "infobox"

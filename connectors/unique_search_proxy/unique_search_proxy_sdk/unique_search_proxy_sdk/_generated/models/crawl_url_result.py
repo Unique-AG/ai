@@ -9,6 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.pdf_document_handle import PdfDocumentHandle
     from ..models.per_url_error import PerUrlError
 
 
@@ -20,11 +21,15 @@ class CrawlUrlResult:
     """
     Attributes:
         url (str):
-        content (None | str | Unset): Markdown extracted from HTML responses; null when unprocessed
+        content (None | str | Unset): Markdown extracted from HTML or PDF responses; null when unprocessed or when a
+            document handle is returned instead
         content_type (None | str | Unset): Response Content-Type (media type only, parameters stripped)
         error (None | PerUrlError | Unset):
         raw (Any | None | Unset): Upstream provider response for this URL (JSON object or text wrapper); included on
-            success and on per-URL failures for debugging
+            success and on per-URL failures for debugging. Always null for PDF responses.
+        document_handle (None | PdfDocumentHandle | Unset): Optional pod-local hold when a PDF exceeded an extraction
+            limit (typically with error.code PDF_LIMIT_EXCEEDED); download via GET /v1/document-holds/{id} before expiry.
+            Crawl content is not extracted in this case — treat the per-URL error as the primary signal.
     """
 
     url: str
@@ -32,10 +37,12 @@ class CrawlUrlResult:
     content_type: None | str | Unset = UNSET
     error: None | PerUrlError | Unset = UNSET
     raw: Any | None | Unset = UNSET
+    document_handle: None | PdfDocumentHandle | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.per_url_error import PerUrlError
+        from ..models.pdf_document_handle import PdfDocumentHandle  # noqa: PLC0415
+        from ..models.per_url_error import PerUrlError  # noqa: PLC0415
 
         url = self.url
 
@@ -65,6 +72,14 @@ class CrawlUrlResult:
         else:
             raw = self.raw
 
+        document_handle: dict[str, Any] | None | Unset
+        if isinstance(self.document_handle, Unset):
+            document_handle = UNSET
+        elif isinstance(self.document_handle, PdfDocumentHandle):
+            document_handle = self.document_handle.to_dict()
+        else:
+            document_handle = self.document_handle
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -80,12 +95,15 @@ class CrawlUrlResult:
             field_dict["error"] = error
         if raw is not UNSET:
             field_dict["raw"] = raw
+        if document_handle is not UNSET:
+            field_dict["documentHandle"] = document_handle
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.per_url_error import PerUrlError
+        from ..models.pdf_document_handle import PdfDocumentHandle  # noqa: PLC0415
+        from ..models.per_url_error import PerUrlError  # noqa: PLC0415
 
         d = dict(src_dict)
         url = d.pop("url")
@@ -134,12 +152,30 @@ class CrawlUrlResult:
 
         raw = _parse_raw(d.pop("raw", UNSET))
 
+        def _parse_document_handle(data: object) -> None | PdfDocumentHandle | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, dict):
+                    raise TypeError()
+                document_handle_type_0 = PdfDocumentHandle.from_dict(data)
+
+                return document_handle_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(None | PdfDocumentHandle | Unset, data)
+
+        document_handle = _parse_document_handle(d.pop("documentHandle", UNSET))
+
         crawl_url_result = cls(
             url=url,
             content=content,
             content_type=content_type,
             error=error,
             raw=raw,
+            document_handle=document_handle,
         )
 
         crawl_url_result.additional_properties = d

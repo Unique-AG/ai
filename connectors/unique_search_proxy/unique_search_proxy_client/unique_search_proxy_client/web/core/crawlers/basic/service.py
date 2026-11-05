@@ -31,6 +31,10 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing import (
     ContentProcessingTimeoutError,
     process_content,
 )
+from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.process import (
+    PdfProcessingLimits,
+    PdfProcessor,
+)
 from unique_search_proxy_client.web.core.crawlers.basic.user_agent import (
     random_user_agent,
 )
@@ -43,6 +47,7 @@ from unique_search_proxy_client.web.core.provider_response import (
 from unique_search_proxy_client.web.core.url_safety.gate import AllowedCrawlTarget
 from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
 from unique_search_proxy_client.web.settings.client import http_client_settings
+from unique_search_proxy_client.web.settings.pdf import pdf_settings
 from unique_search_proxy_client.web.settings.request_limits import (
     request_limits_settings,
 )
@@ -53,6 +58,7 @@ _LOGGER = logging.getLogger(__name__)
 # brotli and zstd reach far higher compression ratios.
 _ACCEPT_ENCODING = "gzip, deflate"
 _COMPRESSING_CONTENT_ENCODINGS = frozenset({"gzip", "deflate"})
+_PDF_MEDIA_TYPE = "application/pdf"
 
 
 def _content_type_from_response(response: httpx.Response) -> str | None:
@@ -128,7 +134,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                         client,
                         allowed_target.display_url,
                         resolved_target=allowed_target.resolved,
-                        timeout=timeout,
+                        request=request,
                         semaphore=semaphore,
                         budget=budget,
                         content_type_handlers=request.content_types.to_handlers(),
@@ -173,12 +179,17 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
         display_url: str,
         *,
         resolved_target: ResolvedCrawlTarget,
-        timeout: int,
+        request: BasicCrawlRequest,  # type: ignore[valid-type]
         semaphore: asyncio.Semaphore,
         budget: ByteBudget,
         content_type_handlers: dict[str, ContentTypeHandlerPolicy],
     ) -> CrawlUrlResult:
         async with semaphore:
+            timeout = request.timeout
+            pdf_allowed = (
+                content_type_handlers.get(_PDF_MEDIA_TYPE)
+                is ContentTypeHandlerPolicy.ALLOW
+            )
             if budget.exhausted:
                 return crawl_upstream_error(
                     display_url,
@@ -186,6 +197,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     content_type=None,
                     code=ProxyErrorCode.RESPONSE_TOO_LARGE.value,
                 )
+            content_type: str | None = None
             try:
                 async with safe_pinned_httpx_stream(
                     client,
@@ -216,6 +228,14 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                         max_bytes=http_client_settings.max_response_bytes,
                         budget=budget,
                     )
+                    if content_type == _PDF_MEDIA_TYPE:
+                        return await self._handle_pdf_response(
+                            display_url,
+                            response=response,
+                            body_bytes=body,
+                            request=request,
+                            pdf_allowed=pdf_allowed,
+                        )
                     raw_body = body.decode(
                         response.encoding or "utf-8",
                         errors="replace",
@@ -230,11 +250,16 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 return crawl_forbidden_target(display_url, blocked.reason)
             except ResponseTooLargeError as exc:
                 _LOGGER.warning("Basic crawl response too large: %s", exc.message)
+                code = (
+                    ProxyErrorCode.PDF_LIMIT_EXCEEDED.value
+                    if content_type == _PDF_MEDIA_TYPE
+                    else ProxyErrorCode.RESPONSE_TOO_LARGE.value
+                )
                 return crawl_upstream_error(
                     display_url,
                     exc.message,
-                    content_type=None,
-                    code=ProxyErrorCode.RESPONSE_TOO_LARGE.value,
+                    content_type=content_type,
+                    code=code,
                 )
             except httpx.TimeoutException as exc:
                 _LOGGER.warning(
@@ -290,6 +315,81 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 content_type=content_type,
                 error=None,
             )
+
+    def _resolve_pdf_processor(self) -> PdfProcessor:
+        from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring import (  # noqa: PLC0415
+            get_pdf_processor,
+        )
+
+        return get_pdf_processor()
+
+    async def _handle_pdf_response(
+        self,
+        display_url: str,
+        *,
+        response: httpx.Response,
+        body_bytes: bytes,
+        request: BasicCrawlRequest,  # type: ignore[valid-type]
+        pdf_allowed: bool,
+    ) -> CrawlUrlResult:
+        if response.is_error:
+            return crawl_upstream_error(
+                display_url,
+                f"HTTP {response.status_code} while fetching URL",
+                content_type=_PDF_MEDIA_TYPE,
+                raw=None,
+                status_code=response.status_code,
+            )
+        if not pdf_allowed:
+            return CrawlUrlResult(
+                url=display_url,
+                content=None,
+                raw=None,
+                content_type=_PDF_MEDIA_TYPE,
+                error=None,
+                document_handle=None,
+            )
+
+        processor = self._resolve_pdf_processor()
+        limits = PdfProcessingLimits(
+            max_inline_pdf_bytes=pdf_settings.max_inline_pdf_bytes,
+            max_pdf_pages=pdf_settings.max_pdf_pages,
+            max_extracted_chars=pdf_settings.max_extracted_chars,
+            timeout_seconds=float(request.timeout),
+        )
+        try:
+            outcome = await processor.process(
+                body_bytes,
+                url=display_url,
+                media_type=_PDF_MEDIA_TYPE,
+                limits=limits,
+            )
+        except ContentProcessingTimeoutError as exc:
+            return crawl_upstream_error(
+                display_url,
+                str(exc),
+                content_type=_PDF_MEDIA_TYPE,
+                code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
+                raw=None,
+            )
+        except ContentProcessingError as exc:
+            return crawl_upstream_error(
+                display_url,
+                str(exc),
+                content_type=_PDF_MEDIA_TYPE,
+                raw=None,
+            )
+
+        if outcome.error_result is not None:
+            return outcome.error_result
+        return CrawlUrlResult(
+            url=display_url,
+            content=outcome.content,
+            raw=None,
+            content_type=_PDF_MEDIA_TYPE,
+            error=None,
+            document_handle=outcome.document_handle,
+        )
 
     async def _maybe_process_content(
         self,

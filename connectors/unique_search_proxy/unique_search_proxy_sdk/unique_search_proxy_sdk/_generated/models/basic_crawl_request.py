@@ -72,7 +72,7 @@ class BasicCrawlRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.content_types import ContentTypes
+        from ..models.content_types import ContentTypes  # noqa: PLC0415
 
         d = dict(src_dict)
         urls = cast(list[str], d.pop("urls"))

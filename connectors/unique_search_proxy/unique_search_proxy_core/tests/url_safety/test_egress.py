@@ -8,9 +8,11 @@ import pytest
 from unique_search_proxy_core.url_safety import (
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
+    ResponseBodyTooLargeError,
     bypass_crawl_target,
     pinned_httpx_get_args,
     safe_pinned_httpx_get,
+    safe_pinned_httpx_get_bounded,
     safe_pinned_httpx_stream,
 )
 
@@ -316,3 +318,53 @@ async def test_safe_pinned_httpx_stream__closes_response__on_context_exit() -> N
             assert response.is_stream_consumed is False
 
     assert response.is_closed is True
+
+async def test_safe_pinned_httpx_get_bounded__returns_body() -> None:
+    """
+    Purpose: Verify bounded GET returns the streamed body under the limit.
+    Why this matters: PDF admission depends on capped streaming downloads.
+    Setup summary: Serve a small body and assert content equals the payload.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(200, content=b"%PDF-1.4\ndata")
+
+    target = bypass_crawl_target("https://example.com/file.pdf")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        response, body = await safe_pinned_httpx_get_bounded(
+            client,
+            target,
+            timeout=10.0,
+            max_redirect_hops=1,
+            enforce_url_safety=False,
+            max_bytes=1024,
+        )
+    assert response.status_code == 200
+    assert body == b"%PDF-1.4\ndata"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_safe_pinned_httpx_get_bounded__raises_when_over_limit() -> None:
+    """
+    Purpose: Verify bounded GET fails closed when the body exceeds max_bytes.
+    Why this matters: Oversized PDFs must not be buffered into memory.
+    Setup summary: Serve a body larger than the limit and expect an error.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(200, content=b"x" * 100)
+
+    target = bypass_crawl_target("https://example.com/file.pdf")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ResponseBodyTooLargeError):
+            await safe_pinned_httpx_get_bounded(
+                client,
+                target,
+                timeout=10.0,
+                max_redirect_hops=1,
+                enforce_url_safety=False,
+                max_bytes=16,
+            )

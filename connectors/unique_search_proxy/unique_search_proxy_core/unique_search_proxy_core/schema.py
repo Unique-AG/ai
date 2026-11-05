@@ -53,7 +53,32 @@ class ProxyErrorCode(StrEnum):
     UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT"
     EMPTY_SEARCH_RESULTS = "EMPTY_SEARCH_RESULTS"
     RESPONSE_TOO_LARGE = "RESPONSE_TOO_LARGE"
+    PDF_UNSUPPORTED = "PDF_UNSUPPORTED"
+    PDF_LIMIT_EXCEEDED = "PDF_LIMIT_EXCEEDED"
+    PDF_REJECTED = "PDF_REJECTED"
 
+
+class PdfDocumentHandle(BaseModel):
+    """Short-lived reference to a pod-local PDF hold for out-of-band download."""
+
+    model_config = camelized_model_config
+
+    document_id: str = Field(description="Opaque id of the held PDF on the owning pod")
+    download_url: str = Field(
+        description=(
+            "URL on the owning pod that streams the held bytes "
+            "(GET /v1/document-holds/{id})"
+        ),
+    )
+    token: str = Field(
+        description="One-time bearer token required by GET /v1/document-holds/{id}",
+    )
+    expires_at: str = Field(description="UTC expiry of the hold as an ISO-8601 string")
+    byte_size: int = Field(ge=0, description="Held PDF size in bytes")
+    page_count: int | None = Field(
+        default=None,
+        description="Page count when known at hold time; null when not inspected",
+    )
 
 class ErrorDetail(BaseModel):
     model_config = camelized_model_config
@@ -161,7 +186,10 @@ class CrawlUrlResult(BaseModel):
     url: str
     content: str | None = Field(
         default=None,
-        description="Markdown extracted from HTML responses; null when unprocessed",
+        description=(
+            "Markdown extracted from HTML or PDF responses; null when unprocessed "
+            "or when a document handle is returned instead"
+        ),
     )
     content_type: str | None = Field(
         default=None,
@@ -172,9 +200,20 @@ class CrawlUrlResult(BaseModel):
         default=None,
         description=(
             "Upstream provider response for this URL (JSON object or text wrapper); "
-            "included on success and on per-URL failures for debugging"
+            "included on success and on per-URL failures for debugging. "
+            "Always null for PDF responses."
         ),
     )
+    document_handle: PdfDocumentHandle | None = Field(
+        default=None,
+        description=(
+            "Optional pod-local hold when a PDF exceeded an extraction limit "
+            "(typically with error.code PDF_LIMIT_EXCEEDED); download via "
+            "GET /v1/document-holds/{id} before expiry. Crawl content is not "
+            "extracted in this case — treat the per-URL error as the primary signal."
+        ),
+    )
+
 
 
 class SearchResponse(BaseModel):

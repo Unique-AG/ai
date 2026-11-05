@@ -183,6 +183,18 @@ requestLimits:
   timeouts:
     maxTimeoutSeconds: 120
 
+pdfProcessing:
+  connection:
+    scanPolicy: disabled
+    extractor: pypdf
+    maxInlinePdfMb: 5
+    maxPdfPages: 100
+    maxExtractedChars: 100000
+    maxDocumentHoldMb: 50
+    maxDocumentHoldDocuments: 16
+    documentHoldTtlSeconds: 120.0
+    documentHoldBaseUrl: "http://127.0.0.1:2349"
+
 urlSafety:
   enabled: true
   redirects:

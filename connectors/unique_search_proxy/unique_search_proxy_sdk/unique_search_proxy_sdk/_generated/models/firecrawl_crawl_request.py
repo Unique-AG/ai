@@ -69,7 +69,7 @@ class FirecrawlCrawlRequest:
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.firecrawl_crawl_request_scrape_headers_type_0 import (
-            FirecrawlCrawlRequestScrapeHeadersType0,
+            FirecrawlCrawlRequestScrapeHeadersType0,  # noqa: PLC0415
         )
 
         urls = self.urls
@@ -177,7 +177,7 @@ class FirecrawlCrawlRequest:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.firecrawl_crawl_request_scrape_headers_type_0 import (
-            FirecrawlCrawlRequestScrapeHeadersType0,
+            FirecrawlCrawlRequestScrapeHeadersType0,  # noqa: PLC0415
         )
 
         d = dict(src_dict)

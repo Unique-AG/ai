@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class BraveSearchRequestSearchLangType0(str, Enum):
+class BraveSearchRequestSearchLangType0(StrEnum):
     AR = "ar"
     BG = "bg"
     BN = "bn"

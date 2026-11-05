@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class JinaCrawlRequestEngine(str, Enum):
+class JinaCrawlRequestEngine(StrEnum):
     AUTO = "auto"
     BROWSER = "browser"
     CF_BROWSER_RENDERING = "cf-browser-rendering"

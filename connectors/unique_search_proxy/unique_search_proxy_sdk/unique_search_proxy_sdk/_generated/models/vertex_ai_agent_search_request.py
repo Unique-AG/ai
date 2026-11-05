@@ -18,20 +18,20 @@ T = TypeVar("T", bound="VertexAiAgentSearchRequest")
 
 @_attrs_define
 class VertexAiAgentSearchRequest:
-    r"""
+    """
     Attributes:
         query (str): Search query string
         engine (Literal['vertexai'] | Unset): Provider discriminator; must be `vertexai` for this config. Default:
             'vertexai'.
         generation_instructions (str | Unset): Instructions injected into the grounding agent. Default: 'You are an
             Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you
-            find.\n\n## Core Directives\n1. **Search broadly** — issue multiple searches with varied keywords and phrasings
-            to cover every angle of the query.\n2. **Read every source thoroughly** — do NOT skim. Extract every relevant
-            fact, figure, statistic, date, name, quote, and piece of context.\n3. **One entry per source** — each source
-            gets its own result object. Never merge information from different sources into a single entry.\n4. **Preserve
-            detail** — prefer verbosity over brevity. Include specific numbers, full names, exact dates, and direct quotes
-            whenever available. Do NOT paraphrase away precision.\n5. **No omissions** — if a source contains relevant
-            information, it MUST appear in your output. When in doubt, include it.\n'.
+            find.\\n\\n## Core Directives\\n1. **Search broadly** — issue multiple searches with varied keywords and
+            phrasings to cover every angle of the query.\\n2. **Read every source thoroughly** — do NOT skim. Extract every
+            relevant fact, figure, statistic, date, name, quote, and piece of context.\\n3. **One entry per source** — each
+            source gets its own result object. Never merge information from different sources into a single entry.\\n4.
+            **Preserve detail** — prefer verbosity over brevity. Include specific numbers, full names, exact dates, and
+            direct quotes whenever available. Do NOT paraphrase away precision.\\n5. **No omissions** — if a source contains
+            relevant information, it MUST appear in your output. When in doubt, include it.\\n'.
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         vertexai_model_name (str | Unset): Gemini model name for grounded generation Default: 'gemini-3-flash-preview'.
         enable_enterprise_search (bool | Unset):  Default: False.

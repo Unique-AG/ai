@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class CustomApiRequestMethod(str, Enum):
+class CustomApiRequestMethod(StrEnum):
     GET = "GET"
     POST = "POST"
 

@@ -55,3 +55,15 @@ def disable_url_safety_redirects(monkeypatch: pytest.MonkeyPatch) -> None:
             update={"resolve_redirects": False}
         ),
     )
+
+
+@pytest.fixture(autouse=True)
+def reset_pdf_wiring() -> None:
+    """Keep PDF hold/processor singletons from leaking across tests."""
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring import (
+        reset_pdf_wiring_for_tests,
+    )
+
+    reset_pdf_wiring_for_tests()
+    yield
+    reset_pdf_wiring_for_tests()

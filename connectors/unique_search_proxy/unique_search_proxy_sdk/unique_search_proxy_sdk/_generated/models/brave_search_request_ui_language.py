@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class BraveSearchRequestUILanguage(str, Enum):
+class BraveSearchRequestUILanguage(StrEnum):
     DA_DK = "da-DK"
     DE_AT = "de-AT"
     DE_CH = "de-CH"

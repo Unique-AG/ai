@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class JinaCrawlRequestReturnFormat(str, Enum):
+class JinaCrawlRequestReturnFormat(StrEnum):
     HTML = "html"
     MARKDOWN = "markdown"
     PAGESHOT = "pageshot"
