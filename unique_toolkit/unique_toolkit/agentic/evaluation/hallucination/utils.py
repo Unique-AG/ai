@@ -367,12 +367,7 @@ def _from_original_response_source_selection_mode(
     selected_chunks: list[ContentChunk],
     reference_pattern: str,
 ) -> list[ContentChunk]:
-    """Extract referenced chunks from original text.
-
-    The text is first rewritten with the same citation normalisation the chat
-    backend uses to build references, so every citation the user sees as a
-    reference is also passed to the judge. ``reference_pattern`` is applied to
-    the raw text on top of that, so custom citation formats keep working.
+    """Extract chunks cited in the original text, as normalised citations or via ``reference_pattern``.
 
     Args:
         original_text: The original response text containing source references.
