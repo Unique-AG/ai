@@ -9,6 +9,7 @@ from unique_toolkit.agentic.chat_title.service import (
     clean_title,
     without_reasoning_options,
 )
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -32,6 +33,10 @@ def _response(content: str, usage: LanguageModelTokenUsage | None = None):
         ],
         usage=usage,
     )
+
+
+def _message(role: ChatMessageRole) -> ChatMessage:
+    return ChatMessage(id="msg_1", chat_id="chat_1", text="Earlier turn", role=role)
 
 
 @pytest.fixture
@@ -154,12 +159,31 @@ class TestChatTitleGenerator:
         chat_service: MagicMock,
         llm_service: MagicMock,
     ) -> None:
-        """A chat with history keeps its title and no model call is made."""
-        chat_service.get_full_history_async.return_value = [MagicMock()]
+        """A chat with an earlier user message keeps its title and no model call is made."""
+        chat_service.get_full_history_async.return_value = [
+            _message(ChatMessageRole.USER),
+            _message(ChatMessageRole.ASSISTANT),
+        ]
 
         assert await generator.run(_PROMPT) is None
         llm_service.complete_async.assert_not_awaited()
         chat_service.update_chat_title_async.assert_not_awaited()
+
+    @pytest.mark.ai
+    async def test_run__only_assistant_segment_before_prompt__stores_generated_title(
+        self,
+        generator: ChatTitleGenerator,
+        chat_service: MagicMock,
+    ) -> None:
+        """A scheduled run's segment before the prompt does not make the chat old."""
+        chat_service.get_full_history_async.return_value = [
+            _message(ChatMessageRole.ASSISTANT)
+        ]
+
+        assert await generator.run(_PROMPT) == "Discovery Banque Audi"
+        chat_service.update_chat_title_async.assert_awaited_once_with(
+            "Discovery Banque Audi", is_generated=True
+        )
 
     @pytest.mark.ai
     async def test_run__blank_prompt__does_nothing(
