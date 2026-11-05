@@ -10,6 +10,7 @@ from unique_toolkit.agentic.chat_title.prompts import (
     CHAT_TITLE_SYSTEM_PROMPT,
     CHAT_TITLE_USER_PROMPT_TEMPLATE,
 )
+from unique_toolkit.chat.schemas import ChatMessageRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.infos import LanguageModelInfo
@@ -61,7 +62,9 @@ def clean_title(raw: str) -> str | None:
 class ChatTitleGenerator:
     """Replaces the prompt-based title of a new chat with a short generated one.
 
-    Runs once per chat: it does nothing when the chat already has earlier turns.
+    Runs once per chat: it does nothing when the chat history has an earlier
+    user message. Assistant-only history, such as the segment a scheduled run
+    stores before its prompt, does not count as an earlier turn.
     Never raises; on any failure the existing title is kept. Logs carry no
     prompt or title text.
     """
@@ -92,7 +95,8 @@ class ChatTitleGenerator:
             return None
 
         try:
-            if await self._chat_service.get_full_history_async():
+            history = await self._chat_service.get_full_history_async()
+            if any(message.role == ChatMessageRole.USER for message in history):
                 return None
 
             title = await self._generate(user_message[:_USER_MESSAGE_MAX_CHARS])
