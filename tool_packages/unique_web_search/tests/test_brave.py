@@ -37,27 +37,31 @@ class TestBraveSearchConfig:
         assert config.country.expose is False
         assert config.country.value == "US"
 
-    def test_requires_scraping_defaults_to_false(self):
-        assert BraveSearchConfig().requires_scraping is False
+    def test_requires_scraping_defaults_to_true(self):
+        assert BraveSearchConfig().requires_scraping is True
+
+    def test_requires_scraping_missing_from_space_config_loads_as_true(self):
+        config = BraveSearchConfig.model_validate({"engine": "brave"})
+        assert config.requires_scraping is True
 
     def test_requires_scraping_parses_from_camel_case_space_config(self):
         config = BraveSearchConfig.model_validate(
-            {"engine": "brave", "requiresScraping": True}
+            {"engine": "brave", "requiresScraping": False}
         )
-        assert config.requires_scraping is True
+        assert config.requires_scraping is False
 
-    def test_requires_scraping_null_from_engine_switch_loads_as_false(self):
+    def test_requires_scraping_null_from_engine_switch_loads_as_true(self):
         config = BraveSearchConfig.model_validate(
             {"engine": "brave", "requiresScraping": None}
         )
-        assert config.requires_scraping is False
+        assert config.requires_scraping is True
 
     def test_requires_scraping_schema_accepts_null_for_admin_form(self):
         field_schema = BraveSearchConfig.model_json_schema(by_alias=True)["properties"][
             "requiresScraping"
         ]
         assert field_schema["type"] == ["boolean", "null"]
-        assert field_schema["default"] is False
+        assert field_schema["default"] is True
 
 
 @pytest.fixture
@@ -79,13 +83,13 @@ class TestBraveSearchInit:
         search = BraveSearch(config)
         assert search.is_configured is True
 
-    def test_requires_scraping_defaults_to_false(self, _mock_brave_settings):
+    def test_requires_scraping_defaults_to_true(self, _mock_brave_settings):
         search = BraveSearch(BraveConfig())
-        assert search.requires_scraping is False
+        assert search.requires_scraping is True
 
     def test_requires_scraping_follows_config(self, _mock_brave_settings):
-        search = BraveSearch(BraveSearchConfig(requires_scraping=True))
-        assert search.requires_scraping is True
+        search = BraveSearch(BraveSearchConfig(requires_scraping=False))
+        assert search.requires_scraping is False
 
 
 class TestBraveSearch:

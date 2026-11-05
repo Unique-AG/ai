@@ -32,8 +32,8 @@ Query → normalised results (URL / title / snippet / optional content). Optiona
 | Engine | Proxy | Notes |
 |--------|-------|-------|
 | Google | legacy + proxy | Requires scraping by default |
-| Brave | **proxy-only** | Rich snippets; configurable `requires_scraping`; `ExposableParam` knobs |
-| Perplexity | **proxy-only** | Content extraction knobs; configurable `requires_scraping`; `ExposableParam` |
+| Brave | **proxy-only** | Rich snippets; configurable `requires_scraping` (on by default); `ExposableParam` knobs |
+| Perplexity | **proxy-only** | Content extraction knobs; configurable `requires_scraping` (on by default); `ExposableParam` |
 | Custom API | legacy + proxy | Your REST endpoint; proxy mode rejects redirects |
 
 Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `value`) for optional provider knobs. See [Search Engines README](./src/unique_web_search/services/search_engine/README.md).

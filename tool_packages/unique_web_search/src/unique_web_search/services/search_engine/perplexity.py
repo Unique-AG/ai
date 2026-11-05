@@ -21,11 +21,10 @@ from unique_web_search.services.search_engine.schema import (
 
 
 class PerplexitySearchConfig(PerplexityConfig):
-    # The admin form stores null here when a space switches to Perplexity from
-    # an engine that has this field, so null must load as off and pass the
-    # form's validation.
+    # The admin form stores requires_scraping as null after an engine switch.
+    # NoneToDefault reads null as True; json_schema_extra lets the form accept it.
     requires_scraping: Annotated[bool, NoneToDefault] = Field(
-        default=False,
+        default=True,
         title="Requires scraping",
         description=(
             "Crawl every search result and pass the full page content to the "
@@ -57,7 +56,7 @@ class PerplexitySearch(SearchEngine[PerplexitySearchConfig]):
 
     @property
     def requires_scraping(self) -> bool:
-        return getattr(self.config, "requires_scraping", False)
+        return getattr(self.config, "requires_scraping", True)
 
     @override
     async def _legacy_search(

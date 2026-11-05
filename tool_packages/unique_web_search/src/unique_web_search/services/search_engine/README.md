@@ -33,7 +33,7 @@ Deployment configs for Google / Brave / Perplexity (and agent base fields) live 
 | Proxy route | `POST /v1/search` | `POST /v1/agent-search` |
 | Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text (+ provider `citations`) → parsed locally |
 | LLM knobs | `ExposableParam` + `config.merge()` | `ExposableParam` (Bing only) |
-| Typical scrape | Often yes (Google) | Often no (`requires_scraping=false`) |
+| Typical scrape | Often yes (Google; Brave and Perplexity by default) | Often no (`requires_scraping=false`) |
 
 ---
 
@@ -97,7 +97,7 @@ GOOGLE_SEARCH_ENGINE_ID=...
 
 ### Brave Search (proxy-only)
 
-**Provider:** Brave Search API · **Requires scraping:** configurable, default no (rich snippets) · **Legacy:** not supported
+**Provider:** Brave Search API · **Requires scraping:** configurable, default yes · **Legacy:** not supported
 
 Config: `unique_web_search.services.search_engine.brave.BraveSearchConfig` (extends `unique_search_proxy_core.search_engines.brave.schema.BraveConfig` with `requires_scraping`, which is never sent to the proxy)
 
@@ -117,7 +117,7 @@ results = await search.search("privacy-focused search")  # requires SEARCH_PROXY
 
 ### Perplexity Search (proxy-only)
 
-**Provider:** Perplexity Search API · **Requires scraping:** configurable, default no (page excerpts) · **Legacy:** not supported
+**Provider:** Perplexity Search API · **Requires scraping:** configurable, default yes · **Legacy:** not supported
 
 Config: `unique_web_search.services.search_engine.perplexity.PerplexitySearchConfig` (extends `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityConfig` with `requires_scraping`, which is never sent to the proxy)
 
