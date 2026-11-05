@@ -214,6 +214,8 @@ Crawler discriminators: `Basic`, `Tavily`, `Jina`, `Firecrawl`.
 
 **Timeout:** with `Basic`, URLs still loading just before `timeout` come back as per-URL `UPSTREAM_TIMEOUT` results next to the finished pages. A busy worker can send the response up to 5 s after `timeout`, so set your HTTP client timeout at least 5 s above it. The other crawlers fail the whole batch with a `504` at `timeout`.
 
+**PDFs:** with `contentTypes.pdf` on (off by default), `Basic` returns a PDF's text in `content`; `raw` is always null for PDFs. The default pypdf extractor runs in `SubprocessExtractionRunner`: a short-lived child process that starts with an empty environment, has memory and CPU limits, and is killed at its time limit or the request deadline. Each worker reads `PDF_MAX_CONCURRENT_EXTRACTIONS` PDFs at a time (default 1); the rest wait. PDFs longer than `PDF_MAX_PDF_PAGES` or `PDF_MAX_EXTRACTED_CHARS` come back truncated, led by a note saying so. A PDF that can't be read fails its own URL (`PDF_UNSUPPORTED`, `UPSTREAM_ERROR`, or `UPSTREAM_TIMEOUT`). Extractors are adapters behind `PdfExtractor` in `processing/processors/pdf/adapters/`, selected with `PDF_EXTRACTOR`.
+
 ### 5.5 Errors
 
 Structured envelope on all non-2xx responses:
@@ -250,6 +252,7 @@ Settings use pydantic-settings with per-provider env vars. Copy `.env.example` t
 | Request context | (none) | `REQUIRE_CONTEXT_HEADERS`, `REJECT_UNATTRIBUTED_REQUESTS` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
 | URL safety | `URL_SAFETY_` | `URL_SAFETY_ENABLED` |
+| PDF processing | `PDF_` | `PDF_EXTRACTOR`, `PDF_MAX_PDF_PAGES`, `PDF_EXTRACTION_TIMEOUT_SECONDS` |
 | Container | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL` |
 
 `URL_SAFETY_ENABLED` defaults to `true` when unset. Setting it to `false`
@@ -266,7 +269,7 @@ or cloud metadata targets, or configure network routing or private DNS.
 
 With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct metric aggregation.
 
-**Sizing.** By default a pod runs 2 workers (`WORKERS`), and each worker runs up to 4 crawls at once (`REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS`), so 8 per pod. The Helm chart requests 1 CPU and 2 GiB of memory with a 4 GiB limit, and the image sets `MALLOC_ARENA_MAX=2`. Each worker is a separate Python process with its own memory, so add replicas rather than workers for more capacity. Run at least 2 replicas in production.
+**Sizing.** By default a pod runs 2 workers (`WORKERS`), and each worker runs up to 4 crawls at once (`REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS`), so 8 per pod. The Helm chart requests 1 CPU and 2 GiB of memory with a 4 GiB limit, and the image sets `MALLOC_ARENA_MAX=2`. Each worker is a separate Python process with its own memory, so add replicas rather than workers for more capacity. Run at least 2 replicas in production. When PDFs are enabled, each PDF being read adds a subprocess of typically about 150 MiB, capped at `PDF_MAX_EXTRACTION_MEMORY_MB` (512 MiB), so the default adds at most about 1 GiB per pod.
 
 ---
 

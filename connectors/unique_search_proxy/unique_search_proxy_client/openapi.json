@@ -1556,7 +1556,7 @@
               }
             ],
             "title": "Content",
-            "description": "Markdown extracted from HTML responses; null when unprocessed"
+            "description": "Markdown extracted from HTML or PDF responses; null when unprocessed"
           },
           "contentType": {
             "anyOf": [
@@ -1589,7 +1589,7 @@
               }
             ],
             "title": "Raw",
-            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging"
+            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging. Always null for PDF responses."
           }
         },
         "type": "object",

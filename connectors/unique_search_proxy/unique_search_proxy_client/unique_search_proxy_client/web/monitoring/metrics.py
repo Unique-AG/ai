@@ -43,7 +43,7 @@ _AGENT_SEARCH_LATENCY_BUCKETS = _linear_buckets(ceiling=120.0, steps=20)
 # Half-second steps up to 10s, so checks that hit the per-hop redirect timeout
 # (5s by default) show up as their own bucket.
 _URL_SAFETY_CHECK_LATENCY_BUCKETS = _linear_buckets(ceiling=10.0, steps=20)
-# Ceiling above the default 15s extraction timeout.
+# Ceiling above the default 10s extraction timeout.
 _PDF_EXTRACTION_LATENCY_BUCKETS = _linear_buckets(ceiling=20.0, steps=20)
 _PDF_PAGE_COUNT_BUCKETS = (1, 2, 5, 10, 20, 50, 100, 200, 500, 1000)
 
@@ -113,25 +113,25 @@ url_safety_application_checks_enabled = m.gauge(
     [],
 )
 
-pdf_extractions_total = m.counter(
-    "pdf_extractions_total",
+crawl_pdf_extractions_total = m.counter(
+    "crawl_pdf_extractions_total",
     "PDF text extractions by outcome",
     ["outcome"],
 )
-pdf_extraction_duration_seconds = m.histogram(
-    "pdf_extraction_duration_seconds",
+crawl_pdf_extraction_duration_seconds = m.histogram(
+    "crawl_pdf_extraction_duration_seconds",
     "Time to read one PDF in the extraction process, by outcome",
     ["outcome"],
     buckets=_PDF_EXTRACTION_LATENCY_BUCKETS,
 )
-pdf_extraction_wait_seconds = m.histogram(
-    "pdf_extraction_wait_seconds",
+crawl_pdf_extraction_wait_seconds = m.histogram(
+    "crawl_pdf_extraction_wait_seconds",
     "Time a PDF waited for a free extraction slot",
     [],
     buckets=_PDF_EXTRACTION_LATENCY_BUCKETS,
 )
-pdf_page_count = m.histogram(
-    "pdf_page_count",
+crawl_pdf_page_count = m.histogram(
+    "crawl_pdf_page_count",
     "Total pages of PDFs whose text was read",
     [],
     buckets=_PDF_PAGE_COUNT_BUCKETS,
@@ -227,20 +227,22 @@ def set_url_safety_application_checks_enabled(enabled: bool) -> None:
     url_safety_application_checks_enabled.set(int(enabled))
 
 
-def record_pdf_extraction(
+def record_crawl_pdf_extraction(
     outcome: str,
     duration_seconds: float,
     page_count: int | None = None,
 ) -> None:
     """Record one PDF read; ``outcome`` is extracted, truncated or a failure kind."""
-    pdf_extractions_total.labels(outcome=outcome).inc()
-    pdf_extraction_duration_seconds.labels(outcome=outcome).observe(duration_seconds)
+    crawl_pdf_extractions_total.labels(outcome=outcome).inc()
+    crawl_pdf_extraction_duration_seconds.labels(outcome=outcome).observe(
+        duration_seconds,
+    )
     if page_count is not None:
-        pdf_page_count.observe(page_count)
+        crawl_pdf_page_count.observe(page_count)
 
 
-def record_pdf_extraction_wait(duration_seconds: float) -> None:
-    pdf_extraction_wait_seconds.observe(duration_seconds)
+def record_crawl_pdf_extraction_wait(duration_seconds: float) -> None:
+    crawl_pdf_extraction_wait_seconds.observe(duration_seconds)
 
 
 def record_agent_search_success(engine: str, duration_seconds: float) -> None:

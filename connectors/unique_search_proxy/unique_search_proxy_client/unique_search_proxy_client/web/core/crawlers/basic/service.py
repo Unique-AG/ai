@@ -30,11 +30,10 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing import (
     ContentProcessingError,
     ContentProcessingTimeoutError,
     process_content,
-    resolve_handler_policy,
 )
-from unique_search_proxy_client.web.core.crawlers.basic.processing.pdf import (
-    PdfExtractionError,
-    extract_pdf_text,
+from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.process import (
+    PdfProcessingLimits,
+    PdfProcessor,
 )
 from unique_search_proxy_client.web.core.crawlers.basic.user_agent import (
     random_user_agent,
@@ -135,7 +134,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                         client,
                         allowed_target.display_url,
                         resolved_target=allowed_target.resolved,
-                        timeout=timeout,
+                        request=request,
                         semaphore=semaphore,
                         budget=budget,
                         content_type_handlers=request.content_types.to_handlers(),
@@ -180,12 +179,17 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
         display_url: str,
         *,
         resolved_target: ResolvedCrawlTarget,
-        timeout: int,
+        request: BasicCrawlRequest,  # type: ignore[valid-type]
         semaphore: asyncio.Semaphore,
         budget: ByteBudget,
         content_type_handlers: dict[str, ContentTypeHandlerPolicy],
     ) -> CrawlUrlResult:
         async with semaphore:
+            timeout = request.timeout
+            pdf_allowed = (
+                content_type_handlers.get(_PDF_MEDIA_TYPE)
+                is ContentTypeHandlerPolicy.ALLOW
+            )
             if budget.exhausted:
                 return crawl_upstream_error(
                     display_url,
@@ -193,6 +197,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     content_type=None,
                     code=ProxyErrorCode.RESPONSE_TOO_LARGE.value,
                 )
+            content_type: str | None = None
             try:
                 async with safe_pinned_httpx_stream(
                     client,
@@ -223,11 +228,17 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                         max_bytes=http_client_settings.max_response_bytes,
                         budget=budget,
                     )
-                    is_pdf = content_type == _PDF_MEDIA_TYPE and not response.is_error
-                    raw_body = (
-                        ""
-                        if is_pdf
-                        else body.decode(response.encoding or "utf-8", errors="replace")
+                    if content_type == _PDF_MEDIA_TYPE:
+                        return await self._handle_pdf_response(
+                            display_url,
+                            response=response,
+                            body_bytes=body,
+                            request=request,
+                            pdf_allowed=pdf_allowed,
+                        )
+                    raw_body = body.decode(
+                        response.encoding or "utf-8",
+                        errors="replace",
                     )
             except CrawlTargetValidationError as exc:
                 blocked = exc.blocked_targets[0]
@@ -239,11 +250,16 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 return crawl_forbidden_target(display_url, blocked.reason)
             except ResponseTooLargeError as exc:
                 _LOGGER.warning("Basic crawl response too large: %s", exc.message)
+                code = (
+                    ProxyErrorCode.PDF_LIMIT_EXCEEDED.value
+                    if content_type == _PDF_MEDIA_TYPE
+                    else ProxyErrorCode.RESPONSE_TOO_LARGE.value
+                )
                 return crawl_upstream_error(
                     display_url,
                     exc.message,
-                    content_type=None,
-                    code=ProxyErrorCode.RESPONSE_TOO_LARGE.value,
+                    content_type=content_type,
+                    code=code,
                 )
             except httpx.TimeoutException as exc:
                 _LOGGER.warning(
@@ -267,14 +283,6 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     str(exc),
                     content_type=None,
                     raw=transport_error_raw(exc),
-                )
-
-            if is_pdf:
-                return await self._crawl_pdf(
-                    display_url,
-                    body,
-                    timeout=timeout,
-                    content_type_handlers=content_type_handlers,
                 )
 
             if response.is_error:
@@ -308,18 +316,31 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 error=None,
             )
 
-    async def _crawl_pdf(
+    def _resolve_pdf_processor(self) -> PdfProcessor:
+        from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring import (  # noqa: PLC0415
+            get_pdf_processor,
+        )
+
+        return get_pdf_processor()
+
+    async def _handle_pdf_response(
         self,
         display_url: str,
-        body: bytes,
         *,
-        timeout: int,
-        content_type_handlers: dict[str, ContentTypeHandlerPolicy],
+        response: httpx.Response,
+        body_bytes: bytes,
+        request: BasicCrawlRequest,  # type: ignore[valid-type]
+        pdf_allowed: bool,
     ) -> CrawlUrlResult:
-        # PDF bytes are never echoed in ``raw``: binary is useless to callers and
-        # can be several MiB per URL.
-        policy = resolve_handler_policy(_PDF_MEDIA_TYPE, content_type_handlers)
-        if policy is not ContentTypeHandlerPolicy.ALLOW:
+        if response.is_error:
+            return crawl_upstream_error(
+                display_url,
+                f"HTTP {response.status_code} while fetching URL",
+                content_type=_PDF_MEDIA_TYPE,
+                raw=None,
+                status_code=response.status_code,
+            )
+        if not pdf_allowed:
             return CrawlUrlResult(
                 url=display_url,
                 content=None,
@@ -328,22 +349,43 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                 error=None,
             )
 
+        processor = self._resolve_pdf_processor()
+        limits = PdfProcessingLimits(
+            max_pdf_pages=pdf_settings.max_pdf_pages,
+            max_extracted_chars=pdf_settings.max_extracted_chars,
+            timeout_seconds=min(
+                float(request.timeout),
+                pdf_settings.extraction_timeout_seconds,
+            ),
+        )
         try:
-            pdf = await extract_pdf_text(
-                body,
-                timeout=min(float(timeout), pdf_settings.extraction_timeout_seconds),
+            outcome = await processor.process(
+                body_bytes,
+                url=display_url,
+                media_type=_PDF_MEDIA_TYPE,
+                limits=limits,
             )
-        except PdfExtractionError as exc:
-            _LOGGER.warning("Basic crawl PDF extraction failed outcome=%s", exc.outcome)
+        except ContentProcessingTimeoutError as exc:
             return crawl_upstream_error(
                 display_url,
-                exc.message,
+                str(exc),
                 content_type=_PDF_MEDIA_TYPE,
-                code=ProxyErrorCode.PDF_EXTRACTION_FAILED.value,
+                code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
+                raw=None,
             )
+        except ContentProcessingError as exc:
+            return crawl_upstream_error(
+                display_url,
+                str(exc),
+                content_type=_PDF_MEDIA_TYPE,
+                raw=None,
+            )
+
+        if outcome.error_result is not None:
+            return outcome.error_result
         return CrawlUrlResult(
             url=display_url,
-            content=pdf.content,
+            content=outcome.content,
             raw=None,
             content_type=_PDF_MEDIA_TYPE,
             error=None,

@@ -153,6 +153,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: PDF_EXTRACTOR
+  value: {{ .Values.pdfProcessing.connection.extractor | quote }}
 - name: PDF_MAX_PDF_PAGES
   value: {{ .Values.pdfProcessing.connection.maxPdfPages | quote }}
 - name: PDF_MAX_EXTRACTED_CHARS
@@ -331,6 +333,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .ctx.Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: PDF_EXTRACTOR
+  value: {{ .ctx.Values.pdfProcessing.connection.extractor | quote }}
 - name: PDF_MAX_PDF_PAGES
   value: {{ .ctx.Values.pdfProcessing.connection.maxPdfPages | quote }}
 - name: PDF_MAX_EXTRACTED_CHARS

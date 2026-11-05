@@ -53,7 +53,8 @@ class ProxyErrorCode(StrEnum):
     UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT"
     EMPTY_SEARCH_RESULTS = "EMPTY_SEARCH_RESULTS"
     RESPONSE_TOO_LARGE = "RESPONSE_TOO_LARGE"
-    PDF_EXTRACTION_FAILED = "PDF_EXTRACTION_FAILED"
+    PDF_UNSUPPORTED = "PDF_UNSUPPORTED"
+    PDF_LIMIT_EXCEEDED = "PDF_LIMIT_EXCEEDED"
 
 
 class ErrorDetail(BaseModel):
@@ -162,7 +163,7 @@ class CrawlUrlResult(BaseModel):
     url: str
     content: str | None = Field(
         default=None,
-        description="Markdown extracted from HTML responses; null when unprocessed",
+        description="Markdown extracted from HTML or PDF responses; null when unprocessed",
     )
     content_type: str | None = Field(
         default=None,
@@ -173,7 +174,8 @@ class CrawlUrlResult(BaseModel):
         default=None,
         description=(
             "Upstream provider response for this URL (JSON object or text wrapper); "
-            "included on success and on per-URL failures for debugging"
+            "included on success and on per-URL failures for debugging. "
+            "Always null for PDF responses."
         ),
     )
 

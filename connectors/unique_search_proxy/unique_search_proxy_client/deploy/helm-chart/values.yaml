@@ -185,9 +185,10 @@ requestLimits:
 
 pdfProcessing:
   connection:
+    extractor: pypdf
     maxPdfPages: 100
     maxExtractedChars: 100000
-    extractionTimeoutSeconds: 15.0
+    extractionTimeoutSeconds: 10.0
     maxExtractionMemoryMb: 512
     maxConcurrentExtractions: 1
 

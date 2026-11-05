@@ -19,24 +19,33 @@ _BYTES_PER_MB = 1024 * 1024
     env_prefix=PDF_ENV_PREFIX,
 )
 class PdfSettings(BaseSettings):
-    """Limits for PDF text extraction in the Basic crawler.
+    """Deployment settings for PDF text extraction."""
 
-    PDFs are only read for requests that enable ``contentTypes.pdf``. Download size
-    is capped by ``HTTP_CLIENT_MAX_RESPONSE_KIB`` like any other response.
-    """
-
+    extractor: str = Field(
+        default="pypdf",
+        description=(
+            "Extractor adapter id. Default is the BSD-licensed pypdf adapter. "
+            "Use fake for tests, or none/off to disable extraction."
+        ),
+    )
     max_pdf_pages: int = Field(
         default=100,
         ge=1,
-        description="Pages read per PDF; longer PDFs are returned truncated",
+        description=(
+            "Maximum number of pages to extract into the crawl response; "
+            "longer PDFs are returned truncated"
+        ),
     )
     max_extracted_chars: int = Field(
         default=100_000,
         ge=1,
-        description="Characters returned per PDF; longer text is returned truncated",
+        description=(
+            "Total character budget for an extracted PDF; "
+            "longer text is returned truncated"
+        ),
     )
     extraction_timeout_seconds: float = Field(
-        default=15.0,
+        default=10.0,
         gt=0,
         description=(
             "Wall-clock limit for reading one PDF, also capped by the crawl "

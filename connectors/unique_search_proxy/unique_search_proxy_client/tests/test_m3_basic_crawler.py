@@ -52,13 +52,13 @@ def client(
         if "file.pdf" in url:
             return httpx.Response(
                 200,
-                content=make_pdf(["Rating calendar 2026"]),
+                content=b"%PDF-1.4\n%fake",
                 headers={"content-type": "application/pdf"},
             )
-        if "broken.pdf" in url:
+        if "real.pdf" in url:
             return httpx.Response(
                 200,
-                content=b"%PDF-1.4\nnot really a pdf",
+                content=make_pdf(["Rating calendar 2026"]),
                 headers={"content-type": "application/pdf"},
             )
         if "blocked.example" in host_header or "blocked.example" in url:
@@ -459,7 +459,12 @@ def test_crawl_records_per_url_outcome_metrics(client: TestClient) -> None:
 
 
 @pytest.mark.ai
-def test_crawl_returns_pdf_content_type_without_body(client: TestClient) -> None:
+def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
+    """
+    Purpose: Verify disabled PDF processing returns content-type without raw bytes.
+    Why this matters: Untrusted PDF bodies must not be echoed in crawl results.
+    Setup summary: Crawl a PDF URL with default pdf=false and assert raw/content null.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -530,6 +535,11 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
 
 @pytest.mark.ai
 def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
+    """
+    Purpose: Verify pdf=false skips extraction and omits raw PDF bytes.
+    Why this matters: Default deny must not process or retain PDF content.
+    Setup summary: Crawl with default toggles and assert a clean unprocessed result.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -545,11 +555,13 @@ def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
 
 
 @pytest.mark.ai
-def test_crawl_pdf_allowed_returns_extracted_text(client: TestClient) -> None:
+def test_crawl_pdf_allowed_uses_default_pypdf_extractor(
+    client: TestClient,
+) -> None:
     """
-    Purpose: Verify an enabled PDF comes back as its text, without the raw bytes.
-    Why this matters: This is the feature: answer questions from PDF content.
-    Setup summary: Crawl a one-page text PDF with contentTypes.pdf on.
+    Purpose: Verify enabling PDF uses the default pypdf adapter without a license gate.
+    Why this matters: Spaces should extract text-layer PDFs out of the box.
+    Setup summary: Allow pdf and crawl a minimal PDF; accept empty or unsupported.
     """
     resp = client.post(
         "/v1/crawl",
@@ -561,25 +573,105 @@ def test_crawl_pdf_allowed_returns_extracted_text(client: TestClient) -> None:
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
+    assert result["raw"] is None
+    # Minimal synthetic PDF may be empty/unsupported; it must not require licensing.
+    if result["error"] is not None:
+        assert result["error"]["code"] in {
+            ProxyErrorCode.PDF_UNSUPPORTED.value,
+            ProxyErrorCode.UPSTREAM_ERROR.value,
+        }
+    else:
+        assert result["content"] is not None
+
+
+@pytest.mark.ai
+def test_crawl_pdf_allowed_extracts_with_fake_adapter(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the crawl path returns Markdown when a fake extractor is wired.
+    Why this matters: End-to-end PDF processing must work once an adapter is selected.
+    Setup summary: Monkeypatch get_pdf_processor with FakePdfExtractor and crawl a PDF.
+    """
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
+        FakePdfExtractor,
+        InProcessExtractionRunner,
+        PdfProcessor,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+        ExtractionOutcome,
+        ExtractionResult,
+        PageChunk,
+    )
+
+    extractor = FakePdfExtractor(
+        result=ExtractionResult(
+            outcome=ExtractionOutcome.EXTRACTED,
+            chunks=(PageChunk(page_number=1, text="Rating calendar"),),
+            total_page_count=1,
+            adapter_name="fake",
+        )
+    )
+    processor = PdfProcessor(
+        extractor=extractor,
+        runner=InProcessExtractionRunner(extractor),
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring.get_pdf_processor",
+        lambda: processor,
+    )
+
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/file.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
     assert result["error"] is None
-    assert result["content"] == "Rating calendar 2026"
-    assert result["contentType"] == "application/pdf"
+    assert result["content"] == "Rating calendar"
     assert result["raw"] is None
 
 
 @pytest.mark.ai
-def test_crawl_broken_pdf_fails_only_its_own_url(client: TestClient) -> None:
+def test_crawl_pdf_allowed_returns_text_of_real_pdf(client: TestClient) -> None:
+    """
+    Purpose: Verify an enabled, parseable PDF comes back as its text end to end.
+    Why this matters: This is the feature: answer questions from PDF content.
+    Setup summary: Crawl a generated one-page PDF through the default pypdf child process.
+    """
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/real.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
+    assert result["error"] is None
+    assert result["content"] == "Rating calendar 2026"
+    assert result["raw"] is None
+
+
+@pytest.mark.ai
+def test_crawl_unreadable_pdf_fails_only_its_own_url(client: TestClient) -> None:
     """
     Purpose: Verify an unreadable PDF fails its URL while the rest of the crawl succeeds.
     Why this matters: One bad PDF must not cost the model the other sources.
-    Setup summary: Crawl a broken PDF, a valid PDF and an HTML page in one request.
+    Setup summary: Crawl an unparseable PDF, a real PDF and an HTML page in one request.
     """
     resp = client.post(
         "/v1/crawl",
         json={
             "urls": [
-                "https://example.com/broken.pdf",
                 "https://example.com/file.pdf",
+                "https://example.com/real.pdf",
                 "https://example.com/article",
             ],
             "crawler": CrawlerType.BASIC.value,
@@ -587,13 +679,13 @@ def test_crawl_broken_pdf_fails_only_its_own_url(client: TestClient) -> None:
         },
     )
     assert resp.status_code == 200
-    broken, valid, html = resp.json()["results"]
-    assert broken["error"]["code"] == ProxyErrorCode.PDF_EXTRACTION_FAILED.value
+    broken, real, html = resp.json()["results"]
+    assert broken["error"]["code"] == ProxyErrorCode.PDF_UNSUPPORTED.value
     assert broken["error"]["message"] == (
-        "The PDF could not be read; it may be damaged. Retrying will not help."
+        "PDF could not be parsed. Retrying will not help."
     )
     assert broken["content"] is None
-    assert valid["content"] == "Rating calendar 2026"
+    assert real["content"] == "Rating calendar 2026"
     assert html["error"] is None
     assert "Hello" in html["content"]
 

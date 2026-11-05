@@ -2764,6 +2764,10 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "extractor": {
+              "description": "Maps to env var PDF_EXTRACTOR.",
+              "$ref": "#/$defs/valueSourceString"
+            },
             "maxPdfPages": {
               "description": "Maps to env var PDF_MAX_PDF_PAGES.",
               "$ref": "#/$defs/valueSourceInteger"
