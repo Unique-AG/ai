@@ -985,7 +985,7 @@
       "id": 72,
       "type": "timeseries",
       "title": "PDF extraction time p50 / p95 / p99 (s)",
-      "description": "Time the extraction process spent reading one PDF, excluding responses that were not PDFs. The default limit is 10 s (pdfProcessing.connection.extractionTimeoutSeconds).",
+      "description": "Time to read one PDF, including any wait for a free extraction slot (see the next panel), excluding responses that were not PDFs. Reading itself is stopped after 10 s by default (pdfProcessing.connection.extractionTimeoutSeconds).",
       "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 48 },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 0, "lineWidth": 1 } }, "overrides": [] },

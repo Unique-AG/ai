@@ -43,8 +43,10 @@ _AGENT_SEARCH_LATENCY_BUCKETS = _linear_buckets(ceiling=120.0, steps=20)
 # Half-second steps up to 10s, so checks that hit the per-hop redirect timeout
 # (5s by default) show up as their own bucket.
 _URL_SAFETY_CHECK_LATENCY_BUCKETS = _linear_buckets(ceiling=10.0, steps=20)
-# Ceiling above the default 10s extraction timeout.
-_PDF_EXTRACTION_LATENCY_BUCKETS = _linear_buckets(ceiling=20.0, steps=20)
+# Reads take under a second, but a queued PDF can wait until the request deadline.
+_PDF_EXTRACTION_LATENCY_BUCKETS = _exponential_buckets(
+    start=0.05, ceiling=120.0, count=20
+)
 _PDF_PAGE_COUNT_BUCKETS = (1, 2, 5, 10, 20, 50, 100, 200, 500, 1000)
 
 # One histogram covers every endpoint, from sub-second /v1/search to /v1/agent-search
@@ -120,7 +122,7 @@ crawl_pdf_extractions_total = m.counter(
 )
 crawl_pdf_extraction_duration_seconds = m.histogram(
     "crawl_pdf_extraction_duration_seconds",
-    "Time to read one PDF in the extraction process, by outcome",
+    "Time to read one PDF, including any wait for an extraction slot, by outcome",
     ["outcome"],
     buckets=_PDF_EXTRACTION_LATENCY_BUCKETS,
 )

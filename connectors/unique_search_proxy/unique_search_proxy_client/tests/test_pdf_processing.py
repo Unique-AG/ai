@@ -472,6 +472,25 @@ async def test_subprocess_runner__handles_encrypted_pdfs(
 
 
 @pytest.mark.ai
+async def test_subprocess_runner__refuses_pdf_with_broken_page_tree(
+    make_pdf: Callable[[list[str]], bytes],
+    tmp_path: Path,
+) -> None:
+    """
+    Purpose: Verify a PDF whose page tree is broken is reported as unparseable.
+    Why this matters: pypdf opens such files and only fails when counting pages,
+        which must not surface as a crash that invites a retry.
+    Setup summary: Point the catalog of a generated PDF at a missing /Pages object.
+    """
+    body = make_pdf(["Rating calendar 2026"]).replace(b"/Pages 2 0 R", b"/Pages 9 0 R")
+
+    result = await _real_runner().run(_write(tmp_path, body), _SUBPROCESS_LIMITS)
+
+    assert result.outcome is ExtractionOutcome.UNSUPPORTED
+    assert result.reason == "PDF could not be parsed. Retrying will not help."
+
+
+@pytest.mark.ai
 async def test_subprocess_runner__kills_child_on_timeout(tmp_path: Path) -> None:
     """
     Purpose: Verify a hanging child is killed and the timeout reaches the processor.

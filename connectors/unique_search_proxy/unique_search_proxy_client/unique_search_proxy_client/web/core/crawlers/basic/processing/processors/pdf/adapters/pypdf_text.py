@@ -58,7 +58,19 @@ def extract_text_layer(
                 "reason": "Encrypted PDFs are not supported." + _NOT_RETRYABLE,
             }
 
-    total_pages = len(reader.pages)
+    try:
+        # The page tree is only read here, so a broken one fails late.
+        total_pages = len(reader.pages)
+    except PdfReadError:
+        return {
+            "outcome": "unsupported",
+            "reason": "PDF could not be parsed." + _NOT_RETRYABLE,
+        }
+    except Exception as exc:  # noqa: BLE001 - library boundary
+        return {
+            "outcome": "failed",
+            "reason": f"Failed to read PDF pages: {exc.__class__.__name__}",
+        }
     chunks: list[dict[str, Any]] = []
     total_chars = 0
     page_limit = min(total_pages, max_pages)
