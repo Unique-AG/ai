@@ -95,6 +95,14 @@ BATCH_NORMALIZATION_PATTERNS: list[NormalizationPattern] = [
 """Normalisation rules that convert model-emitted citation formats
 to the canonical ``[N]`` bracket notation (for batch processing)."""
 
+
+def normalize_citations_to_brackets(text: str) -> str:
+    """Rewrite every citation format the platform resolves into canonical ``[N]``."""
+    for pattern, replacement in BATCH_NORMALIZATION_PATTERNS:
+        text = re.sub(pattern, replacement, text)
+    return text
+
+
 NORMALIZATION_MAX_MATCH_LENGTH = 80
 """Upper bound on characters any single pattern can match.  Sized for
 multi-source patterns like ``[source: 1, 2, ..., 20]``."""
