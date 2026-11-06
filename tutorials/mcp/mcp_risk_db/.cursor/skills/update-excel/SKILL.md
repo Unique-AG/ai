@@ -2,6 +2,28 @@
 
 Use when replacing the bundled Excel file with a new version (e.g. from Downloads) and redeploying the Azure app.
 
+## Execution policy
+
+When the user asks to update or deploy the workbook, execute the deployment, restart, health wait, and QA verification. Do not merely return commands unless the user explicitly asks for commands only. Never print or pass API keys on a command line.
+
+The QA verification uses:
+
+- Space: `assistant_a9csiq8hbd10xnojpqlk6980`
+- MCP connector: `mcp_lixd296rnyy3y8g5wqzwd2rs`
+- MCP Hub URL: `https://next.qa.unique.app/admin/mcp/mcp_lixd296rnyy3y8g5wqzwd2rs`
+- Keychain service: `unique-qa-public-api`
+- Keychain account: `app_le7m7o2w3zurin746dpx88ro`
+- Script: `.cursor/skills/update-excel/scripts/verify_qa_space.py`
+
+One-time credential setup must be performed by the user in their terminal so the key is entered through Keychain's secure prompt:
+
+```bash
+security add-generic-password -U \
+  -s unique-qa-public-api \
+  -a app_le7m7o2w3zurin746dpx88ro \
+  -w
+```
+
 ## Steps
 
 1. **Compare new Excel vs current**  
@@ -10,21 +32,70 @@ Use when replacing the bundled Excel file with a new version (e.g. from Download
    - If only row-count or data changes (no new/removed sheets, no column renames): no code change.  
    - If columns renamed or sheets added/removed: decide if server.py or tool descriptions need updates (generic tools usually need none).
 
-2. **Replace Excel**  
-   - Copy new file to `data/risk_database.xlsx` (overwrite).  
+2. **Archive the current Excel**
+   - Determine the latest data month in the current workbook from its snapshot/date columns.
+   - Copy the current workbook to `data/risk_database_YYYY-MM.xlsx` before replacing it.
+   - Use the data month, not the current month, and never overwrite an existing archive.
+   - Example: `test ! -e data/risk_database_2026-06.xlsx && cp data/risk_database.xlsx data/risk_database_2026-06.xlsx`
+
+3. **Replace Excel**
+   - Copy the new file to `data/risk_database.xlsx` (overwrite).
    - Example: `cp "/Users/tinoroz/Downloads/Ascendant_Risk_Database (date).xlsx" data/risk_database.xlsx`
+   - If the new file was staged in `data/` under another name, remove that duplicate only after confirming it matches the canonical workbook.
+   - Example: `cmp -s data/NEW_FILE.xlsx data/risk_database.xlsx && rm data/NEW_FILE.xlsx`
 
-3. **Deploy**  
-   - From project root: `./deploy.sh`  
-   - Wait for the build and web app update to finish.
+4. **Capture a QA baseline**
+   - Run `uv run .cursor/skills/update-excel/scripts/verify_qa_space.py --observe`.
+   - Save the non-secret response in the task summary so the post-deployment result can be compared with it.
 
-4. **Restart instance**   
-   - `az webapp restart -n risk-db-mcp-app -g rg-lab-demo-001-risk-db-mcp`  
+5. **Deploy**
+   - From the project root, run `./deploy.sh`.
+   - Wait for the command to finish and require a successful exit code.
+
+6. **Restart instance**
+   - Run `az webapp restart -n risk-db-mcp-app -g rg-lab-demo-001-risk-db-mcp`.
    - On startup the app reloads Excel into memory and **re-syncs the Postgres mirror** (if configured).
 
-5. **Verify**  
-   - Tell user to watch Azure logs after restart.  
-   - Summarize Excel differences and suggest 1–2 Unique AI test queries that would surface those changes (e.g. new column, new sheet, or “show recent pnl” if more rows).
+7. **Wait for health**
+   - Poll `https://risk-db-mcp-app.azurewebsites.net/` every 10 seconds for up to 10 minutes.
+   - Do not run the QA verification until the endpoint returns HTTP 200 with `{"server":"running","name":"risk-database-mcp"}`.
+   - After health passes, wait another 3 minutes for the refreshed App Service worker and MCP connection to settle before querying QA.
+   - Treat timeout or an unexpected health response as a failed deployment and inspect the Azure log stream.
+
+8. **Verify through the QA space**
+   - Run `uv run .cursor/skills/update-excel/scripts/verify_qa_space.py`.
+   - The script derives the latest date and expected P&L values from the canonical workbook, sends one prompt through the Unique SDK, and requires the connected MCP response to contain those values.
+   - If the response reports `MCP server not found`, `session expired`, or requests reconnection, use the Cursor browser workflow below.
+   - A non-zero exit code means the deployed MCP was not verified; inspect the response and Azure logs.
+
+### Cursor browser authentication workflow
+
+1. List existing Cursor browser tabs.
+2. If a QA tab already exists, lock it before interacting.
+3. If no QA tab exists, always open a new background tab at the MCP Hub URL, then lock it.
+4. Wait for the page to load and inspect its URL and visible text.
+5. If the browser is redirected to login, or the page asks the user to sign in:
+   - Unlock the browser immediately.
+   - Ask the user to log in to QA themselves.
+   - Never request or enter their credentials.
+   - Wait for the user to confirm login, then lock the tab and navigate to the MCP Hub URL again.
+6. Take an interactive browser snapshot of the connector details.
+7. Verify all of the following without changing settings that are already correct:
+   - The connector URL is `https://risk-db-mcp-app.azurewebsites.net/mcp`.
+   - The connector's **Enabled** switch is checked.
+   - `get_schema` and `query_data` are both enabled.
+8. If **Authenticate** is shown, or the Tools section says authentication is required:
+   - Unlock the browser so the user can interact.
+   - Ask the user to complete **Authenticate** and its OAuth consent themselves.
+   - Never request or enter credentials, and never approve OAuth consent on the user's behalf.
+   - Wait until the user confirms authentication.
+9. Lock the QA tab again, return to the same MCP Hub URL, and take a fresh snapshot. Require the connector and both tools to be enabled.
+10. Unlock the browser when inspection is complete.
+11. Rerun `uv run .cursor/skills/update-excel/scripts/verify_qa_space.py` without redeploying or restarting.
+
+9. **Report**
+   - Report the workbook differences, deployment result, health result, and QA answer.
+   - State explicitly whether the QA answer contained the updated data.
 
 ## Comparison script (run from project root)
 
