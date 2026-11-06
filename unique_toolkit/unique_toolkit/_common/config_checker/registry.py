@@ -134,8 +134,18 @@ class ConfigRegistry:
             try:
                 module_name = ".".join(relative_py_file.with_suffix("").parts)
 
+                # Import the parent first. spec_from_file_location loads the
+                # child before package init, which re-enters a half-loaded module.
+                parent_name = module_name.rpartition(".")[0]
+                if parent_name and parent_name not in sys.modules:
+                    try:
+                        importlib.import_module(parent_name)
+                    except Exception as parent_error:
+                        logger.debug(
+                            f"Parent import failed for {module_name}: {parent_error}"
+                        )
+
                 if module_name in sys.modules:
-                    # Already imported
                     continue
 
                 logger.debug(f"Importing module to discover configs: {module_name}")
