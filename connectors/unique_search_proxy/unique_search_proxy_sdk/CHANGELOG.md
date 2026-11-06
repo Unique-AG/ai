@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.44.0...unique-search-proxy-sdk-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **search-proxy:** read text from PDFs in the Basic crawler [UN-12985] ([#2702](https://github.com/Unique-AG/ai/issues/2702)) ([bd8f971](https://github.com/Unique-AG/ai/commit/bd8f9719aaae0b0681e71de11dcf36c1787fa002))
+
+
+### Bug Fixes
+
+* **web-search:** keep search snippets when a crawl fails transiently ([#2654](https://github.com/Unique-AG/ai/issues/2654)) ([25a8935](https://github.com/Unique-AG/ai/commit/25a8935cf585831f578c459b9eab6c3237f1e836))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.42.0...unique-search-proxy-sdk-v2026.44.0) (2026-10-23)
 
 

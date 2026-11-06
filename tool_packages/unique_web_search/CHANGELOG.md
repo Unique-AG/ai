@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.44.0...unique-web-search-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **web-search:** add requires scraping option to Brave and Perplexity [UN-28188] ([#2679](https://github.com/Unique-AG/ai/issues/2679)) ([c184525](https://github.com/Unique-AG/ai/commit/c1845251b32ba7fefc21287527090a455b082eb6))
+* **web-search:** crawl Brave and Perplexity results by default [UN-28188] ([#2697](https://github.com/Unique-AG/ai/issues/2697)) ([2791689](https://github.com/Unique-AG/ai/commit/2791689a83d0edf0ebac9a0fd7e2267c10221c5e))
+* **web-search:** opt-in query length limit for query review [UN-19451] ([#2668](https://github.com/Unique-AG/ai/issues/2668)) ([74a5db1](https://github.com/Unique-AG/ai/commit/74a5db17b183d175d1e466a4cf5d37cc3564295c))
+
+
+### Bug Fixes
+
+* **toolkit:** render configurable prompt templates in a jinja sandbox ([#2658](https://github.com/Unique-AG/ai/issues/2658)) ([87c67c7](https://github.com/Unique-AG/ai/commit/87c67c74384077953e88447a113614be7f701633))
+* **web-search:** keep search snippets when a crawl fails transiently ([#2654](https://github.com/Unique-AG/ai/issues/2654)) ([25a8935](https://github.com/Unique-AG/ai/commit/25a8935cf585831f578c459b9eab6c3237f1e836))
+* **web-search:** show result URLs to the model in web page chunks ([#2640](https://github.com/Unique-AG/ai/issues/2640)) ([f4affee](https://github.com/Unique-AG/ai/commit/f4affee8819c75b1ec640fe693fa988554865744))
+* **web-search:** skip PDFs when crawling without the search proxy [UN-12985] ([#2709](https://github.com/Unique-AG/ai/issues/2709)) ([536c574](https://github.com/Unique-AG/ai/commit/536c574940af31b89c84ccf8324aee375e05191f))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.42.0...unique-web-search-v2026.44.0) (2026-10-23)
 
 
