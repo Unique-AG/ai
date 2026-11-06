@@ -1,0 +1,68 @@
+[project]
+name = "package-name"
+version = "0.1.0"
+description = "Replace package_name, then match this repo's Python floor and pin style."
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2,<3",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "src"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.35,<2",
+    "import-linter>=2,<3",
+    "poethepoet>=0.32,<0.33",
+    "pytest>=9,<10",
+    "ruff>=0.14",
+]
+
+[tool.poe.tasks]
+lint = "ruff check ."
+format = "ruff format --check ."
+typecheck = "basedpyright"
+test = "pytest"
+check-imports = "lint-imports"
+lint-architecture = "python scripts/lint_architecture.py --package package_name"
+check.sequence = ["lint", "format", "check-imports", "lint-architecture", "typecheck", "test"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+extend-select = ["I", "TID", "B", "UP"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"asyncio.create_task".msg = "Use asyncio.TaskGroup."
+"pydantic.BaseModel".msg = "Inherit package_name.contract.base.Model."
+"dataclasses.dataclass".msg = "Inherit package_name.contract.base.Model."
+
+[tool.ruff.lint.per-file-ignores]
+"src/package_name/contract/base.py" = ["TID"]
+
+[tool.basedpyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+include = ["src", "tests"]
+
+[tool.importlinter]
+root_packages = ["package_name"]
+include_external_packages = true
+exclude_type_checking_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Contract does not import the composition root"
+type = "forbidden"
+source_modules = ["package_name.contract"]
+forbidden_modules = ["package_name.app"]
