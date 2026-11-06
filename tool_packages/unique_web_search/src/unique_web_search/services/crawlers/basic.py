@@ -32,6 +32,8 @@ from unique_web_search.services.proxy.mappers import map_crawl_response
 _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_URL_BLOCKED_PATTERNS = [r".*\.pdf$"]
+# Only the search proxy can read PDFs; the direct crawl would pass their bytes on as text.
+_PROXY_ONLY_MIMES = {CONTENT_TYPE_TOGGLE_TO_MIME["pdf"]}
 
 
 class BasicConfig(CoreBasicConfig):
@@ -161,7 +163,7 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
             for field_name, mime in CONTENT_TYPE_TOGGLE_TO_MIME.items()
             if getattr(self.config.content_types, field_name)
         }
-        return content_type not in allowed_mimes
+        return content_type not in allowed_mimes - _PROXY_ONLY_MIMES
 
 
 def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
