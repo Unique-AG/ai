@@ -20,11 +20,11 @@ class CrawlUrlResult:
     """
     Attributes:
         url (str):
-        content (None | str | Unset): Markdown extracted from HTML responses; null when unprocessed
+        content (None | str | Unset): Markdown extracted from HTML or PDF responses; null when unprocessed
         content_type (None | str | Unset): Response Content-Type (media type only, parameters stripped)
         error (None | PerUrlError | Unset):
         raw (Any | None | Unset): Upstream provider response for this URL (JSON object or text wrapper); included on
-            success and on per-URL failures for debugging
+            success and on per-URL failures for debugging. Always null for PDF responses.
     """
 
     url: str

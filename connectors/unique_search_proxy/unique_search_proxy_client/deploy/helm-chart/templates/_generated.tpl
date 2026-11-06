@@ -153,6 +153,18 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: PDF_EXTRACTOR
+  value: {{ .Values.pdfProcessing.connection.extractor | quote }}
+- name: PDF_MAX_PDF_PAGES
+  value: {{ .Values.pdfProcessing.connection.maxPdfPages | quote }}
+- name: PDF_MAX_EXTRACTED_CHARS
+  value: {{ .Values.pdfProcessing.connection.maxExtractedChars | quote }}
+- name: PDF_EXTRACTION_TIMEOUT_SECONDS
+  value: {{ .Values.pdfProcessing.connection.extractionTimeoutSeconds | quote }}
+- name: PDF_MAX_EXTRACTION_MEMORY_MB
+  value: {{ .Values.pdfProcessing.connection.maxExtractionMemoryMb | quote }}
+- name: PDF_MAX_CONCURRENT_EXTRACTIONS
+  value: {{ .Values.pdfProcessing.connection.maxConcurrentExtractions | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -321,6 +333,18 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .ctx.Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: PDF_EXTRACTOR
+  value: {{ .ctx.Values.pdfProcessing.connection.extractor | quote }}
+- name: PDF_MAX_PDF_PAGES
+  value: {{ .ctx.Values.pdfProcessing.connection.maxPdfPages | quote }}
+- name: PDF_MAX_EXTRACTED_CHARS
+  value: {{ .ctx.Values.pdfProcessing.connection.maxExtractedChars | quote }}
+- name: PDF_EXTRACTION_TIMEOUT_SECONDS
+  value: {{ .ctx.Values.pdfProcessing.connection.extractionTimeoutSeconds | quote }}
+- name: PDF_MAX_EXTRACTION_MEMORY_MB
+  value: {{ .ctx.Values.pdfProcessing.connection.maxExtractionMemoryMb | quote }}
+- name: PDF_MAX_CONCURRENT_EXTRACTIONS
+  value: {{ .ctx.Values.pdfProcessing.connection.maxConcurrentExtractions | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS

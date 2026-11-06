@@ -23,14 +23,15 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.ht
 
 
 @pytest.mark.ai
-def test_processing_map_includes_html_and_pdf() -> None:
+def test_processing_map_includes_html() -> None:
     assert CONTENT_TYPE_PROCESSORS["text/html"] is process_html
-    assert "application/pdf" in CONTENT_TYPE_PROCESSORS
+    assert "application/pdf" not in CONTENT_TYPE_PROCESSORS
 
 
 @pytest.mark.ai
 def test_resolve_processor_returns_none_for_unknown_type() -> None:
     assert resolve_processor("application/octet-stream") is None
+    assert resolve_processor("application/pdf") is None
 
 
 @pytest.mark.ai
@@ -73,16 +74,6 @@ async def test_process_content_skips_forbidden_type() -> None:
         )
         is None
     )
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
-async def test_process_content_pdf_raises_when_allowed() -> None:
-    handlers = {"application/pdf": ContentTypeHandlerPolicy.ALLOW}
-    with pytest.raises(ContentProcessingError, match="PDF processing"):
-        await process_content(
-            "%PDF", "application/pdf", handlers=handlers, timeout=10.0
-        )
 
 
 @pytest.mark.ai

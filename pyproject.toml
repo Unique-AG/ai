@@ -131,6 +131,7 @@ override-dependencies = [
 "pillow" = "2026-10-21T00:00:00Z"
 # TODO: drop after 2026-11-11, when the global cooldown reaches this CVE fix.
 "pyasn1" = "2026-10-28T00:00:00Z"
+"pypdf" = "2026-10-29T00:00:00Z"
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }

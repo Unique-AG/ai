@@ -76,6 +76,12 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | networkPolicy.enabled | bool | `true` | Rendering fails when false unless `allowDisabled` is true. |
 | networkPolicy.flavor | string | `"cilium"` |  |
 | pdb.maxUnavailable | string | `"30%"` |  |
+| pdfProcessing.connection.extractionTimeoutSeconds | float | `10` |  |
+| pdfProcessing.connection.extractor | string | `"pypdf"` |  |
+| pdfProcessing.connection.maxConcurrentExtractions | int | `1` |  |
+| pdfProcessing.connection.maxExtractedChars | int | `100000` |  |
+| pdfProcessing.connection.maxExtractionMemoryMb | int | `512` |  |
+| pdfProcessing.connection.maxPdfPages | int | `100` |  |
 | perplexitySearch.connection.apiEndpoint | string | `"https://api.perplexity.ai/search"` |  |
 | perplexitySearch.enabled | bool | `false` |  |
 | podSecurityContext.runAsNonRoot | bool | `true` |  |

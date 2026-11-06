@@ -183,6 +183,15 @@ requestLimits:
   timeouts:
     maxTimeoutSeconds: 120
 
+pdfProcessing:
+  connection:
+    extractor: pypdf
+    maxPdfPages: 100
+    maxExtractedChars: 100000
+    extractionTimeoutSeconds: 10.0
+    maxExtractionMemoryMb: 512
+    maxConcurrentExtractions: 1
+
 urlSafety:
   enabled: true
   redirects:
