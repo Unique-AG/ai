@@ -11,6 +11,7 @@ from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
     LanguageModelProvider,
+    ModelCapabilities,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
@@ -463,6 +464,35 @@ class TestLanguageModelInfos:
             "max",
         ]
         assert model.supports_forced_tool_choice is True
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("model_name", "structured"),
+        [
+            (LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5_5, True),
+            (LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5, True),
+            (LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5_5, True),
+            (LanguageModelName.VERTEX_CLAUDE_OPUS_5_5, False),
+            (LanguageModelName.VERTEX_CLAUDE_OPUS_5, False),
+            (LanguageModelName.VERTEX_CLAUDE_SONNET_5_5, False),
+        ],
+    )
+    def test_claude_structured_output_only_on_anthropic_api(
+        self, model_name, structured
+    ):
+        """
+        Purpose: Only the Anthropic API routes of Claude Opus 5, Opus 5.5 and
+        Sonnet 5.5 advertise structured output.
+        Why this matters: callers send a strict json_schema response format
+        when the flag is set. Through LiteLLM, Vertex rejects it for Opus 5.5
+        and wraps the answer in a `value` string for Opus 5, so a judge call
+        on Vertex would fail or return an unreadable body.
+        Setup summary: Load each LanguageModelInfo and check the capability.
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert (ModelCapabilities.STRUCTURED_OUTPUT in model.capabilities) is (
+            structured
+        )
 
 
 class TestLoadLanguageModelInfosFromEnv:
