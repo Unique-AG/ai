@@ -1,0 +1,20 @@
+# MCP selection, a prompt from a file, settings, access.
+# List servers and callable tools with: python3 -m space_kit mcp --env qa
+env: qa
+name: variant-github-only
+template: assistant_REPLACE_WITH_TEMPLATE_ID
+explanation: GitHub MCP only, custom agent instructions.
+set:
+  setup.agentMdInstructions: "@file:agent-md-example.md"
+settings:
+  allowUserMemory: false
+mcp:
+  replace: true            # start from no servers instead of the template's
+  servers:
+    GitHub: all            # name or id; ids are needed when names repeat
+    # mcp_abc123: [get_issue, search_code]
+    # mcp_def456: none
+access:
+  - entityId: replace-with-your-group-id
+    entityType: GROUP
+    type: USE

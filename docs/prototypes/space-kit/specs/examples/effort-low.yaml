@@ -1,0 +1,11 @@
+# One-change variant of a template space.
+#   python3 -m space_kit apply specs/examples/effort-low.yaml        # dry run
+#   python3 -m space_kit apply specs/examples/effort-low.yaml --yes  # create
+env: qa
+name: variant-effort-low
+template: assistant_REPLACE_WITH_TEMPLATE_ID  # base-space
+set:
+  claude.effort: low
+register:
+  profile: variant-effort-low
+  note: Effort low, everything else as base-space.
