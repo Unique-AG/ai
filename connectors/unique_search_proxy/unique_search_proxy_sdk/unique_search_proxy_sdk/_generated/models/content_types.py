@@ -20,7 +20,7 @@ class ContentTypes:
         xhtml (bool | Unset): application/xhtml+xml Default: True.
         plain_text (bool | Unset): text/plain Default: True.
         markdown (bool | Unset): text/markdown Default: True.
-        pdf (bool | Unset): application/pdf Default: True.
+        pdf (bool | Unset): application/pdf. Read only through the search proxy; skipped otherwise. Default: True.
     """
 
     html: bool | Unset = True
