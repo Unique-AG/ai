@@ -1282,8 +1282,8 @@
           "summary": {
             "type": "boolean",
             "title": "Summary",
-            "description": "Enable summary key generation in web search results (Brave summarizer).",
-            "default": true
+            "description": "Ask Brave to return a summarizer key with the results (Brave `summary`). This does not generate a summary: the summary comes from a separate call to Brave's Summarizer API with that key, which this integration does not make.",
+            "default": false
           },
           "includeFetchMetadata": {
             "type": "boolean",
