@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.44.0...unique-sdk-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **sdk, toolkit, orchestrator:** generate a short title for new chats ([#2651](https://github.com/Unique-AG/ai/issues/2651)) ([b157977](https://github.com/Unique-AG/ai/commit/b1579770d3390c1ec145fa1f56c978a52ee8623a))
+* **sdk:** let unique-cli cite take several files in one call [UN-27925] ([#2666](https://github.com/Unique-AG/ai/issues/2666)) ([c19f2fe](https://github.com/Unique-AG/ai/commit/c19f2fe464ae90dac40808af88ad57f9d3053eb1))
+
+
+### Bug Fixes
+
+* **cli:** honor excluded knowledge-base folders [UN-28458] ([#2662](https://github.com/Unique-AG/ai/issues/2662)) ([8624a5a](https://github.com/Unique-AG/ai/commit/8624a5a8cd821ea1d3b8406b3cd739552180a6cb))
+* **cli:** keep ls, cd and search --folder inside the scopeIds allow-list [UN-28458] ([#2694](https://github.com/Unique-AG/ai/issues/2694)) ([7d3c2f5](https://github.com/Unique-AG/ai/commit/7d3c2f5c8c885dd9d7034907a7c7f08b9346fe2b))
+* **cli:** make outbound text editable in the elicitation skill [UN-27939] ([#2655](https://github.com/Unique-AG/ai/issues/2655)) ([b730af9](https://github.com/Unique-AG/ai/commit/b730af9b3baca3a23aea7af3573d53f9de9e673d))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.42.0...unique-sdk-v2026.44.0) (2026-10-23)
 
 

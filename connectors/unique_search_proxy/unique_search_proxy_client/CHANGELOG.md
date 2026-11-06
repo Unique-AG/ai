@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.44.0...unique-search-proxy-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **search-proxy:** read text from PDFs in the Basic crawler [UN-12985] ([#2702](https://github.com/Unique-AG/ai/issues/2702)) ([bd8f971](https://github.com/Unique-AG/ai/commit/bd8f9719aaae0b0681e71de11dcf36c1787fa002))
+
+
+### Bug Fixes
+
+* **search-proxy:** bump base chart to pick up CiliumNetworkPolicy sync-wave default ([#2649](https://github.com/Unique-AG/ai/issues/2649)) ([3f1d88b](https://github.com/Unique-AG/ai/commit/3f1d88be07ac089de6314558d7f3e1d3148bf3ba))
+* **search-proxy:** default to 2 workers with 4 crawls each ([#2627](https://github.com/Unique-AG/ai/issues/2627)) ([1bbe5f2](https://github.com/Unique-AG/ai/commit/1bbe5f2d4202a79324366426f36ac3e9645c30c4))
+* **search-proxy:** keep finished pages when a crawl hits its deadline ([#2653](https://github.com/Unique-AG/ai/issues/2653)) ([b82bc88](https://github.com/Unique-AG/ai/commit/b82bc88878abf03a6bc2c1f48fb075867256b30d))
+* **searchproxy:** trivy cves ([#2635](https://github.com/Unique-AG/ai/issues/2635)) ([afa596c](https://github.com/Unique-AG/ai/commit/afa596c9b4b0231895ff70f44029a9a525f746e9))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.42.0...unique-search-proxy-v2026.44.0) (2026-10-23)
 
 

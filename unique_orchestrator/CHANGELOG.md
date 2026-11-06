@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.44.0...unique-orchestrator-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **sdk, toolkit, orchestrator:** generate a short title for new chats ([#2651](https://github.com/Unique-AG/ai/issues/2651)) ([b157977](https://github.com/Unique-AG/ai/commit/b1579770d3390c1ec145fa1f56c978a52ee8623a))
+
+
+### Bug Fixes
+
+* **orchestrator:** validate prompt templates on config load ([#2667](https://github.com/Unique-AG/ai/issues/2667)) ([94033c6](https://github.com/Unique-AG/ai/commit/94033c6e68fc30030b551becbd055589a08dc2b8))
+* **toolkit:** render configurable prompt templates in a jinja sandbox ([#2658](https://github.com/Unique-AG/ai/issues/2658)) ([87c67c7](https://github.com/Unique-AG/ai/commit/87c67c74384077953e88447a113614be7f701633))
+* **toolkit:** show stored uploads outside the MIME catalog [UN-28414] ([#2652](https://github.com/Unique-AG/ai/issues/2652)) ([343c508](https://github.com/Unique-AG/ai/commit/343c5087c0d24c6161099e447e69797d6dc8190b))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.42.0...unique-orchestrator-v2026.44.0) (2026-10-23)
 
 
