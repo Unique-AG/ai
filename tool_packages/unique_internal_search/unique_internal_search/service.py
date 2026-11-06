@@ -413,19 +413,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 state=ProgressState.RUNNING,
             )
 
-    async def is_chat_only(
-        self, tool_call: LanguageModelFunction | None = None, **kwargs
-    ) -> bool:
-        if await super().is_chat_only(**kwargs):
-            return True
-        if (
-            tool_call
-            and isinstance(tool_call.arguments, dict)
-            and tool_call.arguments.get("chat_only") is True
-        ):
-            return True
-        return False
-
     @override
     def tool_description(self) -> LanguageModelToolDescription:
         # Conditionally set the type based on config
@@ -554,10 +541,12 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         await message_logger.log_progress("_Retrieving search results_")
 
+        # Only search_string and content_ids: a model-supplied metadata_filter
+        # or chat_only would replace or drop the space scope.
         selected_chunks = await self.search(
-            **tool_call.arguments,
+            search_string=search_strings_data,
+            content_ids=tool_call.arguments.get("content_ids"),
             log_progress=message_logger.log_progress,
-            tool_call=tool_call,
         )
 
         await message_logger.log_chunks(selected_chunks)
