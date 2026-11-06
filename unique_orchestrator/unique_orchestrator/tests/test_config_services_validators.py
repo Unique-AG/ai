@@ -314,6 +314,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
             LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
             LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
             LanguageModelName.LITELLM_OPENAI_GPT_55,
             LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
             LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
@@ -323,6 +324,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
         ],
     )
     def test_enables_responses_api_for_affected_models(
@@ -349,6 +351,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
             LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
             LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
             LanguageModelName.LITELLM_OPENAI_GPT_55,
             LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
             LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
@@ -358,6 +361,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
         ],
     )
     def test_enables_responses_api_for_affected_models_with_tools(
@@ -393,6 +397,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
             LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
             LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
             LanguageModelName.LITELLM_OPENAI_GPT_55,
             LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
             LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
@@ -402,6 +407,7 @@ class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
             LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
         ],
     )
     def test_keeps_responses_api_enabled_when_already_enabled(
