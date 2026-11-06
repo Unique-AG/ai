@@ -30,7 +30,11 @@ class ContentTypeToggles(BaseModel):
     )
     plain_text: bool = Field(default=True, title="Plain text", description="text/plain")
     markdown: bool = Field(default=True, title="Markdown", description="text/markdown")
-    pdf: bool = Field(default=True, title="PDF", description="application/pdf")
+    pdf: bool = Field(
+        default=True,
+        title="PDF (requires search proxy)",
+        description="application/pdf. Read only through the search proxy; skipped otherwise.",
+    )
 
     def to_handlers(self) -> dict[str, ContentTypeHandlerPolicy]:
         """Map enabled toggles to allow-policies for the processing registry."""

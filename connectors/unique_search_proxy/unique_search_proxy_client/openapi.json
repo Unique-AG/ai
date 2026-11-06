@@ -1510,8 +1510,8 @@
           },
           "pdf": {
             "type": "boolean",
-            "title": "PDF",
-            "description": "application/pdf",
+            "title": "PDF (requires search proxy)",
+            "description": "application/pdf. Read only through the search proxy; skipped otherwise.",
             "default": true
           }
         },
