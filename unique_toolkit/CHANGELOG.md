@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.46.2](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.46.1...unique-toolkit-v2026.46.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **toolkit:** use English for chat titles when the message language is unclear ([#2718](https://github.com/Unique-AG/ai/issues/2718)) ([1a872e4](https://github.com/Unique-AG/ai/commit/1a872e415c12a42d41c5acae50b873b2222835bb))
+
 ## [2026.46.1](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.46.0...unique-toolkit-v2026.46.1) (2026-11-06)
 
 
