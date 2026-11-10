@@ -62,7 +62,7 @@ This writes a new file to `.changelog/unreleased/`. Double-check the diff before
 ## Allowed values (from `.changie.yaml`)
 
 - `--kind`: `Added`, `Changed`, `Fixed`, `Removed`, `Security`
-- `--component` (drives the `### {{.Component}}` heading): `Connectors` (`connectors/*`), `MCP` (`unique_mcp`), `Orchestrator` (`unique_orchestrator`), `Postprocessors` (`postprocessors/*`), `SDK` (`unique_sdk`), `Tools` (`tool_packages/*`), `Toolkit` (`unique_toolkit`), `uqadm` (`uqadm`)
+- `--component` (drives the `### {{.Component}}` heading): `Connectors` (`connectors/*`), `Deep Research` (`tool_packages/unique_deep_research`), `MCP` (`unique_mcp`), `Orchestrator` (`unique_orchestrator`), `Postprocessors` (`postprocessors/*`), `RAG` (`tool_packages/unique_internal_search` and retrieval changes in `unique_toolkit`), `SDK` (`unique_sdk`), `Tools` (other `tool_packages/*`, e.g. SWOT, skill tool), `Toolkit` (`unique_toolkit`, except retrieval), `uqadm` (`uqadm`), `Web Search` (`tool_packages/unique_web_search`). Component names match the monorepo's where the area is the same (`RAG`, `Web Search`, `MCP`, `Connectors`), so combined notes read consistently.
 - `Audience`: `developer` (builds on the SDK, toolkit or packages), `user` (end-user visible behavior), `admin`, `operator` (deploys or runs a service, e.g. the search proxy Helm chart)
 - `Ticket` (optional): related Jira ticket(s), each matching `UN-<number>` (e.g. `UN-12345`); comma-separate multiple, e.g. `UN-12345, UN-6789`. Omit entirely if there's no ticket — nothing changes in the rendered line. It is never rendered; it only stays in the archived `.changelog/<version>/*.yaml` files for internal traceability, and no tooling reads it.
 

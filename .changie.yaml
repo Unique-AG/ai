@@ -14,13 +14,16 @@ kinds:
   - label: Security
 components:
   - Connectors
+  - Deep Research
   - MCP
   - Orchestrator
   - Postprocessors
+  - RAG
   - SDK
   - Tools
   - Toolkit
   - uqadm
+  - Web Search
 custom:
   - key: Audience
     label: Who is this change relevant for
