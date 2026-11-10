@@ -319,6 +319,10 @@ class BaseEventPayload(BaseModel):
         default=None,
         description="The correlation to parent message in another chat.",
     )
+    ui_language: str | None = Field(
+        default=None,
+        description="Base language tag of the chat UI the event was sent from (en, de, fr).",
+    )
 
 
 class ChatEventPayload(BaseEventPayload):
