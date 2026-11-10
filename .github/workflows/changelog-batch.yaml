@@ -74,8 +74,8 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
         run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name "gh-release-workflow[bot]"
+          git config user.email "245196183+gh-release-workflow[bot]@users.noreply.github.com"
           gh auth setup-git
 
       - name: Check for unreleased changelog fragments

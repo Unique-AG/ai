@@ -79,6 +79,13 @@ if [[ -n "$EXISTING_SHA" ]]; then
     echo "Branch ${BRANCH} already at ${SHA} — nothing to do."
     exit 0
   fi
+  # changelog-batch.yaml commits onto the branch after the cut, so a re-run
+  # finds it ahead of the tag.
+  git fetch --quiet "$REMOTE" "$BRANCH"
+  if git merge-base --is-ancestor "$SHA" "$EXISTING_SHA"; then
+    echo "Branch ${BRANCH} already contains ${SHA} (now at ${EXISTING_SHA}) — nothing to do."
+    exit 0
+  fi
   echo "::error::branch ${BRANCH} exists on ${REMOTE} at ${EXISTING_SHA}, but tag ${TAG} pins ${SHA}" >&2
   exit 1
 fi

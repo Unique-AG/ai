@@ -235,7 +235,8 @@ Curated, audience-tagged release notes are kept with [changie](https://changie.d
   Allowed kinds, components and audiences live in `.changie.yaml`; wording rules are in the `changelog-fragment` skill.
 - `changelog-check.yaml` fails a PR without a fragment unless it only touches docs/tests/CI, or carries `no-changelog` (docs-only or pure refactors), `autorelease: pending`, `dev-version-bump` or `dependencies`.
 - On every stable or hotfix release, `cd-release.yaml` calls `changelog-batch.yaml`, which runs `changie batch <version>` on `release/YYYY.WW`, producing `.changelog/<version>.md`, and mirrors that commit to `main` through an auto-merged `changelog-batch` PR.
-- Backports carry their fragment along with the cherry-pick; the hotfix release batches it, and the mirror removes it from `main`'s `unreleased/`.
+- Backports carry their fragment along with the cherry-pick; the hotfix release batches it, and the mirror removes it from `main`'s `unreleased/`. Fragments must therefore land on `main` first (enforced by the release-lineage check); a release-only fragment cannot be mirrored.
+- `custom.Ticket` is for internal traceability only: it is validated but not rendered, and nothing consumes it beyond the archived `.changelog/<version>/*.yaml` files.
 
 ---
 

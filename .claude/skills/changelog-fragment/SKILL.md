@@ -64,7 +64,7 @@ This writes a new file to `.changelog/unreleased/`. Double-check the diff before
 - `--kind`: `Added`, `Changed`, `Fixed`, `Removed`, `Security`
 - `--component` (drives the `### {{.Component}}` heading): `Connectors` (`connectors/*`), `MCP` (`unique_mcp`), `Orchestrator` (`unique_orchestrator`), `Postprocessors` (`postprocessors/*`), `SDK` (`unique_sdk`), `Tools` (`tool_packages/*`), `Toolkit` (`unique_toolkit`), `uqadm` (`uqadm`)
 - `Audience`: `developer` (builds on the SDK, toolkit or packages), `user` (end-user visible behavior), `admin`, `operator` (deploys or runs a service, e.g. the search proxy Helm chart)
-- `Ticket` (optional): related Jira ticket(s), each matching `UN-<number>` (e.g. `UN-12345`); comma-separate multiple, e.g. `UN-12345, UN-6789`. Omit entirely if there's no ticket — nothing changes in the rendered line.
+- `Ticket` (optional): related Jira ticket(s), each matching `UN-<number>` (e.g. `UN-12345`); comma-separate multiple, e.g. `UN-12345, UN-6789`. Omit entirely if there's no ticket — nothing changes in the rendered line. It is never rendered; it only stays in the archived `.changelog/<version>/*.yaml` files for internal traceability, and no tooling reads it.
 
 ## Body wording
 
