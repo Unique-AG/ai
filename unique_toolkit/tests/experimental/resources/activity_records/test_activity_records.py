@@ -515,3 +515,89 @@ class TestDefaults:
         payload = _event()
         del payload[field]
         assert _is_valid(payload)
+
+
+def _wire_value(wire: dict[str, Any], field: str) -> str:
+    node: Any = wire["data"]
+    for part in field.split("."):
+        node = node[part]
+    return node
+
+
+class TestBuildTruncation:
+    @pytest.mark.parametrize(("field", "max_length", "make"), _CAP_CASES, ids=_CAP_IDS)
+    def test_cuts_over_cap_field_and_reports_it(
+        self, field: str, max_length: int, make: Any
+    ) -> None:
+        event = ActivityCloudEvent.build(**make("x" * (max_length + 50)))
+
+        assert _wire_value(event.to_wire(), field) == "x" * max_length
+        assert event.truncated_fields == [field]
+
+    @pytest.mark.parametrize(("field", "max_length", "make"), _CAP_CASES, ids=_CAP_IDS)
+    def test_keeps_field_at_exactly_its_cap(
+        self, field: str, max_length: int, make: Any
+    ) -> None:
+        event = ActivityCloudEvent.build(**make("x" * max_length))
+
+        assert _wire_value(event.to_wire(), field) == "x" * max_length
+        assert event.truncated_fields == []
+
+    def test_never_splits_an_astral_character(self) -> None:
+        cap = ACTIVITY_METADATA_MAX_LENGTH["text"]
+        event = ActivityCloudEvent.build(
+            **_with_data(targetName="x" * (cap - 1) + "😀")
+        )
+
+        assert event.data.target_name == "x" * (cap - 1)
+
+    def test_keeps_an_astral_character_that_ends_exactly_at_the_cap(self) -> None:
+        cap = ACTIVITY_METADATA_MAX_LENGTH["text"]
+        value = "x" * (cap - 2) + "😀"
+        event = ActivityCloudEvent.build(**_with_data(targetName=value + "y"))
+
+        assert event.data.target_name == value
+
+    def test_tells_the_actor_id_from_the_agent_id(self) -> None:
+        event = ActivityCloudEvent.build(
+            **_with_data(
+                actor={"id": "a" * 200, "type": "user"}, agent={"id": "b" * 200}
+            )
+        )
+
+        assert event.truncated_fields == ["actor.id", "agent.id"]
+
+    def test_reports_every_truncated_field(self) -> None:
+        event = ActivityCloudEvent.build(
+            **_with_data(targetId="x" * 200, subtype="y" * 300)
+        )
+
+        assert event.truncated_fields == ["targetId", "subtype"]
+
+    def test_replaces_a_lone_surrogate_instead_of_raising(self) -> None:
+        event = ActivityCloudEvent.build(**_with_data(targetName="page \ud83d title"))
+
+        assert event.data.target_name == "page \ufffd title"
+        assert event.truncated_fields == []
+
+    def test_replaces_a_lone_surrogate_before_cutting_to_the_cap(self) -> None:
+        cap = ACTIVITY_METADATA_MAX_LENGTH["text"]
+        event = ActivityCloudEvent.build(
+            **_with_data(targetName="x" * (cap - 1) + "\ud800" + "tail")
+        )
+
+        assert event.data.target_name == "x" * (cap - 1) + "\ufffd"
+        assert event.truncated_fields == ["targetName"]
+
+    def test_constructor_still_rejects_a_lone_surrogate(self) -> None:
+        assert not _is_valid(_with_data(targetName="a\ud800"))
+
+    def test_still_rejects_other_invalid_values(self) -> None:
+        with pytest.raises(ValidationError):
+            ActivityCloudEvent.build(**_with_data(targetName=""))
+
+    def test_constructor_stays_strict(self) -> None:
+        cap = ACTIVITY_METADATA_MAX_LENGTH["text"]
+
+        assert not _is_valid(_with_data(targetName="x" * (cap + 1)))
+        assert ActivityCloudEvent.model_validate(_event()).truncated_fields == []
