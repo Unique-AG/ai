@@ -168,3 +168,20 @@ def test_template_validation_integration():
         optional_placeholders=set(),
     )
     assert suggestions_validation.is_valid
+
+
+@pytest.mark.ai
+def test_additional_llm_options__defaults_to_empty_dict(valid_config):
+    assert valid_config.additional_llm_options == {}
+
+
+@pytest.mark.ai
+def test_additional_llm_options__parsed_from_camel_case_alias():
+    config = FollowUpQuestionsConfig.model_validate(
+        {"additionalLlmOptions": {"reasoning_effort": "none"}}
+    )
+
+    assert config.additional_llm_options == {"reasoning_effort": "none"}
+    assert config.model_dump(by_alias=True)["additionalLlmOptions"] == {
+        "reasoning_effort": "none"
+    }
