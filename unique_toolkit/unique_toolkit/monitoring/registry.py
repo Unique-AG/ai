@@ -64,8 +64,13 @@ class MetricNamespace:
         search_total    = m.counter("search_total", "Search calls by engine", ["engine"])
     """
 
-    def __init__(self, prefix: str) -> None:
+    def __init__(
+        self,
+        prefix: str,
+        registry: CollectorRegistry | None = None,
+    ) -> None:
         self._prefix = prefix
+        self._registry = REGISTRY if registry is None else registry
 
     def histogram(
         self,
@@ -84,18 +89,26 @@ class MetricNamespace:
         """
         if buckets is None:
             return Histogram(
-                f"{self._prefix}_{name}", description, labels, registry=REGISTRY
+                f"{self._prefix}_{name}",
+                description,
+                labels,
+                registry=self._registry,
             )
         return Histogram(
             f"{self._prefix}_{name}",
             description,
             labels,
-            registry=REGISTRY,
+            registry=self._registry,
             buckets=tuple(buckets),
         )
 
     def counter(self, name: str, description: str, labels: list[str]) -> Counter:
-        return Counter(f"{self._prefix}_{name}", description, labels, registry=REGISTRY)
+        return Counter(
+            f"{self._prefix}_{name}",
+            description,
+            labels,
+            registry=self._registry,
+        )
 
     def gauge(
         self,
@@ -119,7 +132,7 @@ class MetricNamespace:
             f"{self._prefix}_{name}",
             description,
             labels,
-            registry=REGISTRY,
+            registry=self._registry,
             multiprocess_mode=multiprocess_mode,
         )
 

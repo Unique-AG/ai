@@ -85,6 +85,17 @@ def test_metric_namespace__counter__registers_with_prefix(
 
 
 @pytest.mark.ai
+def test_metric_namespace__uses_explicit_registry() -> None:
+    registry = CollectorRegistry()
+    m = MetricNamespace("isolated", registry=registry)
+
+    counter = m.counter("ops_total", "Ops", [])
+    counter.inc()
+
+    assert registry.get_sample_value("isolated_ops_total") == 1
+
+
+@pytest.mark.ai
 def test_metric_namespace__gauge__registers_with_prefix(
     fresh_registry: CollectorRegistry,
 ) -> None:
