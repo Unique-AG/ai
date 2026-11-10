@@ -16,6 +16,10 @@ from unique_toolkit.experimental.resources.activity_records.schemas import (
 
 DEFAULT_MAX_DATA_SIZE_BYTES: Final = 1_048_576
 DEFAULT_MAX_BATCH_SIZE_BYTES: Final = 8_388_608
+OUTBOX_MAX_BACKOFF_ATTEMPTS: Final = 11
+ACTIVITY_RECORDS_INSTALL_HINT: Final = (
+    "Install it with: uv add 'unique-toolkit[activity-records]'"
+)
 
 _MAX_SAFE_INTEGER: Final = 2**53 - 1
 

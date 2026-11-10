@@ -63,6 +63,10 @@ fastapi = [
 monitoring = [
     "prometheus_client>=0.24.1,<1",
 ]
+activity-records = [
+    "asyncpg>=0.30,<1",
+    "unique-toolkit[monitoring]",
+]
 otel = [
     "opentelemetry-sdk>=1.27,<2",
     "opentelemetry-exporter-otlp-proto-http>=1.27,<2",
@@ -130,6 +134,7 @@ extend_exclude = ["docs", "tests", "unique_toolkit/.*/test", "unique_toolkit/.*/
 
 [tool.deptry.per_rule_ignores]
 DEP002 = [
+    "unique-toolkit",
     "langchain",
     "fastapi",
     "starlette",

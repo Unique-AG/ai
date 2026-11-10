@@ -17,6 +17,10 @@ inputs:
     description: 'Additional arguments to pass to pytest'
     required: false
     default: ''
+  test_env:
+    description: 'Environment for pytest, one KEY=VALUE per line (e.g., ACTIVITY_RECORDS_DOCKER_TESTS=1)'
+    required: false
+    default: ''
 runs:
   using: 'composite'
   steps:
@@ -31,13 +35,20 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
-        EXTRA_FLAGS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | sed 's/^/--extra /' | paste -sd ' ' -)
+        EXTRA_FLAGS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )[\w-]+' | sed 's/^/--extra /' | paste -sd ' ' -)
         uv sync --locked --inexact $EXTRA_FLAGS
 
     - name: Show installed unique-* packages
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: uv pip list | grep -i unique || true
+
+    - name: Set test environment
+      if: inputs.test_env != ''
+      shell: bash
+      env:
+        TEST_ENV: ${{ inputs.test_env }}
+      run: echo "$TEST_ENV" >> "$GITHUB_ENV"
 
     - name: Run pytest
       shell: bash
