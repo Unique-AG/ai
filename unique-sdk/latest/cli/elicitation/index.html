@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.44.0/cli/elicitation/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.46.0/cli/elicitation/">
       
       
         <link rel="prev" href="../scheduled_tasks/">
@@ -2756,6 +2756,18 @@ unique-cli<span class="w"> </span>elicit<span class="w"> </span>ask<span class="
 <span class="w">  </span>--tool-name<span class="w"> </span>confirm_delete<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--timeout<span class="w"> </span><span class="m">120</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--schema<span class="w"> </span><span class="s1">&#39;{&quot;type&quot;: &quot;object&quot;, &quot;properties&quot;: {}}&#39;</span>
+
+<span class="c1"># Outbound text: the draft is an editable, prefilled field, not part of the</span>
+<span class="c1"># message. Send the &quot;body&quot; from Response:, which holds the user&#39;s edits.</span>
+unique-cli<span class="w"> </span>elicit<span class="w"> </span>ask<span class="w"> </span><span class="s2">&quot;Post this brief to #ps-efg?&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--tool-name<span class="w"> </span>confirm_slack_post<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--schema<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">    &quot;type&quot;: &quot;object&quot;,</span>
+<span class="s1">    &quot;properties&quot;: {</span>
+<span class="s1">      &quot;body&quot;: {&quot;type&quot;: &quot;string&quot;, &quot;title&quot;: &quot;Message&quot;, &quot;multiline&quot;: true, &quot;default&quot;: &quot;Draft text&quot;}</span>
+<span class="s1">    },</span>
+<span class="s1">    &quot;required&quot;: [&quot;body&quot;]</span>
+<span class="s1">  }&#39;</span>
 </code></pre></div>
 <p><strong>Sample output:</strong></p>
 <div class="highlight"><pre><span></span><code>ID:         elicit_9a7b
@@ -3036,6 +3048,7 @@ unique-cli<span class="w"> </span>elicit<span class="w"> </span><span class="nb"
 <li>Always set <code>"required"</code> on fields that must be present -- this prevents empty submissions.</li>
 <li>Use <code>"enum"</code> for finite choices so the UI renders a selector instead of a free-text box.</li>
 <li>The Confirm button is the consent, on any form -- do <strong>not</strong> add a boolean <code>confirm</code> field. The UI's Confirm button and a checkbox are two separate signals: a user can press Confirm with the box unchecked, showing <strong>Accepted</strong> in the UI while the response carries <code>confirm: false</code>. State the consequence in the message text of the form the user confirms; when there is nothing else to ask, use an empty-properties schema (<code>{"type": "object", "properties": {}}</code>) and gate on <code>Status: ACCEPTED</code>. Treat <code>DECLINED</code> / <code>REJECTED</code> / <code>CANCELLED</code> / <code>EXPIRED</code> as "stop". Reserve <code>"type": "boolean"</code> for genuine data fields where <code>false</code> is a valid submittable answer.</li>
+<li>Before sending text that leaves the platform (a Slack post, an email), put the draft in a required string field with <code>"multiline": true</code> and the draft as <code>"default"</code>, never in the message text. The form opens with the draft in an editable text box. Send the value from <code>Response:</code>, because the user may have edited it. Build that schema with <code>json.dumps</code> rather than a single-quoted literal, since drafts contain quotes and newlines.</li>
 <li><code>"required"</code> on a boolean means "must be answered", not "must be ticked". An unchecked box is a valid <code>false</code> and the form submits with it on the first Confirm; there is no schema keyword that forces a checkbox on.</li>
 <li>Always give boolean properties a <code>"title"</code>. The checkbox label and its required marker are rendered from <code>title</code>; a boolean with only a <code>description</code> renders without a label.</li>
 <li>Add short <code>"description"</code> strings -- they appear as helper text next to each field.</li>
