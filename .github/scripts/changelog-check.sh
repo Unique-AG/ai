@@ -177,13 +177,13 @@ is_archived_elsewhere() {
   return 1
 }
 
-# Echoes how many deleted fragments (excluding archived ones) fail the
+# Echoes how many deleted or modified fragments (excluding archived ones) fail the
 # shared changelog-fragment-guard.sh check.
-count_deletion_guard_violations() {
+count_replacement_guard_violations() {
   local path preimage_blob
   local -a guarded_paths=()
 
-  for path in "${deleted_fragments[@]}"; do
+  for path in "${replaced_fragments[@]}"; do
     preimage_blob="$(blob_hash_at "$diff_base" "$path")"
     is_archived_elsewhere "$(basename "$path")" "$preimage_blob" || guarded_paths+=("$path")
   done
@@ -202,7 +202,7 @@ count_deletion_guard_violations() {
 
 main() {
   local base head diff_base requires_fragment=false has_fragment=false diff_output guard_violations
-  local -a changed_fragments=() deleted_fragments=()
+  local -a changed_fragments=() replaced_fragments=()
   local -a archived_fragment_names=() archived_fragment_blobs=()
 
   base="$(resolve_base_sha)"
@@ -223,7 +223,7 @@ main() {
     if [[ "$path" == "${FRAGMENT_DIR}"*.y*ml ]]; then
       [[ "$status" == A* ]] && has_fragment=true
       [[ "$status" == A* || "$status" == M* ]] && changed_fragments+=("$path")
-      [[ "$status" == D* ]] && deleted_fragments+=("$path")
+      [[ "$status" == D* || "$status" == M* ]] && replaced_fragments+=("$path")
     elif [[ "$status" == A* && "$path" =~ ^\.changelog/[0-9][^/]*/[^/]+\.ya?ml$ ]]; then
       archived_fragment_names+=("$(basename "$path")")
       archived_fragment_blobs+=("$(blob_hash_at "$head" "$path")")
@@ -231,9 +231,9 @@ main() {
   done <<< "$diff_output"
 
   # Runs ahead of the no-changelog exemption below — that label must never
-  # let an unsafe fragment deletion through.
-  if ((${#deleted_fragments[@]} > 0)); then
-    guard_violations="$(count_deletion_guard_violations)"
+  # let an unsafe fragment deletion or edit through.
+  if ((${#replaced_fragments[@]} > 0)); then
+    guard_violations="$(count_replacement_guard_violations)"
     ((guard_violations > 0)) && exit 1
   fi
 

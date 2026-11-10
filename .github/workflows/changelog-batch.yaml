@@ -67,11 +67,16 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           token: ${{ steps.release-app-token.outputs.token }}
+          persist-credentials: false
 
+      # The credential helper reads GH_TOKEN per step, so only steps that set it can push.
       - name: Configure git
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
+          gh auth setup-git
 
       - name: Check for unreleased changelog fragments
         id: check-fragments
@@ -102,17 +107,21 @@ jobs:
             echo "existing_batch_sha=${EXISTING_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Install changie
+        if: steps.check-fragments.outputs.has_fragments == 'true'
+        uses: ./.github/actions/install-changie
+
       - name: Batch changelog fragments
         if: steps.check-fragments.outputs.has_fragments == 'true'
-        uses: miniscruff/changie-action@3223cb29b92a0972dedc864ace3da01e04780ae4 # v3.0.1
-        with:
-          version: v1.26.0
-          args: batch ${{ inputs.release_version }} --move-dir ${{ inputs.release_version }}
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: changie batch "${RELEASE_VERSION}" --move-dir "${RELEASE_VERSION}"
 
       - name: Commit and push changelog batch to release branch
         id: commit-batch
         if: steps.check-fragments.outputs.has_fragments == 'true'
         env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_VERSION: ${{ inputs.release_version }}
           BRANCH: ${{ inputs.branch }}
         run: |
@@ -210,8 +219,8 @@ jobs:
 
               if [ -n "${ours_path}" ] && [ "${ours_path}" != "${theirs_path}" ] && [ -f "${theirs_path}" ] && cmp -s -- "${ours_path}" "${theirs_path}"; then
                 echo "  - ${fragment}: already released under ${ours_path}; dropping the duplicate ${theirs_path}."
-                git add -- "${ours_path}"
-                git rm -f -- "${theirs_path}" "${fragment_path}"
+                git --literal-pathspecs add -- "${ours_path}"
+                git --literal-pathspecs rm -f -- "${theirs_path}" "${fragment_path}"
               else
                 echo "  - ${fragment}: no identical already-released copy found under a different version folder; needs manual resolution."
                 unresolved=1
