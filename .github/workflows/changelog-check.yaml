@@ -1,0 +1,38 @@
+name: "[CI] Changelog Fragment Check"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches:
+      - main
+      - "release/*"
+
+jobs:
+  changie-check:
+    name: Verify a changelog fragment was added
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            .github/scripts/changelog-check.sh
+            .github/scripts/changelog-fragment-guard.sh
+            .changie.yaml
+            .changelog/unreleased
+          sparse-checkout-cone-mode: false
+
+      - name: Check for a changelog fragment
+        env:
+          CHANGIE_CHECK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CHANGIE_CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHANGIE_CHECK_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          CHANGIE_CHECK_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: ./.github/scripts/changelog-check.sh

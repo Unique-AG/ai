@@ -70,6 +70,8 @@ jobs:
     environment: release-workflow
     outputs:
       releases_created: ${{ steps.rp.outputs.releases_created }}
+      release_version: ${{ steps.release-branch.outputs.version }}
+      release_branch: ${{ steps.release-branch.outputs.branch }}
     steps:
       - name: Generate GitHub App token
         id: app-token
@@ -86,6 +88,23 @@ jobs:
           config-file: ${{ startsWith(github.ref_name, 'release/') && 'release-please-config.release.json' || 'release-please-config.json' }}
           manifest-file: .release-please-manifest.json
           target-branch: ${{ github.ref_name }}
+
+      # All packages are linked, so the toolkit version is the release version.
+      # A stable release on main is batched on the release/YYYY.WW branch that
+      # cut-and-arm creates; a hotfix is batched on its own release branch.
+      - name: Resolve release version and branch
+        id: release-branch
+        if: steps.rp.outputs.releases_created == 'true'
+        env:
+          VERSION: ${{ steps.rp.outputs['unique_toolkit--version'] }}
+        run: |
+          if [[ "$GITHUB_REF_NAME" == release/* ]]; then
+            BRANCH="$GITHUB_REF_NAME"
+          else
+            BRANCH="release/${VERSION%.*}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
   # After release-please updates the PR with new version bumps it does not
   # update uv.lock or the dedicated helm chart READMEs (Chart.yaml/values.yaml
@@ -268,3 +287,18 @@ jobs:
             echo "- Closed the open \`chore: pin dev-cut …\` PR (superseded by the stable floors that just landed on \`main\`)"
             echo "- \`cd-publish.yaml\` will fire on the \`release:published\` event created by release-please's App-token-authored release"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Moves the released .changelog/unreleased fragments into a dated
+  # .changelog/<version>.md on the release branch and mirrors that to main.
+  # Waits for cut-and-arm so a stable release's release/YYYY.WW branch exists.
+  changelog-batch:
+    needs: [release-please, cut-and-arm]
+    if: >-
+      !cancelled()
+      && needs.release-please.outputs.releases_created == 'true'
+      && needs.cut-and-arm.result != 'failure'
+    uses: ./.github/workflows/changelog-batch.yaml
+    with:
+      release_version: ${{ needs.release-please.outputs.release_version }}
+      branch: ${{ needs.release-please.outputs.release_branch }}
+    secrets: inherit

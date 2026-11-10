@@ -1,0 +1,40 @@
+name: 'Install changie'
+description: 'Installs changie with SHA256 integrity verification before execution'
+
+inputs:
+  version:
+    description: 'changie version to install'
+    required: false
+    default: '1.26.0'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install changie
+      shell: bash
+      env:
+        CHANGIE_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        case "${CHANGIE_VERSION}" in
+          1.26.0)
+            changie_sha256='eab168c8287a6e91912e1c02e5260911232d945bfd3c89d8a0e1ace6bb7b6161'
+            ;;
+          *)
+            echo "Unsupported changie version: ${CHANGIE_VERSION}" >&2
+            exit 1
+            ;;
+        esac
+
+        archive="changie_${CHANGIE_VERSION}_linux_amd64.tar.gz"
+        url="https://github.com/miniscruff/changie/releases/download/v${CHANGIE_VERSION}/${archive}"
+        dest="${RUNNER_TEMP}/${archive}"
+        bin_dir="${RUNNER_TEMP}/changie-bin"
+
+        curl -fsSL -o "${dest}" "${url}"
+        echo "${changie_sha256}  ${dest}" | sha256sum -c -
+        mkdir -p "${bin_dir}"
+        tar -xzf "${dest}" -C "${bin_dir}" changie
+        echo "${bin_dir}" >> "$GITHUB_PATH"
+        "${bin_dir}/changie" --version
