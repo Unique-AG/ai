@@ -7,9 +7,34 @@ import subprocess
 import time
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
+
+if TYPE_CHECKING:
+    from prometheus_client import CollectorRegistry
+
+
+class Metrics:
+    """Outbox metrics on an isolated registry, with a sample-value helper."""
+
+    def __init__(self, registry: CollectorRegistry | None = None) -> None:
+        from prometheus_client import CollectorRegistry as Registry
+
+        from unique_toolkit.experimental.resources.activity_records.metrics import (
+            get_or_create_activity_event_outbox_metrics,
+        )
+
+        self.registry = registry or Registry()
+        self.metrics = get_or_create_activity_event_outbox_metrics(
+            registry=self.registry
+        )
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self.metrics, name)
+
+    def value(self, name: str, labels: dict[str, str] | None = None) -> float:
+        return self.registry.get_sample_value(name, labels) or 0
 
 
 @contextmanager
