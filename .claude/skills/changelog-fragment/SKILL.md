@@ -13,7 +13,7 @@ metadata:
 
 # Changelog Fragment
 
-Record a change for the release notes as a small YAML file instead of hand-editing a shared `CHANGELOG.md`. Each PR that changes user-visible behavior drops its own fragment under `.changelog/unreleased/`; a future release step batches them into the real changelog. This avoids merge conflicts on a single changelog file and keeps the changelog entry in the same PR (and review) as the code change it describes.
+Record a change for the release notes as a small YAML file instead of hand-editing a shared `CHANGELOG.md`. Each PR that changes user-visible behavior drops its own fragment under `.changelog/unreleased/`; each release batches them into `.changelog/<version>.md`. This avoids merge conflicts on a single changelog file and keeps the changelog entry in the same PR (and review) as the code change it describes.
 
 Config lives at repo root: [`.changie.yaml`](../../.changie.yaml). Fragments are checked by `.github/scripts/changelog-check.sh` (workflow `changelog-check.yaml`) on every PR that touches package source code, and batched into `.changelog/<version>.md` by `changelog-batch.yaml` when `cd-release.yaml` publishes a release. These release notes complement, not replace, the per-package `CHANGELOG.md` files that release-please generates from commit subjects (see "When a fragment is not needed" below).
 
@@ -68,9 +68,9 @@ This writes a new file to `.changelog/unreleased/`. Double-check the diff before
 
 ## Body wording
 
-Standalone Jira ticket references must never go in `body` or otherwise appear in the public `CHANGELOG.md`. Jira IDs that are part of real feature flag or configuration names must remain intact because clients need the exact identifier. If useful for internal traceability, put standalone ticket references in `custom.Ticket`; this metadata is not rendered into release notes.
+Standalone Jira ticket references must never go in `body` or otherwise appear in the public release notes (`.changelog/<version>.md`). Jira IDs that are part of real feature flag or configuration names must remain intact because clients need the exact identifier. If useful for internal traceability, put standalone ticket references in `custom.Ticket`; this metadata is not rendered into release notes.
 
-Write `--body` the way a release note reads: concise, present-tense, client-facing, no internal nomenclature. Never restate the `kind` or component inside the body. `changeFormat` in `.changie.yaml` renders `- AUDIENCE_{{.Custom.Audience | upper}}: {{.Body}}`, producing the double-click-selectable prefixes `AUDIENCE_DEVELOPER`, `AUDIENCE_USER`, `AUDIENCE_ADMIN`, and `AUDIENCE_OPERATOR`. The component and kind still show up once each as the `### {{.Component}}` and nested `#### {{.Kind}}` headings above every group of entries in `CHANGELOG.md` — so a body starting with `FIXED: Chat: ...` would duplicate what's already shown by the surrounding headings.
+Write `--body` the way a release note reads: concise, present-tense, client-facing, no internal nomenclature. Never restate the `kind` or component inside the body. `changeFormat` in `.changie.yaml` renders `- AUDIENCE_{{.Custom.Audience | upper}}: {{.Body}}`, producing the double-click-selectable prefixes `AUDIENCE_DEVELOPER`, `AUDIENCE_USER`, `AUDIENCE_ADMIN`, and `AUDIENCE_OPERATOR`. The component and kind still show up once each as the `### {{.Component}}` and nested `#### {{.Kind}}` headings above every group of entries in `.changelog/<version>.md` — so a body starting with `FIXED: Chat: ...` would duplicate what's already shown by the surrounding headings.
 
 Describe the observable result directly. Do not use generic phrases such as "the problem with ... now works as intended", "fixed an issue where", or "resolved a problem with". For a `Fixed` kind, state what users see or what the system does now:
 

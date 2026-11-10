@@ -81,7 +81,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          FRAGMENT_COUNT=$(find .changelog/unreleased -maxdepth 1 -type f ! -name '.gitkeep' | wc -l | tr -d ' ')
+          FRAGMENT_COUNT=0
+          # Release branches cut before changie was introduced have no .changelog/.
+          if [ -d .changelog/unreleased ]; then
+            FRAGMENT_COUNT=$(find .changelog/unreleased -maxdepth 1 -type f ! -name '.gitkeep' | wc -l | tr -d ' ')
+          fi
 
           if [ "${FRAGMENT_COUNT}" -gt 0 ]; then
             echo "Found ${FRAGMENT_COUNT} unreleased changelog fragment(s) to batch."
@@ -202,14 +206,14 @@ jobs:
               local fragment theirs_path ours_path
               fragment="$(basename "${fragment_path}")"
               theirs_path=".changelog/${RELEASE_VERSION}/${fragment}"
-              ours_path="$(git status --porcelain=v1 | awk -v f="/${fragment}\$" '$1 == "AU" && $2 ~ f { print $2 }')"
+              ours_path="$(git status --porcelain=v1 | awk -v f="${fragment}" '$1 == "AU" { n = split($2, p, "/"); if (p[n] == f) print $2 }')"
 
-              if [ -n "${ours_path}" ] && [ "${ours_path}" != "${theirs_path}" ] && [ -f "${theirs_path}" ]; then
+              if [ -n "${ours_path}" ] && [ "${ours_path}" != "${theirs_path}" ] && [ -f "${theirs_path}" ] && cmp -s -- "${ours_path}" "${theirs_path}"; then
                 echo "  - ${fragment}: already released under ${ours_path}; dropping the duplicate ${theirs_path}."
-                git add "${ours_path}"
-                git rm -f "${theirs_path}" "${fragment_path}"
+                git add -- "${ours_path}"
+                git rm -f -- "${theirs_path}" "${fragment_path}"
               else
-                echo "  - ${fragment}: no matching already-released copy found under a different version folder; needs manual resolution."
+                echo "  - ${fragment}: no identical already-released copy found under a different version folder; needs manual resolution."
                 unresolved=1
               fi
             done < <(git status --porcelain=v1 | awk '$1 == "DD" { print $1, $2 }')
