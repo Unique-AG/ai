@@ -74,7 +74,13 @@ Script: `.github/scripts/check-release-lineage.sh` (runs in CI for human PRs tar
 
 Bumping a **published** `unique_toolkit` / `unique_sdk` version inside the **monorepo** (e.g. `assistants-core` `pyproject.toml`) is a separate step after a stable AI release — not a manual ai-repo changelog edit. See `model-deployment` LESSONS-LEARNED for cherry-pick checklists.
 
+## Release notes fragments
+
+Besides commit subjects, every PR that changes package source adds a changie fragment under `.changelog/unreleased/` (or carries `no-changelog`). Fragments are batched into `.changelog/<version>.md` on release. See the `changelog-fragment` skill.
+
 ## Related skills
+
+- `changelog-fragment` — add or merge a release-notes fragment
 
 - `hotfix-backport` — cherry-pick workflow and rebase-merge rules for `release/*`
 - `git-conventional-commits` — commit/PR title format

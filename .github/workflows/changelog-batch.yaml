@@ -1,0 +1,306 @@
+name: "[CD] Changelog Batch"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: changelog-batch-${{ inputs.release_version }}
+  cancel-in-progress: false
+
+on:
+  workflow_call:
+    inputs:
+      release_version:
+        description: "Release version to batch fragments into, e.g. 2026.34.0"
+        required: true
+        type: string
+      branch:
+        description: "Release branch to batch fragments on, e.g. release/2026.34"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version to batch fragments into, e.g. 2026.34.0"
+        required: true
+        type: string
+      branch:
+        description: "Release branch to batch fragments on, e.g. release/2026.34"
+        required: true
+        type: string
+
+jobs:
+  changelog-batch:
+    # The Release Workflow App is IP-origin-bound to gh-static-ip-slim and its
+    # credentials are scoped to the release-workflow environment.
+    runs-on: gh-static-ip-slim
+    environment: release-workflow
+    timeout-minutes: 10
+    steps:
+      - name: Validate release inputs
+        env:
+          BRANCH: ${{ inputs.branch }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${BRANCH}" =~ ^release/([0-9]{4}\.[0-9]{2})$ ]] || [[ "${RELEASE_VERSION}" != "${BASH_REMATCH[1]}."* ]]; then
+            echo "Error: expected branch release/YYYY.WW and a matching YYYY.WW.N release_version, got '${BRANCH}' and '${RELEASE_VERSION}'."
+            exit 1
+          fi
+          if [[ ! "${RELEASE_VERSION}" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]] || ! git check-ref-format "refs/heads/changelog-batch/${RELEASE_VERSION}"; then
+            echo "Error: release_version contains unexpected characters, got '${RELEASE_VERSION}'."
+            exit 1
+          fi
+
+      - name: Generate GitHub App token
+        id: release-app-token
+        uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          repositories: ai
+
+      - name: Checkout release branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+          filter: blob:none
+          token: ${{ steps.release-app-token.outputs.token }}
+
+      - name: Configure git
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Check for unreleased changelog fragments
+        id: check-fragments
+        env:
+          BRANCH: ${{ inputs.branch }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+
+          FRAGMENT_COUNT=$(find .changelog/unreleased -maxdepth 1 -type f ! -name '.gitkeep' | wc -l | tr -d ' ')
+
+          if [ "${FRAGMENT_COUNT}" -gt 0 ]; then
+            echo "Found ${FRAGMENT_COUNT} unreleased changelog fragment(s) to batch."
+            echo "has_fragments=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "No unreleased changelog fragments found on ${BRANCH}; nothing new to batch."
+          echo "has_fragments=false" >> "$GITHUB_OUTPUT"
+
+          EXISTING_SHA=$(git log --grep="^chore: batch changelog for ${RELEASE_VERSION}\$" --format=%H -1 || true)
+          if [ -n "${EXISTING_SHA}" ]; then
+            echo "Found an existing batch commit ${EXISTING_SHA} for ${RELEASE_VERSION} on ${BRANCH} from a prior run; resuming the mirror step from it."
+            echo "existing_batch_sha=${EXISTING_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Batch changelog fragments
+        if: steps.check-fragments.outputs.has_fragments == 'true'
+        uses: miniscruff/changie-action@3223cb29b92a0972dedc864ace3da01e04780ae4 # v3.0.1
+        with:
+          version: v1.26.0
+          args: batch ${{ inputs.release_version }} --move-dir ${{ inputs.release_version }}
+
+      - name: Commit and push changelog batch to release branch
+        id: commit-batch
+        if: steps.check-fragments.outputs.has_fragments == 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          set -euo pipefail
+
+          git add .changelog/
+          git commit -m "chore: batch changelog for ${RELEASE_VERSION}"
+          git push origin "HEAD:${BRANCH}"
+
+          echo "batch_commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "✓ Pushed changelog batch commit $(git rev-parse HEAD) to ${BRANCH}"
+
+      - name: Resolve batch commit for mirroring
+        id: resolve-batch
+        env:
+          FRESH_SHA: ${{ steps.commit-batch.outputs.batch_commit_sha }}
+          EXISTING_SHA: ${{ steps.check-fragments.outputs.existing_batch_sha }}
+        run: |
+          set -euo pipefail
+          SHA="${FRESH_SHA:-${EXISTING_SHA:-}}"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          if [ -z "${SHA}" ]; then
+            echo "No batch commit to mirror; nothing to do."
+            exit 0
+          fi
+
+          if [ "$(git rev-list --parents -n 1 "${SHA}" | wc -w | tr -d ' ')" != "2" ]; then
+            echo "Error: commit ${SHA} is not a single-parent commit; refusing to mirror it."
+            exit 1
+          fi
+
+          OUT_OF_SCOPE=$(git diff --no-renames --name-only "${SHA}~1" "${SHA}" | grep -v '^\.changelog/' || true)
+          if [ -n "${OUT_OF_SCOPE}" ]; then
+            echo "Error: commit ${SHA} touches files outside .changelog/; refusing to mirror it to main with the release app's branch-protection bypass:"
+            echo "${OUT_OF_SCOPE}"
+            exit 1
+          fi
+
+          echo "Will mirror batch commit ${SHA} to main."
+
+      # Merging without review needs the release app as a pull-request bypass actor on main's ruleset.
+      - name: Mirror changelog batch to main through an auto-merged pull request
+        id: mirror-batch
+        if: steps.resolve-batch.outputs.sha != ''
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          BATCH_COMMIT_SHA: ${{ steps.resolve-batch.outputs.sha }}
+          CURRENT_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          MIRROR_BRANCH="changelog-batch/${RELEASE_VERSION}"
+          PR_TITLE="chore: batch changelog for ${RELEASE_VERSION}"
+
+          find_mirror_pr_url() {
+            gh pr list \
+              --repo "${{ github.repository }}" \
+              --head "${MIRROR_BRANCH}" \
+              --state "$1" \
+              --json url \
+              --jq '.[0].url // empty'
+          }
+
+          MERGED_PR_URL=$(find_mirror_pr_url merged)
+          if [ -n "${MERGED_PR_URL}" ]; then
+            echo "Mirror pull request ${MERGED_PR_URL} is already merged. Nothing to do."
+            exit 0
+          fi
+
+          OPEN_PR_URL=$(find_mirror_pr_url open)
+          if [ -n "${OPEN_PR_URL}" ]; then
+            echo "pr_url=${OPEN_PR_URL}" >> "$GITHUB_OUTPUT"
+            echo "Error: mirror pull request ${OPEN_PR_URL} is still open from an earlier run; resolve and merge it by hand."
+            exit 1
+          fi
+
+          # Resolves a both-deleted (DD) conflict on a changelog fragment by checking whether it was
+          # already released under a different version folder by an earlier batch merged to main.
+          # Returns non-zero when a conflict needs a human to resolve it by hand.
+          resolve_duplicate_fragments() {
+            local unresolved=0
+
+            while read -r status fragment_path; do
+              if [ "${status}" != "DD" ] || [[ "${fragment_path}" != .changelog/unreleased/* ]]; then
+                echo "  - ${fragment_path}: conflict status '${status}' does not match the known duplicate-fragment shape."
+                unresolved=1
+                continue
+              fi
+
+              local fragment theirs_path ours_path
+              fragment="$(basename "${fragment_path}")"
+              theirs_path=".changelog/${RELEASE_VERSION}/${fragment}"
+              ours_path="$(git status --porcelain=v1 | awk -v f="/${fragment}\$" '$1 == "AU" && $2 ~ f { print $2 }')"
+
+              if [ -n "${ours_path}" ] && [ "${ours_path}" != "${theirs_path}" ] && [ -f "${theirs_path}" ]; then
+                echo "  - ${fragment}: already released under ${ours_path}; dropping the duplicate ${theirs_path}."
+                git add "${ours_path}"
+                git rm -f "${theirs_path}" "${fragment_path}"
+              else
+                echo "  - ${fragment}: no matching already-released copy found under a different version folder; needs manual resolution."
+                unresolved=1
+              fi
+            done < <(git status --porcelain=v1 | awk '$1 == "DD" { print $1, $2 }')
+
+            if [ "${unresolved}" -eq 1 ] || [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+              return 1
+            fi
+          }
+
+          git fetch origin main
+
+          HAS_CONFLICTS=false
+
+          git checkout -B "${MIRROR_BRANCH}" origin/main
+
+          if ! git cherry-pick "${BATCH_COMMIT_SHA}"; then
+            echo "Cherry-pick of ${BATCH_COMMIT_SHA} onto main hit conflicts; checking whether each one is a fragment already released by an earlier batch merged to main in the meantime."
+
+            if resolve_duplicate_fragments; then
+              echo "✓ Auto-resolved duplicate-fragment conflict(s)."
+            else
+              HAS_CONFLICTS=true
+              echo "Conflicts need a human; committing them as-is so the pull request can be fixed on its branch."
+              git add -A
+            fi
+
+            if git diff --cached --quiet; then
+              echo "Batch commit ${BATCH_COMMIT_SHA} leaves nothing to apply on main; nothing to mirror."
+              git cherry-pick --skip
+              exit 0
+            fi
+
+            git -c core.editor=true cherry-pick --continue
+          fi
+
+          git push --force origin "${MIRROR_BRANCH}"
+
+          {
+            echo "## Changelog batch for ${RELEASE_VERSION}"
+            echo ""
+            echo "These changelog fragments shipped in release \`${RELEASE_VERSION}\` and are moved out of \`.changelog/unreleased/\` on \`main\` here."
+            if [ "${HAS_CONFLICTS}" = "true" ]; then
+              echo ""
+              echo "**The cherry-pick onto \`main\` hit conflicts that could not be resolved automatically.** The conflict markers are committed on this branch. Fix them, then merge this pull request by hand."
+            fi
+            echo ""
+            echo "---"
+            echo "*This PR was automatically generated by the [changelog-batch workflow](${CURRENT_WORKFLOW_URL}).*"
+          } > /tmp/pr_body.md
+
+          DRAFT_FLAG=()
+          if [ "${HAS_CONFLICTS}" = "true" ]; then
+            DRAFT_FLAG=(--draft)
+          fi
+
+          PR_URL=$(gh pr create \
+            --repo "${{ github.repository }}" \
+            --base main \
+            --head "${MIRROR_BRANCH}" \
+            --title "${PR_TITLE}" \
+            --body-file /tmp/pr_body.md \
+            --label changelog-batch \
+            "${DRAFT_FLAG[@]}")
+
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "✓ Opened mirror pull request: ${PR_URL}"
+
+          if [ "${HAS_CONFLICTS}" = "true" ]; then
+            echo "Error: ${PR_URL} has unresolved conflicts and was left open as a draft for manual resolution."
+            exit 1
+          fi
+
+          MIRROR_OUT_OF_SCOPE=$(git diff --no-renames --name-only origin/main...HEAD | grep -v '^\.changelog/' || true)
+          if [ -n "${MIRROR_OUT_OF_SCOPE}" ] || git grep -qE '^(<<<<<<<|>>>>>>>) ' HEAD -- .changelog; then
+            echo "Error: ${PR_URL} touches files outside .changelog/ or contains conflict markers; refusing to merge it with the release app's bypass."
+            echo "${MIRROR_OUT_OF_SCOPE}"
+            exit 1
+          fi
+
+          gh pr merge "${PR_URL}" --repo "${{ github.repository }}" --squash --admin --match-head-commit "$(git rev-parse HEAD)"
+          echo "✓ Merged mirror pull request: ${PR_URL}"
+
+      - name: Summary
+        if: always()
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          BRANCH: ${{ inputs.branch }}
+          HAS_FRAGMENTS: ${{ steps.check-fragments.outputs.has_fragments }}
+        run: |
+          echo "## Changelog Batch Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Release version:** ${RELEASE_VERSION}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Release branch:** ${BRANCH}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Fragments batched:** ${HAS_FRAGMENTS}" >> "$GITHUB_STEP_SUMMARY"
