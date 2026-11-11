@@ -70,7 +70,7 @@ constraint-dependencies = [
     "cryptography>=50.0.0",
     "deepdiff>=8.6.2",
     "dnspython>=2.9.0",
-    "fastmcp>=3.2.0",
+    "fastmcp>=4.1.2",
     "fsspec>=2026.6.0",
     "httplib2>=0.32.0",
     "idna>=3.15",
@@ -83,7 +83,7 @@ constraint-dependencies = [
     "langsmith>=0.8.18",
     # litellm 1.83.5–1.83.13 hard-pin python-dotenv==1.0.1 (upstream regression);
     # 1.83.14 relaxes it; 1.84+ relaxes openai==2.24.0.
-    "litellm>=1.88.6",
+    "litellm>=1.100.4",
     "lxml>=6.1.0",
     "mcp>=1.28.1",
     "mkdocs-material>=9.7.7",
