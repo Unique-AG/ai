@@ -3,8 +3,8 @@ name: unique-cli-uploaded-search
 description: >-
   Search the documents attached to the current message with
   `unique-cli uploaded-search "<query>"`: files the user uploaded to this chat,
-  or an Agentic Table row's documents. The message says which documents are
-  searchable; when it says none are, there is nothing to search. These
+  or an Agentic Table row's documents. The message names the searchable
+  documents; when it names none, there is nothing to search. These
   documents are scoped to the chat, not to a knowledge-base folder, so
   knowledge-base search never returns them. When the question is about them,
   search them first. Results are `<sourceN>` blocks cited as `[sourceN]`,
