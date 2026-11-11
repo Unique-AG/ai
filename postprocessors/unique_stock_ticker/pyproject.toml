@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.7.19,<0.8"]
+requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
@@ -85,7 +85,7 @@ include = ["unique_stock_ticker"]
 exclude = ["**/tests/**", "**/test_*.py"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 extend-select = ["I"]
