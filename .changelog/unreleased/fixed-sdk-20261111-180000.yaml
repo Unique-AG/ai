@@ -1,0 +1,7 @@
+component: SDK
+kind: Fixed
+body: The `unique-cli-mcp` skill now says `[mcpsourceN]` numbers are chat-wide and stay valid across turns, instead of telling agents that numbers from earlier turns are stale, which could make them re-run MCP tools in a loop. It also teaches title-and-link markers (`[mcpsourceN;title;URL]`) and citing what action tools created.
+time: 2026-11-11T18:00:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-28778

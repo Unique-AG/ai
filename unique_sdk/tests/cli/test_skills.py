@@ -122,3 +122,23 @@ def test_agentic_table_skill_teaches_permission_handling() -> None:
     assert "probing" in text or "probe" in text, (
         "skill must forbid probing other sheet ids after a denial"
     )
+
+
+def test_mcp_skill_says_source_numbers_are_chat_wide() -> None:
+    """``[mcpsourceN]`` numbers are seeded per chat (``mcp-refs-seed.json``).
+
+    Calling them stale each turn pushed agents into re-fetch loops; the
+    monorepo runner resolves numbers from earlier turns (UN-28778).
+    """
+    body = " ".join(_read_skill("unique-cli-mcp").split())
+    assert "Numbers are chat-wide" in body
+    assert "A number from an earlier turn still resolves" in body
+    assert "NEVER re-run a tool only to refresh" in body
+    assert "stale" not in body
+
+
+def test_mcp_skill_teaches_enriched_markers_and_action_tools() -> None:
+    body = " ".join(_read_skill("unique-cli-mcp").split())
+    assert "[mcpsource2;ABC-123 — Fix login flow;" in body
+    assert "you MUST include it" in body
+    assert "Action tools too" in body

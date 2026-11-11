@@ -132,7 +132,7 @@ python generate_payload.py | unique-cli mcp -c chat_123 -m msg_456 --stdin
 
 ## Citation Rules
 
-Cite a fact retrieved from an MCP tool with `[mcpsourceN]`, where `N` matches the `sourceNumber` the command printed in the `Sources` footer beneath the tool output. Each footer line names one retrieved item; cite a fact with the marker of the specific item it came from. The Unique platform's Swappable Intelligence runner converts each `[mcpsourceN]` marker in your final answer into a `<sup>N</sup>` footnote and a display-only reference chip labelled with the retrieved item and the MCP tool name (e.g. "RAG Retrieval Baseline — Retrieve Confluence page (MCP)"). Without `[mcpsourceN]` markers, MCP-retrieved facts in your answer appear as plain text only, with no footnote and no chip.
+Cite every fact from an MCP tool with the `[mcpsourceN]` marker that the command printed in the `Sources` footer beneath the tool output, placed right after the fact. The Unique platform turns each marker in your final answer into a `<sup>N</sup>` footnote and a reference chip. Without a marker, an MCP fact shows as plain text and the answer counts as ungrounded.
 
 ```
 ACME's Q3 revenue was 1.2M [mcpsource1], up from 0.9M a year earlier [mcpsource2].
@@ -140,11 +140,17 @@ ACME's Q3 revenue was 1.2M [mcpsource1], up from 0.9M a year earlier [mcpsource2
 
 **Rules** (enforced by the platform's reference post-processor, which reads `.unique/mcp-refs.jsonl` rather than your prose):
 
-1. **`[mcpsourceN]` is for MCP tool results only.** Knowledge-base results from `unique-cli search` use `[sourceN]`, and public web results from `unique-cli web-search` use `[websourceN]` — never mix the namespaces.
-2. Only cite numbers you saw in the **current** turn's MCP `Sources` footer. Numbers from previous turns are stale and will be silently dropped.
-3. Write `mcpsource` in singular form with the number in digits: `[mcpsource1]`, `[mcpsource2]` — not `[McpSource 1]` or `[mcpsource one]`.
-4. The same retrieved item keeps one stable `[mcpsourceN]` for the whole turn, so every fact from that item uses the same marker.
-5. Do not invent source numbers for remembered or inferred facts.
+1. **Numbers are chat-wide.** They never restart at 1, so a high first number in a turn is normal. A number from an earlier turn still resolves to the same source, and re-fetching an item returns its old number. NEVER re-run a tool only to refresh or verify numbers. If compaction dropped a footer you need, answer from the sources still visible; re-fetch one at most once per turn, and only for its content.
+2. **Format.** Write `mcpsource` singular with a digit number: `[mcpsource1]`, never `[McpSource 1]`, `[mcpsource one]` or `[mcpsources 1, 2]`. `[mcpsourceN]` is for MCP results only: knowledge-base results use `[sourceN]`, web results `[websourceN]`; never mix them. Prefer the one most relevant source per fact. Never invent a number for a remembered or inferred fact, and none for a result without a `Sources` footer.
+3. **Enrich the marker with the item's title and URL**, separated by semicolons:
+   `[mcpsource2;ABC-123 — Fix login flow;https://acme.atlassian.net/browse/ABC-123]`.
+   The chip is then labelled with the title and links to the item.
+   - `N` is the footer number of the result the item came from. Never carry a number from one result over to an item from another.
+   - Cite one marker per item, meaning each entity whose value you report. A footer may list one number per item, or one number for a whole result set (a search returning many matches as one blob). In that case reuse the same `N` for each item, each with its own title and URL: chips are keyed on source, title and URL, so they render separately. Never fall back to plain `[mcpsourceN]` just to avoid repeating a number.
+   - **Title**: the item's own short name from the result (issue key + summary, page title, email subject, channel + date). No `;` or brackets, under ~120 characters. Without a per-item name, name the call (`get_chart GOOGL`).
+   - **URL**: copy it from the output, or build it only from values in the output (`<base>/browse/<KEY>`). The platform checks the host against the output and drops anything else. Prefer the user-facing permalink over API URLs (`.../rest/api/...`). Reading an attachment or file a result pointed at still cites that result's permalink.
+   - If the output has a link for the item (`Permalink:`, `url`, `webUrl`, `https://…`), even inside a multi-item blob, you MUST include it. `[mcpsourceN;URL]` is always fine; `[mcpsourceN;title]` only when the result has no link for the item; plain `[mcpsourceN]` only when it has neither.
+4. **Action tools too.** When you report what a create, update or delete tool created or changed (a ticket key, page link or ID), cite it with the marker from that result's `Sources` footer. An action whose outcome you do not mention needs no citation.
 
 ## Prerequisites
 
