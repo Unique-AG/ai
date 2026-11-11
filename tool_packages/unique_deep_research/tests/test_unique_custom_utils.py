@@ -257,6 +257,31 @@ async def test_execute_tool_safely__returns_error_message__when_tool_fails() -> 
 
 
 @pytest.mark.ai
+async def test_execute_tool_safely__logs_error_type_only__when_tool_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify a failed tool call logs the error type, not the error message.
+    Why this matters: Tool errors can echo the search query or URL, which must stay out of logs.
+    Setup summary: Mock a tool failing with a URL in its message, assert the log omits it.
+    """
+    # Arrange
+    mock_tool = Mock()
+    mock_tool.name = "web_fetch"
+    mock_tool.ainvoke = AsyncMock(
+        side_effect=ValueError("invalid url https://example.com/private-report")
+    )
+
+    # Act
+    result = await execute_tool_safely(mock_tool, {}, cast(Any, {}))
+
+    # Assert
+    assert "example.com" in result
+    assert "Error executing tool web_fetch: ValueError" in caplog.text
+    assert "example.com" not in caplog.text
+
+
+@pytest.mark.ai
 def test_write_state_message_log__calls_chat_service__with_correct_parameters() -> None:
     """
     Purpose: Verify write_state_message_log calls chat service with correct parameters.
