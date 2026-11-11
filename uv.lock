@@ -6000,7 +6000,7 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-requests", marker = "extra == 'otel'", specifier = ">=0.65b0,<1" },
     { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.27,<2" },
     { name = "pandas", specifier = ">=2.3.0,<3" },
-    { name = "pillow", specifier = ">=12.1.1" },
+    { name = "pillow", specifier = ">=13.0.0" },
     { name = "platformdirs", specifier = ">=4.0.0,<5" },
     { name = "prometheus-client", marker = "extra == 'monitoring'", specifier = ">=0.24.1,<1" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
