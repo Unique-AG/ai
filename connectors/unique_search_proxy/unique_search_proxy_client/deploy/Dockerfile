@@ -9,7 +9,7 @@
 FROM ghcr.io/astral-sh/uv:0.11.33@sha256:77280f2f771df71f90786c314fe1bbc1e023feac652969bbf139c280babf2eb7 AS uv
 
 # ── Stage 1: install deps into an isolated venv ───────────────────────────────
-FROM python:3.12-slim-trixie@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704 AS builder
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS builder
 
 COPY --from=uv /uv /usr/bin/uv
 
@@ -24,7 +24,7 @@ COPY . .
 RUN uv sync --frozen --package unique-search-proxy --no-dev --no-editable
 
 # ── Stage 2: lean runtime image ───────────────────────────────────────────────
-FROM python:3.12-slim-trixie@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704 AS runtime
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS runtime
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
@@ -34,6 +34,12 @@ ENV PYTHONFAULTHANDLER=1 \
 
 # glibc caps malloc arenas at 8 per core of the node, not of the pod's CPU limit
 ENV MALLOC_ARENA_MAX=2
+
+# The base image lags Debian security updates. CD never caches this stage
+# (no-cache-filters: runtime), so every release build picks up the latest ones.
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    rm -rf /var/lib/apt/lists/*
 
 # uid 1000 is what the Helm chart pins as runAsUser
 RUN useradd -m -u 1000 appuser
