@@ -330,9 +330,9 @@ def cmd_uploaded_search(
     """
     if not state.uploaded_search_available:
         return (
-            f"{UPLOADED_SEARCH_ERROR_PREFIX} no uploaded documents are "
-            "available for this task. Use `unique-cli search` for the "
-            "knowledge base."
+            f"{UPLOADED_SEARCH_ERROR_PREFIX} no documents are selected for "
+            "this message. Workspace files can still be read directly; use "
+            "`unique-cli search` for the knowledge base if you have it."
         )
 
     try:

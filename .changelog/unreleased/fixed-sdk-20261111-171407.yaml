@@ -1,0 +1,7 @@
+component: SDK
+kind: Fixed
+body: The bundled `unique-cli-uploaded-search` skill and the empty `unique-cli uploaded-search` reply now describe the documents attached to the current message, in regular chats as well as Agentic Table rows, and point to knowledge-base search only where a space has it.
+time: 2026-11-11T17:14:07.211938+08:00
+custom:
+    Audience: developer
+    Ticket: UN-26588
