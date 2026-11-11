@@ -164,11 +164,11 @@ class ShellState:
         self._workspace_metadata_filter: dict[str, Any] | None = None
         self._metadata_filter: MetadataFilter | None = None
         self.workspace_metadata_filter = _load_workspace_metadata_filter(_search_config)
-        # Per-row uploaded documents reachable via ``unique-cli uploaded-search``.
-        # Loaded from ``.unique-uploaded.json`` (written by the runner). The chat
-        # id is the chat that *owns* the uploads — for a subagent this is the
-        # parent chat — and is required for the chat-scoped uploaded search.
-        # See UN-21780.
+        # The documents the current message selects for ``unique-cli
+        # uploaded-search``. Loaded from ``.unique-uploaded.json`` (written by
+        # the runner per message). The chat id is the chat that *owns* them —
+        # for an Agentic Table row this is the parent chat — and is required
+        # for the chat-scoped uploaded search. See UN-21780.
         _uploaded_config = _load_uploaded_config()
         self.uploaded_search_chat_id: str | None = _load_uploaded_chat_id(
             _uploaded_config
@@ -266,14 +266,15 @@ class ShellState:
         """Return True if *content_id* is in the current workspace scope.
 
         Precedence (UN-21780):
-        0. Per-row uploaded documents (``.unique-uploaded.json``) surfaced by
-           ``unique-cli uploaded-search`` are task inputs that live *outside* the
-           KB scope boundary by design, so neither the metadata filter nor the
-           static ``scopeIds`` path below would admit them. Exempt them for
-           non-destructive access so the agent can ``read``/``ls``/``cite`` a doc
-           it just found via uploaded-search — mirroring the chat-file exemption.
-           Mutating ops (``rm``/``mv``) pass ``allow_chat_files=False`` and stay
-           denied, so an uploaded input can't be deleted or renamed this way.
+        0. Documents the current message selects (``.unique-uploaded.json``)
+           for ``unique-cli uploaded-search`` are message inputs that live
+           *outside* the KB scope boundary by design, so neither the metadata
+           filter nor the static ``scopeIds`` path below would admit them.
+           Exempt them for non-destructive access so the agent can
+           ``read``/``ls``/``cite`` a doc it just found via uploaded-search —
+           mirroring the chat-file exemption. Mutating ops (``rm``/``mv``)
+           pass ``allow_chat_files=False`` and stay denied, so an uploaded
+           input can't be deleted or renamed this way.
         1. A per-message UniqueQL ``metaDataFilter`` (e.g. an Agentic Table
            column's ``scope_rules``) is the authority for this turn and
            *replaces* the static ``scopeIds`` for content access. Files the
