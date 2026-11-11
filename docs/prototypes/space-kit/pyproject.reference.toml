@@ -1,0 +1,67 @@
+[project]
+name = "space-kit"
+version = "0.1.0"
+description = "Create, clone and edit Unique spaces (Conduct first) through the public API, locally and on QA."
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.12",
+  "pyyaml>=6.0",
+  "pytest>=9.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-m 'not live'"
+markers = [
+  "live: needs network access to local or QA; skipped by default",
+  "ai: AI-authored or AI-generated test",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 79
+
+[tool.ruff.lint]
+select = [
+  "E4",
+  "E7",
+  "E9",
+  "F",
+  "I",
+  "B",
+  "UP",
+  "RUF",
+  "C90",
+  "PLR0913",
+  "TID251",
+  "TID252",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 8
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"dataclasses.dataclass".msg = "Use space_kit.base.KitModel."
+"pydantic.BaseModel".msg = "Inherit space_kit.base.KitModel."
+
+[tool.ruff.lint.per-file-ignores]
+"space_kit/base.py" = ["TID251"]
+
+[tool.basedpyright]
+pythonVersion = "3.12"
+typeCheckingMode = "recommended"
+include = ["space_kit"]
+reportAny = "none"
+reportExplicitAny = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"
