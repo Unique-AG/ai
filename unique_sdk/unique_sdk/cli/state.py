@@ -167,8 +167,9 @@ class ShellState:
         # The documents the current message selects for ``unique-cli
         # uploaded-search``. Loaded from ``.unique-uploaded.json`` (written by
         # the runner per message). The chat id is the chat that *owns* them —
-        # for an Agentic Table row this is the parent chat — and is required
-        # for the chat-scoped uploaded search. See UN-21780.
+        # the parent chat for an Agentic Table row, or for a sub-agent chat
+        # searching its parent's documents — and is required for the
+        # chat-scoped uploaded search. See UN-21780.
         _uploaded_config = _load_uploaded_config()
         self.uploaded_search_chat_id: str | None = _load_uploaded_chat_id(
             _uploaded_config

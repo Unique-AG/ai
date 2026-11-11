@@ -46,6 +46,8 @@ not select for this message are not searched.
 
 ## Which source first
 
+- When the question is about the documents attached to this message, search
+  them first with `unique-cli uploaded-search`.
 - If results are weak or off-target, switch source rather than rewording the
   query more than once.
 - Use knowledge-base search, when available, for firm-wide or background facts.

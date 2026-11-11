@@ -660,6 +660,7 @@ class TestCmdUploadedSearch:
             _uploaded_state(chat_id=None, content_ids=[]), "anything"
         )
         assert out.startswith(UPLOADED_SEARCH_ERROR_PREFIX)
+        assert "no documents are selected for this message" in out
         mock.assert_not_called()
         assert not (Path.cwd() / ".unique").exists()
 
