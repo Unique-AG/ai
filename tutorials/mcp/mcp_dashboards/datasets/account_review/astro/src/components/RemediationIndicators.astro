@@ -1,0 +1,18 @@
+---
+// Stacked remediation badges for portfolio rows. Each icon is shown only
+// when the row's data-* attrs match (see styles.css); hover reveals the
+// label to the right of the icon.
+import Icon from "./Icon.astro";
+---
+
+<span class="remediation-indicators">
+  <span class="remediation-indicator remediation-indicator-act" data-tooltip="Act now" tabindex="0">
+    <Icon name="alert-octagon" size={14} />
+  </span>
+  <span class="remediation-indicator remediation-indicator-breach" data-tooltip="Breach" tabindex="0">
+    <Icon name="flag" size={14} />
+  </span>
+  <span class="remediation-indicator remediation-indicator-watch" data-tooltip="Watch" tabindex="0">
+    <Icon name="bell" size={14} />
+  </span>
+</span>
