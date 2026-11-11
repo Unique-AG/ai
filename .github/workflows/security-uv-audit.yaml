@@ -1,0 +1,54 @@
+name: "[Security] uv Audit"
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - uv.lock
+      - pyproject.toml
+      - .github/workflows/security-uv-audit.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-uv-audit-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  audit:
+    name: uv audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-uv
+        with:
+          install_dependencies: "false"
+
+      # uv audit is a preview command, so the flag name can change with the uv pin.
+      - name: Audit the locked dependencies
+        run: |
+          status=0
+          audit() {
+            title="$1"
+            shift
+            rc=0
+            out=$(uv audit --preview-features audit-command --frozen "$@" 2>&1) || rc=$?
+            echo "$out"
+            { echo "### ${title}"; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            if [ "$rc" -gt "$status" ]; then status=$rc; fi
+          }
+          audit "Default groups"
+          audit "Docs group" --only-group docs
+          # uv exits 1 for vulnerabilities and 2 or more when the audit cannot run.
+          if [ "$status" -eq 1 ] && [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            echo "::warning::uv audit found vulnerabilities. Not blocking pull requests."
+            exit 0
+          fi
+          exit "$status"
