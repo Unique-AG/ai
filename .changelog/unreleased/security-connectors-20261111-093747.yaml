@@ -1,0 +1,6 @@
+component: Connectors
+kind: Security
+body: Search proxy image patches four published HIGH container vulnerabilities and picks up the latest OS security updates on every release build.
+time: 2026-11-11T09:37:47.000000+01:00
+custom:
+  Audience: operator
