@@ -23,7 +23,7 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false

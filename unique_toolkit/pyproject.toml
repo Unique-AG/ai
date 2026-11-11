@@ -86,7 +86,7 @@ dev = [
 ]
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 constraint-dependencies = [
     "lxml>=6.1.0",
 ]

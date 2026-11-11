@@ -47,7 +47,7 @@ module-root = "."
 module-name = "unique_search_proxy_client"
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false

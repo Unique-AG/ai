@@ -13,27 +13,22 @@ conflicts = [[
 
 [options]
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
-exclude-newer-span = "P2W"
+exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-pillow = "2026-10-21T00:00:00Z"
-certifi = "2026-10-21T00:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-search-proxy-core = false
 unique-mcp = false
-pyasn1 = "2026-10-28T00:00:00Z"
 unique-orchestrator = false
-pypdf = "2026-10-29T00:00:00Z"
 unique-follow-up-questions = false
 unique-user-memory = false
 unique-six = false
 unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
-filelock = "2026-10-21T00:00:00Z"
 unique-stock-ticker = false
 unique-search-proxy-sdk = false
 unique-skill-tool = false

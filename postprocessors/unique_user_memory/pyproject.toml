@@ -26,7 +26,7 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.uv.exclude-newer-package]
