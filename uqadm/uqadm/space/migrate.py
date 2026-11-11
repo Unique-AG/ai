@@ -17,6 +17,7 @@ from uqadm.core.endpoint import (
     parse_source_endpoint,
 )
 from uqadm.core.env import config_for_slot, normalize_api_base
+from uqadm.space.mcp_match import McpMatch, echo_mcp_dry_run, merge_mcp_servers
 
 
 def module_params_from_source(mod: dict[str, Any]) -> dict[str, Any]:
@@ -280,6 +281,7 @@ def cmd_migrate(
     *,
     dry_run: bool,
     with_knowledge: bool,
+    mcp_match: McpMatch = "id",
     cwd: Path | None = None,
 ) -> None:
     try:
@@ -343,14 +345,6 @@ def cmd_migrate(
                 "currently only assistant configuration fields are migrated.",
             )
 
-    mcp = src_space.get("assistantMcpServers") or []
-    if mcp:
-        typer.echo(
-            f"Warning: source lists {len(mcp)} MCP server binding(s); "
-            "these are not migrated by this command.",
-            err=True,
-        )
-
     if with_knowledge and cross_env:
         typer.echo(
             "Warning: --with-knowledge applies only when source and destination "
@@ -362,11 +356,20 @@ def cmd_migrate(
 
     if dst_space_id is None:
         create_params = build_create_params(src_space)
+        create_params = merge_mcp_servers(
+            create_params,
+            src_space,
+            user_id=dst_cfg.user_id,
+            company_id=dst_cfg.company_id,
+            match=mcp_match,
+            destination_space_id=None,
+        )
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space on destination with name="
                 f"{create_params['name']!r} and {len(create_params['modules'])} module(s)."
             )
+            echo_mcp_dry_run(create_params)
             if assistant_access:
                 typer.echo(
                     f"Dry-run: would sync {len(assistant_access)} access entr(y/ies)."
@@ -427,12 +430,21 @@ def cmd_migrate(
     update_kw = build_update_kwargs(src_space)
     if update_modules:
         update_kw["modules"] = update_modules
+    update_kw = merge_mcp_servers(
+        update_kw,
+        src_space,
+        user_id=dst_cfg.user_id,
+        company_id=dst_cfg.company_id,
+        match=mcp_match,
+        destination_space_id=dst_space_id,
+    )
 
     if dry_run:
         typer.echo(
             f"Dry-run: would update_space {dst_space_id!r} with fields "
             f"{sorted(update_kw.keys())!r}."
         )
+        echo_mcp_dry_run(update_kw)
         if assistant_access:
             typer.echo(
                 f"Dry-run: would merge access via add_space_access "
