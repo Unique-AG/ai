@@ -814,15 +814,14 @@ def uploaded_search(
     query: str,
     limit: int,
 ) -> None:
-    """Search the documents uploaded for this task (not the knowledge base).
+    """Search the documents attached to the current message (not the knowledge base).
 
     \b
-    QUERY is the search text. This searches only the files attached to this
-    row/task (e.g. an Agentic Table row's uploaded documents), which are NOT
-    part of the knowledge-base folder scope and therefore never appear in
-    `unique-cli search`. Results are ranked the same way and cite as
-    `[sourceN]`, with numbering continuous across `search` and
-    `uploaded-search` within a turn.
+    QUERY is the search text. This searches only the documents this message
+    selects (files the user uploaded to this chat, or an Agentic Table row's
+    documents), which knowledge-base search never returns. Results cite as
+    `[sourceN]`, numbered continuously with knowledge-base search results
+    within a turn.
 
     \b
     Examples:
