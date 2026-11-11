@@ -22,7 +22,7 @@ inputs:
   trivy_version:
     description: Trivy CLI version to install
     required: false
-    default: v0.74.0
+    default: v0.76.2
   trivy_timeout:
     description: Trivy scan timeout
     required: false
