@@ -40,8 +40,7 @@ updates:
     labels:
       - dependencies
       - docker
-    # Python minor bumps change the runtime of shipped images, so they are
-    # done by hand. Digest refreshes of the pinned tag still come through.
+    # Python minor bumps change the runtime of shipped images, so they are done by hand.
     ignore:
       - dependency-name: python
         update-types:
