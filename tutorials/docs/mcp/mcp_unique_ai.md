@@ -2,7 +2,7 @@
 
 ## 📌 Overview
 
-After developing your MCP (Model Context Protocol) server and tools (as covered in [MCP Fundamentals](mcp_fundamentals.md), [MCP Demo](mcp_demo.md), and [MCP Search](mcp_search.md)), this guide explains how to configure and use those tools within Unique AI Spaces.
+After developing your MCP (Model Context Protocol) server and tools (as covered in [MCP Fundamentals](mcp_fundamentals.md), [MCP Demo](mcp_demo.md), [MCP Search](mcp_search.md), and [MCP `_meta`](mcp_meta.md)), this guide explains how to configure and use those tools within Unique AI Spaces.
 
 **MCP Tools** allow your space to connect to external services and data sources that have been configured by your organization's connector administrators. These tools extend your AI assistant's capabilities by enabling it to interact with specialized systems and APIs.
 
@@ -49,7 +49,7 @@ Click on **Settings** in a connector card to open the configuration menu.
 
 #### Step 3: Review Available Tools
 
-The overlay displays all **tools that have been enabled for your organization.**
+The overlay displays all **tools that have been enabled for your organization.** Per-tool settings shown in that overlay (search limits, filters, and similar) come from the tool's advertised `unique.app/config-schema` — see [MCP `_meta` convention](mcp_meta.md).
 
 > **Note**: Tools disabled by the connector admin will not appear in this list
 
