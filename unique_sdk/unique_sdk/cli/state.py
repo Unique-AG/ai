@@ -35,9 +35,9 @@ def _load_search_config() -> dict[str, Any]:
 def _load_uploaded_config() -> dict[str, Any]:
     """Load ``.unique-uploaded.json`` from the workspace root, or ``{}`` when absent or invalid.
 
-    Written by the Swappable Intelligence runner when the task carries per-row
-    uploaded documents (an Agentic Table row's ``selectedUploadedFiles``). It
-    holds the chat that owns those uploads and their content ids so
+    Written by the Conduct runner when the current message selects uploaded
+    documents (chat uploads, or an Agentic Table row's documents). It holds the
+    chat that owns those uploads and their content ids so
     ``unique-cli uploaded-search`` can reach them: uploaded files live outside
     the knowledge-base folder scopes, so the scope-bound ``unique-cli search``
     structurally cannot return them. See UN-21780.
@@ -185,12 +185,12 @@ class ShellState:
 
     @property
     def uploaded_search_available(self) -> bool:
-        """True when this task has per-row uploaded documents to search.
+        """True when the current message selects uploaded documents to search.
 
         Requires *both* a non-empty selected content-id set and the owning
         chat id. The owning chat id alone is not enough: ``cmd_uploaded_search``
         would then issue a ``chatOnly`` ``Search.create`` with no ``contentIds``
-        filter, silently widening scope from the row's selected files to *every*
+        filter, silently widening scope from the message's selected files to *every*
         upload in the chat. That degenerate state arises when the runner wrote
         a ``.unique-uploaded.json`` whose ``contentIds`` were absent or
         malformed (e.g. mixed types, rejected wholesale by
