@@ -4,7 +4,9 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: daily
     open-pull-requests-limit: 5
@@ -38,6 +40,13 @@ updates:
     labels:
       - dependencies
       - docker
+    # Python minor bumps change the runtime of shipped images, so they are
+    # done by hand. Digest refreshes of the pinned tag still come through.
+    ignore:
+      - dependency-name: python
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
     groups:
       docker:
         patterns:
