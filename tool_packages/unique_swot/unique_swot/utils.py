@@ -9,6 +9,8 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import Content, ContentChunk, ContentReference
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_swot.invocation_stats import record_language_model_response
+
 _LOGGER = getLogger(__name__)
 _MAX_RETRIES = 3
 T = TypeVar("T", bound=BaseModel)
@@ -47,11 +49,14 @@ async def generate_structured_output(
     llm: LMI,
     output_model: type[T],
     llm_service: LanguageModelService,
+    source: str,
 ) -> T | None:
     """
     Call the LLM to produce a structured Pydantic model with retries.
 
-    Returns None when every attempt fails.
+    Returns None when every attempt fails. Successful completions are recorded
+    against ``source`` even when later schema validation fails, so spent tokens
+    still reach ``debug_info["llm_invocations"]``.
     """
     _LOGGER.info(f"Generating structured output with {output_model.__name__} model")
 
@@ -75,6 +80,11 @@ async def generate_structured_output(
                 messages=_build_messages(last_error),
                 structured_output_model=output_model,
                 structured_output_enforce_schema=True,
+            )
+            record_language_model_response(
+                model_name=llm.name,
+                response=response,
+                source=source,
             )
             return output_model.model_validate(response.choices[0].message.parsed)
         except Exception as exc:
