@@ -6,8 +6,8 @@ to the agent so it knows which command to reach for. Two invariants matter for
 the uploaded-document search feature (UN-21780):
 
 1. ``unique-cli-uploaded-search`` is its **own** skill, so the monorepo can
-   gate it on the ``UploadedSearch`` synthetic tool and hide it entirely when a
-   space has no uploaded files / the feature is off.
+   install it only for the companies its uploaded-search flag enables and
+   leave it out entirely when the flag is off.
 2. The always-on ``unique-cli-search`` skill must **not** mention
    ``uploaded-search`` — otherwise the agent is told about the uploaded path
    even when it is gated off, which defeats the clean off-switch.
