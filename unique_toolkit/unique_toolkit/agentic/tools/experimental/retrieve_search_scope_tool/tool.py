@@ -22,15 +22,6 @@ from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 _LOGGER = getLogger(__name__)
 
-_OPENABLE_MIME_PREFIXES = (
-    "application/pdf",
-    "application/msword",
-    "application/vnd.ms-word",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml",
-    "application/vnd.openxmlformats-officedocument.presentationml",
-)
-
 
 class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
     name = "RetrieveSearchScope"
@@ -79,9 +70,8 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             )
         return False
 
-    @staticmethod
-    def _format_entry(ci: ContentInfo, prefix: str = "") -> str:
-        if ci.mime_type.startswith(_OPENABLE_MIME_PREFIXES) and ci.id:
+    def _format_entry(self, ci: ContentInfo, prefix: str = "") -> str:
+        if self.config.show_content_id and ci.id:
             name_part = f"{ci.key} ({ci.id})"
         else:
             name_part = ci.key
