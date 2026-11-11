@@ -47,8 +47,8 @@ Because of that:
 1. **List alerts** — see [gh commands reference](references/gh-commands.md). Always paginate (`gh api --paginate`); the Dependabot endpoint is cursor-paged and a single `per_page=100` call silently caps at 100.
 2. **Find fix version** from the alert JSON.
 3. **Add/bump `constraint-dependencies`** in root `pyproject.toml` with `"<package>>=<fixed-version>"`.
-4. **Handle `exclude-newer` conflicts** — if the fix version is within the 2-week rolling window, add an `exclude-newer-package` timestamp (day after latest PyPI upload). See [exclude-newer reference](references/exclude-newer.md).
-5. **Prune stale `exclude-newer-package` entries** — remove any timestamp older than 2 weeks (redundant, global window already covers it). Keep `= false` entries.
+4. **Handle `exclude-newer` conflicts** — if the fix version is within the 3-day rolling window, add an `exclude-newer-package` timestamp (day after latest PyPI upload). See [exclude-newer reference](references/exclude-newer.md).
+5. **Prune stale `exclude-newer-package` entries** — remove any timestamp older than 3 days (redundant, global window already covers it). Keep `= false` entries.
 6. **Relock** — `uv lock --refresh`. If resolution fails, bump the timestamp and retry.
 7. **Branch and commit** — branch `fix/dependabot-<pkg>-<ver>` (single CVE) or `fix/security-<date>` (batch). Subject: `fix(deps): bump <pkg> to >=<ver> (GHSA-xxxx)` or `fix(security): batch dependabot fixes <date>`. Do **not** touch `CHANGELOG.md` or any `version = ...` field — release-please will pick the commit up on the next standing Release PR.
 8. **Open PR, then close Dependabot auto-PRs** after merge (they won't auto-close because we ship via constraints, not by merging their lockfile bump).
@@ -77,5 +77,5 @@ Because of that:
 - **Use `fix(...)` not `chore(deps): ...`** when you want the fix to appear in user-facing release notes; `chore` is hidden by the changelog config.
 - **Round timestamps up** — day *after* latest artifact upload (`uv` uses strict `<` on individual wheel upload times).
 - **Batch when possible** — one PR reduces noise; release-please still attributes per workspace package.
-- **Prune stale timestamps** — entries older than the 2-week window are redundant.
+- **Prune stale timestamps** — entries older than the 3-day window are redundant.
 - **Check both dashboards** — Dependabot and CodeQL are independent.

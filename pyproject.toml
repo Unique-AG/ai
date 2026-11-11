@@ -50,7 +50,7 @@ docs = [
 ]
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 # `docs` pins entangled-cli<2.4.2 (which requires click>=8.3.0), but `dev` (via
 # opik → litellm) requires click==8.1.8. They are never installed together,
 # so declare them mutually exclusive to let uv resolve each independently.
@@ -125,13 +125,6 @@ override-dependencies = [
 "unique-search-proxy-core" = false
 "unique-search-proxy-sdk" = false
 "unique-quartr" = false
-# TODO: drop after 2026-11-04, when the global cooldown reaches these CVE fixes.
-"certifi" = "2026-10-21T00:00:00Z"
-"filelock" = "2026-10-21T00:00:00Z"
-"pillow" = "2026-10-21T00:00:00Z"
-# TODO: drop after 2026-11-11, when the global cooldown reaches this CVE fix.
-"pyasn1" = "2026-10-28T00:00:00Z"
-"pypdf" = "2026-10-29T00:00:00Z"
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }

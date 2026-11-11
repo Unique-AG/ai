@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 constraint-dependencies = [
     "authlib>=1.6.11",
     "cryptography>=46.0.7",
