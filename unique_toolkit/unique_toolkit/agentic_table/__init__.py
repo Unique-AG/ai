@@ -1,4 +1,5 @@
 from unique_sdk.api_resources._agentic_table import (
+    ActivityKind,
     ActivityStatus,
     CellRendererTypes,
     FilterTypes,
@@ -54,6 +55,7 @@ __all__ = [
     "AgenticTableArtifactError",
     "AgenticTableRunNotStartedError",
     "AgenticTableRunTimeoutError",
+    "ActivityKind",
     "ActivityStatus",
     "AgenticTableSheetState",
     "AgreementStatus",

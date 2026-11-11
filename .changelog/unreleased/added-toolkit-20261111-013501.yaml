@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: '`AgenticTableService.set_activity` accepts an optional `kind` (`ActivityKind`, exported from `unique_toolkit.agentic_table`) and sends it with the activity. `None`, the default, omits the field.'
+time: 2026-11-11T01:35:01.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29286

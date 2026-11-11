@@ -19,6 +19,7 @@ from unique_sdk import (
 )
 from unique_sdk import AgenticTableCell as SDKAgenticTableCell
 from unique_sdk.api_resources._agentic_table import (
+    ActivityKind,
     ActivityStatus,
     MagicTableMetadataEntry,
 )
@@ -296,13 +297,20 @@ class AgenticTableService:
         text: str,
         activity: MagicTableAction,
         status: ActivityStatus = ActivityStatus.IN_PROGRESS,
+        kind: ActivityKind | None = None,
     ):
         """
         Sets the activity of the Agentic Table.
 
         Args:
             activity (str): The activity to set.
+            kind (ActivityKind | None): Marks a notice the client tells apart from
+                other activities. ``None`` omits the field; servers that predate it
+                reject it with a 400.
         """
+        extras: dict[str, str] = {}
+        if kind is not None:
+            extras["kind"] = kind.value
         await AgenticTable.set_activity(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -310,6 +318,7 @@ class AgenticTableService:
             activity=activity.value,  # pyright: ignore[reportArgumentType]
             status=status.value,  # pyright: ignore[reportArgumentType]
             text=text,
+            **cast(Any, extras),
         )
 
     async def register_agent(self) -> None:

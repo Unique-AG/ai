@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`AgenticTable.set_activity` accepts an optional `kind` (`ActivityKind`, currently `METADATA_TAGS_SKIPPED`) that marks a notice the client tells apart from other activities. Omit it for ordinary activities; servers that predate the field reject it with a 400.'
+time: 2026-11-11T01:35:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29286

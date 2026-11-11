@@ -78,6 +78,12 @@ class ActivityStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class ActivityKind(StrEnum):
+    """Notices a client tells apart from other activities without reading the text."""
+
+    METADATA_TAGS_SKIPPED = "METADATA_TAGS_SKIPPED"
+
+
 class SheetType(StrEnum):
     DEFAULT = "DEFAULT"
     LIBRARY = "LIBRARY"
@@ -250,6 +256,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         activity: MagicTableAction
         status: ActivityStatus
         text: str
+        kind: NotRequired[ActivityKind]
 
     class SetArtifact(RequestOptions):
         tableId: str

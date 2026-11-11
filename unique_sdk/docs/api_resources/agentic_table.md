@@ -231,6 +231,7 @@ Work with intelligent tables that support:
     - `activity` ([`MagicTableAction`](#magictableaction) / str, required) - Workflow action (e.g. `"UpdateCell"`, `"InsertRow"`, `"GenerateOverview"`, …)
     - `status` ([`ActivityStatus`](#activitystatus) / str, required) - Activity status: `"IN_PROGRESS"`, `"COMPLETED"`, or `"FAILED"`
     - `text` (str, required) - Activity description text
+    - `kind` ([`ActivityKind`](#activitykind) / str, optional) - Marks a notice the client tells apart from other activities. Omit it for ordinary activities; servers that predate it reject it with a 400.
 
     **Returns:**
 
@@ -640,6 +641,12 @@ These mirror the public magic-table REST contract (`2023-12-06` / `node-chat`).
 ??? note "Activity lifecycle for `set_activity`"
 
     Values: `IN_PROGRESS`, `COMPLETED`, `FAILED`.
+
+#### ActivityKind {#activitykind}
+
+??? note "Notice kinds for `set_activity`"
+
+    Values: `METADATA_TAGS_SKIPPED`.
 
 #### MagicTableActivityResponse {#magictableactivityresponse}
 
