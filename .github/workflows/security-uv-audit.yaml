@@ -33,16 +33,22 @@ jobs:
 
       # uv audit is a preview command, so the flag name can change with the uv pin.
       - name: Audit the locked dependencies
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: |
           status=0
           audit() {
             title="$1"
             shift
-            out=$(uv audit --preview-features audit-command --frozen "$@" 2>&1) || status=1
+            rc=0
+            out=$(uv audit --preview-features audit-command --frozen "$@" 2>&1) || rc=$?
             echo "$out"
             { echo "### ${title}"; echo '```'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            if [ "$rc" -gt "$status" ]; then status=$rc; fi
           }
           audit "Default groups"
           audit "Docs group" --only-group docs
+          # uv exits 1 for vulnerabilities and 2 or more when the audit cannot run.
+          if [ "$status" -eq 1 ] && [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            echo "::warning::uv audit found vulnerabilities. Not blocking pull requests."
+            exit 0
+          fi
           exit "$status"
