@@ -42,7 +42,7 @@ constraint-dependencies = ["lxml>=6.1.0", "pillow>=12.2.0"]
 unique-toolkit = { workspace = true }
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 extend-select = ["I"]
