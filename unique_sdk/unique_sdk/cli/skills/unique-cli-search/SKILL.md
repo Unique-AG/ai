@@ -75,8 +75,8 @@ unique-cli search "revenue growth" -q "operating margin" -q "headcount plan"
 - A query that fails shows its own error and the other queries still
   return. The command exits `1` only when every query failed.
 - A single query behaves exactly as before.
-- A turn allows 100 `unique-cli search` calls, each with up to 8 queries.
-  After that the command refuses: answer with the sources you have.
+- At most 100 `unique-cli search` calls run per minute, each with up to 8
+  queries. Beyond that the command refuses and says how long to wait.
 
 ## Scoped Search
 

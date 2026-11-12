@@ -16,8 +16,8 @@ from click.testing import CliRunner
 import unique_sdk
 from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.search import (
-    MAX_SEARCH_CALLS_PER_TURN,
-    MAX_SEARCH_CALLS_PER_TURN_ENV,
+    MAX_SEARCH_CALLS_PER_MINUTE,
+    MAX_SEARCH_CALLS_PER_MINUTE_ENV,
     MAX_SEARCH_QUERIES,
     MULTI_QUERY_TOKEN_BUDGET_ENV,
     SEARCH_CONCURRENCY,
@@ -486,15 +486,17 @@ class TestClickMultiQuery:
         assert result.output.startswith("Found 1 result(s):\n\n<source1>")
 
 
-class TestSearchCallCapPerTurn:
+class TestSearchRateCap:
     @pytest.fixture(autouse=True)
-    def _in_turn(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("UNIQUE_TURN_IDENTITY_FILE", raising=False)
-        monkeypatch.setenv("UNIQUE_MESSAGE_ID", "msg_1")
-        monkeypatch.setenv(MAX_SEARCH_CALLS_PER_TURN_ENV, "2")
+    def _clock(self, monkeypatch: pytest.MonkeyPatch) -> list[float]:
+        now = [1_000.0]
+        monkeypatch.setattr("unique_sdk.cli.commands.search.time.time", lambda: now[0])
+        monkeypatch.setenv(MAX_SEARCH_CALLS_PER_MINUTE_ENV, "2")
+        (Path.cwd() / ".unique").mkdir()
+        return now
 
     @patch("unique_sdk.Search.create")
-    def test_a_turn_over_its_cap_is_refused_without_a_request(
+    def test_a_full_minute_is_refused_without_a_request(
         self, mock_search: MagicMock
     ) -> None:
         mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
@@ -503,8 +505,26 @@ class TestSearchCallCapPerTurn:
         cmd_search(_state(), "margin")
         out = cmd_search(_state(), "margin")
 
-        assert out.startswith(f"{SEARCH_ERROR_PREFIX} this turn reached its limit of 2")
+        assert out.startswith(f"{SEARCH_ERROR_PREFIX} 2 searches in the last minute")
+        assert "Wait 61 s" in out
         assert mock_search.call_count == 2
+
+    @patch("unique_sdk.Search.create")
+    def test_searching_resumes_once_the_oldest_call_leaves_the_window(
+        self, mock_search: MagicMock, _clock: list[float]
+    ) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+        cmd_search(_state(), "margin")
+        _clock[0] += 30
+        cmd_search(_state(), "margin")
+
+        _clock[0] += 29
+        refused = cmd_search(_state(), "margin")
+        _clock[0] += 2
+
+        assert refused.startswith(SEARCH_ERROR_PREFIX)
+        assert "Wait 2 s" in refused
+        assert cmd_search(_state(), "margin").startswith("Found 1 result(s)")
 
     @patch("unique_sdk.Search.create")
     def test_a_call_with_several_queries_counts_once(
@@ -520,56 +540,27 @@ class TestSearchCallCapPerTurn:
         assert cmd_search(_state(), "margin").startswith(SEARCH_ERROR_PREFIX)
 
     @patch("unique_sdk.Search.create")
-    def test_a_new_turn_starts_counting_again(
-        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
+    def test_outside_an_agent_workspace_there_is_no_cap(
+        self, mock_search: MagicMock
     ) -> None:
-        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
-        cmd_search(_state(), "margin")
-        cmd_search(_state(), "margin")
-
-        monkeypatch.setenv("UNIQUE_MESSAGE_ID", "msg_2")
-
-        assert cmd_search(_state(), "margin").startswith("Found 1 result(s)")
-
-    @patch("unique_sdk.Search.create")
-    def test_the_cap_follows_the_turn_identity_file(
-        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
-        identity = tmp_path / ".unique" / "turn.json"
-        identity.parent.mkdir()
-        monkeypatch.setenv("UNIQUE_TURN_IDENTITY_FILE", str(identity))
-        monkeypatch.setenv("UNIQUE_MESSAGE_ID", "msg_stale")
-
-        identity.write_text(json.dumps({"message_id": "msg_a"}), encoding="utf-8")
-        cmd_search(_state(), "margin")
-        cmd_search(_state(), "margin")
-        refused = cmd_search(_state(), "margin")
-        identity.write_text(json.dumps({"message_id": "msg_b"}), encoding="utf-8")
-
-        assert refused.startswith(SEARCH_ERROR_PREFIX)
-        assert cmd_search(_state(), "margin").startswith("Found 1 result(s)")
-
-    @patch("unique_sdk.Search.create")
-    def test_without_a_turn_there_is_no_cap(
-        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
-        monkeypatch.delenv("UNIQUE_MESSAGE_ID")
+        mock_search.side_effect = unique_sdk.APIError("upstream failed")
+        (Path.cwd() / ".unique").rmdir()
 
         outputs = [cmd_search(_state(), "margin") for _ in range(3)]
 
-        assert all(out.startswith("Found 1 result(s)") for out in outputs)
+        assert mock_search.call_count == 3
+        assert all("upstream failed" in out for out in outputs)
+        assert not (Path.cwd() / ".unique").exists()
 
     @patch("unique_sdk.Search.create")
-    def test_the_default_cap_is_one_hundred(
+    def test_the_default_is_one_hundred_calls_per_minute(
         self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
-        monkeypatch.delenv(MAX_SEARCH_CALLS_PER_TURN_ENV)
+        monkeypatch.delenv(MAX_SEARCH_CALLS_PER_MINUTE_ENV)
 
         outputs = [cmd_search(_state(), "margin") for _ in range(101)]
 
-        assert MAX_SEARCH_CALLS_PER_TURN == 100
+        assert MAX_SEARCH_CALLS_PER_MINUTE == 100
         assert outputs[99].startswith("Found 1 result(s)")
         assert outputs[100].startswith(SEARCH_ERROR_PREFIX)

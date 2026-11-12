@@ -15,6 +15,7 @@ this CLI command.
 from __future__ import annotations
 
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,6 @@ from unique_sdk.cli.commands._citation_manifest import (
     _read_turn_refs_manifest,
     _rewrite_turn_refs_manifest,
 )
-from unique_sdk.cli.identity import TurnIdentityError, resolve_message_id
 from unique_sdk.cli.state import ShellState
 from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
@@ -39,8 +39,9 @@ SEARCH_CONCURRENCY_ENV = "UNIQUE_CLI_SEARCH_CONCURRENCY"
 MULTI_QUERY_TOKEN_BUDGET = 100_000
 MULTI_QUERY_TOKEN_BUDGET_ENV = "UNIQUE_CLI_SEARCH_TOKEN_BUDGET"
 _CHARS_PER_TOKEN = 4
-MAX_SEARCH_CALLS_PER_TURN = 100
-MAX_SEARCH_CALLS_PER_TURN_ENV = "UNIQUE_CLI_SEARCH_MAX_CALLS_PER_TURN"
+MAX_SEARCH_CALLS_PER_MINUTE = 100
+MAX_SEARCH_CALLS_PER_MINUTE_ENV = "UNIQUE_CLI_SEARCH_MAX_CALLS_PER_MINUTE"
+_RATE_WINDOW_S = 60.0
 
 SEARCH_ERROR_PREFIX = "search:"
 UPLOADED_SEARCH_ERROR_PREFIX = "uploaded-search:"
@@ -342,30 +343,31 @@ def _query_header(position: int, queries: list[str]) -> str:
 
 
 def _claim_search_call(refs_log_path: Path) -> str | None:
-    """Count one search against the turn's cap; the refusal text once it is spent."""
-    try:
-        turn = resolve_message_id()
-    except TurnIdentityError:
-        turn = None
-    if turn is None:
+    """Record one search in the rate window; the refusal text when the window is full."""
+    if not refs_log_path.parent.is_dir():
         return None
-
     cap = _positive_int_from_env(
-        MAX_SEARCH_CALLS_PER_TURN_ENV, MAX_SEARCH_CALLS_PER_TURN
+        MAX_SEARCH_CALLS_PER_MINUTE_ENV, MAX_SEARCH_CALLS_PER_MINUTE
     )
     calls_path = refs_log_path.parent / _CALLS_FILENAME
+    now = time.time()
     try:
         with _locked_turn_refs_manifest(refs_log_path, lock_filename=_LOCK_FILENAME):
-            entries = _read_turn_refs_manifest(calls_path)
-            counted = entries[-1] if entries else {}
-            calls = counted.get("calls", 0) if counted.get("turn") == turn else 0
-            if not isinstance(calls, int) or calls >= cap:
+            recent = sorted(
+                started
+                for entry in _read_turn_refs_manifest(calls_path)
+                if isinstance(started := entry.get("at"), (int, float))
+                and now - _RATE_WINDOW_S < started <= now
+            )
+            if len(recent) >= cap:
+                wait_s = int(recent[-cap] + _RATE_WINDOW_S - now) + 1
                 return (
-                    f"{SEARCH_ERROR_PREFIX} this turn reached its limit of {cap} "
-                    "searches. Answer with the sources you already have."
+                    f"{SEARCH_ERROR_PREFIX} {cap} searches in the last minute is "
+                    f"the limit. Wait {wait_s} s before searching again, or "
+                    "answer with the sources you already have."
                 )
             _rewrite_turn_refs_manifest(
-                calls_path, [{"turn": turn, "calls": calls + 1}]
+                calls_path, [{"at": started} for started in [*recent, now]]
             )
     except UnsafeRefsLogPathError as exc:
         return f"{SEARCH_ERROR_PREFIX} {exc}"
