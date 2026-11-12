@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -446,3 +448,152 @@ class TestIsErrorOutput:
 
     def test_normal_output(self) -> None:
         assert not is_error_output("Content: doc.pdf (cont_abc123) — 5 chunk(s)")
+
+
+def _manifest_rows(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text().splitlines() if line]
+
+
+class TestReadRefsManifest:
+    """Each successful read records what reached the agent's output."""
+
+    def _content(self) -> MagicMock:
+        return _make_content(
+            title="clients.md",
+            chunks=[
+                {
+                    "id": "chk_a",
+                    "text": "Alpine Trust",
+                    "order": 0,
+                    "startPage": 1,
+                    "endPage": 1,
+                },
+                {
+                    "id": "chk_b",
+                    "text": "Birch Capital",
+                    "order": 1,
+                    "startPage": 2,
+                    "endPage": 2,
+                },
+                {
+                    "id": "chk_c",
+                    "text": "Cedar Partners",
+                    "order": 2,
+                    "startPage": 3,
+                    "endPage": 3,
+                },
+            ],
+        )
+
+    def test_whole_read_records_every_chunk(self, state: ShellState) -> None:
+        _read(state, self._content())
+
+        rows = _manifest_rows(Path.cwd() / ".unique" / "read-refs.jsonl")
+
+        assert rows == [
+            {
+                "contentId": "cont_abc123",
+                "title": "clients.md",
+                "fromPage": None,
+                "toPage": None,
+                "chunkIds": ["chk_a", "chk_b", "chk_c"],
+            }
+        ]
+
+    def test_page_range_read_records_range_and_its_chunks(
+        self, state: ShellState, tmp_path: Path
+    ) -> None:
+        manifest = tmp_path / ".unique" / "read-refs.jsonl"
+
+        _read(state, self._content(), from_page=2, to_page=3, refs_log_path=manifest)
+
+        [row] = _manifest_rows(manifest)
+        assert row["fromPage"] == 2
+        assert row["toPage"] == 3
+        assert row["chunkIds"] == ["chk_b", "chk_c"]
+
+    def test_max_chars_cut_records_only_chunks_that_were_shown(
+        self, state: ShellState, tmp_path: Path
+    ) -> None:
+        manifest = tmp_path / ".unique" / "read-refs.jsonl"
+        header_chars = len("Content: clients.md (cont_abc123) — 3 chunk(s)\n\n\n")
+
+        _read(
+            state, self._content(), max_chars=header_chars + 5, refs_log_path=manifest
+        )
+
+        [row] = _manifest_rows(manifest)
+        assert row["chunkIds"] == ["chk_a"]
+
+    def test_reads_append_one_row_each(self, state: ShellState, tmp_path: Path) -> None:
+        manifest = tmp_path / ".unique" / "read-refs.jsonl"
+
+        _read(state, self._content(), from_page=1, to_page=1, refs_log_path=manifest)
+        _read(state, self._content(), refs_log_path=manifest)
+
+        assert [row["chunkIds"] for row in _manifest_rows(manifest)] == [
+            ["chk_a"],
+            ["chk_a", "chk_b", "chk_c"],
+        ]
+
+    @pytest.mark.parametrize(
+        ("chunks", "kwargs"),
+        [
+            ([], {}),
+            ([{"id": "chk_a", "text": "   ", "order": 0}], {}),
+            (
+                [
+                    {
+                        "id": "chk_a",
+                        "text": "Alpine",
+                        "order": 0,
+                        "startPage": 1,
+                        "endPage": 1,
+                    }
+                ],
+                {"from_page": 7, "to_page": 9},
+            ),
+        ],
+        ids=["no-chunks", "blank-text", "empty-page-range"],
+    )
+    def test_read_without_chunk_text_records_nothing(
+        self,
+        state: ShellState,
+        tmp_path: Path,
+        chunks: list[dict],
+        kwargs: dict,
+    ) -> None:
+        manifest = tmp_path / ".unique" / "read-refs.jsonl"
+
+        _read(state, _make_content(chunks=chunks), refs_log_path=manifest, **kwargs)
+
+        assert _manifest_rows(manifest) == []
+
+    def test_failed_read_records_nothing(
+        self, state: ShellState, tmp_path: Path
+    ) -> None:
+        manifest = tmp_path / ".unique" / "read-refs.jsonl"
+        with patch(
+            "unique_sdk.cli.commands.read.unique_sdk.Content.search", return_value=[]
+        ):
+            output = cmd_read(state, "cont_missing", refs_log_path=manifest)
+
+        assert is_error_output(output)
+        assert _manifest_rows(manifest) == []
+
+    def test_symlinked_manifest_fails_closed(
+        self, state: ShellState, tmp_path: Path
+    ) -> None:
+        unique_dir = tmp_path / ".unique"
+        unique_dir.mkdir()
+        target = tmp_path / "elsewhere.jsonl"
+        target.write_text("")
+        manifest = unique_dir / "read-refs.jsonl"
+        manifest.symlink_to(target)
+
+        output = _read(state, self._content(), refs_log_path=manifest)
+
+        assert is_error_output(output)
+        assert target.read_text() == ""
