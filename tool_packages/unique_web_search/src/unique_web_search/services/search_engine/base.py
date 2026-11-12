@@ -72,6 +72,15 @@ SEARCH_ENGINE_DECOMMISSIONED_MESSAGE = (
     "engine in the space settings. Do not retry the search."
 )
 
+# The WebSearch tool's answer to the agent. Without explicit instructions the
+# model reports the neutral message above as a temporary outage.
+SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE = (
+    "Web search is switched off in this space because its search engine has "
+    "been decommissioned. Tell the user this, make clear it is not a temporary "
+    "outage, and that a space administrator needs to select a different search "
+    "engine in the space settings. Do not retry the search."
+)
+
 
 class SearchEngineDecommissionedError(Exception):
     """Raised instead of searching with an engine in ``DECOMMISSIONED_SEARCH_ENGINES``."""

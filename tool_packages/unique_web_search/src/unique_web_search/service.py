@@ -47,7 +47,7 @@ from unique_web_search.services.executors.modes import (
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import (
-    SEARCH_ENGINE_DECOMMISSIONED_MESSAGE,
+    SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE,
     get_search_engine_service,
     is_search_engine_decommissioned,
 )
@@ -198,7 +198,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
-                content=SEARCH_ENGINE_DECOMMISSIONED_MESSAGE,
+                content=SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE,
             )
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(

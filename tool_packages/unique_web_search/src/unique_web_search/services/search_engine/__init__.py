@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 from unique_web_search.services.search_engine.base import (
     SEARCH_ENGINE_DECOMMISSIONED_MESSAGE,
+    SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE,
     SearchEngine,
     SearchEngineDecommissionedError,
     SearchEngineMode,
@@ -98,6 +99,7 @@ __all__ = [
     "SearchEngine",
     "SearchEngineDecommissionedError",
     "SEARCH_ENGINE_DECOMMISSIONED_MESSAGE",
+    "SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE",
     "is_search_engine_decommissioned",
     "get_search_engine_config_types_from_names",
     "get_default_search_engine_config",

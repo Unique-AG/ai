@@ -12,7 +12,7 @@ from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.services.query_elicitation import QueryElicitationConfig
 from unique_web_search.services.search_engine import (
-    SEARCH_ENGINE_DECOMMISSIONED_MESSAGE,
+    SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE,
     GoogleConfig,
 )
 from unique_web_search.settings import env_settings
@@ -1052,7 +1052,7 @@ class TestWebSearchToolRun:
         result = await tool.run(tool_call)
 
         assert result.id == "test-id"
-        assert result.content == SEARCH_ENGINE_DECOMMISSIONED_MESSAGE
+        assert result.content == SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE
         assert result.error_message == ""
         tool._get_argument_screening_service_if_ff_enabled.assert_not_awaited()
         get_executor.assert_not_called()
