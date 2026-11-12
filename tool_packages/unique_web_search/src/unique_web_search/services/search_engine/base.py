@@ -67,9 +67,9 @@ SearchEngineConfig = TypeVar(
 )
 
 SEARCH_ENGINE_DECOMMISSIONED_MESSAGE = (
-    "Web search is unavailable: the search engine selected for this space has "
-    "been decommissioned. An administrator needs to select a different search "
-    "engine in the space settings. Do not retry the search."
+    "The search engine selected for this space has been decommissioned, so web "
+    "search cannot run. A space administrator needs to choose a different one "
+    "in the space settings. Do not retry the search."
 )
 
 # The WebSearch tool's answer to the agent. Without explicit instructions the
