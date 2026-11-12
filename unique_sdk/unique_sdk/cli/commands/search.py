@@ -26,7 +26,9 @@ from unique_sdk.cli.commands._citation_manifest import (
     _append_turn_refs_manifest_entry,
     _locked_turn_refs_manifest,
     _read_turn_refs_manifest,
+    _rewrite_turn_refs_manifest,
 )
+from unique_sdk.cli.identity import TurnIdentityError, resolve_message_id
 from unique_sdk.cli.state import ShellState
 from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
@@ -37,12 +39,15 @@ SEARCH_CONCURRENCY_ENV = "UNIQUE_CLI_SEARCH_CONCURRENCY"
 MULTI_QUERY_TOKEN_BUDGET = 100_000
 MULTI_QUERY_TOKEN_BUDGET_ENV = "UNIQUE_CLI_SEARCH_TOKEN_BUDGET"
 _CHARS_PER_TOKEN = 4
+MAX_SEARCH_CALLS_PER_TURN = 100
+MAX_SEARCH_CALLS_PER_TURN_ENV = "UNIQUE_CLI_SEARCH_MAX_CALLS_PER_TURN"
 
 SEARCH_ERROR_PREFIX = "search:"
 UPLOADED_SEARCH_ERROR_PREFIX = "uploaded-search:"
 
 _REFS_LOG_RELATIVE_PATH = Path(".unique") / "kb-search-refs.jsonl"
 _LOCK_FILENAME = "kb-search-refs.lock"
+_CALLS_FILENAME = "kb-search-calls.jsonl"
 
 
 def _build_metadata_filter(
@@ -225,11 +230,15 @@ def cmd_search(
     if isinstance(search_params, str):
         return search_params
 
+    log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
+    refused = _claim_search_call(log_path)
+    if refused:
+        return refused
+
     results = _fetch_results(state, query, search_params)
     if isinstance(results, str):
         return results
 
-    log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
     try:
         return _format_results_with_citations(results, refs_log_path=log_path)
     except UnsafeRefsLogPathError as exc:
@@ -278,6 +287,11 @@ def cmd_search_many(
     if isinstance(search_params, str):
         return search_params
 
+    log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
+    refused = _claim_search_call(log_path)
+    if refused:
+        return refused
+
     concurrency = _positive_int_from_env(SEARCH_CONCURRENCY_ENV, SEARCH_CONCURRENCY)
     with ThreadPoolExecutor(max_workers=min(concurrency, len(queries))) as executor:
         outcomes = list(
@@ -300,7 +314,6 @@ def cmd_search_many(
     )
     kept, repeats, dropped = _select_within_budget(outcomes, token_budget)
 
-    log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
     try:
         bodies = _format_many_results_with_citations(
             outcomes, kept, repeats, refs_log_path=log_path
@@ -326,6 +339,37 @@ def cmd_search_many(
 
 def _query_header(position: int, queries: list[str]) -> str:
     return f"=== query {position}/{len(queries)} ===\nquery: {queries[position - 1]!r}"
+
+
+def _claim_search_call(refs_log_path: Path) -> str | None:
+    """Count one search against the turn's cap; the refusal text once it is spent."""
+    try:
+        turn = resolve_message_id()
+    except TurnIdentityError:
+        turn = None
+    if turn is None:
+        return None
+
+    cap = _positive_int_from_env(
+        MAX_SEARCH_CALLS_PER_TURN_ENV, MAX_SEARCH_CALLS_PER_TURN
+    )
+    calls_path = refs_log_path.parent / _CALLS_FILENAME
+    try:
+        with _locked_turn_refs_manifest(refs_log_path, lock_filename=_LOCK_FILENAME):
+            entries = _read_turn_refs_manifest(calls_path)
+            counted = entries[-1] if entries else {}
+            calls = counted.get("calls", 0) if counted.get("turn") == turn else 0
+            if not isinstance(calls, int) or calls >= cap:
+                return (
+                    f"{SEARCH_ERROR_PREFIX} this turn reached its limit of {cap} "
+                    "searches. Answer with the sources you already have."
+                )
+            _rewrite_turn_refs_manifest(
+                calls_path, [{"turn": turn, "calls": calls + 1}]
+            )
+    except UnsafeRefsLogPathError as exc:
+        return f"{SEARCH_ERROR_PREFIX} {exc}"
+    return None
 
 
 def _positive_int_from_env(name: str, default: int) -> int:

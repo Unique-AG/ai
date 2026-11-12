@@ -16,6 +16,8 @@ from click.testing import CliRunner
 import unique_sdk
 from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.search import (
+    MAX_SEARCH_CALLS_PER_TURN,
+    MAX_SEARCH_CALLS_PER_TURN_ENV,
     MAX_SEARCH_QUERIES,
     MULTI_QUERY_TOKEN_BUDGET_ENV,
     SEARCH_CONCURRENCY,
@@ -482,3 +484,92 @@ class TestClickMultiQuery:
 
         assert result.exit_code == 0
         assert result.output.startswith("Found 1 result(s):\n\n<source1>")
+
+
+class TestSearchCallCapPerTurn:
+    @pytest.fixture(autouse=True)
+    def _in_turn(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("UNIQUE_TURN_IDENTITY_FILE", raising=False)
+        monkeypatch.setenv("UNIQUE_MESSAGE_ID", "msg_1")
+        monkeypatch.setenv(MAX_SEARCH_CALLS_PER_TURN_ENV, "2")
+
+    @patch("unique_sdk.Search.create")
+    def test_a_turn_over_its_cap_is_refused_without_a_request(
+        self, mock_search: MagicMock
+    ) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+
+        cmd_search(_state(), "margin")
+        cmd_search(_state(), "margin")
+        out = cmd_search(_state(), "margin")
+
+        assert out.startswith(f"{SEARCH_ERROR_PREFIX} this turn reached its limit of 2")
+        assert mock_search.call_count == 2
+
+    @patch("unique_sdk.Search.create")
+    def test_a_call_with_several_queries_counts_once(
+        self, mock_search: MagicMock
+    ) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+
+        cmd_search_many(_state(), ["revenue", "margin", "headcount"])
+        out = cmd_search_many(_state(), ["revenue", "margin"])
+
+        assert "=== query 2/2 ===" in out
+        assert mock_search.call_count == 5
+        assert cmd_search(_state(), "margin").startswith(SEARCH_ERROR_PREFIX)
+
+    @patch("unique_sdk.Search.create")
+    def test_a_new_turn_starts_counting_again(
+        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+        cmd_search(_state(), "margin")
+        cmd_search(_state(), "margin")
+
+        monkeypatch.setenv("UNIQUE_MESSAGE_ID", "msg_2")
+
+        assert cmd_search(_state(), "margin").startswith("Found 1 result(s)")
+
+    @patch("unique_sdk.Search.create")
+    def test_the_cap_follows_the_turn_identity_file(
+        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+        identity = tmp_path / ".unique" / "turn.json"
+        identity.parent.mkdir()
+        monkeypatch.setenv("UNIQUE_TURN_IDENTITY_FILE", str(identity))
+        monkeypatch.setenv("UNIQUE_MESSAGE_ID", "msg_stale")
+
+        identity.write_text(json.dumps({"message_id": "msg_a"}), encoding="utf-8")
+        cmd_search(_state(), "margin")
+        cmd_search(_state(), "margin")
+        refused = cmd_search(_state(), "margin")
+        identity.write_text(json.dumps({"message_id": "msg_b"}), encoding="utf-8")
+
+        assert refused.startswith(SEARCH_ERROR_PREFIX)
+        assert cmd_search(_state(), "margin").startswith("Found 1 result(s)")
+
+    @patch("unique_sdk.Search.create")
+    def test_without_a_turn_there_is_no_cap(
+        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+        monkeypatch.delenv("UNIQUE_MESSAGE_ID")
+
+        outputs = [cmd_search(_state(), "margin") for _ in range(3)]
+
+        assert all(out.startswith("Found 1 result(s)") for out in outputs)
+
+    @patch("unique_sdk.Search.create")
+    def test_the_default_cap_is_one_hundred(
+        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+        monkeypatch.delenv(MAX_SEARCH_CALLS_PER_TURN_ENV)
+
+        outputs = [cmd_search(_state(), "margin") for _ in range(101)]
+
+        assert MAX_SEARCH_CALLS_PER_TURN == 100
+        assert outputs[99].startswith("Found 1 result(s)")
+        assert outputs[100].startswith(SEARCH_ERROR_PREFIX)
