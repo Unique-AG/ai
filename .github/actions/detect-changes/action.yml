@@ -9,7 +9,7 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
       id: filter
       with:
         predicate-quantifier: 'every'
