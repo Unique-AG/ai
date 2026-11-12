@@ -5,7 +5,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-RUN pip install --no-cache-dir uv==0.11.33 && uv sync --no-dev
+RUN pip install --no-cache-dir uv==0.13.7 && uv sync --no-dev
 
 EXPOSE 8002
 CMD ["uv", "run", "python", "src/mcp_sql_demo/mcp_sql_demo.py"]
