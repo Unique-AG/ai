@@ -306,14 +306,14 @@ def cmd_uploaded_search(
     *,
     refs_log_path: Path | None = None,
 ) -> str:
-    """Search this task's per-row **uploaded** documents.
+    """Search the **uploaded** documents the current message selects.
 
-    Uploaded files (e.g. an Agentic Table row's attached documents) live
-    outside the knowledge-base folder scopes, so the scope-bound
+    Uploaded documents (a chat's uploads, or an Agentic Table row's documents)
+    live outside the knowledge-base folder scopes, so the scope-bound
     ``unique-cli search`` cannot return them. This mirrors the platform's
     UploadedSearch tool: a chat-scoped ``Search.create`` (``chatOnly=True``)
-    over the owning chat and the selected content ids, both written by the
-    Swappable Intelligence runner to ``.unique-uploaded.json``. See UN-21780.
+    over the owning chat and the selected content ids, which the Conduct
+    runner writes to ``.unique-uploaded.json`` for each message. See UN-21780.
 
     Results share the same per-turn ``<sourceN>`` manifest as
     ``unique-cli search`` (``_format_results_with_citations`` appends under the
@@ -330,9 +330,9 @@ def cmd_uploaded_search(
     """
     if not state.uploaded_search_available:
         return (
-            f"{UPLOADED_SEARCH_ERROR_PREFIX} no uploaded documents are "
-            "available for this task. Use `unique-cli search` for the "
-            "knowledge base."
+            f"{UPLOADED_SEARCH_ERROR_PREFIX} no documents are selected for "
+            "this message. Workspace files can still be read directly; use "
+            "`unique-cli search` for the knowledge base if you have it."
         )
 
     try:
