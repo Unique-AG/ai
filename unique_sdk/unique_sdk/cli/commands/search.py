@@ -14,6 +14,7 @@ this CLI command.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,8 @@ from unique_sdk.cli.state import ShellState
 from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 DEFAULT_LIMIT = 200
+MAX_SEARCH_QUERIES = 8
+SEARCH_CONCURRENCY = 4
 
 SEARCH_ERROR_PREFIX = "search:"
 UPLOADED_SEARCH_ERROR_PREFIX = "uploaded-search:"
@@ -211,92 +214,227 @@ def cmd_search(
             the Swappable Intelligence runner can find it.
     """
     try:
-        folder_scope_id: str | None = None
-        if folder:
-            folder_scope_id = _resolve_folder_to_scope_id(state, folder)
-            # Without a per-message filter, --folder replaces the static
-            # scopeIds, so it must lie inside them. See UN-28458.
-            if (
-                not state.workspace_metadata_filter
-                and not state.is_folder_target_within_workspace(folder_scope_id)
-            ):
-                return (
-                    f"{SEARCH_ERROR_PREFIX} permission denied: {folder} is "
-                    f"outside your task scope ({state.scope_denial_hint()})."
-                )
-        elif state.scope_id and not state.workspace_metadata_filter:
-            # The incidental cwd narrows search only when there is no
-            # per-message filter. With a filter active, only an explicit
-            # --folder narrows further: ANDing the cwd would turn a scope
-            # mismatch into an empty result. See UN-21780.
-            folder_scope_id = state.scope_id
-
-        scope_ids: list[str] | None = None
-        if folder_scope_id:
-            scope_ids = [folder_scope_id]
-        elif not folder and state.workspace_scope_ids:
-            scope_ids = state.workspace_scope_ids
-
-        metadata_filter = _build_metadata_filter(
-            folder_scope_id if metadata else None,
-            metadata,
-        )
-
-        # A per-message workspace metadata filter (written to
-        # .unique-search.json by the Swappable Intelligence runner from an
-        # Agentic Table column's scope_rules) replaces the static workspace
-        # scope_ids for this call. It can express scopes a flat scopeIds list
-        # cannot (recursive folder CONTAINS, contentId IN, boolean trees).
-        #
-        # It is never *dropped*: an in-session selection (--folder, a cwd
-        # scope, --metadata) only narrows further via AND. Yielding to those
-        # would let a prompt-controlled `--folder`/`--metadata` argument
-        # escape the task boundary entirely. See UN-21780.
-        if state.workspace_metadata_filter:
-            if metadata_filter:
-                metadata_filter = {
-                    "and": [state.workspace_metadata_filter, metadata_filter]
-                }
-            else:
-                metadata_filter = state.workspace_metadata_filter
-            if folder_scope_id is None:
-                # No explicit folder selection: the per-message filter is the
-                # authority; don't reapply the broader static workspace
-                # scope_ids. An explicit folder stays as scopeIds and the
-                # server ANDs it with the metadata filter.
-                scope_ids = None
-
-        search_params: dict[str, Any] = {
-            "searchString": query,
-            "searchType": "COMBINED",
-            "limit": limit,
-            # An unscoped search must send an explicit ``scopeIds: null``,
-            # never omit the key. An absent key reaches node-ingestion as
-            # ``undefined`` and is destructure-defaulted to ``[]``, which
-            # getScopes treats as "restrict to zero scopes" — an entire-KB
-            # search then returns nothing on companies without file-based
-            # access. A JSON ``null`` bypasses both the default and the
-            # truthy check, matching what unique_toolkit's
-            # search_content_chunks sends. See UN-22753.
-            "scopeIds": scope_ids or None,
-        }
-        if metadata_filter:
-            search_params["metaDataFilter"] = metadata_filter
-
-        results = unique_sdk.Search.create(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            **search_params,
-        )
-
+        search_params = _search_params(state, folder, metadata, limit)
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"{SEARCH_ERROR_PREFIX} {e}"
+    if isinstance(search_params, str):
+        return search_params
+
+    results = _fetch_results(state, query, search_params)
+    if isinstance(results, str):
+        return results
 
     log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
     try:
         return _format_results_with_citations(results, refs_log_path=log_path)
     except UnsafeRefsLogPathError as exc:
         return f"{SEARCH_ERROR_PREFIX} {exc}"
+
+
+def cmd_search_many(
+    state: ShellState,
+    queries: list[str],
+    folder: str | None = None,
+    metadata: list[tuple[str, str]] | None = None,
+    limit: int = DEFAULT_LIMIT,
+    *,
+    refs_log_path: Path | None = None,
+) -> str:
+    """Run several searches in one call and return one block per query.
+
+    The folder and metadata filters are resolved once and apply to every
+    query; ``limit`` applies per query. Requests run concurrently, at most
+    ``SEARCH_CONCURRENCY`` at a time. Source numbers are assigned afterwards
+    in the order the queries were given, so ``[sourceN]`` is the same on
+    every run and keeps counting across calls in the turn.
+
+    A failed query shows its own error and does not drop the others. The
+    output is a ``search:`` error only when every query failed.
+    """
+    if not queries:
+        return f"{SEARCH_ERROR_PREFIX} no queries provided."
+    if len(queries) > MAX_SEARCH_QUERIES:
+        return (
+            f"{SEARCH_ERROR_PREFIX} too many queries ({len(queries)}); "
+            f"the limit is {MAX_SEARCH_QUERIES} per call. "
+            "Split them across several calls."
+        )
+
+    try:
+        search_params = _search_params(state, folder, metadata, limit)
+    except (ValueError, unique_sdk.UniqueError) as e:
+        return f"{SEARCH_ERROR_PREFIX} {e}"
+    if isinstance(search_params, str):
+        return search_params
+
+    with ThreadPoolExecutor(
+        max_workers=min(SEARCH_CONCURRENCY, len(queries))
+    ) as executor:
+        outcomes = list(
+            executor.map(
+                lambda query: _fetch_results(state, query, search_params), queries
+            )
+        )
+
+    failures = [
+        f"{query!r}: {outcome}"
+        for query, outcome in zip(queries, outcomes, strict=True)
+        if isinstance(outcome, str)
+    ]
+    if len(failures) == len(queries):
+        return (
+            f"{SEARCH_ERROR_PREFIX} all {len(queries)} queries failed.\n"
+            + "\n".join(failures)
+        )
+
+    log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
+    try:
+        bodies = _format_many_results_with_citations(outcomes, refs_log_path=log_path)
+    except UnsafeRefsLogPathError as exc:
+        return f"{SEARCH_ERROR_PREFIX} {exc}"
+
+    blocks = [
+        f"=== query {position}/{len(queries)}: {query!r} ===\n{body}"
+        for position, (query, body) in enumerate(
+            zip(queries, bodies, strict=True), start=1
+        )
+    ]
+    if failures:
+        blocks.append(f"{len(failures)} of {len(queries)} queries failed.")
+    return "\n\n".join(blocks)
+
+
+def _format_many_results_with_citations(
+    outcomes: list[list[Any] | str],
+    *,
+    refs_log_path: Path,
+) -> list[str]:
+    """Number and persist every query's results inside one locked section.
+
+    One lock for the whole call keeps the numbers of one query contiguous
+    even when another ``unique-cli search`` runs at the same time.
+    """
+    bodies: list[str] = []
+    with _locked_turn_refs_manifest(refs_log_path, lock_filename=_LOCK_FILENAME):
+        next_number = len(_read_turn_refs_manifest(refs_log_path)) + 1
+        for outcome in outcomes:
+            if isinstance(outcome, str):
+                bodies.append(f"ERROR: {outcome}")
+                continue
+            if not outcome:
+                bodies.append("No results found.")
+                continue
+            blocks: list[str] = []
+            for result in outcome:
+                blocks.append(_format_source_block(next_number, result))
+                _append_turn_refs_manifest_entry(
+                    refs_log_path,
+                    _result_to_chunk_payload(result),
+                )
+                next_number += 1
+            bodies.append(f"Found {len(outcome)} result(s):\n\n" + "\n\n".join(blocks))
+    return bodies
+
+
+def _fetch_results(
+    state: ShellState,
+    query: str,
+    search_params: dict[str, Any],
+) -> list[Any] | str:
+    """Run one search request; return the results, or an error string."""
+    try:
+        return unique_sdk.Search.create(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            searchString=query,
+            **search_params,
+        )
+    except (ValueError, unique_sdk.UniqueError) as e:
+        return f"{SEARCH_ERROR_PREFIX} {e}"
+
+
+def _search_params(
+    state: ShellState,
+    folder: str | None,
+    metadata: list[tuple[str, str]] | None,
+    limit: int,
+) -> dict[str, Any] | str:
+    """Build the request fields shared by every query, or return an error string.
+
+    Raises ``ValueError`` or ``unique_sdk.UniqueError`` when the folder
+    cannot be resolved.
+    """
+    folder_scope_id: str | None = None
+    if folder:
+        folder_scope_id = _resolve_folder_to_scope_id(state, folder)
+        # Without a per-message filter, --folder replaces the static
+        # scopeIds, so it must lie inside them. See UN-28458.
+        if (
+            not state.workspace_metadata_filter
+            and not state.is_folder_target_within_workspace(folder_scope_id)
+        ):
+            return (
+                f"{SEARCH_ERROR_PREFIX} permission denied: {folder} is "
+                f"outside your task scope ({state.scope_denial_hint()})."
+            )
+    elif state.scope_id and not state.workspace_metadata_filter:
+        # The incidental cwd narrows search only when there is no
+        # per-message filter. With a filter active, only an explicit
+        # --folder narrows further: ANDing the cwd would turn a scope
+        # mismatch into an empty result. See UN-21780.
+        folder_scope_id = state.scope_id
+
+    scope_ids: list[str] | None = None
+    if folder_scope_id:
+        scope_ids = [folder_scope_id]
+    elif not folder and state.workspace_scope_ids:
+        scope_ids = state.workspace_scope_ids
+
+    metadata_filter = _build_metadata_filter(
+        folder_scope_id if metadata else None,
+        metadata,
+    )
+
+    # A per-message workspace metadata filter (written to
+    # .unique-search.json by the Swappable Intelligence runner from an
+    # Agentic Table column's scope_rules) replaces the static workspace
+    # scope_ids for this call. It can express scopes a flat scopeIds list
+    # cannot (recursive folder CONTAINS, contentId IN, boolean trees).
+    #
+    # It is never *dropped*: an in-session selection (--folder, a cwd
+    # scope, --metadata) only narrows further via AND. Yielding to those
+    # would let a prompt-controlled `--folder`/`--metadata` argument
+    # escape the task boundary entirely. See UN-21780.
+    if state.workspace_metadata_filter:
+        if metadata_filter:
+            metadata_filter = {
+                "and": [state.workspace_metadata_filter, metadata_filter]
+            }
+        else:
+            metadata_filter = state.workspace_metadata_filter
+        if folder_scope_id is None:
+            # No explicit folder selection: the per-message filter is the
+            # authority; don't reapply the broader static workspace
+            # scope_ids. An explicit folder stays as scopeIds and the
+            # server ANDs it with the metadata filter.
+            scope_ids = None
+
+    search_params: dict[str, Any] = {
+        "searchType": "COMBINED",
+        "limit": limit,
+        # An unscoped search must send an explicit ``scopeIds: null``,
+        # never omit the key. An absent key reaches node-ingestion as
+        # ``undefined`` and is destructure-defaulted to ``[]``, which
+        # getScopes treats as "restrict to zero scopes" — an entire-KB
+        # search then returns nothing on companies without file-based
+        # access. A JSON ``null`` bypasses both the default and the
+        # truthy check, matching what unique_toolkit's
+        # search_content_chunks sends. See UN-22753.
+        "scopeIds": scope_ids or None,
+    }
+    if metadata_filter:
+        search_params["metaDataFilter"] = metadata_filter
+    return search_params
 
 
 def cmd_uploaded_search(
