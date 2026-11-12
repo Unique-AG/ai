@@ -18,7 +18,7 @@ dependencies = [
     "plotly>=5.24.1",
     "numerize>=0.12",
     "pyhumps>=3.8.0",
-    "pydantic-settings>=2.0.0",
+    "pydantic-settings>=2.16.2",
     "pyopenssl>=25.0.0",
     "unique-six>=2026.46.0",
 ]

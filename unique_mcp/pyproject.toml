@@ -16,7 +16,7 @@ dependencies = [
     "joserfc>=1.7.3",
     "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
-    "pydantic-settings>=2.0.0",
+    "pydantic-settings>=2.16.2",
     "pyjwt>=2.15.0",
     "python-dotenv>=1.0.0",
     # Declared for deptry (also transitive via fastmcp).
