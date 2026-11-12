@@ -40,12 +40,14 @@ updates:
     labels:
       - dependencies
       - docker
-    # Python minor bumps change the runtime of shipped images, so they are done by hand.
     ignore:
+      # Python minor bumps change the runtime of shipped images, so they are done by hand.
       - dependency-name: python
         update-types:
           - version-update:semver-major
           - version-update:semver-minor
+      # This repo's own images, including the chart tags, are versioned by release-please.
+      - dependency-name: "unique-ag/ai/*"
     groups:
       docker:
         patterns:
