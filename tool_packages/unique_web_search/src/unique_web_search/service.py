@@ -47,7 +47,9 @@ from unique_web_search.services.executors.modes import (
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import (
+    SEARCH_ENGINE_DECOMMISSIONED_MESSAGE,
     get_search_engine_service,
+    is_search_engine_decommissioned,
 )
 from unique_web_search.utils import (
     WebPageChunk,
@@ -189,6 +191,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         _LOGGER.info("Running the WebSearch tool")
+        if is_search_engine_decommissioned(self.config.search_engine_config):
+            # Answer before screening, elicitation or planning so no LLM calls
+            # are spent and the v2 executor cannot swallow the error.
+            _LOGGER.warning("WebSearch called with a decommissioned search engine")
+            return ToolCallResponse(
+                id=tool_call.id,  # type: ignore
+                name=self.name,
+                content=SEARCH_ENGINE_DECOMMISSIONED_MESSAGE,
+            )
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,

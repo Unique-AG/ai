@@ -1,8 +1,11 @@
 from pydantic import BaseModel
 
 from unique_web_search.services.search_engine.base import (
+    SEARCH_ENGINE_DECOMMISSIONED_MESSAGE,
     SearchEngine,
+    SearchEngineDecommissionedError,
     SearchEngineMode,
+    is_search_engine_decommissioned,
 )
 from unique_web_search.services.search_engine.registry import (
     SEARCH_ENGINE_REGISTRY,
@@ -65,8 +68,15 @@ def get_search_engine_config_types_from_names(
 
 def get_default_search_engine_config(
     engine_names: list[str],
+    decommissioned_engine_names: list[str] | None = None,
 ) -> type[BaseModel]:
-    return SEARCH_ENGINE_REGISTRY.default_config(engine_names)
+    """Return the config type of the first engine that is not decommissioned.
+
+    Falls back to the first engine when all of them are decommissioned.
+    """
+    decommissioned = {name.lower() for name in decommissioned_engine_names or []}
+    available = [name for name in engine_names if name.lower() not in decommissioned]
+    return SEARCH_ENGINE_REGISTRY.default_config(available or engine_names)
 
 
 __all__ = [
@@ -86,6 +96,9 @@ __all__ = [
     "PerplexitySearchConfig",
     "get_search_engine_service",
     "SearchEngine",
+    "SearchEngineDecommissionedError",
+    "SEARCH_ENGINE_DECOMMISSIONED_MESSAGE",
+    "is_search_engine_decommissioned",
     "get_search_engine_config_types_from_names",
     "get_default_search_engine_config",
     "VertexAIConfig",

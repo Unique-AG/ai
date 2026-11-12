@@ -49,7 +49,8 @@ ActivatedSearchEngine = get_search_engine_config_types_from_names(
     env_settings.active_search_engines
 )
 DefaultSearchEngine = get_default_search_engine_config(
-    env_settings.active_search_engines
+    env_settings.active_search_engines,
+    env_settings.decommissioned_search_engines,
 )
 
 ActivatedCrawler = get_crawler_config_types_from_names(env_settings.active_crawlers)

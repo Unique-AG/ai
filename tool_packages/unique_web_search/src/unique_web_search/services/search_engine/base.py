@@ -31,6 +31,7 @@ from unique_web_search.services.proxy.mappers import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
+from unique_web_search.settings import env_settings
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -64,6 +65,28 @@ SearchEngineConfig = TypeVar(
     "SearchEngineConfig",
     bound=BaseModel,
 )
+
+SEARCH_ENGINE_DECOMMISSIONED_MESSAGE = (
+    "Web search is unavailable: the search engine selected for this space has "
+    "been decommissioned. An administrator needs to select a different search "
+    "engine in the space settings. Do not retry the search."
+)
+
+
+class SearchEngineDecommissionedError(Exception):
+    """Raised instead of searching with an engine in ``DECOMMISSIONED_SEARCH_ENGINES``."""
+
+    def __init__(self) -> None:
+        super().__init__(SEARCH_ENGINE_DECOMMISSIONED_MESSAGE)
+
+
+def is_search_engine_decommissioned(search_engine_config: object) -> bool:
+    """Whether the config's engine is listed in ``DECOMMISSIONED_SEARCH_ENGINES``."""
+    engine = getattr(search_engine_config, "engine", None)
+    decommissioned = {
+        name.lower() for name in env_settings.decommissioned_search_engines
+    }
+    return isinstance(engine, str) and engine.lower() in decommissioned
 
 
 class SearchEngine(ABC, Generic[SearchEngineConfig]):
@@ -116,6 +139,8 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         params: ExposedParams | None = None,
     ) -> list[WebSearchResult]:
         """Search the web for the given query using the search engine."""
+        if is_search_engine_decommissioned(self.config):
+            raise SearchEngineDecommissionedError()
         with hide_httpx_request_logs():
             proxy_engine = self._proxy_engine
             if (
