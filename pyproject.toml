@@ -50,6 +50,7 @@ docs = [
 ]
 
 [tool.uv]
+required-version = ">=0.13.7,<0.14"
 exclude-newer = "3 days"
 # `docs` pins entangled-cli<2.4.2 (which requires click>=8.3.0), but `dev` (via
 # opik → litellm) requires click==8.1.8. They are never installed together,
