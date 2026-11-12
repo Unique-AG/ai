@@ -347,15 +347,16 @@ def _select_within_budget(
     """Pick results round-robin by rank until the token budget is spent.
 
     Returns, per query, the results it shows and the ``(query, position)``
-    of results another query already shows, plus how many results were
-    left out. Results are deduplicated on ``(id, chunkId)``.
+    of results an earlier query block already shows, plus how many results
+    were left out. Results are deduplicated on ``(id, chunkId)``; a chunk is
+    shown in the first block that selected it.
     """
     ranked = [outcome if isinstance(outcome, list) else [] for outcome in outcomes]
-    kept: list[list[Any]] = [[] for _ in ranked]
-    repeats: list[list[tuple[int, int]]] = [[] for _ in ranked]
-    owners: dict[tuple[str, Any], tuple[int, int]] = {}
+    selected: list[list[tuple[tuple[str, Any], Any]]] = [[] for _ in ranked]
+    first_query: dict[tuple[str, Any], int] = {}
     spent = 0
     taken = 0
+    budget_spent = False
     deepest = max((len(results) for results in ranked), default=0)
     for rank in range(deepest):
         for query_index, results in enumerate(ranked):
@@ -363,18 +364,30 @@ def _select_within_budget(
                 continue
             result = results[rank]
             key = (getattr(result, "id", "") or "", getattr(result, "chunkId", None))
-            if key in owners:
-                repeats[query_index].append(owners[key])
-                taken += 1
-                continue
-            cost = _estimated_tokens(result)
-            if spent + cost > token_budget:
-                return kept, repeats, sum(map(len, ranked)) - taken
-            spent += cost
-            owners[key] = (query_index, len(kept[query_index]))
-            kept[query_index].append(result)
+            if key not in first_query:
+                cost = _estimated_tokens(result)
+                if spent + cost > token_budget:
+                    budget_spent = True
+                    break
+                spent += cost
+                first_query[key] = query_index
+            first_query[key] = min(first_query[key], query_index)
+            selected[query_index].append((key, result))
             taken += 1
-    return kept, repeats, 0
+        if budget_spent:
+            break
+
+    kept: list[list[Any]] = [[] for _ in ranked]
+    repeats: list[list[tuple[int, int]]] = [[] for _ in ranked]
+    shown_at: dict[tuple[str, Any], tuple[int, int]] = {}
+    for query_index, occurrences in enumerate(selected):
+        for key, result in occurrences:
+            if key in shown_at:
+                repeats[query_index].append(shown_at[key])
+            elif first_query[key] == query_index:
+                shown_at[key] = (query_index, len(kept[query_index]))
+                kept[query_index].append(result)
+    return kept, repeats, sum(map(len, ranked)) - taken
 
 
 def _format_many_results_with_citations(

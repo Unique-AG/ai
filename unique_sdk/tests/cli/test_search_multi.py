@@ -175,6 +175,9 @@ class TestMultiQueryDeduplication:
         assert "<|info|>cont_b</|info|>" in _source_block(out, 2)
         assert "<|info|>cont_c</|info|>" in _source_block(out, 3)
         assert "Also matched, shown in another block: [source2]" in out
+        second_block = out.index("=== query 2/2 ===")
+        assert out.index("<|info|>cont_b</|info|>") < second_block
+        assert out.index("Also matched") > second_block
         assert _manifest_ids(tmp_path) == ["cont_a", "cont_b", "cont_c"]
 
     @patch("unique_sdk.Search.create")
