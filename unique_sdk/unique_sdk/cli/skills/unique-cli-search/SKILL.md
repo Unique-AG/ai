@@ -49,21 +49,27 @@ unique-cli search "budget forecast" --limit 50
 ### Several searches: pass every query in ONE call
 
 When you need more than one search (several topics, terms or
-questions), pass all queries as separate arguments of a single `search`
-command. Do **not** run one `unique-cli search` call per query, and do not
-start several in the background: the queries run concurrently inside the
-one call and the answer comes back in one round.
+questions), give the first query as the argument and each further query
+with `-q`. Do **not** run one `unique-cli search` call per query, and do
+not start several in the background: the queries run concurrently inside
+the one call and the answer comes back in one round. Quote every query
+that has more than one word.
 
 ```bash
-unique-cli search "revenue growth" "operating margin" "headcount plan"
+unique-cli search "revenue growth" -q "operating margin" -q "headcount plan"
 ```
 
 - Up to 8 queries per call (4 run at the same time). More than 8 is an
   error: split them across calls.
 - `--folder`, `--metadata` and `--limit` apply to every query. `--limit` is
   per query.
-- Output has one block per query, in the order you gave them, each headed
-  `=== query i/n: '<query>' ===`.
+- The output starts with a summary line when a query failed or results
+  were left out, then has one block per query in the order you gave them,
+  each headed `=== query i/n ===` and `query: '<query>'`.
+- A chunk found by several queries is shown once; later blocks list it as
+  `Also matched, shown in another block: [sourceN]`.
+- The output stops at about 100,000 tokens. Results are taken best first
+  from every query in turn, so each query keeps its top results.
 - `<sourceN>` numbers follow the query order and keep counting across calls
   in the turn.
 - A query that fails shows its own error and the other queries still
@@ -120,11 +126,12 @@ unique-cli search "regulatory" -f /Legal -m year=2025 -l 50
 ## Command Reference
 
 ```
-unique-cli search <query> [<query>...] [--folder <path|scope_id>] [--metadata <key=value>]... [--limit <N>]
+unique-cli search <query> [-q <query>]... [--folder <path|scope_id>] [--metadata <key=value>]... [--limit <N>]
 ```
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
+| `--query` | `-q` | None | Another query in the same call (repeatable, up to 8 in total) |
 | `--folder` | `-f` | Task scope, else current dir | Folder path, name, or scope ID |
 | `--metadata` | `-m` | None | Key=value filter (repeatable) |
 | `--limit` | `-l` | 200 | Max results per query |

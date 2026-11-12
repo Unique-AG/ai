@@ -17,8 +17,11 @@ import unique_sdk
 from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.search import (
     MAX_SEARCH_QUERIES,
+    MULTI_QUERY_TOKEN_BUDGET_ENV,
     SEARCH_CONCURRENCY,
+    SEARCH_CONCURRENCY_ENV,
     SEARCH_ERROR_PREFIX,
+    _estimated_tokens,
     cmd_search,
     cmd_search_many,
 )
@@ -88,6 +91,10 @@ def _search_by_query(
     return _search
 
 
+def _source_block(out: str, number: int) -> str:
+    return out[out.index(f"<source{number}>") : out.index(f"</source{number}>")]
+
+
 def _manifest_ids(tmp_path: Path) -> list[str]:
     manifest = tmp_path / ".unique" / "kb-search-refs.jsonl"
     return [
@@ -107,11 +114,11 @@ class TestMultiQueryOutput:
 
         out = cmd_search_many(_state(), ["revenue", "margin", "headcount"])
 
-        assert out.index("=== query 1/3: 'revenue' ===") < out.index(
-            "=== query 2/3: 'margin' ==="
+        assert out.index("=== query 1/3 ===\nquery: 'revenue'") < out.index(
+            "=== query 2/3 ===\nquery: 'margin'"
         )
-        assert out.index("=== query 2/3: 'margin' ===") < out.index(
-            "=== query 3/3: 'headcount' ==="
+        assert out.index("=== query 2/3 ===\nquery: 'margin'") < out.index(
+            "=== query 3/3 ===\nquery: 'headcount'"
         )
 
     @patch("unique_sdk.Search.create")
@@ -126,8 +133,7 @@ class TestMultiQueryOutput:
 
         expected = ["cont_r1", "cont_r2", "cont_m1", "cont_h1", "cont_h2", "cont_h3"]
         for number, content_id in enumerate(expected, start=1):
-            block_start = out.index(f"<source{number}>")
-            assert out.index(f"<|info|>{content_id}</|info|>") > block_start
+            assert f"<|info|>{content_id}</|info|>" in _source_block(out, number)
         assert _manifest_ids(tmp_path) == expected
 
     @patch("unique_sdk.Search.create")
@@ -150,8 +156,87 @@ class TestMultiQueryOutput:
 
         out = cmd_search_many(_state(), ["empty", "margin"])
 
-        assert "=== query 1/2: 'empty' ===\nNo results found." in out
+        assert "=== query 1/2 ===\nquery: 'empty'\nNo results found." in out
         assert "<source1>" in out
+
+
+class TestMultiQueryDeduplication:
+    @patch("unique_sdk.Search.create")
+    def test_a_chunk_found_twice_keeps_its_first_number(
+        self, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_search.side_effect = _search_by_query(
+            {"revenue": ["cont_a", "cont_b"], "growth": ["cont_b", "cont_c"]}
+        )
+
+        out = cmd_search_many(_state(), ["revenue", "growth"])
+
+        assert out.count("<|info|>cont_b</|info|>") == 1
+        assert "<|info|>cont_b</|info|>" in _source_block(out, 2)
+        assert "<|info|>cont_c</|info|>" in _source_block(out, 3)
+        assert "Also matched, shown in another block: [source2]" in out
+        assert _manifest_ids(tmp_path) == ["cont_a", "cont_b", "cont_c"]
+
+    @patch("unique_sdk.Search.create")
+    def test_other_chunks_of_the_same_document_stay_separate(
+        self, mock_search: MagicMock
+    ) -> None:
+        def _search(**kwargs: Any) -> list[MagicMock]:
+            result = _result("cont_a")
+            result.chunkId = f"chunk_{kwargs['searchString']}"
+            return [result]
+
+        mock_search.side_effect = _search
+
+        out = cmd_search_many(_state(), ["revenue", "growth"])
+
+        assert "<source2>" in out
+        assert "Also matched" not in out
+
+
+class TestMultiQueryTokenBudget:
+    @patch("unique_sdk.Search.create")
+    def test_every_query_keeps_its_best_results_within_the_budget(
+        self,
+        mock_search: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        mock_search.side_effect = _search_by_query(
+            {
+                "revenue": ["cont_r1", "cont_r2", "cont_r3"],
+                "margin": ["cont_m1", "cont_m2", "cont_m3"],
+            }
+        )
+        budget = 3 * _estimated_tokens(_result("cont_r1"))
+        monkeypatch.setenv(MULTI_QUERY_TOKEN_BUDGET_ENV, str(budget))
+
+        out = cmd_search_many(_state(), ["revenue", "margin"])
+
+        assert _manifest_ids(tmp_path) == ["cont_r1", "cont_r2", "cont_m1"]
+        assert out.startswith(f"Output budget of about {budget} tokens reached: 3 ")
+        assert "cont_r3" not in out
+        assert "cont_m2" not in out
+
+    @patch("unique_sdk.Search.create")
+    def test_results_fit_without_a_budget_note(self, mock_search: MagicMock) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+
+        out = cmd_search_many(_state(), ["revenue", "margin"])
+
+        assert "Output budget" not in out
+        assert out.startswith("=== query 1/2 ===")
+
+    @patch("unique_sdk.Search.create")
+    def test_invalid_budget_override_falls_back_to_the_default(
+        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
+        monkeypatch.setenv(MULTI_QUERY_TOKEN_BUDGET_ENV, "lots")
+
+        out = cmd_search_many(_state(), ["revenue", "margin"])
+
+        assert "Output budget" not in out
 
 
 class TestMultiQueryFailures:
@@ -166,9 +251,9 @@ class TestMultiQueryFailures:
         out = cmd_search_many(_state(), ["revenue", "margin", "headcount"])
 
         assert not out.startswith(SEARCH_ERROR_PREFIX)
-        assert "=== query 2/3: 'margin' ===\nERROR: search:" in out
+        assert "=== query 2/3 ===\nquery: 'margin'\nERROR: search:" in out
         assert "upstream failed for margin" in out
-        assert out.endswith("1 of 3 queries failed.")
+        assert out.startswith("1 of 3 queries failed.")
         assert _manifest_ids(tmp_path) == [
             "cont_r1",
             "cont_r2",
@@ -188,6 +273,8 @@ class TestMultiQueryFailures:
         out = cmd_search_many(_state(), ["revenue", "margin"])
 
         assert out.startswith(f"{SEARCH_ERROR_PREFIX} all 2 queries failed.")
+        assert "=== query 1/2 ===\nquery: 'revenue'\nERROR: search:" in out
+        assert "=== query 2/2 ===\nquery: 'margin'\nERROR: search:" in out
 
     @patch("unique_sdk.Search.create")
     def test_too_many_queries_is_rejected_before_any_request(
@@ -212,6 +299,19 @@ class TestMultiQueryFailures:
 
         assert out.startswith(SEARCH_ERROR_PREFIX)
         mock_search.assert_not_called()
+
+
+class TestMultiQueryManifest:
+    @patch("unique_sdk.Search.create")
+    def test_no_results_leave_the_manifest_untouched(
+        self, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_search.side_effect = _search_by_query({"a": [], "b": []})
+
+        out = cmd_search_many(_state(), ["a", "b"])
+
+        assert out.count("No results found.") == 2
+        assert not (tmp_path / ".unique").exists()
 
 
 class TestMultiQueryRequests:
@@ -271,6 +371,35 @@ class TestMultiQueryRequests:
         assert not out.startswith(SEARCH_ERROR_PREFIX)
         assert 2 <= peak <= SEARCH_CONCURRENCY
 
+    @patch("unique_sdk.Search.create")
+    def test_concurrency_override_runs_queries_one_at_a_time(
+        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(SEARCH_CONCURRENCY_ENV, "1")
+        in_flight = 0
+        peak = 0
+        lock = threading.Lock()
+        inner = _search_by_query(
+            IDS_BY_QUERY, delay_by_query=dict.fromkeys(IDS_BY_QUERY, 0.05)
+        )
+
+        def _tracked(**kwargs: Any) -> list[MagicMock]:
+            nonlocal in_flight, peak
+            with lock:
+                in_flight += 1
+                peak = max(peak, in_flight)
+            try:
+                return inner(**kwargs)
+            finally:
+                with lock:
+                    in_flight -= 1
+
+        mock_search.side_effect = _tracked
+
+        cmd_search_many(_state(), list(IDS_BY_QUERY))
+
+        assert peak == 1
+
 
 class TestClickMultiQuery:
     def _bootstrap_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -286,11 +415,22 @@ class TestClickMultiQuery:
         self._bootstrap_env(monkeypatch)
         mock_search.side_effect = _search_by_query(IDS_BY_QUERY)
 
-        result = CliRunner().invoke(cli_main, ["search", "revenue", "margin"])
+        result = CliRunner().invoke(cli_main, ["search", "revenue", "-q", "margin"])
 
         assert result.exit_code == 0
         assert mock_search.call_count == 2
-        assert "=== query 2/2: 'margin' ===" in result.output
+        assert "=== query 2/2 ===\nquery: 'margin'" in result.output
+
+    @patch("unique_sdk.Search.create")
+    def test_unquoted_words_are_a_usage_error_not_several_searches(
+        self, mock_search: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+
+        result = CliRunner().invoke(cli_main, ["search", "revenue", "growth", "2025"])
+
+        assert result.exit_code == 2
+        mock_search.assert_not_called()
 
     @patch("unique_sdk.Search.create")
     def test_all_failing_exits_one(
@@ -301,7 +441,7 @@ class TestClickMultiQuery:
             IDS_BY_QUERY, fail_queries=frozenset({"revenue", "margin"})
         )
 
-        result = CliRunner().invoke(cli_main, ["search", "revenue", "margin"])
+        result = CliRunner().invoke(cli_main, ["search", "revenue", "-q", "margin"])
 
         assert result.exit_code == 1
 

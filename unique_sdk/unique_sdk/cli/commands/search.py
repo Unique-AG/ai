@@ -14,6 +14,7 @@ this CLI command.
 
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,10 @@ from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 DEFAULT_LIMIT = 200
 MAX_SEARCH_QUERIES = 8
 SEARCH_CONCURRENCY = 4
+SEARCH_CONCURRENCY_ENV = "UNIQUE_CLI_SEARCH_CONCURRENCY"
+MULTI_QUERY_TOKEN_BUDGET = 100_000
+MULTI_QUERY_TOKEN_BUDGET_ENV = "UNIQUE_CLI_SEARCH_TOKEN_BUDGET"
+_CHARS_PER_TOKEN = 4
 
 SEARCH_ERROR_PREFIX = "search:"
 UPLOADED_SEARCH_ERROR_PREFIX = "uploaded-search:"
@@ -244,9 +249,15 @@ def cmd_search_many(
 
     The folder and metadata filters are resolved once and apply to every
     query; ``limit`` applies per query. Requests run concurrently, at most
-    ``SEARCH_CONCURRENCY`` at a time. Source numbers are assigned afterwards
-    in the order the queries were given, so ``[sourceN]`` is the same on
-    every run and keeps counting across calls in the turn.
+    ``SEARCH_CONCURRENCY`` at a time (override with
+    ``UNIQUE_CLI_SEARCH_CONCURRENCY``).
+
+    Results are taken round-robin by rank, the best result of every query
+    first, until the estimated output reaches ``MULTI_QUERY_TOKEN_BUDGET``
+    tokens (override with ``UNIQUE_CLI_SEARCH_TOKEN_BUDGET``); the rest is
+    left out. A chunk found by several queries keeps one source number.
+    Source numbers follow the query order and keep counting across calls
+    in the turn.
 
     A failed query shows its own error and does not drop the others. The
     output is a ``search:`` error only when every query failed.
@@ -267,72 +278,162 @@ def cmd_search_many(
     if isinstance(search_params, str):
         return search_params
 
-    with ThreadPoolExecutor(
-        max_workers=min(SEARCH_CONCURRENCY, len(queries))
-    ) as executor:
+    concurrency = _positive_int_from_env(SEARCH_CONCURRENCY_ENV, SEARCH_CONCURRENCY)
+    with ThreadPoolExecutor(max_workers=min(concurrency, len(queries))) as executor:
         outcomes = list(
             executor.map(
                 lambda query: _fetch_results(state, query, search_params), queries
             )
         )
 
-    failures = [
-        f"{query!r}: {outcome}"
-        for query, outcome in zip(queries, outcomes, strict=True)
-        if isinstance(outcome, str)
-    ]
-    if len(failures) == len(queries):
-        return (
-            f"{SEARCH_ERROR_PREFIX} all {len(queries)} queries failed.\n"
-            + "\n".join(failures)
+    failed = sum(isinstance(outcome, str) for outcome in outcomes)
+    if failed == len(queries):
+        return f"{SEARCH_ERROR_PREFIX} all {len(queries)} queries failed.\n\n" + (
+            "\n\n".join(
+                f"{_query_header(position, queries)}\nERROR: {outcome}"
+                for position, outcome in enumerate(outcomes, start=1)
+            )
         )
+
+    token_budget = _positive_int_from_env(
+        MULTI_QUERY_TOKEN_BUDGET_ENV, MULTI_QUERY_TOKEN_BUDGET
+    )
+    kept, repeats, dropped = _select_within_budget(outcomes, token_budget)
 
     log_path = refs_log_path or workspace_manifest_path(_REFS_LOG_RELATIVE_PATH)
     try:
-        bodies = _format_many_results_with_citations(outcomes, refs_log_path=log_path)
+        bodies = _format_many_results_with_citations(
+            outcomes, kept, repeats, refs_log_path=log_path
+        )
     except UnsafeRefsLogPathError as exc:
         return f"{SEARCH_ERROR_PREFIX} {exc}"
 
-    blocks = [
-        f"=== query {position}/{len(queries)}: {query!r} ===\n{body}"
-        for position, (query, body) in enumerate(
-            zip(queries, bodies, strict=True), start=1
+    summary: list[str] = []
+    if failed:
+        summary.append(f"{failed} of {len(queries)} queries failed.")
+    if dropped:
+        summary.append(
+            f"Output budget of about {token_budget} tokens reached: "
+            f"{dropped} lower-ranked result(s) left out. Use fewer or "
+            "narrower queries, or a lower --limit, to see them."
         )
+    blocks = [
+        f"{_query_header(position, queries)}\n{body}"
+        for position, body in enumerate(bodies, start=1)
     ]
-    if failures:
-        blocks.append(f"{len(failures)} of {len(queries)} queries failed.")
-    return "\n\n".join(blocks)
+    return "\n\n".join(["\n".join(summary), *blocks] if summary else blocks)
+
+
+def _query_header(position: int, queries: list[str]) -> str:
+    return f"=== query {position}/{len(queries)} ===\nquery: {queries[position - 1]!r}"
+
+
+def _positive_int_from_env(name: str, default: int) -> int:
+    try:
+        value = int(os.environ.get(name, ""))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def _estimated_tokens(result: Any) -> int:
+    return len(_format_source_block(0, result)) // _CHARS_PER_TOKEN + 1
+
+
+def _select_within_budget(
+    outcomes: list[list[Any] | str],
+    token_budget: int,
+) -> tuple[list[list[Any]], list[list[tuple[int, int]]], int]:
+    """Pick results round-robin by rank until the token budget is spent.
+
+    Returns, per query, the results it shows and the ``(query, position)``
+    of results another query already shows, plus how many results were
+    left out. Results are deduplicated on ``(id, chunkId)``.
+    """
+    ranked = [outcome if isinstance(outcome, list) else [] for outcome in outcomes]
+    kept: list[list[Any]] = [[] for _ in ranked]
+    repeats: list[list[tuple[int, int]]] = [[] for _ in ranked]
+    owners: dict[tuple[str, Any], tuple[int, int]] = {}
+    spent = 0
+    taken = 0
+    deepest = max((len(results) for results in ranked), default=0)
+    for rank in range(deepest):
+        for query_index, results in enumerate(ranked):
+            if rank >= len(results):
+                continue
+            result = results[rank]
+            key = (getattr(result, "id", "") or "", getattr(result, "chunkId", None))
+            if key in owners:
+                repeats[query_index].append(owners[key])
+                taken += 1
+                continue
+            cost = _estimated_tokens(result)
+            if spent + cost > token_budget:
+                return kept, repeats, sum(map(len, ranked)) - taken
+            spent += cost
+            owners[key] = (query_index, len(kept[query_index]))
+            kept[query_index].append(result)
+            taken += 1
+    return kept, repeats, 0
 
 
 def _format_many_results_with_citations(
     outcomes: list[list[Any] | str],
+    kept: list[list[Any]],
+    repeats: list[list[tuple[int, int]]],
     *,
     refs_log_path: Path,
 ) -> list[str]:
-    """Number and persist every query's results inside one locked section.
+    """Number and persist the selected results inside one locked section.
 
     One lock for the whole call keeps the numbers of one query contiguous
-    even when another ``unique-cli search`` runs at the same time.
+    even when another ``unique-cli search`` runs at the same time. Without
+    any selected result the manifest is not touched.
     """
+    first_number = 1
+    if any(kept):
+        with _locked_turn_refs_manifest(refs_log_path, lock_filename=_LOCK_FILENAME):
+            first_number = len(_read_turn_refs_manifest(refs_log_path)) + 1
+            for results in kept:
+                for result in results:
+                    _append_turn_refs_manifest_entry(
+                        refs_log_path, _result_to_chunk_payload(result)
+                    )
+
+    offsets: list[int] = []
+    next_number = first_number
+    for results in kept:
+        offsets.append(next_number)
+        next_number += len(results)
+
     bodies: list[str] = []
-    with _locked_turn_refs_manifest(refs_log_path, lock_filename=_LOCK_FILENAME):
-        next_number = len(_read_turn_refs_manifest(refs_log_path)) + 1
-        for outcome in outcomes:
-            if isinstance(outcome, str):
-                bodies.append(f"ERROR: {outcome}")
-                continue
-            if not outcome:
-                bodies.append("No results found.")
-                continue
-            blocks: list[str] = []
-            for result in outcome:
-                blocks.append(_format_source_block(next_number, result))
-                _append_turn_refs_manifest_entry(
-                    refs_log_path,
-                    _result_to_chunk_payload(result),
+    for outcome, results, query_repeats, offset in zip(
+        outcomes, kept, repeats, offsets, strict=True
+    ):
+        if isinstance(outcome, str):
+            bodies.append(f"ERROR: {outcome}")
+            continue
+        if not outcome:
+            bodies.append("No results found.")
+            continue
+        parts: list[str] = []
+        if results:
+            parts.append(
+                f"Found {len(results)} result(s):\n\n"
+                + "\n\n".join(
+                    _format_source_block(offset + position, result)
+                    for position, result in enumerate(results)
                 )
-                next_number += 1
-            bodies.append(f"Found {len(outcome)} result(s):\n\n" + "\n\n".join(blocks))
+            )
+        if query_repeats:
+            numbers = ", ".join(
+                f"[source{offsets[owner] + position}]"
+                for owner, position in query_repeats
+            )
+            parts.append(f"Also matched, shown in another block: {numbers}")
+        if not parts:
+            parts.append("Results left out: output budget reached.")
+        bodies.append("\n\n".join(parts))
     return bodies
 
 

@@ -1,6 +1,6 @@
 component: SDK
 kind: Added
-body: '`unique-cli search` accepts up to 8 queries in one call and runs them concurrently, with one result block per query and source numbers in query order. A single query behaves as before.'
+body: '`unique-cli search` takes further queries with `-q` and runs up to 8 in one call concurrently. A chunk found by several queries is shown once, and the output stops at about 100,000 tokens, taking the best results of every query first. A single query behaves as before.'
 time: 2026-11-12T11:20:08.649845+01:00
 custom:
     Audience: developer
