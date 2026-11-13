@@ -174,6 +174,43 @@ def test_registry_discovery_skips_non_config_files():
 
 
 @pytest.mark.verified
+def test_registry_discovery_loads_parent_before_child():
+    """Package init may import the config module; do that before file loading."""
+    pkg_name = "cfgdisc_pkg"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        pkg = tmp_path / pkg_name
+        pkg.mkdir()
+        (pkg / "__init__.py").write_text(
+            "from .mid import get_name\n", encoding="utf-8"
+        )
+        (pkg / "mid.py").write_text(
+            f"from {pkg_name}.settings import Name\n\n"
+            "def get_name():\n"
+            "    return Name\n",
+            encoding="utf-8",
+        )
+        (pkg / "helper.py").write_text("HELPER = 1\n", encoding="utf-8")
+        (pkg / "settings.py").write_text(
+            f"from {pkg_name}.helper import HELPER\n"
+            "from pydantic import BaseModel\n"
+            "from unique_toolkit._common.config_checker import register_config\n"
+            "\n"
+            "@register_config()\n"
+            "class Name(BaseModel):\n"
+            "    value: int = HELPER\n",
+            encoding="utf-8",
+        )
+        try:
+            entries = ConfigRegistry().discover_configs(tmp_path)
+            assert [entry.name for entry in entries] == ["Name"]
+        finally:
+            for name in list(sys.modules):
+                if name == pkg_name or name.startswith(f"{pkg_name}."):
+                    del sys.modules[name]
+
+
+@pytest.mark.verified
 def test_registry_load_from_package():
     """Test load_from_package method in registry."""
     registry = ConfigRegistry()
