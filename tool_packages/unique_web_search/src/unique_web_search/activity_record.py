@@ -1,4 +1,4 @@
-"""One Activity Record per web search tool call (UN-28965), off unless UN-22616 is on."""
+"""One Activity Record per web search tool call."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ from unique_toolkit.experimental.resources.activity_records import (
     ActivityCloudEvent,
     enqueue,
 )
-from unique_toolkit.experimental.resources.feature_flags import get_feature_flag_client
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -24,7 +23,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-_FLAG = "FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616"
 _USER_PROMPT_MAX_LENGTH = 4096
 
 Outcome = Literal["called", "denied", "failed"]
@@ -68,7 +66,7 @@ _enqueue_module = importlib.import_module(
 )
 
 
-async def start(
+def start(
     tool: WebSearchTool, tool_call: LanguageModelFunction
 ) -> ActivityRecord | None:
     if getattr(_enqueue_module, "_active_context") is None:
@@ -79,12 +77,6 @@ async def start(
     )
 
     try:
-        flag = await get_feature_flag_client().evaluate(
-            _FLAG, company_id=tool.company_id
-        )
-        # Only a fresh or cached off skips the record; an unknown flag records and the relay decides.
-        if flag.value is False and flag.reason in ("remote", "cached"):
-            return None
         payload = tool.event.payload
         engine = tool.search_engine_service.config.engine
         prompt = payload.user_message.text

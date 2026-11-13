@@ -177,7 +177,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        record = await activity_record.start(self, tool_call)
+        record = activity_record.start(self, tool_call)
         with collector.scope() as invocation_stats, activity_record.active(record):
             try:
                 response = await self._run(tool_call)
