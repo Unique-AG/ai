@@ -10,7 +10,7 @@ license = { text = "Proprietary" }
 requires-python = ">=3.12,<4"
 dependencies = [
     "jinja2>=3.1.6",
-    "pydantic>=2.8.2",
+    "pydantic>=2.14.3",
     "unique-sdk>=2026.46.0",
     "unique-toolkit[monitoring]>=2026.46.0",
 ]
