@@ -11,7 +11,7 @@ license = { text = "Proprietary" }
 requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.12.4",
-    "python-dotenv>=1.0.1",
+    "python-dotenv>=1.2.4",
     "unique-toolkit>=2026.46.0",
     "cryptography>=46.0.5",
     "pyopenssl>=25.0.0",
