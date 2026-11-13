@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: Experimental Activity Records event model, a Pydantic port of the CloudEvents schema that the Activity Records service validates.
+time: 2026-11-10T15:57:48.012243+01:00
+custom:
+    Audience: developer
+    Ticket: UN-28050
