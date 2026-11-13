@@ -33,7 +33,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "unique-search-proxy-core>=2026.46.0",
     "unique-search-proxy-sdk>=2026.46.0",
-    "openai>=1.105.0,<3",
+    "openai>=3.49.0,<4",
 ]
 
 [build-system]
