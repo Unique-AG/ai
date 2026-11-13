@@ -119,6 +119,7 @@ class LanguageModelName(StrEnum):
     GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
     GEMINI_4_ARGON = "litellm:gemini-4-argon"
     GEMINI_4_CARBON = "litellm:gemini-4-carbon"
+    GEMINI_4_HYDROGEN = "litellm:gemini-4-hydrogen"
     GROK_4_1_FAST_NON_REASONING = "litellm:grok-4-1-fast-non-reasoning"
     GROK_4_1_FAST_REASONING = "litellm:grok-4-1-fast-reasoning"
     GROK_4_5 = "litellm:grok-4-5"
@@ -182,6 +183,7 @@ class LanguageModelName(StrEnum):
     VERTEX_GEMINI_3_8_FLASH = "litellm:vertex-gemini-3-8-flash"
     VERTEX_GEMINI_4_ARGON = "litellm:vertex-gemini-4-argon"
     VERTEX_GEMINI_4_CARBON = "litellm:vertex-gemini-4-carbon"
+    VERTEX_GEMINI_4_HYDROGEN = "litellm:vertex-gemini-4-hydrogen"
 
 
 class EncoderName(StrEnum):
@@ -2575,6 +2577,35 @@ class LanguageModelInfo(BaseModel):
                     # Gemini 4 thinking levels are low, medium (default), and high.
                     # https://ai.google.dev/gemini-api/docs/generate-content/thinking
                     default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
+                )
+            case (
+                LanguageModelName.GEMINI_4_HYDROGEN
+                | LanguageModelName.VERTEX_GEMINI_4_HYDROGEN
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-4-hydrogen",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Unified 1,048,576 context window; 65,536 single-request output cap.
+                        # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-hydrogen
+                        token_limit_input=1_048_576,
+                        token_limit_output=65_536,
+                    ),
+                    published_at=date(2026, 11, 12),
+                    # Google also has xhigh, but LiteLLM can't send it via reasoning_effort yet.
+                    # https://docs.litellm.ai/blog/gemini-4-hydrogen
+                    default_options={"reasoning_effort": "high"},
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.GROK_4_1_FAST_NON_REASONING:

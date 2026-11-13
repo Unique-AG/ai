@@ -70,6 +70,7 @@ class TestLanguageModelInfos:
             LanguageModelName.GEMINI_3_PRO_PREVIEW,
             LanguageModelName.GEMINI_4_ARGON,
             LanguageModelName.GEMINI_4_CARBON,
+            LanguageModelName.GEMINI_4_HYDROGEN,
             LanguageModelName.GROK_4_1_FAST_NON_REASONING,
             LanguageModelName.GROK_4_1_FAST_REASONING,
             LanguageModelName.GROK_4_5,
@@ -158,6 +159,7 @@ class TestLanguageModelInfos:
             LanguageModelName.VERTEX_GEMINI_3_8_FLASH,
             LanguageModelName.VERTEX_GEMINI_4_ARGON,
             LanguageModelName.VERTEX_GEMINI_4_CARBON,
+            LanguageModelName.VERTEX_GEMINI_4_HYDROGEN,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)
