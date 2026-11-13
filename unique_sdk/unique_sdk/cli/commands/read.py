@@ -167,14 +167,14 @@ def cmd_read(
             )
 
     header = f"Content: {title} ({cont_id}) — {len(sorted_chunks)} chunk(s)\n"
-    blocks: list[tuple[str, str]] = []
+    blocks: list[tuple[str, str, str]] = []
     for chunk in sorted_chunks:
         text = (chunk.get("text") or "").strip()
         if not text:
             continue
-        blocks.append((str(chunk.get("id") or ""), _render_chunk(chunk, text)))
+        blocks.append((str(chunk.get("id") or ""), _render_chunk(chunk, text), text))
 
-    output = _BLOCK_SEPARATOR.join([header, *(block for _, block in blocks)])
+    output = _BLOCK_SEPARATOR.join([header, *(block for _, block, _ in blocks)])
     if max_chars is not None and len(output) > max_chars:
         if from_page is not None or to_page is not None:
             hint = "narrow the page range or raise --max-chars to see more"
@@ -218,14 +218,15 @@ def _render_chunk(chunk: dict[str, Any], text: str) -> str:
 
 def _shown_chunk_ids(
     header: str,
-    blocks: list[tuple[str, str]],
+    blocks: list[tuple[str, str, str]],
     max_chars: int | None,
 ) -> list[str]:
-    """Ids of the chunks whose text starts before the ``max_chars`` cut."""
+    """Ids of the chunks whose text, not just its page label, starts before the cut."""
     shown: list[str] = []
     offset = len(header) + len(_BLOCK_SEPARATOR)
-    for chunk_id, block in blocks:
-        if max_chars is not None and offset >= max_chars:
+    for chunk_id, block, text in blocks:
+        text_start = offset + len(block) - len(text)
+        if max_chars is not None and text_start >= max_chars:
             break
         if chunk_id:
             shown.append(chunk_id)

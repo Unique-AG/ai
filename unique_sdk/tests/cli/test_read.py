@@ -520,12 +520,24 @@ class TestReadRefsManifest:
         manifest = tmp_path / ".unique" / "read-refs.jsonl"
         header_chars = len("Content: clients.md (cont_abc123) — 3 chunk(s)\n\n\n")
 
+        first_text_char = header_chars + len("[p.1] ") + 1
+
+        _read(state, self._content(), max_chars=first_text_char, refs_log_path=manifest)
+
+        [row] = _manifest_rows(manifest)
+        assert row["chunkIds"] == ["chk_a"]
+
+    def test_cut_inside_a_page_label_records_no_chunk(
+        self, state: ShellState, tmp_path: Path
+    ) -> None:
+        manifest = tmp_path / ".unique" / "read-refs.jsonl"
+        header_chars = len("Content: clients.md (cont_abc123) — 3 chunk(s)\n\n\n")
+
         _read(
             state, self._content(), max_chars=header_chars + 5, refs_log_path=manifest
         )
 
-        [row] = _manifest_rows(manifest)
-        assert row["chunkIds"] == ["chk_a"]
+        assert _manifest_rows(manifest) == []
 
     def test_reads_append_one_row_each(self, state: ShellState, tmp_path: Path) -> None:
         manifest = tmp_path / ".unique" / "read-refs.jsonl"
