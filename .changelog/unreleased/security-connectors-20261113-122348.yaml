@@ -1,0 +1,6 @@
+component: Connectors
+kind: Security
+body: Search proxy image updates soupsieve to 4.1, which fixes a published HIGH denial of service in CSS selector matching.
+time: 2026-11-13T12:23:48.367364+01:00
+custom:
+    Audience: operator
