@@ -48,7 +48,7 @@ gh api --paginate "repos/Unique-AG/ai/code-scanning/alerts?state=open&per_page=1
   | jq -s 'add | .[] | "\(.number) \(.rule.security_severity_level) \(.rule.id) \(.most_recent_instance.category) \(.most_recent_instance.location.path)"'
 ```
 
-The path shows what to fix: `.venv/lib/python*/site-packages/<pkg>` is a Python dependency, an OS path is a Debian package.
+The path shows what to fix: `app/.venv/lib/python3.12/site-packages/<pkg>-<version>.dist-info/METADATA` is a Python dependency, and a path that is only the image name (`unique-ag/ai/search-proxy`) is a Debian package.
 
 ### Read one alert (package, installed and fixed version)
 

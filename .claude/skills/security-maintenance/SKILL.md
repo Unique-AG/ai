@@ -66,9 +66,9 @@ These alerts sit next to CodeQL in the code scanning dashboard but are not code 
 
 1. **List and read**: see [gh commands reference](references/gh-commands.md). The alert message has the package, installed version and fixed version.
 2. **Route by `location.path`**:
-   - `.../.venv/lib/python*/site-packages/<pkg>...` is a Python dependency, often transitive. Fix it with the Dependabot workflow steps 3 to 8: bump `constraint-dependencies` to the fixed version, relock, `fix(security): ...` PR.
-   - `usr/local/lib/python*/site-packages/<pkg>...` (for example `pip`) is a Python package from the base image, outside the virtual environment. Do not add a constraint, and `apt-get upgrade` does not update it. Bump the base image digest in the Dockerfile.
-   - An OS path (`usr/lib`, `var/lib/dpkg`, ...) is a Debian package in the image. Do not add a constraint. A rebuild picks it up through `apt-get upgrade` in the runtime stage of the Dockerfile; if that is not enough, bump the base image digest.
+   - `app/.venv/lib/python3.12/site-packages/<pkg>-<version>.dist-info/METADATA` is a Python dependency, often transitive. Fix it with the Dependabot workflow steps 3 to 8: bump `constraint-dependencies` to the fixed version, relock, `fix(security): ...` PR.
+   - `usr/local/lib/python*/site-packages/<pkg>...` (for example `pip`) would be a Python package from the base image, outside the virtual environment. Do not add a constraint, and `apt-get upgrade` does not update it. Bump the base image digest in the Dockerfile.
+   - A `location.path` that is just the image name (for example `unique-ag/ai/search-proxy`) is a Debian package in the image, and the message names it (`zlib1g`, ...). Do not add a constraint. A rebuild picks it up through `apt-get upgrade` in the runtime stage of the Dockerfile; if that is not enough, bump the base image digest.
 3. **No manual dismiss.** The alert closes when the next scan on `main` with the same category no longer reports it. After the fix merges, re-run the scan on `main` (see the gh commands reference) or wait for Monday. That closes `trivy-image/` alerts only. A `trivy-image-release/` alert stays open until a fixed image is published and the `source=release` scan runs.
 4. **Released images.** The scan summary shows the days until the next scheduled release. Use the `hotfix-backport` skill only when that is more than about 3 days away, and a person decides.
 
