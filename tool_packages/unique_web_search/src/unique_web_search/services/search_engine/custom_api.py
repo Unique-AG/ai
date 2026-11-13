@@ -158,6 +158,10 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
         self.api_endpoint = config.api_endpoint
         self.is_configured = True  # No possibility to check if the API is configured from our side. So we assume it is configured.
 
+    @property
+    def endpoint(self) -> str | None:
+        return self.api_endpoint
+
     async def _proxy_routing_enabled(self) -> bool:
         return await is_flag_enabled(
             FeatureFlagNames.search_proxy_enable_custom_api_un_26736,

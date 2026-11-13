@@ -61,6 +61,10 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
     def requires_scraping(self) -> bool:
         return getattr(self.config, "requires_scraping", True)
 
+    @property
+    def endpoint(self) -> str | None:
+        return get_brave_search_settings().api_endpoint
+
     @override
     async def _legacy_search(
         self,

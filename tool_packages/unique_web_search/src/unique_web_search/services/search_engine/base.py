@@ -17,6 +17,7 @@ from unique_search_proxy_core.param_policy.exposable_param import (
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 
+from unique_web_search import activity_record
 from unique_web_search.services.httpx_logging import hide_httpx_request_logs
 from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
@@ -31,6 +32,7 @@ from unique_web_search.services.proxy.mappers import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
+from unique_web_search.settings import env_settings
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -94,6 +96,11 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         """Whether the search engine requires scraping."""
         return False
 
+    @property
+    def endpoint(self) -> str | None:
+        """Direct (non-proxy) host this engine calls, when known without an SDK."""
+        return None
+
     async def _proxy_routing_enabled(self) -> bool:
         """Whether this engine may use Search Proxy for the current request."""
         return True
@@ -117,14 +124,24 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     ) -> list[WebSearchResult]:
         """Search the web for the given query using the search engine."""
         with hide_httpx_request_logs():
-            proxy_engine = self._proxy_engine
-            if (
-                search_proxy_client_enabled
-                and proxy_engine is not None
+            proxy_engine = (
+                self._proxy_engine
+                if search_proxy_client_enabled
+                and self._proxy_engine is not None
                 and await self._proxy_routing_enabled()
+                else None
+            )
+            endpoint = (
+                env_settings.search_proxy_base_url
+                if proxy_engine is not None
+                else self.endpoint
+            )
+            with activity_record.search_request(
+                query, via_search_proxy=proxy_engine is not None, endpoint=endpoint
             ):
-                return await self._proxy_search(query, params, proxy_engine)
-            return await self._legacy_search(query=query, params=params)
+                if proxy_engine is not None:
+                    return await self._proxy_search(query, params, proxy_engine)
+                return await self._legacy_search(query=query, params=params)
 
     async def _proxy_search(
         self,

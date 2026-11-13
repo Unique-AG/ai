@@ -1,0 +1,7 @@
+component: Web Search
+kind: Added
+body: Activity Records for web search tool calls. Disabled by default; recording requires both `FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616` and an active Activity Records outbox in the host service.
+time: 2026-11-13T14:50:52.742462+01:00
+custom:
+    Audience: admin
+    Ticket: UN-28965

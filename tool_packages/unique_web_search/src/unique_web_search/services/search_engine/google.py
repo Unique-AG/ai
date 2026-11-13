@@ -34,6 +34,10 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
     def requires_scraping(self) -> bool:
         return True
 
+    @property
+    def endpoint(self) -> str | None:
+        return get_google_search_settings().api_endpoint
+
     @override
     async def _legacy_search(
         self,
