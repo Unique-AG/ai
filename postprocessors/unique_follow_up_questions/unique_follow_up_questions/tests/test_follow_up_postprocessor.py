@@ -2,6 +2,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.language_model.errors import LanguageModelCallError
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelTokenUsage,
@@ -344,3 +345,49 @@ async def test_run__every_llm_call_receives_additional_llm_options() -> None:
     assert llm_service.complete_async.await_count == 2
     for call in llm_service.complete_async.await_args_list:
         assert call.kwargs["other_options"] == REASONING_NONE
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_run__provider_rejects_additional_llm_options__answer_left_unchanged() -> (
+    None
+):
+    """If the provider rejects an option the model does not support, only the
+    follow-up questions are lost: run() does not raise, the answer text is not
+    modified and both failures are logged."""
+    config = FollowUpQuestionsConfig.model_validate(
+        {"additionalLlmOptions": {"unsupported_option": True}}
+    )
+    user_message = MagicMock(spec=["text"])
+    user_message.text = "What is the capital of Switzerland?"
+    event = MagicMock()
+    event.payload.user_message = user_message
+    history_manager = MagicMock()
+    history_manager.get_user_visible_chat_history = AsyncMock(
+        return_value=LanguageModelMessages([])
+    )
+    llm_service = AsyncMock()
+    llm_service.complete_async.side_effect = LanguageModelCallError(
+        code="invalid_request",
+        user_message="Unrecognized request argument: unsupported_option",
+        retryable=False,
+        correlation_id=None,
+        http_status=400,
+    )
+    logger = MagicMock()
+    postprocessor = FollowUpPostprocessor(
+        logger=logger,
+        config=config,
+        event=event,
+        historyManager=history_manager,
+        llm_service=llm_service,
+    )
+    loop_response = MagicMock()
+    loop_response.message.text = "Bern."
+
+    await postprocessor.run(loop_response)
+
+    assert llm_service.complete_async.await_count == 2
+    assert postprocessor.apply_postprocessing_to_response(loop_response) is False
+    assert loop_response.message.text == "Bern."
+    assert logger.error.call_count == 2
