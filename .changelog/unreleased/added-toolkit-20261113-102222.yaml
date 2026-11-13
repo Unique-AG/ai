@@ -1,6 +1,6 @@
 component: Toolkit
 kind: Added
-body: Gemini 4 Hydrogen is available in the language model registry as `litellm:gemini-4-hydrogen` and `litellm:vertex-gemini-4-hydrogen`. Reasoning effort defaults to `high`; `xhigh` is not supported yet.
+body: Gemini 4 Hydrogen is available in the language model registry as `litellm:gemini-4-hydrogen` and `litellm:vertex-gemini-4-hydrogen`. Reasoning effort defaults to `medium`; `xhigh` is not supported yet.
 time: 2026-11-13T10:22:22.124831+01:00
 custom:
     Audience: developer

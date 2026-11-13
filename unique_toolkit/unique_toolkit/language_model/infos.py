@@ -2605,7 +2605,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 11, 12),
                     # Google also has xhigh, but LiteLLM can't send it via reasoning_effort yet.
                     # https://docs.litellm.ai/blog/gemini-4-hydrogen
-                    default_options={"reasoning_effort": "high"},
+                    default_options={"reasoning_effort": "medium"},
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.GROK_4_1_FAST_NON_REASONING:
