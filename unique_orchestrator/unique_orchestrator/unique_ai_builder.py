@@ -172,8 +172,9 @@ class EvaluationBuildContext(NamedTuple):
 EvaluationFactory = Callable[[EvaluationBuildContext], Evaluation]
 """Builds one evaluation per turn.
 
-An evaluation named ``EvaluationMetricName.HALLUCINATION`` replaces the built-in
-hallucination check, which is then not created.
+The evaluation runs like the built-in ones: only on turns where a tool that ran
+lists its name. One named ``EvaluationMetricName.HALLUCINATION`` replaces the
+built-in hallucination check, which is then not created.
 """
 
 
