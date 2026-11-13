@@ -9,7 +9,6 @@ import pytest
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_toolkit.elicitation import ElicitationStatus
 from unique_toolkit.experimental.resources.activity_records import ActivityCloudEvent
-from unique_toolkit.experimental.resources.feature_flags.schemas import FlagEvaluation
 
 from unique_web_search import activity_record
 from unique_web_search.schema import WebSearchDebugInfo
@@ -101,19 +100,9 @@ def _tool(
     return tool
 
 
-def _flag(mocker: Any, value: bool = True, reason: str = "remote") -> Mock:
-    mocker.patch.object(activity_record._enqueue_module, "_active_context", object())
-    client = Mock(evaluate=AsyncMock(return_value=FlagEvaluation(value, reason)))
-    mocker.patch(
-        "unique_web_search.activity_record.get_feature_flag_client",
-        return_value=client,
-    )
-    return client
-
-
 @pytest.fixture
 def enqueue_mock(mocker: Any) -> Mock:
-    _flag(mocker)
+    mocker.patch.object(activity_record._enqueue_module, "_active_context", object())
     return mocker.patch("unique_web_search.activity_record.enqueue")
 
 
@@ -358,44 +347,6 @@ async def test_user_prompt__capped_at_4096_characters(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("value", "reason", "recorded"),
-    [
-        (False, "remote", False),
-        (False, "cached", False),
-        (False, "fallback", True),
-        (False, "stale", True),
-        (True, "remote", True),
-    ],
-)
-async def test_flag__only_a_remote_or_cached_off_skips_the_record(
-    mocker: Any, value: bool, reason: str, recorded: bool
-) -> None:
-    _flag(mocker, value, reason)
-    enqueue_mock = mocker.patch("unique_web_search.activity_record.enqueue")
-    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
-
-    await _run(tool)
-
-    assert enqueue_mock.called is recorded
-
-
-@pytest.mark.asyncio
-async def test_flag_check_error__records_nothing_and_does_not_break_the_tool_call(
-    mocker: Any,
-) -> None:
-    client = _flag(mocker)
-    client.evaluate.side_effect = RuntimeError("configuration backend down")
-    enqueue_mock = mocker.patch("unique_web_search.activity_record.enqueue")
-    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
-
-    response = await tool.run(Mock(id="call-1", arguments={"query": "news"}))
-
-    assert not response.error_message
-    enqueue_mock.assert_not_called()
-
-
-@pytest.mark.asyncio
 async def test_enqueue_error__does_not_break_the_tool_call(
     mocker: Any, enqueue_mock: Mock
 ) -> None:
@@ -528,10 +479,9 @@ async def test_a_failing_emit__logs_no_client_data(
 
 
 @pytest.mark.asyncio
-async def test_no_outbox__skips_flag_and_enqueue_with_no_error(
+async def test_no_outbox__skips_enqueue_with_no_error(
     mocker: Any, caplog: pytest.LogCaptureFixture
 ) -> None:
-    client = _flag(mocker)
     mocker.patch.object(activity_record._enqueue_module, "_active_context", None)
     enqueue_mock = mocker.patch("unique_web_search.activity_record.enqueue")
     tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
@@ -539,6 +489,5 @@ async def test_no_outbox__skips_flag_and_enqueue_with_no_error(
     with caplog.at_level(logging.ERROR):
         await _run(tool)
 
-    client.evaluate.assert_not_called()
     enqueue_mock.assert_not_called()
     assert not caplog.records
