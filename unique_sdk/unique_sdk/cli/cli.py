@@ -96,6 +96,7 @@ from unique_sdk.cli.commands.scheduled_tasks import (
 )
 from unique_sdk.cli.commands.search import (
     cmd_search,
+    cmd_search_many,
     cmd_uploaded_search,
 )
 from unique_sdk.cli.commands.search import (
@@ -729,6 +730,13 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 @main.command()
 @click.argument("query")
 @click.option(
+    "--query",
+    "-q",
+    "extra_queries",
+    multiple=True,
+    help="Another query to run in the same call. Repeat for more, up to 8 in total.",
+)
+@click.option(
     "--folder",
     "-f",
     default=None,
@@ -755,6 +763,7 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 def search(
     ctx: click.Context,
     query: str,
+    extra_queries: tuple[str, ...],
     folder: str | None,
     metadata: tuple[str, ...],
     limit: int,
@@ -762,8 +771,16 @@ def search(
     """Search the knowledge base using combined (vector + full-text) search.
 
     \b
-    QUERY is the search text. Results are ranked by relevance using
-    both semantic similarity and keyword matching.
+    QUERY is the search text; quote it when it has several words. Results
+    are ranked by relevance using both semantic similarity and keyword
+    matching.
+
+    \b
+    Pass further queries with -q in ONE call instead of one call per
+    query: up to 8 per call, 4 run at the same time. Each query gets its
+    own block of results; --folder, --metadata and --limit apply to every
+    query. A chunk found by several queries is shown once, and the output
+    stops at about 100,000 tokens, best results of every query first.
 
     \b
     Without an active task scope, searches within the current directory
@@ -776,6 +793,7 @@ def search(
     \b
     Examples:
       unique-cli search "revenue growth"
+      unique-cli search "revenue growth" -q "operating margin" -q "headcount"
       unique-cli search "earnings" --folder /Reports/Q1 --limit 50
       unique-cli search "compliance" -f scope_abc123
       unique-cli search "audit" -m department=Legal -m year=2025
@@ -791,9 +809,18 @@ def search(
             k, v = kv.split("=", 1)
             parsed_metadata.append((k, v))
 
-    output = cmd_search(
-        state, query, folder=folder, metadata=parsed_metadata, limit=limit
-    )
+    if not extra_queries:
+        output = cmd_search(
+            state, query, folder=folder, metadata=parsed_metadata, limit=limit
+        )
+    else:
+        output = cmd_search_many(
+            state,
+            [query, *extra_queries],
+            folder=folder,
+            metadata=parsed_metadata,
+            limit=limit,
+        )
     click.echo(output)
     if _is_search_error_output(output):
         ctx.exit(1)
