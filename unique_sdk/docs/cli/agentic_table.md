@@ -3,7 +3,7 @@
 !!! warning "Experimental"
     The CLI is experimental and its interface may change in future releases.
 
-Work with Agentic Table (magic table) sheets through the public magic-table API. The **read** commands (`get-sheet`, `get-cell`, `cell-history`, `list-exports`) are **Tier 0**: they never write and never require confirmation. The **write** commands (`create-sheet`, `import`, `rerun-row`, `set-cell`, `export`) create a sheet, populate it, re-answer a row, write one cell, or export. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as `agentic-table: permission denied`.
+Work with Agentic Table (magic table) sheets through the public magic-table API. The **read** commands (`get-sheet`, `get-cell`, `cell-history`, `list-exports`) are **Tier 0**: they never write and never require confirmation. The **write** commands (`create-sheet`, `import`, `rerun-row`, `set-cell`, `export`, `complete`) create a sheet, populate it, re-answer a row, write one cell, export, or mark the sheet completed. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as `agentic-table: permission denied`. `complete` accepts only the owner or Can manage.
 
 ## agentic-table get-sheet
 
@@ -361,6 +361,36 @@ Result:  OK
 
 TYPE         STATE  ID           CONTENT      UPDATED
 FULL_REPORT  DONE   artifact_1   cont_export  2026-01-01 00:01
+```
+
+---
+
+## agentic-table complete
+
+Mark a sheet completed. Only the sheet owner or a caller with Can manage access is accepted; Can edit and Can answer are rejected. Completion is rejected while a run is in progress. When the sheet has a Review Status column, every content row must already be in a final state. `--add-to-library` copies those rows into the space answer library and needs knowledge write access. It is rejected when the sheet is already the answer library. Confirm with `get-sheet`: `sheetStatus` is `COMPLETED`. Reopening a completed sheet is not supported.
+
+**Synopsis:**
+
+```
+agentic-table complete <table_id> [--add-to-library] [--json]
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--add-to-library` | Copy final rows into the space answer library | off |
+| `--json` | Print raw JSON | off |
+
+**Example:**
+
+```bash
+unique-cli agentic-table complete mt_abc123 --add-to-library
+```
+
+```
+Action:  complete
+Result:  OK
 ```
 
 ---

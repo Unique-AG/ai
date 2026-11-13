@@ -103,6 +103,25 @@ async def test_generate_artifact_posts_artifact_types(mock_request):
     )
 
 
+async def test_complete_sheet_posts_complete_route(mock_request):
+    mock_request.return_value = {"status": True, "message": "Successfully completed"}
+
+    await AgenticTable.complete_sheet(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        addToLibrary=True,
+    )
+
+    mock_request.assert_awaited_once_with(
+        "post",
+        f"/magic-table/{TABLE_ID}/complete",
+        USER_ID,
+        COMPANY_ID,
+        {"addToLibrary": True},
+    )
+
+
 async def test_list_artifacts_gets_artifacts_route(mock_request):
     # The route responds with a `{object: "list", data: [...]}` envelope.
     mock_request.return_value = {

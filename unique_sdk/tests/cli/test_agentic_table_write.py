@@ -21,6 +21,7 @@ from unique_sdk.cli.commands.agentic_table import is_error_output
 from unique_sdk.cli.commands.agentic_table_write import (
     _FAST_POLL_WINDOW_SECONDS,
     _poll_interval,
+    cmd_complete_sheet,
     cmd_create_sheet,
     cmd_export,
     cmd_import,
@@ -269,6 +270,44 @@ def test_cmd_import_wait_timeout_is_error() -> None:
 
     assert is_error_output(out)
     assert "timed out" in out
+
+
+# -- complete --------------------------------------------------------------
+
+
+def test_cmd_complete_human_readable() -> None:
+    with _patch("complete_sheet", return_value=_OK) as mock_complete:
+        out = cmd_complete_sheet(_state(), "mt_1", add_to_library=True)
+
+    assert "Action:" in out and "complete" in out
+    assert "Result:" in out and "OK" in out
+    kwargs = mock_complete.await_args.kwargs
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["addToLibrary"] is True
+
+
+def test_cmd_complete_omits_library_flag_by_default() -> None:
+    with _patch("complete_sheet", return_value=_OK) as mock_complete:
+        cmd_complete_sheet(_state(), "mt_1")
+
+    assert "addToLibrary" not in mock_complete.await_args.kwargs
+
+
+def test_cmd_complete_json() -> None:
+    with _patch("complete_sheet", return_value=_OK):
+        out = cmd_complete_sheet(_state(), "mt_1", output_json=True)
+
+    assert json.loads(out)["result"]["status"] is True
+
+
+def test_cmd_complete_maps_403() -> None:
+    with _patch(
+        "complete_sheet", side_effect=UniqueError("Forbidden", http_status=403)
+    ):
+        out = cmd_complete_sheet(_state(), "mt_1")
+
+    assert is_error_output(out)
+    assert "permission denied" in out
 
 
 # -- export (no wait) ------------------------------------------------------

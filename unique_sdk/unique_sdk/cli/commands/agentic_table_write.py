@@ -882,3 +882,43 @@ async def _wait_for_artifacts(
             missing = sorted(str(t) for t in wanted - set(done.keys()))
             return "timeout", [], missing
         await asyncio.sleep(_poll_interval(began_at, interval))
+
+
+def cmd_complete_sheet(
+    state: ShellState,
+    table_id: str,
+    *,
+    add_to_library: bool = False,
+    output_json: bool = False,
+) -> str:
+    """Mark a sheet completed (``POST /magic-table/{tableId}/complete``).
+
+    Only the sheet owner or a caller with Can manage access is accepted; Can
+    edit and Can answer are rejected. Rejected while a run is in progress.
+    When the sheet has a Review Status column, every content row must already
+    be in a final state. With ``add_to_library``, those rows are copied into
+    the space answer library, which also needs knowledge write access.
+    ``add_to_library`` is rejected when the sheet is already the answer
+    library. Confirm with ``get-sheet``: ``sheetStatus`` is ``COMPLETED``.
+    Reopening a completed sheet is not supported.
+    """
+    params: AgenticTable.CompleteSheet = {"tableId": table_id}
+    if add_to_library:
+        params["addToLibrary"] = True
+
+    try:
+        result = asyncio.run(
+            AgenticTable.complete_sheet(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                **params,
+            )
+        )
+    except UniqueError as exc:
+        return _error(exc)
+
+    if not result.get("status"):
+        return _rejected(result, action="complete")
+    if output_json:
+        return json.dumps({"result": result}, indent=2, default=str)
+    return format_agentic_table_action_result(result, action="complete")
