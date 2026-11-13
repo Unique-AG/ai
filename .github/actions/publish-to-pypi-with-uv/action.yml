@@ -1,5 +1,5 @@
 name: 'Publish to PyPI with uv'
-description: 'Builds and publishes a Python package to PyPI using uv'
+description: 'Builds and publishes a Python package to PyPI using uv via Trusted Publishing (caller job needs id-token: write)'
 
 inputs:
   package_dir:
@@ -16,9 +16,6 @@ inputs:
     description: 'Check if version already exists on PyPI before publishing'
     required: false
     default: 'false'
-  pypi_token:
-    description: 'PyPI API token for publishing'
-    required: true
 
 runs:
   using: 'composite'
@@ -64,12 +61,12 @@ runs:
           echo "Version $CURRENT_VERSION already exists on PyPI. Skipping publish."
         else
           echo "New version detected. Publishing $CURRENT_VERSION to PyPI..."
-          uv publish --username __token__ --password "${{ inputs.pypi_token }}"
+          uv publish --trusted-publishing always
         fi
 
     - name: Publish to PyPI
       if: inputs.check_version != 'true'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: uv publish --username __token__ --password "${{ inputs.pypi_token }}"
+      run: uv publish --trusted-publishing always
 

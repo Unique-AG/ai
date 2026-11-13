@@ -260,6 +260,10 @@ jobs:
     needs: resolve
     if: fromJson(needs.resolve.outputs.matrix).include[0] != null
     runs-on: ubuntu-latest
+    environment: pypi-publish
+    permissions:
+      contents: read
+      id-token: write # PyPI Trusted Publishing (OIDC), no stored token
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
@@ -325,7 +329,7 @@ jobs:
 
       - name: Publish to PyPI
         working-directory: ${{ matrix.dir }}
-        run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
+        run: uv publish --trusted-publishing always
 
   containerize:
     needs: [resolve, publish]
