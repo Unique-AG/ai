@@ -16,7 +16,11 @@ from unique_toolkit.experimental.resources.activity_records.schemas import (
 
 DEFAULT_MAX_DATA_SIZE_BYTES: Final = 1_048_576
 DEFAULT_MAX_BATCH_SIZE_BYTES: Final = 8_388_608
+FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616: Final = (
+    "FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616"
+)
 OUTBOX_MAX_BACKOFF_ATTEMPTS: Final = 11
+DEFAULT_ACTIVITY_EVENTS_METRIC_NAME: Final = "unique_activity_events_total"
 ACTIVITY_RECORDS_INSTALL_HINT: Final = (
     "Install it with: uv add 'unique-toolkit[activity-records]'"
 )

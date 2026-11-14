@@ -37,6 +37,7 @@ from unique_toolkit.experimental.resources.activity_records.prepare import (
     is_oversized,
     prepare_rows,
     split_into_batches_under_limit,
+    to_last_error,
     with_correlation_id,
     with_postgres_safe_strings,
 )
@@ -595,6 +596,10 @@ class TestWithCorrelationId:
         event = wire_event()
 
         assert with_correlation_id([event]) == [event]
+
+
+def test_to_last_error_is_the_class_name_only() -> None:
+    assert to_last_error(ValueError("secret payload")) == "ValueError"
 
 
 class TestPrepareRows:
