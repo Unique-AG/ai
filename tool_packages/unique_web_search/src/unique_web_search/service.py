@@ -16,6 +16,12 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
+from unique_toolkit.elicitation import (
+    ElicitationCancelledException,
+    ElicitationDeclinedException,
+    ElicitationExpiredException,
+    ElicitationFailedException,
+)
 from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
@@ -24,6 +30,7 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.monitoring import metric_scope
 
+from unique_web_search import activity_record
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.invocation_stats import collector
 from unique_web_search.metrics import tool_duration, tool_empty_results, tool_errors
@@ -55,6 +62,13 @@ from unique_web_search.utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+_ELICITATION_DENIALS = (
+    ElicitationCancelledException,
+    ElicitationDeclinedException,
+    ElicitationExpiredException,
+    ElicitationFailedException,
+)
 
 
 class WebSearchTool(Tool[WebSearchConfig]):
@@ -163,7 +177,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        with collector.scope() as invocation_stats:
+        record = activity_record.start(self, tool_call)
+        with collector.scope() as invocation_stats, activity_record.active(record):
             try:
                 response = await self._run(tool_call)
             except Exception as e:
@@ -178,6 +193,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 # logger.exception() already attaches the active exception's
                 # type and traceback; don't stringify it into the message.
                 _LOGGER.exception("WebSearch tool run failed")
+                activity_record.set_failure(e)
                 return ToolCallResponse(
                     id=tool_call.id,  # type: ignore
                     name=self.name,
@@ -197,6 +213,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         screening_service = await self._get_argument_screening_service_if_ff_enabled()
 
         parameters_dump = parameters.model_dump(by_alias=True)
+        activity_record.set_args(parameters.model_dump(mode="json", by_alias=True))
         debug_info = WebSearchDebugInfo(parameters=parameters_dump)
 
         web_search_message_logger = WebSearchMessageLogger(
@@ -220,9 +237,12 @@ class WebSearchTool(Tool[WebSearchConfig]):
                         screening_result
                     )
                 )
+                activity_record.set_screening(
+                    screening_result.go, screening_result.reason
+                )
 
                 if not screening_result.go:
-                    return ToolCallResponse(
+                    denied_response = ToolCallResponse(
                         id=tool_call.id,  # type: ignore
                         name=self.name,
                         debug_info=debug_info.model_dump(with_debug_details=self.debug),
@@ -230,6 +250,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
                             screening_result
                         ),
                     )
+                    activity_record.set_outcome("denied")
+                    return denied_response
 
             with metric_scope(
                 tool_duration, tool_errors, executor_version=executor_version
@@ -245,16 +267,21 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
             await web_search_message_logger.finished()
 
-            return ToolCallResponse(
+            response = ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
                 system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
             )
+            activity_record.set_outcome("called")
+            return response
 
         except Exception as e:
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")
+            if isinstance(e, _ELICITATION_DENIALS):
+                activity_record.set_outcome("denied")
+            activity_record.set_failure(e)
 
             await web_search_message_logger.failed()
 
