@@ -11,6 +11,11 @@ from unique_web_search.services.executors.v1.schema import WebSearchToolParamete
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.services.query_elicitation import QueryElicitationConfig
+from unique_web_search.services.search_engine import (
+    SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE,
+    GoogleConfig,
+)
+from unique_web_search.settings import env_settings
 
 
 class TestWebSearchToolDescription:
@@ -1011,6 +1016,46 @@ class TestWebSearchToolRun:
             or result.content_chunks is None
             or len(result.content_chunks) == 0
         )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__returns_decommissioned_message__when_engine_is_decommissioned(
+        self,
+        mock_web_search_config_v2: Mock,
+        mocker: Any,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify a space whose engine is decommissioned gets a normal tool
+            response explaining it, without running screening or the executor.
+        Why this matters: The agent must be able to tell the user why web search
+            is unavailable; v2 would otherwise swallow the error into empty results.
+        Setup summary: Google config with "google" in decommissioned_search_engines.
+        """
+        monkeypatch.setattr(env_settings, "decommissioned_search_engines", ["google"])
+        mock_web_search_config_v2.search_engine_config = GoogleConfig()
+
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+        get_executor = mocker.patch.object(WebSearchTool, "_get_executor")
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v2
+        tool.name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock()
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = {"objective": "test"}
+
+        result = await tool.run(tool_call)
+
+        assert result.id == "test-id"
+        assert result.content == SEARCH_ENGINE_DECOMMISSIONED_TOOL_RESPONSE
+        assert result.error_message == ""
+        tool._get_argument_screening_service_if_ff_enabled.assert_not_awaited()
+        get_executor.assert_not_called()
 
     @pytest.mark.ai
     @pytest.mark.asyncio

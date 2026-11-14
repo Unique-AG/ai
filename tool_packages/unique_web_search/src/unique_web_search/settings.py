@@ -36,6 +36,9 @@ class Base(BaseSettings):
 
     # Active search engines
     active_search_engines: list[str] = ["google"]
+    # Engines that stay loadable in space configs but answer every search with
+    # a "decommissioned" message instead of calling the provider.
+    decommissioned_search_engines: list[str] = []
 
     # Default Crawlers
     active_inhouse_crawlers: list[str] = ["basic"]

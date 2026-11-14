@@ -1,0 +1,7 @@
+component: Web Search
+kind: Added
+body: '`DECOMMISSIONED_SEARCH_ENGINES` (JSON list, default `[]`) switches off a search engine without breaking spaces that use it. Their configs still load, but every search answers that the engine has been decommissioned and an administrator needs to select another one. New spaces default to the first active engine that is not decommissioned.'
+time: 2026-11-12T10:00:00.000000+01:00
+custom:
+    Audience: operator
+    Ticket: UN-29417

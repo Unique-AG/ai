@@ -31,6 +31,7 @@ from unique_web_search.services.search_engine import (
 )
 from unique_web_search.services.search_engine.base import (
     LocalSearchEngineType,
+    SearchEngineDecommissionedError,
 )
 from unique_web_search.services.search_engine.custom_api import (
     CustomAPI,
@@ -48,7 +49,7 @@ from unique_web_search.services.search_engine.vertexai import (
     VertexAI,
     VertexAIConfig,
 )
-from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD
+from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD, env_settings
 
 
 class TestSearchEngineFactory:
@@ -99,6 +100,53 @@ class TestSearchEngineFactory:
         """Test getting default search engine config."""
         config = get_default_search_engine_config(["google", "brave"])
         assert issubclass(config, GoogleConfig)
+
+    def test_get_default_search_engine_config__skips_decommissioned_engines(self):
+        """New spaces must not default to an engine that only returns the decommissioned message."""
+        config = get_default_search_engine_config(["google", "brave"], ["Google"])
+        assert issubclass(config, BraveConfig)
+
+    def test_get_default_search_engine_config__keeps_first_engine__when_all_decommissioned(
+        self,
+    ):
+        config = get_default_search_engine_config(["google"], ["google"])
+        assert issubclass(config, GoogleConfig)
+
+
+class TestDecommissionedSearchEngine:
+    """Engines in DECOMMISSIONED_SEARCH_ENGINES answer with a message instead of searching."""
+
+    @pytest.mark.asyncio
+    async def test_search__raises_without_calling_the_provider__when_engine_is_decommissioned(
+        self, mocker, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(env_settings, "decommissioned_search_engines", ["Google"])
+        engine = GoogleSearch(GoogleConfig())
+        proxy_search = mocker.patch.object(engine, "_proxy_search", new=AsyncMock())
+        legacy_search = mocker.patch.object(engine, "_legacy_search", new=AsyncMock())
+
+        with pytest.raises(SearchEngineDecommissionedError, match="decommissioned"):
+            await engine.search("test query")
+
+        proxy_search.assert_not_awaited()
+        legacy_search.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_search__runs_normally__when_another_engine_is_decommissioned(
+        self, mocker, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(env_settings, "decommissioned_search_engines", ["google"])
+        mocker.patch(
+            "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+            False,
+        )
+        engine = BraveSearch(BraveConfig())
+        results = [WebSearchResult(url="https://example.com", title="t", snippet="s")]
+        mocker.patch.object(
+            engine, "_legacy_search", new=AsyncMock(return_value=results)
+        )
+
+        assert await engine.search("test query") == results
 
 
 def _cited_answer(
