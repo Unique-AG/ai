@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: unique-cli read records each document it returns in .unique/read-refs.jsonl, so the generated-file check can judge files against the documents the agent read in full.
+time: 2026-11-12T16:00:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29512
