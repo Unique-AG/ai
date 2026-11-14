@@ -1,7 +1,12 @@
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
+from unique_toolkit.language_model.errors import LanguageModelCallError
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessages,
+    LanguageModelTokenUsage,
+)
 
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_follow_up_questions.follow_up_postprocessor import FollowUpPostprocessor
@@ -9,7 +14,10 @@ from unique_follow_up_questions.schema import FollowUpQuestionsOutput
 
 
 def _make_postprocessor(
-    *, use_structured_output: bool, adapt_to_language: bool = True
+    *,
+    use_structured_output: bool,
+    adapt_to_language: bool = True,
+    additional_llm_options: dict[str, object] | None = None,
 ) -> FollowUpPostprocessor:
     """Builds a FollowUpPostprocessor with only the attributes
     `_generate_follow_up_questions` touches, skipping the full constructor's
@@ -19,6 +27,7 @@ def _make_postprocessor(
     config.use_structured_output = use_structured_output
     config.adapt_to_language = adapt_to_language
     config.language_model.name = "gpt-4o"
+    config.additional_llm_options = additional_llm_options or {}
     postprocessor._config = config  # type: ignore[attr-defined]
     postprocessor._logger = MagicMock()  # type: ignore[attr-defined]
     postprocessor._llm_service = AsyncMock()  # type: ignore[attr-defined]
@@ -237,3 +246,148 @@ async def test_generate_follow_up_questions__success__usage_captured_once() -> N
     assert [q.question for q in result.questions] == ["a?"]
     assert len(postprocessor.invocation_stats) == 1
     assert postprocessor.invocation_stats[0].token_usage == usage
+
+
+REASONING_NONE = {"reasoning_effort": "none"}
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_structured_output", [True, False])
+async def test_detect_language__forwards_additional_llm_options(
+    use_structured_output: bool,
+) -> None:
+    postprocessor = _make_postprocessor(
+        use_structured_output=use_structured_output,
+        additional_llm_options=REASONING_NONE,
+    )
+    postprocessor._llm_service.complete_async.return_value = _make_response(
+        content=(
+            {"language": "German"}
+            if use_structured_output
+            else '{"language": "German"}'
+        ),
+        usage=None,
+    )
+
+    language = await postprocessor._detect_language()
+
+    assert language == "German"
+    kwargs = postprocessor._llm_service.complete_async.await_args.kwargs
+    assert kwargs["other_options"] == REASONING_NONE
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_structured_output", [True, False])
+async def test_generate_follow_up_questions__forwards_additional_llm_options(
+    use_structured_output: bool,
+) -> None:
+    postprocessor = _make_postprocessor(
+        use_structured_output=use_structured_output,
+        additional_llm_options=REASONING_NONE,
+    )
+    questions = {"questions": [{"category": "clarification", "question": "a?"}]}
+    llm_service = AsyncMock()
+    llm_service.complete_async = AsyncMock(
+        return_value=_make_response(
+            content=questions if use_structured_output else json.dumps(questions),
+            usage=None,
+        )
+    )
+
+    result = await postprocessor._generate_follow_up_questions(
+        language_model_service=llm_service,
+        messages=MagicMock(),
+    )
+
+    assert [q.question for q in result.questions] == ["a?"]
+    kwargs = llm_service.complete_async.await_args.kwargs
+    assert kwargs["other_options"] == REASONING_NONE
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_run__every_llm_call_receives_additional_llm_options() -> None:
+    """Uses a real config parsed from camelCase (as stored in space config) so
+    the alias, the constructor and both LLM calls are covered together."""
+    config = FollowUpQuestionsConfig.model_validate(
+        {"additionalLlmOptions": REASONING_NONE}
+    )
+    user_message = MagicMock(spec=["text"])
+    user_message.text = "Was ist die Hauptstadt der Schweiz?"
+    event = MagicMock()
+    event.payload.user_message = user_message
+    history_manager = MagicMock()
+    history_manager.get_user_visible_chat_history = AsyncMock(
+        return_value=LanguageModelMessages([])
+    )
+    llm_service = AsyncMock()
+    llm_service.complete_async.side_effect = [
+        _make_response(content={"language": "German"}, usage=None),
+        _make_response(
+            content={"questions": [{"category": "clarification", "question": "a?"}]},
+            usage=None,
+        ),
+    ]
+    postprocessor = FollowUpPostprocessor(
+        logger=MagicMock(),
+        config=config,
+        event=event,
+        historyManager=history_manager,
+        llm_service=llm_service,
+    )
+    loop_response = MagicMock()
+    loop_response.message.text = "Bern."
+
+    await postprocessor.run(loop_response)
+
+    assert llm_service.complete_async.await_count == 2
+    for call in llm_service.complete_async.await_args_list:
+        assert call.kwargs["other_options"] == REASONING_NONE
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_run__provider_rejects_additional_llm_options__answer_left_unchanged() -> (
+    None
+):
+    """If the provider rejects an option the model does not support, only the
+    follow-up questions are lost: run() does not raise, the answer text is not
+    modified and both failures are logged."""
+    config = FollowUpQuestionsConfig.model_validate(
+        {"additionalLlmOptions": {"unsupported_option": True}}
+    )
+    user_message = MagicMock(spec=["text"])
+    user_message.text = "What is the capital of Switzerland?"
+    event = MagicMock()
+    event.payload.user_message = user_message
+    history_manager = MagicMock()
+    history_manager.get_user_visible_chat_history = AsyncMock(
+        return_value=LanguageModelMessages([])
+    )
+    llm_service = AsyncMock()
+    llm_service.complete_async.side_effect = LanguageModelCallError(
+        code="invalid_request",
+        user_message="Unrecognized request argument: unsupported_option",
+        retryable=False,
+        correlation_id=None,
+        http_status=400,
+    )
+    logger = MagicMock()
+    postprocessor = FollowUpPostprocessor(
+        logger=logger,
+        config=config,
+        event=event,
+        historyManager=history_manager,
+        llm_service=llm_service,
+    )
+    loop_response = MagicMock()
+    loop_response.message.text = "Bern."
+
+    await postprocessor.run(loop_response)
+
+    assert llm_service.complete_async.await_count == 2
+    assert postprocessor.apply_postprocessing_to_response(loop_response) is False
+    assert loop_response.message.text == "Bern."
+    assert logger.error.call_count == 2

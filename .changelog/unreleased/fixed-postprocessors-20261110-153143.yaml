@@ -1,0 +1,7 @@
+component: Postprocessors
+kind: Fixed
+body: 'Follow-up questions now apply the `additionalLlmOptions` set in `followUpQuestionsConfig` (e.g. `reasoning_effort: none`) to every LLM call, including language detection. Previously these options were ignored and the model defaults were used.'
+time: 2026-11-10T15:31:43.336827+01:00
+custom:
+    Audience: admin
+    Ticket: UN-28359
