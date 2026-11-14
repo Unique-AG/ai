@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.46.0...unique-search-proxy-v2026.48.0) (2026-11-14)
+
+
+### Bug Fixes
+
+* **search-proxy:** patch HIGH OS vulnerabilities in the image ([#2730](https://github.com/Unique-AG/ai/issues/2730)) ([d25a9b9](https://github.com/Unique-AG/ai/commit/d25a9b9b3ecf77ed5fb46cf1e642665bf00777db))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
 ## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.44.0...unique-search-proxy-v2026.46.0) (2026-11-06)
 
 

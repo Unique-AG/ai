@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.46.0...unique-sdk-v2026.48.0) (2026-11-14)
+
+
+### Features
+
+* **cli:** accept several queries in one knowledge base search call [UN-28777] ([#2764](https://github.com/Unique-AG/ai/issues/2764)) ([45e6977](https://github.com/Unique-AG/ai/commit/45e6977520a741746b72cf4ac93c93abffd34625))
+
+
+### Bug Fixes
+
+* **cli:** describe uploaded-search per message, not per task [UN-26588] ([#2744](https://github.com/Unique-AG/ai/issues/2744)) ([2b41e90](https://github.com/Unique-AG/ai/commit/2b41e90e3e984a186dab2205d112f5980760b78d))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
 ## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.44.0...unique-sdk-v2026.46.0) (2026-11-06)
 
 

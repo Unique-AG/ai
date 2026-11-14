@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.46.0...unique-toolkit-v2026.48.0) (2026-11-14)
+
+
+### Features
+
+* **toolkit:** add Activity Records event model [UN-28050] ([#2722](https://github.com/Unique-AG/ai/issues/2722)) ([fa8933f](https://github.com/Unique-AG/ai/commit/fa8933f25e0dff34fbe54417577908daad9b478d))
+* **toolkit:** add gemini-4-hydrogen model info [UN-29622] ([#2778](https://github.com/Unique-AG/ai/issues/2778)) ([c73d50e](https://github.com/Unique-AG/ai/commit/c73d50e8f94a110be7a2926c46152633a4f9eae6))
+* **toolkit:** add the chat ui language to the event payload [UN-28174] ([#2724](https://github.com/Unique-AG/ai/issues/2724)) ([cf0d61b](https://github.com/Unique-AG/ai/commit/cf0d61b9abdf81ade1047f1207743bbbe81984e9))
+
+
+### Bug Fixes
+
+* **deps:** require pillow 13 or newer ([#2742](https://github.com/Unique-AG/ai/issues/2742)) ([84f61c0](https://github.com/Unique-AG/ai/commit/84f61c0668410d92bb2371c956904edb01e3cf5b))
+* **toolkit:** use English for chat titles when the message language is unclear ([#2718](https://github.com/Unique-AG/ai/issues/2718)) ([39f27a2](https://github.com/Unique-AG/ai/commit/39f27a2267d9bfa5bb8bf9a762c1340529d1c475))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
 ## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.44.0...unique-toolkit-v2026.46.0) (2026-11-06)
 
 
