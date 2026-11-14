@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.46.0...uqadm-v2026.48.0) (2026-11-14)
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
 ## [2026.46.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.44.0...uqadm-v2026.46.0) (2026-11-06)
 
 

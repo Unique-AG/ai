@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.46.0...unique-deep-research-v2026.48.0) (2026-11-14)
+
+
+### Bug Fixes
+
+* **deep_research:** stop logging fetched URLs and raw tool errors [UN-29481] ([#2756](https://github.com/Unique-AG/ai/issues/2756)) ([dd8076d](https://github.com/Unique-AG/ai/commit/dd8076d256bb5a02557710d7aafaf322e59e31c4))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
 ## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.44.0...unique-deep-research-v2026.46.0) (2026-11-06)
 
 
