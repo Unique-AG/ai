@@ -44,7 +44,7 @@ exclude-newer = "3 days"
 
 [dependency-groups]
 dev = [
-    "python-dotenv>=1.2.2",
+    "python-dotenv>=1.2.4",
 ]
 
 [tool.deptry]

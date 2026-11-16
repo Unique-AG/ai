@@ -28,7 +28,7 @@ dev = [
     "import-linter>=2.0,<3",
     "poethepoet>=0.32.0,<0.33",
     # migrated from per-package dev groups
-    "python-dotenv>=1.1.0,<2",
+    "python-dotenv>=1.2.4,<2",
     "openai>=1.105.0,<3",
     "isort>=6.0.1,<7",
     "opik>=1.8.42,<2",
