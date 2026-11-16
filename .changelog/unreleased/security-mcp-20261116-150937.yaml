@@ -1,0 +1,6 @@
+component: MCP
+kind: Security
+body: MCP patches a published vulnerability in its tracing dependency.
+time: 2026-11-16T15:09:37.81669+01:00
+custom:
+    Audience: developer

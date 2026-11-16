@@ -1,0 +1,6 @@
+component: Connectors
+kind: Security
+body: Search proxy image patches a published vulnerability.
+time: 2026-11-16T15:09:37.322561+01:00
+custom:
+    Audience: operator
