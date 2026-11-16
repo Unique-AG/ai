@@ -17,10 +17,7 @@ from packaging.version import InvalidVersion, Version
 _PACKAGE_LINE = re.compile(
     r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)(?:\s*>=\s*(?P<version>\S+))?$"
 )
-_AUDIT_HEADER = re.compile(r"^(\S+) \S+ has \d+ known vulnerabilit")
-_FIXED_IN = re.compile(r"^\s*Fixed in:\s*(.+?)\s*$")
-_VERSION_TOKEN = re.compile(r"\d+[0-9A-Za-z._!-]*")
-_REQ_LINE = re.compile(r'^(\s*)"([^"]+)"(,?)(\s*(?:#.*)?)$')
+_REQ_LINE = re.compile(r"""^(\s*)("(?:[^"\\]|\\.)*"|'[^']*')(,?)(\s*(?:#.*)?)$""")
 
 
 class BumpError(Exception):
@@ -60,49 +57,66 @@ def _require_version(version: str) -> Version:
         raise BumpError(f"Not a version: {version}") from exc
 
 
-def _versions_on_line(line: str) -> list[str]:
-    fixed = _FIXED_IN.match(line)
-    if fixed is None:
+def _as_vulns(audit: str | list[dict[str, object]]) -> list[dict[str, object]]:
+    if isinstance(audit, list):
+        return audit
+    if not audit.strip():
+        return []
+    try:
+        data = json.loads(audit)
+    except json.JSONDecodeError as exc:
+        raise BumpError(f"Invalid uv audit JSON: {exc}") from exc
+    if not isinstance(data, dict) or not isinstance(
+        data.get("vulnerabilities", []), list
+    ):
+        raise BumpError("Expected uv audit JSON object with 'vulnerabilities' list")
+    return list(data.get("vulnerabilities") or [])
+
+
+def _valid_versions(raw: object) -> list[str]:
+    if not isinstance(raw, list):
         return []
     versions: list[str] = []
-    for token in _VERSION_TOKEN.findall(fixed.group(1)):
+    for item in raw:
+        if not isinstance(item, str):
+            continue
         try:
-            Version(token)
+            Version(item)
         except InvalidVersion:
             continue
-        versions.append(token)
+        versions.append(item)
     return versions
 
 
-def fixed_versions(audit_text: str, name: str) -> list[str]:
+def fixed_versions(audit: str | list[dict[str, object]], name: str) -> list[str]:
     target = canonicalize_name(name)
     versions: list[str] = []
-    in_block = False
-    for line in audit_text.splitlines():
-        header = _AUDIT_HEADER.match(line)
-        if header:
-            in_block = canonicalize_name(header.group(1)) == target
-            continue
-        if in_block:
-            versions.extend(_versions_on_line(line))
-    return versions
+    for vuln in _as_vulns(audit):
+        dep = vuln.get("dependency")
+        if (
+            isinstance(dep, dict)
+            and canonicalize_name(str(dep.get("name", ""))) == target
+        ):
+            versions.extend(_valid_versions(vuln.get("fix_versions")))
+    return sorted(set(versions), key=Version)
 
 
-def audit_packages(audit_text: str) -> tuple[list[str], list[str]]:
+def audit_packages(
+    audit: str | list[dict[str, object]],
+) -> tuple[list[str], list[str]]:
     """Names uv audit can fix, then names it reports with no fixed version."""
     order: list[str] = []
     fixable: dict[str, bool] = {}
-    current: str | None = None
-    for line in audit_text.splitlines():
-        header = _AUDIT_HEADER.match(line)
-        if header:
-            current = canonicalize_name(header.group(1))
-            if current not in fixable:
-                order.append(current)
-                fixable[current] = False
+    for vuln in _as_vulns(audit):
+        dep = vuln.get("dependency")
+        if not isinstance(dep, dict) or not dep.get("name"):
             continue
-        if current is not None and _versions_on_line(line):
-            fixable[current] = True
+        name = canonicalize_name(str(dep["name"]))
+        if name not in fixable:
+            order.append(name)
+            fixable[name] = False
+        if _valid_versions(vuln.get("fix_versions")):
+            fixable[name] = True
     fixed = [name for name in order if fixable[name]]
     unfixed = [name for name in order if not fixable[name]]
     return fixed, unfixed
@@ -129,10 +143,10 @@ def _bound(spec: str | None) -> str | None:
 def resolve_floor(
     name: str,
     explicit: str | None,
-    audit_text: str,
+    audit: str | list[dict[str, object]],
     previous_spec: str | None,
 ) -> tuple[str, str]:
-    published = fixed_versions(audit_text, name)
+    published = fixed_versions(audit, name)
     if explicit is None:
         if not published:
             raise BumpError(
@@ -167,6 +181,22 @@ def _rewrite_spec(spec: str, floor: str) -> str:
     return f"{name}{extras}{specs}{marker}"
 
 
+def _match_req_line(line: str) -> tuple[str, str, str, str, str] | None:
+    match = _REQ_LINE.match(line.rstrip("\r\n"))
+    if match is None:
+        return None
+    indent, token, comma, tail = match.groups()
+    try:
+        spec = str(tomllib.loads(f"v = {token}")["v"])
+    except tomllib.TOMLDecodeError as exc:
+        raise BumpError(f"Invalid TOML string {token}: {exc}") from exc
+    return indent, token, spec, comma, tail
+
+
+def _encode_toml_str(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
 def _constraint_span(lines: list[str]) -> tuple[int, int]:
     start = next(
         (
@@ -179,11 +209,7 @@ def _constraint_span(lines: list[str]) -> tuple[int, int]:
     if start is None:
         raise BumpError("constraint-dependencies block not found")
     end = next(
-        (
-            i
-            for i in range(start + 1, len(lines))
-            if lines[i].split("#", 1)[0].strip() == "]"
-        ),
+        (i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("]")),
         None,
     )
     if end is None:
@@ -197,41 +223,46 @@ def _comment_start(lines: list[str], index: int, block_start: int) -> int:
     return index
 
 
-def patch_constraints(text: str, updates: dict[str, str]) -> str:
-    lines = text.splitlines(keepends=True)
-    start, end = _constraint_span(lines)
-    canonical = {canonicalize_name(k): v for k, v in updates.items()}
-    seen: set[str] = set()
-    for index in range(start + 1, end):
-        match = _REQ_LINE.match(lines[index].rstrip("\r\n"))
-        if match is None:
+def _patch_lines(
+    lines: list[str],
+    start: int,
+    line_updates: dict[int, str],
+    inserts: dict[str, str],
+) -> str:
+    lines = list(lines)
+    for index, floor in line_updates.items():
+        parsed = _match_req_line(lines[index])
+        if parsed is None:
             continue
-        indent, spec, comma, tail = match.groups()
-        name = _spec_name(spec)
-        if name not in canonical:
-            continue
-        seen.add(name)
+        indent, _token, spec, comma, tail = parsed
         newline = "\n" if lines[index].endswith("\n") else ""
-        rewritten_spec = _rewrite_spec(spec, canonical[name])
-        lines[index] = f'{indent}"{rewritten_spec}"{comma}{tail}{newline}'
+        encoded = _encode_toml_str(_rewrite_spec(spec, floor))
+        lines[index] = f"{indent}{encoded}{comma}{tail}{newline}"
 
-    for name in sorted(set(canonical) - seen):
+    for name in sorted(inserts):
         inserted = False
         end = _constraint_span(lines)[1]
+        encoded = _encode_toml_str(f"{name}>={inserts[name]}")
         for index in range(start + 1, end):
-            match = _REQ_LINE.match(lines[index].rstrip("\r\n"))
-            if match is None or _spec_name(match.group(2)) <= name:
+            parsed = _match_req_line(lines[index])
+            if parsed is None or _spec_name(parsed[2]) <= name:
                 continue
             at = _comment_start(lines, index, start)
             _ensure_comma(lines, at, start)
-            lines.insert(at, f'    "{name}>={canonical[name]}",\n')
+            lines.insert(at, f"    {encoded},\n")
             inserted = True
             break
         if not inserted:
             end = _constraint_span(lines)[1]
             _ensure_comma(lines, end, start)
-            lines.insert(end, f'    "{name}>={canonical[name]}",\n')
-    return "".join(lines)
+            lines.insert(end, f"    {encoded},\n")
+
+    rewritten = "".join(lines)
+    try:
+        tomllib.loads(rewritten)
+    except tomllib.TOMLDecodeError as exc:
+        raise BumpError(f"Rewritten pyproject.toml is invalid TOML: {exc}") from exc
+    return rewritten
 
 
 def _ensure_comma(lines: list[str], index: int, block_start: int) -> None:
@@ -242,12 +273,12 @@ def _ensure_comma(lines: list[str], index: int, block_start: int) -> None:
         previous -= 1
     if previous <= block_start:
         return
-    match = _REQ_LINE.match(lines[previous].rstrip("\r\n"))
-    if match is None or match.group(3):
+    parsed = _match_req_line(lines[previous])
+    if parsed is None or parsed[3]:
         return
-    indent, spec, _, tail = match.groups()
+    indent, token, _spec, _comma, tail = parsed
     newline = "\n" if lines[previous].endswith("\n") else ""
-    lines[previous] = f'{indent}"{spec}",{tail}{newline}'
+    lines[previous] = f"{indent}{token},{tail}{newline}"
 
 
 def locked_versions(lock_text: str, name: str) -> list[str]:
@@ -287,55 +318,85 @@ def plan(
     packages_text: str,
     audit_text: str,
 ) -> tuple[str, list[dict[str, object]]]:
+    vulns = _as_vulns(audit_text)
     if packages_text.strip():
         requests = parse_packages(packages_text)
     else:
-        names, unfixed = audit_packages(audit_text)
+        names, unfixed = audit_packages(vulns)
         for name in unfixed:
             print(f"skip {name}: uv audit has no fixed version", file=sys.stderr)
         requests = [(name, None) for name in names]
     if not requests:
         return pyproject, []
-    existing = _existing_specs(pyproject, [name for name, _ in requests])
-    updates: dict[str, str] = {}
-    floors: dict[str, str] = {}
-    notes: dict[str, str] = {}
-    for name, explicit in requests:
-        prev_spec = existing[name]
-        prev_floor = _bound(prev_spec)
-        floor, note = resolve_floor(name, explicit, audit_text, prev_spec)
-        floors[name] = floor
-        notes[name] = note
-        if prev_floor is None or Version(floor) > Version(prev_floor):
-            updates[name] = floor
-    rewritten = patch_constraints(pyproject, updates) if updates else pyproject
+
+    lines = pyproject.splitlines(keepends=True)
+    start, end = _constraint_span(lines)
+    existing = _existing_entries(lines, start, end, [name for name, _ in requests])
+    line_updates: dict[int, str] = {}
+    inserts: dict[str, str] = {}
     bumps: list[dict[str, object]] = []
-    for name, _explicit in requests:
+
+    for name, explicit in requests:
+        entries = existing[name]
+        if not entries:
+            floor, note = resolve_floor(name, explicit, vulns, None)
+            inserts[name] = floor
+            bumps.append(
+                {
+                    "name": name,
+                    "previous": None,
+                    "floor": floor,
+                    "audit": note,
+                    "changed": True,
+                    "locked": None,
+                }
+            )
+            continue
+
+        results: list[tuple[str, str, bool]] = []
+        for idx, spec in entries:
+            prev_floor = _bound(spec)
+            floor, note = resolve_floor(name, explicit, vulns, spec)
+            raised = prev_floor is None or Version(floor) > Version(prev_floor)
+            if raised:
+                line_updates[idx] = floor
+            results.append((floor, note, raised))
+
+        best_floor, best_note, _ = min(
+            results, key=lambda item: (Version(item[0]), not item[2])
+        )
+        specs = [spec for _, spec in entries]
         bumps.append(
             {
                 "name": name,
-                "previous": existing[name],
-                "floor": floors[name],
-                "audit": notes[name],
-                "changed": name in updates,
+                "previous": specs[0] if len(specs) == 1 else ", ".join(specs),
+                "floor": best_floor,
+                "audit": best_note,
+                "changed": any(raised for _, _, raised in results),
                 "locked": None,
             }
         )
+
+    rewritten = (
+        _patch_lines(lines, start, line_updates, inserts)
+        if (line_updates or inserts)
+        else pyproject
+    )
     return rewritten, bumps
 
 
-def _existing_specs(pyproject: str, names: list[str]) -> dict[str, str | None]:
-    lines = pyproject.splitlines(keepends=True)
-    start, end = _constraint_span(lines)
-    found: dict[str, str | None] = {name: None for name in names}
+def _existing_entries(
+    lines: list[str], start: int, end: int, names: list[str]
+) -> dict[str, list[tuple[int, str]]]:
+    found: dict[str, list[tuple[int, str]]] = {name: [] for name in names}
     for index in range(start + 1, end):
-        match = _REQ_LINE.match(lines[index].rstrip("\r\n"))
-        if match is None:
+        parsed = _match_req_line(lines[index])
+        if parsed is None:
             continue
-        spec = match.group(2)
+        spec = parsed[2]
         name = _spec_name(spec)
         if name in found:
-            found[name] = spec
+            found[name].append((index, spec))
     return found
 
 

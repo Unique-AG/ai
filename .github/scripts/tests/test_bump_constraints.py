@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -35,23 +37,27 @@ override-dependencies = [
 ]
 """
 
-AUDIT = """\
-opentelemetry-api 1.45.1 has 2 known vulnerabilities:
-
-- GHSA-aaa: one
-
-  Fixed in: 1.9.0
-
-- GHSA-bbb: two
-
-  Fixed in: 1.10.0
-
-dnspython 2.9.0 has 1 known vulnerability:
-
-- GHSA-ccc: memory
-
-  Fixed in: 2.9.2
-"""
+AUDIT = json.dumps(
+    {
+        "vulnerabilities": [
+            {
+                "dependency": {"name": "opentelemetry-api", "version": "1.45.1"},
+                "id": "GHSA-aaa",
+                "fix_versions": ["1.9.0"],
+            },
+            {
+                "dependency": {"name": "opentelemetry-api", "version": "1.45.1"},
+                "id": "GHSA-bbb",
+                "fix_versions": ["1.10.0"],
+            },
+            {
+                "dependency": {"name": "dnspython", "version": "2.9.0"},
+                "id": "GHSA-ccc",
+                "fix_versions": ["2.9.2"],
+            },
+        ]
+    }
+)
 
 
 class ParseTests(unittest.TestCase):
@@ -75,12 +81,19 @@ class ParseTests(unittest.TestCase):
         self.assertIn('"dnspython>=2.9.2"', rewritten)
 
     def test_empty_input_skips_findings_with_no_fix(self) -> None:
-        audit = AUDIT + "\nrequests 2.32.0 has 1 known vulnerability:\n\n- GHSA-x: x\n"
-        _, bumps = bc.plan(PYPROJECT, "\n", audit)
+        data = json.loads(AUDIT)
+        data["vulnerabilities"].append(
+            {
+                "dependency": {"name": "requests", "version": "2.32.0"},
+                "id": "GHSA-x",
+                "fix_versions": [],
+            }
+        )
+        _, bumps = bc.plan(PYPROJECT, "\n", json.dumps(data))
         self.assertNotIn("requests", [b["name"] for b in bumps])
 
     def test_clean_audit_changes_nothing(self) -> None:
-        text, bumps = bc.plan(PYPROJECT, "", "Found no known vulnerabilities\n")
+        text, bumps = bc.plan(PYPROJECT, "", '{"vulnerabilities": []}')
         self.assertEqual(bumps, [])
         self.assertEqual(text, PYPROJECT)
 
@@ -145,6 +158,49 @@ class PatchTests(unittest.TestCase):
             "\"dnspython>=2.9.2,<3; sys_platform == 'linux'\",  # note",
             rewritten,
         )
+
+    def test_handles_escaped_quotes_and_missing_trailing_comma(self) -> None:
+        pyproject = (
+            "[tool.uv]\nconstraint-dependencies = [\n"
+            '    "dnspython>=2.9.0; sys_platform == \\"linux\\""\n]\n'
+        )
+        rewritten, bumps = bc.plan(pyproject, "dnspython>=2.9.2\nzlib>=1.0", "")
+        self.assertTrue(all(b["changed"] for b in bumps))
+        parsed = tomllib.loads(rewritten)["tool"]["uv"]["constraint-dependencies"]
+        self.assertEqual(
+            parsed,
+            ['dnspython>=2.9.2; sys_platform == "linux"', "zlib>=1.0"],
+        )
+
+    def test_conditional_entries_keep_independent_floors(self) -> None:
+        for entries in (
+            (
+                "dnspython>=3.0; sys_platform == 'linux'",
+                "dnspython>=2.0; sys_platform == 'win32'",
+            ),
+            (
+                "dnspython>=2.0; sys_platform == 'win32'",
+                "dnspython>=3.0; sys_platform == 'linux'",
+            ),
+        ):
+            pyproject = (
+                "[tool.uv]\nconstraint-dependencies = [\n"
+                + "".join(f'    "{e}",\n' for e in entries)
+                + "]\n"
+            )
+            rewritten, bumps = bc.plan(pyproject, "dnspython>=2.5", "")
+            self.assertTrue(bumps[0]["changed"])
+            self.assertEqual(bumps[0]["floor"], "2.5")
+            parsed = set(
+                tomllib.loads(rewritten)["tool"]["uv"]["constraint-dependencies"]
+            )
+            self.assertEqual(
+                parsed,
+                {
+                    "dnspython>=3.0; sys_platform == 'linux'",
+                    "dnspython>=2.5; sys_platform == 'win32'",
+                },
+            )
 
 
 class LockTests(unittest.TestCase):

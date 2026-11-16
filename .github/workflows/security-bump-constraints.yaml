@@ -39,19 +39,21 @@ jobs:
           capture() {
             out="$1"
             shift
-            set +e
-            uv audit --preview-features audit-command --frozen "$@" >"$out" 2>&1
-            rc=$?
-            set -e
+            err="$(mktemp)"
+            rc=0
+            uv audit --preview-features audit-command,json-output --frozen --output-format json "$@" >"$out" 2>"$err" || rc=$?
             if [ "$rc" -gt 1 ]; then
               echo "uv audit failed to run" >&2
-              cat "$out" >&2
+              cat "$err" >&2
+              rm -f "$err"
               exit "$rc"
             fi
+            rm -f "$err"
           }
-          capture /tmp/audit-default.txt
-          capture /tmp/audit-docs.txt --only-group docs
-          cat /tmp/audit-default.txt /tmp/audit-docs.txt > /tmp/audit.txt
+          capture /tmp/audit-default.json
+          capture /tmp/audit-docs.json --only-group docs
+          jq -s '{vulnerabilities: (map(.vulnerabilities // []) | add)}' \
+            /tmp/audit-default.json /tmp/audit-docs.json > /tmp/audit.json
 
       - name: Raise constraint floors
         id: apply
@@ -64,7 +66,7 @@ jobs:
             python3 .github/scripts/bump-constraints.py apply \
               --pyproject pyproject.toml \
               --packages /tmp/packages.txt \
-              --audit /tmp/audit.txt \
+              --audit /tmp/audit.json \
               --manifest /tmp/bumps.json
           changed="$(jq -r '.changed' /tmp/bumps.json)"
           echo "changed=${changed}" >> "$GITHUB_OUTPUT"
