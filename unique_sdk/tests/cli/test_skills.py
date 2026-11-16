@@ -35,6 +35,16 @@ def _read_skill(name: str) -> str:
     return skill.read_text(encoding="utf-8")
 
 
+def _citation_rules(name: str) -> str:
+    match = re.search(
+        r"^## Citation Rules\n(.*?)(?=^## |\Z)",
+        _read_skill(name),
+        re.M | re.S,
+    )
+    assert match is not None, f"{name} lost its Citation Rules section"
+    return " ".join(match.group(1).split())
+
+
 def test_uploaded_search_skill_exists_and_is_named() -> None:
     text = _read_skill("unique-cli-uploaded-search")
     assert "name: unique-cli-uploaded-search" in text
@@ -125,12 +135,8 @@ def test_agentic_table_skill_teaches_permission_handling() -> None:
 
 
 def test_mcp_skill_says_source_numbers_are_chat_wide() -> None:
-    """``[mcpsourceN]`` numbers are seeded per chat (``mcp-refs-seed.json``).
-
-    Calling them stale each turn pushed agents into re-fetch loops; the
-    monorepo runner resolves numbers from earlier turns (UN-28778).
-    """
-    body = " ".join(_read_skill("unique-cli-mcp").split())
+    """``[mcpsourceN]`` numbers are chat-wide; seeded by ``mcp-refs-seed.json``."""
+    body = _citation_rules("unique-cli-mcp")
     assert "Numbers are chat-wide" in body
     assert "A number from an earlier turn still resolves" in body
     assert "Re-fetching an item in the same turn returns its old number" in body
@@ -142,7 +148,7 @@ def test_mcp_skill_says_source_numbers_are_chat_wide() -> None:
 
 
 def test_mcp_skill_teaches_enriched_markers_and_action_tools() -> None:
-    body = " ".join(_read_skill("unique-cli-mcp").split())
+    body = _citation_rules("unique-cli-mcp")
     assert "[mcpsource2;ABC-123 — Fix login flow;" in body
     assert "you MUST include it" in body
     assert "Action tools too" in body
