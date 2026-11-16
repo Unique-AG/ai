@@ -35,6 +35,16 @@ def _read_skill(name: str) -> str:
     return skill.read_text(encoding="utf-8")
 
 
+def _citation_rules(name: str) -> str:
+    match = re.search(
+        r"^## Citation Rules\n(.*?)(?=^## |\Z)",
+        _read_skill(name),
+        re.M | re.S,
+    )
+    assert match is not None, f"{name} lost its Citation Rules section"
+    return " ".join(match.group(1).split())
+
+
 def test_uploaded_search_skill_exists_and_is_named() -> None:
     text = _read_skill("unique-cli-uploaded-search")
     assert "name: unique-cli-uploaded-search" in text
@@ -122,3 +132,23 @@ def test_agentic_table_skill_teaches_permission_handling() -> None:
     assert "probing" in text or "probe" in text, (
         "skill must forbid probing other sheet ids after a denial"
     )
+
+
+def test_mcp_skill_says_source_numbers_are_chat_wide() -> None:
+    """``[mcpsourceN]`` numbers are chat-wide; seeded by ``mcp-refs-seed.json``."""
+    body = _citation_rules("unique-cli-mcp")
+    assert "Numbers are chat-wide" in body
+    assert "A number from an earlier turn still resolves" in body
+    assert "Re-fetching an item in the same turn returns its old number" in body
+    assert "later turn can assign a new number" in body
+    assert "cannot be checked against its source" in body
+    assert "NEVER re-run a tool only to refresh" in body
+    assert "stale" not in body
+    assert "ungrounded" not in body
+
+
+def test_mcp_skill_teaches_enriched_markers_and_action_tools() -> None:
+    body = _citation_rules("unique-cli-mcp")
+    assert "[mcpsource2;ABC-123 — Fix login flow;" in body
+    assert "you MUST include it" in body
+    assert "Action tools too" in body
