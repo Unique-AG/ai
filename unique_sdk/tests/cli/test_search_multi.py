@@ -14,6 +14,7 @@ import pytest
 from click.testing import CliRunner
 
 import unique_sdk
+from unique_sdk._unique_response import UniqueResponse
 from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.search import (
     MAX_SEARCH_CALLS_PER_MINUTE,
@@ -160,6 +161,67 @@ class TestMultiQueryOutput:
 
         assert "=== query 1/2 ===\nquery: 'empty'\nNo results found." in out
         assert "<source1>" in out
+
+
+class TestMultiQueryOnTheApiResponse:
+    """The API wraps results in a list envelope, which the SDK returns as a ``ListObject``."""
+
+    @staticmethod
+    def _answer(rows_by_query: dict[str, list[str]]) -> Callable[..., UniqueResponse]:
+        def _request(
+            _method: str, _url: str, params: dict[str, Any], *_: Any
+        ) -> UniqueResponse:
+            rows = [
+                {
+                    "object": "search.search",
+                    "id": content_id,
+                    "chunkId": f"chunk_{content_id}",
+                    "text": f"text of {content_id}",
+                    "title": f"{content_id}.pdf",
+                    "key": f"{content_id}.pdf",
+                    "order": 0,
+                    "startPage": 1,
+                    "endPage": 1,
+                }
+                for content_id in rows_by_query[params["searchString"]]
+            ]
+            body = json.dumps({"object": "list", "data": rows})
+            return UniqueResponse(body, 200, {})
+
+        return _request
+
+    @pytest.mark.ai
+    @patch("unique_sdk._api_requestor.APIRequestor.request")
+    def test_every_query_shows_its_results(
+        self, mock_request: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_request.side_effect = self._answer(IDS_BY_QUERY)
+
+        out = cmd_search_many(_state(), ["revenue", "margin"])
+
+        assert "Results left out" not in out
+        assert "=== query 1/2 ===\nquery: 'revenue'\nFound 2 result(s):" in out
+        assert "=== query 2/2 ===\nquery: 'margin'\nFound 1 result(s):" in out
+        assert _manifest_ids(tmp_path) == ["cont_r1", "cont_r2", "cont_m1"]
+
+    @pytest.mark.ai
+    @patch("unique_sdk._api_requestor.APIRequestor.request")
+    def test_query_without_results_says_so(self, mock_request: MagicMock) -> None:
+        mock_request.side_effect = self._answer({**IDS_BY_QUERY, "empty": []})
+
+        out = cmd_search_many(_state(), ["empty", "margin"])
+
+        assert "=== query 1/2 ===\nquery: 'empty'\nNo results found." in out
+        assert "<source1>" in out
+
+    @pytest.mark.ai
+    @patch("unique_sdk._api_requestor.APIRequestor.request")
+    def test_single_query_shows_its_results(self, mock_request: MagicMock) -> None:
+        mock_request.side_effect = self._answer(IDS_BY_QUERY)
+
+        out = cmd_search(_state(), "revenue")
+
+        assert out.startswith("Found 2 result(s):")
 
 
 class TestMultiQueryDeduplication:
