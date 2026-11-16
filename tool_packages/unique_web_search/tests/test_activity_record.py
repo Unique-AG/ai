@@ -102,7 +102,7 @@ def _tool(
 
 @pytest.fixture
 def enqueue_mock(mocker: Any) -> Mock:
-    mocker.patch.object(activity_record._enqueue_module, "_active_context", object())
+    mocker.patch("unique_web_search.activity_record.is_running", return_value=True)
     return mocker.patch("unique_web_search.activity_record.enqueue")
 
 
@@ -482,7 +482,7 @@ async def test_a_failing_emit__logs_no_client_data(
 async def test_no_outbox__skips_enqueue_with_no_error(
     mocker: Any, caplog: pytest.LogCaptureFixture
 ) -> None:
-    mocker.patch.object(activity_record._enqueue_module, "_active_context", None)
+    mocker.patch("unique_web_search.activity_record.is_running", return_value=False)
     enqueue_mock = mocker.patch("unique_web_search.activity_record.enqueue")
     tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
 

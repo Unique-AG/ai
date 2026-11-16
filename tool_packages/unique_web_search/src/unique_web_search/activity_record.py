@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -14,6 +13,7 @@ from urllib.parse import urlsplit
 from unique_toolkit.experimental.resources.activity_records import (
     ActivityCloudEvent,
     enqueue,
+    is_running,
 )
 
 if TYPE_CHECKING:
@@ -60,16 +60,12 @@ class ActivityRecord:
 _current: ContextVar[ActivityRecord | None] = ContextVar(
     "web_search_activity_record", default=None
 )
-# activity_records.__init__ rebinds .enqueue to the function, so import the module directly.
-_enqueue_module = importlib.import_module(
-    "unique_toolkit.experimental.resources.activity_records.enqueue"
-)
 
 
 def start(
     tool: WebSearchTool, tool_call: LanguageModelFunction
 ) -> ActivityRecord | None:
-    if getattr(_enqueue_module, "_active_context") is None:
+    if not is_running():
         return None
     # Imported here: the registry imports search_engine.base, which imports this module.
     from unique_web_search.services.search_engine.registry import (
