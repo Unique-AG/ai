@@ -503,11 +503,15 @@ def _fetch_results(
 ) -> list[Any] | str:
     """Run one search request; return the results, or an error string."""
     try:
-        return unique_sdk.Search.create(
-            user_id=state.config.user_id,
-            company_id=state.config.company_id,
-            searchString=query,
-            **search_params,
+        # The API answers with a list envelope, so this is a ``ListObject``
+        # at runtime; callers tell results from an error by ``list``.
+        return list(
+            unique_sdk.Search.create(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                searchString=query,
+                **search_params,
+            )
         )
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"{SEARCH_ERROR_PREFIX} {e}"
