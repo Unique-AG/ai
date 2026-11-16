@@ -7,25 +7,9 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 from packaging.version import InvalidVersion, Version
-
-COMPONENTS = (
-    "Connectors",
-    "Deep Research",
-    "MCP",
-    "Orchestrator",
-    "Postprocessors",
-    "RAG",
-    "SDK",
-    "Tools",
-    "Toolkit",
-    "uqadm",
-    "Web Search",
-)
-AUDIENCES = ("developer", "user", "admin", "operator")
 
 _PACKAGE_LINE = re.compile(
     r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)(?:\s*>=\s*(?P<version>\S+))?$"
@@ -75,6 +59,20 @@ def _require_version(version: str) -> Version:
         raise BumpError(f"Not a version: {version}") from exc
 
 
+def _versions_on_line(line: str) -> list[str]:
+    fixed = _FIXED_IN.match(line)
+    if fixed is None:
+        return []
+    versions: list[str] = []
+    for token in _VERSION_TOKEN.findall(fixed.group(1)):
+        try:
+            Version(token)
+        except InvalidVersion:
+            continue
+        versions.append(token)
+    return versions
+
+
 def fixed_versions(audit_text: str, name: str) -> list[str]:
     versions: list[str] = []
     in_block = False
@@ -83,18 +81,29 @@ def fixed_versions(audit_text: str, name: str) -> list[str]:
         if header:
             in_block = header.group(1).lower() == name.lower()
             continue
-        if not in_block:
-            continue
-        fixed = _FIXED_IN.match(line)
-        if fixed is None:
-            continue
-        for token in _VERSION_TOKEN.findall(fixed.group(1)):
-            try:
-                Version(token)
-            except InvalidVersion:
-                continue
-            versions.append(token)
+        if in_block:
+            versions.extend(_versions_on_line(line))
     return versions
+
+
+def audit_packages(audit_text: str) -> tuple[list[str], list[str]]:
+    """Names uv audit can fix, then names it reports with no fixed version."""
+    order: list[str] = []
+    fixable: dict[str, bool] = {}
+    current: str | None = None
+    for line in audit_text.splitlines():
+        header = _AUDIT_HEADER.match(line)
+        if header:
+            current = header.group(1).lower()
+            if current not in fixable:
+                order.append(current)
+                fixable[current] = False
+            continue
+        if current is not None and _versions_on_line(line):
+            fixable[current] = True
+    fixed = [name for name in order if fixable[name]]
+    unfixed = [name for name in order if not fixable[name]]
+    return fixed, unfixed
 
 
 def _highest(versions: list[str]) -> str:
@@ -218,42 +227,6 @@ def _ensure_comma(lines: list[str], index: int) -> None:
     lines[previous] = f'{match.group(1)}"{match.group(2)}",{newline}'
 
 
-def security_body(count: int) -> str:
-    if count == 1:
-        return "Dependencies patch a published vulnerability."
-    return f"Dependencies patch {count} published vulnerabilities."
-
-
-def write_fragment(
-    directory: Path,
-    component: str,
-    audience: str,
-    count: int,
-    when: datetime,
-) -> Path:
-    if component not in COMPONENTS:
-        raise BumpError(f"Unknown component {component!r}")
-    if audience not in AUDIENCES:
-        raise BumpError(f"Unknown audience {audience!r}")
-    slug = component.lower().replace(" ", "-").replace("/", "-")
-    stamp = when.astimezone(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    path = directory / f"security-{slug}-{stamp}.yaml"
-    path.write_text(
-        "\n".join(
-            [
-                f"component: {json.dumps(component)}",
-                "kind: Security",
-                f"body: {json.dumps(security_body(count))}",
-                f"time: {when.astimezone(timezone.utc).isoformat()}",
-                "custom:",
-                f"  Audience: {json.dumps(audience)}",
-                "",
-            ]
-        )
-    )
-    return path
-
-
 def locked_versions(lock_text: str, name: str) -> list[str]:
     versions: list[str] = []
     current: str | None = None
@@ -297,7 +270,15 @@ def plan(
     packages_text: str,
     audit_text: str,
 ) -> tuple[str, list[dict[str, object]]]:
-    requests = parse_packages(packages_text)
+    if packages_text.strip():
+        requests = parse_packages(packages_text)
+    else:
+        names, unfixed = audit_packages(audit_text)
+        for name in unfixed:
+            print(f"skip {name}: uv audit has no fixed version", file=sys.stderr)
+        requests = [(name, None) for name in names]
+    if not requests:
+        return pyproject, []
     existing = _existing_specs(pyproject, [name for name, _ in requests])
     updates: dict[str, str] = {}
     notes: dict[str, str] = {}
@@ -342,22 +323,12 @@ def apply_files(
     packages_text: str,
     audit_text: str,
     manifest_path: Path,
-    changelog_dir: Path,
-    component: str,
-    audience: str,
-    when: datetime,
 ) -> dict[str, object]:
     rewritten, bumps = plan(pyproject_path.read_text(), packages_text, audit_text)
-    changed = [bump for bump in bumps if bump["changed"]]
-    changelog: str | None = None
+    changed = any(bump["changed"] for bump in bumps)
     if changed:
         pyproject_path.write_text(rewritten)
-        changelog_dir.mkdir(parents=True, exist_ok=True)
-        fragment = write_fragment(
-            changelog_dir, component, audience, len(changed), when
-        )
-        changelog = str(fragment)
-    manifest = {"changed": bool(changed), "changelog": changelog, "bumps": bumps}
+    manifest = {"changed": changed, "bumps": bumps}
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
@@ -376,9 +347,6 @@ def main(argv: list[str] | None = None) -> None:
     apply_parser.add_argument("--packages", type=Path, required=True)
     apply_parser.add_argument("--audit", type=Path, required=True)
     apply_parser.add_argument("--manifest", type=Path, required=True)
-    apply_parser.add_argument("--changelog-dir", type=Path, required=True)
-    apply_parser.add_argument("--component", required=True)
-    apply_parser.add_argument("--audience", required=True)
 
     verify_parser = sub.add_parser("verify")
     verify_parser.add_argument("--lock", type=Path, required=True)
@@ -392,10 +360,6 @@ def main(argv: list[str] | None = None) -> None:
                 args.packages.read_text(),
                 args.audit.read_text(),
                 args.manifest,
-                args.changelog_dir,
-                args.component,
-                args.audience,
-                datetime.now(timezone.utc),
             )
             return
         manifest = json.loads(args.manifest.read_text())

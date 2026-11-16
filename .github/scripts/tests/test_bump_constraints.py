@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib.util
 import sys
 import unittest
-from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -62,6 +61,25 @@ class ParseTests(unittest.TestCase):
             [("dnspython", "2.9.2"), ("opentelemetry-api", None)],
         )
 
+    def test_empty_input_applies_every_audit_fix(self) -> None:
+        rewritten, bumps = bc.plan(PYPROJECT, "", AUDIT)
+        self.assertEqual(
+            [(b["name"], b["floor"]) for b in bumps],
+            [("opentelemetry-api", "1.10.0"), ("dnspython", "2.9.2")],
+        )
+        self.assertIn('"opentelemetry-api>=1.10.0"', rewritten)
+        self.assertIn('"dnspython>=2.9.2"', rewritten)
+
+    def test_empty_input_skips_findings_with_no_fix(self) -> None:
+        audit = AUDIT + "\nrequests 2.32.0 has 1 known vulnerability:\n\n- GHSA-x: x\n"
+        _, bumps = bc.plan(PYPROJECT, "\n", audit)
+        self.assertNotIn("requests", [b["name"] for b in bumps])
+
+    def test_clean_audit_changes_nothing(self) -> None:
+        text, bumps = bc.plan(PYPROJECT, "", "Found no known vulnerabilities\n")
+        self.assertEqual(bumps, [])
+        self.assertEqual(text, PYPROJECT)
+
     def test_rejects_other_operators_and_duplicates(self) -> None:
         with self.assertRaises(bc.BumpError):
             bc.parse_packages("dnspython==2.9.2")
@@ -106,14 +124,6 @@ class PatchTests(unittest.TestCase):
         _, bumps = bc.plan(PYPROJECT, "urllib3>=2.8.0", "")
         self.assertFalse(bumps[0]["changed"])
 
-    def test_fragment_counts_changed_packages(self) -> None:
-        self.assertEqual(
-            bc.security_body(1), "Dependencies patch a published vulnerability."
-        )
-        self.assertEqual(
-            bc.security_body(2), "Dependencies patch 2 published vulnerabilities."
-        )
-
 
 class LockTests(unittest.TestCase):
     def test_accepts_a_locked_floor_and_records_it(self) -> None:
@@ -127,25 +137,6 @@ class LockTests(unittest.TestCase):
             bc.check_locked(
                 '[[package]]\nname = "dnspython"\nversion = "2.9.0"\n', bumps
             )
-
-
-class FragmentTests(unittest.TestCase):
-    def test_writes_a_security_fragment(self) -> None:
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as directory:
-            path = bc.write_fragment(
-                Path(directory),
-                "Deep Research",
-                "operator",
-                2,
-                datetime(2026, 11, 16, 15, 0, tzinfo=timezone.utc),
-            )
-            text = path.read_text()
-            self.assertTrue(path.name.startswith("security-deep-research-"))
-            self.assertIn("kind: Security", text)
-            self.assertIn("Dependencies patch 2 published vulnerabilities.", text)
-            self.assertIn("operator", text)
 
 
 if __name__ == "__main__":

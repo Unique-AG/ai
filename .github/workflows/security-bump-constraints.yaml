@@ -6,36 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: "One package per line: name, or name>=version when uv audit has no fixed version"
-        required: true
+        description: "Optional. One package per line: name, or name>=version. Empty applies every fix uv audit reports."
+        required: false
+        default: ""
         type: string
-      component:
-        description: "Changelog component for the Security fragment"
-        required: true
-        type: choice
-        default: Connectors
-        options:
-          - Connectors
-          - Deep Research
-          - MCP
-          - Orchestrator
-          - Postprocessors
-          - RAG
-          - SDK
-          - Tools
-          - Toolkit
-          - uqadm
-          - Web Search
-      audience:
-        description: "Who the changelog line is for"
-        required: true
-        type: choice
-        default: operator
-        options:
-          - developer
-          - user
-          - admin
-          - operator
 
 permissions:
   contents: write
@@ -80,8 +54,6 @@ jobs:
       - name: Raise constraint floors
         env:
           PACKAGES: ${{ inputs.packages }}
-          COMPONENT: ${{ inputs.component }}
-          AUDIENCE: ${{ inputs.audience }}
         run: |
           set -euo pipefail
           printf '%s\n' "$PACKAGES" > /tmp/packages.txt
@@ -90,12 +62,9 @@ jobs:
               --pyproject pyproject.toml \
               --packages /tmp/packages.txt \
               --audit /tmp/audit.txt \
-              --manifest /tmp/bumps.json \
-              --changelog-dir .changelog/unreleased \
-              --component "$COMPONENT" \
-              --audience "$AUDIENCE"
+              --manifest /tmp/bumps.json
           if [ "$(jq -r '.changed' /tmp/bumps.json)" != "true" ]; then
-            echo "Constraints already meet the requested floors. No pull request."
+            echo "No floors to raise. No pull request."
             exit 0
           fi
 
@@ -140,7 +109,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
-          git add pyproject.toml uv.lock "$(jq -r '.changelog' /tmp/bumps.json)"
+          git add pyproject.toml uv.lock
           git commit -m "$title"
           git push -u origin HEAD
 
@@ -148,7 +117,6 @@ jobs:
           {
             echo "## Summary"
             echo "- Raises dependency floors in \`constraint-dependencies\` and regenerates \`uv.lock\`."
-            echo "- Adds a Security changelog fragment. Confirm the component and audience match the surface that ships the dependency."
             echo "- Opened by github-actions[bot]. Workflows that run on pull_request do not start for this PR."
             echo
             echo "## Bumps"
@@ -159,7 +127,6 @@ jobs:
             echo
             echo "## Test plan"
             echo "- [ ] \`uv lock\` resolved each requested floor"
-            echo "- [ ] Changelog component and audience match the shipped surface"
           } > "$body"
 
-          gh pr create --title "$title" --body-file "$body" --head "$branch" --base main
+          gh pr create --title "$title" --body-file "$body" --head "$branch" --base main --label no-changelog
