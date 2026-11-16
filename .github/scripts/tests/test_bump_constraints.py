@@ -61,6 +61,10 @@ class ParseTests(unittest.TestCase):
             [("dnspython", "2.9.2"), ("opentelemetry-api", None)],
         )
 
+    def test_underscore_request_matches_hyphenated_audit_entry(self) -> None:
+        _, bumps = bc.plan(PYPROJECT, "opentelemetry_api", AUDIT)
+        self.assertEqual(bumps[0]["floor"], "1.10.0")
+
     def test_empty_input_applies_every_audit_fix(self) -> None:
         rewritten, bumps = bc.plan(PYPROJECT, "", AUDIT)
         self.assertEqual(

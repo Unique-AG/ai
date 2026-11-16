@@ -22,6 +22,11 @@ _LOCK_NAME = re.compile(r'^name = "([^"]+)"$')
 _LOCK_VERSION = re.compile(r'^version = "([^"]+)"$')
 
 
+def _norm(name: str) -> str:
+    """PEP 503 name normalization."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
 class BumpError(Exception):
     pass
 
@@ -39,7 +44,7 @@ def parse_packages(text: str) -> list[tuple[str, str | None]]:
                 f"Expected 'name' or 'name>=version', got {line!r}. "
                 "Other operators are not accepted."
             )
-        name = match.group("name").lower()
+        name = _norm(match.group("name"))
         version = match.group("version")
         if version is not None:
             _require_version(version)
@@ -79,7 +84,7 @@ def fixed_versions(audit_text: str, name: str) -> list[str]:
     for line in audit_text.splitlines():
         header = _AUDIT_HEADER.match(line)
         if header:
-            in_block = header.group(1).lower() == name.lower()
+            in_block = _norm(header.group(1)) == _norm(name)
             continue
         if in_block:
             versions.extend(_versions_on_line(line))
@@ -94,7 +99,7 @@ def audit_packages(audit_text: str) -> tuple[list[str], list[str]]:
     for line in audit_text.splitlines():
         header = _AUDIT_HEADER.match(line)
         if header:
-            current = header.group(1).lower()
+            current = _norm(header.group(1))
             if current not in fixable:
                 order.append(current)
                 fixable[current] = False
@@ -146,7 +151,7 @@ def resolve_floor(
 
 
 def _spec_name(spec: str) -> str:
-    return re.split(r"[<>=!~\[]", spec, maxsplit=1)[0].strip().lower()
+    return _norm(re.split(r"[<>=!~\[]", spec, maxsplit=1)[0].strip())
 
 
 def _constraint_span(lines: list[str]) -> tuple[int, int]:
@@ -237,10 +242,10 @@ def locked_versions(lock_text: str, name: str) -> list[str]:
             continue
         named = _LOCK_NAME.match(stripped)
         if named:
-            current = named.group(1).lower()
+            current = _norm(named.group(1))
             continue
         version = _LOCK_VERSION.match(stripped)
-        if version and current == name.lower():
+        if version and current == _norm(name):
             versions.append(version.group(1))
             current = None
     return versions

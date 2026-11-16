@@ -37,13 +37,15 @@ jobs:
         run: |
           set -euo pipefail
           capture() {
+            out="$1"
+            shift
             set +e
-            uv audit --preview-features audit-command --frozen "$@" >"$1" 2>&1
+            uv audit --preview-features audit-command --frozen "$@" >"$out" 2>&1
             rc=$?
             set -e
             if [ "$rc" -gt 1 ]; then
               echo "uv audit failed to run" >&2
-              cat "$1" >&2
+              cat "$out" >&2
               exit "$rc"
             fi
           }
