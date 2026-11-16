@@ -54,6 +54,7 @@ jobs:
           cat /tmp/audit-default.txt /tmp/audit-docs.txt > /tmp/audit.txt
 
       - name: Raise constraint floors
+        id: apply
         env:
           PACKAGES: ${{ inputs.packages }}
         run: |
@@ -65,21 +66,16 @@ jobs:
               --packages /tmp/packages.txt \
               --audit /tmp/audit.txt \
               --manifest /tmp/bumps.json
-          if [ "$(jq -r '.changed' /tmp/bumps.json)" != "true" ]; then
+          changed="$(jq -r '.changed' /tmp/bumps.json)"
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+          if [ "$changed" != "true" ]; then
             echo "No floors to raise. No pull request."
-            exit 0
           fi
 
       - name: Relock upgraded packages
-        id: lock
-        if: success()
+        if: steps.apply.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          if [ "$(jq -r '.changed' /tmp/bumps.json)" != "true" ]; then
-            echo "skipped=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "skipped=false" >> "$GITHUB_OUTPUT"
           args=()
           while IFS= read -r name; do
             args+=(--upgrade-package "$name")
@@ -94,7 +90,7 @@ jobs:
               --manifest /tmp/bumps.json
 
       - name: Open pull request
-        if: success() && steps.lock.outputs.skipped == 'false'
+        if: steps.apply.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -107,7 +103,7 @@ jobs:
           else
             title="fix(deps): bump dependency floors"
           fi
-          branch="fix/security-bump-${GITHUB_RUN_ID}"
+          branch="fix/security-bump-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"

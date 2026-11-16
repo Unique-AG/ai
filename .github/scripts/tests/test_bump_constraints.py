@@ -128,11 +128,29 @@ class PatchTests(unittest.TestCase):
         _, bumps = bc.plan(PYPROJECT, "urllib3>=2.8.0", "")
         self.assertFalse(bumps[0]["changed"])
 
+    def test_equivalent_spelling_same_floor_preserves_original_text(self) -> None:
+        pyproject = '[tool.uv]\nconstraint-dependencies = [\n    "opentelemetry_api >= 1.10.0",\n]\n'
+        rewritten, bumps = bc.plan(pyproject, "opentelemetry-api>=1.10", "")
+        self.assertFalse(bumps[0]["changed"])
+        self.assertEqual(rewritten, pyproject)
+
+    def test_preserves_inline_comments_upper_bounds_and_markers(self) -> None:
+        pyproject = (
+            "[tool.uv]\nconstraint-dependencies = [\n"
+            "    \"dnspython>=2.9.0,<3 ; sys_platform == 'linux'\",  # note\n]\n"
+        )
+        rewritten, bumps = bc.plan(pyproject, "dnspython>=2.9.2", "")
+        self.assertTrue(bumps[0]["changed"])
+        self.assertIn(
+            "\"dnspython>=2.9.2,<3; sys_platform == 'linux'\",  # note",
+            rewritten,
+        )
+
 
 class LockTests(unittest.TestCase):
     def test_accepts_a_locked_floor_and_records_it(self) -> None:
         bumps = [{"name": "dnspython", "floor": "2.9.2", "changed": True}]
-        bc.check_locked('[[package]]\nname = "dnspython"\nversion = "2.9.2"\n', bumps)
+        bc.check_locked('[[package]]\nversion = "2.9.2"\nname = "dnspython"\n', bumps)
         self.assertEqual(bumps[0]["locked"], "2.9.2")
 
     def test_rejects_a_lock_below_the_floor(self) -> None:

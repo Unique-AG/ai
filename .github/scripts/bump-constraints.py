@@ -7,8 +7,11 @@ import argparse
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 _PACKAGE_LINE = re.compile(
@@ -17,14 +20,7 @@ _PACKAGE_LINE = re.compile(
 _AUDIT_HEADER = re.compile(r"^(\S+) \S+ has \d+ known vulnerabilit")
 _FIXED_IN = re.compile(r"^\s*Fixed in:\s*(.+?)\s*$")
 _VERSION_TOKEN = re.compile(r"\d+[0-9A-Za-z._!-]*")
-_REQ_LINE = re.compile(r'^(\s*)"([^"]+)"(,?)\s*$')
-_LOCK_NAME = re.compile(r'^name = "([^"]+)"$')
-_LOCK_VERSION = re.compile(r'^version = "([^"]+)"$')
-
-
-def _norm(name: str) -> str:
-    """PEP 503 name normalization."""
-    return re.sub(r"[-_.]+", "-", name).lower()
+_REQ_LINE = re.compile(r'^(\s*)"([^"]+)"(,?)(\s*(?:#.*)?)$')
 
 
 class BumpError(Exception):
@@ -44,7 +40,7 @@ def parse_packages(text: str) -> list[tuple[str, str | None]]:
                 f"Expected 'name' or 'name>=version', got {line!r}. "
                 "Other operators are not accepted."
             )
-        name = _norm(match.group("name"))
+        name = canonicalize_name(match.group("name"))
         version = match.group("version")
         if version is not None:
             _require_version(version)
@@ -79,12 +75,13 @@ def _versions_on_line(line: str) -> list[str]:
 
 
 def fixed_versions(audit_text: str, name: str) -> list[str]:
+    target = canonicalize_name(name)
     versions: list[str] = []
     in_block = False
     for line in audit_text.splitlines():
         header = _AUDIT_HEADER.match(line)
         if header:
-            in_block = _norm(header.group(1)) == _norm(name)
+            in_block = canonicalize_name(header.group(1)) == target
             continue
         if in_block:
             versions.extend(_versions_on_line(line))
@@ -99,7 +96,7 @@ def audit_packages(audit_text: str) -> tuple[list[str], list[str]]:
     for line in audit_text.splitlines():
         header = _AUDIT_HEADER.match(line)
         if header:
-            current = _norm(header.group(1))
+            current = canonicalize_name(header.group(1))
             if current not in fixable:
                 order.append(current)
                 fixable[current] = False
@@ -115,12 +112,18 @@ def _highest(versions: list[str]) -> str:
     return max(versions, key=Version)
 
 
+def _parse_req(spec: str) -> Requirement:
+    try:
+        return Requirement(spec)
+    except InvalidRequirement as exc:
+        raise BumpError(f"Invalid constraint {spec!r}: {exc}") from exc
+
+
 def _bound(spec: str | None) -> str | None:
-    if spec is None or ">=" not in spec:
+    if spec is None:
         return None
-    version = spec.split(">=", 1)[1].strip().rstrip(",")
-    _require_version(version)
-    return version
+    floors = [s.version for s in _parse_req(spec).specifier if s.operator == ">="]
+    return _highest(floors) if floors else None
 
 
 def resolve_floor(
@@ -151,7 +154,17 @@ def resolve_floor(
 
 
 def _spec_name(spec: str) -> str:
-    return _norm(re.split(r"[<>=!~\[]", spec, maxsplit=1)[0].strip())
+    return canonicalize_name(_parse_req(spec).name)
+
+
+def _rewrite_spec(spec: str, floor: str) -> str:
+    req = _parse_req(spec)
+    name = canonicalize_name(req.name)
+    extras = f"[{','.join(sorted(req.extras))}]" if req.extras else ""
+    others = [str(s) for s in req.specifier if s.operator != ">="]
+    specs = ",".join([f">={floor}", *others])
+    marker = f"; {spec.split(';', 1)[1].strip()}" if ";" in spec else ""
+    return f"{name}{extras}{specs}{marker}"
 
 
 def _constraint_span(lines: list[str]) -> tuple[int, int]:
@@ -166,7 +179,12 @@ def _constraint_span(lines: list[str]) -> tuple[int, int]:
     if start is None:
         raise BumpError("constraint-dependencies block not found")
     end = next(
-        (i for i in range(start + 1, len(lines)) if lines[i].strip() == "]"), None
+        (
+            i
+            for i in range(start + 1, len(lines))
+            if lines[i].split("#", 1)[0].strip() == "]"
+        ),
+        None,
     )
     if end is None:
         raise BumpError("constraint-dependencies block is not closed")
@@ -179,76 +197,70 @@ def _comment_start(lines: list[str], index: int, block_start: int) -> int:
     return index
 
 
-def patch_constraints(
-    text: str, updates: dict[str, str]
-) -> tuple[str, dict[str, str | None]]:
-    """Return the rewritten file and the previous spec for each updated name."""
+def patch_constraints(text: str, updates: dict[str, str]) -> str:
     lines = text.splitlines(keepends=True)
     start, end = _constraint_span(lines)
-    previous: dict[str, str | None] = {name: None for name in updates}
+    canonical = {canonicalize_name(k): v for k, v in updates.items()}
+    seen: set[str] = set()
     for index in range(start + 1, end):
-        match = _REQ_LINE.match(lines[index].strip("\n"))
+        match = _REQ_LINE.match(lines[index].rstrip("\r\n"))
         if match is None:
             continue
-        spec = match.group(2)
+        indent, spec, comma, tail = match.groups()
         name = _spec_name(spec)
-        if name not in updates:
+        if name not in canonical:
             continue
-        previous[name] = spec
-        indent, _, comma = match.groups()
+        seen.add(name)
         newline = "\n" if lines[index].endswith("\n") else ""
-        lines[index] = f'{indent}"{name}>={updates[name]}"{comma}{newline}'
+        rewritten_spec = _rewrite_spec(spec, canonical[name])
+        lines[index] = f'{indent}"{rewritten_spec}"{comma}{tail}{newline}'
 
-    missing = sorted(name for name, spec in previous.items() if spec is None)
-    for name in missing:
+    for name in sorted(set(canonical) - seen):
         inserted = False
         end = _constraint_span(lines)[1]
         for index in range(start + 1, end):
-            match = _REQ_LINE.match(lines[index].strip("\n"))
+            match = _REQ_LINE.match(lines[index].rstrip("\r\n"))
             if match is None or _spec_name(match.group(2)) <= name:
                 continue
             at = _comment_start(lines, index, start)
-            _ensure_comma(lines, at)
-            lines.insert(at, f'    "{name}>={updates[name]}",\n')
+            _ensure_comma(lines, at, start)
+            lines.insert(at, f'    "{name}>={canonical[name]}",\n')
             inserted = True
             break
         if not inserted:
             end = _constraint_span(lines)[1]
-            _ensure_comma(lines, end)
-            lines.insert(end, f'    "{name}>={updates[name]}",\n')
-    return "".join(lines), previous
+            _ensure_comma(lines, end, start)
+            lines.insert(end, f'    "{name}>={canonical[name]}",\n')
+    return "".join(lines)
 
 
-def _ensure_comma(lines: list[str], index: int) -> None:
+def _ensure_comma(lines: list[str], index: int, block_start: int) -> None:
     previous = index - 1
-    while previous >= 0 and not lines[previous].strip():
+    while previous > block_start and (
+        not lines[previous].strip() or lines[previous].lstrip().startswith("#")
+    ):
         previous -= 1
-    if previous < 0:
+    if previous <= block_start:
         return
-    match = _REQ_LINE.match(lines[previous].strip("\n"))
+    match = _REQ_LINE.match(lines[previous].rstrip("\r\n"))
     if match is None or match.group(3):
         return
+    indent, spec, _, tail = match.groups()
     newline = "\n" if lines[previous].endswith("\n") else ""
-    lines[previous] = f'{match.group(1)}"{match.group(2)}",{newline}'
+    lines[previous] = f'{indent}"{spec}",{tail}{newline}'
 
 
 def locked_versions(lock_text: str, name: str) -> list[str]:
-    versions: list[str] = []
-    current: str | None = None
-    for line in lock_text.splitlines():
-        stripped = line.strip()
-        if stripped == "[[package]]":
-            current = None
-            continue
-        named = _LOCK_NAME.match(stripped)
-        if named:
-            current = _norm(named.group(1))
-            continue
-        version = _LOCK_VERSION.match(stripped)
-        if version and current == _norm(name):
-            versions.append(version.group(1))
-            current = None
-    return versions
+    try:
+        packages = tomllib.loads(lock_text).get("package", [])
+    except tomllib.TOMLDecodeError as exc:
+        raise BumpError(f"Invalid uv.lock: {exc}") from exc
+    target = canonicalize_name(name)
+    return [
+        str(pkg["version"])
+        for pkg in packages
+        if canonicalize_name(str(pkg.get("name", ""))) == target and "version" in pkg
+    ]
 
 
 def check_locked(lock_text: str, bumps: list[dict[str, object]]) -> None:
@@ -286,22 +298,26 @@ def plan(
         return pyproject, []
     existing = _existing_specs(pyproject, [name for name, _ in requests])
     updates: dict[str, str] = {}
+    floors: dict[str, str] = {}
     notes: dict[str, str] = {}
     for name, explicit in requests:
-        floor, note = resolve_floor(name, explicit, audit_text, existing[name])
-        updates[name] = floor
+        prev_spec = existing[name]
+        prev_floor = _bound(prev_spec)
+        floor, note = resolve_floor(name, explicit, audit_text, prev_spec)
+        floors[name] = floor
         notes[name] = note
-    rewritten, previous = patch_constraints(pyproject, updates)
+        if prev_floor is None or Version(floor) > Version(prev_floor):
+            updates[name] = floor
+    rewritten = patch_constraints(pyproject, updates) if updates else pyproject
     bumps: list[dict[str, object]] = []
     for name, _explicit in requests:
-        spec = f"{name}>={updates[name]}"
         bumps.append(
             {
                 "name": name,
-                "previous": previous[name],
-                "floor": updates[name],
+                "previous": existing[name],
+                "floor": floors[name],
                 "audit": notes[name],
-                "changed": previous[name] != spec,
+                "changed": name in updates,
                 "locked": None,
             }
         )
@@ -313,7 +329,7 @@ def _existing_specs(pyproject: str, names: list[str]) -> dict[str, str | None]:
     start, end = _constraint_span(lines)
     found: dict[str, str | None] = {name: None for name in names}
     for index in range(start + 1, end):
-        match = _REQ_LINE.match(lines[index].strip("\n"))
+        match = _REQ_LINE.match(lines[index].rstrip("\r\n"))
         if match is None:
             continue
         spec = match.group(2)
