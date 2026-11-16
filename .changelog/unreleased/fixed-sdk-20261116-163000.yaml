@@ -4,4 +4,4 @@ body: '`unique-cli search` with several queries now shows the results of every q
 time: 2026-11-16T16:30:00.000000+01:00
 custom:
     Audience: developer
-    Ticket: UN-28777
+    Ticket: UN-29738
