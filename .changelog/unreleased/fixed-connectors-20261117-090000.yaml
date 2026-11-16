@@ -1,0 +1,6 @@
+component: Connectors
+kind: Fixed
+body: When the search proxy cannot check a page's redirects before crawling, the crawl error now says why (no response, TLS certificate problem, connection failure) instead of calling it a block against redirect-based SSRF.
+time: 2026-11-17T09:00:00.000000+01:00
+custom:
+  Audience: user
