@@ -174,6 +174,31 @@ def set_elicitation(
     _put("elicitation", {"status": status, "proposedQueries": list(proposed_queries)})
 
 
+_NO_RESPONSE = "_finishedWithoutResponse"
+
+
+def _latest_search_request() -> dict[str, Any] | None:
+    record = _current.get()
+    if record is None:
+        return None
+    requests = record.critical_data["searchRequests"]
+    return requests[-1] if requests else None
+
+
+def note_response_received() -> None:
+    """An HTTP or SDK response arrived, including an error status."""
+    entry = _latest_search_request()
+    if entry is not None:
+        entry["responseReceived"] = True
+
+
+def note_no_response() -> None:
+    """The call returns normally, but nothing answered. Do not overwrite a real response."""
+    entry = _latest_search_request()
+    if entry is not None and not entry["responseReceived"]:
+        entry[_NO_RESPONSE] = True
+
+
 def _origin(url: str | None) -> str | None:
     """Scheme, host and port only: a path or query string can hold an API key."""
     if url is None:
@@ -199,5 +224,13 @@ def search_request(
         }
     entry = {"query": query, "responseReceived": False}
     record.critical_data["searchRequests"].append(entry)
-    yield
-    entry["responseReceived"] = True
+    try:
+        yield
+    except BaseException:
+        raise
+    else:
+        # A swallowed failure calls note_no_response(); a received error status stays True.
+        if not entry.pop(_NO_RESPONSE, False):
+            entry["responseReceived"] = True
+    finally:
+        entry.pop(_NO_RESPONSE, None)

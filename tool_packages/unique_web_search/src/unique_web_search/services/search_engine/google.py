@@ -8,6 +8,7 @@ from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
+from unique_web_search import activity_record
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.client.http_client import client_for
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
@@ -53,6 +54,8 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
             _LOGGER.info(f"Found {len(search_results)} URLs")
 
         except Exception as e:
+            # A transport error never got a response; a later parse error already noted one.
+            activity_record.note_no_response()
             _LOGGER.exception(f"Failed to extract URLs from search response: {e}")
             search_results = []
 
@@ -75,6 +78,7 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
         )
         client = await client_for(self._request_context)
         response = await client.get(**request_params)
+        activity_record.note_response_received()
         return response
 
     def _validate_url(self, url: str) -> bool:

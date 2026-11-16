@@ -491,3 +491,137 @@ async def test_no_outbox__skips_enqueue_with_no_error(
 
     enqueue_mock.assert_not_called()
     assert not caplog.records
+
+
+def _record(engine_id: str) -> activity_record.ActivityRecord:
+    return activity_record.ActivityRecord(
+        company_id="c",
+        user_id="u",
+        assistant_id="a",
+        executor_mode="v1",
+        engine_id=engine_id,
+        engine_name=engine_id,
+        critical_data={"egress": None, "searchRequests": []},
+    )
+
+
+@pytest.mark.asyncio
+async def test_custom_api_error_status__counts_as_a_response(mocker: Any) -> None:
+    from unique_web_search.services.search_engine.custom_api import (
+        CustomAPI,
+        CustomAPIConfig,
+    )
+    from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD
+
+    response = Mock(is_success=False, status_code=429)
+    client = AsyncMock()
+    client.request = AsyncMock(return_value=response)
+    client_cm = AsyncMock()
+    client_cm.__aenter__.return_value = client
+    mocker.patch(
+        "unique_web_search.services.search_engine.custom_api.AsyncClient",
+        return_value=client_cm,
+    )
+    mocker.patch.object(CustomAPI, "_report_url_safety", AsyncMock())
+    mocker.patch(
+        "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+        False,
+    )
+    engine = CustomAPI(
+        CustomAPIConfig(
+            api_endpoint="https://api.example.com/search",
+            api_headers="{}",
+            api_additional_query_params="{}",
+            api_additional_body_params="{}",
+            api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
+        )
+    )
+    record = _record("customApi")
+    token = activity_record._current.set(record)
+    try:
+        with pytest.raises(ValueError, match="429"):
+            await engine.search("news")
+    finally:
+        activity_record._current.reset(token)
+
+    assert record.critical_data["searchRequests"] == [
+        {"query": "news", "responseReceived": True}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_google_transport_failure__is_not_a_response(mocker: Any) -> None:
+    import httpx
+    from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+
+    from unique_web_search.services.search_engine.google import GoogleSearch
+
+    settings = SimpleNamespace(
+        is_configured=True,
+        search_engine_id="cx",
+        api_key="key",
+        api_endpoint="https://www.googleapis.com/customsearch/v1",
+    )
+    mocker.patch(
+        "unique_web_search.services.search_engine.google.get_google_search_settings",
+        return_value=settings,
+    )
+    client = AsyncMock()
+    client.get = AsyncMock(side_effect=httpx.ConnectError("down"))
+    mocker.patch(
+        "unique_web_search.services.search_engine.google.client_for",
+        AsyncMock(return_value=client),
+    )
+    mocker.patch(
+        "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+        False,
+    )
+    record = _record("google")
+    token = activity_record._current.set(record)
+    try:
+        assert await GoogleSearch(GoogleConfig()).search("news") == []
+    finally:
+        activity_record._current.reset(token)
+
+    assert record.critical_data["searchRequests"] == [
+        {"query": "news", "responseReceived": False}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_google_parse_error_after_a_response__stays_received(mocker: Any) -> None:
+    from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+
+    from unique_web_search.services.search_engine.google import GoogleSearch
+
+    settings = SimpleNamespace(
+        is_configured=True,
+        search_engine_id="cx",
+        api_key="key",
+        api_endpoint="https://www.googleapis.com/customsearch/v1",
+    )
+    mocker.patch(
+        "unique_web_search.services.search_engine.google.get_google_search_settings",
+        return_value=settings,
+    )
+    client = AsyncMock()
+    client.get = AsyncMock(return_value=Mock())
+    mocker.patch(
+        "unique_web_search.services.search_engine.google.client_for",
+        AsyncMock(return_value=client),
+    )
+    mocker.patch.object(GoogleSearch, "_extract_urls", side_effect=ValueError("bad"))
+    mocker.patch(
+        "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+        False,
+    )
+    record = _record("google")
+    token = activity_record._current.set(record)
+    try:
+        assert await GoogleSearch(GoogleConfig()).search("news") == []
+    finally:
+        activity_record._current.reset(token)
+
+    assert record.critical_data["searchRequests"] == [
+        {"query": "news", "responseReceived": True}
+    ]

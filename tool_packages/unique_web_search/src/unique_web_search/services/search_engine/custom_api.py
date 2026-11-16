@@ -21,6 +21,7 @@ from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 
+from unique_web_search import activity_record
 from unique_web_search.metrics import custom_api_url_safety_report
 from unique_web_search.services.search_engine.base import (
     LocalSearchEngineType,
@@ -192,6 +193,7 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
                 params=params_dict,
                 json=body,
             )
+        activity_record.note_response_received()
 
         if not response.is_success:
             raise ValueError(
