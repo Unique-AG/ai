@@ -133,8 +133,12 @@ def test_mcp_skill_says_source_numbers_are_chat_wide() -> None:
     body = " ".join(_read_skill("unique-cli-mcp").split())
     assert "Numbers are chat-wide" in body
     assert "A number from an earlier turn still resolves" in body
+    assert "Re-fetching an item in the same turn returns its old number" in body
+    assert "later turn can assign a new number" in body
+    assert "cannot be checked against its source" in body
     assert "NEVER re-run a tool only to refresh" in body
     assert "stale" not in body
+    assert "ungrounded" not in body
 
 
 def test_mcp_skill_teaches_enriched_markers_and_action_tools() -> None:

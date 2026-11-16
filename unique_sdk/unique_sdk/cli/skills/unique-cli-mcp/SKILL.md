@@ -132,7 +132,7 @@ python generate_payload.py | unique-cli mcp -c chat_123 -m msg_456 --stdin
 
 ## Citation Rules
 
-Cite every fact from an MCP tool with the `[mcpsourceN]` marker that the command printed in the `Sources` footer beneath the tool output, placed right after the fact. The Unique platform turns each marker in your final answer into a `<sup>N</sup>` footnote and a reference chip. Without a marker, an MCP fact shows as plain text and the answer counts as ungrounded.
+Cite every fact from an MCP tool with the `[mcpsourceN]` marker that the command printed in the `Sources` footer beneath the tool output, placed right after the fact. The Unique platform turns each marker in your final answer into a `<sup>N</sup>` footnote and a reference chip. Without a marker, an MCP fact shows as plain text and cannot be checked against its source.
 
 ```
 ACME's Q3 revenue was 1.2M [mcpsource1], up from 0.9M a year earlier [mcpsource2].
@@ -140,7 +140,7 @@ ACME's Q3 revenue was 1.2M [mcpsource1], up from 0.9M a year earlier [mcpsource2
 
 **Rules** (enforced by the platform's reference post-processor, which reads `.unique/mcp-refs.jsonl` rather than your prose):
 
-1. **Numbers are chat-wide.** They never restart at 1, so a high first number in a turn is normal. A number from an earlier turn still resolves to the same source, and re-fetching an item returns its old number. NEVER re-run a tool only to refresh or verify numbers. If compaction dropped a footer you need, answer from the sources still visible; re-fetch one at most once per turn, and only for its content.
+1. **Numbers are chat-wide.** They never restart at 1, so a high first number in a turn is normal. A number from an earlier turn still resolves to the same source. Re-fetching an item in the same turn returns its old number. Re-fetching it in a later turn can assign a new number. NEVER re-run a tool only to refresh or verify numbers. If compaction dropped a footer you need, answer from the sources still visible; re-fetch one at most once per turn, and only for its content.
 2. **Format.** Write `mcpsource` singular with a digit number: `[mcpsource1]`, never `[McpSource 1]`, `[mcpsource one]` or `[mcpsources 1, 2]`. `[mcpsourceN]` is for MCP results only: knowledge-base results use `[sourceN]`, web results `[websourceN]`; never mix them. Prefer the one most relevant source per fact. Never invent a number for a remembered or inferred fact, and none for a result without a `Sources` footer.
 3. **Enrich the marker with the item's title and URL**, separated by semicolons:
    `[mcpsource2;ABC-123 — Fix login flow;https://acme.atlassian.net/browse/ABC-123]`.
