@@ -45,8 +45,8 @@ jobs:
       - name: Run Python unit tests
         run: |
           # Resolver tests need only stdlib; rewriter tests need tomlkit.
-          # One venv for both keeps the step simple.
-          uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
+          # Floor bumps need packaging. One venv for all keeps the step simple.
+          uv run --quiet --no-project --with 'tomlkit==0.14.0' --with 'packaging==26.2' -- \
             python3 -m unittest discover \
               --start-directory .github/scripts/tests \
               --pattern 'test_*.py' \
