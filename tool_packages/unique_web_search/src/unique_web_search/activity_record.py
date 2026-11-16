@@ -175,26 +175,22 @@ def set_elicitation(
 
 
 _NO_RESPONSE = "_finishedWithoutResponse"
-
-
-def _latest_search_request() -> dict[str, Any] | None:
-    record = _current.get()
-    if record is None:
-        return None
-    requests = record.critical_data["searchRequests"]
-    return requests[-1] if requests else None
+# One tool call can search concurrently. The list's last entry is not this call's entry.
+_request: ContextVar[dict[str, Any] | None] = ContextVar(
+    "web_search_activity_search_request", default=None
+)
 
 
 def note_response_received() -> None:
     """An HTTP or SDK response arrived, including an error status."""
-    entry = _latest_search_request()
+    entry = _request.get()
     if entry is not None:
         entry["responseReceived"] = True
 
 
 def note_no_response() -> None:
     """The call returns normally, but nothing answered. Do not overwrite a real response."""
-    entry = _latest_search_request()
+    entry = _request.get()
     if entry is not None and not entry["responseReceived"]:
         entry[_NO_RESPONSE] = True
 
@@ -224,6 +220,7 @@ def search_request(
         }
     entry = {"query": query, "responseReceived": False}
     record.critical_data["searchRequests"].append(entry)
+    token = _request.set(entry)
     try:
         yield
     except BaseException:
@@ -234,3 +231,4 @@ def search_request(
             entry["responseReceived"] = True
     finally:
         entry.pop(_NO_RESPONSE, None)
+        _request.reset(token)

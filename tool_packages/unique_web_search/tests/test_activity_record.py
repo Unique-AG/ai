@@ -625,3 +625,74 @@ async def test_google_parse_error_after_a_response__stays_received(mocker: Any) 
     assert record.critical_data["searchRequests"] == [
         {"query": "news", "responseReceived": True}
     ]
+
+
+@pytest.mark.asyncio
+async def test_overlapping_searches__keep_their_own_response_flag() -> None:
+    record = _record("google")
+    a_in = asyncio.Event()
+    b_in = asyncio.Event()
+    a_noted = asyncio.Event()
+
+    async def first() -> None:
+        with activity_record.search_request("a", via_search_proxy=False, endpoint=None):
+            a_in.set()
+            await b_in.wait()
+            activity_record.note_response_received()
+            a_noted.set()
+            raise ValueError("429")
+
+    async def second() -> None:
+        await a_in.wait()
+        with activity_record.search_request("b", via_search_proxy=False, endpoint=None):
+            b_in.set()
+            await a_noted.wait()
+            activity_record.note_no_response()
+
+    token = activity_record._current.set(record)
+    try:
+        await asyncio.gather(first(), second(), return_exceptions=True)
+    finally:
+        activity_record._current.reset(token)
+
+    assert record.critical_data["searchRequests"] == [
+        {"query": "a", "responseReceived": True},
+        {"query": "b", "responseReceived": False},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_proxy_parse_failure__counts_as_a_response(mocker: Any) -> None:
+    from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+
+    from unique_web_search.services.search_engine.google import GoogleSearch
+
+    client = AsyncMock()
+    client.search.search = AsyncMock(return_value=Mock())
+    mocker.patch(
+        "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+        True,
+    )
+    mocker.patch(
+        "unique_web_search.services.search_engine.base.env_settings.search_proxy_base_url",
+        "http://proxy",
+    )
+    opener = mocker.patch(
+        "unique_web_search.services.search_engine.base.open_search_proxy_client"
+    )
+    opener.return_value.__aenter__.return_value = client
+    mocker.patch(
+        "unique_web_search.services.search_engine.base.map_search_response",
+        side_effect=ValueError("bad"),
+    )
+    record = _record("google")
+    token = activity_record._current.set(record)
+    try:
+        with pytest.raises(ValueError, match="bad"):
+            await GoogleSearch(GoogleConfig()).search("news")
+    finally:
+        activity_record._current.reset(token)
+
+    assert record.critical_data["searchRequests"] == [
+        {"query": "news", "responseReceived": True}
+    ]

@@ -182,6 +182,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 engine=engine.value,
                 **invocation,
             )
+        activity_record.note_response_received()
         results = map_search_response(response)
         return await self._postprocess_results(results)
 
@@ -202,6 +203,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 engine=engine.value,
                 **invocation,
             )
+        activity_record.note_response_received()
         results = await self._parse_agent_answer(
             agent_answer_text(response),
             agent_citations(response),
