@@ -419,6 +419,60 @@ async def test_timeout_backs_off_current_message_and_defers_untried_messages() -
     )
 
 
+async def test_timeout_on_multi_row_message_backs_off_all_its_rows() -> None:
+    rows = [row(event_id=str(uuid4())) for _ in range(3)]
+    store = Store(rows)
+    relay_instance, metrics, publisher, _ = relay(
+        store, publisher=Publisher(["timeout"])
+    )
+
+    assert await relay_instance.run_once() == 3
+    assert [len(events) for events in publisher.calls] == [3]
+    assert store.backoff_calls == [[r.id for r in rows]]
+    assert (
+        metrics.value(
+            "unique_activity_event_outbox_publish_failures_total",
+            {"reason": "timeout"},
+        )
+        == 1
+    )
+
+
+async def test_timeout_in_row_by_row_retry_defers_the_remaining_rows() -> None:
+    rows = [row(event_id=str(uuid4())) for _ in range(3)]
+    rows.append(row(company="c2", event_id=str(uuid4())))
+    _, second, third, other = rows
+    store = Store(rows)
+    relay_instance, metrics, publisher, _ = relay(
+        store,
+        publisher=Publisher(["reject", "ok", "timeout"]),
+        flags=Flags(
+            {
+                "c1": FlagEvaluation(value=True, reason="remote"),
+                "c2": FlagEvaluation(value=True, reason="remote"),
+            }
+        ),
+    )
+
+    assert await relay_instance.run_once() == 2
+    assert [len(events) for events in publisher.calls] == [3, 1, 1]
+    assert store.backoff_calls == [[second.id]]
+    assert (
+        [third.id, other.id],
+        OUTBOX_RELAY_TIMINGS.untried_defer_seconds,
+    ) in store.defer_calls
+    assert third.attempts == 0
+    assert other.attempts == 0
+    assert {r.id for r in store.rows} == {second.id, third.id, other.id}
+    assert (
+        metrics.value(
+            "unique_activity_event_outbox_publish_failures_total",
+            {"reason": "timeout"},
+        )
+        == 1
+    )
+
+
 async def test_rejected_multi_row_message_retries_rows_alone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -521,7 +575,7 @@ async def test_full_settled_batch_is_polled_without_idle_delay(
     monkeypatch.setattr(
         relay_module,
         "OUTBOX_RELAY_TIMINGS",
-        replace(OUTBOX_RELAY_TIMINGS, idle_poll_seconds=1),
+        replace(OUTBOX_RELAY_TIMINGS, idle_poll_seconds=30),
     )
     store = Store([row(event_id=str(uuid4())) for _ in range(100)])
     relay_instance, _, _, _ = relay(store)
