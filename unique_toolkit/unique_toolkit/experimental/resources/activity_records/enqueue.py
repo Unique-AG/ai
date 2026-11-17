@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import logging
 import os
 import time
@@ -203,6 +204,25 @@ async def drain(timeout: float = _DEFAULT_DRAIN_TIMEOUT_SECONDS) -> None:
         await asyncio.wait_for(asyncio.shield(pending), timeout)
 
 
+@functools.cache
+def _relay_flag_client() -> FlagClientLike:
+    """Own cache, or producers keep it warm and the relay never sees a remote read."""
+    from unique_toolkit.experimental.resources.feature_flags.client import (
+        FeatureFlagClient,
+    )
+    from unique_toolkit.experimental.resources.feature_flags.settings import (
+        FeatureFlagSettings,
+    )
+
+    settings = FeatureFlagSettings()
+    # start() already validated these settings through from_settings().
+    return FeatureFlagClient(
+        url=cast("str", settings.configuration_backend_url),
+        service_id=cast("str", settings.feature_flag_service_id),
+        ttl_ms=settings.feature_flag_cache_ttl_ms,
+    )
+
+
 class ActivityRecordsOutbox:
     """Own the database pool, relay, and enqueue lifecycle; the caller supplies the sender."""
 
@@ -254,22 +274,9 @@ class ActivityRecordsOutbox:
         from unique_toolkit.experimental.resources.feature_flags.client import (
             FeatureFlagClient,
         )
-        from unique_toolkit.experimental.resources.feature_flags.settings import (
-            FeatureFlagSettings,
-        )
 
         flag_client = self.flag_client or FeatureFlagClient.from_settings()
-        relay_flag_client = self.flag_client
-        if relay_flag_client is None:
-            # Own cache, or producers keep it warm and the relay never sees a remote read.
-            # The client has no aclose(); one per process is accepted.
-            flag_settings = FeatureFlagSettings()
-            # from_settings() above already raised when either setting is missing.
-            relay_flag_client = FeatureFlagClient(
-                url=cast("str", flag_settings.configuration_backend_url),
-                service_id=cast("str", flag_settings.feature_flag_service_id),
-                ttl_ms=flag_settings.feature_flag_cache_ttl_ms,
-            )
+        relay_flag_client = self.flag_client or _relay_flag_client()
         metrics = self.metrics or get_or_create_activity_event_outbox_metrics(
             metric_name=self.metric_name
         )

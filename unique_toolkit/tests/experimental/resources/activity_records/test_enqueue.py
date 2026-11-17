@@ -190,6 +190,7 @@ def patch_runtime(
         wiring.relays.append(StubRelay(relay_error, wiring.calls))
         return wiring.relays[-1]
 
+    enqueue_module._relay_flag_client.cache_clear()
     monkeypatch.setenv("DATABASE_URL", "postgresql://test")
     monkeypatch.setattr(store_module, "create_pool", create_pool)
     monkeypatch.setattr(store_module, "OutboxStore", lambda _pool: store)
@@ -952,6 +953,23 @@ async def test_the_relay_gets_its_own_flag_client_when_none_is_injected(
     shared = FeatureFlagClient.from_settings()
     assert isinstance(relay_client, FeatureFlagClient)
     assert relay_client is not shared
+
+
+async def test_the_relay_flag_client_is_reused_across_starts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CONFIGURATION_BACKEND_URL", "http://configuration-backend")
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "service")
+    wiring = patch_runtime(monkeypatch, Store())
+    outbox = ActivityRecordsOutbox(publisher=AsyncMock(), metrics=Metrics().metrics)
+    _started.append(outbox)
+
+    for _ in range(2):
+        await outbox.start()
+        await outbox.stop()
+
+    first, second = wiring.relay_flag_clients
+    assert first is second
 
 
 async def test_an_injected_flag_client_is_used_by_the_relay_as_well(
