@@ -1,0 +1,6 @@
+component: Web Search
+kind: Changed
+body: Google search results now include the page's own description, when it has one, on a new line after Google's snippet, with or without the search proxy. Pages that block crawling, such as LinkedIn profiles, now still give the agent their headline, experience and location.
+time: 2026-11-17T21:28:19.789003+01:00
+custom:
+    Audience: user

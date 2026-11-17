@@ -1,5 +1,8 @@
+import html
 import logging
-from typing import override
+import re
+from collections.abc import Mapping
+from typing import Any, override
 from urllib.parse import urlparse
 
 from httpx import Response
@@ -20,6 +23,12 @@ _LOGGER = logging.getLogger(__name__)
 
 # Pagination size fixed to 10 because of the Google Search API limit
 PAGINATION_SIZE = 10
+
+# Description tags in ``pagemap.metatags``, most preferred first.
+_DESCRIPTION_KEYS = ("og:description", "twitter:description")
+# Values some sites put in a description tag instead of leaving it out.
+_PLACEHOLDERS = frozenset({"null", "none", "undefined", "n/a", "nan"})
+_WHITESPACE = re.compile(r"\s+")
 
 
 @register_search_engine(
@@ -124,7 +133,7 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
         links = [
             WebSearchResult(
                 url=item["link"],
-                snippet=item["snippet"],
+                snippet=_snippet_with_page_description(item),
                 title=item.get("title", item.get("htmlTitle", "")),
             )
             for item in results["items"]
@@ -155,3 +164,52 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
             search_results.extend(self._extract_urls(response=response))
 
         return search_results
+
+
+def _snippet_with_page_description(item: Mapping[str, Any]) -> str:
+    """Return the result's snippet, followed by the page's own description.
+
+    Same rules as the search proxy's ``build_google_snippet``: Google's
+    ``snippet`` is a short excerpt picked for the query, while
+    ``pagemap.metatags`` carries the page's own description. The description
+    goes on its own line after the snippet, unless it only repeats the snippet
+    or the title.
+    """
+    snippet: str = item["snippet"]
+    description = _page_description(item)
+    if not description or _repeats(description, snippet, item.get("title") or ""):
+        return snippet
+    return f"{snippet}\n{description}" if snippet else description
+
+
+def _page_description(item: Mapping[str, Any]) -> str:
+    pagemap = item.get("pagemap")
+    if not isinstance(pagemap, Mapping):
+        return ""
+    metatags = pagemap.get("metatags")
+    if not isinstance(metatags, list):
+        return ""
+    for key in _DESCRIPTION_KEYS:
+        for tags in metatags:
+            if not isinstance(tags, Mapping):
+                continue
+            value = tags.get(key)
+            if not isinstance(value, str):
+                continue
+            text = _normalize(value)
+            if text and text.rstrip(".").casefold() not in _PLACEHOLDERS:
+                return text
+    return ""
+
+
+def _repeats(description: str, snippet: str, title: str) -> bool:
+    needle = description.casefold()
+    return (
+        needle in _normalize(snippet).casefold()
+        or needle in _normalize(title).casefold()
+    )
+
+
+def _normalize(text: str) -> str:
+    """Decode HTML entities and collapse whitespace (descriptions keep both)."""
+    return _WHITESPACE.sub(" ", html.unescape(text)).strip()
