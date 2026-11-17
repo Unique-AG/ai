@@ -24,9 +24,7 @@ _LOGGER = logging.getLogger(__name__)
 # Pagination size fixed to 10 because of the Google Search API limit
 PAGINATION_SIZE = 10
 
-# Description tags in ``pagemap.metatags``, most preferred first.
 _DESCRIPTION_KEYS = ("og:description", "twitter:description")
-# Values some sites put in a description tag instead of leaving it out.
 _PLACEHOLDERS = frozenset({"null", "none"})
 _WHITESPACE = re.compile(r"\s+")
 
@@ -167,14 +165,7 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
 
 
 def _snippet_with_page_description(item: Mapping[str, Any]) -> str:
-    """Return the result's snippet, followed by the page's own description.
-
-    Same rules as the search proxy's ``build_google_snippet``: Google's
-    ``snippet`` is a short excerpt picked for the query, while
-    ``pagemap.metatags`` carries the page's own description. The description
-    goes on its own line after the snippet, unless it only repeats the snippet
-    or the title.
-    """
+    """Same rules as the search proxy's ``build_google_snippet``."""
     snippet: str = item["snippet"]
     description = _page_description(item)
     if not description or _repeats(description, snippet, item.get("title") or ""):
@@ -183,8 +174,6 @@ def _snippet_with_page_description(item: Mapping[str, Any]) -> str:
 
 
 def _page_description(item: Mapping[str, Any]) -> str:
-    # Google returns a page's meta tags as one entry. Any other shape gives no
-    # description rather than an error, so one odd result can't fail the page.
     pagemap = item.get("pagemap")
     metatags = pagemap.get("metatags") if isinstance(pagemap, Mapping) else None
     tags = metatags[0] if isinstance(metatags, list) and metatags else None
@@ -207,5 +196,4 @@ def _repeats(description: str, snippet: str, title: str) -> bool:
 
 
 def _normalize(text: str) -> str:
-    """Decode HTML entities and collapse whitespace (descriptions keep both)."""
     return _WHITESPACE.sub(" ", html.unescape(text)).strip()

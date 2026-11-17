@@ -19,8 +19,8 @@ _DESCRIPTION = (
 
 def _item(*, metatags: Any = None, **fields: Any) -> dict[str, Any]:
     item: dict[str, Any] = {
-        "link": "https://www.linkedin.com/in/jane-doe",
-        "title": "Jane Doe - Example Bank | LinkedIn",
+        "link": "https://www.example.com/people/jane-doe",
+        "title": "Jane Doe - Example Bank",
         "snippet": _SNIPPET,
         **fields,
     }
@@ -35,8 +35,8 @@ def test_build_google_snippet__appends_page_description__when_og_description_pre
 ):
     """
     Purpose: The page's og:description is added on its own line after Google's snippet.
-    Why this matters: The snippet is a ~160-char excerpt; the description carries the
-        headline, experience, education and location for pages we can't crawl (LinkedIn).
+    Why this matters: The snippet is a short excerpt; the description adds the page's
+        own summary for pages we can't crawl.
     Setup summary: Item with og:description; assert snippet, newline, description.
     """
     item = _item(metatags=[{"og:description": _DESCRIPTION}])
@@ -76,8 +76,8 @@ def test_build_google_snippet__prefers_og_description__when_both_present() -> No
 def test_build_google_snippet__decodes_entities_and_collapses_whitespace() -> None:
     """
     Purpose: HTML entities are decoded and line breaks/runs of spaces collapse to one space.
-    Why this matters: Google returns descriptions as found in the page's meta tag
-        (e.g. ``&#39;`` and multi-line LinkedIn About texts), which would add noise.
+    Why this matters: Google returns descriptions as found in the page's meta tag,
+        often with entities and line breaks, which would add noise.
     Setup summary: Escaped, multi-line description; assert clean single-line text.
     """
     item = _item(
