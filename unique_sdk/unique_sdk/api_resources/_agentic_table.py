@@ -11,6 +11,7 @@ from urllib.parse import quote
 from typing_extensions import Unpack
 
 from unique_sdk._api_resource import APIResource
+from unique_sdk._error import InvalidRequestError
 from unique_sdk._request_options import RequestOptions
 
 
@@ -796,11 +797,21 @@ class AgenticTable(APIResource["AgenticTable"]):
             success the body's ``id`` is the sheet id.
 
         Raises:
+            InvalidRequestError: When ``rowId`` is ``.`` or ``..``. Those
+                segments are resolved by the HTTP client and would not address
+                the row.
             UniqueError: On HTTP failure, including 400 for a rejected row and
                 404 when the sheet or row does not exist.
         """
         # Quote both segments. A raw slash in rowId would select
         # DELETE /magic-table/{tableId}/row/metadata/{metadataId}.
+        # "." and ".." are not encoded by quote, and the HTTP client resolves
+        # them, so "." becomes DELETE .../row and ".." becomes DELETE .../{tableId}.
+        if rowId in {".", ".."}:
+            raise InvalidRequestError(
+                "rowId must be a row id, not '.' or '..'",
+                "rowId",
+            )
         url = f"/magic-table/{quote(tableId, safe='')}/row/{quote(rowId, safe='')}"
         return cast(
             MagicTableActionResult,

@@ -628,8 +628,10 @@ def _invalid_row_id(row_id: str) -> str | None:
     ``DELETE /magic-table/{tableId}/row/{rowId}`` interpolates the id into the
     URL. A slash or query marker would address a different route. Any
     whitespace, including a space in the middle of the id, is rejected here
-    so the HTTP client never sees it. A blank id names nothing. A digit-only
-    value is a row order, which is a different delete and is not this command.
+    so the HTTP client never sees it. ``.`` and ``..`` are rejected because the
+    HTTP client resolves them and the request would leave the row route. A
+    blank id names nothing. A digit-only value is a row order, which is a
+    different delete and is not this command.
 
     Args:
         row_id (str): Candidate row id from the command line.
@@ -640,6 +642,10 @@ def _invalid_row_id(row_id: str) -> str | None:
     """
     if row_id.strip() == "":
         return f"{AGENTIC_TABLE_ERROR_PREFIX} row id is required"
+    if row_id in {".", ".."}:
+        return (
+            f"{AGENTIC_TABLE_ERROR_PREFIX} delete-row takes a row id, not '.' or '..'"
+        )
     if any(char.isspace() for char in row_id) or any(char in row_id for char in "/?#"):
         return (
             f"{AGENTIC_TABLE_ERROR_PREFIX} row id must be a single id with no "

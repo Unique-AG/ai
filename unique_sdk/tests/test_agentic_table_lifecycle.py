@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from unique_sdk._error import InvalidRequestError
 from unique_sdk.api_resources._agentic_table import (
     AgenticTable,
     MagicTableArtifactType,
@@ -238,6 +239,23 @@ async def test_delete_row_encodes_a_slash_into_one_segment(mock_request):
     url = mock_request.await_args.args[1]
     assert url == f"/magic-table/{TABLE_ID}/row/metadata%2Fmeta_1"
     assert "/row/metadata/" not in url
+
+
+@pytest.mark.parametrize("row_id", [".", ".."])
+async def test_delete_row_rejects_dot_segments(mock_request, row_id: str):
+    """Purpose: Dot path segments are refused before a request is sent.
+    Why this matters: The HTTP client resolves them onto a different route.
+    Setup summary: rowId is '.' or '..'; the request layer is not called.
+    """
+    with pytest.raises(InvalidRequestError):
+        await AgenticTable.delete_row(
+            USER_ID,
+            COMPANY_ID,
+            tableId=TABLE_ID,
+            rowId=row_id,
+        )
+
+    mock_request.assert_not_awaited()
 
 
 async def test_delete_row_metadata_deletes_by_id(mock_request):

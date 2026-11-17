@@ -1653,7 +1653,17 @@ def test_cmd_delete_row__bad_request__passes_message() -> None:
 @pytest.mark.ai
 @pytest.mark.parametrize(
     "row_id",
-    ["", "   ", "mt row", "mt_row\nabc", "4", "metadata/meta_1", "mt_row_abc?hard=1"],
+    [
+        "",
+        "   ",
+        "mt row",
+        "mt_row\nabc",
+        ".",
+        "..",
+        "4",
+        "metadata/meta_1",
+        "mt_row_abc?hard=1",
+    ],
 )
 def test_cmd_delete_row__invalid_id__does_not_call_api(row_id: str) -> None:
     """Purpose: Unsafe row ids are refused before the request.
