@@ -384,7 +384,7 @@ Work with intelligent tables that support:
 
 ??? example "`unique_sdk.AgenticTable.delete_row` - Permanently delete one row by id"
 
-    Permanently delete one content row. `rowId` is the id on a cell from `get_sheet_data` with `includeCells=True`, or from `get_cell`, not the row order. The header row, a locked row, and a row in a final review status are rejected. A caller who is not a member of the sheet is rejected. A row on a completed sheet can be deleted; the sheet status is then recomputed. A missing sheet or row is not found.
+    Permanently delete one content row. `rowId` is the id on a cell from `get_sheet_data` with `includeCells=True`, or from `get_cell`, not the row order. The header is `rowOrder` 0, and `delete_row` rejects it, so the example uses the first cell whose `rowOrder` is at least 1. A locked row and a row in a final review status are also rejected. A caller who is not a member of the sheet is rejected. A row on a completed sheet can be deleted; the sheet status is then recomputed. A missing sheet or row is not found.
 
     **Parameters:**
 
@@ -404,7 +404,10 @@ Work with intelligent tables that support:
         tableId="sheet_abc123",
         includeCells=True,
     )
-    row_id = sheet["magicTableCells"][0]["rowId"]
+    content_cell = next(
+        cell for cell in sheet["magicTableCells"] if cell["rowOrder"] >= 1
+    )
+    row_id = content_cell["rowId"]
 
     await unique_sdk.AgenticTable.delete_row(
         user_id=user_id,
