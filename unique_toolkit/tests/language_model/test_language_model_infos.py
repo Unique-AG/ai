@@ -101,6 +101,8 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
             LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
             LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
+            LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+            LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
             LanguageModelName.LITELLM_OPENAI_GPT_5,
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
@@ -122,6 +124,8 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
@@ -419,6 +423,65 @@ class TestLanguageModelInfos:
         assert model.default_options["reasoning_effort"] == "medium"
         assert model.supported_reasoning_efforts == [
             "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("model_name", "provider", "info_cutoff_at"),
+        [
+            (
+                LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+                LanguageModelProvider.AZURE,
+                date(2026, 6, 1),
+            ),
+            (
+                LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+                LanguageModelProvider.LITELLM,
+                date(2026, 6, 1),
+            ),
+            (
+                LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+                LanguageModelProvider.AZURE,
+                date(2026, 5, 18),
+            ),
+            (
+                LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+                LanguageModelProvider.LITELLM,
+                date(2026, 5, 18),
+            ),
+        ],
+    )
+    def test_gpt_62_matches_published_limits(
+        self,
+        model_name: LanguageModelName,
+        provider: LanguageModelProvider,
+        info_cutoff_at: date,
+    ):
+        """
+        Purpose: GPT-6.2 Sol and Astra registry facts match the published cards.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff,
+        sizes requests from token_limits, and must never send effort `none`,
+        which the GPT-6.2 API rejects.
+        Setup summary: Load each Azure and LiteLLM GPT-6.2 LanguageModelInfo.
+        Sources:
+        https://developers.openai.com/api/docs/models/gpt-6.2-sol
+        https://developers.openai.com/api/docs/models/gpt-6.2-astra
+        https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.provider == provider
+        assert model.info_cutoff_at == info_cutoff_at
+        assert model.published_at == date(2026, 11, 17)
+        assert model.version == "2026-11-17"
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
             "low",
             "medium",
             "high",

@@ -44,6 +44,8 @@ AFFECTED_MODELS = [
     LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
     LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
     LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
+    LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+    LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
     LanguageModelName.LITELLM_OPENAI_GPT_55,
     LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
     LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
@@ -54,6 +56,8 @@ AFFECTED_MODELS = [
     LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
     LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
     LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
+    LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+    LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
 ]
 
 CODE_INTERPRETER_TOOL = ToolBuildConfig(
