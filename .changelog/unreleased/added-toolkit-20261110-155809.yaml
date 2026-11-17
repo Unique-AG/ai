@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: Experimental size limits and row preparation for Activity Records events, including truncation of oversized data before it is stored.
+time: 2026-11-10T15:58:09.271073+01:00
+custom:
+    Audience: developer
+    Ticket: UN-28050
