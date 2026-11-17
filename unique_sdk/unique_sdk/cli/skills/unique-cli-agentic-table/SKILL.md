@@ -26,8 +26,15 @@ Commands fall into two groups:
   `delete-row`, `set-cell`. These create a sheet, add questions and sources,
   start the agent run, produce export artifacts, redo a single generated
   answer, permanently delete one content row, or write text you already have
-  into one cell. None of them prompts for confirmation, but they do change a
-  shared artifact, so say what you did afterwards.
+  into one cell. The commands themselves do not prompt. They change a shared
+  artifact, so say what you did afterwards.
+
+  `delete-row` is permanent, so it is the exception for you. Before you run
+  it, get a confirmation elicitation: an empty-properties schema, and proceed
+  only when the status is `ACCEPTED`. Name the sheet and the row id, and say
+  the delete cannot be undone. `DECLINED`, `REJECTED`, `CANCELLED`, and
+  `EXPIRED` mean stop. A person running the CLI directly does not take this
+  step.
 
   `create-sheet`, `import`, and `export` only add. `rerun-row` asks the table
   agent to regenerate one **row** from sources (no text from you).
@@ -219,6 +226,11 @@ unique-cli agentic-table delete-row <table_id> <row_id>
 ```
 
 Permanently deletes one content row, the same way the sheet UI does.
+Before you run it, get a confirmation elicitation. The command does not ask.
+Name the sheet and the row id, and say the delete cannot be undone. Use an
+empty-properties schema and proceed only on `ACCEPTED`. Stop on `DECLINED`,
+`REJECTED`, `CANCELLED`, or `EXPIRED`.
+
 `<row_id>` is the `rowId` on a cell (`mt_row_...`), **not** the row order
 `--row` prints. A row order shifts when rows above it are removed, so it is
 not a safe address for a delete. Read the id first:
@@ -352,9 +364,10 @@ re-import.
    when summarising for a person.
 7. `set-cell` when you have the text. `rerun-row` when the table agent should
    regenerate from sources. Never both for the same correction.
-8. `delete-row` removes one content row permanently. Pass `rowId`, never a
-   row order. Do not delete the header, a locked row, or a final-review row.
-   Name the row when you tell the user what you deleted.
+8. `delete-row` removes one content row permanently. Get a confirmation
+   elicitation before you run it; the command itself does not ask. Pass
+   `rowId`, never a row order. Do not delete the header, a locked row, or a
+   final-review row. Name the row when you tell the user what you deleted.
 
 ## Prerequisites
 
