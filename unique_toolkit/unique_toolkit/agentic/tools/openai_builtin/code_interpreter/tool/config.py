@@ -49,7 +49,19 @@ which file failed and why, using the reason given below:
 {% endif %}
 """.strip()
 
-_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_BASE = """
+# UN-28750: without PDF guidance the model drew each line with `canvas.drawString`,
+# so long lines ran off the page and words were cut off. Shared by both prompts.
+_PDF_FILE_RULES = """
+PDF files: CRITICAL rules (text MUST wrap and stay on the page):
+- Build PDFs with reportlab Platypus: `SimpleDocTemplate(path, pagesize=A4)` with `Paragraph`, `Spacer`, `Table` and `ListFlowable`, so every line wraps inside the page margins.
+- NEVER write running text with `canvas.drawString`, canvas text objects or `Preformatted`: they do not wrap, so long lines run off the page and are cut off.
+- Turn Markdown into real formatting: headings into heading styles, `**x**` into `<b>x</b>`, links into `<a href="url">text</a>`, bullets into `ListFlowable`, tables into a `Table` of `Paragraph` cells whose `colWidths` sum to `doc.width`. Escape `&`, `<` and `>` in the text first, then add the tags.
+- Use a TrueType font for all text, as built-in Helvetica draws many accented, Greek and Cyrillic letters as black boxes: register `DejaVuSans.ttf` and `DejaVuSans-Bold.ttf` from `Path(matplotlib.get_data_path()) / "fonts" / "ttf"` and call `registerFontFamily` so `<b>` works.
+- Before referencing the PDF, check it in code: open it with `pdfplumber` and assert every word's `x1` is at most `page.width`; if not, fix the build and save it again.
+"""
+
+_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_BASE = (
+    """
 Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
 
 Instructions:
@@ -73,7 +85,9 @@ Always use a line break between the title and the markdown!
 - YOU MUST use the syntax above to display images, otherwise the image will not be displayed in the chat.
 - Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
 - You MUST always use this syntax, otherwise the files will not be displayed in the chat.
-
+"""
+    + _PDF_FILE_RULES
+    + """
 # Displaying Dataframes/Tables:
 - Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
 
@@ -91,6 +105,7 @@ Handling User Queries:
 - If a tool step fails, you must recover as much as possible.
 - After exhausting all possible solutions without success, inform the user of what was tried and request clarification/help.
 """
+)
 
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
     _TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_BASE + _TOOL_DESCRIPTION_FILES_SUFFIX
@@ -107,7 +122,8 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
 # UN-19880: kaleido is not installed in the Azure OpenAI code interpreter environment,
 # so plotly's fig.write_image() always fails. The "Visualization library choice" section
 # steers the model to use matplotlib for PNG outputs and plotly only for HTML artifacts.
-_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE_BASE = """
+_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE_BASE = (
+    """
 Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
 
 Instructions:
@@ -162,7 +178,9 @@ HTML files — CRITICAL rules:
   - Apply clean, readable typography: prefer system fonts (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`) and sufficient contrast (WCAG AA minimum).
   - Use semantic HTML elements (`<table>` for tabular data, `<button>` for actions, `<h1>`–`<h6>` for headings, `alt` attributes on `<img>` tags). Avoid using `<div>` for everything.
   - Do NOT use `window.parent`, `window.top`, or any attempt to access the parent frame.
-
+"""
+    + _PDF_FILE_RULES
+    + """
 
 # Displaying Dataframes/Tables:
 - Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
@@ -183,6 +201,7 @@ Handling User Queries:
 - If a tool step fails, you must recover as much as possible.
 - After exhausting all possible solutions without success, inform the user of what was tried and request clarification/help.
 """
+)
 
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE = (
     _TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE_BASE + _TOOL_DESCRIPTION_FILES_SUFFIX

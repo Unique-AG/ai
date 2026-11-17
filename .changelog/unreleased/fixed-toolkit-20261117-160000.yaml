@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Fixed
+body: The default Code Execution (`code_interpreter`) system prompts now include PDF layout rules (reportlab Platypus flowables so text wraps, no `canvas.drawString` or `Preformatted` for running text, Markdown turned into formatting, a DejaVu TrueType font, and a `pdfplumber` check that no word lies past the page width), so generated PDFs keep every word on the page. Spaces that store their own `toolDescriptionForSystemPrompt` keep their text until it is updated or reset to the default.
+time: 2026-11-17T16:00:00.000000+01:00
+custom:
+    Audience: admin
+    Ticket: UN-28750
