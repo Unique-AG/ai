@@ -49,8 +49,7 @@ which file failed and why, using the reason given below:
 {% endif %}
 """.strip()
 
-# UN-28750: without PDF guidance the model drew each line with `canvas.drawString`,
-# so long lines ran off the page and words were cut off. Shared by both prompts.
+# Shared PDF layout rules for both default prompts (UN-28750).
 _PDF_FILE_RULES = """
 PDF files: CRITICAL rules (text MUST wrap and stay on the page):
 - Build PDFs with reportlab Platypus: `SimpleDocTemplate(path, pagesize=A4)` with `Paragraph`, `Spacer`, `Table` and `ListFlowable`, so every line wraps inside the page margins.
