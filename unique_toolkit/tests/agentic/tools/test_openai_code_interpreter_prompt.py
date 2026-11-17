@@ -51,6 +51,7 @@ def test_default_prompts__pdf_rules_cover_markdown_font_and_layout_check(
     Setup summary: Assert each of those rules is present in the default prompt.
     """
     assert "`**x**` into `<b>x</b>`" in prompt
+    assert 'start="•"' in prompt
     assert "Escape `&`, `<` and `>`" in prompt
     assert "`colWidths` sum to `doc.width`" in prompt
     assert "DejaVuSans.ttf" in prompt
