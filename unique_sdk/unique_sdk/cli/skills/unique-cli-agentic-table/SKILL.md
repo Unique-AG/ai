@@ -5,7 +5,8 @@ description: >-
   unique-cli agentic-table command. Use when the user or task involves an
   Agentic Table: inspecting a sheet's state, a cell's value or lock state, a
   cell's edit history or its export artifacts; writing text into a specific
-  cell; or running the full loop — creating a sheet, importing a questionnaire
+  cell; deleting one content row by its row id; or running the full loop —
+  creating a sheet, importing a questionnaire
   and sources, waiting for the agent to answer, and exporting the result.
   Access is enforced per sheet by the platform and varies from sheet to sheet;
   a denial is reported as `agentic-table: permission denied`.
@@ -22,18 +23,21 @@ Commands fall into two groups:
 - **Read (Tier 0)** — `get-sheet`, `get-cell`, `cell-history`, `list-exports`.
   Never modify anything, never need confirmation.
 - **Write (Tier 1)** — `create-sheet`, `import`, `export`, `rerun-row`,
-  `set-cell`. These create a sheet, add questions and sources, start the agent
-  run, produce export artifacts, redo a single generated answer, or write
-  text you already have into one cell. None of them prompts for confirmation,
-  but they do change a shared artifact, so say what you did afterwards.
+  `delete-row`, `set-cell`. These create a sheet, add questions and sources,
+  start the agent run, produce export artifacts, redo a single generated
+  answer, permanently delete one content row, or write text you already have
+  into one cell. None of them prompts for confirmation, but they do change a
+  shared artifact, so say what you did afterwards.
 
   `create-sheet`, `import`, and `export` only add. `rerun-row` asks the table
-  agent to regenerate one **row** from sources (no text from you). `set-cell`
+  agent to regenerate one **row** from sources (no text from you).
+  `delete-row` permanently removes one content row by its `rowId`. `set-cell`
   writes **your** text into one cell immediately — it is not a run. Name the
   row (and column, for `set-cell`) when you report back.
 
-  Some rows are protected. A locked or final-review row rejects both
-  `set-cell` and `rerun-row`. That is deliberate — do not route around it.
+  Some rows are protected. A locked or final-review row rejects `set-cell`,
+  `rerun-row`, and `delete-row`. The header row also rejects `delete-row`.
+  That is deliberate — do not route around it.
 
 ## Permissions
 
@@ -87,7 +91,9 @@ unique-cli agentic-table get-cell <table_id> --row N --col N
 ```
 
 Shows one cell's text and lock state. `--row`/`--col` are 0-based orders.
-Add `--json` for the raw cell record.
+Add `--json` for the raw cell record, including `rowId`. The formatted view
+prints `Row id` when the API returned it. `delete-row` takes that id, not
+`--row`.
 
 ```bash
 unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
@@ -206,6 +212,42 @@ run at a time, so a second `rerun-row` fired before the first finishes is
 declined. There is no batch form. If most of the sheet needs redoing, consider
 a fresh sheet instead.
 
+### Delete one row
+
+```bash
+unique-cli agentic-table delete-row <table_id> <row_id>
+```
+
+Permanently deletes one content row, the same way the sheet UI does.
+`<row_id>` is the `rowId` on a cell (`mt_row_...`), **not** the row order
+`--row` prints. A row order shifts when rows above it are removed, so it is
+not a safe address for a delete. Read the id first:
+
+```bash
+unique-cli agentic-table get-cell mt_abc123 --row 1 --col 0 --json
+```
+
+Use the `rowId` field. `get-sheet --cells --json` carries the same field on
+each cell. `get-sheet --cells` prints each row id once, under `Row ids`. One
+call deletes one row. There is no batch form. A digit-only argument is
+refused before the request is sent.
+
+Report these refusals. Do not look for another way to remove the row:
+
+- The header row cannot be deleted.
+- A locked row, or a row in a final review status, cannot be deleted.
+- A caller who is not a member of the sheet is rejected. That arrives as a
+  400 with the API message, not as `permission denied`. A 403 is still
+  `permission denied`.
+- A missing sheet or row is not found.
+
+A row on a completed sheet can be deleted. The sheet status is then
+recomputed. Confirm with `get-sheet` that the row is gone.
+
+```bash
+unique-cli agentic-table delete-row mt_abc123 mt_row_e4d94icb5mtj99rmu2efhyel
+```
+
 ### Write one cell
 
 ```bash
@@ -289,7 +331,7 @@ re-import.
    question is row 1. This holds for `--row`/`--col` on `get-cell`,
    `cell-history`, and `set-cell`, and for `<row_order>` on `rerun-row`; the
    same number means the same row in every command. `set-cell` may write row 0;
-   `rerun-row` may not.
+   `rerun-row` may not. `delete-row` does not take a row order: pass `rowId`.
 2. Fetch what you need, not everything. `get-cell` for one value,
    `get-sheet --cells` for an overview — don't dump a whole sheet unless asked.
    Look up coordinates before `set-cell`; do not guess a column index.
@@ -307,6 +349,9 @@ re-import.
    when summarising for a person.
 7. `set-cell` when you have the text. `rerun-row` when the table agent should
    regenerate from sources. Never both for the same correction.
+8. `delete-row` removes one content row permanently. Pass `rowId`, never a
+   row order. Do not delete the header, a locked row, or a final-review row.
+   Name the row when you tell the user what you deleted.
 
 ## Prerequisites
 

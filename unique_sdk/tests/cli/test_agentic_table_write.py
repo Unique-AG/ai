@@ -22,6 +22,7 @@ from unique_sdk.cli.commands.agentic_table_write import (
     _FAST_POLL_WINDOW_SECONDS,
     _poll_interval,
     cmd_create_sheet,
+    cmd_delete_row,
     cmd_export,
     cmd_import,
     cmd_rerun_row,
@@ -1554,3 +1555,160 @@ def test_cli_set_cell_help_lists_command() -> None:
     assert "--row" in result.output
     assert "--text" in result.output
     assert "This is not a run" in result.output
+
+
+# -- delete-row ------------------------------------------------------------
+
+_DELETED = {
+    "object": "magic-table-action",
+    "id": "mt_1",
+    "status": True,
+    "message": "Agentic Table Row deleted successfully",
+}
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__accepted__prints_ok() -> None:
+    """Purpose: A successful delete prints the action result.
+    Why this matters: Agents chain on a zero exit and the printed OK.
+    Setup summary: The SDK returns status true; the formatted lines are checked.
+    """
+    with _patch("delete_row", return_value=_DELETED) as mock_delete:
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_abc")
+
+    assert "Action:" in out and "delete" in out
+    assert "Result:" in out and "OK" in out
+    assert "Agentic Table Row deleted successfully" in out
+    assert not is_error_output(out)
+    kwargs = mock_delete.await_args.kwargs
+    assert kwargs["user_id"] == "u1"
+    assert kwargs["company_id"] == "c1"
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["rowId"] == "mt_row_abc"
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__json__wraps_result() -> None:
+    """Purpose: --json returns the action body for scripting.
+    Why this matters: Callers parse status and the sheet id from the body.
+    Setup summary: The SDK returns the action DTO; the JSON envelope is parsed.
+    """
+    with _patch("delete_row", return_value=_DELETED):
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_abc", output_json=True)
+
+    body = json.loads(out)
+    assert body["result"]["status"] is True
+    assert body["result"]["id"] == "mt_1"
+    assert not is_error_output(out)
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__status_false__is_error() -> None:
+    """Purpose: A soft rejection in a 200 body fails the command.
+    Why this matters: An && chain must not continue after a declined delete.
+    Setup summary: The SDK returns status false with a message.
+    """
+    with _patch(
+        "delete_row",
+        return_value={"status": False, "message": "The header row cannot be deleted"},
+    ):
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_header")
+
+    assert is_error_output(out)
+    assert "delete rejected" in out
+    assert "header row" in out
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__forbidden__is_permission_denied() -> None:
+    """Purpose: A 403 collapses to the stable permission-denied line.
+    Why this matters: Agents treat that line as access information.
+    Setup summary: The SDK raises UniqueError with HTTP 403.
+    """
+    with _patch("delete_row", side_effect=UniqueError("nope", http_status=403)):
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_abc")
+
+    assert out == "agentic-table: permission denied"
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__bad_request__passes_message() -> None:
+    """Purpose: A 400 keeps the API message.
+    Why this matters: Locked, header, and non-member rejects are 400, not 403.
+    Setup summary: The SDK raises UniqueError with HTTP 400 and a message.
+    """
+    with _patch(
+        "delete_row",
+        side_effect=UniqueError(
+            "Only members of the sheet can delete rows.", http_status=400
+        ),
+    ):
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_abc")
+
+    assert is_error_output(out)
+    assert "Only members of the sheet can delete rows." in out
+    assert "permission denied" not in out
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "row_id",
+    ["", "   ", "mt row", "mt_row\nabc", "4", "metadata/meta_1", "mt_row_abc?hard=1"],
+)
+def test_cmd_delete_row__invalid_id__does_not_call_api(row_id: str) -> None:
+    """Purpose: Unsafe row ids are refused before the request.
+    Why this matters: A slash would hit another route, and a number is a row order.
+    Setup summary: Each invalid id is passed and the SDK mock must not be awaited.
+    """
+    with _patch("delete_row") as mock_delete:
+        out = cmd_delete_row(_state(), "mt_1", row_id)
+
+    assert is_error_output(out)
+    mock_delete.assert_not_awaited()
+
+
+@patch("unique_sdk.cli.cli.cmd_delete_row")
+@pytest.mark.ai
+def test_cli_delete_row_wiring(mock_cmd: object) -> None:
+    """Purpose: The Click command forwards the sheet id, row id, and --json.
+    Why this matters: The flag must reach the command function unchanged.
+    Setup summary: The command function is patched and the CLI is invoked.
+    """
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "delete-row", "mt_1", "mt_row_abc", "--json"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert mock_cmd.call_args.args[1:] == ("mt_1", "mt_row_abc")  # type: ignore[attr-defined]
+    assert mock_cmd.call_args.kwargs["output_json"] is True  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+def test_cli_delete_row_help_lists_command() -> None:
+    """Purpose: Help advertises delete-row and that it takes a row id.
+    Why this matters: Agents discover the command from --help.
+    Setup summary: Group help and command help are invoked.
+    """
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "--help"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert "delete-row" in result.output
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "delete-row", "--help"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+    assert result.exit_code == 0
+    assert "row id" in result.output.lower()
+    assert "mt_row_" in result.output

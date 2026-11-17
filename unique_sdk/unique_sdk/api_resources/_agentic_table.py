@@ -6,6 +6,7 @@ from typing import (
     TypedDict,
     cast,
 )
+from urllib.parse import quote
 
 from typing_extensions import Unpack
 
@@ -763,6 +764,50 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+            ),
+        )
+
+    @classmethod
+    async def delete_row(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        rowId: str,
+    ) -> MagicTableActionResult:
+        """Permanently delete one content row by id.
+
+        Calls ``DELETE /magic-table/{tableId}/row/{rowId}``. ``rowId`` is the
+        id on a cell from ``get_sheet`` or ``get_cell``, not the row order.
+        The header row, a locked row, and a row in a final review status are
+        rejected. A caller who is not a member of the sheet is rejected. A
+        row on a completed sheet can be deleted; the sheet status is then
+        recomputed. A missing sheet or row is not found.
+
+        Args:
+            user_id (str): Caller user id.
+            company_id (str): Caller company id.
+            tableId (str): Agentic Table sheet id.
+            rowId (str): Row id (``mt_row_...``), not the row order.
+
+        Returns:
+            MagicTableActionResult: ``status`` and optional ``message``. On
+            success the body's ``id`` is the sheet id.
+
+        Raises:
+            UniqueError: On HTTP failure, including 400 for a rejected row and
+                404 when the sheet or row does not exist.
+        """
+        # Quote both segments. A raw slash in rowId would select
+        # DELETE /magic-table/{tableId}/row/metadata/{metadataId}.
+        url = f"/magic-table/{quote(tableId, safe='')}/row/{quote(rowId, safe='')}"
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "delete",
+                url,
+                user_id,
+                company_id,
             ),
         )
 

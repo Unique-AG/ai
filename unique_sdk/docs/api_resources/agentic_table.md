@@ -382,6 +382,30 @@ Work with intelligent tables that support:
     )
     ```
 
+??? example "`unique_sdk.AgenticTable.delete_row` - Permanently delete one row by id"
+
+    Permanently delete one content row. `rowId` is the id on a cell from `get_sheet` or `get_cell`, not the row order. The header row, a locked row, and a row in a final review status are rejected. A caller who is not a member of the sheet is rejected. A row on a completed sheet can be deleted; the sheet status is then recomputed. A missing sheet or row is not found.
+
+    **Parameters:**
+
+    - `tableId` (str, required) - Table/sheet ID
+    - `rowId` (str, required) - Row id (`mt_row_...`), not the row order
+
+    **Returns:**
+
+    Returns a `{status, message?}` result. On success `id` is the sheet id.
+
+    **Example:**
+
+    ```python
+    await unique_sdk.AgenticTable.delete_row(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        rowId="mt_row_e4d94icb5mtj99rmu2efhyel",
+    )
+    ```
+
 ## Bulk Operations
 
 ??? example "`unique_sdk.AgenticTable.bulk_update_status` - Bulk update status"

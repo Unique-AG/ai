@@ -97,6 +97,7 @@ def test_agentic_table_skill_documents_every_command() -> None:
         "agentic-table create-sheet",
         "agentic-table import",
         "agentic-table rerun-row",
+        "agentic-table delete-row",
         "agentic-table set-cell",
         "agentic-table export",
     ):

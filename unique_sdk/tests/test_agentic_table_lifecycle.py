@@ -193,6 +193,53 @@ async def test_update_row_metadata_posts_entry_to_metadata_url(mock_request):
     )
 
 
+async def test_delete_row_deletes_one_row_by_id(mock_request):
+    """Purpose: delete_row issues DELETE against the by-id route.
+    Why this matters: A wrong path would hit row-order or metadata delete.
+    Setup summary: The request layer is mocked and the URL is asserted.
+    """
+    mock_request.return_value = {
+        "object": "magic-table-action",
+        "id": TABLE_ID,
+        "status": True,
+        "message": "Agentic Table Row deleted successfully",
+    }
+
+    result = await AgenticTable.delete_row(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        rowId="mt_row_abc",
+    )
+
+    assert result["status"] is True
+    mock_request.assert_awaited_once_with(
+        "delete",
+        f"/magic-table/{TABLE_ID}/row/mt_row_abc",
+        USER_ID,
+        COMPANY_ID,
+    )
+
+
+async def test_delete_row_encodes_a_slash_into_one_segment(mock_request):
+    """Purpose: A slash in the row id stays inside the row-id path segment.
+    Why this matters: An unencoded slash selects the row-metadata delete route.
+    Setup summary: rowId is metadata/meta_1; the URL contains %2F and no extra segment.
+    """
+    mock_request.return_value = {"status": True}
+
+    await AgenticTable.delete_row(
+        USER_ID,
+        COMPANY_ID,
+        tableId=TABLE_ID,
+        rowId="metadata/meta_1",
+    )
+
+    url = mock_request.await_args.args[1]
+    assert url == f"/magic-table/{TABLE_ID}/row/metadata%2Fmeta_1"
+    assert "/row/metadata/" not in url
+
+
 async def test_delete_row_metadata_deletes_by_id(mock_request):
     mock_request.return_value = {"status": True}
 
