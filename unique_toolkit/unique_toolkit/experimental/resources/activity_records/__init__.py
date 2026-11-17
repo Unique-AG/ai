@@ -1,6 +1,6 @@
 """Public API for the experimental Activity Records outbox."""
 
-from .enqueue import ActivityRecordsOutbox, drain, enqueue
+from .enqueue import ActivityRecordsOutbox, drain, enqueue, is_running
 from .relay import OutboxRelay
 from .schemas import (
     ACTIVITY_METADATA_MAX_LENGTH,
@@ -20,4 +20,5 @@ __all__ = [
     "OutboxRelay",
     "drain",
     "enqueue",
+    "is_running",
 ]

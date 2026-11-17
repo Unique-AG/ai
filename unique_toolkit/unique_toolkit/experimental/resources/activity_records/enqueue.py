@@ -151,6 +151,11 @@ async def _insert(
         _record_failure(write.metrics, company_id, len(rows), error)
 
 
+def is_running() -> bool:
+    """Whether an Activity Records outbox is accepting events."""
+    return _active_context is not None
+
+
 def enqueue(event: ActivityCloudEvent) -> None:
     """Prepare and enqueue one event from the event-loop thread without awaiting it."""
     company_id = event.data.company_id
