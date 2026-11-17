@@ -15,6 +15,7 @@ from unique_toolkit.experimental.resources.activity_records import (
     enqueue,
     is_running,
 )
+from unique_toolkit.experimental.resources.feature_flags import get_feature_flag_client
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -24,6 +25,9 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 _USER_PROMPT_MAX_LENGTH = 4096
+ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG = (
+    "FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965"
+)
 
 Outcome = Literal["called", "denied", "failed"]
 
@@ -62,7 +66,7 @@ _current: ContextVar[ActivityRecord | None] = ContextVar(
 )
 
 
-def start(
+async def start(
     tool: WebSearchTool, tool_call: LanguageModelFunction
 ) -> ActivityRecord | None:
     if not is_running():
@@ -73,6 +77,12 @@ def start(
     )
 
     try:
+        # A flag read that raises lands in the except below and records nothing.
+        # On outages the client itself falls back to its stale cache or env default.
+        if not await get_feature_flag_client().is_enabled(
+            ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG, company_id=tool.company_id
+        ):
+            return None
         payload = tool.event.payload
         engine = tool.search_engine_service.config.engine
         prompt = payload.user_message.text

@@ -107,7 +107,17 @@ def _tool(
 
 
 @pytest.fixture
-def enqueue_mock(mocker: Any) -> Mock:
+def flag_client(mocker: Any) -> Mock:
+    client = Mock(is_enabled=AsyncMock(return_value=True))
+    mocker.patch(
+        "unique_web_search.activity_record.get_feature_flag_client",
+        return_value=client,
+    )
+    return client
+
+
+@pytest.fixture
+def enqueue_mock(mocker: Any, flag_client: Mock) -> Mock:
     mocker.patch("unique_web_search.activity_record.is_running", return_value=True)
     return mocker.patch("unique_web_search.activity_record.enqueue")
 
@@ -543,6 +553,40 @@ async def test_no_outbox__skips_enqueue_with_no_error(
 
     enqueue_mock.assert_not_called()
     assert not caplog.records
+
+
+@pytest.mark.asyncio
+async def test_flag_off__records_nothing(
+    mocker: Any, enqueue_mock: Mock, flag_client: Mock
+) -> None:
+    flag_client.is_enabled.return_value = False
+    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+
+    await _run(tool)
+
+    enqueue_mock.assert_not_called()
+    flag_client.is_enabled.assert_awaited_once_with(
+        "FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965",
+        company_id="company-1",
+    )
+
+
+@pytest.mark.asyncio
+async def test_flag_read_error__records_nothing_and_search_still_runs(
+    mocker: Any,
+    enqueue_mock: Mock,
+    flag_client: Mock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    flag_client.is_enabled.side_effect = RuntimeError("flag backend down")
+    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+
+    with caplog.at_level(logging.ERROR):
+        response = await tool.run(Mock(id="call-1", arguments={"query": "news"}))
+
+    assert not response.error_message
+    enqueue_mock.assert_not_called()
+    assert any("Could not start" in r.getMessage() for r in caplog.records)
 
 
 def _record(engine_id: str) -> activity_record.ActivityRecord:
