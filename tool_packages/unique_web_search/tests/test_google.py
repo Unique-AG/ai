@@ -180,11 +180,6 @@ class TestGoogleSearch:
                 id="twitter-fallback",
             ),
             pytest.param(
-                {"pagemap": {"metatags": [{"og:description": "Short excerpt"}]}},
-                "Short excerpt ...",
-                id="repeats-snippet",
-            ),
-            pytest.param(
                 {"pagemap": {"metatags": [{"og:description": "None."}]}},
                 "Short excerpt ...",
                 id="placeholder",

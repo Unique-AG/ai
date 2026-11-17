@@ -13,13 +13,10 @@ _WHITESPACE = re.compile(r"\s+")
 
 
 def build_google_snippet(item: Mapping[str, Any]) -> str:
-    """Return the snippet, followed by the page description from ``pagemap.metatags``.
-
-    The description is left out when it repeats the snippet or the title.
-    """
+    """Return the snippet, followed by the page description from ``pagemap.metatags``."""
     snippet = item.get("snippet") or ""
     description = _page_description(item)
-    if not description or _repeats(description, snippet, item.get("title") or ""):
+    if not description:
         return snippet
     return f"{snippet}\n{description}" if snippet else description
 
@@ -36,14 +33,6 @@ def _page_description(item: Mapping[str, Any]) -> str:
         if text and text.rstrip(".").casefold() not in _PLACEHOLDERS:
             return text
     return ""
-
-
-def _repeats(description: str, snippet: str, title: str) -> bool:
-    needle = description.casefold()
-    return (
-        needle in _normalize(snippet).casefold()
-        or needle in _normalize(title).casefold()
-    )
 
 
 def _normalize(text: str) -> str:

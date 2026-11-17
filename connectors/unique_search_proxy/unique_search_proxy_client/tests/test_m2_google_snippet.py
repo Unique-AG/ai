@@ -92,33 +92,6 @@ def test_build_google_snippet__decodes_entities_and_collapses_whitespace() -> No
 
 
 @pytest.mark.ai
-@pytest.mark.parametrize(
-    "description",
-    [
-        pytest.param(
-            "Jane Doe leads the private banking team at Example Bank", id="in-snippet"
-        ),
-        pytest.param(
-            "JANE DOE  LEADS the private\nbanking team", id="in-snippet-case-and-space"
-        ),
-        pytest.param("Jane Doe - Example Bank", id="in-title"),
-    ],
-)
-def test_build_google_snippet__keeps_snippet_only__when_description_repeats_it(
-    description: str,
-) -> None:
-    """
-    Purpose: A description that only repeats the snippet or title is not added.
-    Why this matters: Many descriptions repeat the snippet or title; adding them
-        again only costs tokens.
-    Setup summary: Descriptions contained in snippet/title; assert snippet unchanged.
-    """
-    item = _item(metatags=[{"og:description": description}])
-
-    assert build_google_snippet(item) == _SNIPPET
-
-
-@pytest.mark.ai
 @pytest.mark.parametrize("placeholder", ["null", "None.", "  NULL  ", ""])
 def test_build_google_snippet__keeps_snippet_only__when_description_is_placeholder(
     placeholder: str,

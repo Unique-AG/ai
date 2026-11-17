@@ -168,7 +168,7 @@ def _snippet_with_page_description(item: Mapping[str, Any]) -> str:
     """Same rules as the search proxy's ``build_google_snippet``."""
     snippet: str = item["snippet"]
     description = _page_description(item)
-    if not description or _repeats(description, snippet, item.get("title") or ""):
+    if not description:
         return snippet
     return f"{snippet}\n{description}" if snippet else description
 
@@ -185,14 +185,6 @@ def _page_description(item: Mapping[str, Any]) -> str:
         if text and text.rstrip(".").casefold() not in _PLACEHOLDERS:
             return text
     return ""
-
-
-def _repeats(description: str, snippet: str, title: str) -> bool:
-    needle = description.casefold()
-    return (
-        needle in _normalize(snippet).casefold()
-        or needle in _normalize(title).casefold()
-    )
 
 
 def _normalize(text: str) -> str:
