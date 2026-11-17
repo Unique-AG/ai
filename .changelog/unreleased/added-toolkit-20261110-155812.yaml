@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: Experimental Activity Records outbox store with a migration entry point, and a new activity-records extra that installs the database dependency.
+time: 2026-11-10T15:58:12.131453+01:00
+custom:
+    Audience: developer
+    Ticket: UN-28050
