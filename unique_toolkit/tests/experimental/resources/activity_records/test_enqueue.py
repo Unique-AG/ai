@@ -672,6 +672,152 @@ async def test_stop_after_a_failed_start_is_a_no_op(
     assert not outbox.is_ready()
 
 
+async def test_stop_during_a_pending_start_wins_and_a_fresh_start_works(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pool_gate = asyncio.Event()
+    wiring = patch_runtime(monkeypatch, Store(), pool_gate=pool_gate)
+    outbox = new_outbox(Metrics())
+    starting = asyncio.create_task(outbox.start())
+    await asyncio.sleep(0)
+
+    await outbox.stop()
+    pool_gate.set()
+    await starting
+
+    assert not enqueue_module.is_running()
+    assert outbox.pool is None and outbox.relay is None
+    assert wiring.pools_closed == 1
+    assert wiring.calls.count("relay.stop") == wiring.calls.count("relay.start")
+
+    await outbox.start()
+    assert enqueue_module.is_running()
+    await outbox.stop()
+    assert not enqueue_module.is_running()
+
+
+async def test_a_stale_failed_start_does_not_clobber_a_newer_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wiring = patch_runtime(monkeypatch, Store())
+    first_gate = asyncio.Event()
+    pools = 0
+
+    async def create_pool(_url: str, **_options: Any) -> Pool:
+        nonlocal pools
+        pools += 1
+        if pools == 1:
+            await first_gate.wait()
+            raise ConnectionError("pool failed")
+        return Pool(wiring)
+
+    monkeypatch.setattr(store_module, "create_pool", create_pool)
+    outbox = new_outbox(Metrics())
+    stale = asyncio.create_task(outbox.start())
+    await asyncio.sleep(0)
+    await outbox.stop()
+    await outbox.start()
+
+    first_gate.set()
+    with pytest.raises(ConnectionError):
+        await stale
+
+    assert enqueue_module.is_running()
+    assert outbox.is_ready()
+    await outbox.stop()
+    assert not enqueue_module.is_running()
+    assert wiring.pools_closed == 1
+
+
+async def test_start_while_stop_is_in_flight_raises_then_a_fresh_start_works(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release_stop = asyncio.Event()
+
+    async def slow_stop(self: StubRelay) -> None:
+        await release_stop.wait()
+
+    monkeypatch.setattr(StubRelay, "stop", slow_stop)
+    patch_runtime(monkeypatch, Store())
+    outbox = new_outbox(Metrics())
+    await outbox.start()
+    stopping = asyncio.create_task(outbox.stop())
+    await asyncio.sleep(0)
+
+    try:
+        with pytest.raises(RuntimeError, match="stopping"):
+            await outbox.start()
+    finally:
+        release_stop.set()
+    await stopping
+    await outbox.start()
+    assert enqueue_module.is_running()
+    await outbox.stop()
+
+
+async def test_concurrent_stops_close_the_pool_once_after_the_relay_stops(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release_stop = asyncio.Event()
+    stopping = False
+
+    async def slow_stop(self: StubRelay) -> None:
+        nonlocal stopping
+        if stopping:  # like the real relay, a second stop returns at once
+            return
+        stopping = True
+        await release_stop.wait()
+
+    monkeypatch.setattr(StubRelay, "stop", slow_stop)
+    wiring = patch_runtime(monkeypatch, Store())
+    outbox = new_outbox(Metrics())
+    await outbox.start()
+    stops = [asyncio.create_task(outbox.stop()) for _ in range(2)]
+    await asyncio.sleep(0.01)
+
+    try:
+        assert wiring.pools_closed == 0
+    finally:
+        release_stop.set()
+    await asyncio.gather(*stops)
+
+    assert wiring.pools_closed == 1
+    assert not enqueue_module.is_running()
+
+
+async def test_a_queued_stop_does_not_tear_down_a_restart(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release_stop = asyncio.Event()
+
+    async def slow_stop(self: StubRelay) -> None:
+        await release_stop.wait()
+
+    class RestartingLock(asyncio.Lock):
+        async def __aexit__(self, *_exc: Any) -> None:
+            self.release()
+            if not restarted:
+                restarted.append(True)
+                await outbox.start()  # runs before the queued stop wakes
+
+    restarted: list[bool] = []
+    monkeypatch.setattr(StubRelay, "stop", slow_stop)
+    wiring = patch_runtime(monkeypatch, Store())
+    outbox = new_outbox(Metrics())
+    outbox._stop_lock = RestartingLock()
+    await outbox.start()
+    first = asyncio.create_task(outbox.stop())
+    await asyncio.sleep(0)
+    queued = asyncio.create_task(outbox.stop())
+    await asyncio.sleep(0)
+
+    release_stop.set()
+    await asyncio.gather(first, queued)
+
+    assert enqueue_module.is_running()
+    assert wiring.pools_closed == 1
+
+
 async def test_lifecycle_warns_for_missing_optional_dependencies(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

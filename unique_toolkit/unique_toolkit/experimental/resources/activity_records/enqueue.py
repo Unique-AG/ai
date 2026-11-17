@@ -221,12 +221,18 @@ class ActivityRecordsOutbox:
         self.pool: asyncpg.Pool | None = None
         self.relay: OutboxRelay | None = None
         self._write: _EnqueueContext | None = None
+        self._stop_lock = asyncio.Lock()
 
     async def start(self) -> None:
         """Create dependencies from environment and start the relay."""
         global _active_context, _last_metrics
         if self._write is not None:
-            return
+            if _active_context is self._write:
+                return
+            raise RuntimeError(
+                "The Activity Records outbox is stopping; "
+                "await stop() before calling start() again"
+            )
         if _active_context is not None:
             raise RuntimeError("Only one Activity Records outbox can be active")
         if prepare_module.otel_trace is None:
@@ -274,7 +280,7 @@ class ActivityRecordsOutbox:
             asyncio.get_running_loop().create_future(),
         )
         pool = None
-        _active_context = write
+        _active_context = self._write = write
         _last_metrics = metrics
         try:
             pool = await create_pool(database_url, min_size=0, max_size=4)
@@ -290,11 +296,18 @@ class ActivityRecordsOutbox:
             )
             await relay.start()
         except BaseException:
-            _active_context = None
+            if _active_context is write:
+                _active_context = None
+            if self._write is write:
+                self._write = None
             if pool is not None:
                 await _close_pool(pool)
             raise
-        self.pool, self.relay, self._write = pool, relay, write
+        if _active_context is not write:  # stop() ran while we were starting
+            await relay.stop()
+            await _close_pool(pool)
+            return
+        self.pool, self.relay = pool, relay
 
     def is_ready(self) -> bool:
         return self.relay is not None and self.relay.is_ready()
@@ -302,17 +315,21 @@ class ActivityRecordsOutbox:
     async def stop(self) -> None:
         """Stop delivery, drain inserts, then close the database pool."""
         global _active_context
-        if _active_context is self._write:
-            _active_context = None
-        try:
-            if self.relay is not None:
-                await self.relay.stop()
-            await drain()
-        finally:
+        write = self._write
+        async with self._stop_lock:
+            if self._write is not write:  # already stopped, or replaced by a restart
+                return
+            if _active_context is self._write:
+                _active_context = None
             try:
-                if self.pool is not None:
-                    await _close_pool(self.pool)
+                if self.relay is not None:
+                    await self.relay.stop()
+                await drain()
             finally:
-                self.pool = None
-                self.relay = None
-                self._write = None
+                try:
+                    if self.pool is not None:
+                        await _close_pool(self.pool)
+                finally:
+                    self.pool = None
+                    self.relay = None
+                    self._write = None
