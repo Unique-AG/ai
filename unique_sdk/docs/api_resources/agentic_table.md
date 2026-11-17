@@ -393,7 +393,7 @@ Work with intelligent tables that support:
 
     **Returns:**
 
-    Returns a `{status, message?}` result. On success `id` is the sheet id.
+    Returns a `{object, id, status, message?}` result. `object` is `magic-table-action`. On success `id` is the sheet id.
 
     **Example:**
 

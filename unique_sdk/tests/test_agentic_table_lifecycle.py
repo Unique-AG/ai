@@ -213,6 +213,8 @@ async def test_delete_row_deletes_one_row_by_id(mock_request):
         rowId="mt_row_abc",
     )
 
+    assert result["object"] == "magic-table-action"
+    assert result["id"] == TABLE_ID
     assert result["status"] is True
     mock_request.assert_awaited_once_with(
         "delete",

@@ -165,8 +165,14 @@ class MagicTableActivityResponse(TypedDict):
 
 
 class MagicTableActionResult(TypedDict, total=False):
-    """Generic `{status, message?}` response from lifecycle mutations (import, generate-artifact, sheet metadata writes)."""
+    """Action response from a magic-table lifecycle mutation.
 
+    ``object`` is ``magic-table-action``. ``id`` is the sheet the action was
+    performed on. ``message`` is set when the API sent one.
+    """
+
+    object: Literal["magic-table-action"]
+    id: str
     status: bool
     message: str | None
 
@@ -793,8 +799,9 @@ class AgenticTable(APIResource["AgenticTable"]):
             rowId (str): Row id (``mt_row_...``), not the row order.
 
         Returns:
-            MagicTableActionResult: ``status`` and optional ``message``. On
-            success the body's ``id`` is the sheet id.
+            MagicTableActionResult: ``object`` is ``magic-table-action``,
+            ``id`` is the sheet id, ``status`` says whether the delete was
+            accepted, and ``message`` is optional.
 
         Raises:
             InvalidRequestError: When ``rowId`` is ``.`` or ``..``. Those
