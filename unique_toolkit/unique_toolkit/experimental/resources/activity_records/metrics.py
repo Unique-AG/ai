@@ -81,7 +81,7 @@ def _create_fixed_outbox_metrics(registry: CollectorRegistry) -> _FixedOutboxMet
         ),
         invalid_events=outbox_metrics.counter(
             "invalid_events_total",
-            "Publish attempts containing invalid activity events",
+            "Activity events that failed schema validation (counted again each round while the row stays invalid)",
             [],
         ),
         flag_check_failures=outbox_metrics.counter(
