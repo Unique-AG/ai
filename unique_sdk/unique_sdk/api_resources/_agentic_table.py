@@ -778,7 +778,8 @@ class AgenticTable(APIResource["AgenticTable"]):
         """Permanently delete one content row by id.
 
         Calls ``DELETE /magic-table/{tableId}/row/{rowId}``. ``rowId`` is the
-        id on a cell from ``get_sheet`` or ``get_cell``, not the row order.
+        id on a cell from ``get_sheet_data(..., includeCells=True)`` or
+        ``get_cell``, not the row order.
         The header row, a locked row, and a row in a final review status are
         rejected. A caller who is not a member of the sheet is rejected. A
         row on a completed sheet can be deleted; the sheet status is then
