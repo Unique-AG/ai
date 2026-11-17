@@ -190,6 +190,15 @@ class TestGoogleSearch:
                 id="placeholder",
             ),
             pytest.param({}, "Short excerpt ...", id="no-pagemap"),
+            pytest.param({"pagemap": None}, "Short excerpt ...", id="pagemap-null"),
+            pytest.param(
+                {"pagemap": {"metatags": []}}, "Short excerpt ...", id="metatags-empty"
+            ),
+            pytest.param(
+                {"pagemap": {"metatags": ["text"]}},
+                "Short excerpt ...",
+                id="metatags-entry-not-dict",
+            ),
         ],
     )
     def test_extract_urls__adds_page_description_to_snippet__like_search_proxy(

@@ -10,7 +10,7 @@ from typing import Any
 # Description tags in ``pagemap.metatags``, most preferred first.
 _DESCRIPTION_KEYS = ("og:description", "twitter:description")
 # Values some sites put in a description tag instead of leaving it out.
-_PLACEHOLDERS = frozenset({"null", "none", "undefined", "n/a", "nan"})
+_PLACEHOLDERS = frozenset({"null", "none"})
 _WHITESPACE = re.compile(r"\s+")
 
 
@@ -32,22 +32,18 @@ def build_google_snippet(item: Mapping[str, Any]) -> str:
 
 
 def _page_description(item: Mapping[str, Any]) -> str:
+    # Google returns a page's meta tags as one entry. Any other shape gives no
+    # description rather than an error, so one odd result can't fail the page.
     pagemap = item.get("pagemap")
-    if not isinstance(pagemap, Mapping):
-        return ""
-    metatags = pagemap.get("metatags")
-    if not isinstance(metatags, list):
+    metatags = pagemap.get("metatags") if isinstance(pagemap, Mapping) else None
+    tags = metatags[0] if isinstance(metatags, list) and metatags else None
+    if not isinstance(tags, Mapping):
         return ""
     for key in _DESCRIPTION_KEYS:
-        for tags in metatags:
-            if not isinstance(tags, Mapping):
-                continue
-            value = tags.get(key)
-            if not isinstance(value, str):
-                continue
-            text = _normalize(value)
-            if text and text.rstrip(".").casefold() not in _PLACEHOLDERS:
-                return text
+        value = tags.get(key)
+        text = _normalize(value) if isinstance(value, str) else ""
+        if text and text.rstrip(".").casefold() not in _PLACEHOLDERS:
+            return text
     return ""
 
 

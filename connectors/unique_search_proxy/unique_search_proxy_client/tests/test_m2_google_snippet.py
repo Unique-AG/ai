@@ -119,9 +119,7 @@ def test_build_google_snippet__keeps_snippet_only__when_description_repeats_it(
 
 
 @pytest.mark.ai
-@pytest.mark.parametrize(
-    "placeholder", ["null", "None.", "undefined", "N/A", "  NaN  ", ""]
-)
+@pytest.mark.parametrize("placeholder", ["null", "None.", "  NULL  ", ""])
 def test_build_google_snippet__keeps_snippet_only__when_description_is_placeholder(
     placeholder: str,
 ) -> None:
@@ -161,6 +159,7 @@ def test_build_google_snippet__falls_back_to_twitter__when_og_description_is_pla
         pytest.param({"pagemap": ["not", "a", "dict"]}, id="pagemap-not-dict"),
         pytest.param({"pagemap": {"cse_image": [{"src": "x"}]}}, id="no-metatags"),
         pytest.param({"pagemap": {"metatags": None}}, id="metatags-null"),
+        pytest.param({"pagemap": {"metatags": []}}, id="metatags-empty"),
         pytest.param(
             {"pagemap": {"metatags": {"og:description": "x"}}}, id="metatags-not-list"
         ),
