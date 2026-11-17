@@ -1,5 +1,7 @@
-"""Event model for Activity Records, mirroring ``@unique/activity-events-client``."""
+"""Public API for the experimental Activity Records outbox."""
 
+from .enqueue import ActivityRecordsOutbox, drain, enqueue, is_running
+from .relay import OutboxRelay
 from .schemas import (
     ACTIVITY_METADATA_MAX_LENGTH,
     ActivityActor,
@@ -14,4 +16,9 @@ __all__ = [
     "ActivityAgent",
     "ActivityCloudEvent",
     "ActivityEventData",
+    "ActivityRecordsOutbox",
+    "OutboxRelay",
+    "drain",
+    "enqueue",
+    "is_running",
 ]

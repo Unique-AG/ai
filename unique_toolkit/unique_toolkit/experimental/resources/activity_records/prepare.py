@@ -64,6 +64,11 @@ class PreparedRows:
     truncated_events: list[WireEvent]
 
 
+def to_last_error(error: BaseException) -> str:
+    """Error class name only: messages can echo payload content."""
+    return type(error).__name__
+
+
 def _shrink_critical_data(
     event: WireEvent,
     max_data_size_bytes: int,
