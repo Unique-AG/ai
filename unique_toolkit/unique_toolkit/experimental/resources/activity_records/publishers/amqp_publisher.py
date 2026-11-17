@@ -15,11 +15,16 @@ from unique_toolkit.experimental.resources.activity_records.json_size import jso
 from unique_toolkit.experimental.resources.activity_records.prepare import WireEvent
 
 try:
-    import aio_pika
-    from aio_pika import DeliveryMode, Message
-    from aio_pika.abc import AbstractExchange, AbstractRobustConnection
-    from aio_pika.connection import make_url
-    from aio_pika.robust_channel import RobustChannel
+    import aio_pika  # pyright: ignore[reportMissingImports]
+    from aio_pika import DeliveryMode, Message  # pyright: ignore[reportMissingImports]
+    from aio_pika.abc import (  # pyright: ignore[reportMissingImports]
+        AbstractExchange,
+        AbstractRobustConnection,
+    )
+    from aio_pika.connection import make_url  # pyright: ignore[reportMissingImports]
+    from aio_pika.robust_channel import (  # pyright: ignore[reportMissingImports]
+        RobustChannel,
+    )
 except ImportError as error:  # pragma: no cover
     raise ImportError(
         "The AMQP publisher needs aio-pika. "
@@ -52,6 +57,8 @@ class AmqpPublisher:
         self._connect_task: asyncio.Task[None] | None = None
 
     async def connect(self) -> None:
+        """Start connecting in the background and return at once. Raises ``ValidationError``
+        when no broker is configured."""
         if self._connection is not None:
             return
         settings = AmqpSettings()
@@ -73,6 +80,7 @@ class AmqpPublisher:
         self._connect_task = asyncio.create_task(connect_in_background())
 
     async def close(self) -> None:
+        """Cancel the connect task and close the connection. Safe to call twice."""
         task = self._connect_task
         self._connect_task = None
         if task is not None and not task.done():
@@ -85,6 +93,8 @@ class AmqpPublisher:
             await connection.close()
 
     async def publish(self, events: Sequence[WireEvent]) -> None:
+        """Raises ``RuntimeError`` before ``connect()``, aio-pika's ``PublishError`` for an
+        unroutable message and ``DeliveryError`` for a nack."""
         exchange = await self._exchange()
         await exchange.publish(
             Message(
@@ -109,13 +119,14 @@ class AmqpPublisher:
         if connection is None:
             raise RuntimeError("Activity records publisher is not connected")
         await connection.ready()
-        if self._channel is None:
+        channel = self._channel
+        if channel is None:
             # A robust channel reopens itself after a reconnect, so it is opened once.
             # aio-pika 9: on_return_raises maps a mandatory return to PublishError and a nack to DeliveryError.
-            channel = await connection.channel(
+            opened = await connection.channel(
                 publisher_confirms=True, on_return_raises=True
             )
-            assert isinstance(channel, RobustChannel)
-            self._channel = channel
-        await self._channel.ready()
-        return self._channel
+            assert isinstance(opened, RobustChannel)
+            channel = self._channel = opened
+        await channel.ready()
+        return channel

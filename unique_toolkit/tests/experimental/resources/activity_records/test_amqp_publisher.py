@@ -276,8 +276,8 @@ async def test_the_same_publisher_recovers_after_a_paused_broker(
             subprocess.run(["docker", "unpause", container], check=True)
         await _publish_until_it_succeeds(publisher, "recovered")
         await asyncio.wait_for(publisher.publish([{"id": "plain"}]), 5)
-        await _take(queue, "plain")
         incoming = await _take(queue, "recovered")
+        await _take(queue, "plain")
     finally:
         subprocess.run(["docker", "unpause", container], capture_output=True)
         await publisher.close()
@@ -299,8 +299,8 @@ async def test_publish_succeeds_after_broker_restart(amqp: tuple[str, str]) -> N
         await _publish_until_it_succeeds(publisher, "after-restart")
         await asyncio.wait_for(publisher.publish([{"id": "plain"}]), 5)
         connection, queue = await _declare_queue(url, ROUTING_KEY, purge=False)
-        await _take(queue, "plain")
         incoming = await _take(queue, "after-restart")
+        await _take(queue, "plain")
     finally:
         await publisher.close()
         await connection.close()

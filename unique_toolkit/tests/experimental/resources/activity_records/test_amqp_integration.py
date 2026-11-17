@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import AsyncExitStack
 
 import pytest
 
@@ -48,19 +49,6 @@ async def test_enqueued_event_reaches_the_queue_and_the_row_is_deleted(
     amqp_url, _container = rabbitmq
     monkeypatch.setenv("DATABASE_URL", dsn)
     monkeypatch.setenv("AMQP_URL", amqp_url)
-    pool = await create_pool(dsn, min_size=1, max_size=2)
-    await pool.execute(ACTIVITY_EVENT_OUTBOX_INITIAL_MIGRATION_SQL)
-    consumer = await aio_pika.connect(amqp_url)
-    channel = await consumer.channel()
-    queue = await channel.declare_queue(ROUTING_KEY, durable=True)
-    publisher = AmqpPublisher()
-    outbox = ActivityRecordsOutbox(
-        publisher=publisher,
-        flag_client=Flags(FlagEvaluation(value=True, reason="remote")),
-        metrics=get_or_create_activity_event_outbox_metrics(
-            registry=CollectorRegistry()
-        ),
-    )
     event = ActivityCloudEvent(
         source="integration-test",
         type="activity.test",
@@ -69,9 +57,27 @@ async def test_enqueued_event_reaches_the_queue_and_the_row_is_deleted(
             company_id="company-1",
         ),
     )
-    await publisher.connect()
-    await outbox.start()
-    try:
+    async with AsyncExitStack() as cleanup:
+        pool = await create_pool(dsn, min_size=1, max_size=2)
+        cleanup.push_async_callback(pool.close)
+        await pool.execute(ACTIVITY_EVENT_OUTBOX_INITIAL_MIGRATION_SQL)
+        consumer = await aio_pika.connect(amqp_url)
+        cleanup.push_async_callback(consumer.close)
+        channel = await consumer.channel()
+        queue = await channel.declare_queue(ROUTING_KEY, durable=True)
+        publisher = AmqpPublisher()
+        await publisher.connect()
+        cleanup.push_async_callback(publisher.close)
+        outbox = ActivityRecordsOutbox(
+            publisher=publisher,
+            flag_client=Flags(FlagEvaluation(value=True, reason="remote")),
+            metrics=get_or_create_activity_event_outbox_metrics(
+                registry=CollectorRegistry()
+            ),
+        )
+        await outbox.start()
+        cleanup.push_async_callback(outbox.stop)
+
         enqueue(event)
         await drain()
         incoming = None
@@ -89,11 +95,6 @@ async def test_enqueued_event_reaches_the_queue_and_the_row_is_deleted(
             if remaining == 0:
                 break
             await asyncio.sleep(0.1)
-    finally:
-        await outbox.stop()
-        await publisher.close()
-        await consumer.close()
-        await pool.close()
 
     assert [item["id"] for item in json.loads(incoming.body)] == [str(event.id)]
     assert remaining == 0
