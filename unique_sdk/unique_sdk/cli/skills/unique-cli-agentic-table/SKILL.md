@@ -242,7 +242,9 @@ Report these refusals. Do not look for another way to remove the row:
 - A missing sheet or row is not found.
 
 A row on a completed sheet can be deleted. The sheet status is then
-recomputed. Confirm with `get-sheet` that the row is gone.
+recomputed. Confirm the row is gone with
+`get-sheet <table_id> --cells --json`: no returned cell should still have
+that `rowId`. A summary-only `get-sheet` does not include cells.
 
 ```bash
 unique-cli agentic-table delete-row mt_abc123 mt_row_e4d94icb5mtj99rmu2efhyel

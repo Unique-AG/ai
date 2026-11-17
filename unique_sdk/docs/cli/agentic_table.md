@@ -285,7 +285,7 @@ Row 4 rerun finished (state: IDLE).
 
 ## agentic-table delete-row
 
-Permanently delete one content row by its row id. This is the same delete the sheet UI performs: the row is removed, and a later `get-sheet` no longer returns it.
+Permanently delete one content row by its row id. This is the same delete the sheet UI performs: the row is removed. Confirm with `get-sheet <table_id> --cells --json` that no returned cell still has that `rowId`. A summary-only `get-sheet` does not include cells.
 
 `<row_id>` is the `rowId` on a cell (`mt_row_...`), not the row order `get-cell --row` and `rerun-row` use. Row order shifts when a row above it is removed, so it is not a safe address for a delete. Read the id with `get-cell --json` or `get-sheet --cells --json` (the formatted cell view prints `Row id` when the API returned it).
 
