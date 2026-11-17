@@ -196,10 +196,14 @@ def _origin(url: str | None) -> str | None:
     if url is None:
         return None
     parts = urlsplit(url)
+    try:
+        port = parts.port
+    except ValueError:
+        return None
     if not parts.hostname:
         return None
-    port = f":{parts.port}" if parts.port else ""
-    return f"{parts.scheme}://{parts.hostname}{port}"
+    suffix = f":{port}" if port else ""
+    return f"{parts.scheme}://{parts.hostname}{suffix}"
 
 
 @contextmanager

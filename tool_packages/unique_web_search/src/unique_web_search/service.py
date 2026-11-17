@@ -237,9 +237,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
                         screening_result
                     )
                 )
-                activity_record.set_screening(
-                    screening_result.go, screening_result.reason
-                )
+                if screening_service.enabled:
+                    activity_record.set_screening(
+                        screening_result.go, screening_result.reason
+                    )
 
                 if not screening_result.go:
                     denied_response = ToolCallResponse(

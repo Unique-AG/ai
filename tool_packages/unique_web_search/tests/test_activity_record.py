@@ -13,6 +13,12 @@ from unique_toolkit.experimental.resources.activity_records import ActivityCloud
 from unique_web_search import activity_record
 from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.service import WebSearchTool
+from unique_web_search.services.argument_screening.config import (
+    ArgumentScreeningConfig,
+)
+from unique_web_search.services.argument_screening.service import (
+    ArgumentScreeningService,
+)
 from unique_web_search.services.executors.modes import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.query_elicitation import (
@@ -436,6 +442,32 @@ async def test_args__with_a_date_still_produce_a_record(
 
 
 @pytest.mark.asyncio
+async def test_screening_config_disabled__stays_not_run(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    service = ArgumentScreeningService(
+        language_model_service=Mock(),
+        language_model=Mock(),
+        config=ArgumentScreeningConfig(enabled=False),
+    )
+    tool = _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, None),
+        screening=service,
+    )
+
+    await _run(tool)
+
+    event = _emitted(enqueue_mock)
+    assert event.type == "web-search.tool.called"
+    assert event.to_wire()["data"]["criticalData"]["argumentScreening"] == {
+        "status": "notRun",
+        "reason": None,
+    }
+
+
+@pytest.mark.asyncio
 async def test_egress_endpoint__keeps_only_scheme_host_and_port(
     mocker: Any, enqueue_mock: Mock
 ) -> None:
@@ -450,6 +482,26 @@ async def test_egress_endpoint__keeps_only_scheme_host_and_port(
 
     critical = _emitted(enqueue_mock).to_wire()["data"]["criticalData"]
     assert critical["egress"]["endpoint"] == "https://api.example.com:8443"
+
+
+@pytest.mark.asyncio
+async def test_egress_endpoint__malformed_port_does_not_fail_the_search(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    class BadPort(_Engine):
+        @property
+        def endpoint(self) -> str | None:
+            return "https://api.example.com:99999/search?key=SECRET"
+
+    tool = _tool(mocker, engine=BadPort(), elicitation=_elicitation(mocker, None))
+
+    await _run(tool)
+
+    event = _emitted(enqueue_mock)
+    critical = event.to_wire()["data"]["criticalData"]
+    assert event.type == "web-search.tool.called"
+    assert critical["egress"]["endpoint"] is None
+    assert "SECRET" not in str(event.to_wire())
 
 
 @pytest.mark.asyncio
