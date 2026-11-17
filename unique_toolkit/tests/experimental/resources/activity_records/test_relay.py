@@ -98,8 +98,6 @@ class Store:
         return values
 
     async def stats(self) -> Any:
-        from types import SimpleNamespace
-
         pending, oldest, at_max = self.stats_value
         return SimpleNamespace(
             pending_rows=pending,
@@ -121,8 +119,6 @@ class Flags:
             raise value
         if callable(value):
             value = value()
-        if isinstance(value, BaseException):
-            raise value
         return value
 
 
@@ -502,7 +498,7 @@ async def test_backoff_max_counter_is_once_when_attempt_reaches_cap() -> None:
     item = row()
     item.attempts = 10
     store = Store([item])
-    relay_instance, metrics, publisher, _ = relay(
+    relay_instance, metrics, _, _ = relay(
         store, publisher=Publisher(["reject", "reject"])
     )
 
@@ -634,11 +630,9 @@ async def test_flag_timeout_defers_and_reads_companies_in_parallel(
     assert await relay_instance.run_once() == 0
     assert started == set(companies)
     assert metrics.value("unique_activity_event_outbox_flag_check_failures_total") == 3
-    assert all(
-        delay == OUTBOX_RELAY_TIMINGS.flag_unknown_defer_seconds
-        for _, delay in store.defer_calls
-        if delay
-    )
+    assert [delay for _, delay in store.defer_calls if delay] == [
+        OUTBOX_RELAY_TIMINGS.flag_unknown_defer_seconds
+    ] * 3
 
 
 async def test_schema_check_error_keeps_relay_unready() -> None:
@@ -975,9 +969,8 @@ async def test_stop_propagates_the_callers_cancellation_while_a_release_is_stuck
         "OUTBOX_RELAY_TIMINGS",
         replace(OUTBOX_RELAY_TIMINGS, stop_timeout_seconds=0.01),
     )
-    relay_instance, _, _, _ = relay(
-        StuckReleaseStore([row()]), publisher=BlockingPublisher()
-    )
+    store = StuckReleaseStore([row()])
+    relay_instance, _, _, _ = relay(store, publisher=BlockingPublisher())
     await relay_instance.start()
     await asyncio.wait_for(started.wait(), 1)
     stopping = asyncio.create_task(relay_instance.stop())
@@ -989,7 +982,7 @@ async def test_stop_propagates_the_callers_cancellation_while_a_release_is_stuck
         await asyncio.wait_for(stopping, 1)
 
     release_gate.set()
-    await asyncio.sleep(0.05)
+    await wait_until(lambda: store.defer_calls)
 
 
 async def test_gauges_refresh_while_a_round_is_stuck_in_a_publish(

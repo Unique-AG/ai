@@ -85,7 +85,7 @@ def test_metric_namespace__counter__registers_with_prefix(
 
 
 @pytest.mark.ai
-def test_metric_namespace__uses_explicit_registry() -> None:
+def test_metric_namespace__counter_uses_explicit_registry() -> None:
     registry = CollectorRegistry()
     m = MetricNamespace("isolated", registry=registry)
 

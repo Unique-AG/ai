@@ -167,6 +167,7 @@ async def stop_started_outboxes(
     for outbox in _started:
         await outbox.stop()
     _started.clear()
+    enqueue_module._relay_flag_client.cache_clear()
 
 
 def patch_runtime(
@@ -190,7 +191,6 @@ def patch_runtime(
         wiring.relays.append(StubRelay(relay_error, wiring.calls))
         return wiring.relays[-1]
 
-    enqueue_module._relay_flag_client.cache_clear()
     monkeypatch.setenv("DATABASE_URL", "postgresql://test")
     monkeypatch.setattr(store_module, "create_pool", create_pool)
     monkeypatch.setattr(store_module, "OutboxStore", lambda _pool: store)
@@ -753,7 +753,6 @@ async def test_start_while_stop_is_in_flight_raises_then_a_fresh_start_works(
     await stopping
     await outbox.start()
     assert enqueue_module.is_running()
-    await outbox.stop()
 
 
 async def test_concurrent_stops_close_the_pool_once_after_the_relay_stops(
@@ -933,7 +932,7 @@ async def test_a_malformed_size_setting_fails_start_before_any_resource_exists(
     await new_outbox(Metrics()).start()
 
 
-async def test_the_relay_gets_its_own_flag_client_when_none_is_injected(
+async def test_the_relay_gets_its_own_flag_client_and_reuses_it_across_restarts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from unique_toolkit.experimental.resources.feature_flags.client import (
@@ -947,29 +946,14 @@ async def test_the_relay_gets_its_own_flag_client_when_none_is_injected(
     outbox = ActivityRecordsOutbox(publisher=AsyncMock(), metrics=Metrics().metrics)
     _started.append(outbox)
 
-    await outbox.start()
-
-    (relay_client,) = wiring.relay_flag_clients
-    shared = FeatureFlagClient.from_settings()
-    assert isinstance(relay_client, FeatureFlagClient)
-    assert relay_client is not shared
-
-
-async def test_the_relay_flag_client_is_reused_across_starts(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("CONFIGURATION_BACKEND_URL", "http://configuration-backend")
-    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "service")
-    wiring = patch_runtime(monkeypatch, Store())
-    outbox = ActivityRecordsOutbox(publisher=AsyncMock(), metrics=Metrics().metrics)
-    _started.append(outbox)
-
     for _ in range(2):
         await outbox.start()
         await outbox.stop()
 
     first, second = wiring.relay_flag_clients
     assert first is second
+    assert isinstance(first, FeatureFlagClient)
+    assert first is not FeatureFlagClient.from_settings()
 
 
 async def test_an_injected_flag_client_is_used_by_the_relay_as_well(
