@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: Experimental RabbitMQ sender for the Activity Records outbox, configured with `AMQP_URL`, or `AMQP_HOST` with `AMQP_USERNAME` and `AMQP_PASSWORD`, plus a logging sender for testing. The new `activity-records-amqp` extra installs aio-pika.
+time: 2026-11-17T14:18:02.757901+01:00
+custom:
+    Audience: developer
+    Ticket: UN-28050
