@@ -1,6 +1,6 @@
 component: Web Search
 kind: Added
-body: Activity Records for web search tool calls. Disabled by default; recording requires `FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965` and `FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616` for the company, and an active Activity Records outbox in the host service.
+body: Activity Records for web search record one entry per outgoing query, plus one per tool call blocked or failed before any query was sent. Disabled by default; recording requires `FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965` and `FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616` for the company, and an active Activity Records outbox in the host service.
 time: 2026-11-13T14:50:52.742462+01:00
 custom:
     Audience: admin

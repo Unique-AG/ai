@@ -1,9 +1,9 @@
-"""One Activity Record per web search tool call."""
+"""One Activity Record per outgoing web search query, plus one per call that sent none."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -18,6 +18,7 @@ from unique_toolkit.experimental.resources.activity_records import (
 from unique_toolkit.experimental.resources.feature_flags import get_feature_flag_client
 
 if TYPE_CHECKING:
+    from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
     from unique_toolkit.language_model.schemas import LanguageModelFunction
 
     from unique_web_search.service import WebSearchTool
@@ -42,22 +43,35 @@ class ActivityRecord:
     engine_name: str
     critical_data: dict[str, Any]
     outcome: Outcome = "failed"
+    queries_sent: int = 0
 
-    def to_event(self) -> ActivityCloudEvent:
+
+def _emit(
+    record: ActivityRecord,
+    type_: str,
+    build_critical_data: Callable[[], dict[str, Any]],
+) -> None:
+    try:
         # build() cuts over-long metadata instead of raising, so the record is never dropped.
-        return ActivityCloudEvent.build(
+        event = ActivityCloudEvent.build(
             source="web-search",
-            type=f"web-search.tool.{self.outcome}",
+            type=type_,
             data={
-                "actor": {"id": self.user_id, "type": "user"},
-                "agent": {"id": self.assistant_id},
-                "companyId": self.company_id,
+                "actor": {"id": record.user_id, "type": "user"},
+                "agent": {"id": record.assistant_id},
+                "companyId": record.company_id,
                 "targetType": "searchEngine",
-                "targetId": self.engine_id,
-                "targetName": self.engine_name,
-                "subtype": self.executor_mode,
-                "criticalData": self.critical_data,
+                "targetId": record.engine_id,
+                "targetName": record.engine_name,
+                "subtype": record.executor_mode,
+                "criticalData": build_critical_data(),
             },
+        )
+        enqueue(event)
+    except Exception as exc:
+        _LOGGER.error(
+            "Could not emit the web search activity record (errorName=%s)",
+            type(exc).__name__,
         )
 
 
@@ -102,8 +116,6 @@ async def start(
                 "args": tool_call.arguments,
                 "argumentScreening": {"status": "notRun", "reason": None},
                 "elicitation": {"status": "notRun", "proposedQueries": []},
-                "egress": None,
-                "searchRequests": [],
             },
         )
         if len(prompt) > _USER_PROMPT_MAX_LENGTH:
@@ -120,7 +132,7 @@ async def start(
 
 @contextmanager
 def active(record: ActivityRecord | None) -> Iterator[None]:
-    """Collect into ``record`` for the duration of the block, then emit it once."""
+    """Collect into ``record`` for the block. A call that sent no query emits one call row."""
     token = _current.set(record)
     try:
         yield
@@ -131,19 +143,21 @@ def active(record: ActivityRecord | None) -> Iterator[None]:
         raise
     finally:
         _current.reset(token)
-        if record is not None:
-            try:
-                enqueue(record.to_event())
-            except Exception as exc:
-                _LOGGER.error(
-                    "Could not emit the web search activity record (errorName=%s)",
-                    type(exc).__name__,
-                )
+        if (
+            record is not None
+            and record.queries_sent == 0
+            and record.outcome != "called"
+        ):
+            _emit(
+                record,
+                f"web-search.tool.{record.outcome}",
+                lambda: record.critical_data,
+            )
 
 
 def _note_failure(record: ActivityRecord, exc: BaseException) -> None:
     """Keep the first error's type only (never the message, it can hold client data)."""
-    if record.outcome == "failed":
+    if record.outcome != "called":
         record.critical_data.setdefault("reason", type(exc).__name__)
 
 
@@ -181,7 +195,7 @@ def set_elicitation(
 
 
 _NO_RESPONSE = "_finishedWithoutResponse"
-# One tool call can search concurrently. The list's last entry is not this call's entry.
+# One tool call can search concurrently, so each query keeps its own entry.
 _request: ContextVar[dict[str, Any] | None] = ContextVar(
     "web_search_activity_search_request", default=None
 )
@@ -205,35 +219,42 @@ def _origin(url: str | None) -> str | None:
     """Scheme, host and port only: a path or query string can hold an API key."""
     if url is None:
         return None
-    parts = urlsplit(url)
     try:
+        parts = urlsplit(url)
         port = parts.port
     except ValueError:
         return None
     if not parts.hostname:
         return None
+    host = f"[{parts.hostname}]" if ":" in parts.hostname else parts.hostname
     suffix = f":{port}" if port else ""
-    return f"{parts.scheme}://{parts.hostname}{suffix}"
+    return f"{parts.scheme}://{host}{suffix}"
 
 
 @contextmanager
 def search_request(
-    query: str, *, via_search_proxy: bool, endpoint: str | None
+    query: str,
+    *,
+    params: ExposedParams | None,
+    via_search_proxy: bool,
+    endpoint: str | None,
+    destination: str | None = None,
 ) -> Iterator[None]:
     if (record := _current.get()) is None:
         yield
         return
-    if record.critical_data["egress"] is None:
-        record.critical_data["egress"] = {
-            "viaSearchProxy": via_search_proxy,
-            "endpoint": _origin(endpoint),
-        }
-    entry = {"query": query, "responseReceived": False}
-    record.critical_data["searchRequests"].append(entry)
+    egress: dict[str, Any] = {
+        "viaSearchProxy": via_search_proxy,
+        "endpoint": _origin(endpoint),
+    }
+    if destination_origin := _origin(destination):
+        egress["destination"] = destination_origin
+    entry: dict[str, Any] = {"responseReceived": False}
     token = _request.set(entry)
     try:
         yield
-    except BaseException:
+    except BaseException as exc:
+        entry["error"] = type(exc).__name__
         raise
     else:
         # A swallowed failure calls note_no_response(); a received error status stays True.
@@ -242,3 +263,30 @@ def search_request(
     finally:
         entry.pop(_NO_RESPONSE, None)
         _request.reset(token)
+        record.queries_sent += 1
+
+        def build() -> dict[str, Any]:
+            shared = {
+                k: record.critical_data[k]
+                for k in (
+                    "chatId",
+                    "messageId",
+                    "toolCallId",
+                    "argumentScreening",
+                    "elicitation",
+                )
+            }
+            dumped = (
+                params.model_dump(mode="json", by_alias=True, exclude_none=True)
+                if params
+                else None
+            )
+            return {
+                **shared,
+                "query": query,
+                "params": dumped,
+                "egress": egress,
+                **entry,
+            }
+
+        _emit(record, "web-search.query.sent", build)

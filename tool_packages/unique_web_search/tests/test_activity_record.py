@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_toolkit.elicitation import ElicitationStatus
 from unique_toolkit.experimental.resources.activity_records import ActivityCloudEvent
@@ -28,6 +29,11 @@ from unique_web_search.services.query_elicitation import (
 from unique_web_search.services.search_engine.base import SearchEngine
 
 pytestmark = pytest.mark.ai
+
+
+class _Params(ExposedParams):
+    max_results: int | None = None
+    freshness: str | None = None
 
 
 class _Engine(SearchEngine):
@@ -127,12 +133,16 @@ def _emitted(enqueue_mock: Mock) -> ActivityCloudEvent:
     return enqueue_mock.call_args.args[0]
 
 
+def _rows(enqueue_mock: Mock) -> list[dict[str, Any]]:
+    return [call.args[0].to_wire() for call in enqueue_mock.call_args_list]
+
+
 async def _run(tool: WebSearchTool, query: str = "news") -> None:
     await tool.run(Mock(id="call-1", arguments={"query": query}))
 
 
 @pytest.mark.asyncio
-async def test_called__records_one_event_with_full_critical_data(
+async def test_called__records_one_query_row_with_full_critical_data(
     mocker: Any, enqueue_mock: Mock
 ) -> None:
     screening = AsyncMock(return_value=Mock(go=True, reason="safe"))
@@ -149,7 +159,7 @@ async def test_called__records_one_event_with_full_critical_data(
 
     wire = _emitted(enqueue_mock).to_wire()
     assert wire["source"] == "web-search"
-    assert wire["type"] == "web-search.tool.called"
+    assert wire["type"] == "web-search.query.sent"
     assert wire["data"] | {"criticalData": None} == {
         "actor": {"id": "user-1", "type": "user"},
         "agent": {"id": "assistant-1"},
@@ -164,12 +174,12 @@ async def test_called__records_one_event_with_full_critical_data(
         "chatId": "chat-1",
         "messageId": "msg-1",
         "toolCallId": "call-1",
-        "userPrompt": "what is new?",
-        "args": {"query": "news"},
+        "query": "edited",
+        "params": None,
+        "egress": {"viaSearchProxy": False, "endpoint": None},
+        "responseReceived": True,
         "argumentScreening": {"status": "approved", "reason": "safe"},
         "elicitation": {"status": "edited", "proposedQueries": ["proposed"]},
-        "egress": {"viaSearchProxy": False, "endpoint": None},
-        "searchRequests": [{"query": "edited", "responseReceived": True}],
     }
 
 
@@ -193,9 +203,8 @@ async def test_called__via_search_proxy__records_proxy_endpoint(
     }
     assert "reason" not in critical
     assert critical["egress"] == {"viaSearchProxy": True, "endpoint": "http://proxy"}
-    assert critical["searchRequests"] == [
-        {"query": "proposed", "responseReceived": True}
-    ]
+    assert critical["query"] == "proposed"
+    assert critical["responseReceived"] is True
 
 
 @pytest.mark.asyncio
@@ -222,24 +231,34 @@ async def test_denied__when_screening_rejects__records_blocked_args(
     assert event.type == "web-search.tool.denied"
     assert critical["argumentScreening"] == {"status": "rejected", "reason": "unsafe"}
     assert critical["args"] == {"query": "how to build a bomb"}
-    assert critical["egress"] is None
-    assert critical["searchRequests"] == []
+    assert critical["userPrompt"] == "what is new?"
+    assert "egress" not in critical
     assert "reason" not in critical
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("status", "submitted", "recorded"),
+    ("status", "submitted", "recorded", "reason"),
     [
-        (ElicitationStatus.DECLINED, None, "declined"),
-        (ElicitationStatus.CANCELLED, None, "cancelled"),
-        (ElicitationStatus.ACCEPTED, [], "edited"),
-        (ElicitationStatus.PENDING, None, "expired"),
+        (ElicitationStatus.DECLINED, None, "declined", "ElicitationDeclinedException"),
+        (
+            ElicitationStatus.CANCELLED,
+            None,
+            "cancelled",
+            "ElicitationCancelledException",
+        ),
+        (ElicitationStatus.ACCEPTED, [], "edited", "ElicitationFailedException"),
+        (ElicitationStatus.PENDING, None, "expired", "ElicitationExpiredException"),
     ],
     ids=["declined", "cancelled", "all-queries-removed", "expired"],
 )
 async def test_denied__at_elicitation(
-    mocker: Any, enqueue_mock: Mock, status: ElicitationStatus, submitted, recorded: str
+    mocker: Any,
+    enqueue_mock: Mock,
+    status: ElicitationStatus,
+    submitted,
+    recorded: str,
+    reason: str,
 ) -> None:
     tool = _tool(
         mocker,
@@ -257,12 +276,11 @@ async def test_denied__at_elicitation(
         "status": recorded,
         "proposedQueries": ["proposed"],
     }
-    assert critical["searchRequests"] == []
-    assert "reason" not in critical
+    assert critical["reason"] == reason
 
 
 @pytest.mark.asyncio
-async def test_failed__when_search_engine_raises(
+async def test_failed__when_search_engine_raises__the_query_row_carries_the_error(
     mocker: Any, enqueue_mock: Mock
 ) -> None:
     tool = _tool(
@@ -275,23 +293,53 @@ async def test_failed__when_search_engine_raises(
 
     event = _emitted(enqueue_mock)
     critical = event.to_wire()["data"]["criticalData"]
+    assert enqueue_mock.call_count == 1
+    assert event.type == "web-search.query.sent"
+    assert critical["query"] == "proposed"
+    assert critical["responseReceived"] is False
+    assert critical["error"] == "RuntimeError"
+    assert "args" not in critical
+    assert "engine down" not in str(event.to_wire())
+
+
+@pytest.mark.asyncio
+async def test_failed__before_any_query__records_a_call_row_with_args_and_reason(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    async def failing_executor() -> list:
+        raise RuntimeError("executor down")
+
+    tool = _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, None),
+        run_executor=failing_executor,
+    )
+
+    await _run(tool)
+
+    event = _emitted(enqueue_mock)
+    critical = event.to_wire()["data"]["criticalData"]
     assert event.type == "web-search.tool.failed"
     assert critical["args"] == {"query": "news"}
-    assert critical["searchRequests"] == [
-        {"query": "proposed", "responseReceived": False}
-    ]
+    assert critical["userPrompt"] == "what is new?"
     assert critical["reason"] == "RuntimeError"
-    assert "engine down" not in str(event.to_wire())
+    assert "egress" not in critical
+    assert "executor down" not in str(event.to_wire())
 
 
 @pytest.mark.asyncio
 async def test_failed__when_error_handling_also_raises__keeps_first_error_type(
     mocker: Any, enqueue_mock: Mock
 ) -> None:
+    async def failing_executor() -> list:
+        raise RuntimeError("executor down")
+
     tool = _tool(
         mocker,
-        engine=_Engine(error=RuntimeError("engine down")),
+        engine=_Engine(),
         elicitation=_elicitation(mocker, None),
+        run_executor=failing_executor,
     )
     mocker.patch(
         "unique_web_search.service.WebSearchMessageLogger"
@@ -317,7 +365,7 @@ async def test_failed__when_parameters_are_invalid__records_error_type_only(
 
 
 @pytest.mark.asyncio
-async def test_failed__when_cancelled__records_error_type_and_propagates(
+async def test_failed__when_cancelled_before_any_query__records_a_call_row(
     mocker: Any, enqueue_mock: Mock
 ) -> None:
     started = asyncio.Event()
@@ -346,13 +394,43 @@ async def test_failed__when_cancelled__records_error_type_and_propagates(
 
 
 @pytest.mark.asyncio
+async def test_failed__when_cancelled_mid_query__the_query_row_carries_the_error(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    started = asyncio.Event()
+
+    class BlockedEngine(_Engine):
+        async def _legacy_search(self, query, params):
+            started.set()
+            await asyncio.Event().wait()
+
+    tool = _tool(mocker, engine=BlockedEngine(), elicitation=_elicitation(mocker, None))
+    task = asyncio.create_task(_run(tool))
+    await started.wait()
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    event = _emitted(enqueue_mock)
+    critical = event.to_wire()["data"]["criticalData"]
+    assert event.type == "web-search.query.sent"
+    assert critical["error"] == "CancelledError"
+    assert critical["responseReceived"] is False
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("length", "truncated"), [(4096, False), (4097, True)], ids=["at-cap", "over-cap"]
 )
-async def test_user_prompt__capped_at_4096_characters(
+async def test_user_prompt__capped_at_4096_characters_on_call_rows(
     mocker: Any, enqueue_mock: Mock, length: int, truncated: bool
 ) -> None:
-    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+    tool = _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, ElicitationStatus.DECLINED),
+    )
     tool._event.payload.user_message.text = "x" * length
 
     await _run(tool)
@@ -405,14 +483,16 @@ async def test_concurrent_calls__each_record_only_its_own_parallel_searches(
         ),
     )
 
-    sent = {}
-    for call in enqueue_mock.call_args_list:
-        critical = call.args[0].to_wire()["data"]["criticalData"]
-        sent[critical["chatId"]] = sorted(
-            r["query"] for r in critical["searchRequests"]
-        )
-    assert enqueue_mock.call_count == 2
-    assert sent == {"chat-a": ["a1", "a2"], "chat-b": ["b1", "b2", "b3"]}
+    sent: dict[str, list[str]] = {"chat-a": [], "chat-b": []}
+    for row in _rows(enqueue_mock):
+        critical = row["data"]["criticalData"]
+        sent[critical["chatId"]].append(critical["query"])
+        assert critical["toolCallId"] == critical["chatId"].replace("chat", "call")
+    assert enqueue_mock.call_count == 5
+    assert {k: sorted(v) for k, v in sent.items()} == {
+        "chat-a": ["a1", "a2"],
+        "chat-b": ["b1", "b2", "b3"],
+    }
 
 
 @pytest.mark.asyncio
@@ -428,7 +508,7 @@ async def test_called__when_the_user_approves_the_proposed_queries_unchanged(
     await _run(tool)
 
     event = _emitted(enqueue_mock)
-    assert event.type == "web-search.tool.called"
+    assert event.type == "web-search.query.sent"
     assert event.to_wire()["data"]["criticalData"]["elicitation"] == {
         "status": "approved",
         "proposedQueries": ["proposed"],
@@ -442,7 +522,11 @@ async def test_args__with_a_date_still_produce_a_record(
     class DatedParameters(WebSearchToolParameters):
         since: date = date(2026, 1, 2)
 
-    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+    tool = _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, ElicitationStatus.DECLINED),
+    )
     tool.tool_parameter_calls = DatedParameters
 
     await _run(tool)
@@ -470,7 +554,7 @@ async def test_screening_config_disabled__stays_not_run(
     await _run(tool)
 
     event = _emitted(enqueue_mock)
-    assert event.type == "web-search.tool.called"
+    assert event.type == "web-search.query.sent"
     assert event.to_wire()["data"]["criticalData"]["argumentScreening"] == {
         "status": "notRun",
         "reason": None,
@@ -492,6 +576,7 @@ async def test_egress_endpoint__keeps_only_scheme_host_and_port(
 
     critical = _emitted(enqueue_mock).to_wire()["data"]["criticalData"]
     assert critical["egress"]["endpoint"] == "https://api.example.com:8443"
+    assert "destination" not in critical["egress"]
 
 
 @pytest.mark.asyncio
@@ -509,9 +594,227 @@ async def test_egress_endpoint__malformed_port_does_not_fail_the_search(
 
     event = _emitted(enqueue_mock)
     critical = event.to_wire()["data"]["criticalData"]
-    assert event.type == "web-search.tool.called"
+    assert event.type == "web-search.query.sent"
     assert critical["egress"]["endpoint"] is None
     assert "SECRET" not in str(event.to_wire())
+
+
+@pytest.mark.parametrize(
+    ("url", "origin"),
+    [
+        ("https://[2001:db8::1]:8443/search?key=secret", "https://[2001:db8::1]:8443"),
+        ("https://[2001:db8::1]/search", "https://[2001:db8::1]"),
+    ],
+    ids=["with-port", "without-port"],
+)
+def test_origin__keeps_the_brackets_of_an_ipv6_host(url: str, origin: str) -> None:
+    assert activity_record._origin(url) == origin
+
+
+@pytest.mark.asyncio
+async def test_egress_endpoint__malformed_url_does_not_fail_the_search(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    class BadUrl(_Engine):
+        @property
+        def endpoint(self) -> str | None:
+            return "http://[::1"
+
+    tool = _tool(mocker, engine=BadUrl(), elicitation=_elicitation(mocker, None))
+
+    await _run(tool)
+
+    critical = _emitted(enqueue_mock).to_wire()["data"]["criticalData"]
+    assert critical["responseReceived"] is True
+    assert critical["egress"]["endpoint"] is None
+
+
+@pytest.mark.asyncio
+async def test_query_row__when_building_the_row_raises__the_search_is_unaffected(
+    mocker: Any, enqueue_mock: Mock, caplog: pytest.LogCaptureFixture
+) -> None:
+    secret = "SECRET-MARKER"
+    mocker.patch.object(_Params, "model_dump", side_effect=RuntimeError(secret))
+    engine = _Engine()
+    results: dict[str, list] = {}
+
+    async def with_params() -> list:
+        results["found"] = await engine.search("news", _Params(max_results=3))
+        return []
+
+    tool = _tool(
+        mocker,
+        engine=engine,
+        elicitation=_elicitation(mocker, None),
+        run_executor=with_params,
+    )
+
+    with caplog.at_level(logging.ERROR):
+        response = await tool.run(Mock(id="call-1", arguments={"query": "news"}))
+
+    assert results == {"found": []}
+    assert not response.error_message
+    enqueue_mock.assert_not_called()
+    assert any("errorName=RuntimeError" in r.getMessage() for r in caplog.records)
+    assert secret not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_called__sequential_queries__one_row_each_with_shared_call_fields(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    engine = _Engine()
+    elicitation = _elicitation(mocker, ElicitationStatus.ACCEPTED, ["proposed"])
+
+    async def three_queries() -> list:
+        await elicitation(["proposed"])
+        for query in ["q1", "q2", "q3"]:
+            await engine.search(query)
+        return []
+
+    screening = AsyncMock(return_value=Mock(go=True, reason="safe"))
+    screening.build_step_debug_info_from_result = Mock()
+    tool = _tool(
+        mocker,
+        engine=engine,
+        elicitation=elicitation,
+        screening=screening,
+        run_executor=three_queries,
+    )
+
+    await _run(tool)
+
+    rows = _rows(enqueue_mock)
+    criticals = [row["data"]["criticalData"] for row in rows]
+    assert [row["type"] for row in rows] == ["web-search.query.sent"] * 3
+    assert [c["query"] for c in criticals] == ["q1", "q2", "q3"]
+    assert {c["toolCallId"] for c in criticals} == {"call-1"}
+    assert all(c["argumentScreening"]["status"] == "approved" for c in criticals)
+    assert all(c["elicitation"]["status"] == "approved" for c in criticals)
+
+
+@pytest.mark.asyncio
+async def test_called__parallel_queries__one_row_each_and_errors_stay_per_query(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    class FlakyEngine(_Engine):
+        async def _legacy_search(self, query, params):
+            await asyncio.sleep(0)
+            if query == "bad":
+                raise TimeoutError("slow")
+            return []
+
+    engine = FlakyEngine()
+
+    async def parallel() -> list:
+        await asyncio.gather(
+            *[engine.search(q) for q in ["ok1", "bad", "ok2"]],
+            return_exceptions=True,
+        )
+        return []
+
+    tool = _tool(
+        mocker,
+        engine=engine,
+        elicitation=_elicitation(mocker, None),
+        run_executor=parallel,
+    )
+
+    await _run(tool)
+
+    by_query = {c["query"]: c for c in _sent(enqueue_mock)}
+    assert sorted(by_query) == ["bad", "ok1", "ok2"]
+    assert by_query["bad"]["error"] == "TimeoutError"
+    assert by_query["bad"]["responseReceived"] is False
+    assert "error" not in by_query["ok1"]
+    assert "error" not in by_query["ok2"]
+    assert enqueue_mock.call_count == 3
+    assert all(r["type"] == "web-search.query.sent" for r in _rows(enqueue_mock))
+
+
+@pytest.mark.asyncio
+async def test_called__with_no_queries__emits_nothing(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    async def no_queries() -> list:
+        return []
+
+    tool = _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, None),
+        run_executor=no_queries,
+    )
+
+    await _run(tool)
+
+    enqueue_mock.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_query_row__records_the_exposed_params(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    engine = _Engine()
+    params = _Params(max_results=3, freshness=None)
+
+    async def with_params() -> list:
+        await engine.search("news", params)
+        return []
+
+    tool = _tool(
+        mocker,
+        engine=engine,
+        elicitation=_elicitation(mocker, None),
+        run_executor=with_params,
+    )
+
+    await _run(tool)
+
+    critical = _emitted(enqueue_mock).to_wire()["data"]["criticalData"]
+    assert critical["params"] == {"maxResults": 3}
+    assert "args" not in critical
+
+
+@pytest.mark.asyncio
+async def test_custom_api__via_search_proxy__records_destination_origin(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    from unique_web_search.services.search_engine.custom_api import (
+        CustomAPI,
+        CustomAPIConfig,
+    )
+    from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD
+
+    base = "unique_web_search.services.search_engine.base"
+    mocker.patch(f"{base}.search_proxy_client_enabled", True)
+    mocker.patch(f"{base}.env_settings.search_proxy_base_url", "http://proxy")
+    mocker.patch.object(
+        CustomAPI, "_proxy_routing_enabled", AsyncMock(return_value=True)
+    )
+    mocker.patch.object(CustomAPI, "_proxy_search", AsyncMock(return_value=[]))
+    engine = CustomAPI(
+        CustomAPIConfig(
+            api_endpoint="https://api.example.com/search?key=SECRET",
+            api_headers="{}",
+            api_additional_query_params="{}",
+            api_additional_body_params="{}",
+            api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
+        )
+    )
+    token = activity_record._current.set(_record("customApi"))
+    try:
+        await engine.search("news")
+    finally:
+        activity_record._current.reset(token)
+
+    [critical] = _sent(enqueue_mock)
+    assert critical["egress"] == {
+        "viaSearchProxy": True,
+        "endpoint": "http://proxy",
+        "destination": "https://api.example.com",
+    }
+    assert "SECRET" not in str(critical)
 
 
 @pytest.mark.asyncio
@@ -579,12 +882,15 @@ async def test_flag_read_error__records_nothing_and_search_still_runs(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     flag_client.is_enabled.side_effect = RuntimeError("flag backend down")
-    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+    engine = _Engine()
+    search = mocker.spy(engine, "_legacy_search")
+    tool = _tool(mocker, engine=engine, elicitation=_elicitation(mocker, None))
 
     with caplog.at_level(logging.ERROR):
         response = await tool.run(Mock(id="call-1", arguments={"query": "news"}))
 
     assert not response.error_message
+    search.assert_called_once()
     enqueue_mock.assert_not_called()
     assert any("Could not start" in r.getMessage() for r in caplog.records)
 
@@ -597,12 +903,24 @@ def _record(engine_id: str) -> activity_record.ActivityRecord:
         executor_mode="v1",
         engine_id=engine_id,
         engine_name=engine_id,
-        critical_data={"egress": None, "searchRequests": []},
+        critical_data={
+            "chatId": "chat",
+            "messageId": "msg",
+            "toolCallId": "call",
+            "argumentScreening": {"status": "notRun", "reason": None},
+            "elicitation": {"status": "notRun", "proposedQueries": []},
+        },
     )
 
 
+def _sent(enqueue_mock: Mock) -> list[dict[str, Any]]:
+    return [row["data"]["criticalData"] for row in _rows(enqueue_mock)]
+
+
 @pytest.mark.asyncio
-async def test_custom_api_error_status__counts_as_a_response(mocker: Any) -> None:
+async def test_custom_api_error_status__counts_as_a_response(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
     from unique_web_search.services.search_engine.custom_api import (
         CustomAPI,
         CustomAPIConfig,
@@ -640,13 +958,17 @@ async def test_custom_api_error_status__counts_as_a_response(mocker: Any) -> Non
     finally:
         activity_record._current.reset(token)
 
-    assert record.critical_data["searchRequests"] == [
-        {"query": "news", "responseReceived": True}
-    ]
+    [row] = _sent(enqueue_mock)
+    assert row["query"] == "news"
+    assert row["responseReceived"] is True
+    assert row["error"] == "ValueError"
+    assert "destination" not in row["egress"]
 
 
 @pytest.mark.asyncio
-async def test_google_transport_failure__is_not_a_response(mocker: Any) -> None:
+async def test_google_transport_failure__is_not_a_response(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
     import httpx
     from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
@@ -679,13 +1001,15 @@ async def test_google_transport_failure__is_not_a_response(mocker: Any) -> None:
     finally:
         activity_record._current.reset(token)
 
-    assert record.critical_data["searchRequests"] == [
-        {"query": "news", "responseReceived": False}
-    ]
+    [row] = _sent(enqueue_mock)
+    assert row["responseReceived"] is False
+    assert "error" not in row
 
 
 @pytest.mark.asyncio
-async def test_google_parse_error_after_a_response__stays_received(mocker: Any) -> None:
+async def test_google_parse_error_after_a_response__stays_received(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
     from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
     from unique_web_search.services.search_engine.google import GoogleSearch
@@ -718,20 +1042,24 @@ async def test_google_parse_error_after_a_response__stays_received(mocker: Any) 
     finally:
         activity_record._current.reset(token)
 
-    assert record.critical_data["searchRequests"] == [
-        {"query": "news", "responseReceived": True}
-    ]
+    [row] = _sent(enqueue_mock)
+    assert row["responseReceived"] is True
+    assert "error" not in row
 
 
 @pytest.mark.asyncio
-async def test_overlapping_searches__keep_their_own_response_flag() -> None:
+async def test_overlapping_searches__keep_their_own_response_flag(
+    enqueue_mock: Mock,
+) -> None:
     record = _record("google")
     a_in = asyncio.Event()
     b_in = asyncio.Event()
     a_noted = asyncio.Event()
 
     async def first() -> None:
-        with activity_record.search_request("a", via_search_proxy=False, endpoint=None):
+        with activity_record.search_request(
+            "a", params=None, via_search_proxy=False, endpoint=None
+        ):
             a_in.set()
             await b_in.wait()
             activity_record.note_response_received()
@@ -740,7 +1068,9 @@ async def test_overlapping_searches__keep_their_own_response_flag() -> None:
 
     async def second() -> None:
         await a_in.wait()
-        with activity_record.search_request("b", via_search_proxy=False, endpoint=None):
+        with activity_record.search_request(
+            "b", params=None, via_search_proxy=False, endpoint=None
+        ):
             b_in.set()
             await a_noted.wait()
             activity_record.note_no_response()
@@ -751,14 +1081,17 @@ async def test_overlapping_searches__keep_their_own_response_flag() -> None:
     finally:
         activity_record._current.reset(token)
 
-    assert record.critical_data["searchRequests"] == [
-        {"query": "a", "responseReceived": True},
-        {"query": "b", "responseReceived": False},
-    ]
+    by_query = {row["query"]: row for row in _sent(enqueue_mock)}
+    assert by_query["a"]["responseReceived"] is True
+    assert by_query["a"]["error"] == "ValueError"
+    assert by_query["b"]["responseReceived"] is False
+    assert "error" not in by_query["b"]
 
 
 @pytest.mark.asyncio
-async def test_proxy_parse_failure__counts_as_a_response(mocker: Any) -> None:
+async def test_proxy_parse_failure__counts_as_a_response(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
     from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
     from unique_web_search.services.search_engine.google import GoogleSearch
@@ -789,6 +1122,7 @@ async def test_proxy_parse_failure__counts_as_a_response(mocker: Any) -> None:
     finally:
         activity_record._current.reset(token)
 
-    assert record.critical_data["searchRequests"] == [
-        {"query": "news", "responseReceived": True}
-    ]
+    [row] = _sent(enqueue_mock)
+    assert row["responseReceived"] is True
+    assert row["egress"]["viaSearchProxy"] is True
+    assert row["error"] == "ValueError"

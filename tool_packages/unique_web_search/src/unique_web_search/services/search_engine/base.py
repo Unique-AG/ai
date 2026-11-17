@@ -131,13 +131,16 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 and await self._proxy_routing_enabled()
                 else None
             )
+            via_proxy = proxy_engine is not None
             endpoint = (
-                env_settings.search_proxy_base_url
-                if proxy_engine is not None
-                else self.endpoint
+                env_settings.search_proxy_base_url if via_proxy else self.endpoint
             )
             with activity_record.search_request(
-                query, via_search_proxy=proxy_engine is not None, endpoint=endpoint
+                query,
+                params=params,
+                via_search_proxy=via_proxy,
+                endpoint=endpoint,
+                destination=self.endpoint if via_proxy else None,
             ):
                 if proxy_engine is not None:
                     return await self._proxy_search(query, params, proxy_engine)
