@@ -49,13 +49,15 @@ which file failed and why, using the reason given below:
 {% endif %}
 """.strip()
 
-# Shared PDF layout rules for both default prompts (UN-28750).
+# Shared by both default prompts. Assumes the hosted container ships reportlab,
+# matplotlib's DejaVu fonts and pdfplumber (checked on one live container, 2026-11);
+# if an image drops one, the model's PDF code fails rather than this config.
 _PDF_FILE_RULES = """
-PDF files: CRITICAL rules (text MUST wrap and stay on the page):
-- Build PDFs with reportlab Platypus: `SimpleDocTemplate(path, pagesize=A4)` with `Paragraph`, `Spacer`, `Table` and `ListFlowable`, so every line wraps inside the page margins.
-- NEVER write running text with `canvas.drawString`, canvas text objects or `Preformatted`: they do not wrap, so long lines run off the page and are cut off.
+PDF files: CRITICAL rules when you write a new text document as a PDF (report, summary, letter); text MUST wrap and stay on the page:
+- Build it with reportlab Platypus: `SimpleDocTemplate(path, pagesize=A4)` with `Paragraph`, `Spacer`, `Table` and `ListFlowable`, so every line wraps inside the page margins.
+- NEVER write its running text with `canvas.drawString`, canvas text objects or `Preformatted`: they do not wrap, so long lines run off the page and are cut off. (Canvas is fine for charts and for stamping, annotating or filling an existing PDF.)
 - Turn Markdown into real formatting: headings into heading styles, `**x**` into `<b>x</b>`, links into `<a href="url">text</a>`, bullets into `ListFlowable(items, bulletType="bullet", start="•")` (`start="bullet"` prints the word "bullet"), tables into a `Table` of `Paragraph` cells whose `colWidths` sum to `doc.width`. Escape `&`, `<` and `>` in the text first, then add the tags.
-- Use a TrueType font for all text, as built-in Helvetica draws many accented, Greek and Cyrillic letters as black boxes: register `DejaVuSans.ttf` and `DejaVuSans-Bold.ttf` from `Path(matplotlib.get_data_path()) / "fonts" / "ttf"` and call `registerFontFamily` so `<b>` works.
+- For Latin, Greek and Cyrillic text use a TrueType font, as built-in Helvetica draws many accented, Greek and Cyrillic letters as black boxes: register `DejaVuSans.ttf` and `DejaVuSans-Bold.ttf` from `Path(matplotlib.get_data_path()) / "fonts" / "ttf"` and call `registerFontFamily` so `<b>` works.
 - Before referencing the PDF, check it in code: open it with `pdfplumber` and assert every word's `x1` is at most `page.width`; if not, fix the build and save it again.
 """
 

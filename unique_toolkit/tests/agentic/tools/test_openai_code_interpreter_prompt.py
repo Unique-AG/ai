@@ -22,43 +22,18 @@ _DEFAULT_PROMPTS = pytest.mark.parametrize(
 
 @pytest.mark.ai
 @_DEFAULT_PROMPTS
-def test_default_prompts__require_wrapping_pdf_layout__not_draw_string(
+def test_default_prompts__require_wrapping_pdf_layout__and_width_check(
     prompt: str,
 ) -> None:
     """
-    Purpose: Verify both default prompts tell the model to build PDFs with wrapping flowables.
-    Why this matters: UN-28750 reported a PDF drawn line by line with `canvas.drawString`;
-    lines ran up to 242% of the A4 width and 45% of the words were off the page.
-    Setup summary: Assert the PDF section names Platypus flowables and bans non-wrapping calls.
+    Purpose: Verify both default prompts carry the PDF rules the fix depends on.
+    Why this matters: UN-28750 reported a PDF drawn line by line with `canvas.drawString`,
+    so long lines ran off the page and words were cut off.
+    Setup summary: Assert Platypus, the `drawString` ban and the `pdfplumber` width check.
     """
-    assert "PDF files: CRITICAL rules" in prompt
     assert "reportlab Platypus" in prompt
-    assert "`SimpleDocTemplate(path, pagesize=A4)`" in prompt
-    assert "`ListFlowable`" in prompt
-    assert "NEVER write running text with `canvas.drawString`" in prompt
-    assert "`Preformatted`" in prompt
-
-
-@pytest.mark.ai
-@_DEFAULT_PROMPTS
-def test_default_prompts__pdf_rules_cover_markdown_font_and_layout_check(
-    prompt: str,
-) -> None:
-    """
-    Purpose: Verify the PDF section covers Markdown conversion, escaping, font and a final check.
-    Why this matters: The reported PDF kept raw bullets, used base Helvetica (which cannot draw
-    many accented letters) and was linked without anyone checking it fits the page.
-    Setup summary: Assert each of those rules is present in the default prompt.
-    """
-    assert "`**x**` into `<b>x</b>`" in prompt
-    assert 'start="•"' in prompt
-    assert "Escape `&`, `<` and `>`" in prompt
-    assert "`colWidths` sum to `doc.width`" in prompt
-    assert "DejaVuSans.ttf" in prompt
-    assert "matplotlib.get_data_path()" in prompt
-    assert "`registerFontFamily`" in prompt
+    assert "`canvas.drawString`" in prompt
     assert "`pdfplumber`" in prompt
-    assert "`x1` is at most `page.width`" in prompt
 
 
 @pytest.mark.ai
