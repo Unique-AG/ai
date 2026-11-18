@@ -101,8 +101,8 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
             LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
             LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
-            LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
             LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+            LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
             LanguageModelName.LITELLM_OPENAI_GPT_5,
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
@@ -124,8 +124,8 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
-            LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
@@ -435,16 +435,6 @@ class TestLanguageModelInfos:
         ("model_name", "provider", "info_cutoff_at"),
         [
             (
-                LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
-                LanguageModelProvider.AZURE,
-                date(2026, 6, 1),
-            ),
-            (
-                LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
-                LanguageModelProvider.LITELLM,
-                date(2026, 6, 1),
-            ),
-            (
                 LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
                 LanguageModelProvider.AZURE,
                 date(2026, 5, 18),
@@ -453,6 +443,16 @@ class TestLanguageModelInfos:
                 LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
                 LanguageModelProvider.LITELLM,
                 date(2026, 5, 18),
+            ),
+            (
+                LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+                LanguageModelProvider.AZURE,
+                date(2026, 6, 1),
+            ),
+            (
+                LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+                LanguageModelProvider.LITELLM,
+                date(2026, 6, 1),
             ),
         ],
     )

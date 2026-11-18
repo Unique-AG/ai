@@ -70,8 +70,8 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_6_SOL_2026_0922 = "AZURE_GPT_6_SOL_2026_0922"
     AZURE_GPT_61_SOL_2026_0929 = "AZURE_GPT_61_SOL_2026_0929"
     AZURE_GPT_61_TERRA_2026_1026 = "AZURE_GPT_61_TERRA_2026_1026"
-    AZURE_GPT_62_SOL_2026_1117 = "AZURE_GPT_62_SOL_2026_1117"
     AZURE_GPT_62_ASTRA_2026_1117 = "AZURE_GPT_62_ASTRA_2026_1117"
+    AZURE_GPT_62_SOL_2026_1117 = "AZURE_GPT_62_SOL_2026_1117"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -148,8 +148,8 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_6_SOL = "litellm:openai-gpt-6-sol"
     LITELLM_OPENAI_GPT_61_SOL = "litellm:openai-gpt-6.1-sol"
     LITELLM_OPENAI_GPT_61_TERRA = "litellm:openai-gpt-6.1-terra"
-    LITELLM_OPENAI_GPT_62_SOL = "litellm:openai-gpt-6.2-sol"
     LITELLM_OPENAI_GPT_62_ASTRA = "litellm:openai-gpt-6.2-astra"
+    LITELLM_OPENAI_GPT_62_SOL = "litellm:openai-gpt-6.2-sol"
     LITELLM_OPENAI_O1 = "litellm:openai-o1"
     LITELLM_OPENAI_O3 = "litellm:openai-o3"
     LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
@@ -259,8 +259,8 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_6_SOL_2026_0922
             | LMN.AZURE_GPT_61_SOL_2026_0929
             | LMN.AZURE_GPT_61_TERRA_2026_1026
-            | LMN.AZURE_GPT_62_SOL_2026_1117
             | LMN.AZURE_GPT_62_ASTRA_2026_1117
+            | LMN.AZURE_GPT_62_SOL_2026_1117
             | LMN.AZURE_MODEL_ROUTER_2025_1118
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
@@ -283,8 +283,8 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_GPT_6_SOL
             | LMN.LITELLM_OPENAI_GPT_61_SOL
             | LMN.LITELLM_OPENAI_GPT_61_TERRA
-            | LMN.LITELLM_OPENAI_GPT_62_SOL
             | LMN.LITELLM_OPENAI_GPT_62_ASTRA
+            | LMN.LITELLM_OPENAI_GPT_62_SOL
             | LMN.LITELLM_OPENAI_O1
             | LMN.LITELLM_OPENAI_O3
             | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
@@ -3362,25 +3362,19 @@ class LanguageModelInfo(BaseModel):
                     ],
                 )
             case (
-                LanguageModelName.AZURE_GPT_62_SOL_2026_1117
-                | LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117
-                | LanguageModelName.LITELLM_OPENAI_GPT_62_SOL
+                LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117
+                | LanguageModelName.AZURE_GPT_62_SOL_2026_1117
                 | LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA
+                | LanguageModelName.LITELLM_OPENAI_GPT_62_SOL
             ):
-                # https://developers.openai.com/api/docs/models/gpt-6.2-sol
-                # https://developers.openai.com/api/docs/models/gpt-6.2-astra
-                # Foundry GA 2026-11-17, version 2026-11-17:
-                # https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
-                # https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/gpt-6-2-astra-and-gpt-6-2-sol-now-generally-available-in-microsoft-foundry/4574122
-                # Context 1,050,000 with 128,000 max output → 922,000 max input.
-                # The API rejects `none`. OpenAI lists no other efforts for
-                # GPT-6.2, so these mirror GPT-6.1 Sol, which 6.2 Sol builds on.
+                # The API rejects `none`; the other efforts mirror GPT-6.1 Sol
+                # because OpenAI does not list them for GPT-6.2.
                 provider = (
                     LanguageModelProvider.AZURE
                     if model_name
                     in (
-                        LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
                         LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+                        LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
                     )
                     else LanguageModelProvider.LITELLM
                 )
