@@ -69,8 +69,9 @@ _TITLE_KEYS = (
     "key",
 )
 
-# Preferred keys for a record's own http(s) link. Any other string field is
-# inspected only after these miss.
+# Preferred keys for a record's own http(s) link. Other string fields are
+# inspected when none of these holds one, unless one is present but empty,
+# which means the record has no link.
 _URL_KEYS = (
     "url",
     "uri",
@@ -250,9 +251,8 @@ def _loads_embedded_json(text: str) -> Any:
 
 
 def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
-    """Normalize a parsed JSON value to a flat list of record dicts, unwrapping
-    a single container key (``{"issues": [...]}``) when present, else every
-    list of titled records under any key when the object has no title itself."""
+    """Normalize a parsed JSON value to a flat list of record dicts: a known
+    container key's list, else every list of titled records in an untitled object."""
     if isinstance(parsed, list):
         return [entry for entry in parsed if isinstance(entry, dict)]
     if isinstance(parsed, dict):
