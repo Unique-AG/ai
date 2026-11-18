@@ -1,10 +1,4 @@
-"""Citation rows for every tool result shape of Unique's Office 365 MCP servers.
-
-One case per tool, so a change to how a result is split into records, titled
-or linked shows up against the servers whose results it affects. Each payload
-keeps the fields extraction reads — titles, links and the lists and wrappers
-around them — in the order the server sends them.
-"""
+"""Citation rows for each tool result shape of the Office 365 MCP servers."""
 
 from __future__ import annotations
 
