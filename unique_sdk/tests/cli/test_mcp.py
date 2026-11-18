@@ -183,6 +183,74 @@ def test_json_in_text_unwraps_wrapped_array_into_items(tmp_path: Path) -> None:
     assert {r["title"]: r["sourceNumber"] for r in refs} == {"UN-1": 1, "UN-2": 2}
 
 
+def test_json_in_text_unwraps_list_under_unlisted_key(tmp_path: Path) -> None:
+    # SharePoint file search: records under "files", which is no known
+    # container key, still become one reference each with their own link.
+    body = json.dumps(
+        {
+            "files": [
+                {
+                    "name": "Q3 Report.docx",
+                    "web_url": "https://contoso.sharepoint.com/a",
+                },
+                {"name": "Budget.xlsx", "web_url": "https://contoso.sharepoint.com/b"},
+            ],
+            "sites": [{"web_url": "https://contoso.sharepoint.com", "match_count": 2}],
+            "next_offset": None,
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_search_files", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r["url"]) for r in refs] == [
+        ("Q3 Report.docx", "https://contoso.sharepoint.com/a"),
+        ("Budget.xlsx", "https://contoso.sharepoint.com/b"),
+    ]
+
+
+def test_json_in_text_skips_untitled_list_before_titled_one(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "facets": [{"site": "https://contoso.sharepoint.com", "count": 1}],
+            "drives": [
+                {"name": "Documents", "web_url": "https://contoso.sharepoint.com/d"}
+            ],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_list_drives", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r["url"]) for r in refs] == [
+        ("Documents", "https://contoso.sharepoint.com/d")
+    ]
+
+
+def test_json_in_text_titled_record_not_split_by_unlisted_key(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "title": "Retrieval Design Doc",
+            "comments": [{"title": "Looks good"}, {"title": "One nit"}],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__getConfluencePage", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Retrieval Design Doc"]
+
+
+def test_json_in_text_untitled_lists_stay_one_tool_chip(tmp_path: Path) -> None:
+    body = json.dumps({"counts": [{"site": "a", "count": 1}]})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_search_files", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+
+
 def test_json_in_text_tolerates_non_json_preamble(tmp_path: Path) -> None:
     # Some servers (Atlassian) prefix a human-readable notice before the JSON;
     # the whole string is not valid JSON, so the embedded body must be located.

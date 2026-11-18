@@ -230,7 +230,8 @@ def _loads_embedded_json(text: str) -> Any:
 
 def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
     """Normalize a parsed JSON value to a flat list of record dicts, unwrapping
-    a single container key (``{"issues": [...]}``) when present."""
+    a single container key (``{"issues": [...]}``) when present, else the first
+    list of titled records under any key when the object has no title itself."""
     if isinstance(parsed, list):
         return [entry for entry in parsed if isinstance(entry, dict)]
     if isinstance(parsed, dict):
@@ -246,7 +247,28 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
                     if key in _AMBIGUOUS_CONTAINER_KEYS and _title_from_json(parsed):
                         return [parsed]
                     return records
+        if not _title_from_json(parsed):
+            titled = _first_titled_list(parsed)
+            if titled:
+                return titled
         return [parsed]
+    return []
+
+
+def _first_titled_list(parsed: dict[str, Any]) -> list[dict[str, Any]]:
+    """Records of the first top-level list holding a titled record.
+
+    Servers name their list after what it holds (``{"files": [...]}``,
+    ``{"drives": [...]}``), so no fixed set of container keys covers them.
+    Requiring a titled record skips a list of bare facets, such as counts
+    per site, that would yield no reference anyway.
+    """
+    for value in parsed.values():
+        if not isinstance(value, list):
+            continue
+        records = [entry for entry in value if isinstance(entry, dict)]
+        if any(_title_from_json(record) for record in records):
+            return records
     return []
 
 
