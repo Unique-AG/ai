@@ -293,9 +293,17 @@ def test_config_for_slot_does_not_inherit_previous_slot_api_base(
         "UNIQUE_USER_ID=u\nUNIQUE_COMPANY_ID=c\nUNIQUE_API_KEY=k\nUNIQUE_APP_ID=a\n",
         encoding="utf-8",
     )
+    # Register every SDK global load_config writes, and every env key load_slot
+    # clears or sets, so monkeypatch restores the pre-test state on teardown.
+    for attr in ("api_key", "app_id", "ingestion_upload_api_url_internal"):
+        monkeypatch.setattr(unique_sdk, attr, getattr(unique_sdk, attr, None))
     monkeypatch.setattr(unique_sdk, "api_base", env_mod._SDK_DEFAULT_API_BASE)
-    # Register env keys so monkeypatch restores them after load_slot mutates them.
-    for key in env_mod.UNIQUE_ENV_KEYS:
+    for key in (
+        *env_mod.UNIQUE_ENV_KEYS,
+        *env_mod.TOOLKIT_AUTH_ENV_KEYS,
+        *env_mod.TOOLKIT_APP_ENV_KEYS,
+        *env_mod.TOOLKIT_API_ENV_KEYS,
+    ):
         monkeypatch.delenv(key, raising=False)
 
     src = env_mod.config_for_slot("src", cwd=tmp_path)

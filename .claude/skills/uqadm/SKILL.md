@@ -74,19 +74,27 @@ uqadm env show prod                # resolved credentials for one slot
 **Push config to an existing space without touching its access rights**
 
 ```bash
-uqadm space export DST --slot prod -o dst-before.json            # save the destination ACL
+set -euo pipefail                      # stop on the first failed export/extraction
+command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
+WORK=$(mktemp -d)                      # fresh paths: never compare a stale snapshot
+
+uqadm space export DST --slot prod -o "$WORK/before.json"
 uqadm space migrate --source qa:SRC --destination prod:DST --no-access --dry-run
 uqadm space migrate --source qa:SRC --destination prod:DST --no-access
-uqadm space export DST --slot prod -o dst-after.json
-jq -S '.assistantAccess' dst-before.json > acl-before.json
-jq -S '.assistantAccess' dst-after.json  > acl-after.json
-diff acl-before.json acl-after.json                               # empty = ACL unchanged
-uqadm space diff --source qa:SRC --destination prod:DST --ignore-access  # config-only comparison
+uqadm space export DST --slot prod -o "$WORK/after.json"
+
+# -e fails unless the field is a real array, so missing data can't look "equal"
+jq -eS '.assistantAccess | arrays' "$WORK/before.json" > "$WORK/acl-before.json"
+jq -eS '.assistantAccess | arrays' "$WORK/after.json"  > "$WORK/acl-after.json"
+diff "$WORK/acl-before.json" "$WORK/acl-after.json" && echo "ACL unchanged"
+
+uqadm space diff --source qa:SRC --destination prod:DST --ignore-access   # config-only comparison
 ```
 
 `diff --ignore-access` compares source and destination *configuration*. It
 can't tell you whether the destination ACL changed; use the before/after
-exports for that.
+exports for that. Only report "ACL unchanged" when both `jq -e` extractions
+succeeded.
 
 Reviewable alternative using a snapshot file:
 
@@ -103,12 +111,24 @@ Add `--no-access` if the source's groups don't exist in the target environment.
 **Back up before changes**:
 
 ```bash
-BACKUP="backup-ID-$(date +%F).yaml"
+mkdir -p backups
+# Unique per run (timestamp + PID); refuse to overwrite an existing backup.
+BACKUP="backups/ID-$(date +%Y%m%dT%H%M%S)-$$.yaml"
+[ ! -e "$BACKUP" ] || { echo "refusing to overwrite $BACKUP" >&2; exit 1; }
 uqadm space export ID --slot prod -o "$BACKUP"
+echo "Backup: $BACKUP"                 # record this path; reapply exactly this file
+
 # later, to reapply the saved configuration to the same space on the same slot:
 uqadm space upsert -f "$BACKUP" --slot prod --target ID --dry-run
 uqadm space upsert -f "$BACKUP" --slot prod --target ID
 ```
+
+If the backup has top-level `assistantMcpServers` you want restored, add
+`--with-mcp-servers` to **both** the dry run and the write, on the original slot.
+Without the flag those bindings are skipped (with only a stderr warning). MCP
+tool entries *inside module configuration* are restored with the module config
+whatever the flag. Reapplying a binding doesn't remove bindings added after the
+backup.
 
 This **isn't a full rollback**. Upsert reapplies the supported configuration
 fields and only *adds* saved access entries. It doesn't revoke access granted

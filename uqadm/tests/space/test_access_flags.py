@@ -92,12 +92,49 @@ def test_mcp_server_params_none_is_empty() -> None:
         [{"mcpServerId": "m", "isEnabled": True, "tools": 1}],
         [{"mcpServerId": "m", "isEnabled": True, "tools": [{"isEnabled": True}]}],
         [{"mcpServerId": "m", "isEnabled": True, "tools": ["search"]}],
+        # non-string ids / names
+        [{"mcpServerId": 42, "isEnabled": True}],
+        [{"mcpServerId": "", "isEnabled": True}],
+        [{"mcpServerId": "m", "tools": [{"name": 7, "isEnabled": True}]}],
+        # non-boolean states must never be coerced (bool("false") is True)
+        [{"mcpServerId": "m", "tools": [{"name": "s", "isEnabled": "false"}]}],
+        [{"mcpServerId": "m", "tools": [{"name": "s"}]}],
+        [{"mcpServerId": "m", "isEnabled": "false"}],
+        [{"mcpServerId": "m", "isEnabled": None}],
     ],
 )
 def test_mcp_server_params_reject_malformed_input(entries: Any) -> None:
     # Invalid selections must fail loudly, never widen to "enable all tools".
     with pytest.raises(SnapshotError):
         mcp_server_params_from_source(entries)
+
+
+def test_mcp_server_params_preserves_literal_false_tool_state() -> None:
+    entries = [
+        {
+            "mcpServerId": "m",
+            "isEnabled": True,
+            "tools": [
+                {"name": "a", "isEnabled": False},
+                {"name": "b", "isEnabled": True},
+            ],
+        }
+    ]
+    assert mcp_server_params_from_source(entries) == [
+        {
+            "mcpServerId": "m",
+            "tools": [
+                {"name": "a", "isEnabled": False},
+                {"name": "b", "isEnabled": True},
+            ],
+        }
+    ]
+
+
+def test_mcp_server_params_missing_binding_state_defaults_to_enabled() -> None:
+    assert mcp_server_params_from_source([{"mcpServerId": "m"}]) == [
+        {"mcpServerId": "m"}
+    ]
 
 
 def test_mcp_server_params_enabled_with_empty_tools_omits_tools() -> None:

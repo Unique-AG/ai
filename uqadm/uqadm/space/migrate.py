@@ -142,12 +142,20 @@ def _mcp_tool_params(server_id: str, tools: Any) -> list[dict[str, Any]] | None:
         )
     out: list[dict[str, Any]] = []
     for idx, tool in enumerate(tools):
-        if not isinstance(tool, dict) or not tool.get("name"):
+        name = tool.get("name") if isinstance(tool, dict) else None
+        if not isinstance(name, str) or not name:
             raise SnapshotError(
                 f"MCP binding {server_id!r}: tools[{idx}] must be a mapping "
-                "with a non-empty 'name'."
+                "with a non-empty string 'name'."
             )
-        out.append({"name": tool["name"], "isEnabled": bool(tool.get("isEnabled"))})
+        enabled = tool.get("isEnabled")
+        if not isinstance(enabled, bool):
+            # Never coerce: bool("false") is True and would enable the tool.
+            raise SnapshotError(
+                f"MCP binding {server_id!r}: tools[{idx}] ({name!r}) "
+                f"'isEnabled' must be true or false, got {enabled!r}."
+            )
+        out.append({"name": name, "isEnabled": enabled})
     # An empty selection on an enabled binding carries no explicit choice, so
     # keep the "enable every callable tool" form rather than disabling it.
     return out or None
@@ -174,13 +182,25 @@ def mcp_server_params_from_source(entries: Any) -> list[dict[str, Any]]:
         )
     out: list[dict[str, Any]] = []
     for idx, entry in enumerate(entries):
-        if not isinstance(entry, dict) or not entry.get("mcpServerId"):
+        server_id = entry.get("mcpServerId") if isinstance(entry, dict) else None
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(server_id, str)
+            or not server_id
+        ):
             raise SnapshotError(
-                f"assistantMcpServers[{idx}] must be a mapping with 'mcpServerId'."
+                f"assistantMcpServers[{idx}] must be a mapping with a non-empty "
+                "string 'mcpServerId'."
             )
-        server_id = entry["mcpServerId"]
+        binding_enabled = entry.get("isEnabled", True)
+        if not isinstance(binding_enabled, bool):
+            # A non-boolean state must not fall through to "enable all tools".
+            raise SnapshotError(
+                f"MCP binding {server_id!r}: 'isEnabled' must be true or false, "
+                f"got {binding_enabled!r}."
+            )
         item: dict[str, Any] = {"mcpServerId": server_id}
-        if entry.get("isEnabled") is False:
+        if binding_enabled is False:
             item["tools"] = []
         else:
             tools = _mcp_tool_params(server_id, entry.get("tools"))

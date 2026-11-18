@@ -362,10 +362,16 @@ To **verify the destination ACL was preserved**, export the destination on the
 same slot before and after the push and compare its access entries:
 
 ```bash
-uqadm space export space_dst --slot prod -o dst-before.json
+set -euo pipefail
+WORK=$(mktemp -d)                                  # fresh paths for every run
+uqadm space export space_dst --slot prod -o "$WORK/before.json"
 # ... run the migrate / upsert above ...
-uqadm space export space_dst --slot prod -o dst-after.json
-diff <(jq -S .assistantAccess dst-before.json) <(jq -S .assistantAccess dst-after.json)
+uqadm space export space_dst --slot prod -o "$WORK/after.json"
+# jq -e fails unless assistantAccess is a real array, so a failed export or a
+# missing jq can't produce two empty files that "match".
+jq -eS '.assistantAccess | arrays' "$WORK/before.json" > "$WORK/acl-before.json"
+jq -eS '.assistantAccess | arrays' "$WORK/after.json"  > "$WORK/acl-after.json"
+diff "$WORK/acl-before.json" "$WORK/acl-after.json" && echo "ACL unchanged"
 ```
 
 `space diff --ignore-access` only compares source and destination
