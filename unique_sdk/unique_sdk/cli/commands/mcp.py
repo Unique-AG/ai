@@ -69,9 +69,8 @@ _TITLE_KEYS = (
     "key",
 )
 
-# Preferred keys for a record's own http(s) link. Other string fields are
-# inspected when none of these holds one, unless one is present but empty,
-# which means the record has no link.
+# Preferred keys for a record's own http(s) link, tried before other fields.
+# One present but empty means the record has no link.
 _URL_KEYS = (
     "url",
     "uri",
