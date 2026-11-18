@@ -69,9 +69,14 @@ set. Call `connect()` before `start()` and `close()` after `stop()`.
 `publishers.logging_publisher.LoggingPublisher` only logs events and deletes the rows
 without delivering them: local testing, never production.
 
-`AmqpPublisher` does not declare the ingest queue. Start the activity-records consumer
-(or any Node producer) first, or batches are returned as unroutable and back off. A wrong
-broker host or password also shows up as publish timeouts, not as a startup error.
+`AmqpPublisher` declares the ingest queue and its dead letter queue before the first
+publish, with the same arguments as the Node producer and consumer (durable; the ingest
+queue dead letters to the default exchange with the DLQ name as routing key). If a queue
+already exists with other arguments, RabbitMQ refuses and `publish` raises
+`ChannelPreconditionFailed`; the relay then keeps backing off every row until the queue
+is fixed. The queues are not bound to a custom `exchange`, so that case still needs its
+own bindings. A wrong broker host or password shows up as publish timeouts, not as a
+startup error.
 
 ## FastAPI
 Create one runtime and start and stop it in the FastAPI lifespan:

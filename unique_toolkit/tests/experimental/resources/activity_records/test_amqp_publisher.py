@@ -8,6 +8,7 @@ import socket
 import subprocess
 import time
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock, call
 from urllib.parse import parse_qsl, urlsplit
 
 import pytest
@@ -23,6 +24,7 @@ from unique_toolkit.experimental.resources.activity_records.config import (  # n
 )
 from unique_toolkit.experimental.resources.activity_records.publishers.amqp_publisher import (  # noqa: E402
     CONTENT_TYPE,
+    DEAD_LETTER_QUEUE,
     ROUTING_KEY,
     AmqpPublisher,
     _connection_url,
@@ -134,6 +136,70 @@ async def test_connect_does_not_block_while_the_broker_is_down(
     await asyncio.wait_for(publisher.close(), 5)
 
 
+def _connected_publisher(channel: Any) -> AmqpPublisher:
+    connection = MagicMock()
+    connection.ready = AsyncMock()
+    connection.channel = AsyncMock(return_value=channel)
+    publisher = AmqpPublisher()
+    publisher._connection = connection
+    return publisher
+
+
+def _fake_channel() -> MagicMock:
+    channel = MagicMock(spec=aio_pika.robust_channel.RobustChannel)
+    channel.ready = AsyncMock()
+    channel.declare_queue = AsyncMock()
+    channel.close = AsyncMock()
+    channel.default_exchange = MagicMock()
+    channel.default_exchange.publish = AsyncMock()
+    return channel
+
+
+async def test_first_publish_declares_the_dlq_then_the_ingest_queue() -> None:
+    channel = _fake_channel()
+    publisher = _connected_publisher(channel)
+
+    await publisher.publish([{"id": "event"}])
+    await publisher.publish([{"id": "event"}])
+
+    assert channel.declare_queue.await_args_list == [
+        call(
+            "unique.activity-records.ingest.dlq",
+            durable=True,
+            exclusive=False,
+            auto_delete=False,
+        ),
+        call(
+            "unique.activity-records.ingest",
+            durable=True,
+            exclusive=False,
+            auto_delete=False,
+            arguments={
+                "x-dead-letter-exchange": "",
+                "x-dead-letter-routing-key": "unique.activity-records.ingest.dlq",
+            },
+        ),
+    ]
+    assert channel.default_exchange.publish.await_count == 2
+
+
+async def test_failed_declaration_closes_the_channel_and_the_next_publish_retries() -> (
+    None
+):
+    channel = _fake_channel()
+    channel.declare_queue.side_effect = [RuntimeError("refused"), None, None]
+    publisher = _connected_publisher(channel)
+
+    with pytest.raises(RuntimeError, match="refused"):
+        await publisher.publish([{"id": "event"}])
+    channel.close.assert_awaited_once()
+    channel.default_exchange.publish.assert_not_awaited()
+
+    await publisher.publish([{"id": "event"}])
+    assert channel.declare_queue.await_count == 3
+    channel.default_exchange.publish.assert_awaited_once()
+
+
 def _restart_broker(container: str) -> None:
     for action in ("stop_app", "start_app"):
         subprocess.run(
@@ -156,7 +222,14 @@ async def _declare_queue(
     connection = await aio_pika.connect(url)
     channel = await connection.channel()
     queue = await channel.declare_queue(
-        name, durable=True, exclusive=False, auto_delete=False
+        name,
+        durable=True,
+        exclusive=False,
+        auto_delete=False,
+        arguments={
+            "x-dead-letter-exchange": "",
+            "x-dead-letter-routing-key": DEAD_LETTER_QUEUE,
+        },
     )
     if purge:
         await queue.purge()
@@ -217,6 +290,55 @@ async def test_publish_confirms_persistent_batch_with_distinct_ids(
     _assert_message(first, payload)
     _assert_message(second, payload)
     assert first.message_id != second.message_id
+
+
+async def _delete_ingest_queues(url: str) -> None:
+    connection = await aio_pika.connect(url)
+    try:
+        channel = await connection.channel()
+        for name in (ROUTING_KEY, DEAD_LETTER_QUEUE):
+            await channel.queue_delete(name)
+    finally:
+        await connection.close()
+
+
+async def test_publish_declares_both_queues_on_a_fresh_broker(
+    amqp: tuple[str, str],
+) -> None:
+    url, _container = amqp
+    await _delete_ingest_queues(url)
+    publisher = AmqpPublisher()
+    await publisher.connect()
+    try:
+        await publisher.publish([{"id": "fresh"}])
+    finally:
+        await publisher.close()
+
+    connection, queue = await _declare_queue(url, ROUTING_KEY, purge=False)
+    try:
+        incoming = await queue.get(timeout=5, no_ack=True)
+    finally:
+        await connection.close()
+    assert json.loads(incoming.body) == [{"id": "fresh"}]
+
+
+async def test_publish_fails_when_the_ingest_queue_has_other_arguments(
+    amqp: tuple[str, str],
+) -> None:
+    url, _container = amqp
+    await _delete_ingest_queues(url)
+    connection = await aio_pika.connect(url)
+    channel = await connection.channel()
+    await channel.declare_queue(ROUTING_KEY, durable=True)
+    publisher = AmqpPublisher()
+    await publisher.connect()
+    try:
+        with pytest.raises(aio_pika.exceptions.ChannelPreconditionFailed):
+            await publisher.publish([{"id": "mismatch"}])
+    finally:
+        await publisher.close()
+        await connection.close()
+        await _delete_ingest_queues(url)
 
 
 async def test_publish_to_a_dedicated_exchange(amqp: tuple[str, str]) -> None:

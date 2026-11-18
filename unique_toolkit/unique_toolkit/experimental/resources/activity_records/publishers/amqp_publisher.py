@@ -32,6 +32,7 @@ except ImportError as error:  # pragma: no cover
     ) from error
 
 ROUTING_KEY: Final = "unique.activity-records.ingest"
+DEAD_LETTER_QUEUE: Final = "unique.activity-records.ingest.dlq"
 CONTENT_TYPE: Final = "application/cloudevents-batch+json"
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,24 @@ def _connection_url(settings: AmqpSettings) -> str:
     return urlunsplit(parts._replace(query=urlencode(query, safe=":")))
 
 
+async def _declare_ingest_queues(channel: RobustChannel) -> None:
+    """Same arguments as Node's ``assertActivityIngestQueues``; a mismatch makes RabbitMQ
+    refuse the declaration."""
+    queue_options = {"durable": True, "exclusive": False, "auto_delete": False}
+    await channel.declare_queue(DEAD_LETTER_QUEUE, **queue_options)
+    await channel.declare_queue(
+        ROUTING_KEY,
+        **queue_options,
+        arguments={
+            "x-dead-letter-exchange": "",
+            "x-dead-letter-routing-key": DEAD_LETTER_QUEUE,
+        },
+    )
+
+
 class AmqpPublisher:
-    """Publishes each batch to the ingest queue as one persistent message. The caller owns it:
+    """Publishes each batch to the ingest queue as one persistent message. It declares the
+    ingest queue and its dead letter queue before the first publish. The caller owns it:
     ``connect()`` before the outbox starts, ``close()`` after it stops."""
 
     def __init__(self, exchange: str = "") -> None:
@@ -94,7 +111,8 @@ class AmqpPublisher:
 
     async def publish(self, events: Sequence[WireEvent]) -> None:
         """Raises ``RuntimeError`` before ``connect()``, aio-pika's ``PublishError`` for an
-        unroutable message and ``DeliveryError`` for a nack."""
+        unroutable message and ``DeliveryError`` for a nack. A queue declared elsewhere with
+        other arguments raises ``ChannelPreconditionFailed``."""
         exchange = await self._exchange()
         await exchange.publish(
             Message(
@@ -127,6 +145,11 @@ class AmqpPublisher:
                 publisher_confirms=True, on_return_raises=True
             )
             assert isinstance(opened, RobustChannel)
+            try:
+                await _declare_ingest_queues(opened)
+            except BaseException:
+                await opened.close()
+                raise
             channel = self._channel = opened
         await channel.ready()
         return channel

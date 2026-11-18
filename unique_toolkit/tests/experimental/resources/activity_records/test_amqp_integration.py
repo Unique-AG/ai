@@ -27,6 +27,7 @@ from unique_toolkit.experimental.resources.activity_records.metrics import (  # 
     get_or_create_activity_event_outbox_metrics,
 )
 from unique_toolkit.experimental.resources.activity_records.publishers.amqp_publisher import (  # noqa: E402
+    DEAD_LETTER_QUEUE,
     ROUTING_KEY,
     AmqpPublisher,
 )
@@ -64,7 +65,14 @@ async def test_enqueued_event_reaches_the_queue_and_the_row_is_deleted(
         consumer = await aio_pika.connect(amqp_url)
         cleanup.push_async_callback(consumer.close)
         channel = await consumer.channel()
-        queue = await channel.declare_queue(ROUTING_KEY, durable=True)
+        queue = await channel.declare_queue(
+            ROUTING_KEY,
+            durable=True,
+            arguments={
+                "x-dead-letter-exchange": "",
+                "x-dead-letter-routing-key": DEAD_LETTER_QUEUE,
+            },
+        )
         publisher = AmqpPublisher()
         await publisher.connect()
         cleanup.push_async_callback(publisher.close)
