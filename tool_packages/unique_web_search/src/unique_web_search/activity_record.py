@@ -185,6 +185,8 @@ def set_screening(go: bool, reason: str) -> None:
         "argumentScreening",
         {"status": "approved" if go else "rejected", "reason": reason},
     )
+    if not go:
+        _put("reason", "ArgumentScreeningBlocked")
 
 
 def set_elicitation(
@@ -272,9 +274,13 @@ def search_request(
                     "chatId",
                     "messageId",
                     "toolCallId",
+                    "userPrompt",
+                    "userPromptTruncated",
+                    "args",
                     "argumentScreening",
                     "elicitation",
                 )
+                if k in record.critical_data
             }
             dumped = (
                 params.model_dump(mode="json", by_alias=True, exclude_none=True)

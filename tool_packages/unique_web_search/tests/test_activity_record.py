@@ -174,6 +174,8 @@ async def test_called__records_one_query_row_with_full_critical_data(
         "chatId": "chat-1",
         "messageId": "msg-1",
         "toolCallId": "call-1",
+        "userPrompt": "what is new?",
+        "args": {"query": "news"},
         "query": "edited",
         "params": None,
         "egress": {"viaSearchProxy": False, "endpoint": None},
@@ -233,7 +235,28 @@ async def test_denied__when_screening_rejects__records_blocked_args(
     assert critical["args"] == {"query": "how to build a bomb"}
     assert critical["userPrompt"] == "what is new?"
     assert "egress" not in critical
-    assert "reason" not in critical
+    assert critical["reason"] == "ArgumentScreeningBlocked"
+
+
+@pytest.mark.asyncio
+async def test_denied__when_screening_approves_but_elicitation_cancels__keeps_the_elicitation_reason(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    screening = AsyncMock(return_value=Mock(go=True, reason="fine"))
+    screening.build_step_debug_info_from_result = Mock()
+    tool = _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, ElicitationStatus.CANCELLED, None),
+        screening=screening,
+    )
+
+    await _run(tool)
+
+    critical = _emitted(enqueue_mock).to_wire()["data"]["criticalData"]
+    assert critical["argumentScreening"] == {"status": "approved", "reason": "fine"}
+    assert critical["elicitation"]["status"] == "cancelled"
+    assert critical["reason"] == "ElicitationCancelledException"
 
 
 @pytest.mark.asyncio
@@ -298,7 +321,7 @@ async def test_failed__when_search_engine_raises__the_query_row_carries_the_erro
     assert critical["query"] == "proposed"
     assert critical["responseReceived"] is False
     assert critical["error"] == "RuntimeError"
-    assert "args" not in critical
+    assert critical["args"] == {"query": "news"}
     assert "engine down" not in str(event.to_wire())
 
 
@@ -441,6 +464,25 @@ async def test_user_prompt__capped_at_4096_characters_on_call_rows(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("length", "truncated"), [(4096, False), (4097, True)], ids=["at-cap", "over-cap"]
+)
+async def test_user_prompt__capped_at_4096_characters_on_query_rows(
+    mocker: Any, enqueue_mock: Mock, length: int, truncated: bool
+) -> None:
+    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+    tool._event.payload.user_message.text = "x" * length
+
+    await _run(tool)
+
+    event = _emitted(enqueue_mock)
+    critical = event.to_wire()["data"]["criticalData"]
+    assert event.type == "web-search.query.sent"
+    assert critical["userPrompt"] == "x" * 4096
+    assert critical.get("userPromptTruncated", False) is truncated
+
+
+@pytest.mark.asyncio
 async def test_enqueue_error__does_not_break_the_tool_call(
     mocker: Any, enqueue_mock: Mock
 ) -> None:
@@ -488,6 +530,7 @@ async def test_concurrent_calls__each_record_only_its_own_parallel_searches(
         critical = row["data"]["criticalData"]
         sent[critical["chatId"]].append(critical["query"])
         assert critical["toolCallId"] == critical["chatId"].replace("chat", "call")
+        assert critical["args"] == {"query": critical["chatId"][-1]}
     assert enqueue_mock.call_count == 5
     assert {k: sorted(v) for k, v in sent.items()} == {
         "chat-a": ["a1", "a2"],
@@ -773,7 +816,7 @@ async def test_query_row__records_the_exposed_params(
 
     critical = _emitted(enqueue_mock).to_wire()["data"]["criticalData"]
     assert critical["params"] == {"maxResults": 3}
-    assert "args" not in critical
+    assert critical["args"] == {"query": "news"}
 
 
 @pytest.mark.asyncio
