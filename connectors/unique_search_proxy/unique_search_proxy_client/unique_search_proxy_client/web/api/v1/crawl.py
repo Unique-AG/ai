@@ -7,6 +7,7 @@ import time
 from fastapi import APIRouter, Body, Request
 from unique_search_proxy_core.crawlers.config_types import CrawlRequest
 from unique_search_proxy_core.errors import (
+    CrawlingDisabledError,
     ProxyError,
     UpstreamTimeoutError,
     ValidationProxyError,
@@ -37,6 +38,7 @@ from unique_search_proxy_client.web.monitoring.metrics import (
     record_crawl_success,
     record_crawl_url_outcomes,
 )
+from unique_search_proxy_client.web.settings.crawl import crawl_enabled
 from unique_search_proxy_client.web.settings.request_limits import (
     request_limits_settings,
 )
@@ -114,6 +116,16 @@ async def crawl(
     )
 
     try:
+        if not crawl_enabled():
+            record_crawl_error(
+                crawler_id,
+                ProxyErrorCode.CRAWLING_DISABLED.value,
+                time.perf_counter() - started,
+            )
+            raise _crawl_request_context(
+                CrawlingDisabledError("Crawling is disabled"),
+                crawler_id=crawler_id,
+            )
         _enforce_url_limits(body.urls)
         async with (
             get_crawl_limiter(request.app).slot(),

@@ -5,6 +5,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.aws_search_request import AwsSearchRequest
 from ...models.brave_search_request import BraveSearchRequest
 from ...models.custom_api_search_request import CustomApiSearchRequest
 from ...models.google_search_request import GoogleSearchRequest
@@ -16,7 +17,8 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    body: BraveSearchRequest
+    body: AwsSearchRequest
+    | BraveSearchRequest
     | CustomApiSearchRequest
     | GoogleSearchRequest
     | PerplexitySearchRequest,
@@ -52,6 +54,8 @@ def _get_kwargs(
     elif isinstance(body, BraveSearchRequest):
         _kwargs["json"] = body.to_dict()
     elif isinstance(body, PerplexitySearchRequest):
+        _kwargs["json"] = body.to_dict()
+    elif isinstance(body, CustomApiSearchRequest):
         _kwargs["json"] = body.to_dict()
     else:
         _kwargs["json"] = body.to_dict()
@@ -95,7 +99,8 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: BraveSearchRequest
+    body: AwsSearchRequest
+    | BraveSearchRequest
     | CustomApiSearchRequest
     | GoogleSearchRequest
     | PerplexitySearchRequest,
@@ -114,8 +119,8 @@ def sync_detailed(
         x_unique_entry_point (str | Unset): Service where the search entered the platform.
             Default: 'unknown'.
         x_unique_message_id (None | str | Unset): Message identifier, reserved for analytics.
-        body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
-            PerplexitySearchRequest):
+        body (AwsSearchRequest | BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest
+            | PerplexitySearchRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -144,7 +149,8 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    body: BraveSearchRequest
+    body: AwsSearchRequest
+    | BraveSearchRequest
     | CustomApiSearchRequest
     | GoogleSearchRequest
     | PerplexitySearchRequest,
@@ -163,8 +169,8 @@ def sync(
         x_unique_entry_point (str | Unset): Service where the search entered the platform.
             Default: 'unknown'.
         x_unique_message_id (None | str | Unset): Message identifier, reserved for analytics.
-        body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
-            PerplexitySearchRequest):
+        body (AwsSearchRequest | BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest
+            | PerplexitySearchRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -188,7 +194,8 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: BraveSearchRequest
+    body: AwsSearchRequest
+    | BraveSearchRequest
     | CustomApiSearchRequest
     | GoogleSearchRequest
     | PerplexitySearchRequest,
@@ -207,8 +214,8 @@ async def asyncio_detailed(
         x_unique_entry_point (str | Unset): Service where the search entered the platform.
             Default: 'unknown'.
         x_unique_message_id (None | str | Unset): Message identifier, reserved for analytics.
-        body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
-            PerplexitySearchRequest):
+        body (AwsSearchRequest | BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest
+            | PerplexitySearchRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -235,7 +242,8 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    body: BraveSearchRequest
+    body: AwsSearchRequest
+    | BraveSearchRequest
     | CustomApiSearchRequest
     | GoogleSearchRequest
     | PerplexitySearchRequest,
@@ -254,8 +262,8 @@ async def asyncio(
         x_unique_entry_point (str | Unset): Service where the search entered the platform.
             Default: 'unknown'.
         x_unique_message_id (None | str | Unset): Message identifier, reserved for analytics.
-        body (BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest |
-            PerplexitySearchRequest):
+        body (AwsSearchRequest | BraveSearchRequest | CustomApiSearchRequest | GoogleSearchRequest
+            | PerplexitySearchRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

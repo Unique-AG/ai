@@ -37,6 +37,7 @@ class SearchEngineType(StrEnum):
     BRAVE = "brave"
     PERPLEXITY = "perplexity"
     CUSTOM_API = "custom_api"
+    AWS = "aws"
 
 
 _SEARCH_ENGINE_MODE_MAP: dict[SearchEngineType, SearchEngineMode] = {
@@ -44,6 +45,7 @@ _SEARCH_ENGINE_MODE_MAP: dict[SearchEngineType, SearchEngineMode] = {
     SearchEngineType.BRAVE: SearchEngineMode.STANDARD,
     SearchEngineType.PERPLEXITY: SearchEngineMode.STANDARD,
     SearchEngineType.CUSTOM_API: SearchEngineMode.STANDARD,
+    SearchEngineType.AWS: SearchEngineMode.STANDARD,
 }
 
 

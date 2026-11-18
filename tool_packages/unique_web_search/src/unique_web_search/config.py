@@ -1,8 +1,15 @@
 from logging import getLogger
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import (
+    BaseModel,
+    Field,
+    GetJsonSchemaHandler,
+    field_validator,
+    model_validator,
+)
+from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
+from pydantic_core import CoreSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
@@ -27,6 +34,7 @@ from unique_web_search.services.crawlers import (
     get_crawler_config_types_from_names,
     get_default_crawler_config,
 )
+from unique_web_search.services.crawling import crawling_enabled
 from unique_web_search.services.executors import (
     RefineQueryMode,
     WebSearchMode,
@@ -235,6 +243,18 @@ class WebSearchConfig(BaseToolConfig):
         title="Debug Mode",
         description="When enabled, logs additional technical details for troubleshooting.",
     )
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        json_schema = handler(core_schema)
+        if crawling_enabled():
+            return json_schema
+        properties = handler.resolve_ref_schema(json_schema).get("properties", {})
+        for name in ("crawlerConfig", "crawler_config"):
+            properties.pop(name, None)
+        return json_schema
 
     @model_validator(mode="after")
     def disable_query_refinement_if_no_structured_output(self):

@@ -20,9 +20,11 @@ from unique_search_proxy_client.web.helm.url_safety_registration import (
     url_safety_settings,
 )
 from unique_search_proxy_client.web.settings.client import http_client_settings
+from unique_search_proxy_client.web.settings.crawl import crawl_settings
 from unique_search_proxy_client.web.settings.monitoring import prometheus_settings
 from unique_search_proxy_client.web.settings.pdf import pdf_settings
 from unique_search_proxy_client.web.settings.providers import (
+    aws_search_credentials,
     bing_agent_credentials,
     brave_search_credentials,
     firecrawl_crawl_credentials,
@@ -59,6 +61,7 @@ _REGISTERED_INSTANCES: tuple[BaseSettings, ...] = (
     google_search_credentials,
     brave_search_credentials,
     perplexity_search_credentials,
+    aws_search_credentials,
     bing_agent_credentials,
     vertexai_agent_credentials,
     tavily_crawl_credentials,
@@ -66,6 +69,7 @@ _REGISTERED_INSTANCES: tuple[BaseSettings, ...] = (
     firecrawl_crawl_credentials,
     http_client_settings,
     request_limits_settings,
+    crawl_settings,
     prometheus_settings,
     pdf_settings,
 )

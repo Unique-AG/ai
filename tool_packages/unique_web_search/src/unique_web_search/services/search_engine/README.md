@@ -18,7 +18,7 @@ return await self._legacy_search(...)      # direct provider call from this proc
 | Kind | Engines | Proxy | Legacy |
 |------|---------|-------|--------|
 | **Standard** | Google | yes | yes |
-| **Standard** | Brave, Perplexity | yes | **raises** (proxy-only) |
+| **Standard** | Brave, Perplexity, AWS AgentCore | yes | **raises** (proxy-only) |
 | **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 

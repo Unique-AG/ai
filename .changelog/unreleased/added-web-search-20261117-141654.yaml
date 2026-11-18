@@ -1,0 +1,7 @@
+component: Web Search
+kind: Added
+body: Web search can use AWS AgentCore, and hides page-reader settings when the Search Proxy has crawling turned off.
+time: 2026-11-17T14:16:54.759236+01:00
+custom:
+    Audience: admin
+    Ticket: UN-29330, UN-29331

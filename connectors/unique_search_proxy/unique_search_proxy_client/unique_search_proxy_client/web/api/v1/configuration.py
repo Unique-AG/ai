@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from unique_search_proxy_core.schema import ProvidersListResponse
 
 from unique_search_proxy_client.web.core.registry import list_registered_providers
+from unique_search_proxy_client.web.settings.crawl import crawl_enabled
 
 router = APIRouter(prefix="/configuration", tags=["configuration"])
 
@@ -21,6 +22,7 @@ async def list_providers() -> ProvidersListResponse:
         search_engines=providers["search_engines"],
         agent_engines=providers["agent_engines"],
         crawlers=providers["crawlers"],
+        crawling_enabled=crawl_enabled(),
     )
 
 

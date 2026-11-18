@@ -1,0 +1,182 @@
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime
+from typing import Any
+
+import httpx
+import pytest
+from botocore.credentials import Credentials
+from botocore.exceptions import MissingDependencyException
+from unique_search_proxy_core.errors import (
+    EmptySearchResultsError,
+    EngineNotConfiguredError,
+    RateLimitedError,
+    ValidationProxyError,
+)
+from unique_search_proxy_core.search_engines.aws.schema import (
+    AwsConfig,
+    AwsSearchRequest,
+)
+
+from unique_search_proxy_client.web.core.search_engines.aws.service import (
+    AwsSearchService,
+)
+
+
+def _request(**fields: Any) -> AwsSearchRequest:
+    return AwsSearchRequest.model_validate(
+        {
+            "query": "Swiss National Bank",
+            "fetch_size": 2,
+            "timeout": 30,
+            **fields,
+        },
+    )
+
+
+def _credentials() -> Credentials:
+    return Credentials("AKIDEXAMPLE", "secret", "token")
+
+
+@pytest.fixture
+def aws_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.search_engines.aws.service.resolve_aws_credentials",
+        _credentials,
+    )
+
+
+class TestAwsSearchService:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search_signs_and_maps_results(self, aws_env: None) -> None:
+        seen: dict[str, Any] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["url"] = str(request.url)
+            seen["authorization"] = request.headers["Authorization"]
+            seen["body"] = json.loads(request.content)
+            return httpx.Response(
+                200,
+                json={
+                    "results": [
+                        {
+                            "url": "https://snb.ch/rate",
+                            "title": "SNB",
+                            "text": "The policy rate is unchanged.",
+                            "publishedAt": "2026-09-01T00:00:00Z",
+                        },
+                        {"text": "dropped because it has no url"},
+                        {"url": "https://example.com/untitled", "text": "no title"},
+                    ],
+                },
+            )
+
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport) as client:
+            _raw, curated = await AwsSearchService(http_client=client).search(
+                _request(
+                    include_domains=["snb.ch"],
+                    published_after=datetime(2026, 8, 1, tzinfo=UTC),
+                ),
+            )
+
+        assert seen["url"] == (
+            "https://bedrock-agentcore.us-east-1.amazonaws.com/web-search/web-search.v1/invoke"
+        )
+        assert seen["authorization"].startswith("AWS4-HMAC-SHA256")
+        assert seen["body"]["searchQuery"] == "Swiss National Bank"
+        assert seen["body"]["maxResults"] == 2
+        assert seen["body"]["filters"]["domainFilter"] == {"include": ["snb.ch"]}
+        assert seen["body"]["filters"]["publishedDateFilter"]["publishedAfter"] == (
+            "2026-08-01T00:00:00Z"
+        )
+        assert [item.url for item in curated.results] == [
+            "https://snb.ch/rate",
+            "https://example.com/untitled",
+        ]
+        assert curated.results[0].snippet == "The policy rate is unchanged."
+        assert curated.results[1].title == ""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_query_over_200_characters_is_rejected(self, aws_env: None) -> None:
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"results": []}),
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(ValidationProxyError):
+                await AwsSearchService(http_client=client).search(
+                    _request(query="a" * 201),
+                )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_access_denied_is_not_configured(self, aws_env: None) -> None:
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(403, json={"message": "denied"}),
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(EngineNotConfiguredError):
+                await AwsSearchService(http_client=client).search(_request())
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_throttling_is_rate_limited(self, aws_env: None) -> None:
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(429, json={"message": "slow down"}),
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(RateLimitedError):
+                await AwsSearchService(http_client=client).search(_request())
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_results_without_urls_are_empty(self, aws_env: None) -> None:
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={"results": [{"text": "no url"}]},
+            ),
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(EmptySearchResultsError):
+                await AwsSearchService(http_client=client).search(_request())
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_missing_login_dependency_is_not_configured(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def raise_missing() -> None:
+            raise MissingDependencyException(msg="install botocore[crt]")
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.search_engines.aws.service.get_session",
+            lambda: type(
+                "Session", (), {"get_credentials": staticmethod(raise_missing)}
+            )(),
+        )
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"results": []}),
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(EngineNotConfiguredError):
+                await AwsSearchService(http_client=client).search(_request())
+
+    @pytest.mark.ai
+    def test_null_domain_lists_from_the_admin_form_become_empty(self) -> None:
+        config = AwsConfig.model_validate(
+            {"include_domains": None, "exclude_domains": None},
+        )
+        assert config.include_domains == []
+        assert config.exclude_domains == []
+        schema = AwsConfig.model_json_schema()
+        assert schema["properties"]["includeDomains"]["type"] == ["array", "null"]
+
+    @pytest.mark.ai
+    def test_fetch_size_above_25_is_rejected(self) -> None:
+        with pytest.raises(ValueError):
+            AwsConfig(fetch_size=26)

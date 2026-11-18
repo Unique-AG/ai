@@ -8,6 +8,7 @@ from unique_web_search.services.executors.v2.executor import WebSearchV2Executor
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.executors.v3.executor import WebSearchV3Executor
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
+from unique_web_search.services.search_engine.aws import AwsSearch, AwsSearchConfig
 from unique_web_search.services.search_engine.domain_policy import DomainPolicy
 from unique_web_search.services.search_engine.google import GoogleSearch
 from unique_web_search.services.search_engine.perplexity import (
@@ -49,6 +50,15 @@ def test_include_allows_listed_domains_and_their_subdomains() -> None:
 def test_exclude_wins_over_include() -> None:
     policy = DomainPolicy.of(include=["en.wikipedia.org"], exclude=["en.wikipedia.org"])
     assert not policy.allows(WIKI)
+
+
+def test_aws_policy_uses_include_and_exclude_domains() -> None:
+    search = AwsSearch(
+        AwsSearchConfig(include_domains=["www.snb.ch"], exclude_domains=["snb.ch"])
+    )
+    policy = search.domain_policy()
+    assert policy.include == frozenset({"www.snb.ch"})
+    assert policy.exclude == frozenset({"snb.ch"})
 
 
 def test_perplexity_policy_reads_minus_prefix_as_exclude() -> None:

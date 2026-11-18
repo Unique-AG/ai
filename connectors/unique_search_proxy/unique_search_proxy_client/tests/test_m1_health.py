@@ -26,11 +26,13 @@ class TestHealthEndpoints:
         assert body["status"] == "ready"
         assert body["httpClient"] == "ok"
         assert body["searchEngines"] == [
+            "aws",
             "brave",
             "custom_api",
             "google",
             "perplexity",
         ]
+        assert body["crawling"] == "enabled"
         assert body["crawlers"] == [
             CrawlerType.BASIC.value,
             CrawlerType.FIRECRAWL.value,

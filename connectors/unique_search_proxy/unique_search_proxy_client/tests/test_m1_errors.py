@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.errors import (
     BadRequestProxyError,
+    CrawlingDisabledError,
     EmptySearchResultsError,
     EngineNotConfiguredError,
     ForbiddenTargetError,
@@ -36,6 +37,11 @@ from unique_search_proxy_client.web.error_handlers import proxy_error_response
             ),
             503,
             ProxyErrorCode.ENGINE_NOT_CONFIGURED,
+        ),
+        (
+            CrawlingDisabledError("Crawling is disabled"),
+            503,
+            ProxyErrorCode.CRAWLING_DISABLED,
         ),
         (UpstreamTimeoutError("timeout"), 504, ProxyErrorCode.UPSTREAM_TIMEOUT),
         (
@@ -119,6 +125,26 @@ class TestV1StructuredErrors:
         finally:
             _CRAWLER_REGISTRY.clear()
             _CRAWLER_REGISTRY.update(saved)
+
+    @pytest.mark.ai
+    def test_crawl_disabled_returns_503_without_fetching(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.api.v1.crawl.crawl_enabled",
+            lambda: False,
+        )
+        resp = client.post(
+            "/v1/crawl",
+            json={
+                "urls": ["https://example.com"],
+                "crawler": CrawlerType.BASIC.value,
+            },
+        )
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == ProxyErrorCode.CRAWLING_DISABLED.value
 
     @pytest.mark.ai
     def test_validation_error_returns_422(self, client: TestClient) -> None:

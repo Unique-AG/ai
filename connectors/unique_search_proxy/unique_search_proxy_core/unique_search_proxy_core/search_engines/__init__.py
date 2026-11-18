@@ -1,3 +1,7 @@
+from unique_search_proxy_core.search_engines.aws.schema import (
+    AwsConfig,
+    AwsSearchRequest,
+)
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
     SearchEngine,
@@ -34,6 +38,8 @@ from unique_search_proxy_core.search_engines.perplexity.schema import (
 )
 
 __all__ = [
+    "AwsConfig",
+    "AwsSearchRequest",
     "BaseSearchEngineConfig",
     "BraveConfig",
     "BraveSearchRequest",

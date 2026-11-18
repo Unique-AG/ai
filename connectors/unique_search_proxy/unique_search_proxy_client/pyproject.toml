@@ -26,6 +26,7 @@ dependencies = [
     "unique-search-proxy-core>=2026.46.0",
     "openai>=1.105.0,<3",
     "pypdf==6.21.4",
+    "botocore>=1.43.127,<1.44",
 ]
 
 [dependency-groups]
