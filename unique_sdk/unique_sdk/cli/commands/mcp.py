@@ -70,8 +70,7 @@ _TITLE_KEYS = (
 )
 
 # Preferred keys for a record's own http(s) link. Any other string field is
-# inspected only after these miss, so a record's join, avatar or API link is
-# not taken while its own web link is available.
+# inspected only after these miss.
 _URL_KEYS = (
     "url",
     "uri",
@@ -84,8 +83,7 @@ _URL_KEYS = (
     "link",
 )
 
-# Nesting depth up to which untitled wrapper objects are searched for lists of
-# titled records, e.g. ``{"data": {"search": {"items": [...]}}}``.
+# How deep untitled wrapper objects are searched for lists of titled records.
 _MAX_WRAPPER_DEPTH = 4
 
 # Markdown list item: a bullet or numbered title, then an indented http(s) URL.
@@ -279,15 +277,8 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
 
 
 def _titled_lists(wrapper: dict[str, Any], *, depth: int) -> list[dict[str, Any]]:
-    """Records of every list holding a titled record, in field order.
-
-    Servers name their list after what it holds (``{"files": [...]}``,
-    ``{"sections": [...], "section_groups": [...]}``), so no fixed set of
-    container keys covers them. The search descends through untitled wrapper
-    objects and stops at a titled one, which is a single record whose own
-    lists (attendees, comments) belong to it. A list with no titled record,
-    such as counts per site, is skipped: it would yield no reference anyway.
-    """
+    """Records of every list holding a titled record, searching untitled
+    wrappers but not inside a titled object, which is one record."""
     records: list[dict[str, Any]] = []
     for value in wrapper.values():
         if isinstance(value, list):
@@ -314,12 +305,8 @@ def _is_http_url(value: object) -> str | None:
 
 
 def _url_from_item(obj: dict[str, Any]) -> str | None:
-    """First http(s) field on a record. Preferred keys, then any string field.
-
-    A preferred key that is present but empty or null means the record has
-    no web link. Falling back then would pick an unrelated URL, such as a
-    meeting's join link or an internal content URL, as the record's own.
-    """
+    """First http(s) field on a record. Preferred keys, then any string field,
+    unless a preferred key is present but empty: the record then has no link."""
     for key in _URL_KEYS:
         url = _is_http_url(obj.get(key))
         if url:
