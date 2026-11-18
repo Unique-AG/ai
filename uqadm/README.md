@@ -257,6 +257,7 @@ uqadm space export space_abc123 -o backup.json
 | `SPACE_ID` | Space id or `https://` URL containing `/space/<id>`. |
 | `--slot SLOT` | Credential slot (default: configured default slot). |
 | `-o`, `--output PATH` | Write to file; suffix must be `.json`, `.yaml`, or `.yml`. Default: stdout. |
+| `--no-access` | Omit `assistantAccess` / `access` from the snapshot so a later `upsert` leaves the target ACL untouched. |
 
 ### `space upsert`
 
@@ -276,6 +277,10 @@ uqadm space upsert -f backup.yaml --dry-run
 | `--slot SLOT` | Credential slot (default: configured default slot). |
 | `--target SPACE_ID` | Space id or URL to update. Omit to create a new space. |
 | `--dry-run` | Print actions without calling create/update APIs. |
+| `--no-access` | Do not add the snapshot's access entries; the destination ACL is left untouched. |
+| `--with-mcp-servers` | Also apply MCP server bindings (`assistantMcpServers`). The `mcpServerId` values must exist in the destination environment. |
+
+See [What is and isn't copied](#what-is-and-isnt-copied-upsert--migrate) below.
 
 ### `space diff`
 
@@ -293,6 +298,7 @@ uqadm space diff --source "qa:x" --destination "prod:y" --strict
 | `--destination SPEC` | Second space (same format). |
 | `--strict` | Compare raw payloads (skip normalization). |
 | `--format` | `unified` (default) or `side-by-side`. |
+| `--ignore-access` | Exclude `assistantAccess` / `access` from the comparison (also with `--strict`). |
 
 By default, ephemeral keys (`id`, `createdAt`, `updatedAt`, etc.) are stripped before comparison so you see meaningful config drift.
 
@@ -312,6 +318,8 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 | `--destination SPEC` | `slot` / `slot:` to create; `slot:space_id` or `slot:URL` to update. |
 | `--dry-run` | Print actions without making API write calls. |
 | `--with-knowledge` | Reserved; currently informational only. |
+| `--no-access` | Do not add the source's access entries; the destination ACL is left untouched. |
+| `--with-mcp-servers` | Also apply MCP server bindings. Ignored (with a warning) when source and destination are different environments. |
 
 **Endpoint spec format** (`slot:space_id` or `slot:URL`):
 
@@ -324,7 +332,34 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 
 Supported URL path markers: `/space/<id>`, `/custom-space/<id>`, `/swappable-intelligence-space/<id>`.
 
-Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, and modules matched by name. Scope rules, MCP bindings, and briefings are not migrated.
+Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, and modules matched by name. Scope rules and briefings are not migrated; MCP bindings only with `--with-mcp-servers`.
+
+#### What is and isn't copied (upsert / migrate)
+
+| Item | Behaviour |
+|------|-----------|
+| Space fields, settings, prompts, model switching, sub-agent settings | Copied. |
+| Modules | **Update:** matched to destination modules **by name**; unmatched source modules are skipped with a warning. **Create:** all modules created. |
+| Module `configuration` (incl. knowledge `scopeIds`) | Copied verbatim. Scope ids don't carry over to another environment, so check them after a cross-environment run. |
+| Access (`assistantAccess`) | **Merged** into the destination via `Space.add_space_access`. Existing entries are never removed, but source entries are added. Pass `--no-access` to leave the destination ACL untouched. |
+| Scope rules | **Never applied.** The public API can't write scope rules; configure them manually in the destination space. A warning is printed when the source has any. |
+| MCP server bindings | Only with `--with-mcp-servers`. Only listed servers change; servers already bound on the destination are not removed. |
+
+**Push config to an existing space without touching its access rights:**
+
+```bash
+# Directly between slots
+uqadm space migrate --source "qa:space_src" --destination "prod:space_dst" --no-access --dry-run
+uqadm space migrate --source "qa:space_src" --destination "prod:space_dst" --no-access
+
+# Or via a reviewed snapshot file
+uqadm space export space_src --slot qa -o space.yaml --no-access
+uqadm space upsert -f space.yaml --slot prod --target space_dst --dry-run
+uqadm space upsert -f space.yaml --slot prod --target space_dst
+
+# Confirm only config changed
+uqadm space diff --source "qa:space_src" --destination "prod:space_dst" --ignore-access
+```
 
 ### `space model-replace`
 
@@ -507,6 +542,7 @@ uqadm kb sync ./docs --folder-path /Dept/HR
 uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
 uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
 uqadm kb sync ./docs --scope-id scope_abc --no-version
+uqadm kb sync ./docs --folder-path /Private/New -r --no-inherit-access
 ```
 
 | Option | Description |
@@ -516,6 +552,7 @@ uqadm kb sync ./docs --scope-id scope_abc --no-version
 | `-r`, `--recursive` | Recurse into subdirectories, mirroring them as child KB folders. |
 | `--dry-run` | Show planned uploads without writing anything. |
 | `--no-version` | Upload without archiving prior blobs. |
+| `--inherit-access / --no-inherit-access` | Whether folders **created** by sync (including recursive child folders) inherit parent access (default: inherit). Existing folders are never changed. |
 | `--slot SLOT` | Credential slot. |
 
 Extensions that the OS `mimetypes` database cannot resolve (common on macOS for

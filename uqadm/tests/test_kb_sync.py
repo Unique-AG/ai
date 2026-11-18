@@ -552,3 +552,101 @@ def test_dry_run_shows_no_version_label(
 
     upload.assert_not_called()
     assert "[dry-run] replaced: a.txt (no-version)" in capsys.readouterr().out
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_inherit_access_creates_missing_folder_without_inheritance(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "not found", params=None
+    )
+    folder.create_paths.return_value = {"createdFolders": [{"id": "scope_new"}]}
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/Private/New",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+        inherit_access=False,
+    )
+
+    folder.create_paths.assert_called_once_with(
+        "u1", "c1", paths=["/Private/New"], inheritAccess=False
+    )
+    folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
+    assert upload.call_args.kwargs["scope_or_unique_path"] == "scope_new"
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_inherit_access_leaves_existing_folder_untouched(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.return_value = "scope_existing"
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/X",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+        inherit_access=False,
+    )
+
+    folder.create_paths.assert_not_called()
+    assert upload.call_args.kwargs["scope_or_unique_path"] == "scope_existing"
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_inherit_access_applies_to_recursive_child_folders(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "b.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "not found", params=None
+    )
+    folder.create_paths.side_effect = [
+        {"createdFolders": [{"id": "scope_root"}]},
+        {"createdFolders": [{"id": "scope_sub"}]},
+    ]
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/P",
+        scope_id=None,
+        recursive=True,
+        dry_run=False,
+        inherit_access=False,
+    )
+
+    paths = [c.kwargs["paths"] for c in folder.create_paths.call_args_list]
+    assert paths == [["/P"], ["/P/sub"]]
+    assert all(
+        c.kwargs["inheritAccess"] is False for c in folder.create_paths.call_args_list
+    )

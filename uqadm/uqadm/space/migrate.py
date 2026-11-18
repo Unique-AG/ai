@@ -127,7 +127,84 @@ def assistant_prompt_params_from_source(
     return out
 
 
-def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
+def mcp_server_params_from_source(entries: Any) -> list[dict[str, Any]]:
+    """Map exported ``assistantMcpServers`` to Space API ``mcpServers`` payloads.
+
+    Drops source-only keys (binding ``id``, ``assistantId``, timestamps). A
+    disabled binding maps to ``tools: []``, which disables the server for the
+    space. An enabled binding with no tool list omits ``tools`` so every
+    callable tool is enabled.
+    """
+    if not isinstance(entries, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry.get("mcpServerId"):
+            continue
+        item: dict[str, Any] = {"mcpServerId": entry["mcpServerId"]}
+        if entry.get("isEnabled") is False:
+            item["tools"] = []
+        else:
+            tools = [
+                {"name": t["name"], "isEnabled": bool(t.get("isEnabled"))}
+                for t in entry.get("tools") or []
+                if isinstance(t, dict) and t.get("name")
+            ]
+            if tools:
+                item["tools"] = tools
+        out.append(item)
+    return out
+
+
+def warn_scope_rules_not_applied(count: int, *, reason: str | None = None) -> None:
+    """Emit the single, consistent warning that scope rules are not copied."""
+    if count <= 0:
+        return
+    detail = reason or "no public API to write scope rules"
+    typer.echo(
+        f"Warning: {count} scope rule(s) are NOT applied ({detail}); "
+        "configure them manually in the destination space.",
+        err=True,
+    )
+
+
+def warn_mcp_servers_not_applied(count: int) -> None:
+    """Point users at ``--with-mcp-servers`` when bindings are being skipped."""
+    if count <= 0:
+        return
+    typer.echo(
+        f"Warning: {count} MCP server binding(s) are not applied; "
+        "pass --with-mcp-servers to include them.",
+        err=True,
+    )
+
+
+ACCESS_KEYS: tuple[str, ...] = ("assistantAccess", "access")
+
+
+def strip_access_keys(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a shallow copy of a space payload without top-level access keys."""
+    return {k: v for k, v in payload.items() if k not in ACCESS_KEYS}
+
+
+def resolve_access_entries(
+    assistant_access: list[dict[str, Any]], *, no_access: bool
+) -> list[dict[str, Any]]:
+    """Return the access entries to merge, or none when ``no_access`` is set."""
+    if no_access:
+        if assistant_access:
+            typer.echo(
+                f"Note: --no-access set; skipping {len(assistant_access)} "
+                "access entr(y/ies). Destination ACL is left untouched.",
+                err=True,
+            )
+        return []
+    return assistant_access
+
+
+def build_create_params(
+    src: dict[str, Any], *, include_mcp: bool = False
+) -> dict[str, Any]:
     modules = [module_params_from_source(m) for m in src.get("modules") or []]
     params: dict[str, Any] = {
         "name": src["name"],
@@ -170,6 +247,10 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
         params["assistantPrompts"] = assistant_prompt_params_from_source(
             src["assistantPrompts"]
         )
+    if include_mcp:
+        mcp = mcp_server_params_from_source(src.get("assistantMcpServers"))
+        if mcp:
+            params["mcpServers"] = mcp
     return params
 
 
@@ -192,7 +273,9 @@ def build_module_updates_from_pairs(
     return updates
 
 
-def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
+def build_update_kwargs(
+    src: dict[str, Any], *, include_mcp: bool = False
+) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     simple = (
         "name",
@@ -232,6 +315,10 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
         kwargs["assistantPrompts"] = assistant_prompt_params_from_source(
             src["assistantPrompts"]
         )
+    if include_mcp:
+        mcp = mcp_server_params_from_source(src.get("assistantMcpServers"))
+        if mcp:
+            kwargs["mcpServers"] = mcp
     return kwargs
 
 
@@ -281,6 +368,8 @@ def cmd_migrate(
     dry_run: bool,
     with_knowledge: bool,
     cwd: Path | None = None,
+    no_access: bool = False,
+    with_mcp_servers: bool = False,
 ) -> None:
     try:
         src_slot, src_space_id = parse_source_endpoint(source)
@@ -322,34 +411,20 @@ def cmd_migrate(
             err=True,
         )
 
-    scope_rules = src_space.get("scopeRules") or []
-    if scope_rules:
-        if cross_env:
-            typer.echo(
-                f"Warning: skipping {len(scope_rules)} scope rule(s); "
-                "not portable across environments.",
-                err=True,
-            )
-        elif with_knowledge:
-            typer.echo(
-                "Note: --with-knowledge does not yet migrate scope rules or folder "
-                "graphs via API; only space payload fields handled here.",
-                err=True,
-            )
-        else:
-            typer.echo(
-                "Note: source has scope rules; extended same-environment migration "
-                "(folders/knowledge) is available with tooling flags in future — "
-                "currently only assistant configuration fields are migrated.",
-            )
+    warn_scope_rules_not_applied(len(src_space.get("scopeRules") or []))
 
     mcp = src_space.get("assistantMcpServers") or []
-    if mcp:
-        typer.echo(
-            f"Warning: source lists {len(mcp)} MCP server binding(s); "
-            "these are not migrated by this command.",
-            err=True,
-        )
+    include_mcp = with_mcp_servers
+    if with_mcp_servers and cross_env:
+        include_mcp = False
+        if mcp:
+            typer.echo(
+                f"Warning: --with-mcp-servers ignored for cross-environment migrate; "
+                f"skipping {len(mcp)} MCP server binding(s) (ids are not portable).",
+                err=True,
+            )
+    elif not with_mcp_servers:
+        warn_mcp_servers_not_applied(len(mcp))
 
     if with_knowledge and cross_env:
         typer.echo(
@@ -358,10 +433,12 @@ def cmd_migrate(
             err=True,
         )
 
-    assistant_access = list(src_space.get("assistantAccess") or [])
+    assistant_access = resolve_access_entries(
+        list(src_space.get("assistantAccess") or []), no_access=no_access
+    )
 
     if dst_space_id is None:
-        create_params = build_create_params(src_space)
+        create_params = build_create_params(src_space, include_mcp=include_mcp)
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space on destination with name="
@@ -424,7 +501,7 @@ def cmd_migrate(
 
     update_modules = build_module_updates_from_pairs(pairs)
 
-    update_kw = build_update_kwargs(src_space)
+    update_kw = build_update_kwargs(src_space, include_mcp=include_mcp)
     if update_modules:
         update_kw["modules"] = update_modules
 

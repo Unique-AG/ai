@@ -19,7 +19,10 @@ from uqadm.space.migrate import (
     build_module_updates_from_pairs,
     build_update_kwargs,
     match_modules_by_name,
+    resolve_access_entries,
     sync_assistant_access,
+    warn_mcp_servers_not_applied,
+    warn_scope_rules_not_applied,
 )
 
 
@@ -28,19 +31,17 @@ def load_space_snapshot(path: Path) -> dict[str, Any]:
     return load_json_or_yaml_mapping(path)
 
 
-def _emit_snapshot_warnings(snapshot: dict[str, Any]) -> None:
-    scope_rules = snapshot.get("scopeRules") or []
-    if scope_rules:
-        typer.echo(
-            f"Note: snapshot lists {len(scope_rules)} scope rule(s); "
-            "these are not applied by upsert (same limitation as migrate).",
-            err=True,
-        )
+def _emit_snapshot_warnings(
+    snapshot: dict[str, Any], *, with_mcp_servers: bool = False
+) -> None:
+    warn_scope_rules_not_applied(len(snapshot.get("scopeRules") or []))
     mcp = snapshot.get("assistantMcpServers") or []
-    if mcp:
+    if not with_mcp_servers:
+        warn_mcp_servers_not_applied(len(mcp))
+    elif mcp:
         typer.echo(
-            f"Warning: snapshot lists {len(mcp)} MCP server binding(s); "
-            "these are not applied by upsert.",
+            f"Note: applying {len(mcp)} MCP server binding(s); their "
+            "mcpServerId values must exist in the destination environment.",
             err=True,
         )
     prompts = snapshot.get("assistantPrompts")
@@ -79,6 +80,8 @@ def cmd_upsert(
     target_space_id: str | None,
     dry_run: bool,
     cwd: Path | None,
+    no_access: bool = False,
+    with_mcp_servers: bool = False,
 ) -> None:
     """Apply ``file_path`` snapshot to ``slot`` (create if ``target_space_id`` is None)."""
     try:
@@ -96,15 +99,17 @@ def cmd_upsert(
     dst_space_id = target_space_id
     creating = dst_space_id is None
     _validate_snapshot(snapshot, creating=creating)
-    _emit_snapshot_warnings(snapshot)
+    _emit_snapshot_warnings(snapshot, with_mcp_servers=with_mcp_servers)
 
     typer.echo(f"Loading destination slot {slot!r} …")
     cfg = config_for_slot(slot, cwd=cwd)
 
-    assistant_access = list(snapshot.get("assistantAccess") or [])
+    assistant_access = resolve_access_entries(
+        list(snapshot.get("assistantAccess") or []), no_access=no_access
+    )
 
     if dst_space_id is None:
-        create_params = build_create_params(snapshot)
+        create_params = build_create_params(snapshot, include_mcp=with_mcp_servers)
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space with name="
@@ -170,7 +175,7 @@ def cmd_upsert(
 
     update_modules = build_module_updates_from_pairs(pairs)
 
-    update_kw = build_update_kwargs(snapshot)
+    update_kw = build_update_kwargs(snapshot, include_mcp=with_mcp_servers)
     if update_modules:
         update_kw["modules"] = update_modules
 

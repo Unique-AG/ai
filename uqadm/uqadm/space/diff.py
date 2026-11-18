@@ -21,6 +21,7 @@ from unique_sdk.cli.config import Config
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.endpoint import EndpointParseError, parse_source_endpoint
 from uqadm.core.env import config_for_slot
+from uqadm.space.migrate import strip_access_keys
 
 # Stripped in the default (non-strict) mode so diffs focus on meaningful config drift.
 _NORMALIZE_KEYS = frozenset(
@@ -161,8 +162,13 @@ def cmd_diff(
     strict: bool,
     output_format: str,
     cwd: Path | None,
+    ignore_access: bool = False,
 ) -> None:
-    """Load two spaces and compare canonical JSON with optional normalization."""
+    """Load two spaces and compare canonical JSON with optional normalization.
+
+    ``ignore_access`` drops top-level access keys from both sides (also in
+    ``strict`` mode) so env-to-env comparisons only show configuration drift.
+    """
     fmt: DiffFormat = (
         "side-by-side" if output_format.lower() == "side-by-side" else "unified"
     )
@@ -203,6 +209,10 @@ def cmd_diff(
                 cfg_b, exc, label=f"space diff --destination ({spec_b!r})"
             )
         sys.exit(1)
+
+    if ignore_access:
+        a_raw = strip_access_keys(a_raw)
+        b_raw = strip_access_keys(b_raw)
 
     a_payload = a_raw if strict else _normalize_for_diff(a_raw, strict=False)
     b_payload = b_raw if strict else _normalize_for_diff(b_raw, strict=False)
