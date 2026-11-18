@@ -59,11 +59,34 @@ _MCP_REFS_SEED_FILENAME = "mcp-refs-seed.json"
 _MCP_SNIPPET_CHAR_LIMIT = 300
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
-_TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
+_TITLE_KEYS = (
+    "title",
+    "name",
+    "displayName",
+    "display_name",
+    "subject",
+    "summary",
+    "key",
+)
 
 # Preferred keys for a record's own http(s) link. Any other string field is
-# inspected only after these miss.
-_URL_KEYS = ("url", "uri", "href", "webUrl", "web_url", "outlookWebLink", "link")
+# inspected only after these miss, so a record's join, avatar or API link is
+# not taken while its own web link is available.
+_URL_KEYS = (
+    "url",
+    "uri",
+    "href",
+    "webUrl",
+    "web_url",
+    "webLink",
+    "web_link",
+    "outlookWebLink",
+    "link",
+)
+
+# Nesting depth up to which untitled wrapper objects are searched for lists of
+# titled records, e.g. ``{"data": {"search": {"items": [...]}}}``.
+_MAX_WRAPPER_DEPTH = 4
 
 # Markdown list item: a bullet or numbered title, then an indented http(s) URL.
 # A list marker is required so a prose line above an indented link is not a hit.
@@ -230,7 +253,7 @@ def _loads_embedded_json(text: str) -> Any:
 
 def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
     """Normalize a parsed JSON value to a flat list of record dicts, unwrapping
-    a single container key (``{"issues": [...]}``) when present, else the first
+    a single container key (``{"issues": [...]}``) when present, else every
     list of titled records under any key when the object has no title itself."""
     if isinstance(parsed, list):
         return [entry for entry in parsed if isinstance(entry, dict)]
@@ -248,28 +271,36 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
                         return [parsed]
                     return records
         if not _title_from_json(parsed):
-            titled = _first_titled_list(parsed)
+            titled = _titled_lists(parsed, depth=0)
             if titled:
                 return titled
         return [parsed]
     return []
 
 
-def _first_titled_list(parsed: dict[str, Any]) -> list[dict[str, Any]]:
-    """Records of the first top-level list holding a titled record.
+def _titled_lists(wrapper: dict[str, Any], *, depth: int) -> list[dict[str, Any]]:
+    """Records of every list holding a titled record, in field order.
 
     Servers name their list after what it holds (``{"files": [...]}``,
-    ``{"drives": [...]}``), so no fixed set of container keys covers them.
-    Requiring a titled record skips a list of bare facets, such as counts
-    per site, that would yield no reference anyway.
+    ``{"sections": [...], "section_groups": [...]}``), so no fixed set of
+    container keys covers them. The search descends through untitled wrapper
+    objects and stops at a titled one, which is a single record whose own
+    lists (attendees, comments) belong to it. A list with no titled record,
+    such as counts per site, is skipped: it would yield no reference anyway.
     """
-    for value in parsed.values():
-        if not isinstance(value, list):
-            continue
-        records = [entry for entry in value if isinstance(entry, dict)]
-        if any(_title_from_json(record) for record in records):
-            return records
-    return []
+    records: list[dict[str, Any]] = []
+    for value in wrapper.values():
+        if isinstance(value, list):
+            entries = [entry for entry in value if isinstance(entry, dict)]
+            if any(_title_from_json(entry) for entry in entries):
+                records.extend(entries)
+        elif (
+            isinstance(value, dict)
+            and depth < _MAX_WRAPPER_DEPTH
+            and not _title_from_json(value)
+        ):
+            records.extend(_titled_lists(value, depth=depth + 1))
+    return records
 
 
 def _is_http_url(value: object) -> str | None:
@@ -283,11 +314,18 @@ def _is_http_url(value: object) -> str | None:
 
 
 def _url_from_item(obj: dict[str, Any]) -> str | None:
-    """First http(s) field on a record. Preferred keys, then any string field."""
+    """First http(s) field on a record. Preferred keys, then any string field.
+
+    A preferred key that is present but empty or null means the record has
+    no web link. Falling back then would pick an unrelated URL, such as a
+    meeting's join link or an internal content URL, as the record's own.
+    """
     for key in _URL_KEYS:
         url = _is_http_url(obj.get(key))
         if url:
             return url
+    if any(key in obj and not obj[key] for key in _URL_KEYS):
+        return None
     for value in obj.values():
         url = _is_http_url(value)
         if url:

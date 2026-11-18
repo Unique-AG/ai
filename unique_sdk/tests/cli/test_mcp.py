@@ -251,6 +251,144 @@ def test_json_in_text_untitled_lists_stay_one_tool_chip(tmp_path: Path) -> None:
     assert refs[0]["title"] is None
 
 
+def test_json_in_text_cites_every_titled_list(tmp_path: Path) -> None:
+    # OneNote sections: both lists hold citable records, so neither is dropped.
+    body = json.dumps(
+        {
+            "parent_uri": "onenote:///notebooks/n1",
+            "sections": [
+                {"name": "Minutes", "web_url": "https://contoso.sharepoint.com/s1"}
+            ],
+            "section_groups": [{"name": "Archive", "uri": "onenote:///groups/g1"}],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__onenote_list_sections", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r.get("url")) for r in refs] == [
+        ("Minutes", "https://contoso.sharepoint.com/s1"),
+        ("Archive", None),
+    ]
+
+
+def test_json_in_text_finds_titled_list_inside_untitled_wrappers(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps(
+        {"data": {"search": {"hits_total": 1, "pages": [{"title": "Runbook"}]}}}
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__wiki__search", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Runbook"]
+
+
+def test_json_in_text_does_not_split_titled_child_record(tmp_path: Path) -> None:
+    # The meeting is one record: its attendees are not separate sources.
+    body = json.dumps(
+        {
+            "success": True,
+            "meeting": {
+                "subject": "Weekly sync",
+                "attendees": [{"name": "Alex Doe"}, {"name": "Sam Roe"}],
+            },
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__teams__read_meeting", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+
+
+def test_json_in_text_titles_record_by_snake_case_display_name(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps(
+        {
+            "sites": [
+                {
+                    "display_name": "Finance",
+                    "web_url": "https://contoso.sharepoint.com/sites/Finance",
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_search_sites", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r["url"]) for r in refs] == [
+        ("Finance", "https://contoso.sharepoint.com/sites/Finance")
+    ]
+
+
+def test_json_in_text_prefers_web_link_over_earlier_join_url(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "events": [
+                {
+                    "subject": "Weekly sync",
+                    "joinUrl": "https://teams.microsoft.com/l/meetup-join/abc",
+                    "webLink": "https://outlook.office365.com/owa/?itemid=E1",
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__outlook__search_calendar_events", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["url"] for r in refs] == ["https://outlook.office365.com/owa/?itemid=E1"]
+
+
+def test_json_in_text_empty_web_link_leaves_record_unlinked(tmp_path: Path) -> None:
+    # The mailbox could not be resolved, so the server sent no Outlook link.
+    # The internal content URL beside it must not become the record's link.
+    body = json.dumps(
+        {
+            "results": [
+                {
+                    "title": "Budget Q3.eml",
+                    "outlookWebLink": "",
+                    "uniqueContentUrl": "https://ingestion.example.com/read/cont_1",
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__outlook__search_emails", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Budget Q3.eml"]
+    assert "url" not in refs[0]
+
+
+def test_json_in_text_null_web_link_does_not_fall_back_to_join_url(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps(
+        {
+            "events": [
+                {
+                    "subject": "Private appointment",
+                    "join_url": "https://teams.microsoft.com/l/meetup-join/xyz",
+                    "web_link": None,
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__outlook_list_events", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Private appointment"]
+    assert "url" not in refs[0]
+
+
 def test_json_in_text_tolerates_non_json_preamble(tmp_path: Path) -> None:
     # Some servers (Atlassian) prefix a human-readable notice before the JSON;
     # the whole string is not valid JSON, so the embedded body must be located.
