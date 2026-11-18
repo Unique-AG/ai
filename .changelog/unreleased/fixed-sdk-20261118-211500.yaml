@@ -1,6 +1,6 @@
 component: SDK
 kind: Fixed
-body: 'An MCP tool result that wraps its records in a list under its own key, such as `{"files": [...]}`, now yields one cited reference per record with its link, instead of one untitled reference with no link.'
+body: 'An MCP tool result that holds its records in lists under its own keys, such as `{"files": [...]}` or `{"sections": [...], "section_groups": [...]}`, now yields one cited reference per record instead of one untitled reference with no link. A record''s link is taken from `webLink`/`web_link` before other URLs such as a meeting join link, and a record whose own web link is empty gets no link rather than an unrelated URL. `display_name` now titles a record.'
 time: 2026-11-18T21:15:00.000000+01:00
 custom:
     Audience: user
