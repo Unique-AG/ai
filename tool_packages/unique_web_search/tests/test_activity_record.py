@@ -416,6 +416,79 @@ async def test_failed__when_cancelled_before_any_query__records_a_call_row(
     assert event.to_wire()["data"]["criticalData"]["reason"] == "CancelledError"
 
 
+def _screening_denied_tool(mocker: Any) -> WebSearchTool:
+    screening = AsyncMock(return_value=Mock(go=False, reason="unsafe"))
+    screening.build_rejection_response = Mock(return_value="blocked")
+    screening.build_step_debug_info_from_result = Mock()
+    mocker.patch(
+        "unique_web_search.service.WebSearchDebugInfo"
+    ).return_value.model_dump.return_value = {}
+    return _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, None),
+        screening=screening,
+    )
+
+
+def _long_prompt_query_tool(mocker: Any) -> WebSearchTool:
+    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+    tool._event.payload.user_message.text = "x" * 4097
+    return tool
+
+
+async def _failing_executor() -> list[Any]:
+    raise RuntimeError("executor down")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("make_tool", "type_", "shape"),
+    [
+        (
+            _long_prompt_query_tool,
+            "web-search.query.sent",
+            activity_record._QueryCriticalData,
+        ),
+        (
+            _screening_denied_tool,
+            "web-search.tool.denied",
+            activity_record._CallCriticalData,
+        ),
+        (
+            lambda m: _tool(
+                m,
+                engine=_Engine(),
+                elicitation=_elicitation(m, ElicitationStatus.DECLINED),
+            ),
+            "web-search.tool.denied",
+            activity_record._CallCriticalData,
+        ),
+        (
+            lambda m: _tool(
+                m,
+                engine=_Engine(),
+                elicitation=_elicitation(m, None),
+                run_executor=_failing_executor,
+            ),
+            "web-search.tool.failed",
+            activity_record._CallCriticalData,
+        ),
+    ],
+    ids=["query-sent", "screening-denied", "elicitation-denied", "tool-failed"],
+)
+async def test_critical_data__keys_match_the_typed_shape(
+    mocker: Any, enqueue_mock: Mock, make_tool: Any, type_: str, shape: Any
+) -> None:
+    await _run(make_tool(mocker))
+
+    event = _emitted(enqueue_mock)
+    keys = event.to_wire()["data"]["criticalData"].keys()
+    assert event.type == type_
+    assert shape.__required_keys__ <= keys
+    assert keys <= shape.__required_keys__ | shape.__optional_keys__
+
+
 @pytest.mark.asyncio
 async def test_failed__when_cancelled_mid_query__the_query_row_carries_the_error(
     mocker: Any, enqueue_mock: Mock
@@ -950,6 +1023,8 @@ def _record(engine_id: str) -> activity_record.ActivityRecord:
             "chatId": "chat",
             "messageId": "msg",
             "toolCallId": "call",
+            "userPrompt": "prompt",
+            "args": {},
             "argumentScreening": {"status": "notRun", "reason": None},
             "elicitation": {"status": "notRun", "proposedQueries": []},
         },

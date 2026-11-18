@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from urllib.parse import urlsplit
 
 from unique_toolkit.experimental.resources.activity_records import (
@@ -33,6 +33,61 @@ ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG = (
 Outcome = Literal["called", "denied", "failed"]
 
 
+class _Screening(TypedDict):
+    status: str
+    reason: str | None
+
+
+class _Elicitation(TypedDict):
+    status: str
+    proposedQueries: list[str]
+
+
+# total=False subclasses, not NotRequired: under the __future__ import Python 3.12
+# reports NotRequired keys as required.
+class _SharedRequired(TypedDict):
+    chatId: str
+    messageId: str
+    toolCallId: str
+    userPrompt: str
+    args: Any
+    argumentScreening: _Screening
+    elicitation: _Elicitation
+
+
+class _SharedCriticalData(_SharedRequired, total=False):
+    userPromptTruncated: bool
+
+
+class _CallCriticalData(_SharedCriticalData, total=False):
+    reason: str
+
+
+class _EgressRequired(TypedDict):
+    viaSearchProxy: bool
+    endpoint: str | None
+
+
+class _Egress(_EgressRequired, total=False):
+    destination: str
+
+
+class _QueryRequired(_SharedCriticalData):
+    query: str
+    params: dict[str, Any] | None
+    egress: _Egress
+    responseReceived: bool
+
+
+class _QueryCriticalData(_QueryRequired, total=False):
+    error: str
+
+
+_SHARED_KEYS = (
+    _SharedCriticalData.__required_keys__ | _SharedCriticalData.__optional_keys__
+)
+
+
 @dataclass
 class ActivityRecord:
     company_id: str
@@ -41,7 +96,7 @@ class ActivityRecord:
     executor_mode: str
     engine_id: str
     engine_name: str
-    critical_data: dict[str, Any]
+    critical_data: _CallCriticalData
     outcome: Outcome = "failed"
     queries_sent: int = 0
 
@@ -49,7 +104,7 @@ class ActivityRecord:
 def _emit(
     record: ActivityRecord,
     type_: str,
-    build_critical_data: Callable[[], dict[str, Any]],
+    build_critical_data: Callable[[], Mapping[str, object]],
 ) -> None:
     try:
         # build() cuts over-long metadata instead of raising, so the record is never dropped.
@@ -245,7 +300,7 @@ def search_request(
     if (record := _current.get()) is None:
         yield
         return
-    egress: dict[str, Any] = {
+    egress: _Egress = {
         "viaSearchProxy": via_search_proxy,
         "endpoint": _origin(endpoint),
     }
@@ -269,18 +324,7 @@ def search_request(
 
         def build() -> dict[str, Any]:
             shared = {
-                k: record.critical_data[k]
-                for k in (
-                    "chatId",
-                    "messageId",
-                    "toolCallId",
-                    "userPrompt",
-                    "userPromptTruncated",
-                    "args",
-                    "argumentScreening",
-                    "elicitation",
-                )
-                if k in record.critical_data
+                k: v for k, v in record.critical_data.items() if k in _SHARED_KEYS
             }
             dumped = (
                 params.model_dump(mode="json", by_alias=True, exclude_none=True)
