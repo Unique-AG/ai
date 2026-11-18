@@ -78,13 +78,15 @@ set -euo pipefail                      # stop on the first failed export/extract
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
 WORK=$(mktemp -d)                      # fresh paths: never compare a stale snapshot
 
+# Capture and validate the baseline BEFORE any write. jq -e fails unless the
+# field is a real array, so a bad baseline stops the recipe early.
 uqadm space export DST --slot prod -o "$WORK/before.json"
+jq -eS '.assistantAccess | arrays' "$WORK/before.json" > "$WORK/acl-before.json"
+
 uqadm space migrate --source qa:SRC --destination prod:DST --no-access --dry-run
 uqadm space migrate --source qa:SRC --destination prod:DST --no-access
-uqadm space export DST --slot prod -o "$WORK/after.json"
 
-# -e fails unless the field is a real array, so missing data can't look "equal"
-jq -eS '.assistantAccess | arrays' "$WORK/before.json" > "$WORK/acl-before.json"
+uqadm space export DST --slot prod -o "$WORK/after.json"
 jq -eS '.assistantAccess | arrays' "$WORK/after.json"  > "$WORK/acl-after.json"
 diff "$WORK/acl-before.json" "$WORK/acl-after.json" && echo "ACL unchanged"
 
@@ -115,7 +117,9 @@ mkdir -p backups
 # Unique per run (timestamp + PID); refuse to overwrite an existing backup.
 BACKUP="backups/ID-$(date +%Y%m%dT%H%M%S)-$$.yaml"
 [ ! -e "$BACKUP" ] || { echo "refusing to overwrite $BACKUP" >&2; exit 1; }
-uqadm space export ID --slot prod -o "$BACKUP"
+# Only report a backup that was actually written; stop before any change otherwise.
+uqadm space export ID --slot prod -o "$BACKUP" && [ -s "$BACKUP" ] \
+  || { echo "backup FAILED; do not proceed" >&2; exit 1; }
 echo "Backup: $BACKUP"                 # record this path; reapply exactly this file
 
 # later, to reapply the saved configuration to the same space on the same slot:
