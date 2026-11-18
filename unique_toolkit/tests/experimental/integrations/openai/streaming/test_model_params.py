@@ -158,3 +158,55 @@ def test_AI_prepare_responses_model_params__maps_flat_reasoning_effort(
     assert options["reasoning"]["effort"] == "high"
     assert "reasoning_effort" not in options
     assert "reasoningEffort" not in options
+
+
+_GPT_62_MODELS = [
+    LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+    LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+    LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+    LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+]
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("model_name", _GPT_62_MODELS)
+def test_AI_prepare_chat_completions_model_params__gpt_62_omits_sampling_params(
+    model_name: LanguageModelName,
+) -> None:
+    """
+    Purpose: GPT-6.2 Chat Completions options carry no temperature, top_p, logprobs or top_logprobs.
+    Why this matters: The GPT-6.2 API rejects these parameters.
+    Setup summary: Pass all four; assert none are returned and the reasoning default stays.
+    """
+    options = prepare_chat_completions_model_params(
+        model_name, 0.5, {"top_p": 0.9, "logprobs": True, "top_logprobs": 3}
+    )
+
+    assert options == {"reasoning_effort": "medium"}
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("model_name", _GPT_62_MODELS)
+def test_AI_prepare_responses_model_params__gpt_62_omits_sampling_params(
+    model_name: LanguageModelName,
+) -> None:
+    """
+    Purpose: GPT-6.2 Responses options carry no temperature, top_p, top_logprobs or logprobs include.
+    Why this matters: The GPT-6.2 API rejects these parameters.
+    Setup summary: Pass every rejected option plus a supported include; assert only that include survives.
+    """
+    options = prepare_responses_model_params(
+        model_name,
+        0.5,
+        None,
+        {
+            "top_p": 0.9,
+            "top_logprobs": 3,
+            "include": ["message.output_text.logprobs", "reasoning.encrypted_content"],
+        },
+    )
+
+    assert "temperature" not in options
+    assert "top_p" not in options
+    assert "top_logprobs" not in options
+    assert options["include"] == ["reasoning.encrypted_content"]

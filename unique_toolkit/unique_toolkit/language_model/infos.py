@@ -321,6 +321,17 @@ class ModelCapabilities(StrEnum):
     VISION = "vision"
 
 
+_SAMPLING_OPTION_KEYS = (
+    "temperature",
+    "top_p",
+    "topP",
+    "logprobs",
+    "top_logprobs",
+    "topLogprobs",
+)
+_LOGPROBS_INCLUDE = "message.output_text.logprobs"
+
+
 class TemperatureBounds(BaseModel):
     min_temperature: float
     max_temperature: float
@@ -430,10 +441,28 @@ class LanguageModelInfo(BaseModel):
     supports_forced_tool_choice: bool = True
 
     # False for models whose API rejects temperature, top_p, logprobs and
-    # top_logprobs (GPT-6.2). These are omitted from every request.
+    # top_logprobs (GPT-6.2). See ``drop_unsupported_options``.
     supports_sampling_params: bool = True
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
+
+    def drop_unsupported_options(self, options: dict[str, Any]) -> None:
+        """Remove request options this model's API rejects, in place.
+
+        Works for Chat Completions and Responses options, in snake or camel case.
+        """
+        if self.supports_sampling_params:
+            return
+        for key in _SAMPLING_OPTION_KEYS:
+            options.pop(key, None)
+        include = options.get("include")
+        if include is None:
+            return
+        kept = [item for item in include if item != _LOGPROBS_INCLUDE]
+        if kept:
+            options["include"] = kept
+        else:
+            del options["include"]
 
     def get_encoder(self) -> TypeEncoder:
         """Get an encode callable for this model's tokenizer."""

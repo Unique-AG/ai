@@ -44,7 +44,6 @@ from unique_toolkit.language_model.settings import ModelFamily
 from .constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
-    UNSUPPORTED_SAMPLING_OPTION_KEYS,
 )
 
 logger = logging.getLogger(f"toolkit.language_model.{__name__}")
@@ -486,13 +485,11 @@ def _prepare_all_completions_params_util(
             temperature, reasoning_effort=reasoning_effort
         )
         options["temperature"] = resolved_temp
-        if not model_info.supports_sampling_params:
-            for key in UNSUPPORTED_SAMPLING_OPTION_KEYS:
-                options.pop(key, None)
         if resolved_effort is not None:
             options["reasoning_effort"] = resolved_effort
         elif reasoning_effort is not None:
             options.pop("reasoning_effort", None)
+        model_info.drop_unsupported_options(options)
         options = _translate_max_tokens_option(options, model_info)
 
     integrated_messages = cast(

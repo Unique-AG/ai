@@ -40,14 +40,16 @@ def prepare_chat_completions_model_params(
     """
     options = dict(other_options) if other_options else {}
     requested_effort = options.get("reasoning_effort")
-    temperature, resolved_effort = LanguageModelInfo.from_name(
-        model_name
-    ).resolve_temp_and_reasoning(temperature, requested_effort)
+    model_info = LanguageModelInfo.from_name(model_name)
+    temperature, resolved_effort = model_info.resolve_temp_and_reasoning(
+        temperature, requested_effort
+    )
     if resolved_effort is not None:
         options["reasoning_effort"] = resolved_effort
     else:
         options.pop("reasoning_effort", None)
     options["temperature"] = temperature
+    model_info.drop_unsupported_options(options)
     return options
 
 
@@ -85,9 +87,10 @@ def prepare_responses_model_params(
     options = strip_translated_responses_options(raw_options)
 
     requested_effort = reasoning.get("effort") if reasoning is not None else None
-    temperature, resolved_effort = LanguageModelInfo.from_name(
-        model_name
-    ).resolve_temp_and_reasoning(temperature, requested_effort)
+    model_info = LanguageModelInfo.from_name(model_name)
+    temperature, resolved_effort = model_info.resolve_temp_and_reasoning(
+        temperature, requested_effort
+    )
     reasoning = _bump_code_interpreter_effort(
         _apply_resolved_reasoning(reasoning, resolved_effort),
         tools,
@@ -97,6 +100,7 @@ def prepare_responses_model_params(
         options["reasoning"] = reasoning
     if text is not None:
         options["text"] = text
+    model_info.drop_unsupported_options(options)
     return options
 
 
