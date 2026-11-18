@@ -1,0 +1,6 @@
+component: SDK
+kind: Fixed
+body: An MCP tool result that wraps its records in a list under its own key, such as `{"files": [...]}`, now yields one cited reference per record with its link, instead of one untitled reference with no link.
+time: 2026-11-18T21:15:00.000000+01:00
+custom:
+    Audience: user
