@@ -765,3 +765,20 @@ def test_other_models_chat_completions_keep_temperature() -> None:
     options = _prepare_options_for_model(LanguageModelName.AZURE_GPT_4o_2024_1120, {})
 
     assert "temperature" in options
+
+
+@pytest.mark.ai
+def test_gpt_62_chat_completions_options_omit_temperature_for_string_model_name() -> (
+    None
+):
+    """
+    Purpose: A registered GPT-6.2 name passed as a plain string still omits temperature.
+    Why this matters: The public functions accept ``LanguageModelName | str``.
+    Setup summary: Pass the enum value as a string and assert temperature is not forwarded.
+    """
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_62_SOL_2026_1117.value, {"top_p": 0.9}
+    )
+
+    assert "temperature" not in options
+    assert "top_p" not in options

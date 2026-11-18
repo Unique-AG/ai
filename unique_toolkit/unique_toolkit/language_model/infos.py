@@ -450,6 +450,9 @@ class LanguageModelInfo(BaseModel):
         """Remove request options this model's API rejects, in place.
 
         Works for Chat Completions and Responses options, in snake or camel case.
+
+        Args:
+            options (dict[str, Any]): Request options. Mutated in place.
         """
         if self.supports_sampling_params:
             return

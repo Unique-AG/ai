@@ -36,7 +36,8 @@ def prepare_chat_completions_model_params(
         other_options (dict[str, Any] | None): Extra OpenAI create() kwargs.
 
     Returns:
-        dict[str, Any]: Sanitized create() options including ``temperature``.
+        dict[str, Any]: Sanitized create() options. ``temperature`` is included
+        only when the model supports sampling parameters.
     """
     options = dict(other_options) if other_options else {}
     requested_effort = options.get("reasoning_effort")
@@ -78,7 +79,8 @@ def prepare_responses_model_params(
         tools (Sequence[Mapping[str, Any]] | None): Converted Responses tools.
 
     Returns:
-        dict[str, Any]: Sanitized create() options including ``temperature``.
+        dict[str, Any]: Sanitized create() options. ``temperature`` is included
+        only when the model supports sampling parameters.
     """
     raw_options = dict(other_options) if other_options else {}
     if reasoning is None:

@@ -468,10 +468,6 @@ class TestLanguageModelInfos:
         sizes requests from token_limits, and must never send effort `none`,
         which the GPT-6.2 API rejects.
         Setup summary: Load each Azure and LiteLLM GPT-6.2 LanguageModelInfo.
-        Sources:
-        https://developers.openai.com/api/docs/models/gpt-6.2-sol
-        https://developers.openai.com/api/docs/models/gpt-6.2-astra
-        https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
         """
         model = LanguageModelInfo.from_name(model_name)
         assert model.provider == provider

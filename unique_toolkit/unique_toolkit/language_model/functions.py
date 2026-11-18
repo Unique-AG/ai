@@ -489,8 +489,11 @@ def _prepare_all_completions_params_util(
             options["reasoning_effort"] = resolved_effort
         elif reasoning_effort is not None:
             options.pop("reasoning_effort", None)
-        model_info.drop_unsupported_options(options)
         options = _translate_max_tokens_option(options, model_info)
+
+    (model_info or LanguageModelInfo.from_name(model_name)).drop_unsupported_options(
+        options
+    )
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
