@@ -24,11 +24,12 @@ def prepare_chat_completions_model_params(
     temperature: float,
     other_options: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """Prepare Chat Completions create() options including clamped temperature.
+    """Prepare Chat Completions create() options for the model.
 
     Copies ``other_options`` so the caller dict is not mutated, applies
     ``LanguageModelInfo`` temperature/reasoning rules, and writes the clamped
-    temperature onto the returned options dict.
+    temperature onto the returned options dict when the model supports
+    sampling parameters.
 
     Args:
         model_name (LanguageModelName | str): Model identifier from the caller.
@@ -61,15 +62,15 @@ def prepare_responses_model_params(
     other_options: dict[str, Any] | None,
     tools: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Prepare Responses API create() options including clamped temperature.
+    """Prepare Responses API create() options for the model.
 
     Extracts reasoning from ``other_options`` when the explicit argument is
     missing (UniqueAI passes ``reasoning`` that way), applies
     ``LanguageModelInfo`` bounds, and bumps ``minimal`` effort to ``low`` when
     a code-interpreter tool is present. Chat-completions ``reasoning_effort`` /
     ``verbosity`` are mapped to ``reasoning`` / ``text`` and not forwarded
-    verbatim. Clamped temperature, reasoning and text are written onto the
-    returned options dict.
+    verbatim. Reasoning and text are written onto the returned options dict,
+    and the clamped temperature when the model supports sampling parameters.
 
     Args:
         model_name (LanguageModelName | str): Model identifier from the caller.
