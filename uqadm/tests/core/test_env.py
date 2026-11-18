@@ -275,3 +275,32 @@ def test_load_slot_unique_api_base_url_with_path_passes_through_unchanged(
     )
     load_slot("pub", cwd=tmp_path)
     assert os.environ["UNIQUE_API_BASE"] == "http://localhost:8092/public"
+
+
+def test_config_for_slot_does_not_inherit_previous_slot_api_base(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import unique_sdk
+
+    from uqadm.core import env as env_mod
+
+    (tmp_path / ".src.env").write_text(
+        "UNIQUE_USER_ID=u\nUNIQUE_COMPANY_ID=c\nUNIQUE_API_KEY=k\nUNIQUE_APP_ID=a\n"
+        "UNIQUE_API_BASE=https://source.example/public\n",
+        encoding="utf-8",
+    )
+    (tmp_path / ".dst.env").write_text(
+        "UNIQUE_USER_ID=u\nUNIQUE_COMPANY_ID=c\nUNIQUE_API_KEY=k\nUNIQUE_APP_ID=a\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(unique_sdk, "api_base", env_mod._SDK_DEFAULT_API_BASE)
+    # Register env keys so monkeypatch restores them after load_slot mutates them.
+    for key in env_mod.UNIQUE_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
+    src = env_mod.config_for_slot("src", cwd=tmp_path)
+    dst = env_mod.config_for_slot("dst", cwd=tmp_path)
+
+    assert src.api_base.startswith("https://source.example")
+    assert dst.api_base == env_mod._SDK_DEFAULT_API_BASE
+    assert unique_sdk.api_base == env_mod._SDK_DEFAULT_API_BASE

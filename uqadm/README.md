@@ -343,7 +343,7 @@ Migrates top-level space fields including `languageModel`, `allowModelSwitching`
 | Module `configuration` (incl. knowledge `scopeIds`) | Copied verbatim. Scope ids don't carry over to another environment, so check them after a cross-environment run. |
 | Access (`assistantAccess`) | **Merged** into the destination via `Space.add_space_access`. Existing entries are never removed, but source entries are added. Pass `--no-access` to leave the destination ACL untouched. |
 | Scope rules | **Never applied.** The public API can't write scope rules; configure them manually in the destination space. A warning is printed when the source has any. |
-| MCP server bindings | Only with `--with-mcp-servers`. Only listed servers change; servers already bound on the destination are not removed. |
+| MCP server bindings | Top-level `assistantMcpServers` only with `--with-mcp-servers`. Only listed servers change; servers already bound on the destination are not removed. MCP tool entries *inside module `configuration`* are copied with the module config, whatever the flag. |
 
 **Push config to an existing space without touching its access rights:**
 
@@ -356,8 +356,22 @@ uqadm space migrate --source "qa:space_src" --destination "prod:space_dst" --no-
 uqadm space export space_src --slot qa -o space.yaml --no-access
 uqadm space upsert -f space.yaml --slot prod --target space_dst --dry-run
 uqadm space upsert -f space.yaml --slot prod --target space_dst
+```
 
-# Confirm only config changed
+To **verify the destination ACL was preserved**, export the destination on the
+same slot before and after the push and compare its access entries:
+
+```bash
+uqadm space export space_dst --slot prod -o dst-before.json
+# ... run the migrate / upsert above ...
+uqadm space export space_dst --slot prod -o dst-after.json
+diff <(jq -S .assistantAccess dst-before.json) <(jq -S .assistantAccess dst-after.json)
+```
+
+`space diff --ignore-access` only compares source and destination
+*configuration*. Because it removes the access fields, it can't show whether the ACL changed:
+
+```bash
 uqadm space diff --source "qa:space_src" --destination "prod:space_dst" --ignore-access
 ```
 

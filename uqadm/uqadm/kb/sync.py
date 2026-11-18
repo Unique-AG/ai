@@ -78,6 +78,9 @@ def _resolve_scope(
             cfg.user_id, cfg.company_id, folder_path=folder_path
         )
     if create:
+        if not folder_path:
+            # Mirror the SDK helper: an empty path (KB root) is never created.
+            return None
         try:
             existing = Folder.resolve_scope_id_from_folder_path(
                 cfg.user_id, cfg.company_id, folder_path=folder_path

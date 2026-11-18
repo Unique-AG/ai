@@ -15,9 +15,12 @@ from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.env import config_for_slot
 from uqadm.core.payload_files import load_json_or_yaml_mapping
 from uqadm.space.migrate import (
+    SnapshotError,
     build_create_params,
     build_module_updates_from_pairs,
     build_update_kwargs,
+    echo_mcp_plan,
+    list_len,
     match_modules_by_name,
     resolve_access_entries,
     sync_assistant_access,
@@ -34,16 +37,11 @@ def load_space_snapshot(path: Path) -> dict[str, Any]:
 def _emit_snapshot_warnings(
     snapshot: dict[str, Any], *, with_mcp_servers: bool = False
 ) -> None:
-    warn_scope_rules_not_applied(len(snapshot.get("scopeRules") or []))
-    mcp = snapshot.get("assistantMcpServers") or []
+    warn_scope_rules_not_applied(list_len(snapshot.get("scopeRules")))
     if not with_mcp_servers:
-        warn_mcp_servers_not_applied(len(mcp))
-    elif mcp:
-        typer.echo(
-            f"Note: applying {len(mcp)} MCP server binding(s); their "
-            "mcpServerId values must exist in the destination environment.",
-            err=True,
-        )
+        warn_mcp_servers_not_applied(list_len(snapshot.get("assistantMcpServers")))
+    # With --with-mcp-servers the bindings are reported from the built payload
+    # (see echo_mcp_plan), so only what is actually sent is announced.
     prompts = snapshot.get("assistantPrompts")
     if prompts:
         typer.echo(
@@ -104,12 +102,21 @@ def cmd_upsert(
     typer.echo(f"Loading destination slot {slot!r} …")
     cfg = config_for_slot(slot, cwd=cwd)
 
-    assistant_access = resolve_access_entries(
-        list(snapshot.get("assistantAccess") or []), no_access=no_access
-    )
+    try:
+        assistant_access = resolve_access_entries(
+            snapshot.get("assistantAccess"), no_access=no_access
+        )
+    except SnapshotError as exc:
+        typer.echo(f"Invalid snapshot: {exc}", err=True)
+        sys.exit(2)
 
     if dst_space_id is None:
-        create_params = build_create_params(snapshot, include_mcp=with_mcp_servers)
+        try:
+            create_params = build_create_params(snapshot, include_mcp=with_mcp_servers)
+        except SnapshotError as exc:
+            typer.echo(f"Invalid snapshot: {exc}", err=True)
+            sys.exit(2)
+        echo_mcp_plan(create_params, dry_run=dry_run)
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space with name="
@@ -175,7 +182,12 @@ def cmd_upsert(
 
     update_modules = build_module_updates_from_pairs(pairs)
 
-    update_kw = build_update_kwargs(snapshot, include_mcp=with_mcp_servers)
+    try:
+        update_kw = build_update_kwargs(snapshot, include_mcp=with_mcp_servers)
+    except SnapshotError as exc:
+        typer.echo(f"Invalid snapshot: {exc}", err=True)
+        sys.exit(2)
+    echo_mcp_plan(update_kw, dry_run=dry_run)
     if update_modules:
         update_kw["modules"] = update_modules
 

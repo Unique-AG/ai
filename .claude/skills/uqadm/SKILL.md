@@ -27,12 +27,14 @@ unfamiliar option.
 ```bash
 uv sync --package uqadm            # from the ai repo root (or: pip install -e uqadm/)
 uqadm install                      # dirs, shell completion, first slot
+uqadm env create qa
 uqadm env create prod --set-default
-uqadm env list | uqadm env show prod | uqadm env set-default qa
+uqadm env list                     # shows all slots; * marks the default
+uqadm env show prod                # resolved credentials for one slot
 ```
 
-- Every command takes `--slot SLOT`, which loads `~/.uqadm/envs/.{SLOT}.env`. Without it, the default slot is used.
-- Commands that take two spaces use **endpoint specs**: `slot:space_id` or `slot:https://host/.../space/<id>`. For `migrate --destination`, a bare `slot` or `slot:` means *create a new space*.
+- Single-slot commands take `--slot SLOT`, which loads `~/.uqadm/envs/.{SLOT}.env`. Without it, the default slot is used.
+- **`space migrate` and `space diff` don't accept `--slot`.** They pick a slot per side from **endpoint specs**: `slot:space_id` or `slot:https://host/.../space/<id>`. For `migrate --destination`, a bare `slot` or `slot:` means *create a new space*.
 - Single-space commands accept a bare id or a space URL.
 
 ## Command map
@@ -65,17 +67,26 @@ uqadm env list | uqadm env show prod | uqadm env set-default qa
 | Module configuration (incl. knowledge `scopeIds`) | Copied verbatim. **Scope ids don't carry over to another environment**, so check them after a cross-env run. |
 | Access (`assistantAccess`) | **Merged**: source entries are added, existing ones are never removed. `--no-access` skips the merge. |
 | Scope rules | **Never applied.** There's no public write API. Tell the user to set them manually in the UI. |
-| MCP bindings | Only with `--with-mcp-servers`. `migrate` ignores the flag across environments. Servers already on the destination aren't removed. |
+| MCP bindings | Top-level `assistantMcpServers` only with `--with-mcp-servers`. `migrate` ignores the flag across environments. Servers already on the destination aren't removed. MCP tool entries *inside module configuration* are copied with the module config, whatever the flag. |
 
 ## Recipes
 
 **Push config to an existing space without touching its access rights**
 
 ```bash
+uqadm space export DST --slot prod -o dst-before.json            # save the destination ACL
 uqadm space migrate --source qa:SRC --destination prod:DST --no-access --dry-run
 uqadm space migrate --source qa:SRC --destination prod:DST --no-access
-uqadm space diff --source qa:SRC --destination prod:DST --ignore-access
+uqadm space export DST --slot prod -o dst-after.json
+jq -S '.assistantAccess' dst-before.json > acl-before.json
+jq -S '.assistantAccess' dst-after.json  > acl-after.json
+diff acl-before.json acl-after.json                               # empty = ACL unchanged
+uqadm space diff --source qa:SRC --destination prod:DST --ignore-access  # config-only comparison
 ```
+
+`diff --ignore-access` compares source and destination *configuration*. It
+can't tell you whether the destination ACL changed; use the before/after
+exports for that.
 
 Reviewable alternative using a snapshot file:
 
@@ -89,8 +100,20 @@ uqadm space upsert -f space.yaml --slot prod --target DST
 **Clone into a brand-new space**: `uqadm space migrate --source qa:SRC --destination prod:`.
 Add `--no-access` if the source's groups don't exist in the target environment.
 
-**Back up before changes**: `uqadm space export ID --slot prod -o backup-$(date +%F).yaml`.
-To restore, run `upsert -f backup.yaml --target ID`.
+**Back up before changes**:
+
+```bash
+BACKUP="backup-ID-$(date +%F).yaml"
+uqadm space export ID --slot prod -o "$BACKUP"
+# later, to reapply the saved configuration to the same space on the same slot:
+uqadm space upsert -f "$BACKUP" --slot prod --target ID --dry-run
+uqadm space upsert -f "$BACKUP" --slot prod --target ID
+```
+
+This **isn't a full rollback**. Upsert reapplies the supported configuration
+fields and only *adds* saved access entries. It doesn't revoke access granted
+after the backup, remove modules or MCP bindings added since, or restore scope
+rules. Recover those separately, for example by revoking access in the UI.
 
 **Model rollout**: preview with `uqadm space model-replace --all --slot prod --from-model OLD --to-model NEW --dry-run`,
 then do the same for `uqadm kb ingestion model-replace --all ...`.
@@ -104,6 +127,6 @@ then do the same for `uqadm kb ingestion model-replace --all ...`.
 1. Run `--dry-run` first for upsert, migrate, ingestion-set, model-replace, delete, kb sync, and kb rm.
 2. Before a cross-slot write, confirm the destination slot (`uqadm env show SLOT`). Prod writes affect real users.
 3. Never run `space delete` or `kb rm` without explicit user confirmation. Use `-y` only when the user asked for it.
-4. When the user cares about ACLs, compare `uqadm space export ID -o before.json` with an export taken afterwards, or run `diff --strict` without `--ignore-access`.
+4. When the user cares about ACLs, export the **same destination on the same slot** before and after the write and compare `assistantAccess` (see the recipe above). `space diff` compares two live spaces and can't show a space's earlier state.
 5. Treat warnings on stderr (unmatched modules, scope rules, MCP bindings) as action items for the user. Don't drop them silently.
 6. On auth errors, `uqadm env show SLOT` prints the resolved credentials so you can debug the slot.

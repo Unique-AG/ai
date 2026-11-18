@@ -12,10 +12,12 @@ import pytest
 from uqadm.space.diff import cmd_diff
 from uqadm.space.export import cmd_export
 from uqadm.space.migrate import (
+    SnapshotError,
     build_create_params,
     build_update_kwargs,
     cmd_migrate,
     mcp_server_params_from_source,
+    resolve_access_entries,
     strip_access_keys,
 )
 from uqadm.space.upsert import cmd_upsert
@@ -77,9 +79,43 @@ def test_mcp_server_params_enabled_without_tools_omits_tools() -> None:
     assert mcp_server_params_from_source(entries) == [{"mcpServerId": "mcp_3"}]
 
 
-def test_mcp_server_params_skips_invalid_entries() -> None:
-    assert mcp_server_params_from_source([{"name": "x"}, "bad"]) == []
+def test_mcp_server_params_none_is_empty() -> None:
     assert mcp_server_params_from_source(None) == []
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        "not-a-list",
+        [{"name": "no server id"}],
+        ["bad"],
+        [{"mcpServerId": "m", "isEnabled": True, "tools": 1}],
+        [{"mcpServerId": "m", "isEnabled": True, "tools": [{"isEnabled": True}]}],
+        [{"mcpServerId": "m", "isEnabled": True, "tools": ["search"]}],
+    ],
+)
+def test_mcp_server_params_reject_malformed_input(entries: Any) -> None:
+    # Invalid selections must fail loudly, never widen to "enable all tools".
+    with pytest.raises(SnapshotError):
+        mcp_server_params_from_source(entries)
+
+
+def test_mcp_server_params_enabled_with_empty_tools_omits_tools() -> None:
+    entries = [{"mcpServerId": "m", "isEnabled": True, "tools": []}]
+    assert mcp_server_params_from_source(entries) == [{"mcpServerId": "m"}]
+
+
+def test_resolve_access_entries_no_access_does_not_parse_field(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert resolve_access_entries(1, no_access=True) == []
+    assert "--no-access set" in capsys.readouterr().err
+
+
+def test_resolve_access_entries_rejects_non_list_without_no_access() -> None:
+    with pytest.raises(SnapshotError):
+        resolve_access_entries(1, no_access=False)
+    assert resolve_access_entries(None, no_access=False) == []
 
 
 def test_build_params_include_mcp_only_when_requested() -> None:
@@ -345,3 +381,79 @@ def test_diff_without_ignore_access_detects_acl_drift() -> None:
             cwd=None,
         )
     assert exc_info.value.code == 1
+
+
+@patch("uqadm.space.upsert.config_for_slot")
+def test_upsert_malformed_mcp_exits_2_before_any_write(
+    mock_cfg: MagicMock, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mock_cfg.return_value = _cfg()
+    bad = _space(
+        assistantMcpServers=[{"mcpServerId": "m", "isEnabled": True, "tools": 1}]
+    )
+    path = _write_snapshot(tmp_path, bad)
+    with (
+        patch(
+            "uqadm.space.upsert.Space.get_space",
+            return_value={"modules": [{"id": "m_dst", "name": "alpha"}]},
+        ),
+        patch("uqadm.space.upsert.Space.update_space") as mock_update,
+        pytest.raises(SystemExit) as exc_info,
+    ):
+        cmd_upsert(
+            path,
+            "qa",
+            target_space_id="space_dst",
+            dry_run=False,
+            cwd=None,
+            with_mcp_servers=True,
+        )
+    assert exc_info.value.code == 2
+    mock_update.assert_not_called()
+    assert "Invalid snapshot" in capsys.readouterr().err
+
+
+@patch("uqadm.space.upsert.config_for_slot")
+def test_upsert_no_access_ignores_malformed_access_field(
+    mock_cfg: MagicMock, tmp_path: Path
+) -> None:
+    mock_cfg.return_value = _cfg()
+    path = _write_snapshot(tmp_path, _space(assistantAccess=1))
+    with (
+        patch(
+            "uqadm.space.upsert.Space.get_space",
+            return_value={"modules": [{"id": "m_dst", "name": "alpha"}]},
+        ),
+        patch("uqadm.space.upsert.Space.update_space") as mock_update,
+        patch("uqadm.space.migrate.Space.add_space_access") as mock_add,
+    ):
+        cmd_upsert(
+            path,
+            "qa",
+            target_space_id="space_dst",
+            dry_run=False,
+            cwd=None,
+            no_access=True,
+        )
+    mock_update.assert_called_once()
+    mock_add.assert_not_called()
+
+
+@patch("uqadm.space.upsert.config_for_slot")
+def test_upsert_create_dry_run_reports_mcp_plan(
+    mock_cfg: MagicMock, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mock_cfg.return_value = _cfg()
+    path = _write_snapshot(tmp_path, _space())
+    cmd_upsert(
+        path, "qa", target_space_id=None, dry_run=True, cwd=None, with_mcp_servers=True
+    )
+    err = capsys.readouterr().err
+    assert "Dry-run: would apply 1 MCP server binding(s)" in err
+
+
+def test_migrate_cross_env_does_not_report_mcp_plan(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _run_migrate(dst_cfg=_cfg(company="other"), with_mcp_servers=True)
+    assert "MCP server binding(s); mcpServerId" not in capsys.readouterr().err

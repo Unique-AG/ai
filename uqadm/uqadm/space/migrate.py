@@ -127,30 +127,64 @@ def assistant_prompt_params_from_source(
     return out
 
 
+class SnapshotError(ValueError):
+    """A space snapshot/source payload field has a shape uqadm cannot apply."""
+
+
+def _mcp_tool_params(server_id: str, tools: Any) -> list[dict[str, Any]] | None:
+    """Validate an explicit tool selection; ``None`` means "enable all tools"."""
+    if tools is None:
+        return None
+    if not isinstance(tools, list):
+        raise SnapshotError(
+            f"MCP binding {server_id!r}: 'tools' must be a list, "
+            f"got {type(tools).__name__}."
+        )
+    out: list[dict[str, Any]] = []
+    for idx, tool in enumerate(tools):
+        if not isinstance(tool, dict) or not tool.get("name"):
+            raise SnapshotError(
+                f"MCP binding {server_id!r}: tools[{idx}] must be a mapping "
+                "with a non-empty 'name'."
+            )
+        out.append({"name": tool["name"], "isEnabled": bool(tool.get("isEnabled"))})
+    # An empty selection on an enabled binding carries no explicit choice, so
+    # keep the "enable every callable tool" form rather than disabling it.
+    return out or None
+
+
 def mcp_server_params_from_source(entries: Any) -> list[dict[str, Any]]:
     """Map exported ``assistantMcpServers`` to Space API ``mcpServers`` payloads.
 
     Drops source-only keys (binding ``id``, ``assistantId``, timestamps). A
     disabled binding maps to ``tools: []``, which disables the server for the
-    space. An enabled binding with no tool list omits ``tools`` so every
-    callable tool is enabled.
+    space. An enabled binding with no (or an empty) tool list omits ``tools``
+    so every callable tool is enabled.
+
+    Raises:
+        SnapshotError: If the bindings, or an explicit tool selection, are
+            malformed. Invalid selections are rejected rather than silently
+            widened to "enable all tools".
     """
-    if not isinstance(entries, list):
+    if entries is None:
         return []
+    if not isinstance(entries, list):
+        raise SnapshotError(
+            f"'assistantMcpServers' must be a list, got {type(entries).__name__}."
+        )
     out: list[dict[str, Any]] = []
-    for entry in entries:
+    for idx, entry in enumerate(entries):
         if not isinstance(entry, dict) or not entry.get("mcpServerId"):
-            continue
-        item: dict[str, Any] = {"mcpServerId": entry["mcpServerId"]}
+            raise SnapshotError(
+                f"assistantMcpServers[{idx}] must be a mapping with 'mcpServerId'."
+            )
+        server_id = entry["mcpServerId"]
+        item: dict[str, Any] = {"mcpServerId": server_id}
         if entry.get("isEnabled") is False:
             item["tools"] = []
         else:
-            tools = [
-                {"name": t["name"], "isEnabled": bool(t.get("isEnabled"))}
-                for t in entry.get("tools") or []
-                if isinstance(t, dict) and t.get("name")
-            ]
-            if tools:
+            tools = _mcp_tool_params(server_id, entry.get("tools"))
+            if tools is not None:
                 item["tools"] = tools
         out.append(item)
     return out
@@ -179,6 +213,24 @@ def warn_mcp_servers_not_applied(count: int) -> None:
     )
 
 
+def list_len(value: Any) -> int:
+    """Length of ``value`` if it is a list, else 0 (for warning counts only)."""
+    return len(value) if isinstance(value, list) else 0
+
+
+def echo_mcp_plan(params: dict[str, Any], *, dry_run: bool) -> None:
+    """Report the MCP bindings actually present in a built create/update payload."""
+    mcp = params.get("mcpServers") or []
+    if not mcp:
+        return
+    verb = "Dry-run: would apply" if dry_run else "Applying"
+    typer.echo(
+        f"{verb} {len(mcp)} MCP server binding(s); mcpServerId values must "
+        "exist in the destination environment.",
+        err=True,
+    )
+
+
 ACCESS_KEYS: tuple[str, ...] = ("assistantAccess", "access")
 
 
@@ -187,19 +239,30 @@ def strip_access_keys(payload: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in payload.items() if k not in ACCESS_KEYS}
 
 
-def resolve_access_entries(
-    assistant_access: list[dict[str, Any]], *, no_access: bool
-) -> list[dict[str, Any]]:
-    """Return the access entries to merge, or none when ``no_access`` is set."""
+def resolve_access_entries(raw: Any, *, no_access: bool) -> list[dict[str, Any]]:
+    """Return the access entries to merge, or none when ``no_access`` is set.
+
+    ``raw`` is the unparsed ``assistantAccess`` field; with ``no_access`` it is
+    never parsed, so a malformed field cannot block an ACL-preserving run.
+
+    Raises:
+        SnapshotError: If ``no_access`` is unset and ``raw`` is not a list.
+    """
     if no_access:
-        if assistant_access:
-            typer.echo(
-                f"Note: --no-access set; skipping {len(assistant_access)} "
-                "access entr(y/ies). Destination ACL is left untouched.",
-                err=True,
-            )
+        count = len(raw) if isinstance(raw, list) else 0
+        typer.echo(
+            f"Note: --no-access set; skipping {count} access entr(y/ies). "
+            "Destination ACL is left untouched.",
+            err=True,
+        )
         return []
-    return assistant_access
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise SnapshotError(
+            f"'assistantAccess' must be a list, got {type(raw).__name__}."
+        )
+    return list(raw)
 
 
 def build_create_params(
@@ -411,20 +474,20 @@ def cmd_migrate(
             err=True,
         )
 
-    warn_scope_rules_not_applied(len(src_space.get("scopeRules") or []))
+    warn_scope_rules_not_applied(list_len(src_space.get("scopeRules")))
 
-    mcp = src_space.get("assistantMcpServers") or []
+    mcp_count = list_len(src_space.get("assistantMcpServers"))
     include_mcp = with_mcp_servers
     if with_mcp_servers and cross_env:
         include_mcp = False
-        if mcp:
+        if mcp_count:
             typer.echo(
                 f"Warning: --with-mcp-servers ignored for cross-environment migrate; "
-                f"skipping {len(mcp)} MCP server binding(s) (ids are not portable).",
+                f"skipping {mcp_count} MCP server binding(s) (ids are not portable).",
                 err=True,
             )
     elif not with_mcp_servers:
-        warn_mcp_servers_not_applied(len(mcp))
+        warn_mcp_servers_not_applied(mcp_count)
 
     if with_knowledge and cross_env:
         typer.echo(
@@ -433,12 +496,21 @@ def cmd_migrate(
             err=True,
         )
 
-    assistant_access = resolve_access_entries(
-        list(src_space.get("assistantAccess") or []), no_access=no_access
-    )
+    try:
+        assistant_access = resolve_access_entries(
+            src_space.get("assistantAccess"), no_access=no_access
+        )
+    except SnapshotError as exc:
+        typer.echo(f"Invalid source space: {exc}", err=True)
+        sys.exit(2)
 
     if dst_space_id is None:
-        create_params = build_create_params(src_space, include_mcp=include_mcp)
+        try:
+            create_params = build_create_params(src_space, include_mcp=include_mcp)
+        except SnapshotError as exc:
+            typer.echo(f"Invalid source space: {exc}", err=True)
+            sys.exit(2)
+        echo_mcp_plan(create_params, dry_run=dry_run)
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space on destination with name="
@@ -501,9 +573,14 @@ def cmd_migrate(
 
     update_modules = build_module_updates_from_pairs(pairs)
 
-    update_kw = build_update_kwargs(src_space, include_mcp=include_mcp)
+    try:
+        update_kw = build_update_kwargs(src_space, include_mcp=include_mcp)
+    except SnapshotError as exc:
+        typer.echo(f"Invalid source space: {exc}", err=True)
+        sys.exit(2)
     if update_modules:
         update_kw["modules"] = update_modules
+    echo_mcp_plan(update_kw, dry_run=dry_run)
 
     if dry_run:
         typer.echo(

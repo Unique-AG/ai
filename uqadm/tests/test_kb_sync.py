@@ -650,3 +650,31 @@ def test_no_inherit_access_applies_to_recursive_child_folders(
     assert all(
         c.kwargs["inheritAccess"] is False for c in folder.create_paths.call_args_list
     )
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_inherit_access_never_creates_root_path(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    # --folder-path / with a top-level file resolves to an empty target path.
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    content.get_infos.return_value = _no_remote()
+
+    with patch("uqadm.kb.sync.join_path_segments", return_value=""):
+        cmd_sync(
+            _cfg(),
+            local_dir=tmp_path,
+            folder_path="/",
+            scope_id=None,
+            recursive=False,
+            dry_run=False,
+            inherit_access=False,
+        )
+
+    folder.create_paths.assert_not_called()
+    folder.resolve_scope_id_from_folder_path.assert_not_called()
