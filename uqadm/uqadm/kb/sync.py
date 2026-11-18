@@ -61,41 +61,24 @@ def _resolve_scope(
     create: bool,
     inherit_access: bool = True,
 ) -> str | None:
-    """Resolve a folder path to its scope id, optionally creating it.
+    """Resolve a folder path to its scope id, creating it when ``create`` is set.
 
-    With ``create`` (a real run) the folder is created if missing; any failure
-    propagates so the caller can report it. Without ``create`` (a dry run) a
-    missing folder is expected — the SDK raises ``InvalidRequestError`` rather than
-    returning ``None`` for an unknown path, so we swallow that and return
-    ``None`` to mean "no existing scope; treat its files as new". Other errors
-    (auth, network) are not caught and still surface.
-
-    ``inherit_access=False`` only affects folders created by this call; existing
-    folders keep their access untouched.
+    A missing folder raises ``InvalidRequestError`` in the SDK; that means "not
+    found" and is the only error treated as such. Auth and network errors
+    propagate. ``inherit_access`` only affects folders created by this call.
     """
-    if create and inherit_access:
-        return Folder.resolve_scope_id_from_folder_path_with_create(
-            cfg.user_id, cfg.company_id, folder_path=folder_path
-        )
-    if create:
-        if not folder_path:
-            # Mirror the SDK helper: an empty path (KB root) is never created.
-            return None
-        try:
-            existing = Folder.resolve_scope_id_from_folder_path(
-                cfg.user_id, cfg.company_id, folder_path=folder_path
-            )
-        except InvalidRequestError:  # Raised by the sdk if not found
-            existing = None
-        if existing:
-            return existing
-        return _create_folder(cfg, folder_path, inherit_access=False)
+    if create and not folder_path:
+        # The KB root (empty path) is never created.
+        return None
     try:
-        return Folder.resolve_scope_id_from_folder_path(
+        existing = Folder.resolve_scope_id_from_folder_path(
             cfg.user_id, cfg.company_id, folder_path=folder_path
         )
     except InvalidRequestError:  # Raised by the sdk if not found
-        return None
+        existing = None
+    if existing or not create:
+        return existing
+    return _create_folder(cfg, folder_path, inherit_access=inherit_access)
 
 
 def _remote_keys(cfg: Config, scope_id: str) -> set[str]:

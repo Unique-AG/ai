@@ -30,7 +30,7 @@ def test_new_file_uploaded(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -59,7 +59,7 @@ def test_existing_file_replaced(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = {
         "contentInfos": [{"key": "a.txt"}],
         "totalCount": 1,
@@ -89,7 +89,7 @@ def test_no_version_passes_false(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -118,7 +118,7 @@ def test_non_recursive_ignores_subdirs(
     (tmp_path / "top.txt").write_text("x", encoding="utf-8")
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "nested.txt").write_text("y", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -146,7 +146,7 @@ def test_recursive_mirrors_subdirs(
     (tmp_path / "top.txt").write_text("x", encoding="utf-8")
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "nested.txt").write_text("y", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -161,7 +161,7 @@ def test_recursive_mirrors_subdirs(
     assert upload.call_count == 2
     resolved_paths = {
         call.kwargs["folder_path"]
-        for call in folder.resolve_scope_id_from_folder_path_with_create.call_args_list
+        for call in folder.resolve_scope_id_from_folder_path.call_args_list
     }
     assert resolved_paths == {"/X", "/X/sub"}
 
@@ -177,7 +177,7 @@ def test_scope_id_resolved_via_get_folder_path(
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
     folder.get_folder_path.return_value = {"folderPath": "/Base"}
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -191,9 +191,7 @@ def test_scope_id_resolved_via_get_folder_path(
 
     folder.get_folder_path.assert_called_once()
     assert (
-        folder.resolve_scope_id_from_folder_path_with_create.call_args.kwargs[
-            "folder_path"
-        ]
+        folder.resolve_scope_id_from_folder_path.call_args.kwargs["folder_path"]
         == "/Base"
     )
     upload.assert_called_once()
@@ -222,7 +220,7 @@ def test_dry_run_uploads_nothing(
     )
 
     upload.assert_not_called()
-    folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
+    folder.create_paths.assert_not_called()
 
 
 def test_requires_exactly_one_target(tmp_path: Path) -> None:
@@ -272,7 +270,7 @@ def test_empty_dir_is_noop(
     )
 
     upload.assert_not_called()
-    folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
+    folder.create_paths.assert_not_called()
     content.get_infos.assert_not_called()
 
 
@@ -291,7 +289,7 @@ def test_unknown_mime_fails_upload(
     # A file whose MIME type cannot be determined is not uploaded; it counts as
     # failed and the command exits 1.
     (tmp_path / "noext").write_text("x", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     with pytest.raises(SystemExit) as exc:
@@ -319,7 +317,7 @@ def test_md_uploads_as_text_markdown(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "readme.md").write_text("# hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -345,7 +343,7 @@ def test_xsd_uploads_as_application_xml(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "schema.xsd").write_text("<xsd/>", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -374,7 +372,7 @@ def test_upload_failure_counts_and_exits_1(
 ) -> None:
     # A failed upload is reported, surfaces the auth-debug hook, and exits 1.
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
     upload.side_effect = RuntimeError("boom")
 
@@ -433,11 +431,10 @@ def test_folder_resolve_failure_counts_group_failed(
     tmp_path: Path,
 ) -> None:
     # A folder that fails to resolve marks its whole group as failed (exit 1)
-    # without uploading or listing remote keys.
+    # without uploading or listing remote keys. Only "not found"
+    # (InvalidRequestError) leads to a create, so this error must not.
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.side_effect = RuntimeError(
-        "denied"
-    )
+    folder.resolve_scope_id_from_folder_path.side_effect = RuntimeError("denied")
 
     with pytest.raises(SystemExit) as exc:
         cmd_sync(
@@ -452,6 +449,7 @@ def test_folder_resolve_failure_counts_group_failed(
     assert exc.value.code == 1
     upload.assert_not_called()
     content.get_infos.assert_not_called()
+    folder.create_paths.assert_not_called()
     debug.assert_called_once()
 
 
@@ -484,7 +482,7 @@ def test_dry_run_missing_folder_treats_files_as_new(
 
     upload.assert_not_called()
     content.get_infos.assert_not_called()
-    folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
+    folder.create_paths.assert_not_called()
     assert "[dry-run] new: a.txt (versioned)" in capsys.readouterr().out
 
 
@@ -501,7 +499,7 @@ def test_remote_keys_paginates(
     # Remote keys are collected across multiple pages; a key found only on the
     # second page must still mark the local file as "replaced".
     (tmp_path / "b.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.side_effect = [
         {"contentInfos": [{"key": "other.txt"}], "totalCount": 2},
         {"contentInfos": [{"key": "b.txt"}], "totalCount": 2},
@@ -583,7 +581,6 @@ def test_no_inherit_access_creates_missing_folder_without_inheritance(
     folder.create_paths.assert_called_once_with(
         "u1", "c1", paths=["/Private/New"], inheritAccess=False
     )
-    folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
     assert upload.call_args.kwargs["scope_or_unique_path"] == "scope_new"
 
 
@@ -678,3 +675,34 @@ def test_no_inherit_access_never_creates_root_path(
 
     folder.create_paths.assert_not_called()
     folder.resolve_scope_id_from_folder_path.assert_not_called()
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_default_creates_missing_folder_with_inheritance(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "not found", params=None
+    )
+    folder.create_paths.return_value = {"createdFolders": [{"id": "scope_new"}]}
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/New",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+    )
+
+    folder.create_paths.assert_called_once_with(
+        "u1", "c1", paths=["/New"], inheritAccess=True
+    )
+    assert upload.call_args.kwargs["scope_or_unique_path"] == "scope_new"

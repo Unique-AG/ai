@@ -40,7 +40,9 @@ _NO_ACCESS_HELP = (
 _WITH_MCP_HELP = (
     "Also apply MCP server bindings (assistantMcpServers). Only listed servers "
     "change; servers already bound on the destination are never removed. "
-    "MCP server ids must exist in the destination environment."
+    "MCP server ids must exist in the destination environment. Each server's "
+    "tool selection is copied as exported; tools without a saved selection are "
+    "disabled on both sides."
 )
 
 

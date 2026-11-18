@@ -304,7 +304,10 @@ def test_config_for_slot_does_not_inherit_previous_slot_api_base(
         *env_mod.TOOLKIT_APP_ENV_KEYS,
         *env_mod.TOOLKIT_API_ENV_KEYS,
     ):
-        monkeypatch.delenv(key, raising=False)
+        # setenv first so monkeypatch records the key even when it is absent;
+        # a bare delenv(raising=False) would not restore a key set by load_slot.
+        monkeypatch.setenv(key, "")
+        monkeypatch.delenv(key)
 
     src = env_mod.config_for_slot("src", cwd=tmp_path)
     dst = env_mod.config_for_slot("dst", cwd=tmp_path)

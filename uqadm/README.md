@@ -343,7 +343,7 @@ Migrates top-level space fields including `languageModel`, `allowModelSwitching`
 | Module `configuration` (incl. knowledge `scopeIds`) | Copied verbatim. Scope ids don't carry over to another environment, so check them after a cross-environment run. |
 | Access (`assistantAccess`) | **Merged** into the destination via `Space.add_space_access`. Existing entries are never removed, but source entries are added. Pass `--no-access` to leave the destination ACL untouched. |
 | Scope rules | **Never applied.** The public API can't write scope rules; configure them manually in the destination space. A warning is printed when the source has any. |
-| MCP server bindings | Top-level `assistantMcpServers` only with `--with-mcp-servers`. Only listed servers change; servers already bound on the destination are not removed. MCP tool entries *inside module `configuration`* are copied with the module config, whatever the flag. |
+| MCP server bindings | Top-level `assistantMcpServers` only with `--with-mcp-servers`. Only listed servers change; servers already bound on the destination are not removed. Each server's exported `tools` list is sent as the complete selection. A tool the server gained after its selection was last saved has no entry, so it is disabled on the source and stays disabled on the destination. MCP tool entries *inside module `configuration`* are copied with the module config, whatever the flag. |
 
 **Push config to an existing space without touching its access rights:**
 
@@ -364,12 +364,13 @@ same slot before and after the push and compare its access entries:
 ```bash
 set -euo pipefail
 WORK=$(mktemp -d)                                  # fresh paths for every run
+command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
+# Capture and validate the baseline BEFORE any write. jq -e fails unless
+# assistantAccess is a real array, so a bad baseline stops before anything changes.
 uqadm space export space_dst --slot prod -o "$WORK/before.json"
+jq -eS '.assistantAccess | arrays' "$WORK/before.json" > "$WORK/acl-before.json"
 # ... run the migrate / upsert above ...
 uqadm space export space_dst --slot prod -o "$WORK/after.json"
-# jq -e fails unless assistantAccess is a real array, so a failed export or a
-# missing jq can't produce two empty files that "match".
-jq -eS '.assistantAccess | arrays' "$WORK/before.json" > "$WORK/acl-before.json"
 jq -eS '.assistantAccess | arrays' "$WORK/after.json"  > "$WORK/acl-after.json"
 diff "$WORK/acl-before.json" "$WORK/acl-after.json" && echo "ACL unchanged"
 ```
@@ -380,6 +381,29 @@ diff "$WORK/acl-before.json" "$WORK/acl-after.json" && echo "ACL unchanged"
 ```bash
 uqadm space diff --source "qa:space_src" --destination "prod:space_dst" --ignore-access
 ```
+
+**Back up a space before changing it:**
+
+```bash
+mkdir -p backups
+# Unique per run (timestamp + PID); refuse to overwrite an existing backup.
+BACKUP="backups/space_dst-$(date +%Y%m%dT%H%M%S)-$$.yaml"
+[ ! -e "$BACKUP" ] || { echo "refusing to overwrite $BACKUP" >&2; exit 1; }
+# Only report a backup that was actually written; stop before any change otherwise.
+uqadm space export space_dst --slot prod -o "$BACKUP" && [ -s "$BACKUP" ] \
+  || { echo "backup FAILED; do not proceed" >&2; exit 1; }
+echo "Backup: $BACKUP"
+
+# Later, to reapply the saved configuration to the same space on the same slot:
+uqadm space upsert -f "$BACKUP" --slot prod --target space_dst --dry-run
+uqadm space upsert -f "$BACKUP" --slot prod --target space_dst
+```
+
+To restore top-level `assistantMcpServers` too, add `--with-mcp-servers` to both
+the dry run and the write. This **isn't a full rollback**: upsert reapplies the
+supported configuration fields and only *adds* saved access entries. It doesn't
+revoke access granted after the backup, remove modules or MCP bindings added
+since, or restore scope rules.
 
 ### `space model-replace`
 
