@@ -18,11 +18,13 @@ class ProvidersListResponse:
         search_engines (list[str]): Registered search engine ids (config discriminator values)
         crawlers (list[str]): Registered crawler ids (config discriminator values)
         agent_engines (list[str] | Unset): Registered agent search engine ids (config discriminator values)
+        crawling_enabled (bool | Unset): Whether POST /v1/crawl accepts requests. False fetches nothing. Default: True.
     """
 
     search_engines: list[str]
     crawlers: list[str]
     agent_engines: list[str] | Unset = UNSET
+    crawling_enabled: bool | Unset = True
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -34,6 +36,8 @@ class ProvidersListResponse:
         if not isinstance(self.agent_engines, Unset):
             agent_engines = self.agent_engines
 
+        crawling_enabled = self.crawling_enabled
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -44,6 +48,8 @@ class ProvidersListResponse:
         )
         if agent_engines is not UNSET:
             field_dict["agentEngines"] = agent_engines
+        if crawling_enabled is not UNSET:
+            field_dict["crawlingEnabled"] = crawling_enabled
 
         return field_dict
 
@@ -56,10 +62,13 @@ class ProvidersListResponse:
 
         agent_engines = cast(list[str], d.pop("agentEngines", UNSET))
 
+        crawling_enabled = d.pop("crawlingEnabled", UNSET)
+
         providers_list_response = cls(
             search_engines=search_engines,
             crawlers=crawlers,
             agent_engines=agent_engines,
+            crawling_enabled=crawling_enabled,
         )
 
         providers_list_response.additional_properties = d

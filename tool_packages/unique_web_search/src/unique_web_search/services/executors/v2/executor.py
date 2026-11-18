@@ -15,6 +15,7 @@ from unique_web_search.metrics import (
     search_total,
 )
 from unique_web_search.schema import StepDebugInfo
+from unique_web_search.services.crawling import crawling_enabled
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
@@ -155,7 +156,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
 
         _LOGGER.info(f"Searched with {engine} completed in {delta_time} seconds")
 
-        if self.search_service.requires_scraping and results:
+        if crawling_enabled() and self.search_service.requires_scraping and results:
             results = await self._crawl_search_results(step_name, results)
 
         return results
@@ -189,6 +190,8 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         return results
 
     async def _execute_read_url_step(self, step: Step) -> list[WebSearchResult]:
+        if not crawling_enabled():
+            return []
         step_name = step.step_type.name
         self.debug_info.steps.append(
             StepDebugInfo(
@@ -272,6 +275,8 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         Returns:
             List of approved steps with elicited search queries and original read URL steps
         """
+        if not crawling_enabled():
+            steps = [step for step in steps if step.step_type == StepType.SEARCH]
         search_steps, read_url_steps = [], []
         for step in steps:
             if step.step_type == StepType.SEARCH:

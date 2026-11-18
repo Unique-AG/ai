@@ -50,6 +50,7 @@ class ProxyErrorCode(StrEnum):
     RATE_LIMITED = "RATE_LIMITED"
     UPSTREAM_ERROR = "UPSTREAM_ERROR"
     ENGINE_NOT_CONFIGURED = "ENGINE_NOT_CONFIGURED"
+    CRAWLING_DISABLED = "CRAWLING_DISABLED"
     UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT"
     EMPTY_SEARCH_RESULTS = "EMPTY_SEARCH_RESULTS"
     RESPONSE_TOO_LARGE = "RESPONSE_TOO_LARGE"
@@ -283,6 +284,10 @@ class ProvidersListResponse(BaseModel):
     crawlers: list[str] = Field(
         ...,
         description="Registered crawler ids (config discriminator values)",
+    )
+    crawling_enabled: bool = Field(
+        default=True,
+        description="Whether POST /v1/crawl accepts requests. False fetches nothing.",
     )
 
 

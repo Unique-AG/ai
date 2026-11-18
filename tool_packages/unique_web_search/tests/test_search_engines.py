@@ -657,6 +657,7 @@ class TestSearchEngineTypes:
     def test_search_engine_type_values(self):
         """Test that search engine enums have expected discriminator values."""
         assert SearchEngineType.GOOGLE == "google"
+        assert SearchEngineType.AWS == "aws"
         assert SearchEngineType.BRAVE == "brave"
         assert SearchEngineType.PERPLEXITY == "perplexity"
         assert AgentEngineType.BING == "bing"

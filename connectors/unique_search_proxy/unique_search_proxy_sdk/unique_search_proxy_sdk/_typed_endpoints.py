@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import datetime
 from typing import Any, Generic, Literal, TypeVar
 
 from unique_search_proxy_core.agent_engines.base import DEFAULT_GENERATION_INSTRUCTIONS
@@ -442,7 +443,33 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         )
 
 
+class AwsSearchEndpoint(_TypedPostEndpoint[SearchResponse]):
+    async def __call__(
+        self,
+        *,
+        query: str,
+        engine: Literal["aws"] = "aws",
+        fetch_size: int = 10,
+        timeout: int = 30,
+        include_domains: list[str] | None = None,
+        exclude_domains: list[str] | None = None,
+        published_after: datetime | None = None,
+        published_before: datetime | None = None,
+    ) -> SearchResponse:
+        return await self._call(
+            query=query,
+            engine=engine,
+            fetch_size=fetch_size,
+            timeout=timeout,
+            include_domains=include_domains,
+            exclude_domains=exclude_domains,
+            published_after=published_after,
+            published_before=published_before,
+        )
+
+
 __all__ = [
+    "AwsSearchEndpoint",
     "BasicCrawlEndpoint",
     "BingAgentSearchEndpoint",
     "BingAgentSearchStreamEndpoint",

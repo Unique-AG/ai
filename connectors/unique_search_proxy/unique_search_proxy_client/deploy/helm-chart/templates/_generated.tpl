@@ -34,6 +34,12 @@ library extension hooks (base.externalService.*.ext).
 - name: PERPLEXITY_SEARCH_API_ENDPOINT
   value: {{ .Values.perplexitySearch.connection.apiEndpoint | quote }}
 {{- end }}
+{{- if and .Values.awsSearch .Values.awsSearch.enabled }}
+- name: AWS_SEARCH_REGION
+  value: {{ .Values.awsSearch.connection.region | quote }}
+- name: AWS_SEARCH_API_ENDPOINT
+  value: {{ .Values.awsSearch.connection.apiEndpoint | quote }}
+{{- end }}
 {{- if and .Values.bingAgent .Values.bingAgent.enabled }}
 {{- if not .Values.bingAgent.connection.endpoint }}
 {{- fail "bingAgent.connection.endpoint is required when bingAgent.enabled is true. Set it in your environment overlay." }}
@@ -153,6 +159,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: CRAWL_ENABLED
+  value: {{ .Values.crawl.connection.enabled | quote }}
 - name: PDF_EXTRACTOR
   value: {{ .Values.pdfProcessing.connection.extractor | quote }}
 - name: PDF_MAX_PDF_PAGES
@@ -213,6 +221,12 @@ library extension hooks (base.externalService.*.ext).
 {{ include "base.valueSource.env" (dict "name" "PERPLEXITY_SEARCH_API_KEY" "src" .ctx.Values.perplexitySearch.connection.apiKey "ctx" .ctx) }}
 - name: PERPLEXITY_SEARCH_API_ENDPOINT
   value: {{ .ctx.Values.perplexitySearch.connection.apiEndpoint | quote }}
+{{- end }}
+{{- if and .ctx.Values.awsSearch .ctx.Values.awsSearch.enabled }}
+- name: AWS_SEARCH_REGION
+  value: {{ .ctx.Values.awsSearch.connection.region | quote }}
+- name: AWS_SEARCH_API_ENDPOINT
+  value: {{ .ctx.Values.awsSearch.connection.apiEndpoint | quote }}
 {{- end }}
 {{- if and .ctx.Values.bingAgent .ctx.Values.bingAgent.enabled }}
 {{- if not .ctx.Values.bingAgent.connection.endpoint }}
@@ -333,6 +347,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
 - name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
   value: {{ .ctx.Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: CRAWL_ENABLED
+  value: {{ .ctx.Values.crawl.connection.enabled | quote }}
 - name: PDF_EXTRACTOR
   value: {{ .ctx.Values.pdfProcessing.connection.extractor | quote }}
 - name: PDF_MAX_PDF_PAGES
@@ -400,6 +416,21 @@ library extension hooks (base.externalService.*.ext).
 {{- end }}
 {{ if and .Values.perplexitySearch .Values.perplexitySearch.enabled }}
 {{- $endpoint := required "perplexitySearch.connection.apiEndpoint is required when perplexitySearch.enabled is true. Set it in your environment overlay." .Values.perplexitySearch.connection.apiEndpoint -}}
+{{- $parsed := urlParse $endpoint -}}
+{{- $hostParts := $parsed.host | splitList ":" -}}
+{{- $host := first $hostParts -}}
+{{- $port := "443" -}}
+{{- if eq $parsed.scheme "http" -}}{{- $port = "80" -}}{{- end -}}
+{{- if gt (len $hostParts) 1 -}}{{- $port = last $hostParts -}}{{- end -}}
+- toFQDNs:
+  - matchName: {{ $host | quote }}
+  toPorts:
+  - ports:
+    - port: {{ $port | quote }}
+      protocol: TCP
+{{- end }}
+{{ if and .Values.awsSearch .Values.awsSearch.enabled }}
+{{- $endpoint := required "awsSearch.connection.apiEndpoint is required when awsSearch.enabled is true. Set it in your environment overlay." .Values.awsSearch.connection.apiEndpoint -}}
 {{- $parsed := urlParse $endpoint -}}
 {{- $hostParts := $parsed.host | splitList ":" -}}
 {{- $host := first $hostParts -}}
@@ -481,7 +512,7 @@ library extension hooks (base.externalService.*.ext).
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.cilium.egress.hasRules.ext" -}}
-{{- if or (and .Values.googleSearch .Values.googleSearch.enabled) (and .Values.braveSearch .Values.braveSearch.enabled) (and .Values.perplexitySearch .Values.perplexitySearch.enabled) (and .Values.tavily .Values.tavily.enabled) (and .Values.jina .Values.jina.enabled) (and .Values.firecrawl .Values.firecrawl.enabled) (and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort) -}}true{{- end -}}
+{{- if or (and .Values.googleSearch .Values.googleSearch.enabled) (and .Values.braveSearch .Values.braveSearch.enabled) (and .Values.perplexitySearch .Values.perplexitySearch.enabled) (and .Values.awsSearch .Values.awsSearch.enabled) (and .Values.tavily .Values.tavily.enabled) (and .Values.jina .Values.jina.enabled) (and .Values.firecrawl .Values.firecrawl.enabled) (and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort) -}}true{{- end -}}
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.kubernetes.egress.validation.ext" -}}

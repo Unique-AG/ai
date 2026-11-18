@@ -89,6 +89,11 @@ class UpstreamError(ProxyError):
     retryable = True
 
 
+class CrawlingDisabledError(ProxyError):
+    code = ProxyErrorCode.CRAWLING_DISABLED
+    status_code = 503
+
+
 class EngineNotConfiguredError(ProxyError):
     code = ProxyErrorCode.ENGINE_NOT_CONFIGURED
     status_code = 503
