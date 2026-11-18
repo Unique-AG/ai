@@ -46,11 +46,8 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      # The publish job runs code from this commit with id-token: write
-      # (PyPI Trusted Publishing). The environment's ref policy only checks
-      # the ref the workflow was dispatched from, not inputs.ref, so only
-      # release tags on main or release/* are accepted here. The publish job
-      # checks out the resolved SHA, so the tag can't be moved in between.
+      # Only release tags on main or release/* may publish; the environment
+      # ref policy does not cover inputs.ref. Later jobs use the resolved SHA.
       - name: Validate ref to publish
         id: ref
         env:
