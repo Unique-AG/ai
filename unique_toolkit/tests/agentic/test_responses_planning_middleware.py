@@ -16,6 +16,7 @@ from unique_toolkit.agentic.loop_runner.middleware.planning.planning import (
     ResponsesPlanningMiddleware,
     _get_first_tool_call_arguments,
 )
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelMessages,
@@ -666,3 +667,32 @@ def test_get_first_tool_call_arguments__returns_none_for_empty_arguments() -> No
     response.output = [call]
 
     assert _get_first_tool_call_arguments(response) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__gpt_62_omits_sampling_options() -> None:
+    """
+    Purpose: The plan call for GPT-6.2 carries no ``temperature`` or ``top_p``.
+    Why this matters: The GPT-6.2 API rejects both, so a forwarded value fails
+    the planning request.
+    """
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+    model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_62_SOL_2026_1117)
+
+    await middleware(
+        **_base_kwargs(
+            model=model,
+            reasoning={"effort": "high"},
+            temperature=0.1,
+            top_p=0.5,
+            other_options={"top_logprobs": 3},
+        )
+    )
+
+    call_kwargs = openai_client.responses.create.call_args[1]
+    assert call_kwargs["reasoning"] == {"effort": "high"}
+    assert "temperature" not in call_kwargs
+    assert "top_p" not in call_kwargs
+    assert "top_logprobs" not in call_kwargs

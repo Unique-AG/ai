@@ -70,6 +70,8 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_6_SOL_2026_0922 = "AZURE_GPT_6_SOL_2026_0922"
     AZURE_GPT_61_SOL_2026_0929 = "AZURE_GPT_61_SOL_2026_0929"
     AZURE_GPT_61_TERRA_2026_1026 = "AZURE_GPT_61_TERRA_2026_1026"
+    AZURE_GPT_62_ASTRA_2026_1117 = "AZURE_GPT_62_ASTRA_2026_1117"
+    AZURE_GPT_62_SOL_2026_1117 = "AZURE_GPT_62_SOL_2026_1117"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -146,6 +148,8 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_6_SOL = "litellm:openai-gpt-6-sol"
     LITELLM_OPENAI_GPT_61_SOL = "litellm:openai-gpt-6.1-sol"
     LITELLM_OPENAI_GPT_61_TERRA = "litellm:openai-gpt-6.1-terra"
+    LITELLM_OPENAI_GPT_62_ASTRA = "litellm:openai-gpt-6.2-astra"
+    LITELLM_OPENAI_GPT_62_SOL = "litellm:openai-gpt-6.2-sol"
     LITELLM_OPENAI_O1 = "litellm:openai-o1"
     LITELLM_OPENAI_O3 = "litellm:openai-o3"
     LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
@@ -255,6 +259,8 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_6_SOL_2026_0922
             | LMN.AZURE_GPT_61_SOL_2026_0929
             | LMN.AZURE_GPT_61_TERRA_2026_1026
+            | LMN.AZURE_GPT_62_ASTRA_2026_1117
+            | LMN.AZURE_GPT_62_SOL_2026_1117
             | LMN.AZURE_MODEL_ROUTER_2025_1118
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
@@ -277,6 +283,8 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_GPT_6_SOL
             | LMN.LITELLM_OPENAI_GPT_61_SOL
             | LMN.LITELLM_OPENAI_GPT_61_TERRA
+            | LMN.LITELLM_OPENAI_GPT_62_ASTRA
+            | LMN.LITELLM_OPENAI_GPT_62_SOL
             | LMN.LITELLM_OPENAI_O1
             | LMN.LITELLM_OPENAI_O3
             | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
@@ -311,6 +319,17 @@ class ModelCapabilities(StrEnum):
     STRUCTURED_OUTPUT = "structured_output"
     STREAMING = "streaming"
     VISION = "vision"
+
+
+_SAMPLING_OPTION_KEYS = (
+    "temperature",
+    "top_p",
+    "topP",
+    "logprobs",
+    "top_logprobs",
+    "topLogprobs",
+)
+_LOGPROBS_INCLUDE = "message.output_text.logprobs"
 
 
 class TemperatureBounds(BaseModel):
@@ -421,7 +440,32 @@ class LanguageModelInfo(BaseModel):
     # "any". Only "auto" and "none" are accepted there.
     supports_forced_tool_choice: bool = True
 
+    # False for models whose API rejects temperature, top_p, logprobs and
+    # top_logprobs (GPT-6.2). See ``drop_unsupported_options``.
+    supports_sampling_params: bool = True
+
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
+
+    def drop_unsupported_options(self, options: dict[str, Any]) -> None:
+        """Remove request options this model's API rejects, in place.
+
+        Works for Chat Completions and Responses options, in snake or camel case.
+
+        Args:
+            options (dict[str, Any]): Request options. Mutated in place.
+        """
+        if self.supports_sampling_params:
+            return
+        for key in _SAMPLING_OPTION_KEYS:
+            options.pop(key, None)
+        include = options.get("include")
+        if include is None:
+            return
+        kept = [item for item in include if item != _LOGPROBS_INCLUDE]
+        if kept:
+            options["include"] = kept
+        else:
+            del options["include"]
 
     def get_encoder(self) -> TypeEncoder:
         """Get an encode callable for this model's tokenizer."""
@@ -3346,6 +3390,68 @@ class LanguageModelInfo(BaseModel):
                     },
                     supported_reasoning_efforts=[
                         "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                )
+            case (
+                LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117
+                | LanguageModelName.AZURE_GPT_62_SOL_2026_1117
+                | LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA
+                | LanguageModelName.LITELLM_OPENAI_GPT_62_SOL
+            ):
+                # The API rejects `none`; the other efforts mirror GPT-6.1 Sol
+                # because OpenAI does not list them for GPT-6.2.
+                provider = (
+                    LanguageModelProvider.AZURE
+                    if model_name
+                    in (
+                        LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+                        LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+                    )
+                    else LanguageModelProvider.LITELLM
+                )
+                info_cutoff_at = (
+                    date(2026, 5, 18)
+                    if model_name
+                    in (
+                        LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+                        LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+                    )
+                    else date(2026, 6, 1)
+                )
+                return cls(
+                    name=model_name,
+                    provider=provider,
+                    family=ModelFamily.OPENAI,
+                    version="2026-11-17",
+                    supports_sampling_params=False,
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=info_cutoff_at,
+                    published_at=date(2026, 11, 17),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                    supported_reasoning_efforts=[
                         "low",
                         "medium",
                         "high",

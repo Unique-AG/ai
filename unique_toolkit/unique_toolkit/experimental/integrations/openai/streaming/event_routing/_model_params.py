@@ -24,11 +24,12 @@ def prepare_chat_completions_model_params(
     temperature: float,
     other_options: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """Prepare Chat Completions create() options including clamped temperature.
+    """Prepare Chat Completions create() options for the model.
 
     Copies ``other_options`` so the caller dict is not mutated, applies
     ``LanguageModelInfo`` temperature/reasoning rules, and writes the clamped
-    temperature onto the returned options dict.
+    temperature onto the returned options dict when the model supports
+    sampling parameters.
 
     Args:
         model_name (LanguageModelName | str): Model identifier from the caller.
@@ -36,18 +37,21 @@ def prepare_chat_completions_model_params(
         other_options (dict[str, Any] | None): Extra OpenAI create() kwargs.
 
     Returns:
-        dict[str, Any]: Sanitized create() options including ``temperature``.
+        dict[str, Any]: Sanitized create() options. ``temperature`` is included
+        only when the model supports sampling parameters.
     """
     options = dict(other_options) if other_options else {}
     requested_effort = options.get("reasoning_effort")
-    temperature, resolved_effort = LanguageModelInfo.from_name(
-        model_name
-    ).resolve_temp_and_reasoning(temperature, requested_effort)
+    model_info = LanguageModelInfo.from_name(model_name)
+    temperature, resolved_effort = model_info.resolve_temp_and_reasoning(
+        temperature, requested_effort
+    )
     if resolved_effort is not None:
         options["reasoning_effort"] = resolved_effort
     else:
         options.pop("reasoning_effort", None)
     options["temperature"] = temperature
+    model_info.drop_unsupported_options(options)
     return options
 
 
@@ -58,15 +62,15 @@ def prepare_responses_model_params(
     other_options: dict[str, Any] | None,
     tools: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Prepare Responses API create() options including clamped temperature.
+    """Prepare Responses API create() options for the model.
 
     Extracts reasoning from ``other_options`` when the explicit argument is
     missing (UniqueAI passes ``reasoning`` that way), applies
     ``LanguageModelInfo`` bounds, and bumps ``minimal`` effort to ``low`` when
     a code-interpreter tool is present. Chat-completions ``reasoning_effort`` /
     ``verbosity`` are mapped to ``reasoning`` / ``text`` and not forwarded
-    verbatim. Clamped temperature, reasoning and text are written onto the
-    returned options dict.
+    verbatim. Reasoning and text are written onto the returned options dict,
+    and the clamped temperature when the model supports sampling parameters.
 
     Args:
         model_name (LanguageModelName | str): Model identifier from the caller.
@@ -76,7 +80,8 @@ def prepare_responses_model_params(
         tools (Sequence[Mapping[str, Any]] | None): Converted Responses tools.
 
     Returns:
-        dict[str, Any]: Sanitized create() options including ``temperature``.
+        dict[str, Any]: Sanitized create() options. ``temperature`` is included
+        only when the model supports sampling parameters.
     """
     raw_options = dict(other_options) if other_options else {}
     if reasoning is None:
@@ -85,9 +90,10 @@ def prepare_responses_model_params(
     options = strip_translated_responses_options(raw_options)
 
     requested_effort = reasoning.get("effort") if reasoning is not None else None
-    temperature, resolved_effort = LanguageModelInfo.from_name(
-        model_name
-    ).resolve_temp_and_reasoning(temperature, requested_effort)
+    model_info = LanguageModelInfo.from_name(model_name)
+    temperature, resolved_effort = model_info.resolve_temp_and_reasoning(
+        temperature, requested_effort
+    )
     reasoning = _bump_code_interpreter_effort(
         _apply_resolved_reasoning(reasoning, resolved_effort),
         tools,
@@ -97,6 +103,7 @@ def prepare_responses_model_params(
         options["reasoning"] = reasoning
     if text is not None:
         options["text"] = text
+    model_info.drop_unsupported_options(options)
     return options
 
 

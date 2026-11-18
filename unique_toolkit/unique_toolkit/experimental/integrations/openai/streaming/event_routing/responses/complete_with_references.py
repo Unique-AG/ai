@@ -30,7 +30,7 @@ from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
 )
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.language_model.constants import DEFAULT_COMPLETE_TEMPERATURE
-from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageOptions,
     LanguageModelMessages,
@@ -544,6 +544,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             create_kwargs["top_p"] = top_p
         for k, v in other_options.items():
             create_kwargs.setdefault(k, v)
+        LanguageModelInfo.from_name(model_name).drop_unsupported_options(create_kwargs)
         gpt_request: dict[str, Any] = {
             "model": model,
             "input": converted_messages,
