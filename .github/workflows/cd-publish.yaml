@@ -39,8 +39,54 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.resolve.outputs.matrix }}
+      publish_sha: ${{ steps.ref.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      # Only release tags on main or release/* may publish; the environment
+      # ref policy does not cover inputs.ref. Later jobs use the resolved SHA.
+      - name: Validate ref to publish
+        id: ref
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            REF="$RELEASE_TAG"
+          elif [[ -n "$INPUT_REF" ]]; then
+            REF="$INPUT_REF"
+          else
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ ! "$REF" =~ ^(unique-[a-z0-9-]+|uqadm)-v[0-9][0-9A-Za-z.+-]*$ ]]; then
+            echo "Error: ref '$REF' is not a release tag like 'unique-sdk-v2026.30.0'." >&2
+            exit 1
+          fi
+          if ! SHA="$(git rev-parse --verify --quiet "refs/tags/$REF^{commit}")"; then
+            echo "Error: tag '$REF' does not exist." >&2
+            exit 1
+          fi
+
+          ON_RELEASE_LINE=false
+          while read -r BRANCH; do
+            if git merge-base --is-ancestor "$SHA" "$BRANCH"; then
+              ON_RELEASE_LINE=true
+              break
+            fi
+          done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/main 'refs/remotes/origin/release/*')
+          if [[ "$ON_RELEASE_LINE" != true ]]; then
+            echo "Error: tag '$REF' ($SHA) is not on main or a release/* branch." >&2
+            exit 1
+          fi
+
+          echo "Publishing from $REF ($SHA)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/actions/get-packages-matrix
         id: pkgs
@@ -94,27 +140,74 @@ jobs:
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
           echo "Publishing: $(echo "$MATRIX" | jq -r '.include[].id // empty')"
 
-  publish:
+  build:
     needs: resolve-package
     if: ${{ fromJson(needs.resolve-package.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve-package.outputs.matrix) }}
+    name: build-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve-package.outputs.publish_sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+
+      - name: Build package
+        working-directory: ${{ matrix.dir }}
+        env:
+          UV_NO_SOURCES: 1
+        run: uv build -o dist
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-${{ matrix.id }}
+          path: ${{ matrix.dir }}/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # Only this job can request a PyPI OIDC token. It runs no repository or
+  # build code: it downloads the distributions built above and uploads them.
+  publish:
+    needs: [resolve-package, build]
+    if: ${{ !cancelled() && needs.resolve-package.result == 'success' && needs.build.result != 'skipped' && fromJson(needs.resolve-package.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    environment: pypi-publish
+    permissions:
+      contents: read
+      id-token: write # PyPI Trusted Publishing (OIDC), no stored token
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.resolve-package.outputs.matrix) }}
     name: publish-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download distributions
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          ref: ${{ github.event.release.tag_name || inputs.ref || github.sha }}
+          name: dist-${{ matrix.id }}
+          path: dist
 
-      - name: Publish with uv
-        uses: ./.github/actions/publish-to-pypi-with-uv
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          package_dir: ${{ matrix.dir }}
-          package_name: ${{ matrix.pypi_name }}
-          python_version: ${{ matrix.python }}
-          check_version: "false"
-          pypi_token: ${{ secrets.PYPI_TOKEN }}
+          version: '0.13.7'
+          enable-cache: false
+
+      - name: Publish to PyPI
+        run: uv publish --trusted-publishing always dist/*
 
   containerize:
     needs: [resolve-package, publish]
