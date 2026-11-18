@@ -63,9 +63,9 @@ def _resolve_scope(
 ) -> str | None:
     """Resolve a folder path to its scope id, creating it when ``create`` is set.
 
-    A missing folder raises ``InvalidRequestError`` in the SDK; that means "not
-    found" and is the only error treated as such. Auth and network errors
-    propagate. ``inherit_access`` only affects folders created by this call.
+    Only an HTTP 404 from the folder lookup means "not found". Other errors,
+    including 400 validation errors (also ``InvalidRequestError``), propagate.
+    ``inherit_access`` only affects folders created by this call.
     """
     if create and not folder_path:
         # The KB root (empty path) is never created.
@@ -74,7 +74,9 @@ def _resolve_scope(
         existing = Folder.resolve_scope_id_from_folder_path(
             cfg.user_id, cfg.company_id, folder_path=folder_path
         )
-    except InvalidRequestError:  # Raised by the sdk if not found
+    except InvalidRequestError as exc:
+        if exc.http_status != 404:
+            raise
         existing = None
     if existing or not create:
         return existing

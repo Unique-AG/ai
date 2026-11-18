@@ -468,7 +468,7 @@ def test_dry_run_missing_folder_treats_files_as_new(
     # remote listing happens.
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
     folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
-        "not found", params=None
+        "not found", params=None, http_status=404
     )
 
     cmd_sync(
@@ -563,7 +563,7 @@ def test_no_inherit_access_creates_missing_folder_without_inheritance(
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
     folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
-        "not found", params=None
+        "not found", params=None, http_status=404
     )
     folder.create_paths.return_value = {"createdFolders": [{"id": "scope_new"}]}
     content.get_infos.return_value = _no_remote()
@@ -624,7 +624,7 @@ def test_no_inherit_access_applies_to_recursive_child_folders(
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "b.txt").write_text("hi", encoding="utf-8")
     folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
-        "not found", params=None
+        "not found", params=None, http_status=404
     )
     folder.create_paths.side_effect = [
         {"createdFolders": [{"id": "scope_root"}]},
@@ -688,7 +688,7 @@ def test_default_creates_missing_folder_with_inheritance(
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
     folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
-        "not found", params=None
+        "not found", params=None, http_status=404
     )
     folder.create_paths.return_value = {"createdFolders": [{"id": "scope_new"}]}
     content.get_infos.return_value = _no_remote()
@@ -706,3 +706,40 @@ def test_default_creates_missing_folder_with_inheritance(
         "u1", "c1", paths=["/New"], inheritAccess=True
     )
     assert upload.call_args.kwargs["scope_or_unique_path"] == "scope_new"
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+@patch("uqadm.kb.sync.echo_credential_debug_if_auth_failure")
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_validation_error_on_lookup_is_not_treated_as_missing(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    debug: MagicMock,
+    dry_run: bool,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A 400 shares the InvalidRequestError class with a 404; only the 404 means
+    # "folder missing". A 400 must neither create the folder nor show files as new.
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "invalid folderPath", params=None, http_status=400
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_sync(
+            _cfg(),
+            local_dir=tmp_path,
+            folder_path="/X",
+            scope_id=None,
+            recursive=False,
+            dry_run=dry_run,
+        )
+
+    assert exc.value.code == 1
+    folder.create_paths.assert_not_called()
+    upload.assert_not_called()
+    assert "new: a.txt" not in capsys.readouterr().out
