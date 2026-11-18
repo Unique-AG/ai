@@ -480,6 +480,7 @@ class TestLanguageModelInfos:
         assert model.version == "2026-11-17"
         assert model.token_limits.token_limit_input == 922_000
         assert model.token_limits.token_limit_output == 128_000
+        assert model.supports_sampling_params is False
         assert model.default_options["reasoning_effort"] == "medium"
         assert model.supported_reasoning_efforts == [
             "low",

@@ -602,3 +602,91 @@ def test_prepare_responses_args__keeps_unrelated_other_options() -> None:
 
     assert options["user"] == "space-1"
     assert options["text"] == {"verbosity": "low"}
+
+
+_GPT_62_MODELS = [
+    LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+    LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+    LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+    LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+]
+
+
+def _build_responses_options(
+    model_name: LanguageModelName,
+    other_options: dict,
+    top_p: float | None,
+    include: list[str] | None,
+) -> dict:
+    params = _prepare_responses_params_util(
+        model_name=model_name,
+        content_chunks=None,
+        temperature=0.5,
+        tools=None,
+        messages="Hello",
+        reasoning=None,
+        text=None,
+        other_options=other_options,
+    )
+    args = _prepare_responses_args(
+        company_id="company",
+        user_id="user",
+        assistant_message_id="am",
+        user_message_id="um",
+        chat_id="chat",
+        assistant_id="assistant",
+        params=params,
+        debug_info=None,
+        start_text=None,
+        include=include,  # pyright: ignore[reportArgumentType]
+        instructions=None,
+        max_output_tokens=None,
+        metadata=None,
+        parallel_tool_calls=None,
+        tool_choice=None,
+        top_p=top_p,
+        other_options=other_options,
+    )
+    return args["options"]
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("model_name", _GPT_62_MODELS)
+def test_prepare_responses_args__gpt_62_omits_sampling_params_and_logprobs_include(
+    model_name: LanguageModelName,
+) -> None:
+    """
+    Purpose: GPT-6.2 Responses requests carry no temperature, top_p, top_logprobs or logprobs include.
+    Why this matters: The GPT-6.2 migration guide lists these as unsupported parameters.
+    Setup summary: Pass every unsupported option plus a supported include; assert only the include survives.
+    """
+    options = _build_responses_options(
+        model_name,
+        other_options={"top_logprobs": 3},
+        top_p=0.9,
+        include=["message.output_text.logprobs", "reasoning.encrypted_content"],
+    )
+
+    assert "temperature" not in options
+    assert "top_p" not in options
+    assert "top_logprobs" not in options
+    assert options["include"] == ["reasoning.encrypted_content"]
+
+
+@pytest.mark.ai
+def test_prepare_responses_args__other_models_keep_sampling_params() -> None:
+    """
+    Purpose: Models without the flag keep forwarding temperature and top_p.
+    Why this matters: The omission must not leak to other models.
+    Setup summary: Build options for GPT-5.5 and assert both parameters are present.
+    """
+    options = _build_responses_options(
+        LanguageModelName.AZURE_GPT_55_2026_0424,
+        other_options={},
+        top_p=0.9,
+        include=["message.output_text.logprobs"],
+    )
+
+    assert "temperature" in options
+    assert options["top_p"] == 0.9
+    assert options["include"] == ["message.output_text.logprobs"]

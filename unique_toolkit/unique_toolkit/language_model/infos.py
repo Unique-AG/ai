@@ -429,6 +429,10 @@ class LanguageModelInfo(BaseModel):
     # "any". Only "auto" and "none" are accepted there.
     supports_forced_tool_choice: bool = True
 
+    # False for models whose API rejects temperature, top_p, logprobs and
+    # top_logprobs (GPT-6.2). These are omitted from every request.
+    supports_sampling_params: bool = True
+
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
     def get_encoder(self) -> TypeEncoder:
@@ -3392,6 +3396,7 @@ class LanguageModelInfo(BaseModel):
                     provider=provider,
                     family=ModelFamily.OPENAI,
                     version="2026-11-17",
+                    supports_sampling_params=False,
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.CHAT_COMPLETIONS_API,

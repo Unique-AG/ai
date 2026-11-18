@@ -29,6 +29,8 @@ from unique_toolkit._common.execution import (
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
+    UNSUPPORTED_RESPONSES_INCLUDE,
+    UNSUPPORTED_SAMPLING_OPTION_KEYS,
 )
 from unique_toolkit.language_model.errors import (
     _reraise_as_language_model_call_error,
@@ -134,6 +136,7 @@ def convert_messages_to_openai(
 
 class _ResponsesParams(NamedTuple):
     temperature: float
+    supports_sampling_params: bool
     model_name: str
     search_context: SearchContext | None
     messages: str | ResponseInputParam
@@ -167,8 +170,10 @@ def _prepare_responses_params_util(
         reasoning = reasoning or extract_reasoning_from_options(other_options)
         text = text or extract_verbosity_from_options(other_options)
 
+    supports_sampling_params = True
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
+        supports_sampling_params = model_info.supports_sampling_params
         requested_effort = reasoning.get("effort") if reasoning is not None else None
         temperature, resolved_effort = model_info.resolve_temp_and_reasoning(
             temperature,
@@ -200,7 +205,14 @@ def _prepare_responses_params_util(
     messages_res = convert_messages_to_openai(messages)
 
     return _ResponsesParams(
-        temperature, model, search_context, messages_res, tools_res, reasoning, text
+        temperature,
+        supports_sampling_params,
+        model,
+        search_context,
+        messages_res,
+        tools_res,
+        reasoning,
+        text,
     )
 
 
@@ -371,6 +383,19 @@ def _prepare_responses_args(
     # allow any other openai.resources.responses.Response.create options
     for k, v in strip_translated_responses_options(other_options).items():
         openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
+
+    if not params.supports_sampling_params:
+        for key in UNSUPPORTED_SAMPLING_OPTION_KEYS:
+            openai_options.pop(key, None)  # pyright: ignore[reportCallIssue]
+        include_without_logprobs = [
+            item
+            for item in openai_options.get("include", [])
+            if item != UNSUPPORTED_RESPONSES_INCLUDE
+        ]
+        if include_without_logprobs:
+            openai_options["include"] = include_without_logprobs
+        else:
+            openai_options.pop("include", None)
 
     options["options"] = openai_options
 
