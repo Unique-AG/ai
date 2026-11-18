@@ -32,6 +32,9 @@ from unique_search_proxy_client.web.core.search_engines.google.pagination import
 from unique_search_proxy_client.web.core.search_engines.google.query_params import (
     build_google_query_params,
 )
+from unique_search_proxy_client.web.core.search_engines.google.snippet import (
+    build_google_snippet,
+)
 from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
 from unique_search_proxy_client.web.core.search_engines.service_base import (
     SearchEngineService,
@@ -149,7 +152,7 @@ class GoogleSearchService(SearchEngineService[GoogleSearchRequest]):
                 WebSearchResult(
                     url=link.strip() if link else "",
                     title=item.get("title") or item.get("htmlTitle") or "",
-                    snippet=item.get("snippet", ""),
+                    snippet=build_google_snippet(item),
                 ),
             )
         return results
