@@ -20,6 +20,7 @@ from unique_sdk.cli.commands.agentic_table import (
 )
 from unique_sdk.cli.commands.agentic_table_write import (
     cmd_create_sheet,
+    cmd_delete_row,
     cmd_export,
     cmd_import,
     cmd_rerun_row,
@@ -2433,8 +2434,9 @@ Work with Agentic Table (magic table) sheets over the public magic-table API.
 \b
 Reads (get-sheet / get-cell / cell-history / list-exports) are Tier 0: no
 confirmation, no side effects. Writes (create-sheet / import / rerun-row /
-set-cell / export) build and run a sheet — the full loop of create, populate,
-run, and export — plus re-answering a single row or writing one cell's text.
+delete-row / set-cell / export) build and run a sheet — the full loop of
+create, populate, run, and export — plus re-answering a single row, deleting
+one content row, or writing one cell's text.
 Every call is scoped to the current user/company; sheet-role access (Owner / Can
 manage / Can edit) is enforced server-side and a denial is reported as
 `agentic-table: permission denied`.
@@ -2451,6 +2453,7 @@ Write subcommands:
   create-sheet   Create a new sheet in a space
   import         Import questions/sources (adding questions triggers the run)
   rerun-row      Re-run the agent for a single row (import cannot redo a row)
+  delete-row     Permanently delete one content row by its row id
   set-cell       Write text into one cell by row/column order (no run)
   export         Generate export artifacts (report / question export)
 
@@ -2835,6 +2838,44 @@ def agentic_table_rerun_row(
             wait=wait,
             timeout=timeout,
             start_timeout=start_timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="delete-row")
+@click.argument("table_id")
+@click.argument("row_id")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_delete_row(
+    ctx: click.Context,
+    table_id: str,
+    row_id: str,
+    output_json: bool,
+) -> None:
+    """Permanently delete one content row by its row id.
+
+    \b
+    ROW_ID is the rowId on a cell (mt_row_...), not the row order get-cell
+    --row prints. Read it with get-cell --json or get-sheet --cells --json.
+    The header row, a locked row, and a row in a final review status are
+    rejected. A caller who is not a member of the sheet is rejected. A row on
+    a completed sheet can be deleted; the sheet status is then recomputed.
+    One call deletes one row, the same way the sheet UI does.
+
+    \b
+    Examples:
+      unique-cli agentic-table delete-row mt_abc123 mt_row_e4d94icb5mtj99rmu2efhyel
+    """
+    emit(
+        cmd_delete_row(
+            LazyState.get(ctx),
+            table_id,
+            row_id,
             output_json=output_json,
         ),
         is_error=_is_agentic_table_error_output,

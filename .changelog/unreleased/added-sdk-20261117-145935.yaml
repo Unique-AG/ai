@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: unique-cli agentic-table delete-row permanently deletes one Agentic Table content row by its row id.
+time: 2026-11-17T14:59:35.440924+01:00
+custom:
+    Audience: developer
+    Ticket: UN-28733

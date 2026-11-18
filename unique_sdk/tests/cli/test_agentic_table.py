@@ -155,6 +155,47 @@ def test_cmd_get_cell_human_readable() -> None:
     assert kwargs["columnOrder"] == 2
 
 
+def test_cmd_get_cell_prints_row_id_when_present() -> None:
+    """Purpose: The formatted cell shows rowId when the API returned it.
+    Why this matters: delete-row needs that id, not the row order.
+    Setup summary: get_cell returns a cell with rowId; the line is asserted.
+    """
+    cell = {**_CELL, "rowId": "mt_row_abc"}
+    with _patch("get_cell", return_value=cell):
+        out = cmd_get_cell(_state(), "mt_1", row_order=1, column_order=2)
+
+    assert "Row id:" in out and "mt_row_abc" in out
+
+
+def test_cmd_get_sheet_prints_each_row_id_once() -> None:
+    """Purpose: The sheet view lists each row id once.
+    Why this matters: delete-row removes the row, not one of its cells.
+    Setup summary: Two cells share a rowId; the id appears a single time.
+    """
+    sheet = {
+        **_SHEET,
+        "magicTableCells": [
+            {
+                "rowOrder": 1,
+                "columnOrder": 0,
+                "rowId": "mt_row_abc",
+                "text": "What is the fee?",
+            },
+            {
+                "rowOrder": 1,
+                "columnOrder": 1,
+                "rowId": "mt_row_abc",
+                "text": "2%",
+            },
+        ],
+    }
+    with _patch("get_sheet_data", return_value=sheet):
+        out = cmd_get_sheet(_state(), "mt_1", include_cells=True)
+
+    assert "ROW_ID" in out
+    assert out.count("mt_row_abc") == 1
+
+
 def test_cmd_get_cell_json() -> None:
     with _patch("get_cell", return_value=_CELL):
         out = cmd_get_cell(
