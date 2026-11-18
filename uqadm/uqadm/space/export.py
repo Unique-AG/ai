@@ -14,7 +14,7 @@ from unique_sdk.cli.config import Config
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
 from uqadm.space.export_yaml import dump_space_snapshot_yaml
-from uqadm.space.migrate import plain_json_value
+from uqadm.space.migrate import plain_json_value, strip_access_keys
 
 
 def export_format_for_output_path(path: Path) -> Literal["json", "yaml"]:
@@ -34,8 +34,13 @@ def cmd_export(
     *,
     cfg: Config,
     output: Path | None,
+    no_access: bool = False,
 ) -> None:
-    """Fetch ``Space.get_space`` and write canonical JSON or YAML to stdout or ``output``."""
+    """Fetch ``Space.get_space`` and write canonical JSON or YAML to stdout or ``output``.
+
+    With ``no_access`` the top-level access keys are dropped so the snapshot can
+    be upserted without touching the target space's ACL.
+    """
     try:
         space_id = parse_bare_endpoint(raw_space_id)
     except EndpointParseError as exc:
@@ -59,6 +64,8 @@ def cmd_export(
     if not isinstance(normalized, dict):
         typer.echo("export failed: space payload was not a mapping", err=True)
         sys.exit(1)
+    if no_access:
+        normalized = strip_access_keys(normalized)
 
     if output is None:
         text = json.dumps(normalized, indent=2, sort_keys=True)

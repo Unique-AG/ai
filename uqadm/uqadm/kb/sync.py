@@ -40,26 +40,47 @@ def _collect_files(folder: Path, recursive: bool) -> list[Path]:
     return sorted(p for p in walker if p.is_file())
 
 
-def _resolve_scope(cfg: Config, folder_path: str, *, create: bool) -> str | None:
-    """Resolve a folder path to its scope id, optionally creating it.
+def _create_folder(cfg: Config, folder_path: str, *, inherit_access: bool) -> str:
+    """Create ``folder_path`` (and missing parents) and return the leaf scope id."""
+    result = Folder.create_paths(
+        cfg.user_id,
+        cfg.company_id,
+        paths=[folder_path],
+        inheritAccess=inherit_access,
+    )
+    created = result.get("createdFolders") or []
+    if not created:
+        raise ValueError(f"Failed to create folder with folderPath: {folder_path}")
+    return created[-1]["id"]
 
-    With ``create`` (a real run) the folder is created if missing; any failure
-    propagates so the caller can report it. Without ``create`` (a dry run) a
-    missing folder is expected — the SDK raises ``InvalidRequestError`` rather than
-    returning ``None`` for an unknown path, so we swallow that and return
-    ``None`` to mean "no existing scope; treat its files as new". Other errors
-    (auth, network) are not caught and still surface.
+
+def _resolve_scope(
+    cfg: Config,
+    folder_path: str,
+    *,
+    create: bool,
+    inherit_access: bool = True,
+) -> str | None:
+    """Resolve a folder path to its scope id, creating it when ``create`` is set.
+
+    Only an HTTP 404 from the folder lookup means "not found". Other errors,
+    including 400 validation errors (also ``InvalidRequestError``), propagate.
+    ``inherit_access`` only affects folders created by this call.
     """
-    if create:
-        return Folder.resolve_scope_id_from_folder_path_with_create(
-            cfg.user_id, cfg.company_id, folder_path=folder_path
-        )
-    try:
-        return Folder.resolve_scope_id_from_folder_path(
-            cfg.user_id, cfg.company_id, folder_path=folder_path
-        )
-    except InvalidRequestError:  # Raised by the sdk if not found
+    if create and not folder_path:
+        # The KB root (empty path) is never created.
         return None
+    try:
+        existing = Folder.resolve_scope_id_from_folder_path(
+            cfg.user_id, cfg.company_id, folder_path=folder_path
+        )
+    except InvalidRequestError as exc:
+        if exc.http_status != 404:
+            raise
+        existing = None
+    if existing or not create:
+        return existing
+    return _create_folder(cfg, folder_path, inherit_access=inherit_access)
 
 
 def _remote_keys(cfg: Config, scope_id: str) -> set[str]:
@@ -91,6 +112,7 @@ def cmd_sync(
     recursive: bool,
     dry_run: bool,
     versioning: bool = True,
+    inherit_access: bool = True,
 ) -> None:
     if bool(folder_path) == bool(scope_id):
         typer.echo("Specify exactly one of --folder-path or --scope-id.", err=True)
@@ -134,7 +156,12 @@ def cmd_sync(
     for rel_parent, paths in sorted(groups.items()):
         target_path = join_path_segments(base_path, rel_parent)
         try:
-            target_scope = _resolve_scope(cfg, target_path, create=not dry_run)
+            target_scope = _resolve_scope(
+                cfg,
+                target_path,
+                create=not dry_run,
+                inherit_access=inherit_access,
+            )
         except Exception as exc:
             typer.echo(f"failed to resolve folder {target_path!r}: {exc}", err=True)
             echo_credential_debug_if_auth_failure(cfg, exc, label="kb sync")

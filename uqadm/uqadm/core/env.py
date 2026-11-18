@@ -6,10 +6,17 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
+import unique_sdk
 from dotenv import load_dotenv
 from unique_sdk.cli.config import Config, load_config
 
 from uqadm.core.paths import envs_dir
+
+# ``load_config`` falls back to the *current* ``unique_sdk.api_base`` global when
+# ``UNIQUE_API_BASE`` is unset, and it also overwrites that global. Capture the
+# pristine SDK default so a slot without an explicit base never inherits the
+# base of a slot loaded earlier in the same process (e.g. migrate source).
+_SDK_DEFAULT_API_BASE: str = unique_sdk.api_base
 
 UNIQUE_ENV_KEYS = (
     "UNIQUE_USER_ID",
@@ -195,8 +202,14 @@ def load_slot(slot: str, cwd: Path | None = None) -> Path:
 
 
 def config_for_slot(slot: str, cwd: Path | None = None) -> Config:
-    """Load slot env file and run the same wiring as ``unique-cli``."""
+    """Load slot env file and run the same wiring as ``unique-cli``.
+
+    Resets ``unique_sdk.api_base`` to the SDK default first, so an omitted
+    ``UNIQUE_API_BASE`` resolves to that default rather than to whatever base a
+    previously loaded slot set.
+    """
     load_slot(slot, cwd)
+    unique_sdk.api_base = _SDK_DEFAULT_API_BASE
     return load_config()
 
 

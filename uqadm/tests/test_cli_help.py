@@ -216,3 +216,14 @@ def test_version_flag() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "uqadm" in result.output
+
+
+def test_access_and_mcp_flags_in_help() -> None:
+    invoke_help = _make_help_invoker()
+    for cmd in (["space", "upsert"], ["space", "migrate"]):
+        out = invoke_help([*cmd, "--help"])
+        assert "--no-access" in out
+        assert "--with-mcp-servers" in out
+    assert "--no-access" in invoke_help(["space", "export", "--help"])
+    assert "--ignore-access" in invoke_help(["space", "diff", "--help"])
+    assert "--no-inherit-access" in invoke_help(["kb", "sync", "--help"])

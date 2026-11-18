@@ -275,3 +275,43 @@ def test_load_slot_unique_api_base_url_with_path_passes_through_unchanged(
     )
     load_slot("pub", cwd=tmp_path)
     assert os.environ["UNIQUE_API_BASE"] == "http://localhost:8092/public"
+
+
+def test_config_for_slot_does_not_inherit_previous_slot_api_base(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import unique_sdk
+
+    from uqadm.core import env as env_mod
+
+    (tmp_path / ".src.env").write_text(
+        "UNIQUE_USER_ID=u\nUNIQUE_COMPANY_ID=c\nUNIQUE_API_KEY=k\nUNIQUE_APP_ID=a\n"
+        "UNIQUE_API_BASE=https://source.example/public\n",
+        encoding="utf-8",
+    )
+    (tmp_path / ".dst.env").write_text(
+        "UNIQUE_USER_ID=u\nUNIQUE_COMPANY_ID=c\nUNIQUE_API_KEY=k\nUNIQUE_APP_ID=a\n",
+        encoding="utf-8",
+    )
+    # Register every SDK global load_config writes, and every env key load_slot
+    # clears or sets, so monkeypatch restores the pre-test state on teardown.
+    for attr in ("api_key", "app_id", "ingestion_upload_api_url_internal"):
+        monkeypatch.setattr(unique_sdk, attr, getattr(unique_sdk, attr, None))
+    monkeypatch.setattr(unique_sdk, "api_base", env_mod._SDK_DEFAULT_API_BASE)
+    for key in (
+        *env_mod.UNIQUE_ENV_KEYS,
+        *env_mod.TOOLKIT_AUTH_ENV_KEYS,
+        *env_mod.TOOLKIT_APP_ENV_KEYS,
+        *env_mod.TOOLKIT_API_ENV_KEYS,
+    ):
+        # setenv first so monkeypatch records the key even when it is absent;
+        # a bare delenv(raising=False) would not restore a key set by load_slot.
+        monkeypatch.setenv(key, "")
+        monkeypatch.delenv(key)
+
+    src = env_mod.config_for_slot("src", cwd=tmp_path)
+    dst = env_mod.config_for_slot("dst", cwd=tmp_path)
+
+    assert src.api_base.startswith("https://source.example")
+    assert dst.api_base == env_mod._SDK_DEFAULT_API_BASE
+    assert unique_sdk.api_base == env_mod._SDK_DEFAULT_API_BASE
