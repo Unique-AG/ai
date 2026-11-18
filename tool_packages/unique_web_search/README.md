@@ -61,6 +61,8 @@ one provisions a new agent version.
 
 No Crawl4AI. Crawler configs have **no exposable LLM knobs**.
 
+Page reads (`read_url`, `read_urls`) follow the space's domain settings: Google `siteSearch` with `siteSearchFilter`, and Perplexity `searchDomainFilter` (a leading `-` excludes). A domain covers its subdomains: excluding `wikipedia.org` also blocks `en.wikipedia.org`, while excluding `www.wikipedia.org` does not.
+
 ## Execution modes
 
 | Mode | Status | Behaviour |
