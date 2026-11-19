@@ -280,8 +280,47 @@ class LoopConfiguration(BaseToolConfig):
     model_specific: ModelSpecificConfig = ModelSpecificConfig()
 
 
+class ContradictionCheckConfig(BaseToolConfig):
+    """Space setting for Conduct's contradiction check."""
+
+    enabled: bool = Field(
+        default=True,
+        description=(
+            "Run the check on answers from this space. By default it uses the "
+            "space model."
+        ),
+    )
+    language_model: Annotated[
+        LanguageModelName | None,
+        RJSFMetaTag(
+            {
+                "ui:field": "nullableActive",
+                "ui:fieldReplacesAnyOrOneOf": True,
+                "ui:options": {
+                    "activeLabel": "Use a different model",
+                    "activeValue": LanguageModelName.AZURE_GPT_51_2025_1113.value,
+                },
+            }
+        ),
+    ] = Field(
+        default=None,
+        title="Model",
+        description=(
+            "The model that judges the answer. When unset, the space's "
+            "chat model is used."
+        ),
+    )
+
+
 class EvaluationConfig(BaseToolConfig):
     hallucination_config: HallucinationConfig = HallucinationConfig()
+    contradiction_check_config: ContradictionCheckConfig = Field(
+        default_factory=ContradictionCheckConfig,
+        title="Hallucination check",
+        description=(
+            "Checks cited search answers for statements that contradict a source."
+        ),
+    )
 
 
 # ------------------------------------------------------------
