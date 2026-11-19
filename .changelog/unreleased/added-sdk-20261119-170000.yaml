@@ -1,0 +1,6 @@
+component: SDK
+kind: Added
+body: '`unique_sdk.utils.mcp_citations.extract_mcp_citation_items` returns the citable records of an MCP tool result (title, link, details and text), taking the result as a wire dict or an object. `unique-cli mcp` now calls it, so its citations are unchanged.'
+time: 2026-11-19T17:00:00.000000+01:00
+custom:
+    Audience: developer
