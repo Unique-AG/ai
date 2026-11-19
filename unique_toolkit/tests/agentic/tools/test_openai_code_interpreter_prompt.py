@@ -1,4 +1,4 @@
-"""Tests for the default code interpreter system prompt (fence variant)."""
+"""Tests for the default code interpreter system prompts (base and fence variants)."""
 
 import pytest
 
@@ -6,8 +6,51 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool import (
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool.config import (
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
 )
+
+_DEFAULT_PROMPTS = pytest.mark.parametrize(
+    "prompt",
+    [
+        DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
+    ],
+    ids=["base", "fence"],
+)
+
+
+@pytest.mark.ai
+@_DEFAULT_PROMPTS
+def test_default_prompts__require_wrapping_pdf_layout__and_width_check(
+    prompt: str,
+) -> None:
+    """
+    Purpose: Verify both default prompts carry the PDF rules the fix depends on.
+    Why this matters: UN-28750 reported a PDF drawn line by line with `canvas.drawString`,
+    so long lines ran off the page and words were cut off.
+    Setup summary: Assert Platypus, the `drawString` ban and the `pdfplumber` width check.
+    """
+    assert "reportlab Platypus" in prompt
+    assert "`canvas.drawString`" in prompt
+    assert "`pdfplumber`" in prompt
+
+
+@pytest.mark.ai
+@_DEFAULT_PROMPTS
+def test_default_prompts__pdf_rules_sit_before_dataframe_section(prompt: str) -> None:
+    """
+    Purpose: Verify the PDF section is placed with the file rules, ahead of the table section.
+    Why this matters: The section is concatenated into the prompt; a misplaced join would split
+    another section or drop the text that follows it.
+    Setup summary: Compare the positions of the PDF heading and the dataframe heading.
+    """
+    pdf_index = prompt.index("PDF files: CRITICAL rules")
+    tables_index = prompt.index("# Displaying Dataframes/Tables:")
+    file_types_index = prompt.index("Only the following file types are allowed")
+
+    assert file_types_index < pdf_index < tables_index
+    assert prompt.count("PDF files: CRITICAL rules") == 1
 
 
 @pytest.mark.ai
