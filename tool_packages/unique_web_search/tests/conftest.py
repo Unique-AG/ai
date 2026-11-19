@@ -11,6 +11,7 @@ from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.query_elicitation import QueryElicitationConfig
+from unique_web_search.services.search_engine.domain_policy import DomainPolicy
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
@@ -343,6 +344,7 @@ def mock_executor_dependencies():
     mock_search_service = Mock()
     mock_search_service.search = AsyncMock(return_value=[])
     mock_search_service.requires_scraping = False
+    mock_search_service.domain_policy = Mock(return_value=DomainPolicy())
     mock_search_service.config = Mock()
     mock_search_service.config.engine = SearchEngineType.GOOGLE
 

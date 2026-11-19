@@ -189,7 +189,15 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
             )
         )
 
-        urls = list(urls)
+        policy = self.search_service.domain_policy()
+        allowed = [url for url in urls if policy.allows(url)]
+        if len(allowed) < len(urls):
+            _LOGGER.info(
+                f"Company {self.company_id} Skipped {len(urls) - len(allowed)} URLs blocked by the domain settings"
+            )
+        if not allowed:
+            return []
+        urls = allowed
         crawler = self.crawler_service.config.crawler.value
         time_start = time()
         _LOGGER.info(

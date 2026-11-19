@@ -14,6 +14,7 @@ from unique_web_search.services.proxy.bridge import (
     search_proxy_client_enabled,
 )
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
+from unique_web_search.services.search_engine.domain_policy import DomainPolicy
 from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -57,6 +58,15 @@ class PerplexitySearch(SearchEngine[PerplexitySearchConfig]):
     @property
     def requires_scraping(self) -> bool:
         return getattr(self.config, "requires_scraping", True)
+
+    @override
+    def domain_policy(self) -> DomainPolicy:
+        # Perplexity reads a leading "-" as a denylist entry.
+        domains = self.config.search_domain_filter.value or []
+        return DomainPolicy.of(
+            include=[d for d in domains if not d.strip().startswith("-")],
+            exclude=[d.strip()[1:] for d in domains if d.strip().startswith("-")],
+        )
 
     @override
     async def _legacy_search(

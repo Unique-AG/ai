@@ -197,6 +197,11 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
                 config=step.model_dump(),
             )
         )
+        if not self.search_service.domain_policy().allows(step.query_or_url):
+            _LOGGER.info(
+                f"Company {self.company_id} Skipped a URL blocked by the domain settings"
+            )
+            return []
         crawler = self.crawler_service.config.crawler.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")

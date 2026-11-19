@@ -28,6 +28,7 @@ from unique_web_search.services.proxy.mappers import (
     map_agent_answer,
     map_search_response,
 )
+from unique_web_search.services.search_engine.domain_policy import DomainPolicy
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -93,6 +94,10 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     def requires_scraping(self) -> bool:
         """Whether the search engine requires scraping."""
         return False
+
+    def domain_policy(self) -> DomainPolicy:
+        """Domains configured on the space, applied to pages the model reads."""
+        return DomainPolicy()
 
     async def _proxy_routing_enabled(self) -> bool:
         """Whether this engine may use Search Proxy for the current request."""
