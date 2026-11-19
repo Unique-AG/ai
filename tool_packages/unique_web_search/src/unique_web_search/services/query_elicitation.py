@@ -21,6 +21,7 @@ from unique_toolkit.elicitation import (
     ElicitationStatus,
 )
 
+from unique_web_search import activity_record
 from unique_web_search.metrics import query_length
 from unique_web_search.schema import WebSearchDebugInfo
 
@@ -150,6 +151,7 @@ class QueryElicitationService:
         self._record_query_lengths(queries)
 
         if not self._config.enable_elicitation:
+            activity_record.set_elicitation("notRun", queries)
             return queries
 
         max_length = self._config.max_query_length
@@ -188,6 +190,9 @@ class QueryElicitationService:
                 self._debug_info.elicitation_prompt_change = (
                     submitted_queries != queries
                 )
+                activity_record.set_elicitation(
+                    "edited" if submitted_queries != queries else "approved", queries
+                )
 
                 if len(submitted_queries) == 0:
                     raise ElicitationFailedException(
@@ -214,16 +219,19 @@ class QueryElicitationService:
 
             elif elicitation.status == ElicitationStatus.DECLINED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} declined")
+                activity_record.set_elicitation("declined", queries)
                 raise ElicitationDeclinedException(
                     f"Query elicitation {elicitation.id} was declined"
                 )
 
             elif elicitation.status == ElicitationStatus.CANCELLED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} cancelled")
+                activity_record.set_elicitation("cancelled", queries)
                 raise ElicitationCancelledException(
                     f"Query elicitation {elicitation.id} was cancelled"
                 )
 
+        activity_record.set_elicitation("expired", queries)
         raise ElicitationExpiredException(
             f"Query elicitation {elicitation.id} not accepted"
         )

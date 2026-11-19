@@ -77,6 +77,27 @@ Proxy vs legacy is transparent to executors.
 - [Crawlers](./src/unique_web_search/services/crawlers/README.md)
 - [Executors](./src/unique_web_search/services/executors/README.md)
 
+## Activity Records
+
+Records are written only when the host runs the activity records outbox and both `FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965` and `FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616` are on for the company. Delivery is best effort: a failed enqueue is logged and the search carries on. A successful call that sent no query emits no record.
+
+With that in place, each tool call emits one `web-search.query.sent` per outgoing query, or one `web-search.tool.denied` / `web-search.tool.failed` when it sent no query. The `criticalData` keys are defined as TypedDicts in [`activity_record.py`](./src/unique_web_search/activity_record.py):
+
+| Key | Records | Content |
+|-----|---------|---------|
+| `chatId`, `messageId`, `toolCallId` | all | Where the call happened |
+| `userPrompt` | all | User message, cut at 4096 characters |
+| `userPromptTruncated` | all, optional | `true` when `userPrompt` was cut |
+| `args` | all | Validated tool parameters, or the raw arguments if validation failed |
+| `argumentScreening` | all | `status` (`notRun`, `approved`, `rejected`) and `reason` |
+| `elicitation` | all | `status` and `proposedQueries` |
+| `query` | `query.sent` | The query sent to the engine |
+| `params` | `query.sent` | Exposed provider parameters, `null` when there are none |
+| `egress` | `query.sent` | `viaSearchProxy`, `endpoint` origin, optional `destination` origin |
+| `responseReceived` | `query.sent` | Whether the engine answered, error status included |
+| `error` | `query.sent`, optional | Exception class name when the search raised |
+| `reason` | `denied` / `failed`, optional | Exception class name, or `ArgumentScreeningBlocked` |
+
 ## Configuration
 
 - `SEARCH_PROXY_BASE_URL` — enables the Search Proxy client

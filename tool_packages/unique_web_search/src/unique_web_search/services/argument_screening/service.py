@@ -62,6 +62,10 @@ class ArgumentScreeningService:
         self._language_model = language_model
         self._config = config
 
+    @property
+    def enabled(self) -> bool:
+        return self._config.enabled
+
     async def __call__(
         self, arguments: dict, message_log_callback: WebSearchMessageLogger
     ) -> ArgumentScreeningResult:
