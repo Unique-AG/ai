@@ -79,7 +79,9 @@ Proxy vs legacy is transparent to executors.
 
 ## Activity Records
 
-Records are written only when the host runs the activity records outbox and both `FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965` and `FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616` are on for the company. Delivery is best effort: a failed enqueue is logged and the search carries on. A successful call that sent no query emits no record.
+Records are written only when the host runs the activity records outbox and both `FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965` and `FEATURE_FLAG_ENABLE_ACTIVITY_RECORDS_EVENTS_UN_22616` are on. `..._UN_28965` is evaluated for the company and the user, so a user-level rule applies. `..._UN_22616` is evaluated for the company only. Delivery is best effort: a failed enqueue is logged and the search carries on. A successful call that sent no query emits no record.
+
+If `..._UN_28965` is on but no outbox is running, each lost record increments `unique_activity_event_outbox_record_failures_total` and one warning is logged per process.
 
 With that in place, each tool call emits one `web-search.query.sent` per outgoing query, or one `web-search.tool.denied` / `web-search.tool.failed` when it sent no query. The `criticalData` keys are defined as TypedDicts in [`activity_record.py`](./src/unique_web_search/activity_record.py):
 
