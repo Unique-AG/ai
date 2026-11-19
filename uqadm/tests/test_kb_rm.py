@@ -45,11 +45,9 @@ def test_recursive_folder_delete(
         assume_yes=True,
     )
 
-    folder.delete.assert_called_once()
-    kwargs = folder.delete.call_args.kwargs
-    assert kwargs["scopeId"] == "scope1"
-    assert kwargs["recursive"] is True
-    content.delete.assert_not_called()
+    # Files first, then the (now empty) folder; never the platform's recursive flag.
+    content.delete.assert_called_once_with("u1", "c1", contentId="c1")
+    folder.delete.assert_called_once_with("u1", "c1", scopeId="scope1")
 
 
 @patch("uqadm.kb.rm.Content")
@@ -101,8 +99,7 @@ def test_empty_folder_delete_without_recursive(
         assume_yes=True,
     )
 
-    folder.delete.assert_called_once()
-    assert folder.delete.call_args.kwargs["recursive"] is False
+    folder.delete.assert_called_once_with("u1", "c1", scopeId="scope1")
 
 
 @patch("uqadm.kb.rm.Content")
@@ -611,3 +608,116 @@ def test_content_pagination(
     assert content.get_infos.call_count == 2
     content.delete.assert_called_once()
     assert content.delete.call_args.kwargs["contentId"] == "c_target"
+
+
+def _tree(content: MagicMock, folder: MagicMock) -> list[str]:
+    """/X holds a.txt and sub/; sub holds b.txt. Returns the call log."""
+    files = {
+        "root": [{"id": "c_a", "key": "a.txt"}],
+        "sub": [{"id": "c_b", "key": "b.txt"}],
+    }
+    children = {"root": [{"id": "sub", "name": "sub"}], "sub": []}
+    calls: list[str] = []
+    folder.resolve_scope_id_from_folder_path.return_value = "root"
+    content.get_infos.side_effect = lambda *_a, **kw: {
+        "contentInfos": files[kw["parentId"]],
+        "totalCount": len(files[kw["parentId"]]),
+    }
+    folder.get_infos.side_effect = lambda *_a, **kw: {
+        "folderInfos": children[kw["parentId"]],
+        "totalCount": len(children[kw["parentId"]]),
+    }
+    content.delete.side_effect = lambda *_a, **kw: calls.append(
+        f"file {kw['contentId']}"
+    )
+    folder.delete.side_effect = lambda *_a, **kw: (
+        calls.append(f"folder {kw['scopeId']}")
+        or {"successFolders": [], "failedFolders": []}
+    )
+    return calls
+
+
+@patch("uqadm.kb.rm.Content")
+@patch("uqadm.kb.rm.Folder")
+def test_recursive_delete_goes_files_first_then_deepest_folders(
+    folder: MagicMock,
+    content: MagicMock,
+) -> None:
+    calls = _tree(content, folder)
+
+    cmd_rm(
+        _cfg(),
+        folder_path="/X",
+        scope_id=None,
+        files=(),
+        recursive=True,
+        dry_run=False,
+        assume_yes=True,
+    )
+
+    assert calls == ["file c_a", "file c_b", "folder sub", "folder root"]
+
+
+@patch("uqadm.kb.rm.Content")
+@patch("uqadm.kb.rm.Folder")
+def test_a_refusal_in_failed_folders_exits_1(
+    folder: MagicMock,
+    content: MagicMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+    content.get_infos.return_value = _no_content()
+    folder.get_infos.return_value = _no_folders()
+    folder.delete.return_value = {
+        "successFolders": [],
+        "failedFolders": [{"id": "scope1", "failReason": "Folder is not empty."}],
+    }
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_rm(
+            _cfg(),
+            folder_path="/X",
+            scope_id=None,
+            files=(),
+            recursive=True,
+            dry_run=False,
+            assume_yes=True,
+        )
+
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "Folder is not empty." in captured.err
+    assert "deleted folder" not in captured.out
+
+
+@patch("uqadm.kb.rm.echo_credential_debug_if_auth_failure")
+@patch("uqadm.kb.rm.Content")
+@patch("uqadm.kb.rm.Folder")
+def test_a_file_that_cannot_be_deleted_keeps_its_folders(
+    folder: MagicMock,
+    content: MagicMock,
+    debug: MagicMock,
+) -> None:
+    calls = _tree(content, folder)
+
+    def delete(*_a: object, **kw: str) -> None:
+        if kw["contentId"] == "c_b":
+            raise RuntimeError("The specified blob does not exist.")
+        calls.append(f"file {kw['contentId']}")
+
+    content.delete.side_effect = delete
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_rm(
+            _cfg(),
+            folder_path="/X",
+            scope_id=None,
+            files=(),
+            recursive=True,
+            dry_run=False,
+            assume_yes=True,
+        )
+
+    assert exc.value.code == 1
+    assert calls == ["file c_a"]
+    folder.delete.assert_not_called()
