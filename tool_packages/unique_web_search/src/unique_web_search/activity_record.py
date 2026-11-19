@@ -221,9 +221,11 @@ def _put(key: str, value: Any) -> None:
         record.critical_data[key] = value
 
 
-def set_outcome(outcome: Outcome) -> None:
+def set_outcome(outcome: Outcome, reason: str | None = None) -> None:
     if (record := _current.get()) is not None:
         record.outcome = outcome
+        if reason is not None:
+            record.critical_data["reason"] = reason
 
 
 def set_failure(exc: Exception) -> None:
@@ -240,8 +242,6 @@ def set_screening(go: bool, reason: str) -> None:
         "argumentScreening",
         {"status": "approved" if go else "rejected", "reason": reason},
     )
-    if not go:
-        _put("reason", "ArgumentScreeningBlocked")
 
 
 def set_elicitation(

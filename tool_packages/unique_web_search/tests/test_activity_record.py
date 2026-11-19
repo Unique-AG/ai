@@ -239,6 +239,31 @@ async def test_denied__when_screening_rejects__records_blocked_args(
 
 
 @pytest.mark.asyncio
+async def test_failed__when_the_rejection_response_cannot_be_built__keeps_the_real_error(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    screening = AsyncMock(return_value=Mock(go=False, reason="unsafe"))
+    screening.build_rejection_response = Mock(side_effect=RuntimeError("no template"))
+    screening.build_step_debug_info_from_result = Mock()
+    mocker.patch(
+        "unique_web_search.service.WebSearchDebugInfo"
+    ).return_value.model_dump.return_value = {}
+    tool = _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, None),
+        screening=screening,
+    )
+
+    await _run(tool)
+
+    event = _emitted(enqueue_mock)
+    critical = event.to_wire()["data"]["criticalData"]
+    assert event.type == "web-search.tool.failed"
+    assert critical["reason"] == "RuntimeError"
+
+
+@pytest.mark.asyncio
 async def test_denied__when_screening_approves_but_elicitation_cancels__keeps_the_elicitation_reason(
     mocker: Any, enqueue_mock: Mock
 ) -> None:

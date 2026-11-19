@@ -251,7 +251,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
                             screening_result
                         ),
                     )
-                    activity_record.set_outcome("denied")
+                    activity_record.set_outcome(
+                        "denied", reason="ArgumentScreeningBlocked"
+                    )
                     return denied_response
 
             with metric_scope(
