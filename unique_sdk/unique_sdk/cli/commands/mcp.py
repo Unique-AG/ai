@@ -251,7 +251,7 @@ def _loads_embedded_json(text: str) -> Any:
 
 def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
     """Normalize a parsed JSON value to a flat list of record dicts: a known
-    container key's list, else every list of titled records in an untitled object."""
+    container key's list, else every list of titled records in a wrapper object."""
     if isinstance(parsed, list):
         return [entry for entry in parsed if isinstance(entry, dict)]
     if isinstance(parsed, dict):
@@ -267,7 +267,7 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
                     if key in _AMBIGUOUS_CONTAINER_KEYS and _title_from_json(parsed):
                         return [parsed]
                     return records
-        if not _title_from_json(parsed):
+        if not _is_record(parsed):
             titled = _titled_lists(parsed, depth=0)
             if titled:
                 return titled
@@ -275,9 +275,15 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _is_record(obj: dict[str, Any]) -> bool:
+    """A titled object, or one with its own link key, is one record rather than
+    a wrapper: a chat message with no subject is not split into its attachments."""
+    return bool(_title_from_json(obj)) or any(key in obj for key in _URL_KEYS)
+
+
 def _titled_lists(wrapper: dict[str, Any], *, depth: int) -> list[dict[str, Any]]:
-    """Records of every list holding a titled record, searching untitled
-    wrappers but not inside a titled object, which is one record."""
+    """Records of every list holding a titled record, searching wrapper objects
+    but not inside a record."""
     records: list[dict[str, Any]] = []
     for value in wrapper.values():
         if isinstance(value, list):
@@ -287,7 +293,7 @@ def _titled_lists(wrapper: dict[str, Any], *, depth: int) -> list[dict[str, Any]
         elif (
             isinstance(value, dict)
             and depth < _MAX_WRAPPER_DEPTH
-            and not _title_from_json(value)
+            and not _is_record(value)
         ):
             records.extend(_titled_lists(value, depth=depth + 1))
     return records
