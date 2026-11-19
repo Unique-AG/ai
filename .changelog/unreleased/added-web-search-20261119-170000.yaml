@@ -1,0 +1,7 @@
+kind: Added
+component: Web Search
+body: When web search Activity Records are enabled but no Activity Records outbox is running, each lost record is counted in unique_activity_event_outbox_record_failures_total and one warning is logged per process.
+time: 2026-11-19T17:00:00.000000+01:00
+custom:
+    Audience: admin
+    Ticket: UN-28965
