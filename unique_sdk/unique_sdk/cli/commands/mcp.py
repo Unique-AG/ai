@@ -250,10 +250,8 @@ def _loads_embedded_json(text: str) -> Any:
 
 
 def _records_from_parsed(parsed: Any) -> tuple[list[dict[str, Any]], bool]:
-    """Normalize a parsed JSON value to a flat list of record dicts: a known
-    container key's list, else every list of titled records in a wrapper object.
-    The flag is True for the wrapper's lists, whose records are cited only with a link.
-    """
+    """Records of a known container key's list, else of every titled list in a wrapper.
+    The flag marks wrapper records, which are cited only with a link."""
     if isinstance(parsed, list):
         return [entry for entry in parsed if isinstance(entry, dict)], False
     if isinstance(parsed, dict):
@@ -814,9 +812,8 @@ def _dedup_source_number(
     numbers_by_key: dict[str, int],
     entries_by_number: dict[int, dict[str, Any]],
 ) -> int | None:
-    """Source number an item merges onto. Records that share a title but have
-    different links, such as instances of one recurring event, stay apart; a
-    record missing a link still merges by title."""
+    """Source number an item merges onto: same title and link, or same title when
+    either side has no link."""
     if link_key is not None and link_key in numbers_by_key:
         return numbers_by_key[link_key]
     number = numbers_by_key.get(key)
@@ -860,11 +857,12 @@ def _annotate_mcp_results_for_citations(
     """Assign per-turn ``[mcpsourceN]`` numbers to each retrieved item and append
     the refs manifest. Returns ``[(sourceNumber, item)]`` for the Sources block.
 
-    Items dedup by title across the turn (same item keeps one number); a
-    title-less item dedups by tool plus a content hash of its (capped) text, so
-    two distinct title-less results through one tool get distinct numbers while
-    identical bodies still merge (this weakens the search-then-fetch text-upgrade
-    merge for title-less items only). Best-effort — returns ``[]`` on any failure
+    Titled items dedup across the turn by title and link (same item keeps one
+    number), or by title alone when either side has no link. A title-less item
+    dedups by tool plus a content hash of its (capped) text, so two distinct
+    title-less results through one tool get distinct numbers while identical
+    bodies still merge (this weakens the search-then-fetch text-upgrade merge for
+    title-less items only). Best-effort — returns ``[]`` on any failure
     (the tool result is unaffected; only the citation Sources block is skipped).
     """
     refs_log_path = refs_log_path or workspace_manifest_path(
