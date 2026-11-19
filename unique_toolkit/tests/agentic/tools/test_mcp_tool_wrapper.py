@@ -19,7 +19,12 @@ from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
+from unique_toolkit.app.schemas import (
+    ChatEvent,
+    McpReferenceMapping,
+    McpServer,
+    McpTool,
+)
 from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -1467,3 +1472,211 @@ class TestMCPToolWrapperStructuredReferences:
         assert len(response.content_chunks) == 1
         assert response.image_data_urls
         assert response.image_data_urls[0].startswith("data:image/png;base64,")
+
+
+def _json_text_result(payload: object) -> dict[str, object]:
+    return {"content": [{"type": "text", "text": json.dumps(payload)}]}
+
+
+class TestMCPToolWrapperRecordReferences:
+    """Results without ``unique.app/reference`` are cited per record."""
+
+    @pytest.mark.ai
+    def test_extract_record_references__cites_each_linked_record_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        result = _json_text_result(
+            {
+                "files": [
+                    {
+                        "name": "Quarterly Plan.xlsx",
+                        "web_url": "https://contoso.sharepoint.com/sites/a/plan",
+                        "download_url": "https://download.contoso.test/plan",
+                    },
+                    {
+                        "name": "Roadmap.pdf",
+                        "web_url": "https://contoso.sharepoint.com/sites/a/roadmap",
+                    },
+                ]
+            }
+        )
+
+        chunks, references = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [(c.title, c.url) for c in chunks] == [
+            ("Quarterly Plan.xlsx", "https://contoso.sharepoint.com/sites/a/plan"),
+            ("Roadmap.pdf", "https://contoso.sharepoint.com/sites/a/roadmap"),
+        ]
+        assert json.loads(chunks[0].text)["download_url"] == (
+            "https://download.contoso.test/plan"
+        )
+        assert [(r.name, r.url, r.sequence_number) for r in references] == [
+            ("Quarterly Plan.xlsx", "https://contoso.sharepoint.com/sites/a/plan", 1),
+            ("Roadmap.pdf", "https://contoso.sharepoint.com/sites/a/roadmap", 2),
+        ]
+        assert {r.source for r in references} == {"mcp:Test MCP Server"}
+        assert references[0].source_id == chunks[0].id
+
+    @pytest.mark.ai
+    def test_extract_record_references__keeps_fields_outside_records_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        result = _json_text_result(
+            {
+                "results": [
+                    {"title": "Budget", "url": "https://wiki.example.test/budget"},
+                ],
+                "next_page_token": "page-2",
+            }
+        )
+
+        chunks, references = mcp_tool_wrapper._extract_record_references(result)
+
+        assert len(chunks) == 2
+        assert chunks[1].url is None
+        assert json.loads(chunks[1].text) == {
+            "results": [],
+            "next_page_token": "page-2",
+        }
+        assert references[1].url is None
+
+    @pytest.mark.ai
+    def test_extract_record_references__single_record_has_no_remainder_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        result = _json_text_result(
+            {
+                "subject": "Board meeting",
+                "web_link": "https://outlook.office.com/calendar/item/1",
+                "join_url": "https://teams.microsoft.com/l/meetup-join/1",
+            }
+        )
+
+        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [(c.title, c.url) for c in chunks] == [
+            ("Board meeting", "https://outlook.office.com/calendar/item/1")
+        ]
+
+    @pytest.mark.ai
+    def test_extract_record_references__cites_untitled_text_as_one_source_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        result = {"content": [{"type": "text", "text": "Mailbox is 80% full."}]}
+
+        chunks, references = mcp_tool_wrapper._extract_record_references(result)
+
+        assert len(chunks) == 1
+        assert chunks[0].text == "Mailbox is 80% full."
+        assert chunks[0].url is None
+        assert chunks[0].title == "test_mcp_tool"
+        assert references[0].name == "test_mcp_tool"
+        assert references[0].url is None
+
+    @pytest.mark.ai
+    def test_extract_record_references__reads_nodes_after_a_preamble_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        issues = {
+            "issues": {
+                "nodes": [
+                    {
+                        "key": "PROJ-1",
+                        "summary": "Fix login",
+                        "webUrl": "https://example.atlassian.net/browse/PROJ-1",
+                    }
+                ],
+                "webUrl": "https://example.atlassian.net/issues/?jql=x",
+            }
+        }
+        result = {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "[IMPORTANT: cite issues]\n" + json.dumps(issues),
+                }
+            ]
+        }
+
+        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [(c.title, c.url) for c in chunks] == [
+            ("Fix login", "https://example.atlassian.net/browse/PROJ-1"),
+            ("test_mcp_tool", None),
+        ]
+        assert "PROJ-1" not in chunks[1].text
+
+    @pytest.mark.ai
+    def test_extract_record_references__applies_reference_mapping_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+        mock_mcp_tool: McpTool,
+    ) -> None:
+        mock_mcp_tool.reference_mapping = McpReferenceMapping(
+            list_path="rows", title_template="{id} {label}"
+        )
+        result = _json_text_result({"rows": [{"id": "7", "label": "Fund A"}]})
+
+        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert chunks[0].title == "7 Fund A"
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "result",
+        [
+            {"isError": True, "content": [{"type": "text", "text": "denied"}]},
+            {"content": [{"type": "text", "text": "  "}]},
+            {"result": "success"},
+            {
+                "content": [
+                    {"type": "text", "text": "chart"},
+                    {"type": "image", "data": "iVBORw0KGgo=", "mimeType": "image/png"},
+                ]
+            },
+        ],
+        ids=["error", "blank", "no-content", "image"],
+    )
+    def test_extract_record_references__skips_results_it_cannot_cite_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+        result: dict[str, object],
+    ) -> None:
+        assert mcp_tool_wrapper._extract_record_references(result) == ([], [])
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__routes_records_through_content_chunks_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        tool_call = LanguageModelFunction(
+            id="call_records", name="test_mcp_tool", arguments={"query": "plan"}
+        )
+        result = _json_text_result(
+            {"items": [{"title": "Plan", "url": "https://example.test/plan"}]}
+        )
+
+        with (
+            patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log") as mock_log,
+        ):
+            mock_sdk_call.return_value = result
+            response = await mcp_tool_wrapper.run(tool_call)
+
+        assert response.content == ""
+        assert response.content_chunks is not None
+        assert [c.url for c in response.content_chunks] == ["https://example.test/plan"]
+        completed = [
+            c
+            for c in mock_log.call_args_list
+            if c.kwargs.get("status") == MessageLogStatus.COMPLETED
+        ]
+        assert [r.url for r in completed[0].kwargs["references"]] == [
+            "https://example.test/plan"
+        ]

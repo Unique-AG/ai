@@ -8,6 +8,10 @@ from typing import Any
 
 import unique_sdk
 from pydantic import ValidationError
+from unique_sdk.utils.mcp_citations import (
+    extract_mcp_citation_items,
+    loads_embedded_json,
+)
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
@@ -141,6 +145,8 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             result = await self._call_mcp_tool_via_sdk(arguments)
 
             content_chunks, references = self._extract_structured_references(result)
+            if not content_chunks:
+                content_chunks, references = self._extract_record_references(result)
             content_str, image_data_urls = await asyncio.to_thread(
                 self._process_mcp_result, result
             )
@@ -292,6 +298,85 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             chunks.append(chunk)
         return chunks, references
 
+    def _extract_record_references(
+        self, result: dict[str, Any]
+    ) -> tuple[list[ContentChunk], list[ContentReference]]:
+        """Fallback for results without ``unique.app/reference``: one chunk per
+        record the shared MCP citation extractor finds (the same records Conduct
+        cites), or one chunk for the whole result when it has no titled record.
+
+        A chunk's text is all the model sees of it, so fields outside the
+        records, such as a page token, are kept in one trailing chunk.
+        """
+        content_items = self._extract_content_items(result)
+        texts = [
+            str(item.get("text") or "")
+            for item in content_items
+            if isinstance(item, dict) and item.get("type") == "text"
+        ]
+        has_image = any(
+            isinstance(item, dict) and item.get("type") == "image"
+            for item in content_items
+        )
+        full_text = "\n\n".join(text for text in texts if text.strip())
+        if not full_text or has_image or self._is_error_result(result):
+            return [], []
+
+        mapping = self._mcp_tool.reference_mapping
+        items = extract_mcp_citation_items(
+            {"content": content_items},
+            reference_mapping=(
+                mapping.model_dump(by_alias=True, exclude_none=True)
+                if mapping
+                else None
+            ),
+            fallback_text=full_text,
+        )
+        records = [
+            (item.get("title") or self._source_name(), item.get("url"), text)
+            for item in items
+            if (text := item.get("text"))
+        ]
+        remainder = _text_outside_records(texts, {text for _, _, text in records})
+        if remainder:
+            records.append((self._source_name(), None, remainder))
+
+        chunks: list[ContentChunk] = []
+        references: list[ContentReference] = []
+        for index, (title, url, text) in enumerate(records):
+            source_id = url or f"mcp:{self._mcp_server.name}:{self.name}:{title}"
+            chunks.append(
+                ContentChunk(
+                    id=source_id,
+                    key=title,
+                    title=title,
+                    text=text,
+                    url=url,
+                    order=index,
+                )
+            )
+            references.append(
+                ContentReference(
+                    id=source_id,
+                    name=title,
+                    sequence_number=index + 1,
+                    source=f"mcp:{self._mcp_server.name}",
+                    source_id=source_id,
+                    url=url,
+                )
+            )
+        return chunks, references
+
+    def _source_name(self) -> str:
+        return self.display_name() or self.name
+
+    @staticmethod
+    def _is_error_result(result: dict[str, Any]) -> bool:
+        inner = result.get("result")
+        return bool(
+            result.get("isError") or (isinstance(inner, dict) and inner.get("isError"))
+        )
+
     def _process_mcp_result(self, result: dict[str, Any]) -> tuple[str, list[str]]:
         """Parse MCP result content array, upload images, return content string and data URLs."""
         content_items = self._extract_content_items(result)
@@ -405,3 +490,59 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         except Exception as e:
             self.logger.error(f"SDK call failed for MCP tool {self.name}: {e}")
             raise
+
+
+def _text_outside_records(texts: list[str], record_texts: set[str]) -> str | None:
+    parts = [
+        part for text in texts if (part := _block_outside_records(text, record_texts))
+    ]
+    return "\n\n".join(parts) or None
+
+
+def _block_outside_records(text: str, record_texts: set[str]) -> str | None:
+    if text in record_texts:
+        return None
+    parsed = loads_embedded_json(text)
+    if parsed is None:
+        for record_text in record_texts:
+            text = text.replace(record_text, "")
+        return text.strip() or None
+    if _is_record_value(parsed, record_texts):
+        return None
+    pruned = _without_records(parsed, record_texts)
+    if not _has_scalar(pruned):
+        return None
+    return json.dumps(pruned, ensure_ascii=False, default=str)
+
+
+def _without_records(value: Any, record_texts: set[str]) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _without_records(item, record_texts)
+            for key, item in value.items()
+            if not _is_record_value(item, record_texts)
+        }
+    if isinstance(value, list):
+        return [
+            _without_records(item, record_texts)
+            for item in value
+            if not _is_record_value(item, record_texts)
+        ]
+    return value
+
+
+def _is_record_value(value: Any, record_texts: set[str]) -> bool:
+    """Matches how the extractor serializes a record into its ``text``."""
+    if isinstance(value, str):
+        return value in record_texts
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False, default=str) in record_texts
+    return False
+
+
+def _has_scalar(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(_has_scalar(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_has_scalar(item) for item in value)
+    return value not in (None, "")
