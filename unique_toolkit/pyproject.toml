@@ -1,6 +1,6 @@
 [project]
 name = "unique_toolkit"
-version = "2026.48.0.dev16"
+version = "2026.48.0.dev20"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"
@@ -28,7 +28,7 @@ dependencies = [
     "openai>=1.105.0,<3",
     "platformdirs>=4.0.0,<5",
     "pillow>=13.0.0",
-    "unique-sdk>=2026.48.0.dev16,<2026.48.0rc0",
+    "unique-sdk>=2026.48.0.dev18,<2026.48.0rc0",
     "jambo>=0.1.2,<0.2",
     "jinja2>=3.1.6,<4",
     "docxtpl>=0.20.1,<0.21",
@@ -65,11 +65,11 @@ monitoring = [
 ]
 activity-records = [
     "asyncpg>=0.30,<1",
-    "unique-toolkit[monitoring]>=2026.48.0.dev16,<2026.48.0rc0",
+    "unique-toolkit[monitoring]>=2026.48.0.dev20,<2026.48.0rc0",
 ]
 activity-records-amqp = [
     "aio-pika>=9.5.5,<10",
-    "unique-toolkit[activity-records]",
+    "unique-toolkit[activity-records]>=2026.48.0.dev20,<2026.48.0rc0",
 ]
 otel = [
     "opentelemetry-sdk>=1.27,<2",
