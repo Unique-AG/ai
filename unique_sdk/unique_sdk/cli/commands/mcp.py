@@ -83,14 +83,6 @@ _URL_KEYS = (
     "link",
 )
 
-# Links that download a file instead of opening it: a record's link of last resort.
-_DOWNLOAD_URL_KEYS = (
-    "uniqueContentUrl",
-    "@microsoft.graph.downloadUrl",
-    "downloadUrl",
-    "download_url",
-)
-
 # How deep untitled wrapper objects are searched for lists of titled records.
 _MAX_WRAPPER_DEPTH = 4
 
@@ -331,19 +323,16 @@ def _is_http_url(value: object) -> str | None:
 
 
 def _url_from_item(obj: dict[str, Any]) -> str | None:
-    """A record's http(s) link: a preferred key, then any other field, then a
-    download link. A preferred key present but empty skips the other fields."""
+    """First http(s) field on a record. Preferred keys, then any string field,
+    unless a preferred key is present but empty: the record then has no link."""
     for key in _URL_KEYS:
         url = _is_http_url(obj.get(key))
         if url:
             return url
-    if not any(key in obj and obj[key] in ("", None) for key in _URL_KEYS):
-        for key, value in obj.items():
-            url = _is_http_url(value)
-            if url and key not in _DOWNLOAD_URL_KEYS:
-                return url
-    for key in _DOWNLOAD_URL_KEYS:
-        url = _is_http_url(obj.get(key))
+    if any(key in obj and obj[key] in ("", None) for key in _URL_KEYS):
+        return None
+    for value in obj.values():
+        url = _is_http_url(value)
         if url:
             return url
     return None

@@ -1120,7 +1120,7 @@ _OUTLOOK_SEMANTIC_CASES: list[
                 "Budget Q3.eml",
                 "https://outlook.office365.com/owa/?ItemID=M1&exvsurl=1&viewmodel=ReadMessageItem",
             ),
-            ("Offsite plan.eml", "https://ingestion.example.com/read/cont_2"),
+            ("Offsite plan.eml", None),
         ],
     ),
     (
