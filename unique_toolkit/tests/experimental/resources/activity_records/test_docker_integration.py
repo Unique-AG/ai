@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import pytest
 
-asyncpg = pytest.importorskip(
+pytest.importorskip(
     "asyncpg",
     reason="Activity Records Docker tests need the activity-records extra",
 )
@@ -58,31 +58,11 @@ from unique_toolkit.experimental.resources.feature_flags.schemas import (  # noq
     FlagEvaluation,
 )
 
-from .conftest import docker_container, wait_until  # noqa: E402
+from .conftest import Flags  # noqa: E402
 
 pytestmark = pytest.mark.ai
 
 _ON = FlagEvaluation(value=True, reason="remote")
-
-
-@pytest.fixture(scope="module")
-def dsn(docker_tests: None) -> Iterator[str]:
-    with docker_container("postgres:17-alpine", 5432, "POSTGRES_PASSWORD=pw") as (
-        _postgres,
-        port,
-    ):
-        url = f"postgresql://postgres:pw@127.0.0.1:{port}/postgres"
-        asyncio.run(wait_until(lambda: asyncpg.connect(url), 60))
-        yield url
-
-
-class Flags:
-    def __init__(self, evaluation: FlagEvaluation) -> None:
-        self.evaluation = evaluation
-
-    async def evaluate(self, _flag: str, *, company_id: str) -> FlagEvaluation:
-        assert company_id
-        return self.evaluation
 
 
 class RecordingPublisher:

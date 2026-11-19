@@ -1,10 +1,11 @@
-"""Activity Records settings: size limits."""
+"""Activity Records settings: size limits and the broker connection."""
 
 from __future__ import annotations
 
 from typing import Final, Self
+from urllib.parse import quote
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from unique_toolkit.experimental.resources.activity_records.json_size import (
@@ -94,3 +95,46 @@ class ActivityRecordsConfig(BaseSettings):
                 "maximally-sized event always fits a batch by itself"
             )
         return self
+
+
+class AmqpSettings(BaseSettings):
+    """``AMQP_URL`` when set; otherwise ``AMQP_HOST``, ``AMQP_USERNAME`` and ``AMQP_PASSWORD``
+    (all required) with optional port and vhost."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="AMQP_", extra="ignore", hide_input_in_errors=True
+    )
+
+    url: SecretStr | None = None
+    host: str | None = None
+    port: int = 5672
+    username: str = ""
+    password: SecretStr = Field(default_factory=lambda: SecretStr(""))
+    vhost: str = "/"
+    heartbeat_interval_in_seconds: int = 30
+
+    @model_validator(mode="after")
+    def _require_a_broker(self) -> Self:
+        if self._configured_url():
+            return self
+        if not (self.host and self.username and self.password.get_secret_value()):
+            raise ValueError(
+                "AMQP_URL, or AMQP_HOST with AMQP_USERNAME and AMQP_PASSWORD, is required"
+            )
+        return self
+
+    def _configured_url(self) -> str | None:
+        if self.url is None:
+            return None
+        return self.url.get_secret_value() or None
+
+    @property
+    def connection_url(self) -> str:
+        configured = self._configured_url()
+        if configured is not None:
+            return configured
+        assert self.host is not None
+        username = quote(self.username, safe="")
+        password = quote(self.password.get_secret_value(), safe="")
+        vhost = quote(self.vhost, safe="")
+        return f"amqp://{username}:{password}@{self.host}:{self.port}/{vhost}"
