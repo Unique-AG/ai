@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 
 class LoggingPublisher:
     """Local testing sender: logs each event and reports success without delivering it, so
-    the outbox rows are deleted. Logs client data by default. Never use it in production."""
+    the outbox rows are deleted. ``include_payload=True`` logs client data: never use it in
+    production."""
 
-    def __init__(self, *, include_payload: bool = True) -> None:
+    def __init__(self, *, include_payload: bool = False) -> None:
         self.include_payload = include_payload
 
     async def publish(self, events: Sequence[WireEvent]) -> None:
