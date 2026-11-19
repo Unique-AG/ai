@@ -63,6 +63,11 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 [tool.deptry]
 known_first_party = ["unique_web_search"]
 
+[tool.deptry.per_rule_ignores]
+# pydantic_core ships with (and is version-pinned by) pydantic; importing
+# CoreSchema from it is the canonical way to type __get_pydantic_json_schema__.
+DEP003 = ["pydantic_core"]
+
 [tool.basedpyright]
 typeCheckingMode = "standard"
 include = ["unique_web_search"]

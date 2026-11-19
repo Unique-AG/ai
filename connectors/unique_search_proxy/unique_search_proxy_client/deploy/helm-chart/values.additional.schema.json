@@ -162,6 +162,32 @@
         }
       ]
     },
+    "awsSearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "AWS AgentCore Web Search configuration. Generated from _AwsSearchCredentials (AWS_SEARCH_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "region": {
+              "description": "Maps to env var AWS_SEARCH_REGION.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "apiEndpoint": {
+              "description": "Maps to env var AWS_SEARCH_API_ENDPOINT.",
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
     "bingAgent": {
       "type": "object",
       "additionalProperties": false,
@@ -563,6 +589,23 @@
             "maxTimeoutSeconds": {
               "description": "Maps to env var REQUEST_LIMITS_MAX_TIMEOUT_SECONDS.",
               "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
+    "crawl": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Crawl configuration. Generated from CrawlSettings (CRAWL_* env vars).",
+      "properties": {
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "description": "Maps to env var CRAWL_ENABLED.",
+              "$ref": "#/$defs/valueSourceBoolean"
             }
           }
         }

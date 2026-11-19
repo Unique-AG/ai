@@ -126,6 +126,7 @@ The usage line goes through its own logger (`unique_search_proxy_core.usage`) wi
 | Google | Search | Custom Search JSON API | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
 | Brave | Search | Brave Search API | `BRAVE_SEARCH_API_KEY` |
 | Perplexity | Search | Perplexity API | `PERPLEXITY_SEARCH_API_KEY` |
+| AWS AgentCore | Search | InvokeWebSearch | Default AWS credential chain (`AWS_SEARCH_REGION`) |
 | Bing | Agent | Azure AI Projects grounding | `BING_AGENT_*` |
 | VertexAI | Agent | Google GenAI + grounding | `VERTEXAI_AGENT_*` or ADC |
 | Basic | Crawl | Direct httpx + HTML/PDF processors | (none) |
@@ -245,6 +246,8 @@ Settings use pydantic-settings with per-provider env vars. Copy `.env.example` t
 | Google search | (none) | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
 | Brave search | (none) | `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_API_ENDPOINT` |
 | Perplexity | (none) | `PERPLEXITY_SEARCH_API_KEY` |
+| AWS AgentCore | `AWS_SEARCH_` | `AWS_SEARCH_REGION`, `AWS_SEARCH_API_ENDPOINT` |
+| Crawl switch | `CRAWL_` | `CRAWL_ENABLED` (default `true`) |
 | Tavily | `TAVILY_` | `TAVILY_API_KEY` |
 | Jina | `JINA_` | `JINA_API_KEY`, `JINA_DEPLOYMENT` |
 | Firecrawl | `FIRECRAWL_` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_VERSION` |
@@ -290,6 +293,8 @@ uv run python -m unique_search_proxy_client.web.app
 # or
 uv run uvicorn unique_search_proxy_client.web.app:app --reload --port 2349
 ```
+
+AWS AgentCore uses the default AWS credential chain. Set `AWS_SEARCH_REGION` (and `AWS_SEARCH_API_ENDPOINT` when the region is not `us-east-1`). Locally that is a short-lived `aws login` session, which needs the `awscrt` extra (`uv run --with "botocore[crt]"`). There is no static key. `CRAWL_ENABLED=false` makes `POST /v1/crawl` return 503 `CRAWLING_DISABLED` and fetch nothing. `GET /ready` and `GET /v1/configuration/providers` report that crawling is off. The web search tool reads `crawlingEnabled` from that endpoint, so this is the only crawl switch.
 
 Call from Python via the [SDK](../unique_search_proxy_sdk/README.md):
 

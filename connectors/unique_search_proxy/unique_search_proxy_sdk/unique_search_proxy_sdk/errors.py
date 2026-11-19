@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 from unique_search_proxy_core.errors import (
     BadRequestProxyError,
+    CrawlingDisabledError,
     EmptySearchResultsError,
     EngineNotConfiguredError,
     ForbiddenTargetError,
@@ -27,6 +28,7 @@ _CODE_TO_EXCEPTION: dict[str, type[ProxyError]] = {
     ProxyErrorCode.RATE_LIMITED.value: RateLimitedError,
     ProxyErrorCode.UPSTREAM_ERROR.value: UpstreamError,
     ProxyErrorCode.ENGINE_NOT_CONFIGURED.value: EngineNotConfiguredError,
+    ProxyErrorCode.CRAWLING_DISABLED.value: CrawlingDisabledError,
     ProxyErrorCode.UPSTREAM_TIMEOUT.value: UpstreamTimeoutError,
     ProxyErrorCode.EMPTY_SEARCH_RESULTS.value: EmptySearchResultsError,
     ProxyErrorCode.RESPONSE_TOO_LARGE.value: ResponseTooLargeError,

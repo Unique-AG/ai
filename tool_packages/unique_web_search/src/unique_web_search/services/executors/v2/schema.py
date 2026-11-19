@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import typing
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from jinja2 import Template
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
+from unique_web_search.services.crawling import crawling_enabled
 from unique_web_search.services.executors.v2.prompts import STEP_QUERY_DESCRIPTION
 from unique_web_search.services.search_engine.base import SearchEngineMode
 
@@ -39,13 +40,22 @@ class WebSearchPlan(BaseModel):
         """Build a ``WebSearchPlan`` variant whose ``Step.query_or_url``
         description is tailored to the search-engine mode."""
         query_desc = Template(STEP_QUERY_DESCRIPTION).render(
-            search_engine_mode=mode.value
+            search_engine_mode=mode.value,
+            crawling_enabled=crawling_enabled(),
         )
 
+        step_fields: dict[str, Any] = {
+            "query_or_url": (str, Field(description=query_desc)),
+        }
+        if not crawling_enabled():
+            step_fields["step_type"] = (
+                Literal[StepType.SEARCH],
+                Field(default=StepType.SEARCH),
+            )
         DynamicStep = create_model(
             "Step",
             __base__=Step,
-            query_or_url=(str, Field(description=query_desc)),
+            **step_fields,
         )
         return create_model(
             cls.__name__,
@@ -70,7 +80,9 @@ class WebSearchPlan(BaseModel):
         step_hint: dict[str, str] = {}
         for name, field in steps_inner_type.model_fields.items():
             if name == "step_type":
-                step_hint[name] = "search | read_url"
+                step_hint[name] = (
+                    "search" if not crawling_enabled() else "search | read_url"
+                )
             else:
                 step_hint[name] = field.description or name
 

@@ -34,6 +34,7 @@ Query → normalised results (URL / title / snippet / optional content). Optiona
 | Google | legacy + proxy | Requires scraping by default |
 | Brave | **proxy-only** | Rich snippets; configurable `requires_scraping` (on by default); `ExposableParam` knobs |
 | Perplexity | **proxy-only** | Content extraction knobs; configurable `requires_scraping` (on by default); `ExposableParam` |
+| AWS AgentCore | **proxy-only** | Index extracts; `requires_scraping` off by default. Queries are trimmed to 200 characters |
 | Custom API | legacy + proxy | Your REST endpoint; proxy mode rejects redirects |
 
 Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `value`) for optional provider knobs. See [Search Engines README](./src/unique_web_search/services/search_engine/README.md).
@@ -61,7 +62,9 @@ one provisions a new agent version.
 
 No Crawl4AI. Crawler configs have **no exposable LLM knobs**.
 
-Page reads (`read_url`, `read_urls`) follow the space's domain settings: Google `siteSearch` with `siteSearchFilter`, and Perplexity `searchDomainFilter` (a leading `-` excludes). A domain covers its subdomains: excluding `wikipedia.org` also blocks `en.wikipedia.org`, while excluding `www.wikipedia.org` does not.
+Crawling follows the search proxy's `CRAWL_ENABLED`, read from `GET /v1/configuration/providers` and cached for a minute. When it is off, the tool hides the page-reader settings, skips scraping, and drops V2 `read_url` and V3 `read_urls`, so answers use the search extracts. Without a proxy, or when the proxy cannot be reached, crawling counts as on; the proxy still refuses crawl calls itself.
+
+Page reads (`read_url`, `read_urls`) follow the space's domain settings: AWS include and exclude domains, Google `siteSearch` with `siteSearchFilter`, and Perplexity `searchDomainFilter` (a leading `-` excludes). A domain covers its subdomains, as in AWS: excluding `wikipedia.org` also blocks `en.wikipedia.org`, while excluding `www.wikipedia.org` does not.
 
 ## Execution modes
 

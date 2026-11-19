@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import typing
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from pydantic.alias_generators import to_camel
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+
+from unique_web_search.services.crawling import crawling_enabled
 
 # Strict LLM-facing config: camelCase aliases + forbid extras, while still
 # inheriting ExposedParams.model_json_schema (strips title/default noise).
@@ -104,6 +107,22 @@ class WebSearchV3ToolParameters(ExposedParams):
     ) -> type[WebSearchV3ToolParameters]:
         """Rebuild the payload union with an exposed ``SearchPayload`` subtype."""
         search_payload = SearchPayload.with_exposed_params(exposed)
+        if not crawling_enabled():
+            return create_model(
+                cls.__name__,
+                __base__=cls,
+                command=(
+                    Literal[Command.SEARCH],
+                    Field(
+                        default=Command.SEARCH,
+                        description="Must be `search`. Page reads are disabled.",
+                    ),
+                ),
+                payload=(
+                    search_payload,
+                    Field(description="Search payload."),
+                ),
+            )
         if search_payload is SearchPayload:
             return cls
         return create_model(
@@ -158,7 +177,8 @@ class WebSearchV3ToolParameters(ExposedParams):
         lines: list[str] = []
         for name, field in cls.model_fields.items():
             if name == "command":
-                choices = " or ".join(f'`"{c.value}"`' for c in Command)
+                commands = [Command.SEARCH] if not crawling_enabled() else list(Command)
+                choices = " or ".join(f'`"{c.value}"`' for c in commands)
                 lines.append(f"- **`{name}`** — {choices}.")
             elif name == "phase":
                 choices = " | ".join(f'`"{c.value}"`' for c in SearchPhase)
@@ -170,10 +190,12 @@ class WebSearchV3ToolParameters(ExposedParams):
 
         lines.append("- **`payload`** — Shape depends on `command`:")
         search_payload = SearchPayload.with_exposed_params(exposed)
-        for cmd, payload_model in (
-            (Command.SEARCH, search_payload),
-            (Command.FETCH_URLS, FetchUrlsPayload),
-        ):
+        payload_models: list[tuple[Command, type[BaseModel]]] = [
+            (Command.SEARCH, search_payload)
+        ]
+        if crawling_enabled():
+            payload_models.append((Command.FETCH_URLS, FetchUrlsPayload))
+        for cmd, payload_model in payload_models:
             lines.append(f'  - For `"{cmd.value}"`: `{_inline_json(payload_model)}`.')
 
         return "\n".join(lines)

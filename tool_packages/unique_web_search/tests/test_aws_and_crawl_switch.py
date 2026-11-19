@@ -1,0 +1,97 @@
+from unittest.mock import Mock
+
+import pytest
+from pydantic import BaseModel, Field
+from unique_search_proxy_sdk._generated.models.providers_list_response import (
+    ProvidersListResponse,
+)
+
+from unique_web_search.config import WebSearchConfig
+from unique_web_search.services import crawling
+from unique_web_search.services.executors.v2.schema import WebSearchPlan
+from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
+from unique_web_search.services.search_engine.aws import trim_aws_query
+from unique_web_search.services.search_engine.base import SearchEngineMode
+from unique_web_search.settings import env_settings
+
+
+def test_trim_aws_query_keeps_short_queries() -> None:
+    assert trim_aws_query("Swiss National Bank") == "Swiss National Bank"
+
+
+def test_trim_aws_query_cuts_on_a_word_boundary() -> None:
+    query = ("alpha " * 50).strip()
+    trimmed = trim_aws_query(query)
+    assert len(trimmed) <= 200
+    assert not trimmed.endswith(" ")
+    assert trimmed.endswith("alpha")
+
+
+def test_crawling_is_enabled_without_a_search_proxy(monkeypatch) -> None:
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", None)
+    fetch = Mock()
+    monkeypatch.setattr(crawling, "_fetch_crawling_enabled", fetch)
+    assert crawling.crawling_enabled() is True
+    fetch.assert_not_called()
+
+
+def test_crawling_enabled_follows_the_proxy_and_is_cached(monkeypatch) -> None:
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", "http://proxy.test")
+    sync = Mock(
+        return_value=ProvidersListResponse(
+            search_engines=[], crawlers=[], crawling_enabled=False
+        )
+    )
+    monkeypatch.setattr(crawling.list_providers, "sync", sync)
+    assert crawling.crawling_enabled() is False
+    assert crawling.crawling_enabled() is False
+    sync.assert_called_once()
+
+
+def test_crawling_stays_enabled_when_the_proxy_is_unreachable(monkeypatch) -> None:
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", "http://proxy.test")
+    monkeypatch.setattr(
+        crawling.list_providers, "sync", Mock(side_effect=OSError("refused"))
+    )
+    assert crawling.crawling_enabled() is True
+
+
+def test_crawler_settings_stay_visible_by_default() -> None:
+    schema = WebSearchConfig.model_json_schema()
+    assert (
+        "crawlerConfig" in schema["properties"]
+        or "crawler_config" in schema["properties"]
+    )
+
+
+@pytest.mark.usefixtures("crawl_off")
+def test_crawler_settings_are_hidden_when_crawling_is_off() -> None:
+    schema = WebSearchConfig.model_json_schema()
+    assert "crawlerConfig" not in schema["properties"]
+    assert "crawler_config" not in schema["properties"]
+
+
+@pytest.mark.usefixtures("crawl_off")
+def test_crawler_settings_are_hidden_when_the_config_is_nested() -> None:
+    class Manifest(BaseModel):
+        configuration: WebSearchConfig = Field(default_factory=WebSearchConfig)
+
+    schema = Manifest.model_json_schema()
+    properties = schema["$defs"]["WebSearchConfig"]["properties"]
+    assert "crawlerConfig" not in properties
+    assert "crawler_config" not in properties
+
+
+@pytest.mark.usefixtures("crawl_off")
+def test_v2_plan_hint_drops_read_url_when_crawling_is_off() -> None:
+    hint = WebSearchPlan.schema_hint(SearchEngineMode.STANDARD)
+    assert '"step_type": "search"' in hint
+    assert "read_url" not in hint
+
+
+@pytest.mark.usefixtures("crawl_off")
+def test_v3_hint_drops_read_urls_when_crawling_is_off() -> None:
+    hint = WebSearchV3ToolParameters.schema_hint()
+    assert "read_urls" not in hint
+    model = WebSearchV3ToolParameters.with_exposed_params(None)
+    assert "read_urls" not in model.model_json_schema()

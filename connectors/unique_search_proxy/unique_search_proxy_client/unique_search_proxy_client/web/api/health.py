@@ -6,6 +6,7 @@ from unique_search_proxy_client.web.core.registry import (
     registered_crawlers,
     registered_search_engines,
 )
+from unique_search_proxy_client.web.settings.crawl import crawl_enabled
 
 router = APIRouter(tags=["health"])
 
@@ -24,4 +25,5 @@ async def ready(request: Request) -> dict[str, object]:
         "searchEngines": sorted(registered_search_engines()),
         "agentEngines": sorted(registered_agent_engines()),
         "crawlers": sorted(registered_crawlers()),
+        "crawling": "enabled" if crawl_enabled() else "disabled",
     }

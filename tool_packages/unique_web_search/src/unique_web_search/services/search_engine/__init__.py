@@ -20,6 +20,10 @@ from unique_search_proxy_core.search_engines import (  # noqa: E402
     SearchEngineType,
 )
 
+from unique_web_search.services.search_engine.aws import (  # noqa: E402
+    AwsSearch,
+    AwsSearchConfig,
+)
 from unique_web_search.services.search_engine.bing import (  # noqa: E402
     BingSearch,
     BingSearchConfig,
@@ -43,7 +47,13 @@ from unique_web_search.services.search_engine.vertexai import (  # noqa: E402
 )
 
 SearchEngineTypes = (
-    GoogleSearch | BingSearch | CustomAPI | BraveSearch | PerplexitySearch | VertexAI
+    GoogleSearch
+    | BingSearch
+    | CustomAPI
+    | BraveSearch
+    | PerplexitySearch
+    | VertexAI
+    | AwsSearch
 )
 SearchEngineConfigTypes = (
     GoogleConfig
@@ -52,6 +62,7 @@ SearchEngineConfigTypes = (
     | BraveSearchConfig
     | PerplexitySearchConfig
     | VertexAIConfig
+    | AwsSearchConfig
 )
 
 ENGINE_NAME_TO_CONFIG = SEARCH_ENGINE_REGISTRY.name_to_config()
@@ -90,4 +101,6 @@ __all__ = [
     "get_default_search_engine_config",
     "VertexAIConfig",
     "VertexAI",
+    "AwsSearch",
+    "AwsSearchConfig",
 ]

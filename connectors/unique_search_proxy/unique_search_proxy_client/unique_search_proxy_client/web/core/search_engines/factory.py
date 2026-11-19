@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING, Any
 
 from unique_search_proxy_core.search_engines.base import SearchEngine, SearchEngineType
 
+from unique_search_proxy_client.web.core.search_engines.aws.service import (
+    AwsSearchService,
+)
 from unique_search_proxy_client.web.core.search_engines.brave.service import (
     BraveSearchService,
 )
@@ -36,6 +39,8 @@ def get_search_engine_service(
             return PerplexitySearchService(http_client=http_client)
         case SearchEngineType.CUSTOM_API:
             return CustomApiSearchService(http_client=http_client)
+        case SearchEngineType.AWS:
+            return AwsSearchService(http_client=http_client)
         case _:
             raise ValueError(f"Unsupported search engine: {engine}")
 

@@ -20,6 +20,7 @@ from unique_web_search.metrics import (
     search_total,
 )
 from unique_web_search.schema import StepDebugInfo
+from unique_web_search.services.crawling import crawling_enabled
 from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
@@ -67,6 +68,8 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
                 params=self._extract_search_params(p.payload),
             )
         if isinstance(p.payload, FetchUrlsPayload):
+            if not crawling_enabled():
+                return []
             await self._message_log_callback.log_progress("_Reading Web Pages_")
             return await self._run_fetch_urls(
                 urls=p.payload.urls, objective=p.relevance_focus()

@@ -21,6 +21,7 @@ from unique_web_search.metrics import (
     search_total,
 )
 from unique_web_search.schema import StepDebugInfo
+from unique_web_search.services.crawling import crawling_enabled
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
@@ -203,7 +204,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
 
             web_search_results.extend(search_results)
 
-        if self.search_service.requires_scraping:
+        if crawling_enabled() and self.search_service.requires_scraping:
             self.notify_name = "**Crawling URLs**"
             self.notify_message = f"{len(web_search_results)} URLs to fetch"
             await self.notify_callback()

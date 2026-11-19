@@ -2,6 +2,7 @@
 
 from .agent_search_response import AgentSearchResponse
 from .answer_span_citation import AnswerSpanCitation
+from .aws_search_request import AwsSearchRequest
 from .basic_crawl_request import BasicCrawlRequest
 from .bing_agent_search_request import BingAgentSearchRequest
 from .bing_agent_search_request_freshness_type_0 import (
@@ -62,6 +63,7 @@ from .web_search_result import WebSearchResult
 __all__ = (
     "AgentSearchResponse",
     "AnswerSpanCitation",
+    "AwsSearchRequest",
     "BasicCrawlRequest",
     "BingAgentSearchRequest",
     "BingAgentSearchRequestFreshnessType0",

@@ -307,6 +307,7 @@ class TestProviderRegistry:
             "brave",
             "perplexity",
             "custom_api",
+            "aws",
         }
         for engine in SEARCH_ENGINE_NAME_TO_CONFIG:
             assert hasattr(client, engine)
