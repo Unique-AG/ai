@@ -130,7 +130,9 @@ def _emit(
         )
 
 
-_current: ContextVar[ActivityRecord | None] = ContextVar(
+# Ambient per-call record, like the toolkit's InvocationStatsCollector.scope(): the
+# engines are plugins, so threading a recorder through their signatures is not an option.
+_current_record: ContextVar[ActivityRecord | None] = ContextVar(
     "web_search_activity_record", default=None
 )
 
@@ -188,7 +190,7 @@ async def start(
 @contextmanager
 def active(record: ActivityRecord | None) -> Iterator[None]:
     """Collect into ``record`` for the block. A call that sent no query emits one call row."""
-    token = _current.set(record)
+    token = _current_record.set(record)
     try:
         yield
     except BaseException as exc:
@@ -197,7 +199,7 @@ def active(record: ActivityRecord | None) -> Iterator[None]:
             _note_failure(record, exc)
         raise
     finally:
-        _current.reset(token)
+        _current_record.reset(token)
         if (
             record is not None
             and record.queries_sent == 0
@@ -217,19 +219,19 @@ def _note_failure(record: ActivityRecord, exc: BaseException) -> None:
 
 
 def _put(key: str, value: Any) -> None:
-    if (record := _current.get()) is not None:
+    if (record := _current_record.get()) is not None:
         record.critical_data[key] = value
 
 
 def set_outcome(outcome: Outcome, reason: str | None = None) -> None:
-    if (record := _current.get()) is not None:
+    if (record := _current_record.get()) is not None:
         record.outcome = outcome
         if reason is not None:
             record.critical_data["reason"] = reason
 
 
 def set_failure(exc: Exception) -> None:
-    if (record := _current.get()) is not None:
+    if (record := _current_record.get()) is not None:
         _note_failure(record, exc)
 
 
@@ -297,7 +299,7 @@ def search_request(
     endpoint: str | None,
     destination: str | None = None,
 ) -> Iterator[None]:
-    if (record := _current.get()) is None:
+    if (record := _current_record.get()) is None:
         yield
         return
     egress: _Egress = {

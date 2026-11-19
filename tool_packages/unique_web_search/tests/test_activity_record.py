@@ -951,11 +951,11 @@ async def test_custom_api__via_search_proxy__records_destination_origin(
             api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
         )
     )
-    token = activity_record._current.set(_record("customApi"))
+    token = activity_record._current_record.set(_record("customApi"))
     try:
         await engine.search("news")
     finally:
-        activity_record._current.reset(token)
+        activity_record._current_record.reset(token)
 
     [critical] = _sent(enqueue_mock)
     assert critical["egress"] == {
@@ -1102,12 +1102,12 @@ async def test_custom_api_error_status__counts_as_a_response(
         )
     )
     record = _record("customApi")
-    token = activity_record._current.set(record)
+    token = activity_record._current_record.set(record)
     try:
         with pytest.raises(ValueError, match="429"):
             await engine.search("news")
     finally:
-        activity_record._current.reset(token)
+        activity_record._current_record.reset(token)
 
     [row] = _sent(enqueue_mock)
     assert row["query"] == "news"
@@ -1146,11 +1146,11 @@ async def test_google_transport_failure__is_not_a_response(
         False,
     )
     record = _record("google")
-    token = activity_record._current.set(record)
+    token = activity_record._current_record.set(record)
     try:
         assert await GoogleSearch(GoogleConfig()).search("news") == []
     finally:
-        activity_record._current.reset(token)
+        activity_record._current_record.reset(token)
 
     [row] = _sent(enqueue_mock)
     assert row["responseReceived"] is False
@@ -1187,11 +1187,11 @@ async def test_google_parse_error_after_a_response__stays_received(
         False,
     )
     record = _record("google")
-    token = activity_record._current.set(record)
+    token = activity_record._current_record.set(record)
     try:
         assert await GoogleSearch(GoogleConfig()).search("news") == []
     finally:
-        activity_record._current.reset(token)
+        activity_record._current_record.reset(token)
 
     [row] = _sent(enqueue_mock)
     assert row["responseReceived"] is True
@@ -1226,11 +1226,11 @@ async def test_overlapping_searches__keep_their_own_response_flag(
             await a_noted.wait()
             activity_record.note_no_response()
 
-    token = activity_record._current.set(record)
+    token = activity_record._current_record.set(record)
     try:
         await asyncio.gather(first(), second(), return_exceptions=True)
     finally:
-        activity_record._current.reset(token)
+        activity_record._current_record.reset(token)
 
     by_query = {row["query"]: row for row in _sent(enqueue_mock)}
     assert by_query["a"]["responseReceived"] is True
@@ -1266,12 +1266,12 @@ async def test_proxy_parse_failure__counts_as_a_response(
         side_effect=ValueError("bad"),
     )
     record = _record("google")
-    token = activity_record._current.set(record)
+    token = activity_record._current_record.set(record)
     try:
         with pytest.raises(ValueError, match="bad"):
             await GoogleSearch(GoogleConfig()).search("news")
     finally:
-        activity_record._current.reset(token)
+        activity_record._current_record.reset(token)
 
     [row] = _sent(enqueue_mock)
     assert row["responseReceived"] is True
