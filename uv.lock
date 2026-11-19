@@ -6202,7 +6202,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aio-pika", marker = "extra == 'activity-records-amqp'", specifier = ">=9.4,<10" },
+    { name = "aio-pika", marker = "extra == 'activity-records-amqp'", specifier = ">=9.5.5,<10" },
     { name = "aiohttp", specifier = ">=3.12.0,<4" },
     { name = "asyncpg", marker = "extra == 'activity-records'", specifier = ">=0.30,<1" },
     { name = "cachetools", specifier = ">=5.0,<6" },

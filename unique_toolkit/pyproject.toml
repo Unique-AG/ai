@@ -68,7 +68,7 @@ activity-records = [
     "unique-toolkit[monitoring]",
 ]
 activity-records-amqp = [
-    "aio-pika>=9.4,<10",
+    "aio-pika>=9.5.5,<10",
     "unique-toolkit[activity-records]",
 ]
 otel = [
