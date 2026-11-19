@@ -304,6 +304,62 @@ def test_json_in_text_does_not_split_titled_child_record(tmp_path: Path) -> None
     assert refs[0]["title"] is None
 
 
+def test_json_in_text_does_not_split_linked_untitled_record(tmp_path: Path) -> None:
+    # A Teams chat message has no subject but its own link: it is one record,
+    # not a wrapper of its attachments.
+    body = json.dumps(
+        {
+            "subject": None,
+            "body": {"content": "Q3 revenue is 4.2M"},
+            "web_url": "https://teams.microsoft.com/l/message/m1",
+            "attachments": [
+                {"name": "Q3.pptx", "contentUrl": "https://contoso.sharepoint.com/q3"}
+            ],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__teams_read_message", response, formatted=body)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+    assert refs[0]["text"] == body
+
+
+def test_json_in_text_does_not_split_linked_untitled_child_record(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps(
+        {
+            "message": {
+                "web_url": "https://teams.microsoft.com/l/message/m1",
+                "mentions": [{"name": "Alex Doe"}],
+            }
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__teams_read_message", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+
+
+def test_json_in_text_display_name_keeps_data_list_in_one_record(
+    tmp_path: Path,
+) -> None:
+    # As with ``title``, a ``display_name`` marks the object as one record, so
+    # its ``data`` list is part of it rather than separate sources.
+    body = json.dumps(
+        {"display_name": "Finance", "data": [{"title": "Q1"}, {"title": "Q2"}]}
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_get_list", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Finance"]
+
+
 def test_json_in_text_titles_record_by_snake_case_display_name(
     tmp_path: Path,
 ) -> None:
