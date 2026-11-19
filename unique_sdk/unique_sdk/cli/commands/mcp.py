@@ -83,6 +83,14 @@ _URL_KEYS = (
     "link",
 )
 
+# Links that download a file instead of opening it: a record's link of last resort.
+_DOWNLOAD_URL_KEYS = (
+    "uniqueContentUrl",
+    "@microsoft.graph.downloadUrl",
+    "downloadUrl",
+    "download_url",
+)
+
 # How deep untitled wrapper objects are searched for lists of titled records.
 _MAX_WRAPPER_DEPTH = 4
 
@@ -249,11 +257,13 @@ def _loads_embedded_json(text: str) -> Any:
     return None
 
 
-def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
+def _records_from_parsed(parsed: Any) -> tuple[list[dict[str, Any]], bool]:
     """Normalize a parsed JSON value to a flat list of record dicts: a known
-    container key's list, else every list of titled records in a wrapper object."""
+    container key's list, else every list of titled records in a wrapper object.
+    The flag is True for the wrapper's lists, whose records are cited only with a link.
+    """
     if isinstance(parsed, list):
-        return [entry for entry in parsed if isinstance(entry, dict)]
+        return [entry for entry in parsed if isinstance(entry, dict)], False
     if isinstance(parsed, dict):
         for key in _CONTAINER_KEYS:
             value = parsed.get(key)
@@ -265,14 +275,14 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
                     # ``data``) — keep the object as one record so its title
                     # survives instead of collapsing to a title-less chip.
                     if key in _AMBIGUOUS_CONTAINER_KEYS and _title_from_json(parsed):
-                        return [parsed]
-                    return records
+                        return [parsed], False
+                    return records, False
         if not _is_record(parsed):
             titled = _titled_lists(parsed, depth=0)
             if titled:
-                return titled
-        return [parsed]
-    return []
+                return titled, True
+        return [parsed], False
+    return [], False
 
 
 def _is_record(obj: dict[str, Any]) -> bool:
@@ -286,6 +296,7 @@ def _titled_lists(wrapper: dict[str, Any], *, depth: int) -> list[dict[str, Any]
     but not inside a record."""
     records: list[dict[str, Any]] = []
     for value in wrapper.values():
+        value = _connection_nodes(value) or value
         if isinstance(value, list):
             entries = [entry for entry in value if isinstance(entry, dict)]
             if any(_title_from_json(entry) for entry in entries):
@@ -299,6 +310,16 @@ def _titled_lists(wrapper: dict[str, Any], *, depth: int) -> list[dict[str, Any]
     return records
 
 
+def _connection_nodes(value: object) -> list[Any] | None:
+    """The ``nodes`` list of a GraphQL-style connection, such as Atlassian's
+    ``{"issues": {"nodes": [...], "webUrl": ...}}``, whose own link is the search page."""
+    if isinstance(value, dict):
+        nodes = value.get("nodes")
+        if isinstance(nodes, list):
+            return nodes
+    return None
+
+
 def _is_http_url(value: object) -> str | None:
     """Return ``value`` when it is an http(s) URL, else None."""
     if not isinstance(value, str):
@@ -310,16 +331,19 @@ def _is_http_url(value: object) -> str | None:
 
 
 def _url_from_item(obj: dict[str, Any]) -> str | None:
-    """First http(s) field on a record. Preferred keys, then any string field,
-    unless a preferred key is present but empty: the record then has no link."""
+    """A record's http(s) link: a preferred key, then any other field, then a
+    download link. A preferred key present but empty skips the other fields."""
     for key in _URL_KEYS:
         url = _is_http_url(obj.get(key))
         if url:
             return url
-    if any(key in obj and not obj[key] for key in _URL_KEYS):
-        return None
-    for value in obj.values():
-        url = _is_http_url(value)
+    if not any(key in obj and obj[key] in ("", None) for key in _URL_KEYS):
+        for key, value in obj.items():
+            url = _is_http_url(value)
+            if url and key not in _DOWNLOAD_URL_KEYS:
+                return url
+    for key in _DOWNLOAD_URL_KEYS:
+        url = _is_http_url(obj.get(key))
         if url:
             return url
     return None
@@ -335,28 +359,38 @@ def _titles_from_json(text: str) -> list[dict[str, Any]]:
     """Best-effort: pull a human title out of a JSON result, e.g. an Atlassian
     page/issue returned as JSON-in-text. Tolerates a non-JSON preamble before
     the JSON body and unwraps a container key (``{"issues": [...]}``) so each
-    retrieved record yields its own item. Returns [] when the text carries no
-    JSON or no record has a recognizable title.
+    retrieved record yields its own item. A record from a wrapper's list, or
+    titled only by ``display_name``, needs a link. Returns [] when the text
+    carries no JSON or no record qualifies.
     """
     parsed = _loads_embedded_json(text)
     if parsed is None:
         return []
+    records, needs_link = _records_from_parsed(parsed)
     items: list[dict[str, Any]] = []
-    for entry in _records_from_parsed(parsed):
+    for entry in records:
         title = _title_from_json(entry)
-        if title:
-            items.append(
-                _with_url(
-                    {
-                        "title": title,
-                        "snippet": None,
-                        "details": _details_from_json(entry),
-                        "text": _record_text(entry),
-                    },
-                    _url_from_item(entry),
-                )
+        if not title:
+            continue
+        url = _url_from_item(entry)
+        if not url and (needs_link or _titled_by_display_name_only(entry)):
+            continue
+        items.append(
+            _with_url(
+                {
+                    "title": title,
+                    "snippet": None,
+                    "details": _details_from_json(entry),
+                    "text": _record_text(entry),
+                },
+                url,
             )
+        )
     return items
+
+
+def _titled_by_display_name_only(entry: dict[str, Any]) -> bool:
+    return _title_from_json({**entry, "display_name": None}) is None
 
 
 def _titles_from_markdown_list(text: str) -> list[dict[str, Any]]:
@@ -466,6 +500,7 @@ def _mapped_records(response: Any, list_path: str | None) -> list[Any]:
 
     for parsed in sources:
         target = _get_by_dotted_path(parsed, list_path) if list_path else parsed
+        target = _connection_nodes(target) or target
         if isinstance(target, list):
             records = [entry for entry in target if isinstance(entry, (dict, str))]
             if records:
@@ -774,6 +809,34 @@ def _item_dedup_key(tool_name: str, item: dict[str, Any]) -> str:
     return f"tool:{tool_name}:{text_hash}"
 
 
+def _item_link_key(tool_name: str, item: dict[str, Any]) -> str | None:
+    """Title-and-link key of a linked titled item, or None."""
+    title = item.get("title")
+    url = item.get("url")
+    if isinstance(title, str) and title.strip() and isinstance(url, str) and url:
+        return f"link:{tool_name}:{title.strip()}:{url}"
+    return None
+
+
+def _dedup_source_number(
+    *,
+    key: str,
+    link_key: str | None,
+    numbers_by_key: dict[str, int],
+    entries_by_number: dict[int, dict[str, Any]],
+) -> int | None:
+    """Source number an item merges onto. Records that share a title but have
+    different links, such as instances of one recurring event, stay apart; a
+    record missing a link still merges by title."""
+    if link_key is not None and link_key in numbers_by_key:
+        return numbers_by_key[link_key]
+    number = numbers_by_key.get(key)
+    if number is None or link_key is None:
+        return number
+    stored_url = entries_by_number.get(number, {}).get("url")
+    return None if stored_url else number
+
+
 def _ref_text(item: dict[str, Any]) -> str | None:
     """The item's underlying text for the manifest, up to the runaway guard."""
     text = item.get("text")
@@ -843,10 +906,13 @@ def _annotate_mcp_results_for_citations(
             for entry in entries:
                 if isinstance(entry.get("sourceNumber"), int):
                     stored_key = entry.get("dedupKey")
+                    stored_tool = entry.get("toolName") or tool_name
                     if not isinstance(stored_key, str):
-                        stored_tool = entry.get("toolName") or tool_name
                         stored_key = _item_dedup_key(stored_tool, entry)
-                    numbers_by_key[stored_key] = entry["sourceNumber"]
+                    numbers_by_key.setdefault(stored_key, entry["sourceNumber"])
+                    stored_link_key = _item_link_key(stored_tool, entry)
+                    if stored_link_key is not None:
+                        numbers_by_key[stored_link_key] = entry["sourceNumber"]
             entries_by_number = {
                 entry["sourceNumber"]: entry
                 for entry in entries
@@ -860,7 +926,13 @@ def _annotate_mcp_results_for_citations(
             )
             for item in items:
                 key = _item_dedup_key(tool_name, item)
-                source_number = numbers_by_key.get(key)
+                link_key = _item_link_key(tool_name, item)
+                source_number = _dedup_source_number(
+                    key=key,
+                    link_key=link_key,
+                    numbers_by_key=numbers_by_key,
+                    entries_by_number=entries_by_number,
+                )
                 if source_number is None:
                     source_number = max(_next_mcp_source_number(entries), seed + 1)
                     full_text = _ref_text(item) or ""
@@ -888,7 +960,9 @@ def _annotate_mcp_results_for_citations(
                             "mcp: failed to append refs manifest entry: %s", exc
                         )
                         break
-                    numbers_by_key[key] = source_number
+                    numbers_by_key.setdefault(key, source_number)
+                    if link_key is not None:
+                        numbers_by_key[link_key] = source_number
                     entries.append(manifest_entry)
                     entries_by_number[source_number] = manifest_entry
                     highest_assigned = max(highest_assigned, source_number)
@@ -906,6 +980,8 @@ def _annotate_mcp_results_for_citations(
                     if stored is not None and new_url and not stored.get("url"):
                         stored["url"] = new_url
                         needs_rewrite = True
+                        if link_key is not None:
+                            numbers_by_key[link_key] = source_number
                     # ``text`` upgrades to the longer capture: the common turn
                     # is a search (small per-record JSON) followed by a full
                     # fetch of the same titled item — the later, richer text is
