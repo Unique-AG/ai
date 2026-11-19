@@ -106,6 +106,38 @@ def test_no_version_passes_false(
     assert upload.call_args.kwargs["versioning_enabled"] is False
 
 
+@pytest.mark.parametrize(
+    ("skip_ingestion", "expected"),
+    [(False, None), (True, {"uniqueIngestionMode": "SKIP_INGESTION"})],
+)
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_skip_ingestion_sets_the_ingestion_config(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+    skip_ingestion: bool,
+    expected: dict[str, str] | None,
+) -> None:
+    (tmp_path / "composer.html").write_text("<div></div>", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/X",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+        skip_ingestion=skip_ingestion,
+    )
+
+    assert upload.call_args.kwargs["ingestion_config"] == expected
+
+
 @patch("uqadm.kb.sync.upload_file")
 @patch("uqadm.kb.sync.Content")
 @patch("uqadm.kb.sync.Folder")

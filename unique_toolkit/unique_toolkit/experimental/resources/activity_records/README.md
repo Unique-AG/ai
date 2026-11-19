@@ -19,7 +19,9 @@ the interface may change.
 uv add 'unique-toolkit[activity-records]'
 ```
 
-The extra installs asyncpg and prometheus_client. Also install `opentelemetry-api`
+The extra installs asyncpg and prometheus_client. `AmqpPublisher` needs the
+`activity-records-amqp` extra on top (`uv add 'unique-toolkit[activity-records-amqp]'`),
+which adds aio-pika. Also install `opentelemetry-api`
 (or the `otel` extra) so events get their correlationId from the active trace.
 
 ## Migration
@@ -59,7 +61,22 @@ used for both, so it must not share a cache that other callers keep warm.
 Delivery is done by a sender the caller supplies (`PublisherLike`):
 `async publish(events: list[dict]) -> None`. Raise a `TimeoutError` subclass on
 timeout. Any other exception means rejected and the row backs off. The caller
-owns the sender's connection. The GraphQL sender lands with UN-29210.
+owns the sender's connection. `publishers.amqp_publisher.AmqpPublisher` (RabbitMQ) is the
+production sender until UN-29210 lands the GraphQL one. It reads `AMQP_URL`, or
+`AMQP_HOST` with `AMQP_USERNAME` and `AMQP_PASSWORD` (plus optional `AMQP_PORT`,
+`AMQP_VHOST`, `AMQP_HEARTBEAT_INTERVAL_IN_SECONDS`), and fails at `connect()` if none is
+set. Call `connect()` before `start()` and `close()` after `stop()`.
+`publishers.logging_publisher.LoggingPublisher` only logs events and deletes the rows
+without delivering them: local testing, never production.
+
+`AmqpPublisher` declares the ingest queue and its dead letter queue before the first
+publish, with the same arguments as the Node producer and consumer (durable; the ingest
+queue dead letters to the default exchange with the DLQ name as routing key). If a queue
+already exists with other arguments, RabbitMQ refuses and `publish` raises
+`ChannelPreconditionFailed`; the relay then keeps backing off every row until the queue
+is fixed. The queues are not bound to a custom `exchange`, so that case still needs its
+own bindings. A wrong broker host or password shows up as publish timeouts, not as a
+startup error.
 
 ## FastAPI
 Create one runtime and start and stop it in the FastAPI lifespan:

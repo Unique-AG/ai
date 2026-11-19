@@ -13,7 +13,7 @@ def test_package_imports_without_activity_records_dependencies() -> None:
 import importlib.abc
 import sys
 
-blocked = {"asyncpg", "prometheus_client"}
+blocked = {"aio_pika", "asyncpg", "prometheus_client"}
 
 class BlockedImports(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
@@ -41,14 +41,17 @@ enqueue(
         ),
     )
 )
-for module_name in (
-    "unique_toolkit.experimental.resources.activity_records.store",
-    "unique_toolkit.experimental.resources.activity_records.metrics",
-):
+installs = {
+    "store": "activity-records",
+    "metrics": "activity-records",
+    "publishers.amqp_publisher": "activity-records-amqp",
+}
+for name, extra in installs.items():
+    module_name = f"unique_toolkit.experimental.resources.activity_records.{name}"
     try:
         __import__(module_name)
     except ImportError as error:
-        assert "Install it with: uv add 'unique-toolkit[activity-records]'" in str(error)
+        assert f"Install it with: uv add 'unique-toolkit[{extra}]'" in str(error)
     else:
         raise AssertionError(f"{module_name} imported without its extra")
 print("ok")

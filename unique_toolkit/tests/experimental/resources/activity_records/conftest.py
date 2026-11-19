@@ -14,6 +14,10 @@ import pytest
 if TYPE_CHECKING:
     from prometheus_client import CollectorRegistry
 
+    from unique_toolkit.experimental.resources.feature_flags.schemas import (
+        FlagEvaluation,
+    )
+
 
 class Metrics:
     """Outbox metrics on an isolated registry, with a sample-value helper."""
@@ -88,3 +92,38 @@ def docker_tests() -> None:
         pytest.skip("Docker is not available: docker CLI was not found")
     if subprocess.run(["docker", "info"], capture_output=True).returncode != 0:
         pytest.skip("Docker is not available")
+
+
+@pytest.fixture(scope="module")
+def dsn(docker_tests: None) -> Iterator[str]:
+    import asyncpg
+
+    with docker_container("postgres:17-alpine", 5432, "POSTGRES_PASSWORD=pw") as (
+        _postgres,
+        port,
+    ):
+        url = f"postgresql://postgres:pw@127.0.0.1:{port}/postgres"
+        asyncio.run(wait_until(lambda: asyncpg.connect(url), 60))
+        yield url
+
+
+@pytest.fixture(scope="module")
+def rabbitmq(docker_tests: None) -> Iterator[tuple[str, str]]:
+    """The broker URL and its container name, for tests that pause or restart it."""
+    import aio_pika
+
+    with docker_container("rabbitmq:4", 5672) as (container, port):
+        url = f"amqp://guest:guest@127.0.0.1:{port}/%2F"
+        asyncio.run(wait_until(lambda: aio_pika.connect(url), 90))
+        yield url, container
+
+
+class Flags:
+    """A flag client that always answers with ``evaluation``."""
+
+    def __init__(self, evaluation: FlagEvaluation) -> None:
+        self.evaluation = evaluation
+
+    async def evaluate(self, _flag: str, *, company_id: str) -> FlagEvaluation:
+        assert company_id
+        return self.evaluation

@@ -28,6 +28,11 @@ class SourceSelectionMode(StrEnum):
     FROM_ORIGINAL_RESPONSE = "FROM_ORIGINAL_RESPONSE"
 
 
+# Applied to the raw answer in addition to the batch citation normalisation, so
+# citation formats outside the platform-resolved set can still be configured.
+DEFAULT_REFERENCE_PATTERN = r"[\[<]?source[\s_]?(\d+)[>\]]?"
+
+
 class HallucinationPromptsConfig(EvaluationMetricPromptsConfig):
     system_prompt_template: PromptType = Field(default_factory=system_prompt_loader)
     user_prompt_template: PromptType = Field(default_factory=user_prompt_loader)
@@ -37,7 +42,7 @@ class HallucinationConfig(EvaluationMetricConfig):
     source_selection_mode: SkipJsonSchema[SourceSelectionMode] = Field(
         default=SourceSelectionMode.FROM_ORIGINAL_RESPONSE
     )
-    reference_pattern: SkipJsonSchema[str] = Field(default=r"[\[<]?source(\d+)[>\]]?")
+    reference_pattern: SkipJsonSchema[str] = Field(default=DEFAULT_REFERENCE_PATTERN)
     enabled: SkipJsonSchema[bool] = False
     name: SkipJsonSchema[EvaluationMetricName] = EvaluationMetricName.HALLUCINATION
     language_model: LMI = LanguageModelInfo.from_name(

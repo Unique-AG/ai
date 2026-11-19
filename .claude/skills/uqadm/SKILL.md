@@ -51,9 +51,9 @@ uqadm env show prod                # resolved credentials for one slot
 | space | `ingestion-set ID FILE` | Replace `settings.ingestionConfig`. |
 | space | `delete ID [-y]` | Delete a space (**can't be undone**). |
 | kb | `mkdir PATH... [--no-inherit-access]` | Create folder paths. |
-| kb | `sync DIR --folder-path P [-r] [--no-version] [--no-inherit-access]` | Upload/replace files by name; never deletes remote files. |
+| kb | `sync DIR --folder-path P [-r] [--no-version] [--no-inherit-access] [--skip-ingestion]` | Upload/replace files by name; never deletes remote files. `--skip-ingestion` stores them as uploaded, not searchable. |
 | kb | `download DIR --folder-path P [-r]` | Download folder contents. |
-| kb | `rm --folder-path P [--file F] [-r] [-y]` | Delete folders/files (**can't be undone**). |
+| kb | `rm --folder-path P [--file F] [-r] [-y]` | Delete folders/files (**can't be undone**). `-r` empties the tree bottom-up; a non-empty folder needs it. |
 | kb | `access grant --folder-path P --group G --permission READ\|WRITE` | Grant folder access (applies to subfolders by default). |
 | kb | `ingestion get / set / model-replace` | Read/write a folder's ingestion config. |
 | chat | `send ID --text "..." [--chat-id C]`, `history CHAT_ID` | Talk to an assistant. |
@@ -81,6 +81,16 @@ then do the same for `uqadm kb ingestion model-replace --all ...`.
 **Sync docs to a new restricted folder**:
 `uqadm kb sync ./docs --folder-path /Private/New -r --no-inherit-access`, then
 `uqadm kb access grant --folder-path /Private/New --group G --permission READ`.
+
+**Publish code or skills as files** (read by a sandbox, not searched):
+`uqadm kb sync ./skills --folder-path /Skills -r --skip-ingestion`. Without the
+flag, a markup-heavy file with little readable text (an HTML page, for example)
+ends `FAILED_TOO_LESS_CONTENT` and can no longer be downloaded.
+
+**Remove a folder tree**: preview with `uqadm kb rm --folder-path /Dept/Old -r --dry-run`,
+then run it without `--dry-run`. It deletes each folder's files, then its
+subfolders, then the folder. On a non-zero exit, read stderr: it names what
+could not be deleted, and the parents of those items are still there.
 
 ## Safety rules
 

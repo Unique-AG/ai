@@ -572,6 +572,124 @@ def test_from_original_response_source_selection_mode__returns_empty_list__when_
 
 
 @pytest.mark.ai
+@pytest.mark.parametrize(
+    "original_text",
+    [
+        "Claim one [source 0] and claim two [source 2].",
+        "Claim one [source_0] and claim two [source_2].",
+        "Claim one [source0] and claim two <source 2>.",
+    ],
+)
+def test_from_original_response_source_selection_mode__matches_spaced_and_underscored_citations__with_default_pattern(
+    sample_chunks: List[ContentChunk],
+    original_text: str,
+) -> None:
+    """
+    Purpose: Verify the default pattern extracts citations written as [source N] or [source_N].
+    Why this matters: The chat backend resolves these forms into references, so the judge
+        must see the same chunks or it flags a sourced answer as high hallucination (UN-28753).
+    Setup summary: Default config pattern, text citing sources 0 and 2 in each form,
+        assert both chunks are returned in order.
+    """
+    # Arrange
+    pattern: str = HallucinationConfig().reference_pattern
+
+    # Act
+    result: List[ContentChunk] = _from_original_response_source_selection_mode(
+        original_text, sample_chunks, pattern
+    )
+
+    # Assert
+    assert result == [sample_chunks[0], sample_chunks[2]]
+
+
+@pytest.mark.ai
+def test_from_original_response_source_selection_mode__logs_warning__when_chunks_exist_but_none_cited(
+    sample_chunks: List[ContentChunk],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify a warning is logged when chunks are available but no citation matches.
+    Why this matters: An unmatched citation format silently sends the judge no references;
+        the warning makes that failure visible in logs.
+    Setup summary: Text with an unsupported citation form, assert empty result and warning.
+    """
+    # Arrange
+    original_text: str = "Claim [ref 1]."
+    pattern: str = HallucinationConfig().reference_pattern
+
+    # Act
+    with caplog.at_level("WARNING"):
+        result: List[ContentChunk] = _from_original_response_source_selection_mode(
+            original_text, sample_chunks, pattern
+        )
+
+    # Assert
+    assert result == []
+    assert "No source citations found" in caplog.text
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "original_text",
+    [
+        "Claim one [Source 0] and claim two [SOURCE 2].",
+        "Claim one [<source 0>] and claim two [<source2>].",
+        "Claim one [0] and claim two [2].",
+        "Claims [source: 0, 2].",
+        "Claims [0, 2].",
+        "Claim one [**0**] and claim two [**2**].",
+        'Claim one source_number="0" and claim two source_number="2".',
+        "Claim one source n°0 and claim two source n°2.",
+    ],
+)
+def test_from_original_response_source_selection_mode__matches_all_platform_normalized_citations(
+    sample_chunks: List[ContentChunk],
+    original_text: str,
+) -> None:
+    """
+    Purpose: Verify every citation format the chat backend turns into a reference is extracted.
+    Why this matters: Running the answer through BATCH_NORMALIZATION_PATTERNS keeps the judge's
+        context in line with the references shown in the UI (UN-28753).
+    Setup summary: Default config pattern, text citing sources 0 and 2 in each normalised form,
+        assert both chunks are returned in order.
+    """
+    # Arrange
+    pattern: str = HallucinationConfig().reference_pattern
+
+    # Act
+    result: List[ContentChunk] = _from_original_response_source_selection_mode(
+        original_text, sample_chunks, pattern
+    )
+
+    # Assert
+    assert result == [sample_chunks[0], sample_chunks[2]]
+
+
+@pytest.mark.ai
+def test_from_original_response_source_selection_mode__matches_legacy_pattern__on_spaced_citations(
+    sample_chunks: List[ContentChunk],
+) -> None:
+    """
+    Purpose: Verify configs that still carry the pre-UN-28753 pattern also see [source N] citations.
+    Why this matters: reference_pattern can be persisted in space configs; normalisation must fix
+        the mismatch without requiring a config migration.
+    Setup summary: Legacy pattern without separator support, spaced citations, assert both found.
+    """
+    # Arrange
+    original_text: str = "Claim one [source 0] and claim two [source 2]."
+    legacy_pattern: str = r"[\[<]?source(\d+)[>\]]?"
+
+    # Act
+    result: List[ContentChunk] = _from_original_response_source_selection_mode(
+        original_text, sample_chunks, legacy_pattern
+    )
+
+    # Assert
+    assert result == [sample_chunks[0], sample_chunks[2]]
+
+
+@pytest.mark.ai
 def test_from_original_response_source_selection_mode__works_with_custom_regex_pattern(
     sample_chunks: List[ContentChunk],
 ) -> None:

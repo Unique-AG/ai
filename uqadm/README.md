@@ -587,6 +587,7 @@ uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
 uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
 uqadm kb sync ./docs --scope-id scope_abc --no-version
 uqadm kb sync ./docs --folder-path /Private/New -r --no-inherit-access
+uqadm kb sync ./skills --folder-path /Skills -r --skip-ingestion
 ```
 
 | Option | Description |
@@ -596,6 +597,7 @@ uqadm kb sync ./docs --folder-path /Private/New -r --no-inherit-access
 | `-r`, `--recursive` | Recurse into subdirectories, mirroring them as child KB folders. |
 | `--dry-run` | Show planned uploads without writing anything. |
 | `--no-version` | Upload without archiving prior blobs. |
+| `--skip-ingestion` | Store files as uploaded, without ingesting them: no text extraction, no chunks in the vector store. For code and skills, which are read as files, not searched. A markup-heavy file with little readable text otherwise ends ``FAILED_TOO_LESS_CONTENT`` and can no longer be downloaded. |
 | `--inherit-access / --no-inherit-access` | Whether folders **created** by sync (including recursive child folders) inherit parent access (default: inherit). Existing folders are never changed. |
 | `--slot SLOT` | Credential slot. |
 
@@ -634,6 +636,12 @@ files are deleted; otherwise the whole folder is removed. Deleting a **non-empty
 folder requires ``--recursive``** (it refuses otherwise). Unless ``--yes`` is
 given you are **prompted to confirm**; ``--dry-run`` prints the plan without
 deleting anything.
+
+With ``--recursive`` the tree is emptied **bottom-up**: each folder's files,
+then its subfolders, then the folder itself. (The platform's own recursive
+delete refuses a folder that still holds files, and fails on one with
+subfolders.) A file or folder that cannot be deleted is reported, its parent
+folders are kept, and the command exits non-zero.
 
 ```bash
 uqadm kb rm --folder-path /Dept/HR --file old.pdf
