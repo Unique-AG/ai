@@ -1021,6 +1021,7 @@ async def test_flag_off__records_nothing(
     flag_client.is_enabled.assert_awaited_once_with(
         "FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965",
         company_id="company-1",
+        user_id="user-1",
     )
 
 

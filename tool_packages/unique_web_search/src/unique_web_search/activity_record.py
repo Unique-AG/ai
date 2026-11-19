@@ -151,7 +151,9 @@ async def start(
         # A flag read that raises lands in the except below and records nothing.
         # On outages the client itself falls back to its stale cache or env default.
         if not await get_feature_flag_client().is_enabled(
-            ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG, company_id=tool.company_id
+            ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG,
+            company_id=tool.company_id,
+            user_id=tool.event.user_id,
         ):
             return None
         payload = tool.event.payload
