@@ -22,6 +22,10 @@ def _no_folders() -> dict[str, object]:
     return {"folderInfos": [], "totalCount": 0}
 
 
+def _deleted() -> dict[str, object]:
+    return {"successFolders": [], "failedFolders": []}
+
+
 @patch("uqadm.kb.rm.Content")
 @patch("uqadm.kb.rm.Folder")
 def test_recursive_folder_delete(
@@ -34,6 +38,7 @@ def test_recursive_folder_delete(
         "totalCount": 1,
     }
     folder.get_infos.return_value = _no_folders()
+    folder.delete.return_value = _deleted()
 
     cmd_rm(
         _cfg(),
@@ -88,6 +93,7 @@ def test_empty_folder_delete_without_recursive(
     folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_content()
     folder.get_infos.return_value = _no_folders()
+    folder.delete.return_value = _deleted()
 
     cmd_rm(
         _cfg(),
@@ -390,6 +396,7 @@ def test_scope_id_entry_point(
 ) -> None:
     content.get_infos.return_value = _no_content()
     folder.get_infos.return_value = _no_folders()
+    folder.delete.return_value = _deleted()
 
     cmd_rm(
         _cfg(),
@@ -567,6 +574,7 @@ def test_confirmation_accepted_deletes(
     folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_content()
     folder.get_infos.return_value = _no_folders()
+    folder.delete.return_value = _deleted()
 
     cmd_rm(
         _cfg(),
@@ -688,6 +696,71 @@ def test_a_refusal_in_failed_folders_exits_1(
     captured = capsys.readouterr()
     assert "Folder is not empty." in captured.err
     assert "deleted folder" not in captured.out
+
+
+@patch("uqadm.kb.rm.echo_credential_debug_if_auth_failure")
+@patch("uqadm.kb.rm.Content")
+@patch("uqadm.kb.rm.Folder")
+def test_a_folder_delete_that_raises_without_a_message_exits_1(
+    folder: MagicMock,
+    content: MagicMock,
+    debug: MagicMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+    content.get_infos.return_value = _no_content()
+    folder.get_infos.return_value = _no_folders()
+    folder.delete.side_effect = RuntimeError()
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_rm(
+            _cfg(),
+            folder_path="/X",
+            scope_id=None,
+            files=(),
+            recursive=True,
+            dry_run=False,
+            assume_yes=True,
+        )
+
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "RuntimeError" in captured.err
+    assert "deleted folder" not in captured.out
+
+
+@patch("uqadm.kb.rm.Content")
+@patch("uqadm.kb.rm.Folder")
+def test_without_recursive_a_file_added_after_the_check_is_kept(
+    folder: MagicMock,
+    content: MagicMock,
+) -> None:
+    # Empty when inspected; a file lands in it before the delete.
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+    content.get_infos.side_effect = [
+        _no_content(),
+        {"contentInfos": [{"id": "c_late", "key": "late.txt"}], "totalCount": 1},
+    ]
+    folder.get_infos.return_value = _no_folders()
+    folder.delete.return_value = {
+        "successFolders": [],
+        "failedFolders": [{"id": "scope1", "failReason": "Folder is not empty."}],
+    }
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_rm(
+            _cfg(),
+            folder_path="/X",
+            scope_id=None,
+            files=(),
+            recursive=False,
+            dry_run=False,
+            assume_yes=True,
+        )
+
+    assert exc.value.code == 1
+    content.delete.assert_not_called()
+    folder.delete.assert_called_once_with("u1", "c1", scopeId="scope1")
 
 
 @patch("uqadm.kb.rm.echo_credential_debug_if_auth_failure")

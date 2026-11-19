@@ -178,6 +178,25 @@ def _delete_empty_folder(cfg: Config, scope_id: str) -> str | None:
     return None
 
 
+def _delete_folder(
+    cfg: Config, scope_id: str, label: str, counts: dict[str, int]
+) -> bool:
+    """Delete one folder and nothing under it; count and report the outcome."""
+    try:
+        refusal = _delete_empty_folder(cfg, scope_id)
+    except Exception as exc:
+        # An exception may carry no message; it is still a failure.
+        refusal = str(exc) or type(exc).__name__
+        echo_credential_debug_if_auth_failure(cfg, exc, label="kb rm")
+    if refusal is not None:
+        typer.echo(f"failed to delete folder {label!r}: {refusal}", err=True)
+        counts["failed"] += 1
+        return False
+    typer.echo(f"deleted folder: {label}")
+    counts["folders"] += 1
+    return True
+
+
 def _delete_tree(
     cfg: Config, scope_id: str, label: str, counts: dict[str, int]
 ) -> bool:
@@ -211,17 +230,7 @@ def _delete_tree(
             f"kept folder: {label} (something under it was not deleted)", err=True
         )
         return False
-    try:
-        refusal = _delete_empty_folder(cfg, scope_id)
-    except Exception as exc:
-        refusal = str(exc)
-    if refusal:
-        typer.echo(f"failed to delete folder {label!r}: {refusal}", err=True)
-        counts["failed"] += 1
-        return False
-    typer.echo(f"deleted folder: {label}")
-    counts["folders"] += 1
-    return True
+    return _delete_folder(cfg, scope_id, label, counts)
 
 
 def _rm_folder(
@@ -286,7 +295,12 @@ def _rm_folder(
 
     counts = {"deleted": 0, "folders": 0, "failed": 0}
     try:
-        _delete_tree(cfg, scope_id, target_label, counts)
+        if recursive:
+            _delete_tree(cfg, scope_id, target_label, counts)
+        else:
+            # Only the folder itself: anything added to it since the emptiness
+            # check above stays, and the platform refuses the delete.
+            _delete_folder(cfg, scope_id, target_label, counts)
     except Exception as exc:
         typer.echo(f"failed to delete folder {target_label!r}: {exc}", err=True)
         echo_credential_debug_if_auth_failure(cfg, exc, label="kb rm")
