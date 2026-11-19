@@ -500,7 +500,7 @@ def _text_outside_records(texts: list[str], record_texts: set[str]) -> str | Non
 
 
 def _block_outside_records(text: str, record_texts: set[str]) -> str | None:
-    if text in record_texts:
+    if any(text.strip() in record_text for record_text in record_texts):
         return None
     parsed = loads_embedded_json(text)
     if parsed is None:
