@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, Mock
 
+import httpx
 import pytest
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import SearchEngineType
@@ -1277,3 +1278,69 @@ async def test_proxy_parse_failure__counts_as_a_response(
     assert row["responseReceived"] is True
     assert row["egress"]["viaSearchProxy"] is True
     assert row["error"] == "ValueError"
+
+
+def _proxy_client_over(mocker: Any, handler: Any) -> None:
+    from unique_web_search.services.proxy import bridge
+
+    real = bridge.UniqueSearchProxyClient
+    httpx_logger = logging.getLogger("httpx")
+    mocker.patch.object(httpx_logger, "filters", list(httpx_logger.filters))
+    mocker.patch.object(bridge.env_settings, "search_proxy_base_url", "http://proxy")
+    mocker.patch.object(
+        bridge,
+        "UniqueSearchProxyClient",
+        lambda **kwargs: real(
+            http_client=httpx.AsyncClient(
+                base_url="http://proxy", transport=httpx.MockTransport(handler)
+            ),
+            **kwargs,
+        ),
+    )
+
+
+async def _proxy_search_in_record() -> None:
+    from unique_web_search.services.proxy import open_search_proxy_client
+
+    with activity_record.search_request(
+        "news", params=None, via_search_proxy=True, endpoint="http://proxy"
+    ):
+        async with open_search_proxy_client(timeout=5) as client:
+            await client.search.search(query="news", engine="google")
+
+
+@pytest.mark.asyncio
+async def test_proxy_error_status__counts_as_a_response(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    _proxy_client_over(mocker, lambda request: httpx.Response(429, json={}))
+    token = activity_record._current_record.set(_record("google"))
+    try:
+        with pytest.raises(Exception) as raised:
+            await _proxy_search_in_record()
+    finally:
+        activity_record._current_record.reset(token)
+
+    [row] = _sent(enqueue_mock)
+    assert row["responseReceived"] is True
+    assert row["error"] == type(raised.value).__name__
+
+
+@pytest.mark.asyncio
+async def test_proxy_connection_failure__is_not_a_response(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    _proxy_client_over(mocker, refuse)
+    token = activity_record._current_record.set(_record("google"))
+    try:
+        with pytest.raises(httpx.ConnectError):
+            await _proxy_search_in_record()
+    finally:
+        activity_record._current_record.reset(token)
+
+    [row] = _sent(enqueue_mock)
+    assert row["responseReceived"] is False
+    assert row["error"] == "ConnectError"
