@@ -5,6 +5,7 @@ The full-loop write slice over the public magic-table API (``2023-12-06``):
 - ``create-sheet`` — create an empty sheet in a space.
 - ``import`` — add questions/sources; adding new questions triggers the agent run.
 - ``rerun-row`` — re-run the agent for a single row.
+- ``delete-row`` — permanently delete one content row by its row id.
 - ``set-cell`` — write text into one cell (no run).
 - ``export`` — generate export artifacts (report / question export) and list them.
 
@@ -619,6 +620,90 @@ def cmd_rerun_row(
         return asyncio.run(_run())
     except UniqueError as exc:
         return _error(exc)
+
+
+def _invalid_row_id(row_id: str) -> str | None:
+    """Return a CLI error when *row_id* cannot be one path segment.
+
+    ``DELETE /magic-table/{tableId}/row/{rowId}`` interpolates the id into the
+    URL. A slash or query marker would address a different route. Any
+    whitespace, including a space in the middle of the id, is rejected here
+    so the HTTP client never sees it. ``.`` and ``..`` are rejected because the
+    HTTP client resolves them and the request would leave the row route. A
+    blank id names nothing. A digit-only value is a row order, which is a
+    different delete and is not this command.
+
+    Args:
+        row_id (str): Candidate row id from the command line.
+
+    Returns:
+        str | None: An ``agentic-table:`` error line, or ``None`` when the id
+        can be sent.
+    """
+    if row_id.strip() == "":
+        return f"{AGENTIC_TABLE_ERROR_PREFIX} row id is required"
+    if row_id in {".", ".."}:
+        return (
+            f"{AGENTIC_TABLE_ERROR_PREFIX} delete-row takes a row id, not '.' or '..'"
+        )
+    if any(char.isspace() for char in row_id) or any(char in row_id for char in "/?#"):
+        return (
+            f"{AGENTIC_TABLE_ERROR_PREFIX} row id must be a single id with no "
+            "whitespace, '/', '?', or '#'"
+        )
+    if row_id.isdigit():
+        return (
+            f"{AGENTIC_TABLE_ERROR_PREFIX} delete-row takes a row id "
+            "(for example mt_row_...), not a row order. Read rowId from "
+            "get-cell --json or get-sheet --cells --json"
+        )
+    return None
+
+
+def cmd_delete_row(
+    state: ShellState,
+    table_id: str,
+    row_id: str,
+    *,
+    output_json: bool = False,
+) -> str:
+    """Permanently delete one content row (``DELETE .../row/{rowId}``).
+
+    ``row_id`` is the ``rowId`` on a cell from ``get-sheet --cells --json`` or
+    ``get-cell --json``, not the row order ``get-cell --row`` prints. The
+    header row, a locked row, and a row in a final review status are rejected
+    by the API. A caller who is not a member of the sheet is rejected. A row
+    on a completed sheet can be deleted; the sheet status is then recomputed.
+    One call deletes one row. The delete is permanent.
+
+    Args:
+        state (ShellState): CLI session, including the caller identity.
+        table_id (str): Agentic Table sheet id.
+        row_id (str): Row id to delete.
+        output_json (bool): When true, print the raw action JSON.
+
+    Returns:
+        str: Formatted result, or an ``agentic-table:`` error line.
+    """
+    invalid = _invalid_row_id(row_id)
+    if invalid is not None:
+        return invalid
+    try:
+        result = asyncio.run(
+            AgenticTable.delete_row(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                tableId=table_id,
+                rowId=row_id,
+            )
+        )
+    except UniqueError as exc:
+        return _error(exc)
+    if not result.get("status"):
+        return _rejected(result, action="delete")
+    if output_json:
+        return json.dumps({"result": result}, indent=2, default=str)
+    return format_agentic_table_action_result(result, action="delete")
 
 
 def cmd_export(

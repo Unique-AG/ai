@@ -1,5 +1,8 @@
+import html
 import logging
-from typing import override
+import re
+from collections.abc import Mapping
+from typing import Any, override
 from urllib.parse import urlparse
 
 from httpx import Response
@@ -21,6 +24,10 @@ _LOGGER = logging.getLogger(__name__)
 
 # Pagination size fixed to 10 because of the Google Search API limit
 PAGINATION_SIZE = 10
+
+_DESCRIPTION_KEYS = ("og:description", "twitter:description")
+_PLACEHOLDERS = frozenset({"null", "none"})
+_WHITESPACE = re.compile(r"\s+")
 
 
 @register_search_engine(
@@ -132,7 +139,7 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
         links = [
             WebSearchResult(
                 url=item["link"],
-                snippet=item["snippet"],
+                snippet=_snippet_with_page_description(item),
                 title=item.get("title", item.get("htmlTitle", "")),
             )
             for item in results["items"]
@@ -163,3 +170,30 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
             search_results.extend(self._extract_urls(response=response))
 
         return search_results
+
+
+def _snippet_with_page_description(item: Mapping[str, Any]) -> str:
+    """Same rules as the search proxy's ``build_google_snippet``."""
+    snippet: str = item["snippet"]
+    description = _page_description(item)
+    if not description:
+        return snippet
+    return f"{snippet}\n{description}" if snippet else description
+
+
+def _page_description(item: Mapping[str, Any]) -> str:
+    pagemap = item.get("pagemap")
+    metatags = pagemap.get("metatags") if isinstance(pagemap, Mapping) else None
+    tags = metatags[0] if isinstance(metatags, list) and metatags else None
+    if not isinstance(tags, Mapping):
+        return ""
+    for key in _DESCRIPTION_KEYS:
+        value = tags.get(key)
+        text = _normalize(value) if isinstance(value, str) else ""
+        if text and text.rstrip(".").casefold() not in _PLACEHOLDERS:
+            return text
+    return ""
+
+
+def _normalize(text: str) -> str:
+    return _WHITESPACE.sub(" ", html.unescape(text)).strip()

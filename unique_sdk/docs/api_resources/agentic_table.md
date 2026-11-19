@@ -382,6 +382,41 @@ Work with intelligent tables that support:
     )
     ```
 
+??? example "`unique_sdk.AgenticTable.delete_row` - Permanently delete one row by id"
+
+    Permanently delete one content row. `rowId` is the id on a cell from `get_sheet_data` with `includeCells=True`, or from `get_cell`, not the row order. The header is `rowOrder` 0, and `delete_row` rejects it, so the example uses the first cell whose `rowOrder` is at least 1. A locked row and a row in a final review status are also rejected. A caller who is not a member of the sheet is rejected. A row on a completed sheet can be deleted; the sheet status is then recomputed. A missing sheet or row is not found.
+
+    **Parameters:**
+
+    - `tableId` (str, required) - Table/sheet ID
+    - `rowId` (str, required) - Row id (`mt_row_...`), not the row order
+
+    **Returns:**
+
+    Returns a `{object, id, status, message?}` result. `object` is `magic-table-action`. On success `id` is the sheet id.
+
+    **Example:**
+
+    ```python
+    sheet = await unique_sdk.AgenticTable.get_sheet_data(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        includeCells=True,
+    )
+    content_cell = next(
+        cell for cell in sheet["magicTableCells"] if cell["rowOrder"] >= 1
+    )
+    row_id = content_cell["rowId"]
+
+    await unique_sdk.AgenticTable.delete_row(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        rowId=row_id,
+    )
+    ```
+
 ## Bulk Operations
 
 ??? example "`unique_sdk.AgenticTable.bulk_update_status` - Bulk update status"

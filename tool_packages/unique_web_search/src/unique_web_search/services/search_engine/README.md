@@ -90,6 +90,8 @@ Config: `unique_search_proxy_core.search_engines.google.schema.GoogleConfig`
 | `safe` | `active` / `off` (not exposable) |
 | `gl`, `hl`, `lr`, `date_restrict`, `exact_terms`, `exclude_terms`, `file_type`, `site_search`, `site_search_filter`, `sort` | `ExposableParam` |
 
+Each result's snippet is Google's snippet followed, on its own line, by the page's own description from `pagemap.metatags` (`og:description`, else `twitter:description`). The description is left out when it is a placeholder such as `null`. The search proxy builds the snippet the same way.
+
 ```bash
 GOOGLE_SEARCH_API_KEY=...
 GOOGLE_SEARCH_ENGINE_ID=...

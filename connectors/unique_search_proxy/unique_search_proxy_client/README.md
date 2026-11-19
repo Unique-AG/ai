@@ -163,6 +163,8 @@ Response includes **curated** normalised results and opaque **raw** provider pay
 }
 ```
 
+For Google, `snippet` is Google's snippet followed, on its own line, by the page's own description from `pagemap.metatags` (`og:description`, else `twitter:description`), unless that is a placeholder such as `null`. For Brave, it is the description followed by the extra snippets, one per line.
+
 Customized API endpoints must return a JSON object with a `results` array:
 
 ```json

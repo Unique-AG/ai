@@ -491,6 +491,10 @@ def _prepare_all_completions_params_util(
             options.pop("reasoning_effort", None)
         options = _translate_max_tokens_option(options, model_info)
 
+    (model_info or LanguageModelInfo.from_name(model_name)).drop_unsupported_options(
+        options
+    )
+
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
         messages_dict,
@@ -688,6 +692,7 @@ async def stream_complete_with_references_openai(
         stream_kwargs["tool_choice"] = tool_choice
     if tools_:
         stream_kwargs["tools"] = tools_
+    LanguageModelInfo.from_name(model_name_).drop_unsupported_options(stream_kwargs)
 
     full_text: str = start_text or ""
     tool_calls_fragments: dict[int, dict[str, Any]] = {}

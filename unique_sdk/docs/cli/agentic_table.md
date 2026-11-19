@@ -3,7 +3,7 @@
 !!! warning "Experimental"
     The CLI is experimental and its interface may change in future releases.
 
-Work with Agentic Table (magic table) sheets through the public magic-table API. The **read** commands (`get-sheet`, `get-cell`, `cell-history`, `list-exports`) are **Tier 0**: they never write and never require confirmation. The **write** commands (`create-sheet`, `import`, `rerun-row`, `set-cell`, `export`) create a sheet, populate it, re-answer a row, write one cell, or export. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as `agentic-table: permission denied`.
+Work with Agentic Table (magic table) sheets through the public magic-table API. The **read** commands (`get-sheet`, `get-cell`, `cell-history`, `list-exports`) are **Tier 0**: they never write and never require confirmation. The **write** commands (`create-sheet`, `import`, `rerun-row`, `delete-row`, `set-cell`, `export`) create a sheet, populate it, re-answer a row, delete one content row, write one cell, or export. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as `agentic-table: permission denied`.
 
 ## agentic-table get-sheet
 
@@ -65,7 +65,9 @@ agentic-table get-cell <table_id> --row <N> --col <N> [--json]
 |--------|-------------|
 | `--row` | Row order (0-based, required) |
 | `--col` | Column order (0-based, required) |
-| `--json` | Print the raw cell JSON |
+| `--json` | Print the raw cell JSON, including `rowId` when the API returned it |
+
+`delete-row` takes that `rowId`, not `--row`. The formatted view prints `Row id` when the cell record includes it.
 
 **Example:**
 
@@ -277,6 +279,42 @@ Action:  rerun
 Result:  OK
 Detail:  accepted
 Row 4 rerun finished (state: IDLE).
+```
+
+---
+
+## agentic-table delete-row
+
+Permanently delete one content row by its row id. This is the same delete the sheet UI performs: the row is removed. Confirm with `get-sheet <table_id> --cells --json`. The row is gone when the returned cells include `rowId` and none of them is the deleted id. Cells that omit `rowId` leave the check inconclusive. A summary-only `get-sheet` does not include cells.
+
+`<row_id>` is the `rowId` on a cell (`mt_row_...`), not the row order `get-cell --row` and `rerun-row` use. Row order shifts when a row above it is removed, so it is not a safe address for a delete. Read the id with `get-cell --json` or `get-sheet --cells --json` (the formatted cell view prints `Row id` when the API returned it).
+
+One call deletes one row. There is no batch form. The header row, a locked row, and a row in a final review status are rejected with 400. A caller who is not a member of the sheet is also rejected with 400 (that message is passed through; a 403 is still `agentic-table: permission denied`). A missing sheet or row is 404. A row on a completed sheet can be deleted, and the sheet status is then recomputed.
+
+A digit-only argument is refused locally: it is a row order, and this command will not send it.
+
+**Synopsis:**
+
+```
+agentic-table delete-row <table_id> <row_id> [--json]
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Print the raw action JSON |
+
+**Example:**
+
+```bash
+unique-cli agentic-table delete-row mt_abc123 mt_row_e4d94icb5mtj99rmu2efhyel
+```
+
+```
+Action:  delete
+Result:  OK
+Detail:  Agentic Table Row deleted successfully
 ```
 
 ---

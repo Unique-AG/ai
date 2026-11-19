@@ -132,6 +132,37 @@ class TestGoogleSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_search__appends_page_description_to_curated_snippet__when_pagemap_has_one(
+        self, google_env: None
+    ) -> None:
+        """
+        Purpose: The curated snippet carries the page's og:description; raw is unchanged.
+        Why this matters: Callers only read curated results, so the description must
+            reach them there to help when the page itself can't be crawled.
+        Setup summary: Mock Google page with one pagemap item and one plain item;
+            assert the first snippet gains the description and the second is untouched.
+        """
+        payload = _google_items_payload()
+        payload["items"][0]["pagemap"] = {
+            "metatags": [{"og:description": "Example page &amp; its description."}]
+        }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            raw, curated = await GoogleSearchService(http_client=client).search(
+                _google_request(fetch_size=5),
+            )
+
+        assert curated.results[0].snippet == (
+            "An example snippet\nExample page & its description."
+        )
+        assert curated.results[1].snippet == "Second result"
+        assert raw.pages[0]["items"][0]["snippet"] == "An example snippet"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_pagination_fetches_multiple_pages(self, google_env: None) -> None:
         pages: list[int] = []
 

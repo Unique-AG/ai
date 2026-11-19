@@ -402,6 +402,27 @@ def format_agentic_table_sheet(
 
     cells = sheet.get("magicTableCells") or []
     if include_cells and cells:
+        # One id per row. The same id is on every cell of that row, and
+        # delete-row removes the whole row, so repeating it per cell invites
+        # a second delete of an id that is already gone.
+        row_ids: list[tuple[str, str]] = []
+        seen_orders: set[str] = set()
+        for cell in cells:
+            row_id = cell.get("rowId")
+            if not row_id:
+                continue
+            row_order = str(cell.get("rowOrder", "?"))
+            if row_order in seen_orders:
+                continue
+            seen_orders.add(row_order)
+            row_ids.append((row_order, str(row_id)))
+        if row_ids:
+            lines.append("")
+            lines.append("Row ids:")
+            id_rows: list[list[str]] = [["ROW", "ROW_ID"]]
+            id_rows.extend([list(pair) for pair in row_ids])
+            lines.extend(_pad_columns(id_rows))
+
         lines.append("")
         lines.append(f"Cells ({len(cells)}):")
         cell_rows: list[list[str]] = [["ROW", "COL", "TEXT"]]
@@ -423,9 +444,16 @@ def format_agentic_table_cell(cell: AgenticTableCell) -> str:
     rows = [
         ["Sheet:", cell.get("sheetId", "?")],
         ["Row:", str(cell.get("rowOrder", "?"))],
-        ["Column:", str(cell.get("columnOrder", "?"))],
-        ["Locked:", "yes" if cell.get("rowLocked") else "no"],
     ]
+    row_id = cell.get("rowId")
+    if row_id:
+        rows.append(["Row id:", row_id])
+    rows.extend(
+        [
+            ["Column:", str(cell.get("columnOrder", "?"))],
+            ["Locked:", "yes" if cell.get("rowLocked") else "no"],
+        ]
+    )
     lines = _pad_columns(rows)
     lines.append("")
     lines.append("Text:")

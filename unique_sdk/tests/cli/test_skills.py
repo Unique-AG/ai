@@ -97,6 +97,7 @@ def test_agentic_table_skill_documents_every_command() -> None:
         "agentic-table create-sheet",
         "agentic-table import",
         "agentic-table rerun-row",
+        "agentic-table delete-row",
         "agentic-table set-cell",
         "agentic-table export",
     ):
@@ -119,6 +120,18 @@ def test_agentic_table_skill_documents_nothing_that_is_not_a_command() -> None:
     assert isinstance(group, click.Group)
     unknown = documented - set(group.commands)
     assert not unknown, f"skill documents commands the CLI does not have: {unknown}"
+
+
+def test_agentic_table_skill_requires_confirmation_before_delete() -> None:
+    """Purpose: delete-row tells the agent to confirm before it runs.
+    Why this matters: The delete is permanent, and a destructive command
+    needs a confirmation elicitation.
+    Setup summary: The skill text is read from the package.
+    """
+    text = _read_skill("unique-cli-agentic-table")
+    assert "confirmation elicitation" in text
+    assert "empty-properties schema" in text
+    assert "`ACCEPTED`" in text
 
 
 def test_agentic_table_skill_teaches_permission_handling() -> None:
