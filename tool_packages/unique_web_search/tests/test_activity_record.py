@@ -112,6 +112,14 @@ def _tool(
     return tool
 
 
+@pytest.fixture(autouse=True)
+def legacy_search_path(mocker: Any) -> None:
+    mocker.patch(
+        "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+        False,
+    )
+
+
 @pytest.fixture
 def flag_client(mocker: Any) -> Mock:
     client = Mock(is_enabled=AsyncMock(return_value=True))
@@ -430,7 +438,7 @@ async def test_failed__when_cancelled_before_any_query__records_a_call_row(
         run_executor=blocked_executor,
     )
     task = asyncio.create_task(_run(tool))
-    await started.wait()
+    await asyncio.wait_for(started.wait(), timeout=5)
 
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -527,7 +535,7 @@ async def test_failed__when_cancelled_mid_query__the_query_row_carries_the_error
 
     tool = _tool(mocker, engine=BlockedEngine(), elicitation=_elicitation(mocker, None))
     task = asyncio.create_task(_run(tool))
-    await started.wait()
+    await asyncio.wait_for(started.wait(), timeout=5)
 
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
