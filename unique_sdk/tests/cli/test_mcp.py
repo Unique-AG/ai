@@ -477,18 +477,15 @@ def test_json_in_text_prefers_web_link_over_earlier_join_url(tmp_path: Path) -> 
     assert [r["url"] for r in refs] == ["https://outlook.office365.com/owa/?itemid=E1"]
 
 
-def test_json_in_text_empty_web_link_falls_back_to_download_link(
-    tmp_path: Path,
-) -> None:
+def test_json_in_text_empty_web_link_leaves_record_unlinked(tmp_path: Path) -> None:
     # The mailbox could not be resolved, so the server sent no Outlook link.
-    # Another URL on the record is not taken, but its download link is.
+    # The internal content URL beside it must not become the record's link.
     body = json.dumps(
         {
             "results": [
                 {
                     "title": "Budget Q3.eml",
                     "outlookWebLink": "",
-                    "joinUrl": "https://teams.microsoft.com/l/meetup-join/xyz",
                     "uniqueContentUrl": "https://ingestion.example.com/read/cont_1",
                 }
             ]
@@ -498,28 +495,8 @@ def test_json_in_text_empty_web_link_falls_back_to_download_link(
     _run("mcp__outlook__search_emails", response)
 
     refs = _lines(tmp_path, _REFS_MANIFEST)
-    assert [(r["title"], r["url"]) for r in refs] == [
-        ("Budget Q3.eml", "https://ingestion.example.com/read/cont_1")
-    ]
-
-
-def test_json_in_text_download_link_comes_after_other_urls(tmp_path: Path) -> None:
-    body = json.dumps(
-        {
-            "items": [
-                {
-                    "name": "Q3 Report.docx",
-                    "@microsoft.graph.downloadUrl": "https://contoso.sharepoint.com/dl",
-                    "previewUrl": "https://contoso.sharepoint.com/preview",
-                }
-            ]
-        }
-    )
-    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
-    _run("mcp__office__sharepoint_list_files", response)
-
-    refs = _lines(tmp_path, _REFS_MANIFEST)
-    assert [r["url"] for r in refs] == ["https://contoso.sharepoint.com/preview"]
+    assert [r["title"] for r in refs] == ["Budget Q3.eml"]
+    assert "url" not in refs[0]
 
 
 def test_json_in_text_null_web_link_does_not_fall_back_to_join_url(
