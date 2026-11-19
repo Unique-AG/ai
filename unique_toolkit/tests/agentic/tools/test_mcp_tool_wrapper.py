@@ -1578,6 +1578,24 @@ class TestMCPToolWrapperRecordReferences:
         assert references[0].url is None
 
     @pytest.mark.ai
+    def test_extract_record_references__does_not_repeat_untitled_blocks_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        result = {
+            "content": [
+                {"type": "text", "text": "Mailbox is 80% full."},
+                {"type": "text", "text": "Archive old items."},
+            ]
+        }
+
+        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [c.text for c in chunks] == [
+            "Mailbox is 80% full.\n\nArchive old items."
+        ]
+
+    @pytest.mark.ai
     def test_extract_record_references__reads_nodes_after_a_preamble_AI(
         self,
         mcp_tool_wrapper: MCPToolWrapper,
