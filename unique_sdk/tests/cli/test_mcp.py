@@ -259,7 +259,9 @@ def test_json_in_text_cites_every_titled_list(tmp_path: Path) -> None:
             "sections": [
                 {"name": "Minutes", "web_url": "https://contoso.sharepoint.com/s1"}
             ],
-            "section_groups": [{"name": "Archive", "uri": "onenote:///groups/g1"}],
+            "section_groups": [
+                {"name": "Archive", "web_url": "https://contoso.sharepoint.com/g1"}
+            ],
         }
     )
     response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
@@ -268,7 +270,70 @@ def test_json_in_text_cites_every_titled_list(tmp_path: Path) -> None:
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert [(r["title"], r.get("url")) for r in refs] == [
         ("Minutes", "https://contoso.sharepoint.com/s1"),
-        ("Archive", None),
+        ("Archive", "https://contoso.sharepoint.com/g1"),
+    ]
+
+
+def test_json_in_text_titled_list_skips_record_without_link(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "sections": [
+                {"name": "Minutes", "web_url": "https://contoso.sharepoint.com/s1"}
+            ],
+            "section_groups": [{"name": "Archive", "uri": "onenote:///groups/g1"}],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__onenote_list_sections", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r.get("url")) for r in refs] == [
+        ("Minutes", "https://contoso.sharepoint.com/s1")
+    ]
+
+
+def test_json_in_text_titled_list_without_links_is_one_untitled_source(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps({"categories": [{"display_name": "Red"}, {"name": "Blue"}]})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__outlook_list_categories", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r.get("url")) for r in refs] == [(None, None)]
+
+
+def test_json_in_text_display_name_record_without_link_is_not_titled(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps({"display_name": "Alex Doe", "mail": "alex@example.com"})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__get_me", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == [None]
+
+
+def test_json_in_text_same_title_records_with_own_links_stay_apart(
+    tmp_path: Path,
+) -> None:
+    # Every instance of a recurring event carries the series subject.
+    body = json.dumps(
+        {
+            "events": [
+                {"subject": "Standup", "web_link": f"https://outlook.office.com/{n}"}
+                for n in ("E1", "E2", "E3")
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__outlook_list_event_instances", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["sourceNumber"], r["title"], r["url"]) for r in refs] == [
+        (1, "Standup", "https://outlook.office.com/E1"),
+        (2, "Standup", "https://outlook.office.com/E2"),
+        (3, "Standup", "https://outlook.office.com/E3"),
     ]
 
 
@@ -276,7 +341,14 @@ def test_json_in_text_finds_titled_list_inside_untitled_wrappers(
     tmp_path: Path,
 ) -> None:
     body = json.dumps(
-        {"data": {"search": {"hits_total": 1, "pages": [{"title": "Runbook"}]}}}
+        {
+            "data": {
+                "search": {
+                    "hits_total": 1,
+                    "pages": [{"title": "Runbook", "url": "https://wiki/runbook"}],
+                }
+            }
+        }
     )
     response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
     _run("mcp__wiki__search", response)
@@ -351,7 +423,11 @@ def test_json_in_text_display_name_keeps_data_list_in_one_record(
     # As with ``title``, a ``display_name`` marks the object as one record, so
     # its ``data`` list is part of it rather than separate sources.
     body = json.dumps(
-        {"display_name": "Finance", "data": [{"title": "Q1"}, {"title": "Q2"}]}
+        {
+            "display_name": "Finance",
+            "web_url": "https://contoso.sharepoint.com/finance",
+            "data": [{"title": "Q1"}, {"title": "Q2"}],
+        }
     )
     response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
     _run("mcp__office__sharepoint_get_list", response)
@@ -401,15 +477,18 @@ def test_json_in_text_prefers_web_link_over_earlier_join_url(tmp_path: Path) -> 
     assert [r["url"] for r in refs] == ["https://outlook.office365.com/owa/?itemid=E1"]
 
 
-def test_json_in_text_empty_web_link_leaves_record_unlinked(tmp_path: Path) -> None:
+def test_json_in_text_empty_web_link_falls_back_to_download_link(
+    tmp_path: Path,
+) -> None:
     # The mailbox could not be resolved, so the server sent no Outlook link.
-    # The internal content URL beside it must not become the record's link.
+    # Another URL on the record is not taken, but its download link is.
     body = json.dumps(
         {
             "results": [
                 {
                     "title": "Budget Q3.eml",
                     "outlookWebLink": "",
+                    "joinUrl": "https://teams.microsoft.com/l/meetup-join/xyz",
                     "uniqueContentUrl": "https://ingestion.example.com/read/cont_1",
                 }
             ]
@@ -419,8 +498,28 @@ def test_json_in_text_empty_web_link_leaves_record_unlinked(tmp_path: Path) -> N
     _run("mcp__outlook__search_emails", response)
 
     refs = _lines(tmp_path, _REFS_MANIFEST)
-    assert [r["title"] for r in refs] == ["Budget Q3.eml"]
-    assert "url" not in refs[0]
+    assert [(r["title"], r["url"]) for r in refs] == [
+        ("Budget Q3.eml", "https://ingestion.example.com/read/cont_1")
+    ]
+
+
+def test_json_in_text_download_link_comes_after_other_urls(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "items": [
+                {
+                    "name": "Q3 Report.docx",
+                    "@microsoft.graph.downloadUrl": "https://contoso.sharepoint.com/dl",
+                    "previewUrl": "https://contoso.sharepoint.com/preview",
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_list_files", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["url"] for r in refs] == ["https://contoso.sharepoint.com/preview"]
 
 
 def test_json_in_text_null_web_link_does_not_fall_back_to_join_url(
@@ -428,7 +527,7 @@ def test_json_in_text_null_web_link_does_not_fall_back_to_join_url(
 ) -> None:
     body = json.dumps(
         {
-            "events": [
+            "items": [
                 {
                     "subject": "Private appointment",
                     "join_url": "https://teams.microsoft.com/l/meetup-join/xyz",
@@ -1525,3 +1624,111 @@ def test_reference_mapping_empty_structured_content_still_titles_from_text(
     )
     refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
     assert [r["title"] for r in refs] == ["Quarterly Planning Notes"]
+
+
+# ── Atlassian connection results (``{"issues": {"nodes": [...]}}``) ─────────────
+
+# Trimmed from real Atlassian MCP results. The wrapper's own ``webUrl`` is the
+# search page; each node carries the record's browser link.
+_ATLASSIAN_JIRA_SEARCH = {
+    "issues": {
+        "nodes": [
+            {
+                "id": "80934",
+                "self": "https://api.atlassian.com/ex/jira/c1/rest/api/3/issue/80934",
+                "key": "UN-26075",
+                "fields": {"summary": "Group the debug panel tabs"},
+                "webUrl": "https://unique-ch.atlassian.net/browse/UN-26075",
+            }
+        ],
+        "webUrl": "https://unique-ch.atlassian.net/issues?jql=key%20%3D%20UN-26075",
+        "pageInfo": {"hasNextPage": False, "endCursor": None},
+    },
+    "context": {"cloudId": "c1"},
+}
+
+_ATLASSIAN_CONFLUENCE_SEARCH = {
+    "content": {
+        "totalCount": 2,
+        "nodes": [
+            {
+                "id": "1",
+                "type": "page",
+                "title": "Conduct Speedup",
+                "_links": {"webui": "/spaces/sdv2/pages/1/Conduct+Speedup"},
+                "webUrl": "https://unique-ch.atlassian.net/wiki/spaces/sdv2/pages/1",
+            },
+            {
+                "id": "2",
+                "type": "page",
+                "title": "Conduct Speed",
+                "_links": {"webui": "/spaces/sdv2/pages/2/Conduct+Speed"},
+                "webUrl": "https://unique-ch.atlassian.net/wiki/spaces/sdv2/pages/2",
+            },
+        ],
+        "webUrl": "https://unique-ch.atlassian.net/wiki/search?cql=title",
+    },
+    "context": {},
+}
+
+
+def _record_rows(
+    tmp_path: Path,
+    tool: str,
+    payload: dict,
+    reference_mapping: dict | None = None,
+) -> list[tuple[str | None, str | None]]:
+    unique_dir = tmp_path / ".unique"
+    body = json.dumps(payload)
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    record_mcp_citations(
+        response,
+        tool_name=tool,
+        server_name="atlassian",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping=reference_mapping,
+    )
+    return [
+        (row["title"], row.get("url"))
+        for row in _unique_lines(unique_dir, "mcp-refs.jsonl")
+    ]
+
+
+def test_atlassian_jira_search_cites_each_issue_with_its_browser_link(
+    tmp_path: Path,
+) -> None:
+    assert _record_rows(
+        tmp_path, "searchJiraIssuesUsingJql", _ATLASSIAN_JIRA_SEARCH
+    ) == [("UN-26075", "https://unique-ch.atlassian.net/browse/UN-26075")]
+
+
+def test_atlassian_jira_default_mapping_reads_the_connection_nodes(
+    tmp_path: Path,
+) -> None:
+    # node-chat's default mapping for this tool still points at ``issues``.
+    assert _record_rows(
+        tmp_path,
+        "searchJiraIssuesUsingJql",
+        _ATLASSIAN_JIRA_SEARCH,
+        reference_mapping={
+            "listPath": "issues",
+            "titleTemplate": "{key} — {fields.summary}",
+        },
+    ) == [
+        (
+            "UN-26075 — Group the debug panel tabs",
+            "https://unique-ch.atlassian.net/browse/UN-26075",
+        )
+    ]
+
+
+def test_atlassian_confluence_search_cites_each_page_with_its_browser_link(
+    tmp_path: Path,
+) -> None:
+    assert _record_rows(
+        tmp_path, "searchConfluenceUsingCql", _ATLASSIAN_CONFLUENCE_SEARCH
+    ) == [
+        ("Conduct Speedup", "https://unique-ch.atlassian.net/wiki/spaces/sdv2/pages/1"),
+        ("Conduct Speed", "https://unique-ch.atlassian.net/wiki/spaces/sdv2/pages/2"),
+    ]

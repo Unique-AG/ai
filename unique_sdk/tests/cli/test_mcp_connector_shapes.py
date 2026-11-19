@@ -14,7 +14,7 @@ from unique_sdk.cli.commands.mcp import record_mcp_citations
 _OFFICE_365_CASES: list[
     tuple[str, dict[str, Any], list[tuple[str | None, str | None]]]
 ] = [
-    ("get_me", {"display_name": "root 0"}, [("root 0", None)]),
+    ("get_me", {"display_name": "root 0"}, [(None, None)]),
     (
         "onenote_append_to_page",
         {
@@ -173,8 +173,6 @@ _OFFICE_365_CASES: list[
         [
             ("sections 1", "https://o365.example.com/sections/1/web_url"),
             ("sections 2", "https://o365.example.com/sections/2/web_url"),
-            ("section_groups 1", None),
-            ("section_groups 2", None),
         ],
     ),
     ("onenote_preview_page", {}, [(None, None)]),
@@ -210,7 +208,7 @@ _OFFICE_365_CASES: list[
                 {"uri": "o365:///folders/2", "display_name": "folders 2"},
             ]
         },
-        [("folders 1", None), ("folders 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_cancel_event",
@@ -231,7 +229,7 @@ _OFFICE_365_CASES: list[
     (
         "outlook_create_contact",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_create_event",
@@ -256,12 +254,12 @@ _OFFICE_365_CASES: list[
     (
         "outlook_create_folder",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_create_mail_rule",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_delete_calendar",
@@ -277,17 +275,17 @@ _OFFICE_365_CASES: list[
     (
         "outlook_delete_folder",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_delete_mail_rule",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_disable_mail_rule",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_draft_mail",
@@ -324,12 +322,12 @@ _OFFICE_365_CASES: list[
                 {"display_name": "candidates 2"},
             ]
         },
-        [("candidates 1", None), ("candidates 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_find_rooms",
         {"rooms": [{"display_name": "rooms 1"}, {"display_name": "rooms 2"}]},
-        [("rooms 1", None), ("rooms 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_forward_event",
@@ -348,7 +346,7 @@ _OFFICE_365_CASES: list[
             "working_hours": {},
             "language": {"display_name": "language 0"},
         },
-        [("rules 1", None), ("rules 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_list_attachments",
@@ -358,12 +356,12 @@ _OFFICE_365_CASES: list[
                 {"uri": "o365:///attachments/2", "name": "attachments 2"},
             ]
         },
-        [("attachments 1", None), ("attachments 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_list_calendar_groups",
         {"groups": [{"name": "groups 1"}, {"name": "groups 2"}]},
-        [("groups 1", None), ("groups 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_list_calendar_shares",
@@ -373,7 +371,7 @@ _OFFICE_365_CASES: list[
                 {"uri": "o365:///shares/2", "name": "shares 2"},
             ]
         },
-        [("shares 1", None), ("shares 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_list_calendars",
@@ -383,12 +381,12 @@ _OFFICE_365_CASES: list[
                 {"uri": "o365:///calendars/2", "name": "calendars 2"},
             ]
         },
-        [("calendars 1", None), ("calendars 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_list_categories",
         {"categories": [{"name": "categories 1"}, {"name": "categories 2"}]},
-        [("categories 1", None), ("categories 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_list_contacts",
@@ -398,7 +396,7 @@ _OFFICE_365_CASES: list[
                 {"uri": "o365:///contacts/2", "display_name": "contacts 2"},
             ]
         },
-        [("contacts 1", None), ("contacts 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_list_event_attachments",
@@ -408,7 +406,7 @@ _OFFICE_365_CASES: list[
                 {"uri": "o365:///attachments/2", "name": "attachments 2"},
             ]
         },
-        [("attachments 1", None), ("attachments 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_list_event_instances",
@@ -530,7 +528,7 @@ _OFFICE_365_CASES: list[
                 {"display_name": "time_zones 2"},
             ]
         },
-        [("time_zones 1", None), ("time_zones 2", None)],
+        [(None, None)],
     ),
     (
         "outlook_mark_mail",
@@ -545,7 +543,7 @@ _OFFICE_365_CASES: list[
     (
         "outlook_read_contact",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_read_event",
@@ -590,7 +588,7 @@ _OFFICE_365_CASES: list[
     (
         "outlook_rename_folder",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_respond_to_invite",
@@ -639,7 +637,7 @@ _OFFICE_365_CASES: list[
     (
         "outlook_update_contact",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "outlook_update_draft",
@@ -663,7 +661,7 @@ _OFFICE_365_CASES: list[
     (
         "outlook_update_mail_rule",
         {"uri": "o365:///root/0", "display_name": "root 0"},
-        [("root 0", None)],
+        [(None, None)],
     ),
     (
         "sharepoint_browse_folder",
@@ -720,7 +718,7 @@ _OFFICE_365_CASES: list[
     (
         "sharepoint_get_list",
         {"columns": [{"name": "columns 1"}, {"name": "columns 2"}]},
-        [("columns 1", None), ("columns 2", None)],
+        [(None, None)],
     ),
     (
         "sharepoint_invite",
@@ -730,7 +728,7 @@ _OFFICE_365_CASES: list[
                 {"display_name": "recipients 2"},
             ]
         },
-        [("recipients 1", None), ("recipients 2", None)],
+        [(None, None)],
     ),
     (
         "sharepoint_list_drives",
@@ -897,7 +895,7 @@ _OFFICE_365_CASES: list[
     (
         "teams_edit_message",
         {"mentions": [{"name": "mentions 1"}, {"name": "mentions 2"}]},
-        [("mentions 1", None), ("mentions 2", None)],
+        [(None, None)],
     ),
     (
         "teams_get_channel_files_folder",
@@ -922,12 +920,12 @@ _OFFICE_365_CASES: list[
     (
         "teams_list_channels",
         {"channels": [{"display_name": "channels 1"}, {"display_name": "channels 2"}]},
-        [("channels 1", None), ("channels 2", None)],
+        [(None, None)],
     ),
     (
         "teams_list_chat_members",
         {"members": [{"display_name": "members 1"}, {"display_name": "members 2"}]},
-        [("members 1", None), ("members 2", None)],
+        [(None, None)],
     ),
     (
         "teams_list_chat_messages",
@@ -974,7 +972,7 @@ _OFFICE_365_CASES: list[
     (
         "teams_list_my_teams",
         {"teams": [{"display_name": "teams 1"}, {"display_name": "teams 2"}]},
-        [("teams 1", None), ("teams 2", None)],
+        [(None, None)],
     ),
     ("teams_react_to_message", {}, [(None, None)]),
     ("teams_read_call_transcript", {"turns": [{}, {}]}, [(None, None)]),
@@ -991,7 +989,7 @@ _OFFICE_365_CASES: list[
                 {"display_name": "newest_report_attendance 2"},
             ],
         },
-        [("newest_report_attendance 1", None), ("newest_report_attendance 2", None)],
+        [(None, None)],
     ),
     (
         "teams_read_message",
@@ -1122,7 +1120,7 @@ _OUTLOOK_SEMANTIC_CASES: list[
                 "Budget Q3.eml",
                 "https://outlook.office365.com/owa/?ItemID=M1&exvsurl=1&viewmodel=ReadMessageItem",
             ),
-            ("Offsite plan.eml", None),
+            ("Offsite plan.eml", "https://ingestion.example.com/read/cont_2"),
         ],
     ),
     (
@@ -1247,7 +1245,7 @@ _OUTLOOK_SEMANTIC_CASES: list[
                 }
             ],
         },
-        [("Calendar", None)],
+        [(None, None)],
     ),
     (
         "check_availability",
@@ -1359,7 +1357,7 @@ _OUTLOOK_SEMANTIC_CASES: list[
                 },
             ]
         },
-        [("Alex Doe", None), ("Alexa Poe", None)],
+        [(None, None)],
     ),
     (
         "list_mailboxes_and_directories",
@@ -1382,7 +1380,7 @@ _OUTLOOK_SEMANTIC_CASES: list[
                 }
             ],
         },
-        [("Alex Doe", None)],
+        [(None, None)],
     ),
     (
         "list_categories",
