@@ -1,0 +1,6 @@
+component: uqadm
+kind: Added
+body: '`uqadm kb sync --skip-ingestion` stores files as uploaded, without ingesting them. Use it for code and skills, which are read as files and not searched. Without it, a file with little readable text (an HTML page, for example) can end as `FAILED_TOO_LESS_CONTENT` and can no longer be downloaded.'
+time: 2026-11-19T15:00:00.000000+01:00
+custom:
+    Audience: admin

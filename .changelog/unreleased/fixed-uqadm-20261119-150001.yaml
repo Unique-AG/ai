@@ -1,0 +1,6 @@
+component: uqadm
+kind: Fixed
+body: '`uqadm kb rm --recursive` now removes the whole tree. It deletes each folder''s files, then its subfolders, then the folder. Before, it could report success for a folder that still held files or subfolders. It now prints each deleted file and folder with a final count, keeps the parents of anything it could not delete, and exits non-zero in that case.'
+time: 2026-11-19T15:00:01.000000+01:00
+custom:
+    Audience: admin

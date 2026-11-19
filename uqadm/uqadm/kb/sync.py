@@ -17,6 +17,11 @@ from uqadm.kb._paths import join_path_segments
 
 _PAGE_SIZE = 100
 
+# Stored as uploaded: no text extraction, no chunks in the vector store. Code
+# and markup-heavy files would otherwise be ingested, and a file with little
+# readable text ends FAILED_TOO_LESS_CONTENT and cannot be downloaded.
+SKIP_INGESTION: Content.IngestionConfig = {"uniqueIngestionMode": "SKIP_INGESTION"}
+
 # Extensions that mimetypes commonly fails to resolve on macOS/minimal systems.
 # Registered with the stdlib registry so mimetypes.guess_type resolves them.
 for _ext, _type in {
@@ -113,6 +118,7 @@ def cmd_sync(
     dry_run: bool,
     versioning: bool = True,
     inherit_access: bool = True,
+    skip_ingestion: bool = False,
 ) -> None:
     if bool(folder_path) == bool(scope_id):
         typer.echo("Specify exactly one of --folder-path or --scope-id.", err=True)
@@ -193,6 +199,7 @@ def cmd_sync(
                     path.name,
                     mime,
                     scope_or_unique_path=target_scope,
+                    ingestion_config=SKIP_INGESTION if skip_ingestion else None,
                     versioning_enabled=versioning,
                 )
             except Exception as exc:
