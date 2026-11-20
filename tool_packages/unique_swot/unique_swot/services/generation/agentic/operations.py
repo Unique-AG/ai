@@ -172,6 +172,7 @@ async def extract_facts(
         llm_service=llm_service,
         llm=llm,
         output_model=SWOTExtractionFactsList,
+        source="swot.generation.extract_facts",
     )
 
     if extracted_facts is None:
@@ -222,6 +223,7 @@ async def _generate_plan(
         llm_service=llm_service,
         llm=llm,
         output_model=GenerationPlan,
+        source="swot.generation.plan",
     )
     if plan is None:
         _LOGGER.error(f"Failed to generate plan for component {component}")
@@ -349,6 +351,7 @@ async def _generate_cluster_plan(
         llm_service=llm_service,
         llm=llm,
         output_model=GenerationPlan,
+        source="swot.generation.cluster_plan",
     )
     if plan is None:
         _LOGGER.error(f"Failed to generate cluster plan for component {component}")
