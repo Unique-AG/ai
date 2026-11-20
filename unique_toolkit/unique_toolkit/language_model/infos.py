@@ -384,6 +384,24 @@ _CLAUDE_CONTEXT_WINDOWS = {
     "claude-sonnet-5-5": 1_000_000,
 }
 
+# Through LiteLLM, Vertex rejects a strict json_schema response format for
+# Claude Opus 5.5 and wraps the answer in a `value` string for Opus 5.
+_ANTHROPIC_API_STRUCTURED_OUTPUT = frozenset(
+    {
+        LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5,
+        LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5_5,
+        LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5_5,
+    }
+)
+
+
+def _anthropic_api_structured_output(
+    model_name: LanguageModelName,
+) -> list[ModelCapabilities]:
+    if model_name in _ANTHROPIC_API_STRUCTURED_OUTPUT:
+        return [ModelCapabilities.STRUCTURED_OUTPUT]
+    return []
+
 
 class LanguageModelInfo(BaseModel):
     model_config = get_configuration_dict()
@@ -1989,6 +2007,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                         ModelCapabilities.REASONING,
+                        *_anthropic_api_structured_output(model_name),
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     family=ModelFamily.ANTHROPIC,
@@ -2182,6 +2201,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                         ModelCapabilities.REASONING,
+                        *_anthropic_api_structured_output(model_name),
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     family=ModelFamily.ANTHROPIC,
@@ -2215,6 +2235,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                         ModelCapabilities.REASONING,
+                        *_anthropic_api_structured_output(model_name),
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     family=ModelFamily.ANTHROPIC,
