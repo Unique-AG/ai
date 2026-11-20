@@ -224,10 +224,7 @@ def _provider_unavailable_error() -> APIError:
 def test_retry_on_error__keeps_code_params_http_status__when_retries_run_out(
     mock_sleep,
 ) -> None:
-    """Purpose: Verify the error raised after the last retry carries the API fields.
-    Why this matters: Callers read code, params and http_status without ``__cause__``.
-    Setup summary: Raise a retryable 503 on every attempt of a sync call.
-    """
+    """Verify the error raised after the last retry carries code, params and http_status."""
     source = _provider_unavailable_error()
 
     @retry_on_error(max_retries=3, error_messages=[], should_retry_5xx=True)
@@ -249,10 +246,7 @@ def test_retry_on_error__keeps_code_params_http_status__when_retries_run_out(
 async def test_retry_on_error__keeps_code_params_http_status__when_async_retries_run_out(
     mock_async_sleep,
 ) -> None:
-    """Purpose: Verify the async path carries the API fields after the last retry.
-    Why this matters: Toolkit LLM calls go through the async wrapper.
-    Setup summary: Raise a retryable 503 on every attempt of an async call.
-    """
+    """Verify the async path keeps code, params and http_status after the last retry."""
     source = _provider_unavailable_error()
 
     @retry_on_error(max_retries=3, error_messages=[], should_retry_5xx=True)
