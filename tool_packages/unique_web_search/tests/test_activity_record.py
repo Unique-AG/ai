@@ -993,19 +993,80 @@ async def test_a_failing_emit__logs_no_client_data(
     assert all(secret not in (r.exc_text or "") for r in caplog.records)
 
 
-@pytest.mark.asyncio
-async def test_no_outbox__skips_enqueue_with_no_error(
-    mocker: Any, caplog: pytest.LogCaptureFixture
-) -> None:
+@pytest.fixture
+def no_outbox(mocker: Any, flag_client: Mock) -> Mock:
     mocker.patch("unique_web_search.activity_record.is_running", return_value=False)
+    activity_record._warn_outbox_down.cache_clear()
+    metrics = Mock()
+    mocker.patch(
+        "unique_toolkit.experimental.resources.activity_records.metrics."
+        "get_or_create_activity_event_outbox_metrics",
+        return_value=metrics,
+    )
+    return metrics
+
+
+@pytest.mark.asyncio
+async def test_no_outbox__flag_off__stays_silent(
+    mocker: Any,
+    no_outbox: Mock,
+    flag_client: Mock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    flag_client.is_enabled.return_value = False
     enqueue_mock = mocker.patch("unique_web_search.activity_record.enqueue")
     tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
 
-    with caplog.at_level(logging.ERROR):
+    with caplog.at_level(logging.WARNING):
         await _run(tool)
 
     enqueue_mock.assert_not_called()
+    no_outbox.record_failures.inc.assert_not_called()
     assert not caplog.records
+
+
+@pytest.mark.asyncio
+async def test_no_outbox__flag_on__counts_every_call_and_warns_once(
+    mocker: Any, no_outbox: Mock, caplog: pytest.LogCaptureFixture
+) -> None:
+    enqueue_mock = mocker.patch("unique_web_search.activity_record.enqueue")
+    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+
+    with caplog.at_level(logging.WARNING):
+        await _run(tool)
+        await _run(tool)
+
+    enqueue_mock.assert_not_called()
+    assert no_outbox.record_failures.inc.call_count == 2
+    assert (
+        len(
+            [
+                r
+                for r in caplog.records
+                if "no Activity Records outbox" in r.getMessage()
+            ]
+        )
+        == 1
+    )
+
+
+@pytest.mark.asyncio
+async def test_no_outbox__flag_read_fails__stays_silent(
+    mocker: Any,
+    no_outbox: Mock,
+    flag_client: Mock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    flag_client.is_enabled.side_effect = RuntimeError("flag backend down")
+    tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
+
+    with caplog.at_level(logging.DEBUG, logger="unique_web_search.activity_record"):
+        await _run(tool)
+
+    no_outbox.record_failures.inc.assert_not_called()
+    assert [r for r in caplog.records if r.levelno >= logging.INFO] == []
+    assert any("errorName=RuntimeError" in r.getMessage() for r in caplog.records)
+    assert "flag backend down" not in caplog.text
 
 
 @pytest.mark.asyncio
@@ -1021,6 +1082,7 @@ async def test_flag_off__records_nothing(
     flag_client.is_enabled.assert_awaited_once_with(
         "FEATURE_FLAG_ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_UN_28965",
         company_id="company-1",
+        user_id="user-1",
     )
 
 

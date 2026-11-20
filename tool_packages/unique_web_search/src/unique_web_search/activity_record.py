@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from functools import cache
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from urllib.parse import urlsplit
 
@@ -137,10 +138,42 @@ _current_record: ContextVar[ActivityRecord | None] = ContextVar(
 )
 
 
+@cache
+def _warn_outbox_down() -> None:
+    _LOGGER.warning(
+        "Web search Activity Records are enabled but no Activity Records outbox is "
+        "running; records are lost until the service is configured"
+    )
+
+
+async def _count_call_while_outbox_down(tool: WebSearchTool) -> None:
+    # Imported here: the metrics module needs prometheus, an optional extra.
+    try:
+        from unique_toolkit.experimental.resources.activity_records.metrics import (
+            get_or_create_activity_event_outbox_metrics,
+        )
+
+        if not await get_feature_flag_client().is_enabled(
+            ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG,
+            company_id=tool.company_id,
+            user_id=tool.event.user_id,
+        ):
+            return
+        get_or_create_activity_event_outbox_metrics().record_failures.inc()
+    except Exception as exc:
+        _LOGGER.debug(
+            "Could not check web search activity records while no outbox is running (errorName=%s)",
+            type(exc).__name__,
+        )
+        return
+    _warn_outbox_down()
+
+
 async def start(
     tool: WebSearchTool, tool_call: LanguageModelFunction
 ) -> ActivityRecord | None:
     if not is_running():
+        await _count_call_while_outbox_down(tool)
         return None
     # Imported here: the registry imports search_engine.base, which imports this module.
     from unique_web_search.services.search_engine.registry import (
@@ -151,7 +184,9 @@ async def start(
         # A flag read that raises lands in the except below and records nothing.
         # On outages the client itself falls back to its stale cache or env default.
         if not await get_feature_flag_client().is_enabled(
-            ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG, company_id=tool.company_id
+            ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG,
+            company_id=tool.company_id,
+            user_id=tool.event.user_id,
         ):
             return None
         payload = tool.event.payload
