@@ -250,9 +250,13 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
         description="Measurement units for location-rich results: `metric` or `imperial`.",
     )
     summary: bool = Field(
-        default=True,
+        default=False,
         title="Summary",
-        description="Enable summary key generation in web search results (Brave summarizer).",
+        description=(
+            "Ask Brave to return a summarizer key with the results (Brave `summary`). "
+            "This does not generate a summary: the summary comes from a separate call "
+            "to Brave's Summarizer API with that key, which this integration does not make."
+        ),
     )
     include_fetch_metadata: bool = Field(
         default=False,

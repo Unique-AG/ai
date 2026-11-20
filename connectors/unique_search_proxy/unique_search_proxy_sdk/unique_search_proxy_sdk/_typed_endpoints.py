@@ -107,7 +107,7 @@ class BraveSearchEndpoint(_TypedPostEndpoint[SearchResponse]):
         operators: bool = True,
         ui_lang: str = "en-US",
         units: BraveUnits | None = None,
-        summary: bool = True,
+        summary: bool = False,
         include_fetch_metadata: bool = False,
         goggles: str | list[str] | None = None,
         country: str | None = None,
