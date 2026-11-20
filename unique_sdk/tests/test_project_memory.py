@@ -131,3 +131,36 @@ async def test_delete_async_removes_the_project_memory(mock_request):
 
     mock_request.assert_awaited_once_with("delete", URL, USER_ID, COMPANY_ID)
     assert result == DELETED
+
+
+@pytest.mark.parametrize(
+    "option",
+    [{"api_key": "ukey_x"}, {"api_base": "https://x"}, {"headers": {"x": "y"}}],
+)
+@patch.object(ProjectMemory, "_static_request")
+def test_modify_rejects_request_options_instead_of_sending_them(mock_request, option):
+    with pytest.raises(TypeError):
+        ProjectMemory.modify(  # type: ignore[call-arg]
+            USER_ID, COMPANY_ID, PROJECT_ID, document="# New", **option
+        )
+    mock_request.assert_not_called()
+
+
+@patch.object(ProjectMemory, "_static_request_async", new_callable=AsyncMock)
+async def test_modify_async_rejects_request_options(mock_request):
+    with pytest.raises(TypeError):
+        await ProjectMemory.modify_async(  # type: ignore[call-arg]
+            USER_ID, COMPANY_ID, PROJECT_ID, document="# New", api_key="ukey_x"
+        )
+    mock_request.assert_not_awaited()
+
+
+@patch.object(ProjectMemory, "_static_request")
+def test_modify_with_state_none_keeps_the_stored_state(mock_request):
+    mock_request.return_value = MEMORY
+
+    ProjectMemory.modify(USER_ID, COMPANY_ID, PROJECT_ID, document="# New", state=None)
+
+    mock_request.assert_called_once_with(
+        "patch", URL, USER_ID, COMPANY_ID, params={"document": "# New"}
+    )
