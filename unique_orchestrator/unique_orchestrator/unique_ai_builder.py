@@ -1,3 +1,4 @@
+from collections.abc import Callable, Sequence
 from logging import Logger
 from typing import Any, NamedTuple, cast
 
@@ -18,10 +19,14 @@ from unique_toolkit.agentic.chat_title import ChatTitleGenerator
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
-from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.evaluation.evaluation_manager import (
+    Evaluation,
+    EvaluationManager,
+)
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.history_manager.utils import (
     get_selected_uploaded_content_ids,
@@ -157,12 +162,30 @@ class _ChatServiceResponsesStreaming(ResponsesSupportCompleteWithReferences):
         )
 
 
+class EvaluationBuildContext(NamedTuple):
+    """Turn components an evaluation factory may wire into its evaluation."""
+
+    chat_service: ChatService
+    reference_manager: ReferenceManager
+
+
+EvaluationFactory = Callable[[EvaluationBuildContext], Evaluation]
+"""Builds one evaluation per turn.
+
+The evaluation runs like the built-in ones: only on turns where a tool that ran
+lists its name. One named ``EvaluationMetricName.HALLUCINATION`` replaces the
+built-in hallucination check, which is then not created.
+"""
+
+
 async def build_unique_ai(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
     enable_chat_title_generation: bool = False,
+    *,
+    evaluation_factories: Sequence[EvaluationFactory] = (),
 ) -> UniqueAI:
     config = _apply_model_choice_override(event=event, logger=logger, config=config)
     _record_language_model_debug_info(
@@ -174,6 +197,7 @@ async def build_unique_ai(
         logger,
         config,
         enable_chat_title_generation=enable_chat_title_generation,
+        evaluation_factories=evaluation_factories,
     )
 
     if (
@@ -319,6 +343,7 @@ async def _build_common(
     config: UniqueAIConfig,
     *,
     enable_chat_title_generation: bool = False,
+    evaluation_factories: Sequence[EvaluationFactory] = (),
 ) -> _CommonComponents:
     chat_service = ChatService(event)
     message_step_logger = MessageStepLogger(chat_service)
@@ -362,8 +387,21 @@ async def _build_common(
 
     reference_manager = ReferenceManager()
 
+    evaluation_build_context = EvaluationBuildContext(
+        chat_service=chat_service,
+        reference_manager=reference_manager,
+    )
+    supplied_evaluations = [
+        build_evaluation(evaluation_build_context)
+        for build_evaluation in evaluation_factories
+    ]
+    supplied_names = {evaluation.get_name() for evaluation in supplied_evaluations}
+
     evaluation_manager = EvaluationManager(logger=logger, chat_service=chat_service)
-    if config.agent.services.evaluation_config:
+    if (
+        config.agent.services.evaluation_config
+        and EvaluationMetricName.HALLUCINATION not in supplied_names
+    ):
         evaluation_manager.add_evaluation(
             HallucinationEvaluation(
                 config.agent.services.evaluation_config.hallucination_config,
@@ -371,6 +409,8 @@ async def _build_common(
                 reference_manager,
             )
         )
+    for evaluation in supplied_evaluations:
+        evaluation_manager.add_evaluation(evaluation)
 
     mcp_manager = MCPManager(
         mcp_servers=event.payload.mcp_servers,

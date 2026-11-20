@@ -193,7 +193,11 @@ class InternalSearchConfig(BaseToolConfig):
     )
     evaluation_check_list: list[EvaluationMetricName] = Field(
         default=[EvaluationMetricName.HALLUCINATION],
-        description="The list of evaluation metrics to check.",
+        description=(
+            "The list of evaluation metrics to check. The hallucination entry is "
+            "obsolete when the space has the Hallucination check setting under "
+            "Services > Evaluation Config, which then decides whether it runs."
+        ),
     )
 
     enable_multiple_search_strings_execution: bool = Field(

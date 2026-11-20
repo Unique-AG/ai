@@ -165,6 +165,28 @@ class TestUniqueAIServicesEvaluationConfigValidator:
 
         assert isinstance(services.evaluation_config, EvaluationConfig)
 
+    def test_contradiction_check_defaults_on_without_its_own_model(self):
+        config = EvaluationConfig.model_validate({})
+
+        assert config.contradiction_check_config.enabled is True
+        assert config.contradiction_check_config.language_model is None
+
+    def test_contradiction_check_reads_the_space_form_names(self):
+        config = EvaluationConfig.model_validate(
+            {
+                "contradictionCheckConfig": {
+                    "enabled": False,
+                    "languageModel": LanguageModelName.AZURE_GPT_51_2025_1113,
+                }
+            }
+        )
+
+        assert config.contradiction_check_config.enabled is False
+        assert (
+            config.contradiction_check_config.language_model
+            == LanguageModelName.AZURE_GPT_51_2025_1113
+        )
+
 
 # ---------------------------------------------------------------------------
 # Helpers
