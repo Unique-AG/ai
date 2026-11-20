@@ -87,6 +87,7 @@ from unique_sdk.api_resources._short_term_memory import (
     ShortTermMemory as ShortTermMemory,
 )
 from unique_sdk.api_resources._context_memory import ContextMemory as ContextMemory
+from unique_sdk.api_resources._project_memory import ProjectMemory as ProjectMemory
 from unique_sdk.api_resources._folder import Folder as Folder
 from unique_sdk.api_resources._embedding import Embeddings as Embeddings
 from unique_sdk.api_resources._acronyms import Acronyms as Acronyms

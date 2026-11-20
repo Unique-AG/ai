@@ -75,6 +75,7 @@ nav:
     - Message Execution: api_resources/message_execution.md
     - Message Log: api_resources/message_log.md
     - MCP: api_resources/mcp.md
+    - Project Memory: api_resources/project_memory.md
     - ScheduledTask: api_resources/scheduled_task.md
     - Search: api_resources/search.md
     - SearchString: api_resources/search_string.md
