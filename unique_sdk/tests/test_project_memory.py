@@ -191,3 +191,44 @@ def test_project_id_is_escaped_into_one_path_segment(mock_request):
 
     paths = [call.args[1] for call in mock_request.call_args_list]
     assert paths == [expected, expected, expected]
+
+
+@pytest.mark.parametrize("project_id", ["", ".", ".."])
+@patch.object(ProjectMemory, "_static_request")
+def test_dot_only_or_empty_project_ids_are_rejected(mock_request, project_id):
+    # quote() leaves "." and ".." as they are and HTTP clients collapse them
+    # (/projects/../memory -> /memory), so these never reach the network.
+    with pytest.raises(ValueError):
+        ProjectMemory.retrieve(USER_ID, COMPANY_ID, project_id)
+    with pytest.raises(ValueError):
+        ProjectMemory.modify(USER_ID, COMPANY_ID, project_id, document="# New")
+    with pytest.raises(ValueError):
+        ProjectMemory.delete(USER_ID, COMPANY_ID, project_id)
+    mock_request.assert_not_called()
+
+
+@pytest.mark.parametrize("project_id", ["", ".", ".."])
+@patch.object(ProjectMemory, "_static_request_async", new_callable=AsyncMock)
+async def test_dot_only_or_empty_project_ids_are_rejected_async(
+    mock_request, project_id
+):
+    with pytest.raises(ValueError):
+        await ProjectMemory.retrieve_async(USER_ID, COMPANY_ID, project_id)
+    with pytest.raises(ValueError):
+        await ProjectMemory.modify_async(
+            USER_ID, COMPANY_ID, project_id, document="# New"
+        )
+    with pytest.raises(ValueError):
+        await ProjectMemory.delete_async(USER_ID, COMPANY_ID, project_id)
+    mock_request.assert_not_awaited()
+
+
+@patch.object(ProjectMemory, "_static_request")
+def test_ids_that_only_contain_dots_are_still_allowed(mock_request):
+    mock_request.return_value = MEMORY
+
+    ProjectMemory.retrieve(USER_ID, COMPANY_ID, "a.b")
+    ProjectMemory.retrieve(USER_ID, COMPANY_ID, "..x")
+
+    paths = [call.args[1] for call in mock_request.call_args_list]
+    assert paths == ["/projects/a.b/memory", "/projects/..x/memory"]

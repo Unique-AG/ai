@@ -56,8 +56,13 @@ class ProjectMemory(APIResource["ProjectMemory"]):
 
     @staticmethod
     def _url(project_id: str) -> str:
-        # Escape the id so it stays one path segment: "/", "?", "#" or ".."
-        # in a caller- or agent-supplied id cannot reach another endpoint.
+        # Escape the id so it stays one path segment: "/", "?" or "#" in a
+        # caller- or agent-supplied id cannot reach another endpoint. quote()
+        # leaves "." and ".." unchanged and HTTP clients collapse them as dot
+        # segments (/projects/../memory -> /memory), and "" leaves an empty
+        # segment, so those ids are rejected outright.
+        if project_id in ("", ".", ".."):
+            raise ValueError(f"invalid project id: {project_id!r}")
         return f"/projects/{quote(project_id, safe='')}/memory"
 
     @staticmethod
@@ -86,6 +91,7 @@ class ProjectMemory(APIResource["ProjectMemory"]):
                 first written.
 
         Raises:
+            ValueError: ``project_id`` is empty, ``.`` or ``..``.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404).
             AuthenticationError: The API key is missing or invalid (401).
@@ -114,6 +120,7 @@ class ProjectMemory(APIResource["ProjectMemory"]):
                 first written.
 
         Raises:
+            ValueError: ``project_id`` is empty, ``.`` or ``..``.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404).
             AuthenticationError: The API key is missing or invalid (401).
@@ -154,6 +161,7 @@ class ProjectMemory(APIResource["ProjectMemory"]):
             ProjectMemory: The updated memory.
 
         Raises:
+            ValueError: ``project_id`` is empty, ``.`` or ``..``.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404), or a field is too large (400).
             AuthenticationError: The API key is missing or invalid (401).
@@ -198,6 +206,7 @@ class ProjectMemory(APIResource["ProjectMemory"]):
             ProjectMemory: The updated memory.
 
         Raises:
+            ValueError: ``project_id`` is empty, ``.`` or ``..``.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404), or a field is too large (400).
             AuthenticationError: The API key is missing or invalid (401).
@@ -234,6 +243,7 @@ class ProjectMemory(APIResource["ProjectMemory"]):
                 id as ``id``.
 
         Raises:
+            ValueError: ``project_id`` is empty, ``.`` or ``..``.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404).
             AuthenticationError: The API key is missing or invalid (401).
@@ -264,6 +274,7 @@ class ProjectMemory(APIResource["ProjectMemory"]):
                 id as ``id``.
 
         Raises:
+            ValueError: ``project_id`` is empty, ``.`` or ``..``.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404).
             AuthenticationError: The API key is missing or invalid (401).
