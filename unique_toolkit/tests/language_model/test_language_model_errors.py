@@ -294,6 +294,45 @@ async def test_complete_async__raises_language_model_call_error__after_sdk_retri
 
 @pytest.mark.asyncio
 @patch.object(unique_sdk.ChatCompletion, "create_async")
+async def test_complete_async__keeps_api_message__when_wrapper_carries_contract(
+    mock_create,
+) -> None:
+    """Purpose: Verify the user message is the API sentence, not "Failed after N attempts".
+    Why this matters: The SDK wrapper now carries code and params, so it matches the contract too.
+    Setup summary: Raise a wrapper with the contract fields and a 503 as its cause.
+    """
+    last_error = unique_sdk.APIError(
+        "The model provider is unavailable. Please try again later.",
+        params={"retryable": True, "correlationId": "corr-5"},
+        code="provider_unavailable",
+        http_status=503,
+    )
+    wrapper = unique_sdk.APIError(
+        f"Failed after 3 attempts: {last_error}",
+        params=last_error.params,
+        code=last_error.code,
+        http_status=last_error.http_status,
+    )
+    wrapper.__cause__ = last_error
+    mock_create.side_effect = wrapper
+
+    with pytest.raises(LanguageModelCallError) as caught:
+        await complete_async(
+            company_id="company",
+            user_id="user",
+            messages=LanguageModelMessages([]),
+            model_name=_MODEL,
+        )
+
+    assert (
+        caught.value.user_message
+        == "The model provider is unavailable. Please try again later."
+    )
+    assert caught.value.__cause__ is wrapper
+
+
+@pytest.mark.asyncio
+@patch.object(unique_sdk.ChatCompletion, "create_async")
 async def test_complete_async__reraises_original__unrelated_exception(
     mock_create,
 ) -> None:

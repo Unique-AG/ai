@@ -78,11 +78,11 @@ def _reraise_as_language_model_call_error(error: BaseException) -> NoReturn:
     """Raise ``LanguageModelCallError`` for a contract error, else re-raise ``error``.
 
     The SDK wraps the last error in ``APIError("Failed after N attempts")`` once
-    retries run out, so the contract is also read from ``error.__cause__``.
+    retries run out, so the contract is read from ``error.__cause__`` first.
     """
     if isinstance(error, LanguageModelCallError):
         raise error
-    for candidate in (error, error.__cause__):
+    for candidate in (error.__cause__, error):
         if isinstance(candidate, unique_sdk.UniqueError):
             converted = _language_model_call_error_from(candidate)
             if converted is not None:

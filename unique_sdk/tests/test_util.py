@@ -208,3 +208,61 @@ def test_retry_on_error__raises_api_error__when_connection_retries_run_out(
         func()
 
     assert caught.value.__cause__ is source
+
+
+def _provider_unavailable_error() -> APIError:
+    return APIError(
+        "The model provider is unavailable.",
+        http_status=503,
+        code="provider_unavailable",
+        params={"retryable": True, "correlationId": "req_1"},
+    )
+
+
+@pytest.mark.ai
+@patch("time.sleep", return_value=None)
+def test_retry_on_error__keeps_code_params_http_status__when_retries_run_out(
+    mock_sleep,
+) -> None:
+    """Purpose: Verify the error raised after the last retry carries the API fields.
+    Why this matters: Callers read code, params and http_status without ``__cause__``.
+    Setup summary: Raise a retryable 503 on every attempt of a sync call.
+    """
+    source = _provider_unavailable_error()
+
+    @retry_on_error(max_retries=3, error_messages=[], should_retry_5xx=True)
+    def func():
+        raise source
+
+    with pytest.raises(APIError, match="Failed after 3 attempts") as caught:
+        func()
+
+    assert caught.value.__cause__ is source
+    assert caught.value.code == "provider_unavailable"
+    assert caught.value.params == {"retryable": True, "correlationId": "req_1"}
+    assert caught.value.http_status == 503
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch("asyncio.sleep", return_value=None)
+async def test_retry_on_error__keeps_code_params_http_status__when_async_retries_run_out(
+    mock_async_sleep,
+) -> None:
+    """Purpose: Verify the async path carries the API fields after the last retry.
+    Why this matters: Toolkit LLM calls go through the async wrapper.
+    Setup summary: Raise a retryable 503 on every attempt of an async call.
+    """
+    source = _provider_unavailable_error()
+
+    @retry_on_error(max_retries=3, error_messages=[], should_retry_5xx=True)
+    async def func():
+        raise source
+
+    with pytest.raises(APIError, match="Failed after 3 attempts") as caught:
+        await func()
+
+    assert caught.value.__cause__ is source
+    assert caught.value.code == "provider_unavailable"
+    assert caught.value.params == {"retryable": True, "correlationId": "req_1"}
+    assert caught.value.http_status == 503
