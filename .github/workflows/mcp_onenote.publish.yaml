@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Publish docs to Confluence
-        uses: unique-ag/actions/atlassian/confluence/publish@8128c9a6aed91e59cab0d59d93a50a582a8bfd49
+        uses: unique-ag/actions/atlassian/confluence/publish@9524ae40b5c9e274735d1aea8435b90ed3e33ee0 # confluence-publish@1.0.0
         with:
           confluence_api_key: ${{ secrets.ATLASSIAN_UNIQUE_CODE_PUBLISHER_APIKEY }}
           confluence_username: ${{ secrets.ATLASSIAN_UNIQUE_CODE_PUBLISHER_USERNAME }}

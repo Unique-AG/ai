@@ -49,7 +49,7 @@ jobs:
 
       - name: Generate GitHub App token
         id: app-token
-        uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
+        uses: unique-ag/actions/github/app-token-create@9524ae40b5c9e274735d1aea8435b90ed3e33ee0 # app-token-create@1.0.0
         with:
           app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
