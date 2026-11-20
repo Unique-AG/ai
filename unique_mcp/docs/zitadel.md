@@ -14,14 +14,14 @@ Save this URL to your environment as `ZITADEL_BASE_URL` - it's required for the 
 
 ## Step 1: Create a New Application
 
-![Project Page](./1_ProjectPage.png)
+![Project Page](zitadel/1_ProjectPage.png)
 
 1. Navigate to your Zitadel instance
 2. Click the **+** button to add a new application
 
 ## Step 2: Configure Application Settings
 
-![Initial Setup](./2_InitialSetup.png)
+![Initial Setup](zitadel/2_InitialSetup.png)
 
 In the **Pro Setup**, configure the following:
 
@@ -41,7 +41,7 @@ For local development, we recommend using [ngrok](https://ngrok.com/) to expose 
 
 > 💡 **Note:** Secrets for display only. Do not copy.
 
-![Client Secrets](./4_client_secrets.png)
+![Client Secrets](zitadel/4_client_secrets.png)
 
 After creating the application, you'll see:
 
@@ -52,7 +52,7 @@ Copy these values - you'll need them in the next step.
 
 ## Step 4: Configure Token Settings
 
-![Token Settings](./3_token_settings.png)
+![Token Settings](zitadel/3_token_settings.png)
 
 In the **Auth Token** options:
 
@@ -152,6 +152,4 @@ After completing these steps, you should have:
 - ✅ JWT token type selected with user info included in ID token
 - ✅ Authentication proxy integrated into your MCP server
 
-Your MCP server is now ready to authenticate requests using Zitadel!
-
-
+Your MCP server is now ready to authenticate requests using Zitadel.

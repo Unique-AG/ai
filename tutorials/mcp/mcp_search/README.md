@@ -142,7 +142,7 @@ flowchart TD
 | 3 | Zitadel `/oidc/v1/userinfo` | Access token present but JWT is missing the company claim (common) |
 | — | Env `UNIQUE_AUTH_*` | **Only** when there is no access token (local unauthenticated dev) |
 
-Tools call `get_unique_settings_async()` from `unique_mcp`. If an access token is present but identity cannot be resolved from `_meta` / JWT / userinfo, the tool **errors** instead of falling back to the env service user. See [`unique_mcp/src/unique_mcp/unique_injectors.py`](../../../unique_mcp/src/unique_mcp/unique_injectors.py).
+Tools call `get_unique_settings_async()` from `unique_mcp`. If an access token is present but identity cannot be resolved from `_meta` / JWT / userinfo, the tool **errors** instead of falling back to the env service user. See [`unique_mcp` per-request identity](../../../unique_mcp/docs/identity.md).
 
 On Azure, set `UNIQUE_APP_*` / `UNIQUE_API_BASE_URL` for the app’s API credentials. Prefer **not** setting `UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` on the Web App so a misconfigured token cannot silently search as one fixed user.
 
@@ -336,7 +336,7 @@ The Unique stack resolves **user** and **company** for tools from the MCP reques
 
 **Both** keys must be set to non-empty strings in `_meta` for that path to apply; otherwise identity falls through to JWT claims, then Zitadel `/userinfo` if an access token is present. Env `UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` apply **only** when there is no access token (same rules as [Per-user identity](#per-user-identity-not-a-fixed-service-user)).
 
-See also `MetaKeys` in `unique_mcp` and the example in [`src/mcp_search/mcp_client.py`](./src/mcp_search/mcp_client.py) (`call_tool(..., meta={...})`).
+See also `MetaKeys` in `unique_mcp`, the full [`unique_mcp` `_meta` convention](../../../unique_mcp/docs/meta.md), and the example in [`src/mcp_search/mcp_client.py`](./src/mcp_search/mcp_client.py) (`call_tool(..., meta={...})`).
 
 
 
@@ -368,7 +368,7 @@ Add the ngrok-based redirect URI to your Zitadel OAuth application so the OAuth 
 https://<subdomain>.ngrok-free.app/auth/callback
 ```
 
-See [`unique_mcp/docs/zitadel/README.md`](../../../unique_mcp/docs/zitadel/README.md) for full Zitadel setup instructions.
+See [`unique_mcp/docs/zitadel.md`](../../../unique_mcp/docs/zitadel.md) for full Zitadel setup instructions.
 
 
 # Deploy
