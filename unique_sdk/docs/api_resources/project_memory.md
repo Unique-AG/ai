@@ -4,7 +4,7 @@ The Project Memory API reads, writes and deletes the memory of a project that be
 
 ## Overview
 
-A project groups a user's chats in a space. Each project has one project memory, built from the user's project chats by a nightly data science job and read into every chat of the project. Only the project's owner can reach it; any other caller, or a project that does not exist, gets `404 Not Found`. The Projects feature flag must be enabled for the user.
+A project groups a user's chats in a space. Each project has one project memory, built from the user's project chats by a nightly data science job and read into every chat of the project. The Projects feature flag must be enabled for the user; otherwise every call gets `403 Forbidden` (`PermissionError`). Only the project's owner can reach the memory; any other caller, or a project that does not exist, gets `404 Not Found` (`InvalidRequestError`).
 
 A project memory holds:
 

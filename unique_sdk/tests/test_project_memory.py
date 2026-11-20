@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from unique_sdk import ProjectMemory as PublicProjectMemory
+from unique_sdk._util import convert_to_unique_object
 from unique_sdk.api_resources._project_memory import ProjectMemory
 
 pytestmark = pytest.mark.ai
@@ -35,6 +36,16 @@ DELETED = {"id": PROJECT_ID, "object": "project-memory", "deleted": True}
 def test_project_memory_is_exported():
     assert PublicProjectMemory is ProjectMemory
     assert ProjectMemory.OBJECT_NAME == "project-memory"
+
+
+def test_responses_convert_to_project_memory():
+    # The object registry maps "project-memory" responses to the resource
+    # class, so results are real ProjectMemory instances, not UniqueObject.
+    result = convert_to_unique_object(dict(MEMORY), USER_ID, COMPANY_ID)
+
+    assert isinstance(result, ProjectMemory)
+    assert result.document == "# Project memory"
+    assert result.state == '{"schema_version": 3}'
 
 
 @patch.object(ProjectMemory, "_static_request")
