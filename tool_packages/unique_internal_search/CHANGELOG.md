@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v2026.46.0...unique-internal-search-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **orchestrator:** let build_unique_ai take evaluation factories ([#2780](https://github.com/Unique-AG/ai/issues/2780)) ([9bb60f5](https://github.com/Unique-AG/ai/commit/9bb60f5ac1b76e5b07a6179813f3daaf91d1c5ce))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
 ## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v2026.44.0...unique-internal-search-v2026.46.0) (2026-11-06)
 
 
