@@ -1,0 +1,10 @@
+# Enforced by poe lint-architecture.
+
+[file_size]
+default_max_lines = 800
+
+[file_size.ceilings]
+
+[waivers]
+arch_allow_positional = 0
+arch_allow_private_import = 0
