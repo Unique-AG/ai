@@ -1261,18 +1261,20 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.139.0"
+version = "0.163.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
+    { name = "anyio" },
+    { name = "opentelemetry-api" },
     { name = "pydantic" },
     { name = "starlette" },
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d3/af/a5f50ccfa659ec1802cb4ca842c23f06d906a8cc9aef6016a2caeea3d4ed/fastapi-0.139.0.tar.gz", hash = "sha256:99ab7b2d92223c76d6cf10757ab3f89d45b38267fc20b2a136cf02f6beac3145", size = 423016, upload-time = "2026-07-01T16:35:33.436Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/62/19000d0f3699cacaeffe8a3c4cc7046d87aac3291163ffeb2ef08b82d859/fastapi-0.163.1.tar.gz", hash = "sha256:3d364b02a68b67292e833ff2dfed3b8dc3aeadf73e271c15316c6c166668792f", size = 544796, upload-time = "2026-11-15T09:51:31.271Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/7c/8e3c6ad324ea5cb36604fc3f968554887891c316d9dfde57761611d907ad/fastapi-0.139.0-py3-none-any.whl", hash = "sha256:cf15e1e9e667ddb0ad63811e60bd11390d1aac838ca4a7a23f421807b2308189", size = 130339, upload-time = "2026-07-01T16:35:32.19Z" },
+    { url = "https://files.pythonhosted.org/packages/20/b6/2424da1e40825d3fc54539621811f34e21472499677c9490e4967270e38e/fastapi-0.163.1-py3-none-any.whl", hash = "sha256:68f2d8050f5c3583121c0d203046cc7def5c16a7d6c43a0e7707a8ea610fe2d3", size = 154541, upload-time = "2026-11-15T09:51:29.726Z" },
 ]
 
 [[package]]
@@ -5913,7 +5915,7 @@ requires-dist = [
     { name = "azure-core", specifier = ">=1.36.0,<2" },
     { name = "azure-identity", specifier = ">=1.25.0,<2" },
     { name = "certifi", specifier = ">=2025.11.12,<2027" },
-    { name = "fastapi", specifier = ">=0.133.0,<1.0.0" },
+    { name = "fastapi", specifier = ">=0.163.1,<1.0.0" },
     { name = "google-auth", specifier = ">=2.43.0,<3" },
     { name = "google-genai", specifier = ">=1.73.0,<2" },
     { name = "httpx", specifier = ">=0.28.0,<0.29.0" },
@@ -6209,7 +6211,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.0,<9" },
     { name = "deepdiff", specifier = ">=8.6.1,<9" },
     { name = "docxtpl", specifier = ">=0.20.1,<0.21" },
-    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.133.0,<1.0.0" },
+    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.163.1,<1.0.0" },
     { name = "httpx", specifier = ">=0.28.0,<0.29" },
     { name = "jambo", specifier = ">=0.1.2,<0.2" },
     { name = "jinja2", specifier = ">=3.1.6,<4" },
