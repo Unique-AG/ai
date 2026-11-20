@@ -1337,7 +1337,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_is_chat_only__returns_true__when_tool_call_chat_only_is_true(
+    async def test_is_chat_only__ignores_tool_call_chat_only__when_config_disables_it(
         self,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
@@ -1346,9 +1346,9 @@ class TestInternalSearchTool:
         mock_chunk_relevancy_sorter: Any,
     ) -> None:
         """
-        Purpose: Verify is_chat_only returns True when tool_call.arguments.chat_only is True.
-        Why this matters: Allows tool call to override configuration and force chat-only mode.
-        Setup summary: Create tool with chat_only=False, call is_chat_only with tool_call containing chat_only=True.
+        Purpose: Verify is_chat_only ignores tool_call.arguments.chat_only.
+        Why this matters: chat_only is not a declared tool argument; chat-only mode drops the space filter (UN-28688).
+        Setup summary: Create tool with chat_only=False, call is_chat_only with tool_call containing chat_only=True, assert False.
         """
         # Arrange
         base_internal_search_config.chat_only = False
@@ -1381,112 +1381,6 @@ class TestInternalSearchTool:
 
             tool_call = Mock()
             tool_call.arguments = {"chat_only": True}
-
-            # Act
-            result = await tool.is_chat_only(tool_call=tool_call)
-
-            # Assert
-            assert result is True
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_is_chat_only__returns_false__when_tool_call_chat_only_is_false(
-        self,
-        base_internal_search_config: InternalSearchConfig,
-        mock_chat_event: Any,
-        mock_logger: Any,
-        mock_content_service: ContentService,
-        mock_chunk_relevancy_sorter: Any,
-    ) -> None:
-        """
-        Purpose: Verify is_chat_only returns False when tool_call.arguments.chat_only is False.
-        Why this matters: Ensures tool call can explicitly disable chat-only mode.
-        Setup summary: Create tool, call is_chat_only with tool_call containing chat_only=False.
-        """
-        # Arrange
-        base_internal_search_config.chat_only = False
-        base_internal_search_config.scope_to_chat_on_upload = False
-
-        with (
-            patch(
-                "unique_internal_search.service.ContentService"
-            ) as mock_content_service_class,
-            patch(
-                "unique_internal_search.service.ChunkRelevancySorter"
-            ) as mock_sorter_class,
-        ):
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
-            mock_content_service.search_contents_async = AsyncMock(return_value=[])
-
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
-                setattr(self, "logger", mock_logger)
-                setattr(self, "_message_step_logger", None)
-
-            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-                tool = InternalSearchTool(
-                    configuration=base_internal_search_config,
-                    event=mock_chat_event,
-                )
-                setattr(tool, "_event", mock_chat_event)
-
-            tool_call = Mock()
-            tool_call.arguments = {"chat_only": False}
-
-            # Act
-            result = await tool.is_chat_only(tool_call=tool_call)
-
-            # Assert
-            assert result is False
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_is_chat_only__returns_false__when_tool_call_arguments_not_dict(
-        self,
-        base_internal_search_config: InternalSearchConfig,
-        mock_chat_event: Any,
-        mock_logger: Any,
-        mock_content_service: ContentService,
-        mock_chunk_relevancy_sorter: Any,
-    ) -> None:
-        """
-        Purpose: Verify is_chat_only handles non-dict tool_call.arguments gracefully.
-        Why this matters: Ensures robust handling of malformed tool call arguments.
-        Setup summary: Create tool, call is_chat_only with tool_call.arguments as non-dict.
-        """
-        # Arrange
-        base_internal_search_config.chat_only = False
-        base_internal_search_config.scope_to_chat_on_upload = False
-
-        with (
-            patch(
-                "unique_internal_search.service.ContentService"
-            ) as mock_content_service_class,
-            patch(
-                "unique_internal_search.service.ChunkRelevancySorter"
-            ) as mock_sorter_class,
-        ):
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
-            mock_content_service.search_contents_async = AsyncMock(return_value=[])
-
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
-                setattr(self, "logger", mock_logger)
-                setattr(self, "_message_step_logger", None)
-
-            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-                tool = InternalSearchTool(
-                    configuration=base_internal_search_config,
-                    event=mock_chat_event,
-                )
-                setattr(tool, "_event", mock_chat_event)
-
-            tool_call = Mock()
-            tool_call.arguments = "not a dict"
 
             # Act
             result = await tool.is_chat_only(tool_call=tool_call)
