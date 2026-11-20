@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.46.0...unique-web-search-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **orchestrator:** let build_unique_ai take evaluation factories ([#2780](https://github.com/Unique-AG/ai/issues/2780)) ([9bb60f5](https://github.com/Unique-AG/ai/commit/9bb60f5ac1b76e5b07a6179813f3daaf91d1c5ce))
+* **web-search:** add the page description to Google snippets ([#2802](https://github.com/Unique-AG/ai/issues/2802)) ([c2fa746](https://github.com/Unique-AG/ai/commit/c2fa746dfa982cbc68e4195f3db2430fb16ac578))
+* **web-search:** evaluate the activity records flag per user and count tool calls without an outbox [UN-28965] ([#2825](https://github.com/Unique-AG/ai/issues/2825)) ([f191839](https://github.com/Unique-AG/ai/commit/f191839041981b7209409916b14a32a0edd8f8f0))
+* **web-search:** record Activity Records for web search tool calls [UN-28965] ([#2782](https://github.com/Unique-AG/ai/issues/2782)) ([00d1307](https://github.com/Unique-AG/ai/commit/00d1307ffcb7eaad55c1cd34eda56fc849a7fb87))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
 ## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.44.0...unique-web-search-v2026.46.0) (2026-11-06)
 
 

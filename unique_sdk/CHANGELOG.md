@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.46.0...unique-sdk-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **cli:** accept several queries in one knowledge base search call [UN-28777] ([#2764](https://github.com/Unique-AG/ai/issues/2764)) ([45e6977](https://github.com/Unique-AG/ai/commit/45e6977520a741746b72cf4ac93c93abffd34625))
+* **cli:** delete one agentic table row by id [UN-28733] ([#2799](https://github.com/Unique-AG/ai/issues/2799)) ([5a3632e](https://github.com/Unique-AG/ai/commit/5a3632e3cd66be7e34b4282942e52b6788887be2))
+* **sdk:** add the ProjectMemory resource [UN-29194] ([#2831](https://github.com/Unique-AG/ai/issues/2831)) ([8d7e135](https://github.com/Unique-AG/ai/commit/8d7e135d5241f32fe475c5e9194fdbcc64b52930))
+* **sdk:** record documents unique-cli read returns [UN-29512] ([#2768](https://github.com/Unique-AG/ai/issues/2768)) ([bf3f81c](https://github.com/Unique-AG/ai/commit/bf3f81c8d0f6f2854de035b939d2671872a7f23f))
+
+
+### Bug Fixes
+
+* **cli:** describe uploaded-search per message, not per task [UN-26588] ([#2744](https://github.com/Unique-AG/ai/issues/2744)) ([2b41e90](https://github.com/Unique-AG/ai/commit/2b41e90e3e984a186dab2205d112f5980760b78d))
+* **cli:** show results when a search call has several queries [UN-29738] ([#2789](https://github.com/Unique-AG/ai/issues/2789)) ([1d1bd2e](https://github.com/Unique-AG/ai/commit/1d1bd2edaf5cb780a1bedc5ffa2566b2754de349))
+* **sdk:** say MCP citation numbers are chat-wide in the unique-cli-mcp skill [UN-29474] ([#2751](https://github.com/Unique-AG/ai/issues/2751)) ([33f90b4](https://github.com/Unique-AG/ai/commit/33f90b469798fdf8bcf8b58ce9e6c3b7cc48969f))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
 ## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.44.0...unique-sdk-v2026.46.0) (2026-11-06)
 
 
