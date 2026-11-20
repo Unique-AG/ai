@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.46.0/api_resources/agentic_table/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.48.0.dev16/api_resources/agentic_table/">
       
       
         <link rel="prev" href="../">
@@ -570,6 +570,8 @@
       
         
           
+        
+      
         
       
         
@@ -1431,6 +1433,34 @@
     
   
     MCP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project_memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Memory
   
 
     
@@ -3102,6 +3132,36 @@
     <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
     <span class="n">tableId</span><span class="o">=</span><span class="s2">&quot;sheet_abc123&quot;</span><span class="p">,</span>
     <span class="n">metadataId</span><span class="o">=</span><span class="s2">&quot;meta_xyz&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+</details>
+<details class="example">
+<summary><code>unique_sdk.AgenticTable.delete_row</code> - Permanently delete one row by id</summary>
+<p>Permanently delete one content row. <code>rowId</code> is the id on a cell from <code>get_sheet_data</code> with <code>includeCells=True</code>, or from <code>get_cell</code>, not the row order. The header is <code>rowOrder</code> 0, and <code>delete_row</code> rejects it, so the example uses the first cell whose <code>rowOrder</code> is at least 1. A locked row and a row in a final review status are also rejected. A caller who is not a member of the sheet is rejected. A row on a completed sheet can be deleted; the sheet status is then recomputed. A missing sheet or row is not found.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>tableId</code> (str, required) - Table/sheet ID</li>
+<li><code>rowId</code> (str, required) - Row id (<code>mt_row_...</code>), not the row order</li>
+</ul>
+<p><strong>Returns:</strong></p>
+<p>Returns a <code>{object, id, status, message?}</code> result. <code>object</code> is <code>magic-table-action</code>. On success <code>id</code> is the sheet id.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">sheet</span> <span class="o">=</span> <span class="k">await</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">AgenticTable</span><span class="o">.</span><span class="n">get_sheet_data</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">tableId</span><span class="o">=</span><span class="s2">&quot;sheet_abc123&quot;</span><span class="p">,</span>
+    <span class="n">includeCells</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">content_cell</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+    <span class="n">cell</span> <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">sheet</span><span class="p">[</span><span class="s2">&quot;magicTableCells&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">cell</span><span class="p">[</span><span class="s2">&quot;rowOrder&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+<span class="p">)</span>
+<span class="n">row_id</span> <span class="o">=</span> <span class="n">content_cell</span><span class="p">[</span><span class="s2">&quot;rowId&quot;</span><span class="p">]</span>
+
+<span class="k">await</span> <span class="n">unique_sdk</span><span class="o">.</span><span class="n">AgenticTable</span><span class="o">.</span><span class="n">delete_row</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">tableId</span><span class="o">=</span><span class="s2">&quot;sheet_abc123&quot;</span><span class="p">,</span>
+    <span class="n">rowId</span><span class="o">=</span><span class="n">row_id</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 </details>

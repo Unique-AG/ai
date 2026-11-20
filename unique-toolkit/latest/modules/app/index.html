@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/2026.46.0/modules/app/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/2026.48.0.dev16/modules/app/">
       
       
         <link rel="prev" href="../short_term_memory/">
@@ -8476,11 +8476,7 @@ of chat scoping when the request does not carry chat identifiers.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>unique_toolkit/unique_toolkit/app/schemas.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">441</span>
-<span class="normal">442</span>
-<span class="normal">443</span>
-<span class="normal">444</span>
-<span class="normal">445</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">445</span>
 <span class="normal">446</span>
 <span class="normal">447</span>
 <span class="normal">448</span>
@@ -8562,7 +8558,11 @@ of chat scoping when the request does not carry chat identifiers.</p>
 <span class="normal">524</span>
 <span class="normal">525</span>
 <span class="normal">526</span>
-<span class="normal">527</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ChatEvent</span><span class="p">(</span><span class="n">AssistantWebhookEvent</span><span class="p">[</span><span class="n">UniqueChatEventFilterOptions</span><span class="p">,</span> <span class="n">ChatEventPayload</span><span class="p">]):</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ChatEvent</span><span class="p">(</span><span class="n">AssistantWebhookEvent</span><span class="p">[</span><span class="n">UniqueChatEventFilterOptions</span><span class="p">,</span> <span class="n">ChatEventPayload</span><span class="p">]):</span>
     <span class="n">model_config</span> <span class="o">=</span> <span class="n">model_config</span>
 
     <span class="k">class</span><span class="w"> </span><span class="nc">FilterOptions</span><span class="p">(</span><span class="n">BaseSettings</span><span class="p">):</span>
@@ -10154,11 +10154,7 @@ In that case, it will be called later, when the model is rebuilt automatically o
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/app/schemas.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">479</span>
 <span class="normal">480</span>
 <span class="normal">481</span>
 <span class="normal">482</span>
@@ -10173,7 +10169,11 @@ In that case, it will be called later, when the model is rebuilt automatically o
 <span class="normal">491</span>
 <span class="normal">492</span>
 <span class="normal">493</span>
-<span class="normal">494</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@override</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@override</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Filter the chat event based on the assistant id and reference in code.&quot;&quot;&quot;</span>
 
@@ -10215,16 +10215,16 @@ In that case, it will be called later, when the model is rebuilt automatically o
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/app/schemas.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">468</span>
 <span class="normal">469</span>
 <span class="normal">470</span>
 <span class="normal">471</span>
 <span class="normal">472</span>
-<span class="normal">473</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_initial_debug_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_initial_debug_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the debug information for the chat event&quot;&quot;&quot;</span>
 
     <span class="c1"># TODO: Make sure this coincides with what is shown in the first user message</span>
@@ -13142,11 +13142,7 @@ See the [<code>extra</code> configuration value][pydantic.ConfigDict.extra] for 
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>unique_toolkit/unique_toolkit/app/schemas.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">534</span>
 <span class="normal">535</span>
 <span class="normal">536</span>
 <span class="normal">537</span>
@@ -13158,7 +13154,11 @@ See the [<code>extra</code> configuration value][pydantic.ConfigDict.extra] for 
 <span class="normal">543</span>
 <span class="normal">544</span>
 <span class="normal">545</span>
-<span class="normal">546</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@deprecated</span><span class="p">(</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@deprecated</span><span class="p">(</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Use the more specific `ChatEvent` instead that has the same properties. \</span>
 <span class="sd">This class will be removed in the next major version.&quot;&quot;&quot;</span>
 <span class="p">)</span>
@@ -14680,11 +14680,7 @@ In that case, it will be called later, when the model is rebuilt automatically o
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/app/schemas.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">479</span>
 <span class="normal">480</span>
 <span class="normal">481</span>
 <span class="normal">482</span>
@@ -14699,7 +14695,11 @@ In that case, it will be called later, when the model is rebuilt automatically o
 <span class="normal">491</span>
 <span class="normal">492</span>
 <span class="normal">493</span>
-<span class="normal">494</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@override</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@override</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Filter the chat event based on the assistant id and reference in code.&quot;&quot;&quot;</span>
 
@@ -14741,16 +14741,16 @@ In that case, it will be called later, when the model is rebuilt automatically o
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>unique_toolkit/unique_toolkit/app/schemas.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">468</span>
 <span class="normal">469</span>
 <span class="normal">470</span>
 <span class="normal">471</span>
 <span class="normal">472</span>
-<span class="normal">473</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_initial_debug_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_initial_debug_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the debug information for the chat event&quot;&quot;&quot;</span>
 
     <span class="c1"># TODO: Make sure this coincides with what is shown in the first user message</span>

@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.46.0/cli/agentic_table/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.48.0.dev16/cli/agentic_table/">
       
       
         <link rel="prev" href="../elicitation/">
@@ -616,6 +616,8 @@
       
         
       
+        
+      
     
     
     
@@ -1100,6 +1102,34 @@
     
   
     MCP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api_resources/project_memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Memory
   
 
     
@@ -2174,6 +2204,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#agentic-table-delete-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agentic-table delete-row
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#agentic-table-set-cell" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2382,6 +2423,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#agentic-table-delete-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agentic-table delete-row
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#agentic-table-set-cell" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2444,7 +2496,7 @@
 <p class="admonition-title">Experimental</p>
 <p>The CLI is experimental and its interface may change in future releases.</p>
 </div>
-<p>Work with Agentic Table (magic table) sheets through the public magic-table API. The <strong>read</strong> commands (<code>get-sheet</code>, <code>get-cell</code>, <code>cell-history</code>, <code>list-exports</code>) are <strong>Tier 0</strong>: they never write and never require confirmation. The <strong>write</strong> commands (<code>create-sheet</code>, <code>import</code>, <code>rerun-row</code>, <code>set-cell</code>, <code>export</code>) create a sheet, populate it, re-answer a row, write one cell, or export. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as <code>agentic-table: permission denied</code>.</p>
+<p>Work with Agentic Table (magic table) sheets through the public magic-table API. The <strong>read</strong> commands (<code>get-sheet</code>, <code>get-cell</code>, <code>cell-history</code>, <code>list-exports</code>) are <strong>Tier 0</strong>: they never write and never require confirmation. The <strong>write</strong> commands (<code>create-sheet</code>, <code>import</code>, <code>rerun-row</code>, <code>delete-row</code>, <code>set-cell</code>, <code>export</code>) create a sheet, populate it, re-answer a row, delete one content row, write one cell, or export. Every call is scoped to the configured user/company; sheet-role access (Owner / Can manage / Can edit) is enforced on the server, and a denial is reported as <code>agentic-table: permission denied</code>.</p>
 <h2 id="agentic-table-get-sheet">agentic-table get-sheet<a class="headerlink" href="#agentic-table-get-sheet" title="Permanent link">&para;</a></h2>
 <p>Show a sheet summary: name, state, and row count. Add <code>--metadata</code> for sheet-level metadata entries and <code>--cells</code> to include cell values.</p>
 <p><strong>Synopsis:</strong></p>
@@ -2530,10 +2582,11 @@ Metadata:
 </tr>
 <tr>
 <td><code>--json</code></td>
-<td>Print the raw cell JSON</td>
+<td>Print the raw cell JSON, including <code>rowId</code> when the API returned it</td>
 </tr>
 </tbody>
 </table>
+<p><code>delete-row</code> takes that <code>rowId</code>, not <code>--row</code>. The formatted view prints <code>Row id</code> when the cell record includes it.</p>
 <p><strong>Example:</strong></p>
 <div class="highlight"><pre><span></span><code>unique-cli<span class="w"> </span>agentic-table<span class="w"> </span>get-cell<span class="w"> </span>mt_abc123<span class="w"> </span>--row<span class="w"> </span><span class="m">1</span><span class="w"> </span>--col<span class="w"> </span><span class="m">2</span>
 </code></pre></div>
@@ -2787,6 +2840,37 @@ Run finished (state: IDLE).
 Result:  OK
 Detail:  accepted
 Row 4 rerun finished (state: IDLE).
+</code></pre></div>
+<hr />
+<h2 id="agentic-table-delete-row">agentic-table delete-row<a class="headerlink" href="#agentic-table-delete-row" title="Permanent link">&para;</a></h2>
+<p>Permanently delete one content row by its row id. This is the same delete the sheet UI performs: the row is removed. Confirm with <code>get-sheet &lt;table_id&gt; --cells --json</code>. The row is gone when the returned cells include <code>rowId</code> and none of them is the deleted id. Cells that omit <code>rowId</code> leave the check inconclusive. A summary-only <code>get-sheet</code> does not include cells.</p>
+<p><code>&lt;row_id&gt;</code> is the <code>rowId</code> on a cell (<code>mt_row_...</code>), not the row order <code>get-cell --row</code> and <code>rerun-row</code> use. Row order shifts when a row above it is removed, so it is not a safe address for a delete. Read the id with <code>get-cell --json</code> or <code>get-sheet --cells --json</code> (the formatted cell view prints <code>Row id</code> when the API returned it).</p>
+<p>One call deletes one row. There is no batch form. The header row, a locked row, and a row in a final review status are rejected with 400. A caller who is not a member of the sheet is also rejected with 400 (that message is passed through; a 403 is still <code>agentic-table: permission denied</code>). A missing sheet or row is 404. A row on a completed sheet can be deleted, and the sheet status is then recomputed.</p>
+<p>A digit-only argument is refused locally: it is a row order, and this command will not send it.</p>
+<p><strong>Synopsis:</strong></p>
+<div class="highlight"><pre><span></span><code>agentic-table delete-row &lt;table_id&gt; &lt;row_id&gt; [--json]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code></td>
+<td>Print the raw action JSON</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code>unique-cli<span class="w"> </span>agentic-table<span class="w"> </span>delete-row<span class="w"> </span>mt_abc123<span class="w"> </span>mt_row_e4d94icb5mtj99rmu2efhyel
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>Action:  delete
+Result:  OK
+Detail:  Agentic Table Row deleted successfully
 </code></pre></div>
 <hr />
 <h2 id="agentic-table-set-cell">agentic-table set-cell<a class="headerlink" href="#agentic-table-set-cell" title="Permanent link">&para;</a></h2>
