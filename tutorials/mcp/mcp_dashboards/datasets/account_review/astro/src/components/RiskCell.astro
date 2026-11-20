@@ -1,0 +1,16 @@
+---
+// Read-only risk cell for the portfolio table: icon badge + risk label.
+import { clientRow } from "../lib/contract";
+import Icon from "./Icon.astro";
+---
+
+<td class="riskcell" {...clientRow.attr("data-risk", "compliance.risk_level")}>
+  <span class="risk">
+    <span class="risk-indicator" tabindex="0" {...clientRow.attr("data-tooltip", "compliance.risk_level_tooltip")}>
+      <Icon name="chevron-up" class="risk-icon risk-icon-high" size={16} />
+      <Icon name="minus" class="risk-icon risk-icon-medium" size={16} />
+      <Icon name="chevron-down" class="risk-icon risk-icon-low" size={16} />
+    </span>
+    <span class="cellval" {...clientRow.field("compliance.risk_level")} />
+  </span>
+</td>

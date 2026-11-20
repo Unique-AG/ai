@@ -1,0 +1,13 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "// public/": "holds the esbuild output of src/host/; check the source, not the bundle",
+  "exclude": ["dist", "public"],
+  "// include": "the shared host lives outside this app, so name it explicitly or astro check skips it",
+  "include": [".astro/types.d.ts", "**/*", "../../../helpers/astro/host/**/*"],
+  "compilerOptions": {
+    "// paths": "shared, dataset-agnostic dashboard host — see helpers/astro/README.md",
+    "paths": {
+      "@mcp-dashboards/host/*": ["../../../helpers/astro/host/*"]
+    }
+  }
+}

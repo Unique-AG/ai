@@ -1,0 +1,34 @@
+{
+  "name": "account-review-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Account-review dashboard generated from the TypeSpec-backed mcp_dashboards dataset contract.",
+  "type": "module",
+  "scripts": {
+    "mock:data": "cd ../fastmcp && uv run --project ../../../helpers/python python ../astro/scripts/dump_mock_data.py",
+    "hosts": "node scripts/build-hosts.mjs",
+    "dev": "node scripts/build-hosts.mjs preview && DASHBOARD_MODE=preview astro dev",
+    "dev:live-local": "node scripts/build-hosts.mjs live-local && DASHBOARD_MODE=live-local astro dev",
+    "build:live": "node scripts/build-hosts.mjs live && DASHBOARD_MODE=live astro build --outDir dist/live",
+    "build:preview": "npm run mock:data && node scripts/build-hosts.mjs preview && DASHBOARD_MODE=preview astro build --outDir dist/preview",
+    "build:live-local": "node scripts/build-hosts.mjs live-local && DASHBOARD_MODE=live-local astro build --outDir dist/live-local",
+    "build": "npm run build:live && npm run build:preview",
+    "verify": "node scripts/verify-preview.mjs",
+    "screenshot": "node scripts/screenshot.mjs",
+    "test": "node --test src/lib/*.test.ts",
+    "typecheck": "astro check",
+    "check": "npm run test && npm run typecheck && npm run build && npm run verify"
+  },
+  "dependencies": {
+    "astro": "4.16.19",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@types/node": "26.2.0",
+    "esbuild": "0.21.5",
+    "jsdom": "29.1.1",
+    "playwright": "1.62.1",
+    "typescript": "5.9.3"
+  }
+}

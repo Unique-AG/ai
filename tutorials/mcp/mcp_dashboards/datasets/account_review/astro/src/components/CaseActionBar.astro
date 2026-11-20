@@ -1,0 +1,108 @@
+---
+// Renders the case-specific smart-action trigger(s) as inline banner links.
+// The emitted data-unique-* attributes are the platform's live-binding
+// contract, so the markup shape here is load-bearing.
+import { clientRow, mcpServer, sendPromptAttrs } from "../lib/contract";
+import type { CaseDefinition } from "../lib/cases";
+import Icon from "./Icon.astro";
+
+export interface Props {
+  ruleCode: string;
+  useCase: CaseDefinition;
+}
+
+const { ruleCode, useCase } = Astro.props;
+
+function stripLeadingIcon(label: string): string {
+  return label.replace(/^[^\w]+/u, "").trim();
+}
+
+function actionLabel(label: string): string {
+  const stripped = stripLeadingIcon(label);
+  const firstWord = stripped.split(/\s+/u)[0] ?? stripped;
+  return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+}
+
+function actDoneId(index?: number): string {
+  const suffix = index === undefined ? "" : `-${index}`;
+  return `act-{id}-${ruleCode}${suffix}`;
+}
+
+function promptFor(instructions: string): string {
+  // {field} stays literal here (JS template literals only interpolate
+  // ${...}) — these are the row-level placeholders the mock host / real
+  // platform host fill in at render time via data-unique-attr-*.
+  //
+  // sendPromptAttrs' ValidTemplate check (see contract.ts) can't validate
+  // these specific placeholders: `instructions` is a plain `string`
+  // parameter, so the runtime-concatenated result widens to `string`
+  // before it ever reaches sendPromptAttrs, losing the literal type
+  // FieldRefs needs to inspect. The nested placeholders below are generated
+  // Client fields verified by review rather than by the widened string type.
+  // R-SOF-CHECK is conditional (send_email only on gate failure, nothing on a
+  // clean pass) — skip_default_email_note lets it opt out of the sentence
+  // below, which every other case relies on unconditionally.
+  const defaultEmailNote = useCase.skip_default_email_note
+    ? ""
+    : `Always finish by calling \`send_email\` to the client or Compliance — analysis alone is not enough. ` +
+      `After the tool returns, tell the RM clearly whether the mail was **sent** or **not sent**, ` +
+      `using \`sent\` and \`delivery_message\` from the result.\n\n`;
+  const prompt =
+    `Analyse **{identity.name}** (\`{identity.reference}\`, row {id})\n\n` +
+    `**Case:** ${useCase.icon} ${useCase.tag} (\`{case_action.rule_code}\`)\n` +
+    `**Action:** {case_action.title}\n` +
+    `**Criticality:** {compliance.criticality}\n\n` +
+    `{case_action.explanation}\n\n` +
+    `Please cover:\n1. What this means and why it matters\n2. Likely root causes or context\n` +
+    `3. Severity and urgency\n4. Your recommendation\n\n` +
+    `${instructions}\n\n` +
+    `${defaultEmailNote}` +
+    `MCP server: \`${mcpServer}\``;
+  return prompt;
+}
+
+const dual = useCase.dual_action;
+---
+
+<div class="actionbar-case" data-rule={ruleCode}>
+  {
+    dual ? (
+      dual.actions.map((action, i) => (
+        <>
+          {i > 0 && <span class="cb-act-sep" aria-hidden="true"> · </span>}
+          <span class="act">
+            <input
+              type="checkbox"
+              class="act-done"
+              tabindex="-1"
+              aria-hidden="true"
+              {...clientRow.attr("id", actDoneId(i))}
+            />
+            <label class="banner-action" {...clientRow.attr("for", actDoneId(i))} {...sendPromptAttrs(promptFor(action.instructions))}>
+              {actionLabel(action.label)}
+            </label>
+            <span class="toast toast-agent" role="status">
+              <Icon name="bot" size={14} /> {stripLeadingIcon(action.toast)}
+            </span>
+          </span>
+        </>
+      ))
+    ) : (
+      <span class="act">
+        <input
+          type="checkbox"
+          class="act-done"
+          tabindex="-1"
+          aria-hidden="true"
+          {...clientRow.attr("id", actDoneId())}
+        />
+        <label class="banner-action" {...clientRow.attr("for", actDoneId())} {...sendPromptAttrs(promptFor(useCase.instructions ?? ""))}>
+          {useCase.banner_link ?? <span {...clientRow.field("case_action.button_label")} />}
+        </label>
+        <span class="toast toast-agent" role="status">
+          <Icon name="bot" size={14} /> Sent to me — analysing and drafting the next step
+        </span>
+      </span>
+    )
+  }
+</div>

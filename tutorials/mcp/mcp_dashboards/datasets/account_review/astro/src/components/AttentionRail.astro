@@ -1,0 +1,61 @@
+---
+// The "Needing attention" rail: live clients whose status is not Compliant.
+import DataList from "./DataList.astro";
+import Icon from "./Icon.astro";
+import { clientRow } from "../lib/contract";
+---
+
+<section>
+  <div class="seclabel">
+    <h2>Needing attention</h2>
+  </div>
+  <DataList
+    class="rail"
+    listName="attentionLive"
+    tool="list_clients"
+    args={{ filters: { needs_attention: true }, limit: 200 }}
+  >
+    <template data-unique-item>
+      <div class="acard-wrap">
+        <a
+          class="acard"
+          {...clientRow.key("id")}
+          {...clientRow.attr("href", "client_href")}
+          {...clientRow.attr("data-crit", "compliance.criticality")}
+          {...clientRow.attr("data-risk", "compliance.risk_level")}
+          {...clientRow.attr("data-status", "case_action.status")}
+        >
+          <div class="acard-title" {...clientRow.field("case_action.open_issue")} />
+          <div class="acard-body" {...clientRow.field("case_action.recommended_action")} />
+          <div class="acard-foot">
+            <span class="who">
+              <span class="avatar"><Icon name="user" size={12} /></span>
+              <span {...clientRow.field("identity.name")} />
+            </span>
+            <span class="acard-indicators">
+              <span class="status-indicator" tabindex="0" {...clientRow.attr("data-tooltip", "case_action.status")}>
+                <Icon name="alert-circle" class="status-icon status-icon-alert" size={16} />
+                <Icon name="flag" class="status-icon status-icon-flag" size={16} />
+                <Icon name="bell" class="status-icon status-icon-bell" size={16} />
+                <Icon name="arrow-up-right" class="status-icon status-icon-escalated" size={16} />
+                <Icon name="shield-check" class="status-icon status-icon-compliant" size={16} />
+              </span>
+              <span class="risk-indicator" tabindex="0" {...clientRow.attr("data-tooltip", "compliance.risk_level_tooltip")}>
+                <Icon name="chevron-up" class="risk-icon risk-icon-high" size={16} />
+                <Icon name="minus" class="risk-icon risk-icon-medium" size={16} />
+                <Icon name="chevron-down" class="risk-icon risk-icon-low" size={16} />
+              </span>
+            </span>
+          </div>
+        </a>
+      </div>
+    </template>
+    <p data-unique-state="loading" class="small muted" style="padding: 10px 4px" hidden aria-hidden="true"></p>
+    <p data-unique-state="empty" class="small muted" style="padding: 10px 4px">
+      Nothing needs attention — every open issue is escalated or cleared.
+    </p>
+    <p data-unique-state="error" class="small muted" style="display: none; padding: 10px 4px">
+      Clients needing attention could not be loaded.
+    </p>
+  </DataList>
+</section>
