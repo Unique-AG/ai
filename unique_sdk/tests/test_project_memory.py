@@ -175,3 +175,19 @@ def test_modify_with_state_none_keeps_the_stored_state(mock_request):
     mock_request.assert_called_once_with(
         "patch", URL, USER_ID, COMPANY_ID, params={"document": "# New"}
     )
+
+
+@patch.object(ProjectMemory, "_static_request")
+def test_project_id_is_escaped_into_one_path_segment(mock_request):
+    # An id with "/", ".." or "?" (e.g. supplied by an agent) must not reach
+    # another endpoint such as /context-memory.
+    mock_request.return_value = MEMORY
+    crafted = "../../context-memory?x=1#y"
+    expected = "/projects/..%2F..%2Fcontext-memory%3Fx%3D1%23y/memory"
+
+    ProjectMemory.retrieve(USER_ID, COMPANY_ID, crafted)
+    ProjectMemory.modify(USER_ID, COMPANY_ID, crafted, document="# New")
+    ProjectMemory.delete(USER_ID, COMPANY_ID, crafted)
+
+    paths = [call.args[1] for call in mock_request.call_args_list]
+    assert paths == [expected, expected, expected]

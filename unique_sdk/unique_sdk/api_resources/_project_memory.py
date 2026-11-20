@@ -5,6 +5,7 @@ one memory, which only the project's owner can read, replace or delete.
 """
 
 from typing import Any, Literal, TypedDict, cast
+from urllib.parse import quote
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._util import classproperty
@@ -55,7 +56,9 @@ class ProjectMemory(APIResource["ProjectMemory"]):
 
     @staticmethod
     def _url(project_id: str) -> str:
-        return f"/projects/{project_id}/memory"
+        # Escape the id so it stays one path segment: "/", "?", "#" or ".."
+        # in a caller- or agent-supplied id cannot reach another endpoint.
+        return f"/projects/{quote(project_id, safe='')}/memory"
 
     @staticmethod
     def _update_body(document: str, state: str | None) -> dict[str, Any]:
