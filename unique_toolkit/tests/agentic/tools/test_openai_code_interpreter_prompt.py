@@ -38,6 +38,27 @@ def test_default_prompts__require_wrapping_pdf_layout__and_width_check(
 
 @pytest.mark.ai
 @_DEFAULT_PROMPTS
+def test_default_prompts__pdf_rules_cover_tables_escaping_rebuild_and_empty_pdf(
+    prompt: str,
+) -> None:
+    """
+    Purpose: Verify both default prompts carry the rules for the cases found on UAT1.
+    Why this matters: Plain-string table cells ran off the page, unescaped `&` printed a stray
+    `;`, and a regeneration that reused a built `story` delivered a PDF with 0 pages that still
+    passed a width-only check.
+    Setup summary: Assert the Paragraph-cell, escape, fresh-story and non-empty-check phrases.
+    """
+    assert "every cell, headers included, is a `Paragraph`" in prompt
+    assert "`xml.sax.saxutils.escape`" in prompt
+    assert (
+        "Create a new `story` list in the same code cell as `doc.build(story)`"
+        in prompt
+    )
+    assert "at least one page, every page has words" in prompt
+
+
+@pytest.mark.ai
+@_DEFAULT_PROMPTS
 def test_default_prompts__pdf_rules_sit_before_dataframe_section(prompt: str) -> None:
     """
     Purpose: Verify the PDF section is placed with the file rules, ahead of the table section.
