@@ -1026,7 +1026,7 @@ async def test_no_outbox__flag_off__stays_silent(
 
 
 @pytest.mark.asyncio
-async def test_no_outbox__flag_on__counts_every_loss_and_warns_once(
+async def test_no_outbox__flag_on__counts_every_call_and_warns_once(
     mocker: Any, no_outbox: Mock, caplog: pytest.LogCaptureFixture
 ) -> None:
     enqueue_mock = mocker.patch("unique_web_search.activity_record.enqueue")
@@ -1060,11 +1060,13 @@ async def test_no_outbox__flag_read_fails__stays_silent(
     flag_client.is_enabled.side_effect = RuntimeError("flag backend down")
     tool = _tool(mocker, engine=_Engine(), elicitation=_elicitation(mocker, None))
 
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.DEBUG, logger="unique_web_search.activity_record"):
         await _run(tool)
 
     no_outbox.record_failures.inc.assert_not_called()
-    assert not caplog.records
+    assert [r for r in caplog.records if r.levelno >= logging.INFO] == []
+    assert any("errorName=RuntimeError" in r.getMessage() for r in caplog.records)
+    assert "flag backend down" not in caplog.text
 
 
 @pytest.mark.asyncio

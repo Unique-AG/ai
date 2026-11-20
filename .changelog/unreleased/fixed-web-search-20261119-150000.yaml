@@ -1,6 +1,6 @@
 component: Web Search
 kind: Fixed
-body: The web search Activity Records flag is now evaluated per user as well as per company, and records lost while no outbox is running are counted.
+body: The web search Activity Records flag is now evaluated per user as well as per company, and tool calls while no outbox is running are counted.
 time: 2026-11-19T15:00:00.000000+01:00
 custom:
     Audience: admin

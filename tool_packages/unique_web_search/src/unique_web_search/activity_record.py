@@ -146,9 +146,8 @@ def _warn_outbox_down() -> None:
     )
 
 
-async def _count_loss_while_outbox_down(tool: WebSearchTool) -> None:
+async def _count_call_while_outbox_down(tool: WebSearchTool) -> None:
     # Imported here: the metrics module needs prometheus, an optional extra.
-    # Stays silent when the flag client or prometheus is missing, as before.
     try:
         from unique_toolkit.experimental.resources.activity_records.metrics import (
             get_or_create_activity_event_outbox_metrics,
@@ -161,7 +160,11 @@ async def _count_loss_while_outbox_down(tool: WebSearchTool) -> None:
         ):
             return
         get_or_create_activity_event_outbox_metrics().record_failures.inc()
-    except Exception:
+    except Exception as exc:
+        _LOGGER.debug(
+            "Could not check web search activity records while no outbox is running (errorName=%s)",
+            type(exc).__name__,
+        )
         return
     _warn_outbox_down()
 
@@ -170,7 +173,7 @@ async def start(
     tool: WebSearchTool, tool_call: LanguageModelFunction
 ) -> ActivityRecord | None:
     if not is_running():
-        await _count_loss_while_outbox_down(tool)
+        await _count_call_while_outbox_down(tool)
         return None
     # Imported here: the registry imports search_engine.base, which imports this module.
     from unique_web_search.services.search_engine.registry import (
