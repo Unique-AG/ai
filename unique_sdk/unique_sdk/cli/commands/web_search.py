@@ -42,7 +42,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_PARALLEL = 10
 MAX_SEARCH_QUERIES = 8
-SEARCH_CONCURRENCY = 4
+SEARCH_CONCURRENCY = MAX_SEARCH_QUERIES
 _SNIPPET_PREVIEW_LIMIT = 200
 _CONTENT_PREVIEW_LIMIT = 500
 _WEB_REFS_LOG_RELATIVE_PATH = Path(".unique") / "web-refs.jsonl"
@@ -365,6 +365,8 @@ def cmd_web_search(
     output_json: bool = False,
     config_path: str | None = None,
     chat_id: str | None = None,
+    *,
+    refs_log_path: Path | None = None,
 ) -> str:
     """Run a web search via the public API.
 
@@ -391,6 +393,8 @@ def cmd_web_search(
             human-friendly table.
         chat_id: Optional chat id this call is made on behalf of. When
             set, the space's Web Search toggle is enforced server-side.
+        refs_log_path: The per-turn web citation manifest. When ``None``,
+            it resolves from the workspace root.
     """
     options = _search_request_options(
         fetch_size=fetch_size,
@@ -408,7 +412,9 @@ def cmd_web_search(
         return payload
 
     try:
-        payload = _annotate_web_results_for_citations(payload)
+        payload = _annotate_web_results_for_citations(
+            payload, refs_log_path=refs_log_path
+        )
     except UnsafeRefsLogPathError as exc:
         return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
     if output_json:
@@ -485,6 +491,8 @@ def cmd_web_search_many(
     output_json: bool = False,
     config_path: str | None = None,
     chat_id: str | None = None,
+    *,
+    refs_log_path: Path | None = None,
 ) -> str:
     """Run several web searches in one call and return one block per query.
 
@@ -497,6 +505,8 @@ def cmd_web_search_many(
     output is a ``web-search:`` error only when every query failed.
     ``output_json`` returns a list with one entry per query: the usual
     ``{engine, query, results}`` object, or ``{query, error}`` on failure.
+    ``refs_log_path`` is the per-turn web citation manifest; ``None``
+    resolves it from the workspace root.
     """
     if not queries:
         return f"{WEB_SEARCH_ERROR_PREFIX} no queries provided."
@@ -533,7 +543,9 @@ def cmd_web_search_many(
             outcomes.append(item)
             continue
         try:
-            outcomes.append(_annotate_web_results_for_citations(item))
+            outcomes.append(
+                _annotate_web_results_for_citations(item, refs_log_path=refs_log_path)
+            )
         except UnsafeRefsLogPathError as exc:
             return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
 
@@ -594,6 +606,8 @@ def cmd_web_crawl(
     output_json: bool = False,
     config_path: str | None = None,
     chat_id: str | None = None,
+    *,
+    refs_log_path: Path | None = None,
 ) -> str:
     """Crawl a list of URLs via the public API.
 
@@ -612,6 +626,8 @@ def cmd_web_crawl(
             human-friendly table.
         chat_id: Optional chat id this call is made on behalf of. When
             set, the space's Web Search toggle is enforced server-side.
+        refs_log_path: The per-turn web citation manifest. When ``None``,
+            it resolves from the workspace root.
     """
     if not urls:
         return f"{WEB_CRAWL_ERROR_PREFIX} no URLs provided. Pass URLs as arguments or use --stdin."
@@ -647,7 +663,9 @@ def cmd_web_crawl(
         return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
 
     try:
-        payload = _annotate_web_results_for_citations(_payload_from_resource(resource))
+        payload = _annotate_web_results_for_citations(
+            _payload_from_resource(resource), refs_log_path=refs_log_path
+        )
     except UnsafeRefsLogPathError as exc:
         return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
     if output_json:

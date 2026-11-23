@@ -725,6 +725,39 @@ class TestCmdWebCrawl:
         cmd_web_crawl(_state(), ["https://a"])
         assert "chatId" not in mock_crawl.call_args[1]
 
+    @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_writes_to_the_given_refs_log(
+        self, mock_crawl: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_crawl.return_value = _FakeResource(
+            _make_crawl_payload(
+                results=[{"url": "https://a", "content": "page", "error": None}]
+            )
+        )
+        manifest = tmp_path / "turn" / ".unique" / "web-refs.jsonl"
+
+        cmd_web_crawl(_state(), ["https://a"], refs_log_path=manifest)
+
+        rows = [json.loads(line) for line in manifest.read_text().splitlines()]
+        assert [row["url"] for row in rows] == ["https://a"]
+
+    @patch("unique_sdk.WebSearch.search")
+    def test_cmd_web_search_writes_to_the_given_refs_log(
+        self, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_search.return_value = _FakeResource(
+            _make_search_payload(
+                results=[
+                    {"url": "https://a", "title": "A", "snippet": "s", "content": ""}
+                ]
+            )
+        )
+        manifest = tmp_path / "turn" / ".unique" / "web-refs.jsonl"
+
+        cmd_web_search(_state(), "x", refs_log_path=manifest)
+
+        assert manifest.read_text().count("https://a") == 1
+
 
 class TestApiResourceContract:
     """Verify the SDK resource posts to the right URL with the right shape."""

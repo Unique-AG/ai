@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`cmd_web_search`, `cmd_web_search_many` and `cmd_web_crawl` take a `refs_log_path` keyword, so a host process can write web citations to a given workspace instead of the one found through the environment. `unique-cli web-search search` now runs all of its up to 8 queries at once instead of 4 at a time.'
+time: 2026-11-23T14:18:19.770011+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29879
