@@ -62,6 +62,10 @@ class WebSearch(APIResource["WebSearch"]):
         # server-side for this call. Omit for callers not acting on
         # behalf of a specific chat (unchanged legacy behavior).
         chatId: NotRequired[str | None]
+        # Optional: the assistant message this call serves, for grouping
+        # the call's activity records per turn. Send it only to a backend
+        # that accepts it; older public APIs reject unknown body fields.
+        messageId: NotRequired[str | None]
 
     # Response envelope.
     engine: str
@@ -138,6 +142,10 @@ class WebCrawl(APIResource["WebCrawl"]):
         # server-side for this call. Omit for callers not acting on
         # behalf of a specific chat (unchanged legacy behavior).
         chatId: NotRequired[str | None]
+        # Optional: the assistant message this call serves, for grouping
+        # the call's activity records per turn. Send it only to a backend
+        # that accepts it; older public APIs reject unknown body fields.
+        messageId: NotRequired[str | None]
 
     # Response envelope.
     crawler: str

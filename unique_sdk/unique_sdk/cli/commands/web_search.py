@@ -367,6 +367,7 @@ def cmd_web_search(
     chat_id: str | None = None,
     *,
     refs_log_path: Path | None = None,
+    message_id: str | None = None,
 ) -> str:
     """Run a web search via the public API.
 
@@ -395,6 +396,8 @@ def cmd_web_search(
             set, the space's Web Search toggle is enforced server-side.
         refs_log_path: The per-turn web citation manifest. When ``None``,
             it resolves from the workspace root.
+        message_id: Optional assistant message this call serves; sent as
+            ``messageId`` only when set.
     """
     options = _search_request_options(
         fetch_size=fetch_size,
@@ -403,6 +406,7 @@ def cmd_web_search(
         crawler_config_raw=crawler_config_raw,
         config_path=config_path,
         chat_id=chat_id,
+        message_id=message_id,
     )
     if isinstance(options, str):
         return options
@@ -430,6 +434,7 @@ def _search_request_options(
     crawler_config_raw: str | None,
     config_path: str | None,
     chat_id: str | None,
+    message_id: str | None = None,
 ) -> dict[str, Any] | str:
     """Build the request fields shared by every query, or return an error string."""
     file_overrides = _load_file_overrides(config_path)
@@ -460,6 +465,8 @@ def _search_request_options(
         options["crawlerConfig"] = crawler_override
     if chat_id:
         options["chatId"] = chat_id
+    if message_id:
+        options["messageId"] = message_id
     return options
 
 
@@ -493,6 +500,7 @@ def cmd_web_search_many(
     chat_id: str | None = None,
     *,
     refs_log_path: Path | None = None,
+    message_id: str | None = None,
 ) -> str:
     """Run several web searches in one call and return one block per query.
 
@@ -506,7 +514,8 @@ def cmd_web_search_many(
     ``output_json`` returns a list with one entry per query: the usual
     ``{engine, query, results}`` object, or ``{query, error}`` on failure.
     ``refs_log_path`` is the per-turn web citation manifest; ``None``
-    resolves it from the workspace root.
+    resolves it from the workspace root. ``message_id`` is sent as
+    ``messageId`` only when set.
     """
     if not queries:
         return f"{WEB_SEARCH_ERROR_PREFIX} no queries provided."
@@ -524,6 +533,7 @@ def cmd_web_search_many(
         crawler_config_raw=crawler_config_raw,
         config_path=config_path,
         chat_id=chat_id,
+        message_id=message_id,
     )
     if isinstance(options, str):
         return options
@@ -608,6 +618,7 @@ def cmd_web_crawl(
     chat_id: str | None = None,
     *,
     refs_log_path: Path | None = None,
+    message_id: str | None = None,
 ) -> str:
     """Crawl a list of URLs via the public API.
 
@@ -628,6 +639,8 @@ def cmd_web_crawl(
             set, the space's Web Search toggle is enforced server-side.
         refs_log_path: The per-turn web citation manifest. When ``None``,
             it resolves from the workspace root.
+        message_id: Optional assistant message this call serves; sent as
+            ``messageId`` only when set.
     """
     if not urls:
         return f"{WEB_CRAWL_ERROR_PREFIX} no URLs provided. Pass URLs as arguments or use --stdin."
@@ -652,6 +665,8 @@ def cmd_web_crawl(
         params["crawlerConfig"] = crawler_override
     if chat_id:
         params["chatId"] = chat_id
+    if message_id:
+        params["messageId"] = message_id
 
     try:
         resource = unique_sdk.WebCrawl.crawl(

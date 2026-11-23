@@ -312,6 +312,18 @@ class TestMultiQueryFailures:
         mock_search.assert_not_called()
 
 
+class TestMultiQueryMessageId:
+    @patch("unique_sdk.WebSearch.search")
+    def test_every_query_carries_the_message_id(self, mock_search: MagicMock) -> None:
+        mock_search.side_effect = _search_by_query(URLS)
+
+        cmd_web_search_many(_state(), ["git", "docker"], message_id="msg_1")
+
+        assert {call[1]["messageId"] for call in mock_search.call_args_list} == {
+            "msg_1"
+        }
+
+
 class TestMultiQueryRefsLogPath:
     @patch("unique_sdk.WebSearch.search")
     def test_rows_go_to_the_given_refs_log(
