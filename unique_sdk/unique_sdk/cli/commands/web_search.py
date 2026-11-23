@@ -674,7 +674,7 @@ def cmd_web_crawl(
             company_id=state.config.company_id,
             **params,
         )
-    except (ValueError, unique_sdk.APIError) as exc:
+    except (ValueError, unique_sdk.UniqueError) as exc:
         return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
 
     try:

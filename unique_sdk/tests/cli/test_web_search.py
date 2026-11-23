@@ -726,6 +726,17 @@ class TestCmdWebCrawl:
         assert "nope" in out
 
     @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_request_rejection_is_a_crawl_error(
+        self, mock_crawl: MagicMock
+    ) -> None:
+        mock_crawl.side_effect = unique_sdk.InvalidRequestError(
+            "property messageId should not exist", params=None, http_status=400
+        )
+        out = cmd_web_crawl(_state(), ["u"], message_id="msg_1")
+        assert out.startswith("web-crawl:")
+        assert "messageId" in out
+
+    @patch("unique_sdk.WebCrawl.crawl")
     def test_cmd_web_crawl_with_chat_id_sends_chat_id(
         self, mock_crawl: MagicMock
     ) -> None:
