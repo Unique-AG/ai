@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import signal
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
 
@@ -200,6 +201,7 @@ async def _send_to_subagent(
     parent_chat_id: str | None,
     parent_message_id: str | None,
     parent_assistant_id: str | None,
+    on_chat_created: Callable[[str], None],
 ) -> Space.Message:
     assistant_id = _get_str(
         subagent,
@@ -217,6 +219,9 @@ async def _send_to_subagent(
             "parentChatId": parent_chat_id,
             "parentAssistantId": parent_assistant_id,
         }
+
+    async def _on_message_created(posted: Space.Message) -> None:
+        on_chat_created(posted["chatId"])
 
     return await send_message_and_wait_for_completion(
         user_id=state.config.user_id,
@@ -240,6 +245,7 @@ async def _send_to_subagent(
         stop_condition=_get_stop_condition(subagent),
         correlation=correlation,
         stop_on_abandon=True,
+        on_message_created=_on_message_created,
     )
 
 
@@ -280,6 +286,16 @@ def _timeout_note(*, display_name: str, timeout: MessageWaitTimeoutError) -> str
     )
 
 
+def _terminated_note(*, display_name: str, chat_id: str | None) -> str:
+    note = f"{SUBAGENT_ERROR_PREFIX} terminated while waiting for {display_name}."
+    if chat_id is None:
+        return note
+    return (
+        f"{note} Its turn in chat {chat_id} was asked to stop. "
+        "Do not send the same task again before checking that chat."
+    )
+
+
 def cmd_subagent(
     state: ShellState,
     tool_name: str,
@@ -311,6 +327,18 @@ def cmd_subagent(
             chat_id = chat_state.get(tool_name)
 
         remembers_chat = configured_chat_id is None and reuse_chat
+        created_chat_ids: list[str] = []
+
+        def _on_chat_created(created_chat_id: str) -> None:
+            created_chat_ids.append(created_chat_id)
+            if remembers_chat:
+                _remember_chat(
+                    state_path=state_path,
+                    chat_state=chat_state,
+                    tool_name=tool_name,
+                    chat_id=created_chat_id,
+                )
+
         try:
             response = asyncio.run(
                 _send_to_subagent(
@@ -321,23 +349,26 @@ def cmd_subagent(
                     parent_chat_id=parent_chat_id,
                     parent_message_id=parent_message_id,
                     parent_assistant_id=parent_assistant_id,
+                    on_chat_created=_on_chat_created,
                 )
             )
         except MessageWaitTimeoutError as timeout:
-            if remembers_chat:
-                _remember_chat(
-                    state_path=state_path,
-                    chat_state=chat_state,
-                    tool_name=tool_name,
-                    chat_id=timeout.chat_id,
-                )
             note = _timeout_note(display_name=display_name, timeout=timeout)
             return f"{SUBAGENT_ERROR_PREFIX} {note}"
         except asyncio.CancelledError:
+            # The process is ending, so the note cannot be returned. It goes
+            # to stdout, where the caller reads the command's output.
+            print(
+                _terminated_note(
+                    display_name=display_name,
+                    chat_id=created_chat_ids[0] if created_chat_ids else None,
+                ),
+                flush=True,
+            )
             raise SystemExit(128 + signal.SIGTERM) from None
 
         response_chat_id = response.get("chatId")
-        if remembers_chat and response_chat_id:
+        if remembers_chat and response_chat_id not in (None, *created_chat_ids):
             _remember_chat(
                 state_path=state_path,
                 chat_state=chat_state,

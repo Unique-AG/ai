@@ -231,10 +231,16 @@ def test_cli_subagent_error_exits_non_zero(mock_cmd_subagent: object) -> None:
     assert result.output.strip() == "subagent: unknown subagent tool 'Finance'"
 
 
-def _timeout(*, turn_stopped: bool) -> MessageWaitTimeoutError:
-    return MessageWaitTimeoutError(
-        chat_id="chat-child", message_id="msg-user", turn_stopped=turn_stopped
-    )
+def _timeout(*, turn_stopped: bool) -> object:
+    async def post_then_time_out(**kwargs: object) -> None:
+        on_message_created = kwargs["on_message_created"]
+        assert callable(on_message_created)
+        await on_message_created({"chatId": "chat-child", "id": "msg-user"})
+        raise MessageWaitTimeoutError(
+            chat_id="chat-child", message_id="msg-user", turn_stopped=turn_stopped
+        )
+
+    return post_then_time_out
 
 
 @pytest.mark.ai
@@ -299,6 +305,7 @@ def test_cmd_subagent__timeout_with_failed_stop__names_the_running_chat(
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
 def test_cmd_subagent__sigterm_during_wait__stops_turn_then_exits_143(
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     config_path = tmp_path / ".unique-subagents.json"
     _write_subagents_config(config_path)
@@ -323,3 +330,8 @@ def test_cmd_subagent__sigterm_during_wait__stops_turn_then_exits_143(
 
     assert raised.value.code == 128 + signal.SIGTERM
     stop.assert_awaited_once_with("u1", "c1", "msg-user", chatId="chat-child")
+    saved = json.loads((tmp_path / ".unique-subagent-chats.json").read_text())
+    assert saved == {"LegalReview": "chat-child"}
+    out = capsys.readouterr().out
+    assert out.startswith("subagent: terminated while waiting for Legal Review.")
+    assert "chat chat-child was asked to stop" in out

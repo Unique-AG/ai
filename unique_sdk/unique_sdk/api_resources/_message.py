@@ -356,11 +356,7 @@ class Message(APIResource["Message"]):
         """
         Stops the running assistant turn that the given message belongs to.
 
-        This is the stop a user triggers in the chat. It marks the turn as
-        aborted by the user (``userAbortedAt``), ends every unfinished
-        assistant segment, and cancels the turn's pending elicitations. ``id``
-        may be the USER message that started the turn or one of its assistant
-        messages.
+        ``id`` may be the USER message that started the turn or one of its replies.
         """
         url = "%s/%s/stop" % (cls.class_url(), quote_plus(id))
         return cast(
@@ -379,11 +375,7 @@ class Message(APIResource["Message"]):
         """
         Stops the running assistant turn that the given message belongs to.
 
-        This is the stop a user triggers in the chat. It marks the turn as
-        aborted by the user (``userAbortedAt``), ends every unfinished
-        assistant segment, and cancels the turn's pending elicitations. ``id``
-        may be the USER message that started the turn or one of its assistant
-        messages.
+        ``id`` may be the USER message that started the turn or one of its replies.
         """
         url = "%s/%s/stop" % (cls.class_url(), quote_plus(id))
         return cast(

@@ -25,9 +25,7 @@ _abandon_stops: set[asyncio.Task[bool]] = set()
 class MessageWaitTimeoutError(TimeoutError):
     """The assistant turn did not finish within ``max_wait``.
 
-    ``turn_stopped`` is True when the wait stopped the turn before it raised.
-    It is False when no stop was requested or the stop failed; the turn may
-    then still be running in ``chat_id``.
+    ``turn_stopped`` is False when no stop was requested or the stop failed.
     """
 
     def __init__(self, *, chat_id: str, message_id: str, turn_stopped: bool) -> None:
@@ -176,10 +174,6 @@ async def wait_for_message_completion(
     """
     Polls a chat until the assistant turn started by an already posted message finishes.
 
-    Use it after ``Space.create_message_async`` when the caller needs the chat ID and
-    the message ID before the wait starts. ``send_message_and_wait_for_completion``
-    does both steps.
-
     Args:
         user_id: The user ID.
         company_id: The company ID.
@@ -191,8 +185,7 @@ async def wait_for_message_completion(
         on_message_update: See ``send_message_and_wait_for_completion``.
         wait_for_invocations: See ``send_message_and_wait_for_completion``.
         stop_on_abandon: When True, stop the assistant turn if this wait ends without
-            an answer: at ``max_wait``, on cancellation, or on an error. Use it when
-            nobody else watches the chat, so the turn does not keep running unobserved.
+            an answer: at ``max_wait``, on cancellation, or on an error.
 
     Returns:
         The completed Space.Message.
@@ -319,11 +312,7 @@ async def _stop_turn(
 async def _stop_turn_despite_cancellation(
     *, user_id: str, company_id: str, chat_id: str, message_id: str
 ) -> bool:
-    """Stop the turn and wait until the stop settles, however often the caller is cancelled.
-
-    The stop runs in its own task and is bounded by ``_ABANDON_STOP_TIMEOUT_S``. A
-    cancellation that arrives meanwhile is raised once the stop has settled.
-    """
+    """Stop the turn. Wait for the stop to settle, even when cancelled."""
     stop = asyncio.ensure_future(
         _stop_turn(
             user_id=user_id,
