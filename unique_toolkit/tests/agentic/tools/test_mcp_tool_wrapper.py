@@ -1628,6 +1628,7 @@ class TestMCPToolWrapperRecordReferences:
             ("test_mcp_tool", None),
         ]
         assert "PROJ-1" not in chunks[1].text
+        assert chunks[1].text.startswith("[IMPORTANT: cite issues]\n")
 
     @pytest.mark.ai
     def test_extract_record_references__applies_reference_mapping_AI(
@@ -1788,3 +1789,19 @@ class TestMCPToolWrapperRecordReferences:
 
         assert [c.title for c in chunks] == ["Budget", "test_mcp_tool"]
         assert chunks[1].text.endswith("ok")
+
+    @pytest.mark.ai
+    def test_extract_record_references__keeps_text_around_the_json_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        record = {"title": "Budget", "url": "https://wiki.example.test/budget"}
+        text = f"Results:\n{json.dumps(record)}\nShowing 1 of 9."
+        result = {"content": [{"type": "text", "text": text}]}
+
+        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [(c.title, c.text) for c in chunks][1] == (
+            "test_mcp_tool",
+            "Results:\nShowing 1 of 9.",
+        )

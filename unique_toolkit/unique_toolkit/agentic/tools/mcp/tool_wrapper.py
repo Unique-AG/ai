@@ -11,7 +11,7 @@ import unique_sdk
 from pydantic import ValidationError
 from unique_sdk.utils.mcp_citations import (
     extract_mcp_citation_items,
-    loads_embedded_json,
+    find_embedded_json,
 )
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -531,17 +531,23 @@ def _text_outside_records(texts: list[str], record_texts: list[str]) -> str | No
 def _block_outside_records(text: str, remaining: Counter[str]) -> str | None:
     if not text.strip():
         return None
-    parsed = loads_embedded_json(text)
-    if parsed is None:
+    found = find_embedded_json(text)
+    if found is None:
         for record_text in list(remaining):
             while remaining[record_text] > 0 and record_text in text:
                 text = text.replace(record_text, "", 1)
                 remaining[record_text] -= 1
         return text.strip() or None
+    parsed, start, end = found
     pruned = _without_records(parsed, remaining, in_list=False)
-    if pruned is _REMOVED or not _has_scalar(pruned):
-        return None
-    return json.dumps(pruned, ensure_ascii=False, default=str)
+    body = (
+        None
+        if pruned is _REMOVED or not _has_scalar(pruned)
+        else json.dumps(pruned, ensure_ascii=False, default=str)
+    )
+    # Text around the JSON, such as Atlassian's ``[IMPORTANT: ...]`` notice.
+    parts = (text[:start].strip(), body, text[end:].strip())
+    return "\n".join(part for part in parts if part) or None
 
 
 _REMOVED = object()
