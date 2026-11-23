@@ -44,12 +44,13 @@ def test_default_prompts__pdf_rules_cover_tables_escaping_rebuild_and_empty_pdf(
     """
     Purpose: Verify both default prompts carry the rules for the cases found on UAT1.
     Why this matters: Plain-string table cells ran off the page, unescaped `&` printed a stray
-    `;`, and a regeneration that reused a built `story` delivered a PDF with 0 pages that still
+    `;` (and a `"` in a URL breaks the `href`), and a regeneration that reused a built `story` delivered a PDF with 0 pages that still
     passed a width-only check.
     Setup summary: Assert the Paragraph-cell, escape, fresh-story and non-empty-check phrases.
     """
     assert "every cell, headers included, is a `Paragraph`" in prompt
     assert "`xml.sax.saxutils.escape`" in prompt
+    assert """`escape(url, {'"': "&quot;"})`""" in prompt
     assert (
         "Create a new `story` list in the same code cell as `doc.build(story)`"
         in prompt

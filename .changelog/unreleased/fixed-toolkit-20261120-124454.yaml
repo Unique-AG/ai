@@ -1,6 +1,6 @@
 component: Toolkit
 kind: Fixed
-body: The PDF rules in the default Code Execution (`code_interpreter`) system prompts now cover wide tables, escaping and regeneration. Every table cell must be a `Paragraph` in the TrueType style, so a wide table wraps instead of running off the page. Text and URLs go through `xml.sax.saxutils.escape`, so `&` no longer prints a stray `;`. Each build uses a fresh story list, so a regenerated PDF is no longer empty. The self-check now also asserts that the PDF has pages and text.
+body: The PDF rules in the default Code Execution (`code_interpreter`) system prompts now also guide the model on wide tables, escaping and regeneration. They tell it to make every table cell a `Paragraph` in the TrueType style so wide tables wrap, to pass text and URLs through `xml.sax.saxutils.escape` before adding tags so `&` does not print a stray `;`, to build each PDF from a fresh story list so a regenerated PDF is not empty, and to assert in its self-check that the PDF has pages and text. These are prompt rules, so they make these failures much rarer rather than impossible. Spaces that store their own Code Execution prompt only get them once an admin updates that prompt.
 time: 2026-11-20T12:44:54.000000+01:00
 custom:
     Audience: admin
