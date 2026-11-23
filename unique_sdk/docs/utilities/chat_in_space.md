@@ -12,6 +12,48 @@ The Chat in Space utilities provide:
 
 ## Methods
 
+??? example "`unique_sdk.utils.chat_in_space.wait_for_message_completion` - Wait for an already posted message"
+
+    Polls a chat until the assistant turn started by an already posted message finishes. Use it after `Space.create_message_async` when you need the chat ID and the message ID before the wait starts. `send_message_and_wait_for_completion` does both steps.
+
+    **Parameters:**
+
+    - `user_id` (required) - User ID
+    - `company_id` (required) - Company ID
+    - `chat_id` (required) - Chat the message was posted to
+    - `message_id` (required) - ID of the posted user message that started the turn
+    - `poll_interval`, `max_wait`, `stop_condition`, `on_message_update`, `wait_for_invocations`, `stop_on_abandon` (optional) - Same meaning as on `send_message_and_wait_for_completion`
+
+    **Example - Stop the turn when the wait gives up:**
+
+    ```python
+    from unique_sdk import Space
+    from unique_sdk.utils.chat_in_space import (
+        MessageWaitTimeoutError,
+        wait_for_message_completion,
+    )
+
+    posted = await Space.create_message_async(
+        user_id=user_id,
+        company_id=company_id,
+        assistantId="assistant_abc123",
+        text="Research the latest AI developments",
+    )
+    try:
+        message = await wait_for_message_completion(
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=posted["chatId"],
+            message_id=posted["id"],
+            max_wait=120.0,
+            stop_on_abandon=True,
+        )
+    except MessageWaitTimeoutError as timeout:
+        print(f"No answer in time. Turn stopped: {timeout.turn_stopped}")
+    ```
+
+    To stop a running turn yourself, call `Message.stop_async(user_id, company_id, message_id, chatId=chat_id)`. It is the same stop a user triggers in the chat.
+
 ??? example "`unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion` - Send message and wait"
 
     Sends a message to a space asynchronously and polls until completion.
@@ -31,10 +73,16 @@ The Chat in Space utilities provide:
     - `correlation` (optional) - Correlation data to link this message to a parent message in another chat. Should contain: `parentMessageId`, `parentChatId`, `parentAssistantId`
     - `auto_approve_elicitation` (optional) - When `True`, automatically approves elicitation requests during the assistant run. Use for non-interactive automation where no user is present.
     - `language_model` (optional) - Language model group name to answer **this single message** with (e.g. `"AZURE_GPT_54_2026_0305"`), forwarded to Unique API as `languageModel` on `POST /space/message`. Requires access to use the space, `allowModelSwitching` enabled on it, and a model taken from its `switchableLanguageModels`; the helper forwards the value as-is and does not bypass any Unique API gate. Omitting it leaves the space default in place. Not to be confused with the space-level `languageModel` on `Space.create_space` / `Space.update_space`, which sets the default for every message.
+    - `stop_on_abandon` (optional) - When `True`, stops the assistant turn if the wait ends without an answer: at `max_wait`, on cancellation, or on an error. Use it when nobody else watches the chat, so the turn does not keep running unobserved (default: `False`)
+    - `on_message_created` (optional) - Async callback called once with the posted user message, before the wait starts. Its `chatId` and `id` identify the turn
 
     **Returns:**
 
     - `Space.Message` object with the completed response
+
+    **Raises:**
+
+    - `MessageWaitTimeoutError` - The turn did not finish within `max_wait`. It is a `TimeoutError`. It carries `chat_id`, `message_id` and `turn_stopped` (`True` when the wait stopped the turn).
 
     **Example - Basic Usage:**
 

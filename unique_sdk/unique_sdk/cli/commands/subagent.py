@@ -5,13 +5,17 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import signal
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
 
 from unique_sdk._error import APIError
 from unique_sdk.api_resources._space import Space
 from unique_sdk.cli.state import ShellState
-from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
+from unique_sdk.utils.chat_in_space import (
+    MessageWaitTimeoutError,
+    send_message_and_wait_for_completion,
+)
 
 CONFIG_FILENAME = ".unique-subagents.json"
 STATE_FILENAME = ".unique-subagent-chats.json"
@@ -204,6 +208,7 @@ async def _send_to_subagent(
         required=True,
     )
     assert assistant_id is not None
+    _cancel_wait_on_sigterm()
 
     correlation: Space.Correlation | None = None
     if parent_chat_id and parent_message_id and parent_assistant_id:
@@ -234,6 +239,44 @@ async def _send_to_subagent(
         ),
         stop_condition=_get_stop_condition(subagent),
         correlation=correlation,
+        stop_on_abandon=True,
+    )
+
+
+def _cancel_wait_on_sigterm() -> None:
+    """Turn SIGTERM into a cancellation, so the wait stops the subagent turn first."""
+    task = asyncio.current_task()
+    if task is None:
+        return
+    try:
+        asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, task.cancel)
+    except (NotImplementedError, RuntimeError, ValueError):
+        # Windows event loops and non-main threads cannot install signal handlers.
+        return
+
+
+def _remember_chat(
+    *,
+    state_path: Path,
+    chat_state: dict[str, str],
+    tool_name: str,
+    chat_id: str,
+) -> None:
+    chat_state = chat_state or _load_chat_state(state_path)
+    chat_state[tool_name] = chat_id
+    try:
+        _save_chat_state(state_path, chat_state)
+    except OSError:
+        pass
+
+
+def _timeout_note(*, display_name: str, timeout: MessageWaitTimeoutError) -> str:
+    if timeout.turn_stopped:
+        return f"{display_name} did not answer in time. Its turn was stopped."
+    return (
+        f"{display_name} did not answer in time and could not be stopped. "
+        f"It is still running in chat {timeout.chat_id}. "
+        "Do not send the same task again."
     )
 
 
@@ -267,26 +310,40 @@ def cmd_subagent(
             chat_state = _load_chat_state(state_path)
             chat_id = chat_state.get(tool_name)
 
-        response = asyncio.run(
-            _send_to_subagent(
-                state=state,
-                subagent=subagent,
-                message=message,
-                chat_id=chat_id,
-                parent_chat_id=parent_chat_id,
-                parent_message_id=parent_message_id,
-                parent_assistant_id=parent_assistant_id,
+        remembers_chat = configured_chat_id is None and reuse_chat
+        try:
+            response = asyncio.run(
+                _send_to_subagent(
+                    state=state,
+                    subagent=subagent,
+                    message=message,
+                    chat_id=chat_id,
+                    parent_chat_id=parent_chat_id,
+                    parent_message_id=parent_message_id,
+                    parent_assistant_id=parent_assistant_id,
+                )
             )
-        )
+        except MessageWaitTimeoutError as timeout:
+            if remembers_chat:
+                _remember_chat(
+                    state_path=state_path,
+                    chat_state=chat_state,
+                    tool_name=tool_name,
+                    chat_id=timeout.chat_id,
+                )
+            note = _timeout_note(display_name=display_name, timeout=timeout)
+            return f"{SUBAGENT_ERROR_PREFIX} {note}"
+        except asyncio.CancelledError:
+            raise SystemExit(128 + signal.SIGTERM) from None
 
         response_chat_id = response.get("chatId")
-        if configured_chat_id is None and reuse_chat and response_chat_id:
-            chat_state = chat_state or _load_chat_state(state_path)
-            chat_state[tool_name] = response_chat_id
-            try:
-                _save_chat_state(state_path, chat_state)
-            except OSError:
-                pass
+        if remembers_chat and response_chat_id:
+            _remember_chat(
+                state_path=state_path,
+                chat_state=chat_state,
+                tool_name=tool_name,
+                chat_id=response_chat_id,
+            )
 
         return _format_response(
             tool_name=tool_name,

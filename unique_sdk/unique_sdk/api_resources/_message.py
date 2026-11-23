@@ -71,6 +71,9 @@ class Message(APIResource["Message"]):
     class MarkTurnSystemInterruptedParams(RequestOptions):
         chatId: str
 
+    class StopParams(RequestOptions):
+        chatId: str
+
     class DeleteParams(RequestOptions):
         chatId: str
 
@@ -340,6 +343,52 @@ class Message(APIResource["Message"]):
                 company_id,
                 {**params, "reason": "SYSTEM_INTERRUPTED"},
             ),
+        )
+
+    @classmethod
+    def stop(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["Message.StopParams"],
+    ) -> "Message":
+        """
+        Stops the running assistant turn that the given message belongs to.
+
+        This is the stop a user triggers in the chat. It marks the turn as
+        aborted by the user (``userAbortedAt``), ends every unfinished
+        assistant segment, and cancels the turn's pending elicitations. ``id``
+        may be the USER message that started the turn or one of its assistant
+        messages.
+        """
+        url = "%s/%s/stop" % (cls.class_url(), quote_plus(id))
+        return cast(
+            "Message",
+            cls._static_request("post", url, user_id, company_id, params),
+        )
+
+    @classmethod
+    async def stop_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["Message.StopParams"],
+    ) -> "Message":
+        """
+        Stops the running assistant turn that the given message belongs to.
+
+        This is the stop a user triggers in the chat. It marks the turn as
+        aborted by the user (``userAbortedAt``), ends every unfinished
+        assistant segment, and cancels the turn's pending elicitations. ``id``
+        may be the USER message that started the turn or one of its assistant
+        messages.
+        """
+        url = "%s/%s/stop" % (cls.class_url(), quote_plus(id))
+        return cast(
+            "Message",
+            await cls._static_request_async("post", url, user_id, company_id, params),
         )
 
     @classmethod

@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.subagent import cmd_subagent, is_error_output
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
+from unique_sdk.utils.chat_in_space import MessageWaitTimeoutError
 
 
 def _config() -> Config:
@@ -224,3 +229,97 @@ def test_cli_subagent_error_exits_non_zero(mock_cmd_subagent: object) -> None:
 
     assert result.exit_code == 1
     assert result.output.strip() == "subagent: unknown subagent tool 'Finance'"
+
+
+def _timeout(*, turn_stopped: bool) -> MessageWaitTimeoutError:
+    return MessageWaitTimeoutError(
+        chat_id="chat-child", message_id="msg-user", turn_stopped=turn_stopped
+    )
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__asks_the_wait_to_stop_an_abandoned_turn(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    mock_send.return_value = {"chatId": "chat-child", "text": "ok"}
+
+    _ = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert mock_send.await_args.kwargs["stop_on_abandon"] is True
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__timeout_with_stopped_turn__says_stopped_and_keeps_chat(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    mock_send.side_effect = _timeout(turn_stopped=True)
+
+    out = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert is_error_output(out)
+    assert "Legal Review did not answer in time. Its turn was stopped." in out
+    saved = json.loads((tmp_path / ".unique-subagent-chats.json").read_text())
+    assert saved == {"LegalReview": "chat-child"}
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__timeout_with_failed_stop__names_the_running_chat(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    mock_send.side_effect = _timeout(turn_stopped=False)
+
+    out = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert is_error_output(out)
+    assert "still running in chat chat-child" in out
+
+
+@pytest.mark.ai
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+def test_cmd_subagent__sigterm_during_wait__stops_turn_then_exits_143(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    stop = AsyncMock()
+
+    async def never_finishes(*_args: object, **_kwargs: object) -> dict[str, object]:
+        os.kill(os.getpid(), signal.SIGTERM)
+        return {"role": "ASSISTANT", "stoppedStreamingAt": None, "text": None}
+
+    module = "unique_sdk.utils.chat_in_space"
+    with (
+        patch(
+            f"{module}.Space.create_message_async",
+            new_callable=AsyncMock,
+            return_value={"id": "msg-user", "chatId": "chat-child"},
+        ),
+        patch(f"{module}.Space.get_latest_message_async", never_finishes),
+        patch(f"{module}.Message.stop_async", stop),
+        pytest.raises(SystemExit) as raised,
+    ):
+        _ = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert raised.value.code == 128 + signal.SIGTERM
+    stop.assert_awaited_once_with("u1", "c1", "msg-user", chatId="chat-child")
