@@ -267,13 +267,14 @@ def _remember_chat(
     chat_state: dict[str, str],
     tool_name: str,
     chat_id: str,
-) -> None:
+) -> bool:
     chat_state = chat_state or _load_chat_state(state_path)
     chat_state[tool_name] = chat_id
     try:
         _save_chat_state(state_path, chat_state)
     except OSError:
-        pass
+        return False
+    return True
 
 
 def _timeout_note(*, display_name: str, timeout: MessageWaitTimeoutError) -> str:
@@ -328,16 +329,17 @@ def cmd_subagent(
 
         remembers_chat = configured_chat_id is None and reuse_chat
         created_chat_ids: list[str] = []
+        saved_chat_ids: set[str] = set()
 
         def _on_chat_created(created_chat_id: str) -> None:
             created_chat_ids.append(created_chat_id)
-            if remembers_chat:
-                _remember_chat(
-                    state_path=state_path,
-                    chat_state=chat_state,
-                    tool_name=tool_name,
-                    chat_id=created_chat_id,
-                )
+            if remembers_chat and _remember_chat(
+                state_path=state_path,
+                chat_state=chat_state,
+                tool_name=tool_name,
+                chat_id=created_chat_id,
+            ):
+                saved_chat_ids.add(created_chat_id)
 
         try:
             response = asyncio.run(
@@ -368,7 +370,7 @@ def cmd_subagent(
             raise SystemExit(128 + signal.SIGTERM) from None
 
         response_chat_id = response.get("chatId")
-        if remembers_chat and response_chat_id not in (None, *created_chat_ids):
+        if remembers_chat and response_chat_id not in (None, *saved_chat_ids):
             _remember_chat(
                 state_path=state_path,
                 chat_state=chat_state,

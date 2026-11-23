@@ -7,6 +7,7 @@ import os
 import signal
 import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -151,6 +152,39 @@ def test_cmd_subagent_returns_response_when_chat_state_save_fails(
     assert "Subagent: Legal Review (LegalReview)" in out
     assert "Reviewed clause." in out
     assert not is_error_output(out)
+
+
+@patch("unique_sdk.cli.commands.subagent._save_chat_state")
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__early_chat_save_fails__saves_again_after_success(
+    mock_send: AsyncMock,
+    mock_save_chat_state: Mock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    response = {"id": "msg-child", "chatId": "chat-child", "text": "Reviewed."}
+
+    async def _send(**kwargs: Any) -> dict[str, str]:
+        await kwargs["on_message_created"](response)
+        return response
+
+    mock_send.side_effect = _send
+    mock_save_chat_state.side_effect = [OSError("disk full"), None]
+
+    out = cmd_subagent(
+        _state(),
+        "LegalReview",
+        "Please review this clause",
+        config_path=str(config_path),
+    )
+
+    assert not is_error_output(out)
+    assert mock_save_chat_state.call_count == 2
+    assert mock_save_chat_state.call_args.args[1] == {"LegalReview": "chat-child"}
 
 
 def test_cmd_subagent_reports_unknown_tool(tmp_path: Path) -> None:
