@@ -384,7 +384,8 @@ def _as_content_dict(block: Any) -> dict[str, Any] | None:
 
     Client libraries often hand back typed objects (``mcp.types.TextContent``)
     with the same fields as the wire dict. Only known attribute names are
-    copied so a hostile object cannot inject unexpected keys.
+    copied so a hostile object cannot inject unexpected keys. A typed ``uri``
+    (``AnyUrl`` in ``mcp.types.ResourceLink``) becomes its wire string.
     """
     if isinstance(block, dict):
         return block
@@ -392,10 +393,13 @@ def _as_content_dict(block: Any) -> dict[str, Any] | None:
     if not isinstance(block_type, str) or not block_type.strip():
         return None
     out: dict[str, Any] = {"type": block_type}
-    for key in ("text", "name", "description", "uri"):
+    for key in ("text", "name", "description"):
         value = getattr(block, key, None)
         if value is not None:
             out[key] = value
+    uri = getattr(block, "uri", None)
+    if uri is not None:
+        out["uri"] = uri if isinstance(uri, str) else str(uri)
     return out
 
 
