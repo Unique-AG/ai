@@ -1536,10 +1536,7 @@ class TestMCPToolWrapperRecordReferences:
 
         assert len(chunks) == 2
         assert chunks[1].url is None
-        assert json.loads(chunks[1].text) == {
-            "results": [],
-            "next_page_token": "page-2",
-        }
+        assert json.loads(chunks[1].text) == {"next_page_token": "page-2"}
         assert references[1].url is None
 
     @pytest.mark.ai
@@ -1805,3 +1802,21 @@ class TestMCPToolWrapperRecordReferences:
             "test_mcp_tool",
             "Results:\nShowing 1 of 9.",
         )
+
+    @pytest.mark.ai
+    def test_extract_record_references__keeps_an_explicit_end_of_pages_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        result = _json_text_result(
+            {
+                "results": [
+                    {"title": "Budget", "url": "https://wiki.example.test/budget"},
+                ],
+                "next_page_token": None,
+            }
+        )
+
+        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert json.loads(chunks[1].text) == {"next_page_token": None}
