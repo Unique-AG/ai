@@ -164,18 +164,25 @@ def loads_embedded_json(text: str) -> Any:
     whole string fails. Try a direct parse first, then fall back to decoding the
     first JSON object/array that appears. Returns ``None`` when no JSON is found.
     """
+    found = find_embedded_json(text)
+    return found[0] if found else None
+
+
+def find_embedded_json(text: str) -> tuple[Any, int, int] | None:
+    """Like :func:`loads_embedded_json`, but also returns the ``start`` and
+    ``end`` offsets of the decoded JSON so text around it can be kept."""
     try:
-        return json.loads(text)
+        return json.loads(text), 0, len(text)
     except (ValueError, TypeError):
         pass
     decoder = json.JSONDecoder()
     for index, char in enumerate(text):
         if char in "{[":
             try:
-                value, _ = decoder.raw_decode(text, index)
+                value, end = decoder.raw_decode(text, index)
             except ValueError:
                 continue
-            return value
+            return value, index, end
     return None
 
 

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from unique_sdk.utils.mcp_citations import extract_mcp_citation_items
+from unique_sdk.utils.mcp_citations import (
+    extract_mcp_citation_items,
+    find_embedded_json,
+)
 
 
 class _TypedUrl:
@@ -35,3 +38,12 @@ def test_typed_resource_link_keeps_its_https_uri() -> None:
     assert [(item["title"], item.get("url")) for item in items] == [
         ("Auth overview", url)
     ]
+
+
+def test_find_embedded_json_returns_the_span_of_the_json() -> None:
+    text = '[IMPORTANT: cite]\n{"a": 1}\nfooter'
+
+    value, start, end = find_embedded_json(text) or (None, 0, 0)
+
+    assert value == {"a": 1}
+    assert (text[:start], text[end:]) == ("[IMPORTANT: cite]\n", "\nfooter")
