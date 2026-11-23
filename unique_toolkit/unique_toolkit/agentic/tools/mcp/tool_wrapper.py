@@ -4,6 +4,7 @@ import json
 import logging
 import mimetypes
 import uuid
+from collections import Counter
 from typing import Any
 
 import unique_sdk
@@ -351,7 +352,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             if (text := item.get("text") or _link_label(item))
         ]
         remainder = _text_outside_records(
-            texts, {text for item in items if (text := item.get("text"))}
+            texts, [text for item in items if (text := item.get("text"))]
         )
         if remainder:
             records.append((self._source_name(), None, remainder))
@@ -514,52 +515,71 @@ def _link_label(item: dict[str, Any]) -> str | None:
     return f"{title}\n{url}" if title and url else None
 
 
-def _text_outside_records(texts: list[str], record_texts: set[str]) -> str | None:
+def _text_outside_records(texts: list[str], record_texts: list[str]) -> str | None:
+    """Text of the result minus the cited records, removed once per record so an
+    equal value elsewhere, such as a page token, stays visible to the model."""
+    full_text = "\n\n".join(text for text in texts if text.strip())
+    if full_text in record_texts:
+        return None
+    remaining = Counter(record_texts)
     parts = [
-        part for text in texts if (part := _block_outside_records(text, record_texts))
+        part for text in texts if (part := _block_outside_records(text, remaining))
     ]
     return "\n\n".join(parts) or None
 
 
-def _block_outside_records(text: str, record_texts: set[str]) -> str | None:
-    if any(text.strip() in record_text for record_text in record_texts):
+def _block_outside_records(text: str, remaining: Counter[str]) -> str | None:
+    if not text.strip():
         return None
     parsed = loads_embedded_json(text)
     if parsed is None:
-        for record_text in record_texts:
-            text = text.replace(record_text, "")
+        for record_text in list(remaining):
+            while remaining[record_text] > 0 and record_text in text:
+                text = text.replace(record_text, "", 1)
+                remaining[record_text] -= 1
         return text.strip() or None
-    if _is_record_value(parsed, record_texts):
-        return None
-    pruned = _without_records(parsed, record_texts)
-    if not _has_scalar(pruned):
+    pruned = _without_records(parsed, remaining, in_list=False)
+    if pruned is _REMOVED or not _has_scalar(pruned):
         return None
     return json.dumps(pruned, ensure_ascii=False, default=str)
 
 
-def _without_records(value: Any, record_texts: set[str]) -> Any:
+_REMOVED = object()
+
+
+def _without_records(value: Any, remaining: Counter[str], *, in_list: bool) -> Any:
+    """``value`` without the records still in ``remaining``, or ``_REMOVED`` when
+    ``value`` is one. A plain-string record is only ever a list entry."""
+    if _take_record(value, remaining, in_list=in_list):
+        return _REMOVED
     if isinstance(value, dict):
         return {
-            key: _without_records(item, record_texts)
+            key: kept
             for key, item in value.items()
-            if not _is_record_value(item, record_texts)
+            if (kept := _without_records(item, remaining, in_list=False))
+            is not _REMOVED
         }
     if isinstance(value, list):
         return [
-            _without_records(item, record_texts)
+            kept
             for item in value
-            if not _is_record_value(item, record_texts)
+            if (kept := _without_records(item, remaining, in_list=True)) is not _REMOVED
         ]
     return value
 
 
-def _is_record_value(value: Any, record_texts: set[str]) -> bool:
+def _take_record(value: Any, remaining: Counter[str], *, in_list: bool) -> bool:
     """Matches how the extractor serializes a record into its ``text``."""
-    if isinstance(value, str):
-        return value in record_texts
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False, default=str) in record_texts
-    return False
+    if isinstance(value, str) and in_list:
+        key = value
+    elif isinstance(value, dict):
+        key = json.dumps(value, ensure_ascii=False, default=str)
+    else:
+        return False
+    if remaining[key] <= 0:
+        return False
+    remaining[key] -= 1
+    return True
 
 
 def _has_scalar(value: Any) -> bool:

@@ -1746,3 +1746,45 @@ class TestMCPToolWrapperRecordReferences:
             ("test_mcp_tool", None, "Found one page."),
         ]
         assert [r.url for r in references] == [url, None]
+
+    @pytest.mark.ai
+    def test_extract_record_references__keeps_a_field_equal_to_a_record_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+        mock_mcp_tool: McpTool,
+    ) -> None:
+        mock_mcp_tool.reference_mapping = McpReferenceMapping(
+            list_path="rows", title_from_text=True
+        )
+        result = _json_text_result({"rows": ["page-2"], "next_page_token": "page-2"})
+
+        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [(c.title, c.text) for c in chunks][0] == ("page-2", "page-2")
+        assert json.loads(chunks[1].text)["next_page_token"] == "page-2"
+
+    @pytest.mark.ai
+    def test_extract_record_references__keeps_a_block_found_inside_a_record_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        records = {
+            "results": [
+                {
+                    "title": "Budget",
+                    "url": "https://wiki.example.test/budget",
+                    "status": "ok",
+                }
+            ]
+        }
+        result = {
+            "content": [
+                {"type": "text", "text": json.dumps(records)},
+                {"type": "text", "text": "ok"},
+            ]
+        }
+
+        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [c.title for c in chunks] == ["Budget", "test_mcp_tool"]
+        assert chunks[1].text.endswith("ok")
