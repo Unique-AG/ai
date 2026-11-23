@@ -348,9 +348,11 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         records = [
             (item.get("title") or self._source_name(), item.get("url"), text)
             for item in items
-            if (text := item.get("text"))
+            if (text := item.get("text") or _link_label(item))
         ]
-        remainder = _text_outside_records(texts, {text for _, _, text in records})
+        remainder = _text_outside_records(
+            texts, {text for item in items if (text := item.get("text"))}
+        )
         if remainder:
             records.append((self._source_name(), None, remainder))
 
@@ -503,6 +505,13 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         except Exception as e:
             self.logger.error(f"SDK call failed for MCP tool {self.name}: {e}")
             raise
+
+
+def _link_label(item: dict[str, Any]) -> str | None:
+    """Text for a titled link with no body, such as a ``resource_link`` without
+    a description, so it is still a source the model can cite."""
+    title, url = item.get("title"), item.get("url")
+    return f"{title}\n{url}" if title and url else None
 
 
 def _text_outside_records(texts: list[str], record_texts: set[str]) -> str | None:

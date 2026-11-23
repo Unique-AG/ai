@@ -1725,3 +1725,24 @@ class TestMCPToolWrapperRecordReferences:
             c.kwargs.get("status") == MessageLogStatus.COMPLETED
             for c in mock_log.call_args_list
         )
+
+    @pytest.mark.ai
+    def test_extract_record_references__keeps_a_link_without_description_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        url = "https://example.test/docs/auth"
+        result = {
+            "content": [
+                {"type": "text", "text": "Found one page."},
+                {"type": "resource_link", "name": "Auth overview", "uri": url},
+            ]
+        }
+
+        chunks, references = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [(c.title, c.url, c.text) for c in chunks] == [
+            ("Auth overview", url, f"Auth overview\n{url}"),
+            ("test_mcp_tool", None, "Found one page."),
+        ]
+        assert [r.url for r in references] == [url, None]
