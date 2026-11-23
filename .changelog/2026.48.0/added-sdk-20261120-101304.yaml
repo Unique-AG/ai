@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`unique_sdk.ProjectMemory` reads, writes and deletes the memory of a project the user owns (`retrieve`, `modify`, `delete` and their `_async` variants). `modify` takes the markdown `document` and an optional `state` for the project memory job; without `state` the stored state is kept. Requires the Projects feature flag `FEATURE_FLAG_ENABLE_PROJECTS_UN_28332` for the user.'
+time: 2026-11-20T10:13:04.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29194
