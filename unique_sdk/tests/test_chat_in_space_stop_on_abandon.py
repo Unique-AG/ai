@@ -127,7 +127,9 @@ async def test_wait__cancelled__stops_turn_before_the_cancellation_leaves() -> N
     stop.assert_awaited_once_with("user-1", "company-1", "user-msg", chatId="chat-1")
 
 
-async def test_wait__cancelled_again_during_stop__stop_still_completes() -> None:
+async def test_wait__cancelled_again_during_stop__waits_for_the_stop_to_settle() -> (
+    None
+):
     stop_started = asyncio.Event()
     release_stop = asyncio.Event()
     stop_finished = asyncio.Event()
@@ -143,11 +145,38 @@ async def test_wait__cancelled_again_during_stop__stop_still_completes() -> None
         _ = waiting.cancel()
         _ = await stop_started.wait()
         _ = waiting.cancel()
+        await asyncio.sleep(0.02)
+        assert not waiting.done()
+        release_stop.set()
         with pytest.raises(asyncio.CancelledError):
             await waiting
+
+    assert stop_finished.is_set()
+
+
+async def test_wait__cancelled_during_the_timeout_stop__stops_then_raises_cancelled() -> (
+    None
+):
+    stop_started = asyncio.Event()
+    release_stop = asyncio.Event()
+    stop_finished = asyncio.Event()
+
+    async def slow_stop(*_args: object, **_kwargs: object) -> None:
+        stop_started.set()
+        _ = await release_stop.wait()
+        stop_finished.set()
+
+    with _platform(latest=_RUNNING, stop=AsyncMock(side_effect=slow_stop)):
+        waiting = asyncio.ensure_future(_wait(stop_on_abandon=True))
+        _ = await stop_started.wait()
+        _ = waiting.cancel()
+        await asyncio.sleep(0.02)
+        assert not waiting.done()
         release_stop.set()
-        async with asyncio.timeout(1):
-            _ = await stop_finished.wait()
+        with pytest.raises(asyncio.CancelledError):
+            await waiting
+
+    assert stop_finished.is_set()
 
 
 async def test_wait__poll_fails__stops_turn_and_raises_the_poll_error() -> None:
@@ -200,3 +229,23 @@ async def test_send_and_wait__on_message_created__gets_posted_message_before_wai
         )
 
     assert seen == [{"id": "user-msg", "chatId": "chat-1"}]
+
+
+async def test_send_and_wait__created_callback_fails__stops_the_posted_turn() -> None:
+    stop = AsyncMock()
+
+    async def failing_callback(_message: object) -> None:
+        raise RuntimeError("callback failed")
+
+    with _platform(latest=_RUNNING, stop=stop):
+        with pytest.raises(RuntimeError, match="callback failed"):
+            _ = await send_message_and_wait_for_completion(
+                user_id="user-1",
+                company_id="company-1",
+                assistant_id="assistant-1",
+                text="hello",
+                stop_on_abandon=True,
+                on_message_created=failing_callback,
+            )
+
+    stop.assert_awaited_once_with("user-1", "company-1", "user-msg", chatId="chat-1")

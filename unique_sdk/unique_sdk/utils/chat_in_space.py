@@ -136,7 +136,17 @@ async def send_message_and_wait_for_completion(
         **create_message_params,
     )
     if on_message_created is not None:
-        await on_message_created(response)
+        try:
+            await on_message_created(response)
+        except BaseException:
+            if stop_on_abandon:
+                _ = await _stop_turn_despite_cancellation(
+                    user_id=user_id,
+                    company_id=company_id,
+                    chat_id=response["chatId"],
+                    message_id=response["id"],
+                )
+            raise
     return await wait_for_message_completion(
         user_id=user_id,
         company_id=company_id,
@@ -205,7 +215,7 @@ async def wait_for_message_completion(
         )
     except BaseException:
         if stop_on_abandon:
-            await _stop_turn_despite_cancellation(
+            _ = await _stop_turn_despite_cancellation(
                 user_id=user_id,
                 company_id=company_id,
                 chat_id=chat_id,
@@ -215,7 +225,7 @@ async def wait_for_message_completion(
     if answer is not None:
         return answer
 
-    turn_stopped = stop_on_abandon and await _stop_turn(
+    turn_stopped = stop_on_abandon and await _stop_turn_despite_cancellation(
         user_id=user_id,
         company_id=company_id,
         chat_id=chat_id,
@@ -308,8 +318,12 @@ async def _stop_turn(
 
 async def _stop_turn_despite_cancellation(
     *, user_id: str, company_id: str, chat_id: str, message_id: str
-) -> None:
-    """Stop the turn in its own task, so a cancelled caller cannot cut the stop short."""
+) -> bool:
+    """Stop the turn and wait until the stop settles, however often the caller is cancelled.
+
+    The stop runs in its own task and is bounded by ``_ABANDON_STOP_TIMEOUT_S``. A
+    cancellation that arrives meanwhile is raised once the stop has settled.
+    """
     stop = asyncio.ensure_future(
         _stop_turn(
             user_id=user_id,
@@ -320,7 +334,15 @@ async def _stop_turn_despite_cancellation(
     )
     _abandon_stops.add(stop)
     stop.add_done_callback(_abandon_stops.discard)
-    await asyncio.shield(stop)
+    cancelled = False
+    while not stop.done():
+        try:
+            _ = await asyncio.shield(stop)
+        except asyncio.CancelledError:
+            cancelled = True
+    if cancelled:
+        raise asyncio.CancelledError
+    return stop.result()
 
 
 async def chat_against_file(
