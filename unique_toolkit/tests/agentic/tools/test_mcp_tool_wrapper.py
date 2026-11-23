@@ -1698,3 +1698,30 @@ class TestMCPToolWrapperRecordReferences:
         assert [r.url for r in completed[0].kwargs["references"]] == [
             "https://example.test/plan"
         ]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__keeps_flat_text_when_citation_extraction_fails_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        tool_call = LanguageModelFunction(
+            id="call_nested", name="test_mcp_tool", arguments={"query": "plan"}
+        )
+        nested = "[" * 100_000 + "]" * 100_000
+        result = {"content": [{"type": "text", "text": nested}]}
+
+        with (
+            patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log") as mock_log,
+        ):
+            mock_sdk_call.return_value = result
+            response = await mcp_tool_wrapper.run(tool_call)
+
+        assert response.error_message == ""
+        assert response.content == nested
+        assert response.content_chunks is None
+        assert any(
+            c.kwargs.get("status") == MessageLogStatus.COMPLETED
+            for c in mock_log.call_args_list
+        )

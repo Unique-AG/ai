@@ -146,7 +146,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
             content_chunks, references = self._extract_structured_references(result)
             if not content_chunks:
-                content_chunks, references = self._extract_record_references(result)
+                content_chunks, references = self._try_extract_record_references(result)
             content_str, image_data_urls = await asyncio.to_thread(
                 self._process_mcp_result, result
             )
@@ -297,6 +297,19 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             references.append(reference)
             chunks.append(chunk)
         return chunks, references
+
+    def _try_extract_record_references(
+        self, result: dict[str, Any]
+    ) -> tuple[list[ContentChunk], list[ContentReference]]:
+        """The tool call already succeeded, so a citation failure (such as a
+        ``RecursionError`` on deeply nested JSON) falls back to the flat text."""
+        try:
+            return self._extract_record_references(result)
+        except Exception as e:
+            self.logger.warning(
+                f"Could not cite the result of MCP tool {self.name}: {e!r}"
+            )
+            return [], []
 
     def _extract_record_references(
         self, result: dict[str, Any]
