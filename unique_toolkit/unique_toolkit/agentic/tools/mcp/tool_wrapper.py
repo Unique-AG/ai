@@ -542,7 +542,7 @@ def _block_outside_records(text: str, remaining: Counter[str]) -> str | None:
     pruned = _without_records(parsed, remaining, in_list=False)
     body = (
         None
-        if pruned is _REMOVED or not _has_scalar(pruned)
+        if pruned is _REMOVED or not _has_value(pruned)
         else json.dumps(pruned, ensure_ascii=False, default=str)
     )
     # Text around the JSON, such as Atlassian's ``[IMPORTANT: ...]`` notice.
@@ -555,22 +555,25 @@ _REMOVED = object()
 
 def _without_records(value: Any, remaining: Counter[str], *, in_list: bool) -> Any:
     """``value`` without the records still in ``remaining``, or ``_REMOVED`` when
-    ``value`` is one. A plain-string record is only ever a list entry."""
+    ``value`` is one or held only records. A plain-string record is only ever a
+    list entry."""
     if _take_record(value, remaining, in_list=in_list):
         return _REMOVED
     if isinstance(value, dict):
-        return {
+        kept_dict = {
             key: kept
             for key, item in value.items()
             if (kept := _without_records(item, remaining, in_list=False))
             is not _REMOVED
         }
+        return _REMOVED if value and not kept_dict else kept_dict
     if isinstance(value, list):
-        return [
+        kept_list = [
             kept
             for item in value
             if (kept := _without_records(item, remaining, in_list=True)) is not _REMOVED
         ]
+        return _REMOVED if value and not kept_list else kept_list
     return value
 
 
@@ -588,9 +591,11 @@ def _take_record(value: Any, remaining: Counter[str], *, in_list: bool) -> bool:
     return True
 
 
-def _has_scalar(value: Any) -> bool:
+def _has_value(value: Any) -> bool:
+    """Whether any field is left, counting an explicit ``null`` or ``""`` such as
+    an end-of-pagination marker."""
     if isinstance(value, dict):
-        return any(_has_scalar(item) for item in value.values())
+        return any(_has_value(item) for item in value.values())
     if isinstance(value, list):
-        return any(_has_scalar(item) for item in value)
-    return value not in (None, "")
+        return any(_has_value(item) for item in value)
+    return True
