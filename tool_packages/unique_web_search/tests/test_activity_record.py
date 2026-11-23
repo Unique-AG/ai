@@ -167,7 +167,7 @@ async def test_called__records_one_query_row_with_full_critical_data(
     await _run(tool)
 
     wire = _emitted(enqueue_mock).to_wire()
-    assert wire["source"] == "web-search"
+    assert wire["source"] == "chat"
     assert wire["type"] == "web-search.query.sent"
     assert wire["data"] | {"criticalData": None} == {
         "actor": {"id": "user-1", "type": "user"},
@@ -517,8 +517,11 @@ async def test_critical_data__keys_match_the_typed_shape(
     await _run(make_tool(mocker))
 
     event = _emitted(enqueue_mock)
-    keys = event.to_wire()["data"]["criticalData"].keys()
+    critical = event.to_wire()["data"]["criticalData"]
+    keys = critical.keys()
     assert event.type == type_
+    assert "callOrigin" not in critical
+    assert {"chatId", "messageId", "toolCallId", "userPrompt"} <= keys
     assert shape.__required_keys__ <= keys
     assert keys <= shape.__required_keys__ | shape.__optional_keys__
 
@@ -1109,6 +1112,7 @@ async def test_flag_read_error__records_nothing_and_search_still_runs(
 
 def _record(engine_id: str) -> activity_record.ActivityRecord:
     return activity_record.ActivityRecord(
+        source="chat",
         company_id="c",
         user_id="u",
         assistant_id="a",
@@ -1406,3 +1410,108 @@ async def test_proxy_connection_failure__is_not_a_response(
     [row] = _sent(enqueue_mock)
     assert row["responseReceived"] is False
     assert row["error"] == "ConnectError"
+
+
+def _called_query(record: activity_record.ActivityRecord, query: str) -> None:
+    with activity_record.active(record):
+        activity_record.set_outcome("called")
+        with activity_record.search_request(
+            query, params=None, via_search_proxy=False, endpoint=None
+        ):
+            pass
+
+
+_DIRECT = {
+    "company_id": "company-1",
+    "user_id": "user-1",
+    "engine": SearchEngineType.GOOGLE,
+    "args": {"query": "news"},
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("call_origin", ["conduct", "api"])
+@pytest.mark.parametrize(
+    "ids",
+    [
+        {"assistant_id": "assistant-1", "chat_id": "chat-1", "message_id": "msg-1"},
+        {"assistant_id": "assistant-1", "chat_id": "chat-1"},
+        {"assistant_id": "", "chat_id": "", "message_id": ""},
+        {},
+    ],
+    ids=["all-ids", "no-message", "blank", "none"],
+)
+async def test_start_direct__records_a_valid_query_row(
+    enqueue_mock: Mock, call_origin: str, ids: dict[str, str]
+) -> None:
+    record = await activity_record.start_direct(
+        **_DIRECT, call_origin=call_origin, **ids
+    )
+
+    assert record is not None
+    _called_query(record, "news")
+
+    event = _emitted(enqueue_mock)
+    wire = event.to_wire()
+    ActivityCloudEvent.from_wire(wire)
+    critical = wire["data"]["criticalData"]
+    assert event.source == call_origin
+    assert wire["type"] == "web-search.query.sent"
+    assert "callOrigin" not in critical
+    assert critical["args"] == {"query": "news"}
+    assert ("agent" in wire["data"]) is bool(ids.get("assistant_id"))
+    assert ("chatId" in critical) is bool(ids.get("chat_id"))
+    assert ("messageId" in critical) is bool(ids.get("message_id"))
+    assert "subtype" not in wire["data"]
+    assert not {"toolCallId", "userPrompt"} & critical.keys()
+
+
+@pytest.mark.asyncio
+async def test_start_direct__setup_failure__emits_tool_failed(
+    enqueue_mock: Mock,
+) -> None:
+    record = await activity_record.start_direct(**_DIRECT, call_origin="api")
+
+    assert record is not None
+    with activity_record.active(record):
+        activity_record.set_failure(RuntimeError("setup blew up"))
+
+    wire = _emitted(enqueue_mock).to_wire()
+    ActivityCloudEvent.from_wire(wire)
+    assert wire["type"] == "web-search.tool.failed"
+    assert wire["data"]["criticalData"]["reason"] == "RuntimeError"
+    assert "setup blew up" not in str(wire)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("company_id", "user_id"), [("", "user-1"), ("company-1", "")])
+async def test_start_direct__unattributed__emits_nothing(
+    enqueue_mock: Mock, flag_client: Mock, company_id: str, user_id: str
+) -> None:
+    record = await activity_record.start_direct(
+        **{**_DIRECT, "company_id": company_id, "user_id": user_id},
+        call_origin="api",
+    )
+
+    assert record is None
+    enqueue_mock.assert_not_called()
+    flag_client.is_enabled.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_start__blank_assistant_id__omits_agent_instead_of_dropping_the_row(
+    mocker: Any, enqueue_mock: Mock
+) -> None:
+    tool = _tool(
+        mocker,
+        engine=_Engine(),
+        elicitation=_elicitation(mocker, ElicitationStatus.DECLINED),
+    )
+    tool._event.payload.assistant_id = ""
+
+    await _run(tool)
+
+    wire = _emitted(enqueue_mock).to_wire()
+    ActivityCloudEvent.from_wire(wire)
+    assert wire["type"] == "web-search.tool.denied"
+    assert "agent" not in wire["data"]
