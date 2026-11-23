@@ -362,14 +362,6 @@ def _log_retry(error: UniqueError, attempt: int, max_retries: int) -> None:
     )
 
 
-def _retries_exhausted_error(error_class, error: UniqueError, max_retries: int):
-    exhausted = error_class(f"Failed after {max_retries} attempts: {error}")
-    exhausted.code = error.code
-    exhausted.params = error.params
-    exhausted.http_status = error.http_status
-    return exhausted
-
-
 def retry_on_error(
     error_messages: list[str],
     max_retries: int = 3,
@@ -382,8 +374,7 @@ def retry_on_error(
 
     4xx responses and errors with ``params.retryable`` false are not retried.
     After the last attempt ``error_class`` is raised with the last error as
-    its ``__cause__`` and with that error's ``code``, ``params`` and
-    ``http_status``.
+    its ``__cause__``.
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -400,8 +391,8 @@ def retry_on_error(
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise _retries_exhausted_error(
-                            error_class, e, max_retries
+                        raise error_class(
+                            f"Failed after {max_retries} attempts: {e}"
                         ) from e
 
                     _log_retry(e, attempts, max_retries)
@@ -423,8 +414,8 @@ def retry_on_error(
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise _retries_exhausted_error(
-                            error_class, e, max_retries
+                        raise error_class(
+                            f"Failed after {max_retries} attempts: {e}"
                         ) from e
 
                     _log_retry(e, attempts, max_retries)

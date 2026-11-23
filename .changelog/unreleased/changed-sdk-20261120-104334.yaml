@@ -1,7 +1,0 @@
-component: SDK
-kind: Changed
-body: After the last retry, the raised `APIError` carries the `code`, `params` and `http_status` of the last API error. Its type and its "Failed after N attempts" message are unchanged, and the last error is still its `__cause__`.
-time: 2026-11-20T10:43:34.697712+01:00
-custom:
-    Audience: developer
-    Ticket: UN-27940
