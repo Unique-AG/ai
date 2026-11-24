@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from functools import cache
 from typing import Any
@@ -52,6 +54,19 @@ _LOGGER = logging.getLogger(__name__)
 _PROVIDER_LABEL = "AWS AgentCore Web Search"
 _SIGNING_SERVICE = "bedrock-agentcore"
 _WEB_SEARCH_ID = "web-search.v1"
+
+
+# One dedicated thread: a slow STS refresh queues credential lookups here
+# instead of holding threads in the shared pool that DNS and crawling use.
+_CREDENTIALS_EXECUTOR = ThreadPoolExecutor(
+    max_workers=1, thread_name_prefix="aws-credentials"
+)
+
+# Regional (optionally FIPS) AgentCore hosts, and PrivateLink endpoint names.
+_AGENTCORE_HOST = re.compile(
+    r"^(?:bedrock-agentcore(?:-fips)?\.[a-z0-9-]+"
+    r"|[a-z0-9-]+\.bedrock-agentcore\.[a-z0-9-]+\.vpce)\.amazonaws\.com$"
+)
 
 
 @cache
@@ -140,7 +155,9 @@ class AwsSearchService(SearchEngineService[AwsSearchRequest]):
         # A refresh can call STS synchronously, so keep it off the event loop.
         try:
             aws_credentials = await asyncio.wait_for(
-                asyncio.to_thread(resolve_aws_credentials),
+                asyncio.get_running_loop().run_in_executor(
+                    _CREDENTIALS_EXECUTOR, resolve_aws_credentials
+                ),
                 timeout=request.timeout,
             )
         except TimeoutError as exc:
@@ -182,17 +199,17 @@ class AwsSearchService(SearchEngineService[AwsSearchRequest]):
 
 
 def _invoke_url(api_endpoint: str) -> str:
-    # Signed headers carry the session token, so only AWS hosts may receive
-    # them (regional endpoints and PrivateLink names both end in amazonaws.com).
+    # Signed headers carry the session token, so only AgentCore hosts may
+    # receive them, not other amazonaws.com hosts such as API Gateway.
     parts = urlsplit(api_endpoint)
     host = (parts.hostname or "").rstrip(".").lower()
     if (
         parts.scheme != "https"
         or parts.username is not None
         or parts.password is not None
-        or not host.endswith(".amazonaws.com")
+        or not _AGENTCORE_HOST.match(host)
     ):
-        _LOGGER.warning("AWS_SEARCH_API_ENDPOINT is not an AWS HTTPS endpoint")
+        _LOGGER.warning("AWS_SEARCH_API_ENDPOINT is not an AgentCore HTTPS endpoint")
         raise EngineNotConfiguredError(missing_env_vars=["AWS_SEARCH_API_ENDPOINT"])
     return f"{api_endpoint.rstrip('/')}/web-search/{_WEB_SEARCH_ID}/invoke"
 

@@ -237,6 +237,8 @@ class TestAwsSearchService:
 
         assert threads
         assert threads[0] is not threading.main_thread()
+        # A dedicated thread, not the shared default executor.
+        assert threads[0].name.startswith("aws-credentials")
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -247,6 +249,10 @@ class TestAwsSearchService:
             "http://bedrock-agentcore.us-east-1.amazonaws.com",
             "https://amazonaws.com.example.com",
             "https://user:pw@bedrock-agentcore.us-east-1.amazonaws.com",
+            "https://abc123.execute-api.us-east-1.amazonaws.com",
+            "https://bedrock-agentcore.us-east-1.amazonaws.com.evil.example",
+            "https://evil-bedrock-agentcore.us-east-1.amazonaws.com",
+            "https://bucket.s3.us-east-1.amazonaws.com",
         ],
     )
     async def test_non_aws_endpoint_is_refused_before_signing(
@@ -277,6 +283,8 @@ class TestAwsSearchService:
         [
             "https://bedrock-agentcore.eu-west-1.amazonaws.com",
             "https://vpce-0abc-xyz.bedrock-agentcore.eu-west-1.vpce.amazonaws.com/",
+            "https://vpce-0abc-xyz-eu-west-1a.bedrock-agentcore.eu-west-1.vpce.amazonaws.com",
+            "https://bedrock-agentcore-fips.us-east-1.amazonaws.com",
         ],
     )
     def test_aws_endpoints_are_accepted(self, endpoint: str) -> None:

@@ -156,7 +156,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
 
         _LOGGER.info(f"Searched with {engine} completed in {delta_time} seconds")
 
-        if crawling_enabled() and self.search_service.requires_scraping and results:
+        if self.search_service.requires_scraping and results and crawling_enabled():
             results = await self._crawl_search_results(step_name, results)
 
         return results

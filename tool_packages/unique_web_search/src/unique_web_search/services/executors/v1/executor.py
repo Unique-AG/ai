@@ -204,7 +204,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
 
             web_search_results.extend(search_results)
 
-        if crawling_enabled() and self.search_service.requires_scraping:
+        if self.search_service.requires_scraping and crawling_enabled():
             self.notify_name = "**Crawling URLs**"
             self.notify_message = f"{len(web_search_results)} URLs to fetch"
             await self.notify_callback()
