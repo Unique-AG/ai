@@ -119,7 +119,7 @@ Search payloads are validated through core's `parse_search_request()` before ser
 |---------------|------|
 | `health()` | `GET /health` |
 | `ready()` | `GET /ready` |
-| `search.google(...)` / `.brave(...)` / `.perplexity(...)` | `POST /v1/search` |
+| `search.google(...)` / `.brave(...)` / `.perplexity(...)` / `.aws(...)` | `POST /v1/search` |
 | `search.search(...)` | `POST /v1/search` (dispatcher) |
 | `agent_search.bing(...)` / `.vertexai(...)` | `POST /v1/agent-search` |
 | `agent_search.bing_stream(...)` / `.vertexai_stream(...)` | `POST /v1/agent-search/stream` (SSE) |

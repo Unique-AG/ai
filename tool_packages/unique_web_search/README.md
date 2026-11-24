@@ -11,7 +11,7 @@ Outbound web access should go through **Unique Search Proxy** (`connectors/uniqu
 | **Proxy (recommended)** | `SEARCH_PROXY_BASE_URL` set | `_proxy_search` / `_proxy_crawl` via the SDK |
 | **Legacy** | URL unset | Direct provider calls from this process (`_legacy_search` / `_legacy_crawl`) |
 
-- **New standard engines (Brave, Perplexity) are proxy-only** — legacy raises.
+- **New standard engines (Brave, Perplexity, AWS AgentCore) are proxy-only** — legacy raises.
 - **Custom API** uses proxy egress only when
   `FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736` is enabled; otherwise
   the legacy path reports URL-safety outcomes without blocking.

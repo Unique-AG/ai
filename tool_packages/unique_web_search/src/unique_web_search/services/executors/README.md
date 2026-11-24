@@ -2,7 +2,7 @@
 
 Executors orchestrate the **end-to-end research workflow** once a query or plan has been validated. They sit between:
 
-- **Search engines** (standard: Google, Brave, Perplexity, Custom API; agent/grounding: Bing, VertexAI)
+- **Search engines** (standard: Google, Brave, Perplexity, AWS AgentCore, Custom API; agent/grounding: Bing, VertexAI)
 - **Crawlers** (Basic, Tavily, Jina, Firecrawl)
 - **Content processing** (summaries, truncation, relevancy sorters)
 - **LLM interfaces** (query refinement, structured outputs)

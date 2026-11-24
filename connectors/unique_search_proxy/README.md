@@ -6,7 +6,7 @@ Platform services need web search, grounded agent research, and URL crawling —
 
 **Search Proxy is the recommended way** for every tenant to run Web Search. Callers (notably `assistants-core` via `unique_web_search`) should talk only to the `search-proxy` pod; that pod owns provider credentials and internet egress. Network policies can then keep assistant pods cluster-internal for web access.
 
-**Legacy direct-provider calls** (Search Proxy disabled — `SEARCH_PROXY_BASE_URL` unset) remain available for engines that already supported them. Behaviour is preserved, but **new providers and future development target Search Proxy only**. Today, **Brave** and **Perplexity** standard search are **proxy-only**.
+**Legacy direct-provider calls** (Search Proxy disabled — `SEARCH_PROXY_BASE_URL` unset) remain available for engines that already supported them. Behaviour is preserved, but **new providers and future development target Search Proxy only**. Today, **Brave**, **Perplexity** and **AWS AgentCore** standard search are **proxy-only**.
 
 | Without the proxy | With the proxy |
 |-------------------|----------------|
@@ -18,7 +18,7 @@ Platform services need web search, grounded agent research, and URL crawling —
 
 The proxy exposes three **capabilities**:
 
-1. **Standard search** — query a search engine, get normalised results (`google`, `brave`, `perplexity`)
+1. **Standard search** — query a search engine, get normalised results (`google`, `brave`, `perplexity`, `aws`)
 2. **Agent search (grounding)** — grounded research via LLM agents (`bing`, `vertexai`); returns opaque text, plus any citations the provider attached to it, for the caller to parse
 3. **URL crawl** — fetch and extract page content (`Basic`, `Tavily`, `Jina`, `Firecrawl`)
 
@@ -102,7 +102,7 @@ Path A never hits the network. Path B never re-derives schemas — it consumes t
 
 | Capability | Endpoint | Providers | Kind |
 |------------|----------|-----------|------|
-| Standard search | `POST /v1/search` | `google`, `brave`, `perplexity` | Classic SERP-style APIs |
+| Standard search | `POST /v1/search` | `google`, `brave`, `perplexity`, `aws` | Classic SERP-style APIs |
 | Agent search (grounding) | `POST /v1/agent-search` | `bing`, `vertexai` | Grounded agents / models |
 | Agent search (stream) | `POST /v1/agent-search/stream` | `bing`, `vertexai` | Same, streaming |
 | URL crawl | `POST /v1/crawl` | `Basic`, `Tavily`, `Jina`, `Firecrawl` | Page readers |

@@ -21,6 +21,11 @@ two capabilities, picked per call via `command`:
   needs exact figures, quotes, regulatory text, or specs, and when the user
   provides a URL directly.
 
+**Fetch is only available when the deployment allows page reads.** If the
+tool's `command` accepts only `"search"`, skip every fetch step below: answer
+from snippets, refine queries when a snippet is not precise enough, and tell
+the user when a page (including one they pasted) could not be opened.
+
 Each invocation performs **one** operation. Complex user tasks are handled
 by **chaining** invocations.
 
