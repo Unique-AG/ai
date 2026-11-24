@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: '`ChatEventPayload.project_id` carries the project of a project chat (wire name `projectId`, `None` elsewhere), and the experimental `ProjectChats` resource (`unique_toolkit.experimental.resources.project_chat`) searches and reads a project''s earlier chats through `unique_sdk.ProjectChat`, with typed models and `_async` variants.'
+time: 2026-11-24T18:00:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29429

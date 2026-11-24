@@ -213,6 +213,7 @@ modules = [
     "unique_toolkit.experimental.resources.group",
     "unique_toolkit.experimental.resources.content_folder",
     "unique_toolkit.experimental.resources.scheduled_task",
+    "unique_toolkit.experimental.resources.project_chat",
     "unique_toolkit.experimental.resources.activity_records",
 ]
 
@@ -224,6 +225,7 @@ source_modules = [
     "unique_toolkit.experimental.resources.group",
     "unique_toolkit.experimental.resources.content_folder",
     "unique_toolkit.experimental.resources.scheduled_task",
+    "unique_toolkit.experimental.resources.project_chat",
     "unique_toolkit.experimental.resources.activity_records",
 ]
 forbidden_modules = ["unique_toolkit.experimental.resources.facades"]
