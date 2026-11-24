@@ -14,6 +14,7 @@ from unique_sdk import Space
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.env import config_for_slot
 from uqadm.core.payload_files import load_json_or_yaml_mapping
+from uqadm.space.mcp_match import McpMatch, echo_mcp_dry_run, merge_mcp_servers
 from uqadm.space.migrate import (
     SnapshotError,
     build_create_params,
@@ -22,6 +23,7 @@ from uqadm.space.migrate import (
     echo_mcp_plan,
     list_len,
     match_modules_by_name,
+    mcp_server_params_from_source,
     resolve_access_entries,
     sync_assistant_access,
     warn_mcp_servers_not_applied,
@@ -80,6 +82,7 @@ def cmd_upsert(
     cwd: Path | None,
     no_access: bool = False,
     with_mcp_servers: bool = False,
+    mcp_match: McpMatch = "id",
 ) -> None:
     """Apply ``file_path`` snapshot to ``slot`` (create if ``target_space_id`` is None)."""
     try:
@@ -112,10 +115,21 @@ def cmd_upsert(
 
     if dst_space_id is None:
         try:
-            create_params = build_create_params(snapshot, include_mcp=with_mcp_servers)
+            create_params = build_create_params(snapshot)
+            if with_mcp_servers:
+                mcp_server_params_from_source(snapshot.get("assistantMcpServers"))
         except SnapshotError as exc:
             typer.echo(f"Invalid snapshot: {exc}", err=True)
             sys.exit(2)
+        if with_mcp_servers:
+            create_params = merge_mcp_servers(
+                create_params,
+                snapshot,
+                user_id=cfg.user_id,
+                company_id=cfg.company_id,
+                match=mcp_match,
+                destination_space_id=None,
+            )
         echo_mcp_plan(create_params, dry_run=dry_run)
         if dry_run:
             typer.echo(
@@ -123,6 +137,7 @@ def cmd_upsert(
                 f"{create_params['name']!r} and "
                 f"{len(create_params['modules'])} module(s)."
             )
+            echo_mcp_dry_run(create_params)
             if assistant_access:
                 typer.echo(
                     f"Dry-run: would sync {len(assistant_access)} access entr(y/ies)."
@@ -183,19 +198,31 @@ def cmd_upsert(
     update_modules = build_module_updates_from_pairs(pairs)
 
     try:
-        update_kw = build_update_kwargs(snapshot, include_mcp=with_mcp_servers)
+        update_kw = build_update_kwargs(snapshot)
+        if with_mcp_servers:
+            mcp_server_params_from_source(snapshot.get("assistantMcpServers"))
     except SnapshotError as exc:
         typer.echo(f"Invalid snapshot: {exc}", err=True)
         sys.exit(2)
-    echo_mcp_plan(update_kw, dry_run=dry_run)
     if update_modules:
         update_kw["modules"] = update_modules
+    if with_mcp_servers:
+        update_kw = merge_mcp_servers(
+            update_kw,
+            snapshot,
+            user_id=cfg.user_id,
+            company_id=cfg.company_id,
+            match=mcp_match,
+            destination_space_id=dst_space_id,
+        )
+    echo_mcp_plan(update_kw, dry_run=dry_run)
 
     if dry_run:
         typer.echo(
             f"Dry-run: would update_space {dst_space_id!r} with fields "
             f"{sorted(update_kw.keys())!r}."
         )
+        echo_mcp_dry_run(update_kw)
         if assistant_access:
             typer.echo(
                 f"Dry-run: would merge access via add_space_access "

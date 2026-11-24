@@ -38,11 +38,17 @@ _NO_ACCESS_HELP = (
 )
 
 _WITH_MCP_HELP = (
-    "Also apply MCP server bindings (assistantMcpServers). Only listed servers "
-    "change; servers already bound on the destination are never removed. "
-    "MCP server ids must exist in the destination environment. Each server's "
-    "tool selection is copied as exported; tools without a saved selection are "
-    "disabled on both sides."
+    "Also attach MCP server bindings (assistantMcpServers). Each binding is "
+    "matched against the servers on the destination (see --mcp-match); "
+    "unmatched ones are dropped with a warning. Only listed servers change; "
+    "servers already bound on the destination are never removed."
+)
+
+_MCP_MATCH_HELP = (
+    "With --with-mcp-servers: how to match MCP servers to the destination. "
+    "id keeps a binding whose mcpServerId exists there. "
+    "name keeps a binding only when exactly one destination "
+    "server has that name, and sends that destination id."
 )
 
 
@@ -165,6 +171,10 @@ def space_upsert(
     with_mcp_servers: Annotated[
         bool, typer.Option("--with-mcp-servers", help=_WITH_MCP_HELP)
     ] = False,
+    mcp_match: Annotated[
+        Literal["id", "name"],
+        typer.Option("--mcp-match", help=_MCP_MATCH_HELP),
+    ] = "id",
 ) -> None:
     """Create or update a space from a snapshot file.
 
@@ -191,6 +201,7 @@ def space_upsert(
         cwd=_get_cwd(ctx),
         no_access=no_access,
         with_mcp_servers=with_mcp_servers,
+        mcp_match=mcp_match,
     )
 
 
@@ -285,12 +296,12 @@ def space_migrate(
         bool, typer.Option("--no-access", help=_NO_ACCESS_HELP)
     ] = False,
     with_mcp_servers: Annotated[
-        bool,
-        typer.Option(
-            "--with-mcp-servers",
-            help=_WITH_MCP_HELP + " Ignored for cross-environment migrations.",
-        ),
+        bool, typer.Option("--with-mcp-servers", help=_WITH_MCP_HELP)
     ] = False,
+    mcp_match: Annotated[
+        Literal["id", "name"],
+        typer.Option("--mcp-match", help=_MCP_MATCH_HELP),
+    ] = "id",
 ) -> None:
     """Clone assistant configuration from source space to destination.
 
@@ -303,6 +314,7 @@ def space_migrate(
         destination,
         dry_run=dry_run,
         with_knowledge=with_knowledge,
+        mcp_match=mcp_match,
         cwd=_get_cwd(ctx),
         no_access=no_access,
         with_mcp_servers=with_mcp_servers,

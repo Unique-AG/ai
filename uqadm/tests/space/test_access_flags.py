@@ -58,6 +58,26 @@ def _cfg(company: str = "c", base: str = "https://api.example/public") -> MagicM
     return MagicMock(user_id="u", company_id=company, api_base=base)
 
 
+_DST_MCP_SERVERS = {
+    "mcpServers": [
+        {
+            "id": "mcp_1",
+            "name": "Jira",
+            "isSpaceRestricted": False,
+            "allowedSpaceIds": [],
+            "tools": [{"name": "search"}],
+        }
+    ]
+}
+
+
+def _patch_list_servers(servers: dict[str, Any] | None = None) -> Any:
+    return patch(
+        "uqadm.space.mcp_match.MCP.list_servers",
+        return_value=servers if servers is not None else _DST_MCP_SERVERS,
+    )
+
+
 # --- helpers ---
 
 
@@ -276,6 +296,7 @@ def test_upsert_with_mcp_servers_sends_bindings(
         ),
         patch("uqadm.space.upsert.Space.update_space") as mock_update,
         patch("uqadm.space.migrate.Space.add_space_access"),
+        _patch_list_servers(),
     ):
         cmd_upsert(
             path,
@@ -298,6 +319,7 @@ def _run_migrate(
     dst_cfg: MagicMock,
     no_access: bool = False,
     with_mcp_servers: bool = False,
+    dst_mcp_servers: dict[str, Any] | None = None,
 ) -> tuple[MagicMock, MagicMock]:
     src_cfg = _cfg()
 
@@ -314,6 +336,7 @@ def _run_migrate(
         patch("uqadm.space.migrate.Space.get_space", side_effect=_get_space),
         patch("uqadm.space.migrate.Space.update_space") as mock_update,
         patch("uqadm.space.migrate.Space.add_space_access") as mock_add,
+        _patch_list_servers(dst_mcp_servers),
     ):
         cmd_migrate(
             "a:space_src",
@@ -342,14 +365,26 @@ def test_migrate_with_mcp_servers_same_env_sends_bindings() -> None:
     assert mock_update.call_args.kwargs["mcpServers"][0]["mcpServerId"] == "mcp_1"
 
 
-def test_migrate_with_mcp_servers_cross_env_skips_and_warns(
+def test_migrate_with_mcp_servers_cross_env_attaches_matched_servers(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     mock_update, _ = _run_migrate(dst_cfg=_cfg(company="other"), with_mcp_servers=True)
+    assert mock_update.call_args.kwargs["mcpServers"] == [
+        {"mcpServerId": "mcp_1", "tools": [{"name": "search", "isEnabled": True}]}
+    ]
+    assert "1 scope rule(s) are NOT applied" in capsys.readouterr().err
+
+
+def test_migrate_with_mcp_servers_drops_unmatched_and_omits_mcp_servers(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    mock_update, _ = _run_migrate(
+        dst_cfg=_cfg(company="other"),
+        with_mcp_servers=True,
+        dst_mcp_servers={"mcpServers": []},
+    )
     assert "mcpServers" not in mock_update.call_args.kwargs
-    err = capsys.readouterr().err
-    assert "--with-mcp-servers ignored for cross-environment" in err
-    assert "1 scope rule(s) are NOT applied" in err
+    assert "dropping MCP server Jira (mcp_1)" in capsys.readouterr().err
 
 
 # --- export ---
@@ -482,15 +517,24 @@ def test_upsert_create_dry_run_reports_mcp_plan(
 ) -> None:
     mock_cfg.return_value = _cfg()
     path = _write_snapshot(tmp_path, _space())
-    cmd_upsert(
-        path, "qa", target_space_id=None, dry_run=True, cwd=None, with_mcp_servers=True
-    )
+    with _patch_list_servers():
+        cmd_upsert(
+            path,
+            "qa",
+            target_space_id=None,
+            dry_run=True,
+            cwd=None,
+            with_mcp_servers=True,
+        )
     err = capsys.readouterr().err
     assert "Dry-run: would apply 1 MCP server binding(s)" in err
 
 
-def test_migrate_cross_env_does_not_report_mcp_plan(
+def test_migrate_without_flag_does_not_list_destination_mcp_servers(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    _run_migrate(dst_cfg=_cfg(company="other"), with_mcp_servers=True)
-    assert "MCP server binding(s); mcpServerId" not in capsys.readouterr().err
+    with patch("uqadm.space.mcp_match.MCP.list_servers") as mock_list:
+        mock_update, _ = _run_migrate(dst_cfg=_cfg(company="other"))
+    mock_list.assert_not_called()
+    assert "mcpServers" not in mock_update.call_args.kwargs
+    assert "pass --with-mcp-servers" in capsys.readouterr().err

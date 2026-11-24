@@ -17,6 +17,7 @@ from uqadm.core.endpoint import (
     parse_source_endpoint,
 )
 from uqadm.core.env import config_for_slot, normalize_api_base
+from uqadm.space.mcp_match import McpMatch, echo_mcp_dry_run, merge_mcp_servers
 
 
 def module_params_from_source(mod: dict[str, Any]) -> dict[str, Any]:
@@ -245,8 +246,7 @@ def echo_mcp_plan(params: dict[str, Any], *, dry_run: bool) -> None:
         return
     verb = "Dry-run: would apply" if dry_run else "Applying"
     typer.echo(
-        f"{verb} {len(mcp)} MCP server binding(s); mcpServerId values must "
-        "exist in the destination environment.",
+        f"{verb} {len(mcp)} MCP server binding(s) matched on the destination.",
         err=True,
     )
 
@@ -450,6 +450,7 @@ def cmd_migrate(
     *,
     dry_run: bool,
     with_knowledge: bool,
+    mcp_match: McpMatch = "id",
     cwd: Path | None = None,
     no_access: bool = False,
     with_mcp_servers: bool = False,
@@ -496,18 +497,8 @@ def cmd_migrate(
 
     warn_scope_rules_not_applied(list_len(src_space.get("scopeRules")))
 
-    mcp_count = list_len(src_space.get("assistantMcpServers"))
-    include_mcp = with_mcp_servers
-    if with_mcp_servers and cross_env:
-        include_mcp = False
-        if mcp_count:
-            typer.echo(
-                f"Warning: --with-mcp-servers ignored for cross-environment migrate; "
-                f"skipping {mcp_count} MCP server binding(s) (ids are not portable).",
-                err=True,
-            )
-    elif not with_mcp_servers:
-        warn_mcp_servers_not_applied(mcp_count)
+    if not with_mcp_servers:
+        warn_mcp_servers_not_applied(list_len(src_space.get("assistantMcpServers")))
 
     if with_knowledge and cross_env:
         typer.echo(
@@ -526,16 +517,28 @@ def cmd_migrate(
 
     if dst_space_id is None:
         try:
-            create_params = build_create_params(src_space, include_mcp=include_mcp)
+            create_params = build_create_params(src_space)
+            if with_mcp_servers:
+                mcp_server_params_from_source(src_space.get("assistantMcpServers"))
         except SnapshotError as exc:
             typer.echo(f"Invalid source space: {exc}", err=True)
             sys.exit(2)
+        if with_mcp_servers:
+            create_params = merge_mcp_servers(
+                create_params,
+                src_space,
+                user_id=dst_cfg.user_id,
+                company_id=dst_cfg.company_id,
+                match=mcp_match,
+                destination_space_id=None,
+            )
         echo_mcp_plan(create_params, dry_run=dry_run)
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space on destination with name="
                 f"{create_params['name']!r} and {len(create_params['modules'])} module(s)."
             )
+            echo_mcp_dry_run(create_params)
             if assistant_access:
                 typer.echo(
                     f"Dry-run: would sync {len(assistant_access)} access entr(y/ies)."
@@ -594,12 +597,23 @@ def cmd_migrate(
     update_modules = build_module_updates_from_pairs(pairs)
 
     try:
-        update_kw = build_update_kwargs(src_space, include_mcp=include_mcp)
+        update_kw = build_update_kwargs(src_space)
+        if with_mcp_servers:
+            mcp_server_params_from_source(src_space.get("assistantMcpServers"))
     except SnapshotError as exc:
         typer.echo(f"Invalid source space: {exc}", err=True)
         sys.exit(2)
     if update_modules:
         update_kw["modules"] = update_modules
+    if with_mcp_servers:
+        update_kw = merge_mcp_servers(
+            update_kw,
+            src_space,
+            user_id=dst_cfg.user_id,
+            company_id=dst_cfg.company_id,
+            match=mcp_match,
+            destination_space_id=dst_space_id,
+        )
     echo_mcp_plan(update_kw, dry_run=dry_run)
 
     if dry_run:
@@ -607,6 +621,7 @@ def cmd_migrate(
             f"Dry-run: would update_space {dst_space_id!r} with fields "
             f"{sorted(update_kw.keys())!r}."
         )
+        echo_mcp_dry_run(update_kw)
         if assistant_access:
             typer.echo(
                 f"Dry-run: would merge access via add_space_access "
