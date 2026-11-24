@@ -70,7 +70,7 @@ inside the one call and the answer comes back in one round.
 unique-cli web-search search "Git first release" "Redis first release" "Docker first release" --json
 ```
 
-- Up to 8 queries per call (4 run at the same time). More than 8 is an
+- Up to 8 queries per call, and they all run at the same time. More than 8 is an
   error: split them across calls.
 - Options such as `-n`, `--include-content` and `--json` apply to every
   query. With `--include-content`, prefer fewer queries per call: the output
