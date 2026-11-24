@@ -70,6 +70,47 @@ def test_malformed_url_is_left_to_the_crawler_without_filters() -> None:
     assert DomainPolicy().allows("http://[abc/")
 
 
+def test_tld_rule_with_leading_dot_matches_every_host_under_it() -> None:
+    policy = DomainPolicy.of(include=[".gov"])
+    assert policy.allows("https://www.nasa.gov/missions/")
+    assert policy.allows("https://nasa.gov/")
+    assert not policy.allows("https://www.snb.ch/")
+    assert not policy.allows("https://notgov.com/")
+
+
+def test_tld_rule_with_leading_dot_excludes_every_host_under_it() -> None:
+    policy = DomainPolicy.of(exclude=[".gov"])
+    assert not policy.allows("https://www.nasa.gov/missions/")
+    assert policy.allows("https://www.snb.ch/")
+
+
+def test_path_rule_includes_only_that_section() -> None:
+    policy = DomainPolicy.of(include=["nature.com/articles"])
+    assert policy.allows("https://www.nature.com/articles/intro")
+    assert policy.allows("https://nature.com/articles")
+    assert not policy.allows("https://www.nature.com/articles-old/intro")
+    assert not policy.allows("https://www.nature.com/news/")
+
+
+def test_path_rule_excludes_only_that_section() -> None:
+    policy = DomainPolicy.of(exclude=["nature.com/articles/"])
+    assert not policy.allows("https://www.nature.com/articles/intro")
+    assert policy.allows("https://www.nature.com/articles-old/intro")
+    assert policy.allows("https://www.nature.com/news/")
+
+
+def test_perplexity_policy_reads_tld_and_path_rules() -> None:
+    config = PerplexitySearchConfig(
+        search_domain_filter=ExposableParam(
+            expose=False, value=["-.gov", "-nature.com/articles"]
+        )
+    )
+    policy = PerplexitySearch(config).domain_policy()
+    assert not policy.allows("https://www.nasa.gov/")
+    assert not policy.allows("https://www.nature.com/articles/intro")
+    assert policy.allows("https://www.nature.com/news/")
+
+
 def test_perplexity_policy_reads_minus_prefix_as_exclude() -> None:
     config = PerplexitySearchConfig(
         search_domain_filter=ExposableParam(

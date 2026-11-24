@@ -5,14 +5,31 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 
-def _canonical(domain: str) -> str:
-    # The crawler drops the DNS root dot, so "evil.com." fetches "evil.com".
-    return domain.strip().lower().rstrip(".")
+def _host(host: str) -> str:
+    # The crawler drops the DNS root dot, so "evil.com." fetches "evil.com";
+    # a leading dot is a TLD rule such as Perplexity's ".gov".
+    return host.strip().lower().strip(".")
 
 
-def _matches(host: str, domains: frozenset[str]) -> bool:
+def _rule(entry: str) -> str:
+    host, _, path = entry.strip().partition("/")
+    host = _host(host)
+    if not host:
+        return ""
+    path = path.strip("/")
+    return f"{host}/{path}" if path else host
+
+
+def _rule_matches(host: str, path: str, rule: str) -> bool:
+    rule_host, _, rule_path = rule.partition("/")
     # Same rule as AWS AgentCore: a domain also covers its subdomains.
-    return any(host == d or host.endswith(f".{d}") for d in domains)
+    if host != rule_host and not host.endswith(f".{rule_host}"):
+        return False
+    return not rule_path or path == rule_path or path.startswith(f"{rule_path}/")
+
+
+def _matches(host: str, path: str, rules: frozenset[str]) -> bool:
+    return any(_rule_matches(host, path, rule) for rule in rules)
 
 
 @dataclass(frozen=True)
@@ -24,9 +41,9 @@ class DomainPolicy:
     def of(
         cls, *, include: Iterable[str] = (), exclude: Iterable[str] = ()
     ) -> DomainPolicy:
-        def clean(domains: Iterable[str]) -> frozenset[str]:
-            cleaned = (_canonical(d) for d in domains)
-            return frozenset(d for d in cleaned if d)
+        def clean(entries: Iterable[str]) -> frozenset[str]:
+            rules = (_rule(entry) for entry in entries)
+            return frozenset(rule for rule in rules if rule)
 
         return cls(include=clean(include), exclude=clean(exclude))
 
@@ -34,9 +51,11 @@ class DomainPolicy:
         if not self.include and not self.exclude:
             return True
         try:
-            host = _canonical(urlparse(url).hostname or "")
+            parsed = urlparse(url)
+            host = _host(parsed.hostname or "")
         except ValueError:
             return False
-        if _matches(host, self.exclude):
+        path = parsed.path.strip("/")
+        if _matches(host, path, self.exclude):
             return False
-        return not self.include or _matches(host, self.include)
+        return not self.include or _matches(host, path, self.include)
