@@ -28,6 +28,7 @@ on:
           - search_proxy_core
           - search_proxy_sdk
           - skill_tool
+          - project_chat_search
         default: ""
       ref:
         description: "Release tag to retry (e.g. unique-sdk-v2026.30.0). Defaults to github.sha, which only publishes if that ref carries an unreleased version."

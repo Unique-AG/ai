@@ -16,5 +16,6 @@
   "connectors/unique_search_proxy/unique_search_proxy_client": "2026.48.0",
   "connectors/unique_search_proxy/unique_search_proxy_core": "2026.48.0",
   "connectors/unique_search_proxy/unique_search_proxy_sdk": "2026.48.0",
-  "tool_packages/unique_skill_tool": "2026.48.0"
+  "tool_packages/unique_skill_tool": "2026.48.0",
+  "tool_packages/unique_project_chat_search": "2026.48.0"
 }

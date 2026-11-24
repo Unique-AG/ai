@@ -1,0 +1,7 @@
+component: Tools
+kind: Added
+body: 'New `unique_project_chat_search` tool package with the `ProjectChatSearch` tool: it searches, reads and lists the user''s earlier chats in the current project through one input schema (`mode` = search, read or recent) and returns them as ordinary sources, so answers cite the earlier chat with a link to it.'
+time: 2026-11-24T19:00:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29150
