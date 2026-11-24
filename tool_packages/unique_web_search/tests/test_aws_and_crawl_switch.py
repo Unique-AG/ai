@@ -1,4 +1,5 @@
-from unittest.mock import Mock
+import asyncio
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pydantic import BaseModel, Field
@@ -54,6 +55,58 @@ def test_crawling_stays_enabled_when_the_proxy_is_unreachable(monkeypatch) -> No
         crawling.list_providers, "sync", Mock(side_effect=OSError("refused"))
     )
     assert crawling.crawling_enabled() is True
+
+
+def test_stale_cache_refreshes_in_the_background_on_an_event_loop(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", "http://proxy.test")
+    sync = Mock(side_effect=AssertionError("blocking fetch on the event loop"))
+    monkeypatch.setattr(crawling, "_fetch_crawling_enabled", sync)
+
+    async def fetch_async(base_url: str) -> bool:
+        return False
+
+    monkeypatch.setattr(crawling, "_fetch_crawling_enabled_async", fetch_async)
+    monkeypatch.setattr(crawling, "_cached", (-1_000.0, True))
+
+    async def run() -> tuple[bool, bool]:
+        stale = crawling.crawling_enabled()
+        assert crawling._refresh is not None
+        await crawling._refresh[1]
+        return stale, crawling.crawling_enabled()
+
+    assert asyncio.run(run()) == (True, False)
+    sync.assert_not_called()
+
+
+def test_async_fetch_reads_the_proxy_and_fails_open(monkeypatch) -> None:
+    monkeypatch.setattr(
+        crawling.list_providers,
+        "asyncio",
+        AsyncMock(
+            return_value=ProvidersListResponse(
+                search_engines=[], crawlers=[], crawling_enabled=False
+            )
+        ),
+    )
+    assert (
+        asyncio.run(crawling._fetch_crawling_enabled_async("http://proxy.test"))
+        is False
+    )
+    monkeypatch.setattr(
+        crawling.list_providers, "asyncio", AsyncMock(side_effect=OSError("refused"))
+    )
+    assert (
+        asyncio.run(crawling._fetch_crawling_enabled_async("http://proxy.test")) is True
+    )
+
+
+def test_stale_cache_is_fetched_directly_without_an_event_loop(monkeypatch) -> None:
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", "http://proxy.test")
+    monkeypatch.setattr(crawling, "_fetch_crawling_enabled", lambda base_url: False)
+    monkeypatch.setattr(crawling, "_cached", (-1_000.0, True))
+    assert crawling.crawling_enabled() is False
 
 
 def test_crawler_settings_stay_visible_by_default() -> None:

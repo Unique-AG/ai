@@ -42,6 +42,7 @@ def stable_public_dns_for_tests(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(autouse=True)
 def fresh_crawling_enabled_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(crawling, "_cached", None)
+    monkeypatch.setattr(crawling, "_refresh", None)
 
 
 @pytest.fixture
