@@ -12,7 +12,7 @@
         <meta name="author" content="Unique Team">
       
       
-        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.48.0.dev16/utilities/chat_in_space/">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-sdk/2026.48.0/utilities/chat_in_space/">
       
       
         <link rel="prev" href="../token/">
@@ -2348,6 +2348,45 @@
 </ul>
 <h2 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h2>
 <details class="example">
+<summary><code>unique_sdk.utils.chat_in_space.wait_for_message_completion</code> - Wait for an already posted message</summary>
+<p>Polls a chat until the assistant turn started by an already posted message finishes. Use it after <code>Space.create_message_async</code> when you need the chat ID and the message ID before the wait starts. <code>send_message_and_wait_for_completion</code> does both steps.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>user_id</code> (required) - User ID</li>
+<li><code>company_id</code> (required) - Company ID</li>
+<li><code>chat_id</code> (required) - Chat the message was posted to</li>
+<li><code>message_id</code> (required) - ID of the posted user message that started the turn</li>
+<li><code>poll_interval</code>, <code>max_wait</code>, <code>stop_condition</code>, <code>on_message_update</code>, <code>wait_for_invocations</code>, <code>stop_on_abandon</code> (optional) - Same meaning as on <code>send_message_and_wait_for_completion</code></li>
+</ul>
+<p><strong>Example - Stop the turn when the wait gives up:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">unique_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">Space</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_sdk.utils.chat_in_space</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">MessageWaitTimeoutError</span><span class="p">,</span>
+    <span class="n">wait_for_message_completion</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">posted</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Space</span><span class="o">.</span><span class="n">create_message_async</span><span class="p">(</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">assistantId</span><span class="o">=</span><span class="s2">&quot;assistant_abc123&quot;</span><span class="p">,</span>
+    <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Research the latest AI developments&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="k">await</span> <span class="n">wait_for_message_completion</span><span class="p">(</span>
+        <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+        <span class="n">company_id</span><span class="o">=</span><span class="n">company_id</span><span class="p">,</span>
+        <span class="n">chat_id</span><span class="o">=</span><span class="n">posted</span><span class="p">[</span><span class="s2">&quot;chatId&quot;</span><span class="p">],</span>
+        <span class="n">message_id</span><span class="o">=</span><span class="n">posted</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span>
+        <span class="n">max_wait</span><span class="o">=</span><span class="mf">120.0</span><span class="p">,</span>
+        <span class="n">stop_on_abandon</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="k">except</span> <span class="n">MessageWaitTimeoutError</span> <span class="k">as</span> <span class="n">timeout</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No answer in time. Turn stopped: </span><span class="si">{</span><span class="n">timeout</span><span class="o">.</span><span class="n">turn_stopped</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>To stop a running turn yourself, call <code>Message.stop_async(user_id, company_id, message_id, chatId=chat_id)</code>. It is the same stop a user triggers in the chat: it marks the turn as aborted by the user (<code>userAbortedAt</code>), ends every unfinished assistant segment, and cancels the turn's pending elicitations.</p>
+<p><code>stop_on_abandon</code> is meant for chats nobody else watches, such as a connected space called as a sub-agent, so the turn does not keep running unobserved.</p>
+</details>
+<details class="example">
 <summary><code>unique_sdk.utils.chat_in_space.send_message_and_wait_for_completion</code> - Send message and wait</summary>
 <p>Sends a message to a space asynchronously and polls until completion.</p>
 <p><strong>Parameters:</strong></p>
@@ -2365,10 +2404,16 @@
 <li><code>correlation</code> (optional) - Correlation data to link this message to a parent message in another chat. Should contain: <code>parentMessageId</code>, <code>parentChatId</code>, <code>parentAssistantId</code></li>
 <li><code>auto_approve_elicitation</code> (optional) - When <code>True</code>, automatically approves elicitation requests during the assistant run. Use for non-interactive automation where no user is present.</li>
 <li><code>language_model</code> (optional) - Language model group name to answer <strong>this single message</strong> with (e.g. <code>"AZURE_GPT_54_2026_0305"</code>), forwarded to Unique API as <code>languageModel</code> on <code>POST /space/message</code>. Requires access to use the space, <code>allowModelSwitching</code> enabled on it, and a model taken from its <code>switchableLanguageModels</code>; the helper forwards the value as-is and does not bypass any Unique API gate. Omitting it leaves the space default in place. Not to be confused with the space-level <code>languageModel</code> on <code>Space.create_space</code> / <code>Space.update_space</code>, which sets the default for every message.</li>
+<li><code>stop_on_abandon</code> (optional) - When <code>True</code>, stops the assistant turn if the wait ends without an answer: at <code>max_wait</code>, on cancellation, or on an error. Use it when nobody else watches the chat, so the turn does not keep running unobserved (default: <code>False</code>)</li>
+<li><code>on_message_created</code> (optional) - Async callback called once with the posted user message, before the wait starts. Its <code>chatId</code> and <code>id</code> identify the turn</li>
 </ul>
 <p><strong>Returns:</strong></p>
 <ul>
 <li><code>Space.Message</code> object with the completed response</li>
+</ul>
+<p><strong>Raises:</strong></p>
+<ul>
+<li><code>MessageWaitTimeoutError</code> - The turn did not finish within <code>max_wait</code>. It is a <code>TimeoutError</code>. It carries <code>chat_id</code>, <code>message_id</code> and <code>turn_stopped</code> (<code>True</code> when the wait stopped the turn).</li>
 </ul>
 <p><strong>Example - Basic Usage:</strong></p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">unique_sdk.utils.chat_in_space</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_message_and_wait_for_completion</span>
