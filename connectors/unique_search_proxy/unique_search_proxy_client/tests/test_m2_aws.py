@@ -239,6 +239,52 @@ class TestAwsSearchService:
         assert threads[0] is not threading.main_thread()
 
     @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "https://search.example.com",
+            "http://bedrock-agentcore.us-east-1.amazonaws.com",
+            "https://amazonaws.com.example.com",
+            "https://user:pw@bedrock-agentcore.us-east-1.amazonaws.com",
+        ],
+    )
+    async def test_non_aws_endpoint_is_refused_before_signing(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        aws_env: None,
+        endpoint: str,
+    ) -> None:
+        monkeypatch.setattr(
+            service,
+            "credentials",
+            service.credentials.model_copy(update={"api_endpoint": endpoint}),
+        )
+        sent: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            sent.append(request)
+            return httpx.Response(200, json={"results": []})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(EngineNotConfiguredError):
+                await AwsSearchService(http_client=client).search(_request())
+        assert sent == []
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "https://bedrock-agentcore.eu-west-1.amazonaws.com",
+            "https://vpce-0abc-xyz.bedrock-agentcore.eu-west-1.vpce.amazonaws.com/",
+        ],
+    )
+    def test_aws_endpoints_are_accepted(self, endpoint: str) -> None:
+        assert service._invoke_url(endpoint).endswith(
+            "/web-search/web-search.v1/invoke"
+        )
+
+    @pytest.mark.ai
     def test_session_is_reused_across_requests(
         self,
         monkeypatch: pytest.MonkeyPatch,

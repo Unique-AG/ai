@@ -6,6 +6,7 @@ import logging
 from datetime import UTC, datetime
 from functools import cache
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 from botocore.auth import SigV4Auth
@@ -181,6 +182,18 @@ class AwsSearchService(SearchEngineService[AwsSearchRequest]):
 
 
 def _invoke_url(api_endpoint: str) -> str:
+    # Signed headers carry the session token, so only AWS hosts may receive
+    # them (regional endpoints and PrivateLink names both end in amazonaws.com).
+    parts = urlsplit(api_endpoint)
+    host = (parts.hostname or "").rstrip(".").lower()
+    if (
+        parts.scheme != "https"
+        or parts.username is not None
+        or parts.password is not None
+        or not host.endswith(".amazonaws.com")
+    ):
+        _LOGGER.warning("AWS_SEARCH_API_ENDPOINT is not an AWS HTTPS endpoint")
+        raise EngineNotConfiguredError(missing_env_vars=["AWS_SEARCH_API_ENDPOINT"])
     return f"{api_endpoint.rstrip('/')}/web-search/{_WEB_SEARCH_ID}/invoke"
 
 

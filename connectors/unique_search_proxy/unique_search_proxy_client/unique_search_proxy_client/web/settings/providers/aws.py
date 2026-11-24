@@ -17,12 +17,7 @@ _ENV_PREFIX = "AWS_SEARCH_"
 @helm_settings(title="AWS AgentCore Web Search", helm_key="awsSearch")
 @provider_credentials(_ENV_PREFIX)
 class _AwsSearchCredentials(ProviderCredentials):
-    """Region and endpoint for AgentCore InvokeWebSearch.
-
-    Credentials come from the default AWS chain: the projected OIDC token in
-    a cluster, or a short-lived ``aws login`` session locally. There is no
-    static key setting.
-    """
+    """AgentCore InvokeWebSearch region and endpoint; credentials come from the default AWS chain."""
 
     region: str = Field(
         default=_DEFAULT_REGION,
@@ -33,7 +28,8 @@ class _AwsSearchCredentials(ProviderCredentials):
         default=_DEFAULT_API_ENDPOINT,
         description=(
             "AgentCore endpoint. Must be "
-            "https://bedrock-agentcore.<region>.amazonaws.com for the region above."
+            "https://bedrock-agentcore.<region>.amazonaws.com for the region above, "
+            "or a PrivateLink endpoint under amazonaws.com. Other hosts are refused."
         ),
     )
 
