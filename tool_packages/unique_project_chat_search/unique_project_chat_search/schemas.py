@@ -8,7 +8,7 @@ optional. A ``before`` validator normalises what weaker models tend to send
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, time
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -56,10 +56,10 @@ class ProjectChatSearchInput(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _normalise(cls, data: Any) -> Any:
+    def _normalise(cls, data: object) -> object:
         if not isinstance(data, dict):
             return data
-        values: dict[str, Any] = dict(data)
+        values: dict[str, object] = {str(key): value for key, value in data.items()}
         mode = values.get("mode")
         if isinstance(mode, str):
             values["mode"] = mode.strip().lower()

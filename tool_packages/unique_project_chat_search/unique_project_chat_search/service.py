@@ -165,7 +165,7 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
         if not chat_id:
             raise _Correction(
                 'mode "read" needs a `chat_id` from an earlier result, '
-                'e.g. {"mode": "read", "chat_id": "chat_..."}.'
+                + 'e.g. {"mode": "read", "chat_id": "chat_..."}.'
             )
         self._check_page(arguments.page)
 
@@ -254,7 +254,7 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
         if page > self.config.max_page:
             raise _Correction(
                 f"`page` can be at most {self.config.max_page}. "
-                'Narrow it down with mode "search" instead.'
+                + 'Narrow it down with mode "search" instead.'
             )
 
     async def _walk_to_page[PageT: ProjectChatChunkPage | ProjectChatSummaryPage](
@@ -285,13 +285,13 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
         if omitted:
             reminders.append(
                 f"{omitted} more result(s) were left out to stay within the "
-                "token budget; search for something more specific to see them."
+                + "token budget; search for something more specific to see them."
             )
         if next_page is not None:
             if next_page <= self.config.max_page:
                 reminders.append(
                     "More results: call ProjectChatSearch again with the same "
-                    f"fields and page={next_page}."
+                    + f"fields and page={next_page}."
                 )
             else:
                 reminders.append(
