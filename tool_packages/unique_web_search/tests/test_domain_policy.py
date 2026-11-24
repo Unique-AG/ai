@@ -51,6 +51,25 @@ def test_exclude_wins_over_include() -> None:
     assert not policy.allows(WIKI)
 
 
+def test_trailing_root_dot_does_not_bypass_an_exclude() -> None:
+    policy = DomainPolicy.of(exclude=["en.wikipedia.org."])
+    assert not policy.allows("https://en.wikipedia.org./wiki/Swiss_National_Bank")
+    assert not policy.allows(WIKI)
+
+
+def test_trailing_root_dot_still_matches_an_include() -> None:
+    policy = DomainPolicy.of(include=["snb.ch"])
+    assert policy.allows("https://www.snb.ch./en/")
+
+
+def test_malformed_url_is_blocked_when_filters_apply() -> None:
+    assert not DomainPolicy.of(exclude=["en.wikipedia.org"]).allows("http://[abc/")
+
+
+def test_malformed_url_is_left_to_the_crawler_without_filters() -> None:
+    assert DomainPolicy().allows("http://[abc/")
+
+
 def test_perplexity_policy_reads_minus_prefix_as_exclude() -> None:
     config = PerplexitySearchConfig(
         search_domain_filter=ExposableParam(
@@ -170,3 +189,37 @@ async def test_v3_read_urls_crawls_nothing_when_every_url_is_blocked(
 
     assert await executor.run() == []
     mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_v3_read_urls_keeps_valid_urls_next_to_a_malformed_one(
+    executor_context_objects: dict,
+    mock_executor_dependencies: dict,
+) -> None:
+    mock_executor_dependencies[
+        "search_service"
+    ].domain_policy.return_value = DomainPolicy.of(exclude=["en.wikipedia.org"])
+    mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+        return_value=["page"]
+    )
+    tool_parameters = WebSearchV3ToolParameters.model_validate(
+        {
+            "command": "read_urls",
+            "phase": "target",
+            "payload": {"urls": ["http://[abc/", "https://www.snb.ch/en/"]},
+        }
+    )
+    executor = WebSearchV3Executor(
+        services=executor_context_objects["services"],
+        config=executor_context_objects["config"],
+        callbacks=executor_context_objects["callbacks"],
+        tool_call=mock_executor_dependencies["tool_call"],
+        tool_parameters=tool_parameters,
+    )
+
+    await executor.run()
+
+    mock_executor_dependencies["crawler_service"].crawl.assert_called_once_with(
+        ["https://www.snb.ch/en/"]
+    )
