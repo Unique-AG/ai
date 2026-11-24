@@ -27,10 +27,8 @@ _RECENT_URL = "/search/project-chats/recent"
 
 
 def _body(**fields: Any) -> dict[str, Any]:
-    # Builds the request body from explicit keyword arguments only, so request
-    # options such as api_key or headers can never end up in it. None means
-    # "not set" and is left out, so the endpoint applies its own defaults.
-    # Datetimes are sent as ISO 8601 strings.
+    # Keyword-only fields: request options such as api_key or headers never
+    # reach the body. None is left out so the endpoint applies its defaults.
     body: dict[str, Any] = {}
     for key, value in fields.items():
         if value is None:
