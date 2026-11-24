@@ -4410,16 +4410,17 @@ wheels = [
 
 [[package]]
 name = "pydantic-settings"
-version = "2.14.2"
+version = "2.16.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
+    { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5c/b5/8f48e906c3e0205276e8bd8cb7512217a87b2685304d64be27cad5b3019f/pydantic_settings-2.14.2.tar.gz", hash = "sha256:c19dd64b19097f1de80184f0cc7b0272a13ae6e170cbf240a3e27e381ed14a5f", size = 237700, upload-time = "2026-06-19T13:44:56.324Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/28/227c843eedd29bd78e132e5aafa420d83154b10465c312f9c21ff2eaf77d/pydantic_settings-2.16.3.tar.gz", hash = "sha256:10e36f616623ebb586c05ca3d3cd22927146869db413d4f14c20c514442a1337", size = 311716, upload-time = "2026-11-13T11:18:30.102Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/77/c1/6e422f34e569cf8e18df68d1939c81c099d2b61e4f7d9621c8a77560799c/pydantic_settings-2.14.2-py3-none-any.whl", hash = "sha256:a20c97b37910b6550d5ea50fbcc2d4187defe58cd57070b73863d069419c9440", size = 61715, upload-time = "2026-06-19T13:44:55.02Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/26/3e68379ca313b6aa58e11fbd8b28d5c6f1b9f4428d70222ba021a76797ec/pydantic_settings-2.16.3-py3-none-any.whl", hash = "sha256:d1db16a2d34006323a1b42c0640898da58adfbad7ec30baaa9e2b18aafc08999", size = 82679, upload-time = "2026-11-13T11:18:28.73Z" },
 ]
 
 [[package]]
@@ -5750,7 +5751,7 @@ requires-dist = [
     { name = "opentelemetry-api", specifier = ">=1.27,<2" },
     { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "pydantic-settings", specifier = ">=2.16.3" },
     { name = "pyjwt", specifier = ">=2.15.0" },
     { name = "python-dotenv", specifier = ">=1.2.4" },
     { name = "starlette", specifier = ">=1.3.1,<2" },
@@ -5785,7 +5786,7 @@ dependencies = [
 requires-dist = [
     { name = "openai", specifier = ">=1.109.1,<3" },
     { name = "pydantic", specifier = ">=2.8.2,<3" },
-    { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
+    { name = "pydantic-settings", specifier = ">=2.16.3,<3" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "unique-deep-research", editable = "tool_packages/unique_deep_research" },
     { name = "unique-follow-up-questions", editable = "postprocessors/unique_follow_up_questions" },
@@ -5819,7 +5820,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "pydantic", specifier = ">=2.12.4" },
-    { name = "pydantic-settings", specifier = ">=2.10.1" },
+    { name = "pydantic-settings", specifier = ">=2.16.3" },
     { name = "requests", specifier = ">=2.32.0" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
@@ -5921,7 +5922,7 @@ requires-dist = [
     { name = "markdownify", specifier = ">=0.14.1,<1" },
     { name = "openai", specifier = ">=1.105.0,<3" },
     { name = "pydantic", specifier = ">=2.12.5,<3.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.12.0,<3.0.0" },
+    { name = "pydantic-settings", specifier = ">=2.16.3,<3.0.0" },
     { name = "pypdf", specifier = "==6.21.4" },
     { name = "python-dotenv", specifier = ">=1.2.4,<2.0.0" },
     { name = "starlette", specifier = ">=1.3.1,<2.0.0" },
@@ -5964,7 +5965,7 @@ dev = [
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.0,<0.29" },
     { name = "pydantic", specifier = ">=2.12.5,<3.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
+    { name = "pydantic-settings", specifier = ">=2.16.3,<3" },
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "unique-toolkit", extras = ["monitoring"], editable = "unique_toolkit" },
 ]
@@ -6090,7 +6091,7 @@ requires-dist = [
     { name = "numerize", specifier = ">=0.12" },
     { name = "plotly", specifier = ">=5.24.1" },
     { name = "pydantic", specifier = ">=2.8.2" },
-    { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "pydantic-settings", specifier = ">=2.16.3" },
     { name = "pyhumps", specifier = ">=3.8.0" },
     { name = "pyopenssl", specifier = ">=25.0.0" },
     { name = "typing-extensions", specifier = ">=4.9.0" },
@@ -6230,7 +6231,7 @@ requires-dist = [
     { name = "prometheus-client", marker = "extra == 'monitoring'", specifier = ">=0.24.1,<1" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
     { name = "pydantic-core", specifier = ">=2.41.5" },
-    { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
+    { name = "pydantic-settings", specifier = ">=2.16.3,<3" },
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },
     { name = "python-docx", specifier = ">=1.1.0,<2" },
@@ -6328,7 +6329,7 @@ requires-dist = [
     { name = "markdownify", specifier = ">=0.14.1,<1" },
     { name = "openai", specifier = ">=1.105.0,<3" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
-    { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
+    { name = "pydantic-settings", specifier = ">=2.16.3,<3" },
     { name = "rapidfuzz", specifier = ">=3.0.0,<4" },
     { name = "tavily-python", specifier = ">=0.7.11,<1" },
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
