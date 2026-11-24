@@ -10,7 +10,9 @@ from unique_search_proxy_sdk._generated.models.providers_list_response import (
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.services import crawling
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
+from unique_web_search.services.executors.v3.config import WebSearchV3Config
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
+from unique_web_search.services.executors.v3.strategy import WebSearchV3Strategy
 from unique_web_search.services.search_engine.aws import trim_aws_query
 from unique_web_search.services.search_engine.base import SearchEngineMode
 from unique_web_search.settings import env_settings
@@ -148,3 +150,24 @@ def test_v3_hint_drops_read_urls_when_crawling_is_off() -> None:
     assert "read_urls" not in hint
     model = WebSearchV3ToolParameters.with_exposed_params(None)
     assert "read_urls" not in model.model_json_schema()
+
+
+def _v3_prompts() -> tuple[str, str]:
+    strategy = WebSearchV3Strategy(WebSearchV3Config())
+    ctx = Mock(exposed_params_cls=None, date_string="24 November 2026")
+    return strategy.tool_description(ctx), strategy.system_prompt(ctx)
+
+
+@pytest.mark.usefixtures("crawl_off")
+def test_v3_prompts_stop_offering_read_urls_when_crawling_is_off() -> None:
+    description, system_prompt = _v3_prompts()
+    assert "read_urls" not in description
+    assert "read_urls" not in system_prompt
+    assert "Full-page reads are turned off" in description
+    assert "Pages cannot be opened" in system_prompt
+
+
+def test_v3_prompts_offer_read_urls_by_default() -> None:
+    description, system_prompt = _v3_prompts()
+    assert 'command: "read_urls"' in description
+    assert 'the first call should be `command: "read_urls"`' in system_prompt
