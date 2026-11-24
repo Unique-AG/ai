@@ -1,0 +1,11 @@
+component: SDK
+kind: Fixed
+body: >-
+    `copy.copy`, `copy.deepcopy` and `pickle` work on every object the SDK returns, including nested ones such as the entries of a message's `debugInfo`, instead of raising `AttributeError: 'user_id'`. A copy keeps the class of the original, so a copied `Message` is a `Message` and a copied list still iterates over its `data`. `user_id` and `company_id` stay readable as attributes on these objects, so `next_page` and `previous_page` on the last page of a list return an empty list instead of raising.
+
+
+    Behavior change: `obj.user_id` and `obj.company_id` always return the identity the object was requested with. They are no longer dict items of an object that is constructed directly, such as `UniqueObject(user_id, company_id, id)`, so they no longer show up in its keys, in `dict(obj)`, in its copies or in comparisons. A response field that is itself named `user_id` or `company_id` is read as `obj["user_id"]` or `obj["company_id"]`.
+time: 2026-11-24T09:31:59.449832+00:00
+custom:
+    Audience: developer
+    Ticket: UN-30307
