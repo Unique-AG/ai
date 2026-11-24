@@ -35,8 +35,9 @@ The underlying search engine performs comprehensive, agent-based research intern
 - **Default to a single search step.** One well-described search step is almost always sufficient — the engine will explore multiple angles and sources automatically.
 - **Only add a second search step when the user's question covers two genuinely unrelated topics** that cannot be answered by a single research pass (e.g., "What is the weather in NYC?" *and* "What are Tesla's latest earnings?").
 - **Never split a single research question into multiple search steps.** Do not separate "find earnings" and "find stock price" into two steps — combine them into one comprehensive intent description.
+{% if crawling_enabled is not false -%}
 - **`read_url` steps are still appropriate** when you already know a specific URL that should be read.
-
+{% endif %}
 {% endif %}
 ### Research Planning Strategy
 
@@ -58,7 +59,7 @@ The underlying search engine performs comprehensive, agent-based research intern
 - Only create additional search steps for completely unrelated topics
 {% else %}
 **3. Plan Sequential Steps:**
-- Create logical sequence of searches and URL reads
+- Create logical sequence of searches{% if crawling_enabled is not false %} and URL reads{% endif %}
 - Each step should build toward the overall objective
 - Consider dependencies between steps
 - Balance breadth vs. depth of information gathering
@@ -88,11 +89,17 @@ The underlying search engine performs comprehensive, agent-based research intern
 - Example: "What was their age?" → "Kevin's age" (if Kevin was mentioned earlier)
 {% endif %}
 
+{% if crawling_enabled is not false -%}
 **URL Reading Steps (`"step_type": "read_url"`):**
 - Use for reading specific documents or pages found in previous searches
 - Include full URLs from search results
 - Useful for diving deeper into specific sources
 - Good for accessing reports, documents, or detailed articles
+{%- else -%}
+**Search steps only:**
+- Full-page reads are turned off on this deployment: plan only `search` steps, also when the user provides a URL
+- Answer from the search snippets, and say when a page itself could not be read
+{%- endif %}
 
 {% if search_engine_mode == "standard" %}
 **Query Optimization Techniques:**

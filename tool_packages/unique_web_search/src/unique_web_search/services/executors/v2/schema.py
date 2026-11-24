@@ -125,11 +125,14 @@ class WebSearchPlan(BaseModel):
         )
 
     @staticmethod
-    def build_example_complex(mode: SearchEngineMode) -> WebSearchPlan:
+    def build_example_complex(
+        mode: SearchEngineMode, *, crawling_enabled: bool = True
+    ) -> WebSearchPlan:
         """Build a multi-step example plan, adapted to *mode*.
 
         In agent mode the search engine performs comprehensive research
-        internally, so we consolidate into a single search step.
+        internally, so we consolidate into a single search step. With
+        crawling off, the example has no ``read_url`` step.
         """
         if mode == SearchEngineMode.AGENT:
             return WebSearchPlan(
@@ -165,6 +168,26 @@ class WebSearchPlan(BaseModel):
                 ),
             )
 
+        steps = [
+            Step(
+                step_type=StepType.SEARCH,
+                objective="Find Tesla's latest quarterly earnings",
+                query_or_url="Tesla Q3 2024 earnings results financial performance",
+            ),
+            Step(
+                step_type=StepType.SEARCH,
+                objective="Get current Tesla stock price and recent performance",
+                query_or_url="Tesla stock price TSLA recent performance 2024",
+            ),
+        ]
+        if crawling_enabled:
+            steps.append(
+                Step(
+                    step_type=StepType.READ_URL,
+                    objective="Read detailed earnings report",
+                    query_or_url="[URL from previous search results]",
+                )
+            )
         return WebSearchPlan(
             objective=(
                 "Research Tesla's recent financial performance and market position"
@@ -174,23 +197,7 @@ class WebSearchPlan(BaseModel):
                 "and competitive analysis to understand Tesla's "
                 "current market position"
             ),
-            steps=[
-                Step(
-                    step_type=StepType.SEARCH,
-                    objective="Find Tesla's latest quarterly earnings",
-                    query_or_url="Tesla Q3 2024 earnings results financial performance",
-                ),
-                Step(
-                    step_type=StepType.SEARCH,
-                    objective="Get current Tesla stock price and recent performance",
-                    query_or_url="Tesla stock price TSLA recent performance 2024",
-                ),
-                Step(
-                    step_type=StepType.READ_URL,
-                    objective="Read detailed earnings report",
-                    query_or_url="[URL from previous search results]",
-                ),
-            ],
+            steps=steps,
             expected_outcome=(
                 "Comprehensive view of Tesla's financial health, "
                 "stock performance, and market position"

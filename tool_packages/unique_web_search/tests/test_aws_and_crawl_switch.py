@@ -3,13 +3,16 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pydantic import BaseModel, Field
+from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 from unique_search_proxy_sdk._generated.models.providers_list_response import (
     ProvidersListResponse,
 )
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.services import crawling
+from unique_web_search.services.executors.v2.config import WebSearchV2Config
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
+from unique_web_search.services.executors.v2.strategy import WebSearchV2Strategy
 from unique_web_search.services.executors.v3.config import WebSearchV3Config
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.services.executors.v3.strategy import WebSearchV3Strategy
@@ -171,3 +174,25 @@ def test_v3_prompts_offer_read_urls_by_default() -> None:
     description, system_prompt = _v3_prompts()
     assert 'command: "read_urls"' in description
     assert 'the first call should be `command: "read_urls"`' in system_prompt
+
+
+def _v2_system_prompt() -> str:
+    strategy = WebSearchV2Strategy(WebSearchV2Config())
+    ctx = Mock(
+        search_engine_config=GoogleConfig(search_engine_id="cx-123"),
+        date_string="24 November 2026",
+    )
+    return strategy.system_prompt(ctx)
+
+
+@pytest.mark.usefixtures("crawl_off")
+def test_v2_prompt_and_examples_drop_read_url_when_crawling_is_off() -> None:
+    system_prompt = _v2_system_prompt()
+    assert "read_url" not in system_prompt
+    assert "plan only `search` steps" in system_prompt
+
+
+def test_v2_prompt_and_examples_keep_read_url_by_default() -> None:
+    system_prompt = _v2_system_prompt()
+    assert '"step_type": "read_url"' in system_prompt
+    assert "URL Reading Steps" in system_prompt
