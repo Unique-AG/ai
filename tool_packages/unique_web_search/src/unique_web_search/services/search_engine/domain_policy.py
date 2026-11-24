@@ -4,6 +4,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+import httpx
+
 
 def _host(host: str) -> str:
     # The crawler drops the DNS root dot, so "evil.com." fetches "evil.com";
@@ -51,11 +53,15 @@ class DomainPolicy:
         if not self.include and not self.exclude:
             return True
         try:
-            parsed = urlparse(url)
-            host = _host(parsed.hostname or "")
-        except ValueError:
+            host = _host(urlparse(url).hostname or "")
+            # The path as the crawler's httpx client sends it: dot segments are
+            # resolved, but percent-encoded ones survive decoding as "..".
+            path = httpx.URL(url).path
+        except (ValueError, httpx.InvalidURL):
             return False
-        path = parsed.path.strip("/")
+        if {".", ".."} & set(path.split("/")):
+            return False
+        path = path.strip("/")
         if _matches(host, path, self.exclude):
             return False
         return not self.include or _matches(host, path, self.include)

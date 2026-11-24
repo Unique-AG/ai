@@ -99,6 +99,38 @@ def test_path_rule_excludes_only_that_section() -> None:
     assert policy.allows("https://www.nature.com/news/")
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.nature.com/news/../articles/intro",
+        "https://www.nature.com/news/./../articles/intro",
+        "https://www.nature.com/news/%2e%2e/articles/intro",
+        "https://www.nature.com/news/%2E%2E/articles/intro",
+    ],
+)
+def test_dot_segments_do_not_bypass_an_exclude_path_rule(url: str) -> None:
+    policy = DomainPolicy.of(exclude=["nature.com/articles"])
+    assert not policy.allows(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.nature.com/articles/../news/intro",
+        "https://www.nature.com/articles/%2e%2e/news/intro",
+    ],
+)
+def test_dot_segments_do_not_escape_an_include_path_rule(url: str) -> None:
+    policy = DomainPolicy.of(include=["nature.com/articles"])
+    assert not policy.allows(url)
+
+
+def test_resolved_dot_segments_still_match_path_rules() -> None:
+    policy = DomainPolicy.of(include=["nature.com/articles"])
+    assert policy.allows("https://www.nature.com/news/../articles/intro")
+    assert not policy.allows("https://www.nature.com/news/../articles-old/intro")
+
+
 def test_perplexity_policy_reads_tld_and_path_rules() -> None:
     config = PerplexitySearchConfig(
         search_domain_filter=ExposableParam(
