@@ -7,6 +7,7 @@ import json
 import os
 import signal
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
 
@@ -14,10 +15,11 @@ from unique_sdk._error import APIError
 from unique_sdk.api_resources._space import Space
 from unique_sdk.cli.state import ShellState
 from unique_sdk.cli.subagent_turns import (
+    TURNS_RELATIVE_DIR,
     record_turn_ended,
     record_turn_started,
-    turns_dir_for,
 )
+from unique_sdk.cli.workspace import manifest_path
 from unique_sdk.utils.chat_in_space import (
     MessageWaitTimeoutError,
     send_message_and_wait_for_completion,
@@ -40,6 +42,12 @@ class SubagentDefinition(TypedDict, total=False):
     pollInterval: float
     maxWait: float
     stopCondition: Literal["stoppedStreamingAt", "completedAt"]
+
+
+@dataclass
+class _CreatedTurn:
+    chat_id: str | None = None
+    message_id: str | None = None
 
 
 def is_error_output(output: str) -> bool:
@@ -333,24 +341,27 @@ def cmd_subagent(
             chat_id = chat_state.get(tool_name)
 
         remembers_chat = configured_chat_id is None and reuse_chat
-        turns_dir = turns_dir_for(resolved_config_path)
-        created_chat_ids: list[str] = []
-        created_message_ids: list[str] = []
+        turns_dir = manifest_path(TURNS_RELATIVE_DIR)
+        created = _CreatedTurn()
         saved_chat_ids: set[str] = set()
 
-        def _on_turn_created(created_chat_id: str, created_message_id: str) -> None:
-            created_chat_ids.append(created_chat_id)
-            created_message_ids.append(created_message_id)
+        def _on_turn_created(turn_chat_id: str, turn_message_id: str) -> None:
+            created.chat_id = turn_chat_id
+            created.message_id = turn_message_id
             record_turn_started(
-                turns_dir, chat_id=created_chat_id, message_id=created_message_id
+                turns_dir=turns_dir,
+                chat_id=turn_chat_id,
+                message_id=turn_message_id,
+                parent_chat_id=parent_chat_id,
+                parent_message_id=parent_message_id,
             )
             if remembers_chat and _remember_chat(
                 state_path=state_path,
                 chat_state=chat_state,
                 tool_name=tool_name,
-                chat_id=created_chat_id,
+                chat_id=turn_chat_id,
             ):
-                saved_chat_ids.add(created_chat_id)
+                saved_chat_ids.add(turn_chat_id)
 
         try:
             response = asyncio.run(
@@ -369,23 +380,20 @@ def cmd_subagent(
             # A turn that could not be stopped keeps its record, so the
             # caller's host can stop it later.
             if timeout.turn_stopped:
-                record_turn_ended(turns_dir, message_id=timeout.message_id)
+                record_turn_ended(turns_dir=turns_dir, message_id=timeout.message_id)
             note = _timeout_note(display_name=display_name, timeout=timeout)
             return f"{SUBAGENT_ERROR_PREFIX} {note}"
         except asyncio.CancelledError:
-            # The process is ending, so the note cannot be returned. It goes
-            # to stdout, where the caller reads the command's output.
+            # The wait does not report whether its stop succeeded, so the
+            # record stays. The host skips a turn that is already stopped.
             print(
-                _terminated_note(
-                    display_name=display_name,
-                    chat_id=created_chat_ids[0] if created_chat_ids else None,
-                ),
+                _terminated_note(display_name=display_name, chat_id=created.chat_id),
                 flush=True,
             )
             raise SystemExit(128 + signal.SIGTERM) from None
 
-        for created_message_id in created_message_ids:
-            record_turn_ended(turns_dir, message_id=created_message_id)
+        if created.message_id is not None:
+            record_turn_ended(turns_dir=turns_dir, message_id=created.message_id)
 
         response_chat_id = response.get("chatId")
         if remembers_chat and response_chat_id not in (None, *saved_chat_ids):
