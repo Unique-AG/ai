@@ -37,6 +37,8 @@ Query → normalised results (URL / title / snippet / optional content). Optiona
 | AWS AgentCore | **proxy-only** | Index extracts; `requires_scraping` off by default. Queries are trimmed to 200 characters |
 | Custom API | legacy + proxy | Your REST endpoint; proxy mode rejects redirects |
 
+An engine only appears in the admin form when `ACTIVE_SEARCH_ENGINES` lists it (default `["google"]`). For AWS AgentCore, add `aws` and give the Search Proxy AWS credentials (see the [Search Proxy README](../../connectors/unique_search_proxy/unique_search_proxy_client/README.md)).
+
 Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `value`) for optional provider knobs. See [Search Engines README](./src/unique_web_search/services/search_engine/README.md).
 
 ### Agent search (grounding)

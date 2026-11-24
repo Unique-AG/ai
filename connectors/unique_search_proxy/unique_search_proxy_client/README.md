@@ -294,7 +294,7 @@ uv run python -m unique_search_proxy_client.web.app
 uv run uvicorn unique_search_proxy_client.web.app:app --reload --port 2349
 ```
 
-AWS AgentCore uses the default AWS credential chain. Set `AWS_SEARCH_REGION` (and `AWS_SEARCH_API_ENDPOINT` when the region is not `us-east-1`). Locally that is a short-lived `aws login` session, which needs the `awscrt` extra (`uv run --with "botocore[crt]"`). There is no static key. `CRAWL_ENABLED=false` makes `POST /v1/crawl` return 503 `CRAWLING_DISABLED` and fetch nothing. `GET /ready` and `GET /v1/configuration/providers` report that crawling is off. The web search tool reads `crawlingEnabled` from that endpoint, so this is the only crawl switch.
+AWS AgentCore uses the default AWS credential chain. Set `AWS_SEARCH_REGION` (and `AWS_SEARCH_API_ENDPOINT` when the region is not `us-east-1`). Locally that is a short-lived `aws login` session, which needs the `awscrt` extra (`uv run --with "botocore[crt]"`). There is no static key. The identity needs `bedrock-agentcore:InvokeWebSearch` on `arn:aws:bedrock-agentcore:<region>:aws:tool/web-search.v1`; without it, searches fail with `ENGINE_NOT_CONFIGURED`. `CRAWL_ENABLED=false` makes `POST /v1/crawl` return 503 `CRAWLING_DISABLED` and fetch nothing. It only turns off the crawl endpoint: an engine's own requests, such as Vertex AI redirect resolution, are not affected. `GET /ready` and `GET /v1/configuration/providers` report that crawling is off. The web search tool reads `crawlingEnabled` from that endpoint, so this is the only crawl switch.
 
 Call from Python via the [SDK](../unique_search_proxy_sdk/README.md):
 

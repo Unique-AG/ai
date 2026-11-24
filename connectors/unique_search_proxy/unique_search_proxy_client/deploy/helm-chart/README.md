@@ -72,7 +72,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | jina.enabled | bool | `false` |  |
 | nameOverride | string | `"search-proxy"` |  |
 | networkPolicy.allowDisabled | bool | `false` | Set true only if another control restricts who can reach search-proxy. |
-| networkPolicy.baseline.egress.worldHttp | object | `{"toEntities":["world"],"toPorts":[{"ports":[{"port":"443","protocol":"TCP"},{"port":"80","protocol":"TCP"}]}]}` | Ports 443 and 80 to the internet for crawling. Set `enabled: false` only for corporate-proxy tenants (needs a proxy host and port). Enabled providers keep their FQDN rules; Bing, Vertex AI and the Azure workload identity login then need their own rules. |
+| networkPolicy.baseline.egress.worldHttp | object | `{"toEntities":["world"],"toPorts":[{"ports":[{"port":"443","protocol":"TCP"},{"port":"80","protocol":"TCP"}]}]}` | Ports 443 and 80 to the internet for crawling. Set `enabled: false` only for corporate-proxy tenants (needs a proxy host and port). Enabled providers keep their FQDN rules; Bing, Vertex AI, the Azure workload identity login and the AWS STS credential exchange then need their own rules. |
 | networkPolicy.baseline.prometheus.namespace | string | `"system"` |  |
 | networkPolicy.egressDeny | list | `[{"toCIDR":["169.254.0.0/16"]}]` | Blocks link-local addresses (cloud metadata service, IMDS) even though world egress is allowed. Deny rules win over allow rules. |
 | networkPolicy.enableDefaultDeny.egress | bool | `true` |  |
