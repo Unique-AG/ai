@@ -41,6 +41,8 @@ def trim_aws_query(query: str) -> str:
     if len(text) <= AWS_MAX_QUERY_LENGTH:
         return text
     cut = text[:AWS_MAX_QUERY_LENGTH]
+    if text[AWS_MAX_QUERY_LENGTH].isspace():
+        return cut.rstrip()
     space = cut.rfind(" ")
     if space > 0:
         return cut[:space]

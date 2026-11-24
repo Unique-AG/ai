@@ -142,6 +142,39 @@ class TestAwsSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_rejected_request_is_a_validation_error(self, aws_env: None) -> None:
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(
+                400,
+                json={"message": "publishedAfter is after publishedBefore"},
+                headers={"x-amzn-ErrorType": "ValidationException"},
+            ),
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(ValidationProxyError) as exc_info:
+                await AwsSearchService(http_client=client).search(_request())
+        assert exc_info.value.retryable is False
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "response",
+        [
+            httpx.Response(200, text="<html>gateway</html>"),
+            httpx.Response(200, json=[{"url": "https://www.snb.ch/"}]),
+            httpx.Response(302, headers={"location": "https://example.com/"}),
+        ],
+    )
+    async def test_malformed_response_is_an_upstream_error(
+        self, aws_env: None, response: httpx.Response
+    ) -> None:
+        transport = httpx.MockTransport(lambda request: response)
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(UpstreamError):
+                await AwsSearchService(http_client=client).search(_request())
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_results_without_urls_are_empty(self, aws_env: None) -> None:
         transport = httpx.MockTransport(
             lambda request: httpx.Response(
@@ -347,3 +380,50 @@ class TestAwsSearchService:
     def test_fetch_size_above_25_is_rejected(self) -> None:
         with pytest.raises(ValueError):
             AwsConfig(fetch_size=26)
+
+    @pytest.mark.ai
+    def test_domain_entries_become_bare_domains(self) -> None:
+        entries = ["https://WWW.snb.ch/en/", " ", "nasa.gov.", "snb.ch/about"]
+        expected = ["www.snb.ch", "nasa.gov", "snb.ch"]
+        assert AwsConfig(include_domains=entries).include_domains == expected
+        request = AwsSearchRequest.model_validate(
+            {"query": "q", "includeDomains": entries, "excludeDomains": None}
+        )
+        assert request.include_domains == expected
+        assert request.exclude_domains == []
+
+    @pytest.mark.ai
+    def test_entry_that_is_not_a_domain_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="not a domain"):
+            AwsSearchRequest.model_validate(
+                {"query": "q", "excludeDomains": ["not a domain"]}
+            )
+
+    @pytest.mark.ai
+    def test_reversed_published_range_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="publishedAfter"):
+            AwsSearchRequest.model_validate(
+                {
+                    "query": "q",
+                    "publishedAfter": "2026-11-16T00:00:00Z",
+                    "publishedBefore": "2026-11-15T00:00:00Z",
+                }
+            )
+        with pytest.raises(ValueError, match="publishedAfter"):
+            AwsConfig.model_validate(
+                {
+                    "publishedAfter": {"expose": True, "value": "2026-11-16T00:00:00"},
+                    "publishedBefore": {
+                        "expose": True,
+                        "value": "2026-11-15T00:00:00Z",
+                    },
+                }
+            )
+
+    @pytest.mark.ai
+    def test_equal_and_single_published_bounds_are_valid(self) -> None:
+        same = "2026-11-15T00:00:00Z"
+        AwsSearchRequest.model_validate(
+            {"query": "q", "publishedAfter": same, "publishedBefore": same}
+        )
+        AwsSearchRequest.model_validate({"query": "q", "publishedAfter": same})

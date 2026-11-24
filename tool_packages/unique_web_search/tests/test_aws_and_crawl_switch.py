@@ -21,6 +21,11 @@ from unique_web_search.services.search_engine.base import SearchEngineMode
 from unique_web_search.settings import env_settings
 
 
+def test_trim_aws_query_keeps_a_prefix_that_ends_on_a_word() -> None:
+    query = "find " + "x" * 195 + " more"
+    assert trim_aws_query(query) == "find " + "x" * 195
+
+
 def test_trim_aws_query_keeps_short_queries() -> None:
     assert trim_aws_query("Swiss National Bank") == "Swiss National Bank"
 

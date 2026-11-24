@@ -190,7 +190,18 @@ class AwsSearchService(SearchEngineService[AwsSearchRequest]):
             ) from exc
 
         _raise_for_aws_response(response)
-        page = response.json()
+        try:
+            page = response.json()
+        except ValueError as exc:
+            raise UpstreamError(
+                "AWS search returned a response that is not JSON",
+                upstream_raw=upstream_response_raw(response),
+            ) from exc
+        if not isinstance(page, dict):
+            raise UpstreamError(
+                "AWS search returned an unexpected response shape",
+                upstream_raw=upstream_response_raw(response),
+            )
         curated = WebSearchResults(results=_extract_results(page))
         if not curated.results:
             raise EmptySearchResultsError("AWS search returned no results")
@@ -277,7 +288,7 @@ def _signed_headers(
 
 
 def _raise_for_aws_response(response: httpx.Response) -> None:
-    if response.status_code < 400:
+    if response.is_success:
         return
     raw = upstream_response_raw(response)
     message = upstream_error_message(response, provider_label=_PROVIDER_LABEL)
@@ -285,6 +296,10 @@ def _raise_for_aws_response(response: httpx.Response) -> None:
         raise EngineNotConfiguredError()
     if response.status_code == 429:
         raise RateLimitedError(message, upstream_raw=raw)
+    # AWS answers a request it rejects (ValidationException) with 400; retrying
+    # the same request cannot succeed.
+    if response.status_code == 400:
+        raise ValidationProxyError(message, upstream_raw=raw)
     raise UpstreamError(message, upstream_raw=raw)
 
 
