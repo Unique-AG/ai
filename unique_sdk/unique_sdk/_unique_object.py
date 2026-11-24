@@ -30,9 +30,8 @@ class UniqueObject(dict[str, Any]):
     ):
         super(UniqueObject, self).__init__()
 
-        # Set these as real instance attributes. The custom __setattr__ below
-        # would store them as dict items, where the first refresh_from wipes
-        # them (and where they would look like fields of the API response).
+        # Real instance attributes: the custom __setattr__ would store these as
+        # dict items, which refresh_from clears.
         object.__setattr__(self, "user_id", user_id)
         object.__setattr__(self, "company_id", company_id)
 
