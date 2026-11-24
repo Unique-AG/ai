@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: 'A caller can stop a running assistant turn with `Message.stop` and `Message.stop_async`. `send_message_and_wait_for_completion` takes `stop_on_abandon` (off by default): when set, it stops the turn if the wait ends without an answer, at `max_wait`, on cancellation or on an error. The new `wait_for_message_completion` waits for a message that is already posted. A timeout raises `MessageWaitTimeoutError`, a `TimeoutError` with the same message that also says whether the turn was stopped. `unique-cli subagent` now stops the connected space when it gives up or is terminated, and says so in its output.'
+time: 2026-11-23T15:23:06.196575+01:00
+custom:
+    Audience: developer
+    Ticket: UN-30319
