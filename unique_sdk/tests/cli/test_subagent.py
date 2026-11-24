@@ -13,10 +13,16 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
+from unique_sdk._error import APIError
 from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.subagent import cmd_subagent, is_error_output
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.subagent_turns import (
+    TURNS_RELATIVE_DIR,
+    SubagentTurn,
+    read_open_turns,
+)
 from unique_sdk.utils.chat_in_space import MessageWaitTimeoutError
 
 
@@ -32,6 +38,22 @@ def _config() -> Config:
 
 def _state() -> ShellState:
     return ShellState(_config())
+
+
+def _open_turns(workspace: Path) -> list[SubagentTurn]:
+    return read_open_turns(turns_dir=workspace / TURNS_RELATIVE_DIR)
+
+
+def _child_turn(
+    *, parent_chat_id: str | None = None, parent_message_id: str | None = None
+) -> SubagentTurn:
+    return {
+        "version": 1,
+        "chatId": "chat-child",
+        "messageId": "msg-user",
+        "parentChatId": parent_chat_id,
+        "parentMessageId": parent_message_id,
+    }
 
 
 def _write_subagents_config(path: Path) -> None:
@@ -340,7 +362,9 @@ def test_cmd_subagent__timeout_with_failed_stop__names_the_running_chat(
 def test_cmd_subagent__sigterm_during_wait__stops_turn_then_exits_143(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(tmp_path))
     config_path = tmp_path / ".unique-subagents.json"
     _write_subagents_config(config_path)
     stop = AsyncMock()
@@ -369,3 +393,113 @@ def test_cmd_subagent__sigterm_during_wait__stops_turn_then_exits_143(
     out = capsys.readouterr().out
     assert out.startswith("subagent: terminated while waiting for Legal Review.")
     assert "chat chat-child was asked to stop" in out
+    # The wait does not report whether its stop succeeded, so the record
+    # stays for the host, which skips a turn that is already stopped.
+    assert _open_turns(tmp_path) == [_child_turn()]
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__while_waiting__turn_is_recorded_in_the_workspace_with_its_parent(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(tmp_path))
+    config_dir = tmp_path / "elsewhere"
+    config_dir.mkdir()
+    config_path = config_dir / "subagents.json"
+    _write_subagents_config(config_path)
+    open_during_wait: list[SubagentTurn] = []
+
+    async def _send(**kwargs: Any) -> dict[str, str]:
+        await kwargs["on_message_created"]({"chatId": "chat-child", "id": "msg-user"})
+        open_during_wait.extend(_open_turns(tmp_path))
+        return {"id": "msg-answer", "chatId": "chat-child", "text": "Reviewed."}
+
+    mock_send.side_effect = _send
+
+    out = cmd_subagent(
+        _state(),
+        "LegalReview",
+        "hi",
+        config_path=str(config_path),
+        parent_chat_id="chat-parent",
+        parent_message_id="msg-parent",
+        parent_assistant_id="assistant-parent",
+    )
+
+    assert not is_error_output(out)
+    assert open_during_wait == [
+        _child_turn(parent_chat_id="chat-parent", parent_message_id="msg-parent")
+    ]
+    assert _open_turns(tmp_path) == []
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__timeout_with_stopped_turn__clears_the_record(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(tmp_path))
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    mock_send.side_effect = _timeout(turn_stopped=True)
+
+    _ = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert _open_turns(tmp_path) == []
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__timeout_with_failed_stop__keeps_the_record(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(tmp_path))
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    mock_send.side_effect = _timeout(turn_stopped=False)
+
+    _ = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert _open_turns(tmp_path) == [_child_turn()]
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__wait_fails_with_api_error__keeps_the_record(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(tmp_path))
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+
+    async def _send(**kwargs: Any) -> dict[str, str]:
+        await kwargs["on_message_created"]({"chatId": "chat-child", "id": "msg-user"})
+        raise APIError("gateway timeout")
+
+    mock_send.side_effect = _send
+
+    out = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert is_error_output(out)
+    assert _open_turns(tmp_path) == [_child_turn()]
