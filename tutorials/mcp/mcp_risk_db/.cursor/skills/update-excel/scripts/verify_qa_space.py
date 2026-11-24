@@ -29,6 +29,7 @@ CONNECTION_ERROR_MARKERS = (
     "mcp server not found",
     "session expired",
     "reconnect to continue",
+    "not connected for this user",
 )
 
 
