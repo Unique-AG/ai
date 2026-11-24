@@ -13,10 +13,12 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
+from unique_sdk._error import APIError
 from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.subagent import cmd_subagent, is_error_output
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.subagent_turns import read_open_turns, turns_dir_for
 from unique_sdk.utils.chat_in_space import MessageWaitTimeoutError
 
 
@@ -369,3 +371,94 @@ def test_cmd_subagent__sigterm_during_wait__stops_turn_then_exits_143(
     out = capsys.readouterr().out
     assert out.startswith("subagent: terminated while waiting for Legal Review.")
     assert "chat chat-child was asked to stop" in out
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__while_waiting__turn_is_recorded_as_open(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    open_during_wait: list[object] = []
+
+    async def _send(**kwargs: Any) -> dict[str, str]:
+        await kwargs["on_message_created"]({"chatId": "chat-child", "id": "msg-user"})
+        open_during_wait.extend(read_open_turns(turns_dir_for(config_path)))
+        return {"id": "msg-answer", "chatId": "chat-child", "text": "Reviewed."}
+
+    mock_send.side_effect = _send
+
+    out = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert not is_error_output(out)
+    assert open_during_wait == [{"chatId": "chat-child", "messageId": "msg-user"}]
+    assert read_open_turns(turns_dir_for(config_path)) == []
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__timeout_with_stopped_turn__clears_the_record(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    mock_send.side_effect = _timeout(turn_stopped=True)
+
+    _ = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert read_open_turns(turns_dir_for(config_path)) == []
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__timeout_with_failed_stop__keeps_the_record(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    mock_send.side_effect = _timeout(turn_stopped=False)
+
+    _ = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert read_open_turns(turns_dir_for(config_path)) == [
+        {"chatId": "chat-child", "messageId": "msg-user"}
+    ]
+
+
+@pytest.mark.ai
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent__wait_fails_with_api_error__keeps_the_record(
+    mock_send: AsyncMock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+
+    async def _send(**kwargs: Any) -> dict[str, str]:
+        await kwargs["on_message_created"]({"chatId": "chat-child", "id": "msg-user"})
+        raise APIError("gateway timeout")
+
+    mock_send.side_effect = _send
+
+    out = cmd_subagent(_state(), "LegalReview", "hi", config_path=str(config_path))
+
+    assert is_error_output(out)
+    assert read_open_turns(turns_dir_for(config_path)) == [
+        {"chatId": "chat-child", "messageId": "msg-user"}
+    ]

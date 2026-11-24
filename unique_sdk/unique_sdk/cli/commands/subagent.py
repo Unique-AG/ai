@@ -13,6 +13,11 @@ from typing import Any, Literal, TypedDict, cast
 from unique_sdk._error import APIError
 from unique_sdk.api_resources._space import Space
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.subagent_turns import (
+    record_turn_ended,
+    record_turn_started,
+    turns_dir_for,
+)
 from unique_sdk.utils.chat_in_space import (
     MessageWaitTimeoutError,
     send_message_and_wait_for_completion,
@@ -201,7 +206,7 @@ async def _send_to_subagent(
     parent_chat_id: str | None,
     parent_message_id: str | None,
     parent_assistant_id: str | None,
-    on_chat_created: Callable[[str], None],
+    on_turn_created: Callable[[str, str], None],
 ) -> Space.Message:
     assistant_id = _get_str(
         subagent,
@@ -221,7 +226,7 @@ async def _send_to_subagent(
         }
 
     async def _on_message_created(posted: Space.Message) -> None:
-        on_chat_created(posted["chatId"])
+        on_turn_created(posted["chatId"], posted["id"])
 
     return await send_message_and_wait_for_completion(
         user_id=state.config.user_id,
@@ -328,11 +333,17 @@ def cmd_subagent(
             chat_id = chat_state.get(tool_name)
 
         remembers_chat = configured_chat_id is None and reuse_chat
+        turns_dir = turns_dir_for(resolved_config_path)
         created_chat_ids: list[str] = []
+        created_message_ids: list[str] = []
         saved_chat_ids: set[str] = set()
 
-        def _on_chat_created(created_chat_id: str) -> None:
+        def _on_turn_created(created_chat_id: str, created_message_id: str) -> None:
             created_chat_ids.append(created_chat_id)
+            created_message_ids.append(created_message_id)
+            record_turn_started(
+                turns_dir, chat_id=created_chat_id, message_id=created_message_id
+            )
             if remembers_chat and _remember_chat(
                 state_path=state_path,
                 chat_state=chat_state,
@@ -351,10 +362,14 @@ def cmd_subagent(
                     parent_chat_id=parent_chat_id,
                     parent_message_id=parent_message_id,
                     parent_assistant_id=parent_assistant_id,
-                    on_chat_created=_on_chat_created,
+                    on_turn_created=_on_turn_created,
                 )
             )
         except MessageWaitTimeoutError as timeout:
+            # A turn that could not be stopped keeps its record, so the
+            # caller's host can stop it later.
+            if timeout.turn_stopped:
+                record_turn_ended(turns_dir, message_id=timeout.message_id)
             note = _timeout_note(display_name=display_name, timeout=timeout)
             return f"{SUBAGENT_ERROR_PREFIX} {note}"
         except asyncio.CancelledError:
@@ -368,6 +383,9 @@ def cmd_subagent(
                 flush=True,
             )
             raise SystemExit(128 + signal.SIGTERM) from None
+
+        for created_message_id in created_message_ids:
+            record_turn_ended(turns_dir, message_id=created_message_id)
 
         response_chat_id = response.get("chatId")
         if remembers_chat and response_chat_id not in (None, *saved_chat_ids):

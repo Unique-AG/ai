@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`unique-cli subagent` now records each subagent turn it is waiting for, as one file in `.unique-subagent-turns/` next to the subagent config file. It removes the file when the turn answers or is stopped. A host that kills the command outright can read the remaining records with `unique_sdk.cli.subagent_turns.read_open_turns` and stop those turns itself.'
+time: 2026-11-24T11:15:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-30319
