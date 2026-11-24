@@ -43,8 +43,8 @@ def _message() -> UniqueObject:
 def test_init__keeps_identity_out_of_the_dict__when_constructed_directly() -> None:
     """Purpose: user_id and company_id are instance attributes, not dict items.
 
-    Why this matters: As dict items they are sent around as if they were API
-    fields and are wiped by the first refresh, after which reading them raises.
+    Why this matters: As dict items they would look like API fields and be
+    cleared by a refresh, after which reading them raises.
     Setup summary: Construct directly, assert the keys and both attributes.
     """
     obj = UniqueObject(_USER_ID, _COMPANY_ID, "obj_1")
@@ -115,8 +115,8 @@ def test_copy__returns_equal_object_with_same_keys__for_nested_object(
 ) -> None:
     """Purpose: A nested object such as debugInfo.run_stats can be copied.
 
-    Why this matters: This is the reported crash: run_stats in a message's
-    debug info raised AttributeError 'user_id' on deep copy.
+    Why this matters: Nested objects go through the same refresh as top-level
+    ones, and a deep copy of a response visits every one of them.
     Setup summary: Copy the nested run_stats, assert equality, keys, identity.
     """
     run_stats = _message()["debugInfo"]["run_stats"]
@@ -207,8 +207,8 @@ def test_copy__keeps_only_the_id_key__for_directly_constructed_object(
 ) -> None:
     """Purpose: Copying an object that was never refreshed adds no keys.
 
-    Why this matters: Such objects used to carry user_id and company_id as
-    dict items, so their copies did too.
+    Why this matters: Identity is not response data; a copy that gains
+    user_id or company_id keys no longer equals what the API returned.
     Setup summary: Copy a directly constructed object, assert keys, identity.
     """
     obj = UniqueObject(_USER_ID, _COMPANY_ID, "obj_1")
@@ -295,7 +295,7 @@ def test_pickle__round_trips__for_object_built_from_api_response() -> None:
     """Purpose: An API-built object can be pickled and restored.
 
     Why this matters: __reduce__ reads user_id and company_id, so pickling
-    failed the same way copying did.
+    depends on both surviving the refresh.
     Setup summary: Pickle and unpickle a message, assert content and identity.
     """
     message = _message()
@@ -311,8 +311,8 @@ def test_pickle__round_trips__for_object_built_from_api_response() -> None:
 def test_request__falls_back_to_object_identity__when_none_is_passed() -> None:
     """Purpose: _request uses the object's own identity when none is given.
 
-    Why this matters: The fallback read user_id from the dict, which is empty
-    of it after a refresh, so the request raised instead of being sent.
+    Why this matters: Without the fallback a request on an API-built object
+    raises instead of being sent.
     Setup summary: Patch APIRequestor, call _request with None, assert the ids.
     """
     message = _message()
@@ -333,8 +333,8 @@ async def test_request_async__falls_back_to_object_identity__when_none_is_passed
 ):
     """Purpose: _request_async uses the object's own identity when none is given.
 
-    Why this matters: The async path has its own copy of the fallback, which
-    failed the same way as the sync one.
+    Why this matters: The async path has its own copy of the fallback and
+    needs its own coverage.
     Setup summary: Patch APIRequestor, await _request_async, assert the ids.
     """
     message = _message()
@@ -354,8 +354,8 @@ async def test_request_async__falls_back_to_object_identity__when_none_is_passed
 def test_request__prefers_passed_identity__over_the_object_identity() -> None:
     """Purpose: Explicit user_id and company_id still win over the object's.
 
-    Why this matters: Resource methods always pass the caller's identity; the
-    fix must not change which identity a request is sent with.
+    Why this matters: Resource methods always pass the caller's identity, and
+    that identity decides on whose behalf the request runs.
     Setup summary: Patch APIRequestor, call _request with ids, assert them.
     """
     message = _message()
@@ -376,7 +376,7 @@ def test_paging__returns_empty_list_with_identity__when_no_more_pages(
     """Purpose: Paging past the end returns an empty list, not an error.
 
     Why this matters: next_page and previous_page read user_id and company_id
-    from a list built from an API response, where they used to be wiped.
+    from a list that was built from an API response.
     Setup summary: Build a list with has_more False, turn the page, assert it.
     """
     page = ListObject.construct_from(
