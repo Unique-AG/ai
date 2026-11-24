@@ -19,9 +19,16 @@ from unique_search_proxy_core.search_engines.aws.schema import (
     AwsSearchRequest,
 )
 
+from unique_search_proxy_client.web.core.search_engines.aws import service
 from unique_search_proxy_client.web.core.search_engines.aws.service import (
     AwsSearchService,
+    resolve_aws_credentials,
 )
+
+
+@pytest.fixture(autouse=True)
+def _fresh_aws_session() -> None:
+    service._aws_session.cache_clear()
 
 
 def _request(**fields: Any) -> AwsSearchRequest:
@@ -165,6 +172,47 @@ class TestAwsSearchService:
         async with httpx.AsyncClient(transport=transport) as client:
             with pytest.raises(EngineNotConfiguredError):
                 await AwsSearchService(http_client=client).search(_request())
+
+    @pytest.mark.ai
+    def test_session_is_reused_across_requests(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        created: list[object] = []
+
+        class _Session:
+            def __init__(self) -> None:
+                created.append(self)
+
+            def get_credentials(self) -> Credentials:
+                return _credentials()
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.search_engines.aws.service.get_session",
+            _Session,
+        )
+        resolve_aws_credentials()
+        resolve_aws_credentials()
+        assert len(created) == 1
+
+    @pytest.mark.ai
+    def test_missing_credentials_are_looked_up_again(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        found: list[Credentials | None] = [None, _credentials()]
+
+        class _Session:
+            def get_credentials(self) -> Credentials | None:
+                return found.pop(0)
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.search_engines.aws.service.get_session",
+            _Session,
+        )
+        with pytest.raises(EngineNotConfiguredError):
+            resolve_aws_credentials()
+        assert resolve_aws_credentials().access_key == "AKIDEXAMPLE"
 
     @pytest.mark.ai
     def test_null_domain_lists_from_the_admin_form_become_empty(self) -> None:

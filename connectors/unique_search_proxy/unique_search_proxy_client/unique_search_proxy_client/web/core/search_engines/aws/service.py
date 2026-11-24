@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime
+from functools import cache
 from typing import Any
 
 import httpx
@@ -10,7 +11,7 @@ from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.credentials import Credentials
 from botocore.exceptions import BotoCoreError
-from botocore.session import get_session
+from botocore.session import Session, get_session
 from unique_search_proxy_core.errors import (
     EmptySearchResultsError,
     EngineNotConfiguredError,
@@ -51,10 +52,17 @@ _SIGNING_SERVICE = "bedrock-agentcore"
 _WEB_SEARCH_ID = "web-search.v1"
 
 
+@cache
+def _aws_session() -> Session:
+    # One session per process: it keeps the loaded credentials and refreshes
+    # them before expiry, so web identity does not call STS on every search.
+    return get_session()
+
+
 def resolve_aws_credentials() -> Credentials:
     """Return frozen credentials from the default AWS chain."""
     try:
-        resolved = get_session().get_credentials()
+        resolved = _aws_session().get_credentials()
     except BotoCoreError as exc:
         _LOGGER.warning("AWS credentials are not available: %s", exc)
         raise EngineNotConfiguredError() from exc
