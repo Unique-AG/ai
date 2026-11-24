@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -12,6 +13,14 @@ from unique_search_proxy_core.url_safety import (
 from unique_search_proxy_core.url_safety import redirect as redirect_module
 
 _REDIRECT_HTTPX = "unique_search_proxy_core.url_safety.redirect.httpx.AsyncClient"
+
+
+def _tls_error() -> httpx.ConnectError:
+    error = httpx.ConnectError("handshake failed")
+    error.__cause__ = ssl.SSLCertVerificationError(
+        "certificate verify failed: unable to get local issuer certificate"
+    )
+    return error
 
 
 class TestResolveRedirectChain:
@@ -124,6 +133,50 @@ class TestResolveRedirectChain:
         assert blocked.hostname == "example.com"
         assert blocked.category == "redirect"
         assert "Unable to verify redirect chain" in blocked.reason
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("probe_error", "expected_cause"),
+        [
+            (httpx.ReadTimeout("timed out"), "no response within {timeout:g}s"),
+            (_tls_error(), "the site's TLS certificate could not be verified"),
+            (httpx.ConnectError("connection refused"), "could not connect to the site"),
+            (httpx.RemoteProtocolError("reset"), "the connection to the site failed"),
+            (RuntimeError("boom"), "the check failed unexpectedly"),
+        ],
+    )
+    async def test_resolve_redirect_chain__probe_error__reason_names_the_cause(
+        self,
+        probe_error: Exception,
+        expected_cause: str,
+    ) -> None:
+        """
+        Purpose: The block reason says why the HEAD probe failed, not "SSRF".
+        Why this matters: Agents relay the reason; a timeout or a bad certificate
+        reported as an SSRF block reads as if the page tried to reach an internal
+        address.
+        Setup summary: Make the HEAD raise each error class and check the reason.
+        """
+        mock_client = AsyncMock()
+        mock_client.head = AsyncMock(side_effect=probe_error)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch(_REDIRECT_HTTPX, return_value=mock_client),
+            pytest.raises(CrawlTargetValidationError) as exc_info,
+        ):
+            await self._resolve_redirect_chain("https://example.com/page")
+
+        timeout = redirect_module.url_safety_settings.redirect_timeout_seconds
+        blocked = exc_info.value.blocked_targets[0]
+        assert blocked.category == "redirect"
+        assert blocked.reason == (
+            "Unable to verify redirect chain before crawl: "
+            + expected_cause.format(timeout=timeout)
+        )
+        assert "SSRF" not in blocked.reason
 
     @pytest.mark.ai
     @pytest.mark.asyncio

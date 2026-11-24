@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import ssl
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from urllib.parse import urljoin
@@ -26,6 +27,26 @@ _REDIRECT_PROBE_USER_AGENT = (
 )
 
 ValidateUrlFn = Callable[[str], Awaitable[tuple[str, str] | None]]
+
+
+def _probe_failure_cause(exc: BaseException, timeout: float) -> str:
+    """Say why the HEAD probe failed; agents read this as the crawl error."""
+    if isinstance(exc, httpx.TimeoutException):
+        return f"no response within {timeout:g}s"
+
+    cause: BaseException | None = exc
+    while cause is not None:
+        if isinstance(cause, ssl.SSLCertVerificationError):
+            return "the site's TLS certificate could not be verified"
+        if isinstance(cause, ssl.SSLError):
+            return "the TLS handshake with the site failed"
+        cause = cause.__cause__ or cause.__context__
+
+    if isinstance(exc, httpx.ConnectError):
+        return "could not connect to the site"
+    if isinstance(exc, httpx.TransportError):
+        return "the connection to the site failed"
+    return "the check failed unexpectedly"
 
 
 def redirect_target_url(response: httpx.Response, current_url: str) -> str | None:
@@ -109,8 +130,8 @@ async def resolve_redirect_chain(
                             hostname=extract_hostname(current),
                             category="redirect",
                             reason=(
-                                "Unable to verify redirect chain before crawl; "
-                                "blocking to prevent redirect-based SSRF"
+                                "Unable to verify redirect chain before crawl: "
+                                f"{_probe_failure_cause(exc, timeout)}"
                             ),
                         )
                     ]
