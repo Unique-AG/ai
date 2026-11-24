@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 import pytest
 from botocore.credentials import Credentials
-from botocore.exceptions import MissingDependencyException
+from botocore.exceptions import ClientError, MissingDependencyException
 from unique_search_proxy_core.errors import (
     EmptySearchResultsError,
     EngineNotConfiguredError,
     RateLimitedError,
+    UpstreamError,
     ValidationProxyError,
 )
 from unique_search_proxy_core.search_engines.aws.schema import (
@@ -172,6 +174,69 @@ class TestAwsSearchService:
         async with httpx.AsyncClient(transport=transport) as client:
             with pytest.raises(EngineNotConfiguredError):
                 await AwsSearchService(http_client=client).search(_request())
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("code", "expected"),
+        [
+            ("AccessDenied", EngineNotConfiguredError),
+            ("InvalidIdentityToken", EngineNotConfiguredError),
+            ("ExpiredTokenException", EngineNotConfiguredError),
+            ("Throttling", RateLimitedError),
+            ("IDPCommunicationError", UpstreamError),
+        ],
+    )
+    def test_sts_rejection_maps_to_a_proxy_error(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        code: str,
+        expected: type[Exception],
+    ) -> None:
+        class _Refreshable:
+            def get_frozen_credentials(self) -> Credentials:
+                raise ClientError(
+                    {"Error": {"Code": code, "Message": "no"}},
+                    "AssumeRoleWithWebIdentity",
+                )
+
+        class _Session:
+            def get_credentials(self) -> _Refreshable:
+                return _Refreshable()
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.search_engines.aws.service.get_session",
+            _Session,
+        )
+        with pytest.raises(expected):
+            resolve_aws_credentials()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_credentials_are_resolved_off_the_event_loop(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        threads: list[threading.Thread] = []
+
+        def resolve() -> Credentials:
+            threads.append(threading.current_thread())
+            return _credentials()
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.search_engines.aws.service.resolve_aws_credentials",
+            resolve,
+        )
+        transport = httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={"results": [{"url": "https://www.snb.ch/", "title": "SNB"}]},
+            ),
+        )
+        async with httpx.AsyncClient(transport=transport) as client:
+            await AwsSearchService(http_client=client).search(_request())
+
+        assert threads
+        assert threads[0] is not threading.main_thread()
 
     @pytest.mark.ai
     def test_session_is_reused_across_requests(

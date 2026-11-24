@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import UTC, datetime
@@ -10,7 +11,7 @@ import httpx
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.credentials import Credentials
-from botocore.exceptions import BotoCoreError
+from botocore.exceptions import BotoCoreError, ClientError
 from botocore.session import Session, get_session
 from unique_search_proxy_core.errors import (
     EmptySearchResultsError,
@@ -59,6 +60,33 @@ def _aws_session() -> Session:
     return get_session()
 
 
+_STS_SETUP_ERROR_CODES = frozenset(
+    {
+        "AccessDenied",
+        "AccessDeniedException",
+        "ExpiredToken",
+        "ExpiredTokenException",
+        "IDPRejectedClaim",
+        "InvalidClientTokenId",
+        "InvalidIdentityToken",
+    }
+)
+_STS_THROTTLING_ERROR_CODES = frozenset(
+    {"Throttling", "ThrottlingException", "TooManyRequestsException"}
+)
+
+
+def _sts_error(exc: ClientError) -> Exception:
+    code = exc.response.get("Error", {}).get("Code", "")
+    _LOGGER.warning("AWS credential exchange failed: %s", code or "unknown error")
+    if code in _STS_SETUP_ERROR_CODES:
+        return EngineNotConfiguredError()
+    message = f"AWS credential exchange failed: {code or 'unknown error'}"
+    if code in _STS_THROTTLING_ERROR_CODES:
+        return RateLimitedError(message)
+    return UpstreamError(message)
+
+
 def resolve_aws_credentials() -> Credentials:
     """Return frozen credentials from the default AWS chain."""
     try:
@@ -66,6 +94,8 @@ def resolve_aws_credentials() -> Credentials:
     except BotoCoreError as exc:
         _LOGGER.warning("AWS credentials are not available: %s", exc)
         raise EngineNotConfiguredError() from exc
+    except ClientError as exc:
+        raise _sts_error(exc) from exc
     if resolved is None:
         raise EngineNotConfiguredError()
     try:
@@ -73,6 +103,8 @@ def resolve_aws_credentials() -> Credentials:
     except BotoCoreError as exc:
         _LOGGER.warning("AWS credentials are not available: %s", exc)
         raise EngineNotConfiguredError() from exc
+    except ClientError as exc:
+        raise _sts_error(exc) from exc
     if not frozen.access_key or not frozen.secret_key:
         raise EngineNotConfiguredError()
     return Credentials(frozen.access_key, frozen.secret_key, frozen.token)
@@ -104,11 +136,21 @@ class AwsSearchService(SearchEngineService[AwsSearchRequest]):
         url = _invoke_url(credentials.api_endpoint)
         body = _request_body(request, query)
         payload = body.encode()
+        # A refresh can call STS synchronously, so keep it off the event loop.
+        try:
+            aws_credentials = await asyncio.wait_for(
+                asyncio.to_thread(resolve_aws_credentials),
+                timeout=request.timeout,
+            )
+        except TimeoutError as exc:
+            raise UpstreamTimeoutError(
+                f"AWS credential exchange timed out after {request.timeout}s",
+            ) from exc
         headers = _signed_headers(
             url=url,
             payload=payload,
             region=credentials.region,
-            aws_credentials=resolve_aws_credentials(),
+            aws_credentials=aws_credentials,
         )
 
         try:
