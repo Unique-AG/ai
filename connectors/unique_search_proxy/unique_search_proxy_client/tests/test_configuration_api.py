@@ -37,7 +37,10 @@ class TestProviderConfigSchemaCore:
 
 class TestConfigurationEndpoints:
     @pytest.mark.ai
-    def test_list_providers(self, client: TestClient) -> None:
+    def test_list_providers(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CRAWL_ENABLED", "true")
         resp = client.get("/v1/configuration/providers")
         assert resp.status_code == 200
         body = resp.json()

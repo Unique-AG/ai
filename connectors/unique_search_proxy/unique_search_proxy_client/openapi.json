@@ -1002,9 +1002,10 @@
         "properties": {
           "query": {
             "type": "string",
+            "maxLength": 200,
             "minLength": 1,
             "title": "Query",
-            "description": "Search query string"
+            "description": "Search query string, 1 to 200 characters after trimming whitespace"
           },
           "engine": {
             "type": "string",

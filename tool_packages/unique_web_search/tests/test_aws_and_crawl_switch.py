@@ -124,7 +124,8 @@ def test_stale_cache_is_fetched_directly_without_an_event_loop(monkeypatch) -> N
     assert crawling.crawling_enabled() is False
 
 
-def test_crawler_settings_stay_visible_by_default() -> None:
+def test_crawler_settings_stay_visible_by_default(monkeypatch) -> None:
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", None)
     schema = WebSearchConfig.model_json_schema()
     assert (
         "crawlerConfig" in schema["properties"]

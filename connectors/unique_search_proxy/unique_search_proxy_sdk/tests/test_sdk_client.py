@@ -1,3 +1,4 @@
+import json
 from collections.abc import AsyncIterator
 
 import httpx
@@ -423,3 +424,45 @@ class TestRequestContextHeaders:
         assert captured[USER_ID_HEADER] == "user-1"
         assert captured[CHAT_ID_HEADER] == "chat-1"
         assert captured[ENTRY_POINT_HEADER] == "chat_tool"
+
+
+class TestAwsDispatch:
+    @pytest.mark.ai
+    async def test_search_dispatches_aws_with_filters(self) -> None:
+        from datetime import UTC, datetime
+
+        from unique_search_proxy_sdk._transport import OpenapiTransport
+        from unique_search_proxy_sdk.search_client import SearchClient
+
+        seen: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["path"] = request.url.path
+            seen["body"] = json.loads(request.content)
+            return httpx.Response(
+                200,
+                json={"engine": "aws", "query": "q", "raw": {}, "curated": []},
+            )
+
+        http = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            base_url="http://test",
+        )
+        try:
+            client = SearchClient(OpenapiTransport("http://test", http_client=http))
+            await client.search(
+                "SNB policy rate",
+                engine="aws",
+                include_domains=["snb.ch"],
+                published_after=datetime(2026, 8, 1, tzinfo=UTC),
+            )
+        finally:
+            await http.aclose()
+
+        body = seen["body"]
+        assert seen["path"] == "/v1/search"
+        assert isinstance(body, dict)
+        assert body["engine"] == "aws"
+        assert body["query"] == "SNB policy rate"
+        assert body["includeDomains"] == ["snb.ch"]
+        assert body["publishedAfter"].startswith("2026-08-01T00:00:00")

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Annotated, ClassVar, Literal, Self, TypeAlias
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import NoneToDefault
 
@@ -62,6 +62,16 @@ def _check_published_range(after: datetime | None, before: datetime | None) -> N
 
 class AwsSearchRequestBase(SearchRequestBase):
     """Request base that applies the AWS domain and date rules after merging."""
+
+    query: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
+        ...,
+        min_length=1,
+        max_length=AWS_MAX_QUERY_LENGTH,
+        description=(
+            f"Search query string, 1 to {AWS_MAX_QUERY_LENGTH} characters "
+            "after trimming whitespace"
+        ),
+    )
 
     @model_validator(mode="after")
     def _aws_rules(self) -> Self:

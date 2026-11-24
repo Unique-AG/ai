@@ -52,6 +52,7 @@ def test_provider_groups_are_gated_but_always_on_config_is_not() -> None:
     assert gated["urlSafety"] is False
     assert gated["requestLimits"] is False
     assert gated["pdfProcessing"] is False
+    assert gated["crawl"] is False
     provider_keys = set(gated) - {
         "httpClient",
         "requestLimits",

@@ -21,7 +21,7 @@ T = TypeVar("T", bound="AwsSearchRequest")
 class AwsSearchRequest:
     """
     Attributes:
-        query (str): Search query string
+        query (str): Search query string, 1 to 200 characters after trimming whitespace
         engine (Literal['aws'] | Unset): Provider discriminator; must be `aws` for this config. Default: 'aws'.
         fetch_size (int | Unset): Default result count sent as InvokeWebSearch maxResults. AWS accepts 1 to 25. Default:
             10.

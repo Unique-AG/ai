@@ -50,6 +50,17 @@ def _credentials() -> Credentials:
 
 @pytest.fixture
 def aws_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Pin region and endpoint so AWS_SEARCH_* in the runner's env cannot change them.
+    monkeypatch.setattr(
+        service,
+        "credentials",
+        service.credentials.model_copy(
+            update={
+                "region": "us-east-1",
+                "api_endpoint": "https://bedrock-agentcore.us-east-1.amazonaws.com",
+            }
+        ),
+    )
     monkeypatch.setattr(
         "unique_search_proxy_client.web.core.search_engines.aws.service.resolve_aws_credentials",
         _credentials,
@@ -111,14 +122,17 @@ class TestAwsSearchService:
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_query_over_200_characters_is_rejected(self, aws_env: None) -> None:
+        with pytest.raises(ValueError, match="200"):
+            _request(query="a" * 201)
+        unvalidated = AwsSearchRequest.model_construct(
+            **{**_request().model_dump(), "query": "a" * 201}
+        )
         transport = httpx.MockTransport(
             lambda request: httpx.Response(200, json={"results": []}),
         )
         async with httpx.AsyncClient(transport=transport) as client:
             with pytest.raises(ValidationProxyError):
-                await AwsSearchService(http_client=client).search(
-                    _request(query="a" * 201),
-                )
+                await AwsSearchService(http_client=client).search(unvalidated)
 
     @pytest.mark.ai
     @pytest.mark.asyncio
