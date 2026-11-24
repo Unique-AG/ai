@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import httpx
 
@@ -18,7 +18,8 @@ def _rule(entry: str) -> str:
     host = _host(host)
     if not host:
         return ""
-    path = path.strip("/")
+    # Decoded like the requested path, which httpx percent-decodes.
+    path = unquote(path).strip("/")
     return f"{host}/{path}" if path else host
 
 

@@ -131,6 +131,24 @@ def test_resolved_dot_segments_still_match_path_rules() -> None:
     assert not policy.allows("https://www.nature.com/news/../articles-old/intro")
 
 
+@pytest.mark.parametrize(
+    "rule", ["nature.com/science%20news", "nature.com/science news"]
+)
+def test_percent_encoded_path_rule_excludes_its_section(rule: str) -> None:
+    policy = DomainPolicy.of(exclude=[rule])
+    assert not policy.allows("https://nature.com/science%20news/intro")
+    assert policy.allows("https://nature.com/science/intro")
+
+
+@pytest.mark.parametrize(
+    "rule", ["nature.com/science%20news", "nature.com/science news"]
+)
+def test_percent_encoded_path_rule_includes_its_section(rule: str) -> None:
+    policy = DomainPolicy.of(include=[rule])
+    assert policy.allows("https://nature.com/science%20news/intro")
+    assert not policy.allows("https://nature.com/science/intro")
+
+
 def test_perplexity_policy_reads_tld_and_path_rules() -> None:
     config = PerplexitySearchConfig(
         search_domain_filter=ExposableParam(
