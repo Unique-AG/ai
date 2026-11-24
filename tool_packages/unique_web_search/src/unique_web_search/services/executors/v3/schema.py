@@ -153,6 +153,8 @@ class WebSearchV3ToolParameters(ExposedParams):
     def schema_hint(
         cls,
         exposed: type[ExposedParams] | None = None,
+        *,
+        crawl: bool | None = None,
     ) -> str:
         """Return a markdown-bulleted hint mirroring the field descriptions of this model.
 
@@ -161,8 +163,10 @@ class WebSearchV3ToolParameters(ExposedParams):
         per ``command`` value (since ``payload`` is a discriminated union).
         Field descriptions are inlined as ``<...>`` placeholders so the prompt
         stays in sync with the Pydantic model. Exposed knobs render under their
-        camelCase aliases.
+        camelCase aliases. ``crawl`` is the crawl switch, read once when not given.
         """
+        if crawl is None:
+            crawl = crawling_enabled()
 
         def _inline_json(payload_model: type[BaseModel]) -> str:
             parts: list[str] = []
@@ -177,7 +181,7 @@ class WebSearchV3ToolParameters(ExposedParams):
         lines: list[str] = []
         for name, field in cls.model_fields.items():
             if name == "command":
-                commands = [Command.SEARCH] if not crawling_enabled() else list(Command)
+                commands = list(Command) if crawl else [Command.SEARCH]
                 choices = " or ".join(f'`"{c.value}"`' for c in commands)
                 lines.append(f"- **`{name}`** — {choices}.")
             elif name == "phase":
@@ -193,7 +197,7 @@ class WebSearchV3ToolParameters(ExposedParams):
         payload_models: list[tuple[Command, type[BaseModel]]] = [
             (Command.SEARCH, search_payload)
         ]
-        if crawling_enabled():
+        if crawl:
             payload_models.append((Command.FETCH_URLS, FetchUrlsPayload))
         for cmd, payload_model in payload_models:
             lines.append(f'  - For `"{cmd.value}"`: `{_inline_json(payload_model)}`.')

@@ -46,11 +46,13 @@ class WebSearchV3Strategy(WebSearchModeStrategy):
 
     def tool_description(self, ctx: WebSearchToolContext) -> str:
         """Render the V3 tool description with the live schema hint."""
+        crawl = crawling_enabled()
         return sandboxed_template(self.mode_config.tool_description).render(
             tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(
                 ctx.exposed_params_cls,
+                crawl=crawl,
             ),
-            crawling_enabled=crawling_enabled(),
+            crawling_enabled=crawl,
         )
 
     def system_prompt(self, ctx: WebSearchToolContext) -> str:

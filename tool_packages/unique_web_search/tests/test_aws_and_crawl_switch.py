@@ -11,7 +11,12 @@ from unique_search_proxy_sdk._generated.models.providers_list_response import (
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.services import crawling
 from unique_web_search.services.executors.v2.config import WebSearchV2Config
-from unique_web_search.services.executors.v2.schema import WebSearchPlan
+from unique_web_search.services.executors.v2.executor import WebSearchV2Executor
+from unique_web_search.services.executors.v2.schema import (
+    Step,
+    StepType,
+    WebSearchPlan,
+)
 from unique_web_search.services.executors.v2.strategy import WebSearchV2Strategy
 from unique_web_search.services.executors.v3.config import WebSearchV3Config
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
@@ -179,6 +184,85 @@ def test_v3_prompts_offer_read_urls_by_default() -> None:
     description, system_prompt = _v3_prompts()
     assert 'command: "read_urls"' in description
     assert 'the first call should be `command: "read_urls"`' in system_prompt
+
+
+@pytest.mark.usefixtures("crawl_off")
+@pytest.mark.asyncio
+async def test_v2_drops_read_steps_before_max_steps_truncates(
+    executor_context_objects: dict,
+    mock_executor_dependencies: dict,
+) -> None:
+    plan = WebSearchPlan(
+        objective="o",
+        query_analysis="a",
+        steps=[
+            Step(
+                step_type=StepType.READ_URL, objective="r", query_or_url="https://x.ch"
+            ),
+            Step(step_type=StepType.SEARCH, objective="s", query_or_url="SNB rate"),
+        ],
+        expected_outcome="e",
+    )
+    executor = WebSearchV2Executor(
+        services=executor_context_objects["services"],
+        config=executor_context_objects["config"],
+        callbacks=executor_context_objects["callbacks"],
+        tool_call=mock_executor_dependencies["tool_call"],
+        tool_parameters=plan,
+        max_steps=1,
+    )
+    executor._drop_read_steps_if_crawling_is_off()
+    await executor._enforce_max_steps()
+    assert [step.step_type for step in executor.tool_parameters.steps] == [
+        StepType.SEARCH
+    ]
+
+
+def test_v2_search_only_plan_does_not_look_up_the_crawl_switch(
+    monkeypatch, executor_context_objects: dict, mock_executor_dependencies: dict
+) -> None:
+    lookup = Mock(return_value=False)
+    monkeypatch.setattr(
+        "unique_web_search.services.executors.v2.executor.crawling_enabled", lookup
+    )
+    plan = WebSearchPlan(
+        objective="o",
+        query_analysis="a",
+        steps=[Step(step_type=StepType.SEARCH, objective="s", query_or_url="q")],
+        expected_outcome="e",
+    )
+    executor = WebSearchV2Executor(
+        services=executor_context_objects["services"],
+        config=executor_context_objects["config"],
+        callbacks=executor_context_objects["callbacks"],
+        tool_call=mock_executor_dependencies["tool_call"],
+        tool_parameters=plan,
+    )
+    executor._drop_read_steps_if_crawling_is_off()
+    lookup.assert_not_called()
+    assert len(executor.tool_parameters.steps) == 1
+
+
+def test_v2_schema_hint_reads_the_crawl_switch_once(monkeypatch) -> None:
+    lookup = Mock(side_effect=[True, False, False])
+    monkeypatch.setattr(
+        "unique_web_search.services.executors.v2.schema.crawling_enabled", lookup
+    )
+    hint = WebSearchPlan.schema_hint(SearchEngineMode.STANDARD)
+    assert lookup.call_count == 1
+    assert "search | read_url" in hint
+    assert "read_url steps" in hint
+
+
+def test_v3_schema_hint_reads_the_crawl_switch_once(monkeypatch) -> None:
+    lookup = Mock(side_effect=[True, False, False])
+    monkeypatch.setattr(
+        "unique_web_search.services.executors.v3.schema.crawling_enabled", lookup
+    )
+    hint = WebSearchV3ToolParameters.schema_hint()
+    assert lookup.call_count == 1
+    assert '`"read_urls"`' in hint
+    assert 'For `"read_urls"`' in hint
 
 
 def _v2_system_prompt() -> str:

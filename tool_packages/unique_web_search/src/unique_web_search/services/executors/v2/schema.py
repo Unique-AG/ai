@@ -36,18 +36,26 @@ class WebSearchPlan(BaseModel):
     expected_outcome: str = Field(description="Expected outcome")
 
     @classmethod
-    def with_search_engine_mode(cls, mode: SearchEngineMode) -> type[WebSearchPlan]:
+    def with_search_engine_mode(
+        cls, mode: SearchEngineMode, *, crawl: bool | None = None
+    ) -> type[WebSearchPlan]:
         """Build a ``WebSearchPlan`` variant whose ``Step.query_or_url``
-        description is tailored to the search-engine mode."""
+        description is tailored to the search-engine mode.
+
+        ``crawl`` is the crawl switch; it is read once here when not given, so
+        the description and the allowed step types always agree.
+        """
+        if crawl is None:
+            crawl = crawling_enabled()
         query_desc = Template(STEP_QUERY_DESCRIPTION).render(
             search_engine_mode=mode.value,
-            crawling_enabled=crawling_enabled(),
+            crawling_enabled=crawl,
         )
 
         step_fields: dict[str, Any] = {
             "query_or_url": (str, Field(description=query_desc)),
         }
-        if not crawling_enabled():
+        if not crawl:
             step_fields["step_type"] = (
                 Literal[StepType.SEARCH],
                 Field(default=StepType.SEARCH),
@@ -64,14 +72,16 @@ class WebSearchPlan(BaseModel):
         )
 
     @classmethod
-    def schema_hint(cls, mode: SearchEngineMode) -> str:
+    def schema_hint(cls, mode: SearchEngineMode, *, crawl: bool | None = None) -> str:
         """Return a prompt-friendly JSON block whose values are the field
         descriptions of the (possibly dynamic) plan model.
 
         The ``query_or_url`` value automatically reflects the search-engine
         mode so the LLM sees the right guidance.
         """
-        PlanModel = cls.with_search_engine_mode(mode)
+        if crawl is None:
+            crawl = crawling_enabled()
+        PlanModel = cls.with_search_engine_mode(mode, crawl=crawl)
 
         steps_inner_type = typing.get_args(PlanModel.model_fields["steps"].annotation)[
             0
@@ -80,9 +90,7 @@ class WebSearchPlan(BaseModel):
         step_hint: dict[str, str] = {}
         for name, field in steps_inner_type.model_fields.items():
             if name == "step_type":
-                step_hint[name] = (
-                    "search" if not crawling_enabled() else "search | read_url"
-                )
+                step_hint[name] = "search | read_url" if crawl else "search"
             else:
                 step_hint[name] = field.description or name
 

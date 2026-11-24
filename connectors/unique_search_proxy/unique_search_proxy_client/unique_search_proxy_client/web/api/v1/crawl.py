@@ -117,11 +117,6 @@ async def crawl(
 
     try:
         if not crawl_enabled():
-            record_crawl_error(
-                crawler_id,
-                ProxyErrorCode.CRAWLING_DISABLED.value,
-                time.perf_counter() - started,
-            )
             raise _crawl_request_context(
                 CrawlingDisabledError("Crawling is disabled"),
                 crawler_id=crawler_id,

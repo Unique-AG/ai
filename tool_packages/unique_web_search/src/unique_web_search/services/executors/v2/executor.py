@@ -61,6 +61,8 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         self.max_steps = max_steps
 
     async def run(self) -> list[ContentChunk]:
+        # Before max_steps, so a dropped read step cannot push out a search.
+        self._drop_read_steps_if_crawling_is_off()
         await self._enforce_max_steps()
 
         results: list[WebSearchResult] = []
@@ -242,6 +244,15 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         ]
         return results
 
+    def _drop_read_steps_if_crawling_is_off(self) -> None:
+        steps = self.tool_parameters.steps
+        if any(step.step_type == StepType.READ_URL for step in steps) and (
+            not crawling_enabled()
+        ):
+            self.tool_parameters.steps = [
+                step for step in steps if step.step_type == StepType.SEARCH
+            ]
+
     async def _enforce_max_steps(self) -> None:
         if len(self.tool_parameters.steps) > self.max_steps:
             _LOGGER.warning(
@@ -275,8 +286,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         Returns:
             List of approved steps with elicited search queries and original read URL steps
         """
-        if not crawling_enabled():
-            steps = [step for step in steps if step.step_type == StepType.SEARCH]
         search_steps, read_url_steps = [], []
         for step in steps:
             if step.step_type == StepType.SEARCH:

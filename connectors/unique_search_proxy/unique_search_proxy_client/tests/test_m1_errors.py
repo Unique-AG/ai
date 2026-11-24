@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, Mock
+
 import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
@@ -136,6 +138,16 @@ class TestV1StructuredErrors:
             "unique_search_proxy_client.web.api.v1.crawl.crawl_enabled",
             lambda: False,
         )
+        record_error = Mock()
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.api.v1.crawl.record_crawl_error",
+            record_error,
+        )
+        safety_gate = AsyncMock()
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.api.v1.crawl.apply_url_safety_gate",
+            safety_gate,
+        )
         resp = client.post(
             "/v1/crawl",
             json={
@@ -145,6 +157,9 @@ class TestV1StructuredErrors:
         )
         assert resp.status_code == 503
         assert resp.json()["error"]["code"] == ProxyErrorCode.CRAWLING_DISABLED.value
+        record_error.assert_called_once()
+        assert record_error.call_args.args[1] == ProxyErrorCode.CRAWLING_DISABLED.value
+        safety_gate.assert_not_called()
 
     @pytest.mark.ai
     def test_validation_error_returns_422(self, client: TestClient) -> None:

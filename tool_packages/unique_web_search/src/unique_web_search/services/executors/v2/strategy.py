@@ -53,7 +53,7 @@ class WebSearchV2Strategy(WebSearchModeStrategy):
             date_string=ctx.date_string,
             search_engine_mode=engine_mode.value,
             crawling_enabled=crawl,
-            tool_parameters_schema=WebSearchPlan.schema_hint(engine_mode),
+            tool_parameters_schema=WebSearchPlan.schema_hint(engine_mode, crawl=crawl),
             example_simple=WebSearchPlan.build_example_simple(
                 engine_mode
             ).model_dump_json(indent=2),
