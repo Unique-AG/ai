@@ -177,6 +177,11 @@ class Content(BaseModel):
     ingestion_state: str | None = None
 
     def is_ingested(self, *, default_if_unknown: bool = True) -> bool:
+        # FINISHED is written both after a real ingestion and when ingestion
+        # is skipped. Chunks are what separate the two.
+        if self.ingestion_state == "FINISHED":
+            return len(self.chunks) > 0
+
         if (
             self.applied_ingestion_config is None
             or "uniqueIngestionMode" not in self.applied_ingestion_config

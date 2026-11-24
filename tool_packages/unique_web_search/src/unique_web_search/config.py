@@ -200,7 +200,12 @@ class WebSearchConfig(BaseToolConfig):
             EvaluationMetricName.HALLUCINATION,
         ],
         title="Answer Quality Checks",
-        description="Automated checks run after generating an answer to detect issues like hallucinations or irrelevant responses.",
+        description=(
+            "Automated checks run after generating an answer to detect issues like "
+            "hallucinations or irrelevant responses. The hallucination entry is "
+            "obsolete when the space has the Hallucination check setting under "
+            "Services > Evaluation Config, which then decides whether it runs."
+        ),
     )
 
     tool_format_information_for_system_prompt: Annotated[

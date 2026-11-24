@@ -21,7 +21,7 @@ from unique_toolkit._common.metadata_filter_scope import (
     build_folder_id_in_clause,
     merge_scope_clause_into_metadata_filter,
 )
-from unique_toolkit._common.utils.files import is_file_content, is_image_content
+from unique_toolkit._common.utils.files import is_image_content
 from unique_toolkit.agentic.message_log_order import next_message_log_order
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.cancellation import CancellationWatcher
@@ -305,6 +305,34 @@ class ChatService(ChatServiceDeprecated):
             user_message_text=self._user_message_text,
             assistant=False,
             debug_info=debug_info,
+        )
+
+    async def update_chat_title_async(
+        self, title: str, *, is_generated: bool = False
+    ) -> None:
+        """Rename the current chat.
+
+        Args:
+            title (str): The new chat title. Must be non-empty.
+            is_generated (bool): Set when an assistant generated the title. The
+                platform then applies it only while the chat still has its
+                prompt-based title and raises an HTTP 409 error otherwise.
+
+        """
+        if is_generated:
+            await unique_sdk.Space.update_chat_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                chat_id=self._chat_id,
+                title=title,
+                isGenerated=True,
+            )
+            return
+        await unique_sdk.Space.update_chat_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            title=title,
         )
 
     # Message Methods
@@ -2086,10 +2114,10 @@ class ChatService(ChatServiceDeprecated):
         images: list[Content] = []
         files: list[Content] = []
         for c in contents:
-            if is_file_content(filename=c.key):
-                files.append(c)
             if is_image_content(filename=c.key):
                 images.append(c)
+            else:
+                files.append(c)
         return images, files
 
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:

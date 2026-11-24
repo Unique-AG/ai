@@ -147,6 +147,8 @@ def test_deliver_report_docx_mode(mock_citation_manager):
 
         # Verify DOCX was uploaded
         chat_service.upload_to_chat_from_bytes.assert_called_once()
+        upload_kwargs = chat_service.upload_to_chat_from_bytes.call_args.kwargs
+        assert upload_kwargs["metadata"] == {"assistantGenerated": True}
         # Verify message was modified
         chat_service.modify_assistant_message.assert_called_once()
 

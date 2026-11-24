@@ -13,11 +13,11 @@ dependencies = [
     "pydantic>=2.12.3",
     "python-dotenv>=1.0.0",
     "requests>=2.28.0",
-    "unique-toolkit>=2026.44.0",
+    "unique-toolkit>=2026.48.0",
 ]
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 constraint-dependencies = [
     "authlib>=1.6.11",
     "cryptography>=46.0.7",

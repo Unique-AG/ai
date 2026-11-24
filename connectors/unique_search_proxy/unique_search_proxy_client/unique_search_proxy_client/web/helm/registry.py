@@ -21,6 +21,7 @@ from unique_search_proxy_client.web.helm.url_safety_registration import (
 )
 from unique_search_proxy_client.web.settings.client import http_client_settings
 from unique_search_proxy_client.web.settings.monitoring import prometheus_settings
+from unique_search_proxy_client.web.settings.pdf import pdf_settings
 from unique_search_proxy_client.web.settings.providers import (
     bing_agent_credentials,
     brave_search_credentials,
@@ -66,6 +67,7 @@ _REGISTERED_INSTANCES: tuple[BaseSettings, ...] = (
     http_client_settings,
     request_limits_settings,
     prometheus_settings,
+    pdf_settings,
 )
 
 

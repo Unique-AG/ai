@@ -232,6 +232,7 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
 
         other_options = kwargs.get("other_options") or {}
         forwarded.update({k: v for k, v in other_options.items() if k not in ignored})
+        kwargs["model"].drop_unsupported_options(forwarded)
         return forwarded
 
     def _build_tools(

@@ -312,6 +312,32 @@ class TestMultiQueryFailures:
         mock_search.assert_not_called()
 
 
+class TestMultiQueryMessageId:
+    @patch("unique_sdk.WebSearch.search")
+    def test_every_query_carries_the_message_id(self, mock_search: MagicMock) -> None:
+        mock_search.side_effect = _search_by_query(URLS)
+
+        cmd_web_search_many(_state(), ["git", "docker"], message_id="msg_1")
+
+        assert {call[1]["messageId"] for call in mock_search.call_args_list} == {
+            "msg_1"
+        }
+
+
+class TestMultiQueryRefsLogPath:
+    @patch("unique_sdk.WebSearch.search")
+    def test_rows_go_to_the_given_refs_log(
+        self, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_search.side_effect = _search_by_query(URLS)
+        manifest = tmp_path / "turn" / ".unique" / "web-refs.jsonl"
+
+        cmd_web_search_many(_state(), ["git", "docker"], refs_log_path=manifest)
+
+        assert manifest.exists()
+        assert not (tmp_path / ".unique" / "web-refs.jsonl").exists()
+
+
 class TestMultiQueryConcurrency:
     @patch("unique_sdk.WebSearch.search")
     def test_requests_overlap_but_stay_within_the_bound(
@@ -341,6 +367,25 @@ class TestMultiQueryConcurrency:
 
         assert not out.startswith(WEB_SEARCH_ERROR_PREFIX)
         assert 2 <= peak <= SEARCH_CONCURRENCY
+
+    @patch("unique_sdk.WebSearch.search")
+    def test_every_query_of_a_full_call_runs_at_once(
+        self, mock_search: MagicMock
+    ) -> None:
+        queries = [f"q{i}" for i in range(MAX_SEARCH_QUERIES)]
+        urls = {query: [f"https://{query}.example"] for query in queries}
+        barrier = threading.Barrier(MAX_SEARCH_QUERIES, timeout=5)
+        inner = _search_by_query(urls)
+
+        def _all_together(**kwargs: Any) -> _FakeResource:
+            barrier.wait()
+            return inner(**kwargs)
+
+        mock_search.side_effect = _all_together
+
+        out = cmd_web_search_many(_state(), queries)
+
+        assert not out.startswith(WEB_SEARCH_ERROR_PREFIX)
 
     @patch("unique_sdk.WebSearch.search")
     def test_every_request_carries_the_shared_options(

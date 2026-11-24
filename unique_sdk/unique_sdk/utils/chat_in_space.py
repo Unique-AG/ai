@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, Literal
@@ -11,6 +12,27 @@ from unique_sdk.utils.file_io import upload_file
 from unique_sdk.utils.file_io import (
     wait_for_ingestion_completion as _wait_for_ingestion_completion,
 )
+
+_log = logging.getLogger(__name__)
+
+_ABANDON_STOP_TIMEOUT_S = 5.0
+
+# asyncio holds tasks weakly. A stop that outlives its cancelled caller needs a
+# strong reference until it finishes.
+_abandon_stops: set[asyncio.Task[bool]] = set()
+
+
+class MessageWaitTimeoutError(TimeoutError):
+    """The assistant turn did not finish within ``max_wait``.
+
+    ``turn_stopped`` is False when no stop was requested or the stop failed.
+    """
+
+    def __init__(self, *, chat_id: str, message_id: str, turn_stopped: bool) -> None:
+        super().__init__("Timed out waiting for prompt completion.")
+        self.chat_id = chat_id
+        self.message_id = message_id
+        self.turn_stopped = turn_stopped
 
 
 def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
@@ -41,6 +63,8 @@ async def send_message_and_wait_for_completion(
     language_model: str | None = None,
     on_message_update: Callable[[Space.Message], Awaitable[None]] | None = None,
     wait_for_invocations: bool = False,
+    stop_on_abandon: bool = False,
+    on_message_created: Callable[[Space.Message], Awaitable[None]] | None = None,
 ) -> Space.Message:
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -77,9 +101,17 @@ async def send_message_and_wait_for_completion(
             message changes while waiting for completion.
         wait_for_invocations: When True, briefly wait for the orchestrator's final
             ``debugInfo.llm_invocations`` write after the visible response completes.
+        stop_on_abandon: When True, stop the assistant turn if the wait ends without
+            an answer. See ``wait_for_message_completion``.
+        on_message_created: Optional async callback called once with the posted USER
+            message, before the wait starts. Its ``chatId`` and ``id`` identify the
+            turn, for example to stop it with ``Message.stop_async``.
 
     Returns:
         The completed Space.Message.
+
+    Raises:
+        MessageWaitTimeoutError: The turn did not finish within ``max_wait``.
     """
     create_message_params: Space.CreateMessageParams = {
         "assistantId": assistant_id,
@@ -101,9 +133,115 @@ async def send_message_and_wait_for_completion(
         company_id=company_id,
         **create_message_params,
     )
-    chat_id = response.get("chatId")
-    message_id = response.get("id")
+    if on_message_created is not None:
+        try:
+            await on_message_created(response)
+        except BaseException:
+            if stop_on_abandon:
+                _ = await _stop_turn_despite_cancellation(
+                    user_id=user_id,
+                    company_id=company_id,
+                    chat_id=response["chatId"],
+                    message_id=response["id"],
+                )
+            raise
+    return await wait_for_message_completion(
+        user_id=user_id,
+        company_id=company_id,
+        chat_id=response["chatId"],
+        message_id=response["id"],
+        poll_interval=poll_interval,
+        max_wait=max_wait,
+        stop_condition=stop_condition,
+        on_message_update=on_message_update,
+        wait_for_invocations=wait_for_invocations,
+        stop_on_abandon=stop_on_abandon,
+    )
 
+
+async def wait_for_message_completion(
+    user_id: str,
+    company_id: str,
+    chat_id: str,
+    message_id: str,
+    poll_interval: float = 1.0,
+    max_wait: float = 60.0,
+    stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
+    on_message_update: Callable[[Space.Message], Awaitable[None]] | None = None,
+    wait_for_invocations: bool = False,
+    stop_on_abandon: bool = False,
+) -> Space.Message:
+    """
+    Polls a chat until the assistant turn started by an already posted message finishes.
+
+    Args:
+        user_id: The user ID.
+        company_id: The company ID.
+        chat_id: The chat the message was posted to.
+        message_id: The ID of the posted USER message that started the turn.
+        poll_interval: Seconds between polls.
+        max_wait: Maximum seconds to wait for completion.
+        stop_condition: See ``send_message_and_wait_for_completion``.
+        on_message_update: See ``send_message_and_wait_for_completion``.
+        wait_for_invocations: See ``send_message_and_wait_for_completion``.
+        stop_on_abandon: When True, stop the assistant turn if this wait ends without
+            an answer: at ``max_wait``, on cancellation, or on an error.
+
+    Returns:
+        The completed Space.Message.
+
+    Raises:
+        MessageWaitTimeoutError: The turn did not finish within ``max_wait``. It is a
+            ``TimeoutError`` and says whether the turn was stopped.
+    """
+    try:
+        answer = await _poll_for_completion(
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            message_id=message_id,
+            poll_interval=poll_interval,
+            max_wait=max_wait,
+            stop_condition=stop_condition,
+            on_message_update=on_message_update,
+            wait_for_invocations=wait_for_invocations,
+        )
+    except BaseException:
+        if stop_on_abandon:
+            _ = await _stop_turn_despite_cancellation(
+                user_id=user_id,
+                company_id=company_id,
+                chat_id=chat_id,
+                message_id=message_id,
+            )
+        raise
+    if answer is not None:
+        return answer
+
+    turn_stopped = stop_on_abandon and await _stop_turn_despite_cancellation(
+        user_id=user_id,
+        company_id=company_id,
+        chat_id=chat_id,
+        message_id=message_id,
+    )
+    raise MessageWaitTimeoutError(
+        chat_id=chat_id, message_id=message_id, turn_stopped=turn_stopped
+    )
+
+
+async def _poll_for_completion(
+    *,
+    user_id: str,
+    company_id: str,
+    chat_id: str,
+    message_id: str,
+    poll_interval: float,
+    max_wait: float,
+    stop_condition: Literal["stoppedStreamingAt", "completedAt"],
+    on_message_update: Callable[[Space.Message], Awaitable[None]] | None,
+    wait_for_invocations: bool,
+) -> Space.Message | None:
+    """Return the finished message, or None when ``max_wait`` ran out."""
     max_attempts = int(max_wait // poll_interval)
     # The final up-to-3 polls spent waiting for `llm_invocations_complete`
     # happen after the stop condition is already met, so they must not eat
@@ -155,7 +293,45 @@ async def send_message_and_wait_for_completion(
             return answer
         await asyncio.sleep(poll_interval)
 
-    raise TimeoutError("Timed out waiting for prompt completion.")
+    return None
+
+
+async def _stop_turn(
+    *, user_id: str, company_id: str, chat_id: str, message_id: str
+) -> bool:
+    """Stop the turn. Return False when the stop failed or took too long."""
+    try:
+        async with asyncio.timeout(_ABANDON_STOP_TIMEOUT_S):
+            await Message.stop_async(user_id, company_id, message_id, chatId=chat_id)
+    except Exception as exc:
+        _log.warning("Could not stop the abandoned turn: %s", type(exc).__name__)
+        return False
+    return True
+
+
+async def _stop_turn_despite_cancellation(
+    *, user_id: str, company_id: str, chat_id: str, message_id: str
+) -> bool:
+    """Stop the turn. Wait for the stop to settle, even when cancelled."""
+    stop = asyncio.ensure_future(
+        _stop_turn(
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            message_id=message_id,
+        )
+    )
+    _abandon_stops.add(stop)
+    stop.add_done_callback(_abandon_stops.discard)
+    cancelled = False
+    while not stop.done():
+        try:
+            _ = await asyncio.shield(stop)
+        except asyncio.CancelledError:
+            cancelled = True
+    if cancelled:
+        raise asyncio.CancelledError
+    return stop.result()
 
 
 async def chat_against_file(

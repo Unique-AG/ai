@@ -148,12 +148,14 @@ class FollowUpPostprocessor(Postprocessor):
                 response = await self._llm_service.complete_async(
                     messages=messages,
                     model_name=self._config.language_model.name,
+                    other_options=self._config.additional_llm_options,
                     structured_output_model=LanguageDetectionOutput,
                 )
             else:
                 response = await self._llm_service.complete_async(
                     messages=messages,
                     model_name=self._config.language_model.name,
+                    other_options=self._config.additional_llm_options,
                 )
 
             self._record_invocation_usage(
@@ -255,12 +257,14 @@ class FollowUpPostprocessor(Postprocessor):
                 response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self._config.language_model.name,
+                    other_options=self._config.additional_llm_options,
                     structured_output_model=FollowUpQuestionsOutput,
                 )
             else:
                 response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self._config.language_model.name,
+                    other_options=self._config.additional_llm_options,
                 )
 
             # Record usage as soon as the (billable) LLM call itself succeeds,

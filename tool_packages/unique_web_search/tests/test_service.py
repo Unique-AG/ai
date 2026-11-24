@@ -10,6 +10,7 @@ from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
+from unique_web_search.services.query_elicitation import QueryElicitationConfig
 
 
 class TestWebSearchToolDescription:
@@ -120,6 +121,51 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         assert isinstance(result, str)
         assert result == "V1 system prompt"
+
+    @pytest.mark.ai
+    def test_tool_description_for_system_prompt__states_query_length_limit__when_elicitation_enabled(
+        self,
+        mock_web_search_config_v1: Mock,
+    ) -> None:
+        """
+        Purpose: Verify the system prompt states the query length limit when query review is on.
+        Why this matters: The model should propose queries that fit the review form uncut.
+        Setup summary: Enable elicitation with a 150-character limit on the V1 mock config.
+        """
+        mock_web_search_config_v1.query_elicitation_config = QueryElicitationConfig(
+            enable_elicitation=True, max_query_length=150
+        )
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
+        tool.search_engine_service = Mock()
+
+        result = tool.tool_description_for_system_prompt()
+
+        assert result.startswith("V1 system prompt\n\n")
+        assert "under 150 characters" in result
+
+    @pytest.mark.ai
+    def test_tool_description_for_system_prompt__omits_query_length_limit__when_no_limit_set(
+        self,
+        mock_web_search_config_v1: Mock,
+    ) -> None:
+        """
+        Purpose: Verify query review without a length limit leaves the system prompt unchanged.
+        Why this matters: The limit is opt-in; the prompt must not ask for short queries without it.
+        Setup summary: Enable elicitation without a limit on the V1 mock config.
+        """
+        mock_web_search_config_v1.query_elicitation_config = QueryElicitationConfig(
+            enable_elicitation=True
+        )
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
+        tool.search_engine_service = Mock()
+
+        assert tool.tool_description_for_system_prompt() == "V1 system prompt"
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__replaces_max_steps__when_mode_is_v2(

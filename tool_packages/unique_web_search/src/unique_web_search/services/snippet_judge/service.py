@@ -2,9 +2,9 @@
 
 import logging
 
-import jinja2
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
@@ -82,7 +82,7 @@ async def score_and_explain(
     cfg = config or SnippetJudgeConfig()
     numbered_results = _format_numbered_results(results)
     render_ctx = {"objective": objective, "numbered_results": numbered_results}
-    system_message = jinja2.Template(cfg.system_prompt).render(**render_ctx)
+    system_message = sandboxed_template(cfg.system_prompt).render(**render_ctx)
     user_prompt = build_user_prompt(
         objective, numbered_results, template=cfg.user_prompt_template
     )

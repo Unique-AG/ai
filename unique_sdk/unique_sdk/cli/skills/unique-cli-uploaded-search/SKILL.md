@@ -1,32 +1,30 @@
 ---
 name: unique-cli-uploaded-search
 description: >-
-  Search the documents uploaded for the CURRENT task/row (e.g. an Agentic
-  Table row's attached files) via the `unique-cli uploaded-search "<query>"`
-  command, with the same per-turn citation tracking as `unique-cli search`
-  so cited facts render as `<sup>N</sup>` footnotes and clickable reference
-  chips on the Unique platform. ALWAYS use this skill when the user refers to
-  documents they uploaded/attached to this task, or when you need facts from
-  the task's own attached files. These uploaded files are scoped to the chat,
-  NOT to a knowledge-base folder, so they will NEVER appear in
-  `unique-cli search` results no matter the folder or metadata filters. Use
-  `unique-cli search` for the knowledge base and this command for the task's
-  uploaded documents; the two are complementary and citation numbering is
-  shared across them within a turn.
+  Search the documents attached to the current message with
+  `unique-cli uploaded-search "<query>"`: files the user uploaded to this chat,
+  or an Agentic Table row's documents. The message names the searchable
+  documents; when it names none, there is nothing to search. These
+  documents are scoped to the chat, not to a knowledge-base folder, so
+  knowledge-base search never returns them. When the question is about them,
+  search them first. Results are `<sourceN>` blocks cited as `[sourceN]`,
+  numbered continuously with knowledge-base search results within a turn. A
+  file that is also in your workspace may instead be read directly and cited
+  with `unique-cli cite`.
 ---
 
 # Unique CLI -- Uploaded Document Search
 
-Documents **uploaded for the current task** (for example an Agentic Table
-row's attached files) are **not** part of the knowledge-base folder scope.
-They are scoped to the chat, so they will **never** appear in
-`unique-cli search` results — no folder or metadata filter can surface them.
-Use `unique-cli uploaded-search` to retrieve them.
+Use `unique-cli uploaded-search` to search the documents attached to the
+current message.
+
+Mentions of `unique-cli search` apply only where knowledge-base search is
+available.
 
 ## Basic Usage
 
 ```bash
-# Search the documents uploaded for this row/task
+# Search the documents attached to the current message
 unique-cli uploaded-search "target asset classes and investment strategy"
 
 # Limit results
@@ -34,17 +32,25 @@ unique-cli uploaded-search "fee structure" --limit 50
 ```
 
 There is **no** `--folder`/`--metadata` for `uploaded-search` — the set of
-uploaded documents is fixed by what was attached to the task.
+documents is fixed by what this message selects.
 
-If no documents were uploaded for this task, the command reports that and you
-should fall back to `unique-cli search` for the knowledge base.
+If this message selects no documents, the command says so. Files the user did
+not select for this message are not searched.
 
 ## When to use which command
 
 | You want to search… | Command |
 |---------------------|---------|
-| The knowledge base (folders the task scope grants) | `unique-cli search "<query>"` |
-| Documents uploaded for **this** row/task | `unique-cli uploaded-search "<query>"` |
+| The knowledge base, when available | `unique-cli search "<query>"` |
+| Documents attached to **this** message | `unique-cli uploaded-search "<query>"` |
+
+## Which source first
+
+- When the question is about the documents attached to this message, search
+  them first with `unique-cli uploaded-search`.
+- If results are weak or off-target, switch source rather than rewording the
+  query more than once.
+- Use knowledge-base search, when available, for firm-wide or background facts.
 
 ## Output Format
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -187,77 +188,130 @@ class TestShellState:
 
 class TestWorkspaceScopes:
     def test_no_config_file_returns_empty(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+        monkeypatch.chdir(tmp_path)
+        s = ShellState(_config())
         assert s.workspace_scope_ids == []
         assert not s.workspace_restricted
 
     def test_loads_scope_ids_from_config(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".unique-search.json").write_text(
             json.dumps({"scopeIds": ["scope_abc", "scope_def"]})
         )
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+        s = ShellState(_config())
         assert s.workspace_scope_ids == ["scope_abc", "scope_def"]
         assert s.workspace_restricted
 
     def test_loads_metadata_filter_from_config(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         rule = {
             "path": ["folderIdPath"],
             "operator": "contains",
             "value": "uniquepathid://scope_fund_a",
         }
-        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+        (tmp_path / ".unique-search.json").write_text(
             json.dumps({"metaDataFilter": rule})
         )
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+        s = ShellState(_config())
         assert s.workspace_metadata_filter == rule
 
     def test_metadata_filter_none_when_absent(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".unique-search.json").write_text(
             json.dumps({"scopeIds": ["scope_abc"]})
         )
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+        s = ShellState(_config())
         assert s.workspace_metadata_filter is None
 
     def test_metadata_filter_ignored_when_not_dict(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         for bad in ("not-a-dict", "[]", "{}"):
-            (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+            (tmp_path / ".unique-search.json").write_text(
                 json.dumps({"metaDataFilter": json.loads(bad)})
                 if bad != "not-a-dict"
                 else json.dumps({"metaDataFilter": bad})
             )
-            with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-                s = ShellState(_config())
+            s = ShellState(_config())
             assert s.workspace_metadata_filter is None, f"failed for: {bad}"
 
-    def test_invalid_json_returns_empty(self, tmp_path: pytest.TempPathFactory) -> None:
-        (tmp_path / ".unique-search.json").write_text("not json")  # type: ignore[union-attr]
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+    def test_invalid_json_returns_empty(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".unique-search.json").write_text("not json")
+        s = ShellState(_config())
         assert s.workspace_scope_ids == []
 
     def test_non_dict_json_returns_empty(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A JSON array or scalar must not crash via AttributeError."""
+        monkeypatch.chdir(tmp_path)
         for payload in ("[1, 2, 3]", '"hello"', "42", "null"):
-            (tmp_path / ".unique-search.json").write_text(payload)  # type: ignore[union-attr]
-            with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-                s = ShellState(_config())
+            (tmp_path / ".unique-search.json").write_text(payload)
+            s = ShellState(_config())
             assert s.workspace_scope_ids == [], f"failed for payload: {payload}"
+
+    @pytest.mark.ai
+    def test_scope_file_survives_a_shell_cd(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: A bash cd does not drop the knowledge-base scope file.
+        Why this matters: Search with no scope file returns the whole knowledge base.
+        Setup summary: Scope file at UNIQUE_WORKSPACE_DIR; cwd is a different directory.
+        """
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        rule = {
+            "path": ["folderIdPath"],
+            "operator": "notContains",
+            "value": "scope_excluded",
+        }
+        (workspace / ".unique-search.json").write_text(
+            json.dumps({"metaDataFilter": rule})
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(workspace))
+        monkeypatch.chdir(elsewhere)
+        s = ShellState(_config())
+        assert s.workspace_metadata_filter == rule
+
+    @pytest.mark.ai
+    def test_cwd_scope_file_is_ignored_when_workspace_dir_is_set(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: The scope file is read from the workspace root only.
+        Why this matters: A file left in the shell directory must not replace the turn scope.
+        Setup summary: UNIQUE_WORKSPACE_DIR is empty; the scope file sits in cwd.
+        """
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        (tmp_path / ".unique-search.json").write_text(
+            json.dumps(
+                {
+                    "metaDataFilter": {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_cwd",
+                    }
+                }
+            )
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(workspace))
+        monkeypatch.chdir(tmp_path)
+        s = ShellState(_config())
+        assert s.workspace_metadata_filter is None
 
     def test_is_within_workspace_no_restriction(self) -> None:
         s = ShellState(_config())

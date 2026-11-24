@@ -22,7 +22,7 @@ return await self._legacy_search(...)      # direct provider call from this proc
 | **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
-Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Bing/VertexAI).
+Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Perplexity/Bing/VertexAI).
 
 ---
 
@@ -33,7 +33,7 @@ Deployment configs for Google / Brave / Perplexity (and agent base fields) live 
 | Proxy route | `POST /v1/search` | `POST /v1/agent-search` |
 | Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text (+ provider `citations`) → parsed locally |
 | LLM knobs | `ExposableParam` + `config.merge()` | `ExposableParam` (Bing only) |
-| Typical scrape | Often yes (Google) | Often no (`requires_scraping=false`) |
+| Typical scrape | Often yes (Google; Brave and Perplexity by default) | Often no (`requires_scraping=false`) |
 
 ---
 
@@ -90,6 +90,8 @@ Config: `unique_search_proxy_core.search_engines.google.schema.GoogleConfig`
 | `safe` | `active` / `off` (not exposable) |
 | `gl`, `hl`, `lr`, `date_restrict`, `exact_terms`, `exclude_terms`, `file_type`, `site_search`, `site_search_filter`, `sort` | `ExposableParam` |
 
+Each result's snippet is Google's snippet followed, on its own line, by the page's own description from `pagemap.metatags` (`og:description`, else `twitter:description`). The description is left out when it is a placeholder such as `null`. The search proxy builds the snippet the same way.
+
 ```bash
 GOOGLE_SEARCH_API_KEY=...
 GOOGLE_SEARCH_ENGINE_ID=...
@@ -97,9 +99,9 @@ GOOGLE_SEARCH_ENGINE_ID=...
 
 ### Brave Search (proxy-only)
 
-**Provider:** Brave Search API · **Requires scraping:** typically no (rich snippets) · **Legacy:** not supported
+**Provider:** Brave Search API · **Requires scraping:** configurable, default yes · **Legacy:** not supported
 
-Config: `unique_search_proxy_core.search_engines.brave.schema.BraveConfig`
+Config: `unique_web_search.services.search_engine.brave.BraveSearchConfig` (extends `unique_search_proxy_core.search_engines.brave.schema.BraveConfig` with `requires_scraping`, which is never sent to the proxy)
 
 Fixed bools include `extra_snippets`, `spellcheck`, `text_decorations`. Exposable knobs include country, search language, result filter, and related locale fields (see schema for full list).
 
@@ -117,9 +119,9 @@ results = await search.search("privacy-focused search")  # requires SEARCH_PROXY
 
 ### Perplexity Search (proxy-only)
 
-**Provider:** Perplexity Search API · **Legacy:** not supported
+**Provider:** Perplexity Search API · **Requires scraping:** configurable, default yes · **Legacy:** not supported
 
-Config: `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityConfig`
+Config: `unique_web_search.services.search_engine.perplexity.PerplexitySearchConfig` (extends `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityConfig` with `requires_scraping`, which is never sent to the proxy)
 
 | Field | Notes |
 |-------|-------|

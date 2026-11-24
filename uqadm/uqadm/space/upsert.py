@@ -16,11 +16,18 @@ from uqadm.core.env import config_for_slot
 from uqadm.core.payload_files import load_json_or_yaml_mapping
 from uqadm.space.mcp_match import McpMatch, echo_mcp_dry_run, merge_mcp_servers
 from uqadm.space.migrate import (
+    SnapshotError,
     build_create_params,
     build_module_updates_from_pairs,
     build_update_kwargs,
+    echo_mcp_plan,
+    list_len,
     match_modules_by_name,
+    mcp_server_params_from_source,
+    resolve_access_entries,
     sync_assistant_access,
+    warn_mcp_servers_not_applied,
+    warn_scope_rules_not_applied,
 )
 
 
@@ -29,14 +36,14 @@ def load_space_snapshot(path: Path) -> dict[str, Any]:
     return load_json_or_yaml_mapping(path)
 
 
-def _emit_snapshot_warnings(snapshot: dict[str, Any]) -> None:
-    scope_rules = snapshot.get("scopeRules") or []
-    if scope_rules:
-        typer.echo(
-            f"Note: snapshot lists {len(scope_rules)} scope rule(s); "
-            "these are not applied by upsert (same limitation as migrate).",
-            err=True,
-        )
+def _emit_snapshot_warnings(
+    snapshot: dict[str, Any], *, with_mcp_servers: bool = False
+) -> None:
+    warn_scope_rules_not_applied(list_len(snapshot.get("scopeRules")))
+    if not with_mcp_servers:
+        warn_mcp_servers_not_applied(list_len(snapshot.get("assistantMcpServers")))
+    # With --with-mcp-servers the bindings are reported from the built payload
+    # (see echo_mcp_plan), so only what is actually sent is announced.
     prompts = snapshot.get("assistantPrompts")
     if prompts:
         typer.echo(
@@ -73,6 +80,8 @@ def cmd_upsert(
     target_space_id: str | None,
     dry_run: bool,
     cwd: Path | None,
+    no_access: bool = False,
+    with_mcp_servers: bool = False,
     mcp_match: McpMatch = "id",
 ) -> None:
     """Apply ``file_path`` snapshot to ``slot`` (create if ``target_space_id`` is None)."""
@@ -91,23 +100,37 @@ def cmd_upsert(
     dst_space_id = target_space_id
     creating = dst_space_id is None
     _validate_snapshot(snapshot, creating=creating)
-    _emit_snapshot_warnings(snapshot)
+    _emit_snapshot_warnings(snapshot, with_mcp_servers=with_mcp_servers)
 
     typer.echo(f"Loading destination slot {slot!r} …")
     cfg = config_for_slot(slot, cwd=cwd)
 
-    assistant_access = list(snapshot.get("assistantAccess") or [])
+    try:
+        assistant_access = resolve_access_entries(
+            snapshot.get("assistantAccess"), no_access=no_access
+        )
+    except SnapshotError as exc:
+        typer.echo(f"Invalid snapshot: {exc}", err=True)
+        sys.exit(2)
 
     if dst_space_id is None:
-        create_params = build_create_params(snapshot)
-        create_params = merge_mcp_servers(
-            create_params,
-            snapshot,
-            user_id=cfg.user_id,
-            company_id=cfg.company_id,
-            match=mcp_match,
-            destination_space_id=None,
-        )
+        try:
+            create_params = build_create_params(snapshot)
+            if with_mcp_servers:
+                mcp_server_params_from_source(snapshot.get("assistantMcpServers"))
+        except SnapshotError as exc:
+            typer.echo(f"Invalid snapshot: {exc}", err=True)
+            sys.exit(2)
+        if with_mcp_servers:
+            create_params = merge_mcp_servers(
+                create_params,
+                snapshot,
+                user_id=cfg.user_id,
+                company_id=cfg.company_id,
+                match=mcp_match,
+                destination_space_id=None,
+            )
+        echo_mcp_plan(create_params, dry_run=dry_run)
         if dry_run:
             typer.echo(
                 f"Dry-run: would create_space with name="
@@ -174,17 +197,25 @@ def cmd_upsert(
 
     update_modules = build_module_updates_from_pairs(pairs)
 
-    update_kw = build_update_kwargs(snapshot)
+    try:
+        update_kw = build_update_kwargs(snapshot)
+        if with_mcp_servers:
+            mcp_server_params_from_source(snapshot.get("assistantMcpServers"))
+    except SnapshotError as exc:
+        typer.echo(f"Invalid snapshot: {exc}", err=True)
+        sys.exit(2)
     if update_modules:
         update_kw["modules"] = update_modules
-    update_kw = merge_mcp_servers(
-        update_kw,
-        snapshot,
-        user_id=cfg.user_id,
-        company_id=cfg.company_id,
-        match=mcp_match,
-        destination_space_id=dst_space_id,
-    )
+    if with_mcp_servers:
+        update_kw = merge_mcp_servers(
+            update_kw,
+            snapshot,
+            user_id=cfg.user_id,
+            company_id=cfg.company_id,
+            match=mcp_match,
+            destination_space_id=dst_space_id,
+        )
+    echo_mcp_plan(update_kw, dry_run=dry_run)
 
     if dry_run:
         typer.echo(

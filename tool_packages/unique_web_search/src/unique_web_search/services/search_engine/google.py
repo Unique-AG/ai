@@ -1,5 +1,8 @@
+import html
 import logging
-from typing import override
+import re
+from collections.abc import Mapping
+from typing import Any, override
 from urllib.parse import urlparse
 
 from httpx import Response
@@ -8,6 +11,7 @@ from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
+from unique_web_search import activity_record
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.client.http_client import client_for
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
@@ -21,6 +25,10 @@ _LOGGER = logging.getLogger(__name__)
 # Pagination size fixed to 10 because of the Google Search API limit
 PAGINATION_SIZE = 10
 
+_DESCRIPTION_KEYS = ("og:description", "twitter:description")
+_PLACEHOLDERS = frozenset({"null", "none"})
+_WHITESPACE = re.compile(r"\s+")
+
 
 @register_search_engine(
     name="google",
@@ -33,6 +41,10 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
     @property
     def requires_scraping(self) -> bool:
         return True
+
+    @property
+    def endpoint(self) -> str | None:
+        return get_google_search_settings().api_endpoint
 
     @override
     async def _legacy_search(
@@ -49,6 +61,8 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
             _LOGGER.info(f"Found {len(search_results)} URLs")
 
         except Exception as e:
+            # A transport error never got a response; a later parse error already noted one.
+            activity_record.note_no_response()
             _LOGGER.exception(f"Failed to extract URLs from search response: {e}")
             search_results = []
 
@@ -71,6 +85,7 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
         )
         client = await client_for(self._request_context)
         response = await client.get(**request_params)
+        activity_record.note_response_received()
         return response
 
     def _validate_url(self, url: str) -> bool:
@@ -124,7 +139,7 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
         links = [
             WebSearchResult(
                 url=item["link"],
-                snippet=item["snippet"],
+                snippet=_snippet_with_page_description(item),
                 title=item.get("title", item.get("htmlTitle", "")),
             )
             for item in results["items"]
@@ -155,3 +170,30 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
             search_results.extend(self._extract_urls(response=response))
 
         return search_results
+
+
+def _snippet_with_page_description(item: Mapping[str, Any]) -> str:
+    """Same rules as the search proxy's ``build_google_snippet``."""
+    snippet: str = item["snippet"]
+    description = _page_description(item)
+    if not description:
+        return snippet
+    return f"{snippet}\n{description}" if snippet else description
+
+
+def _page_description(item: Mapping[str, Any]) -> str:
+    pagemap = item.get("pagemap")
+    metatags = pagemap.get("metatags") if isinstance(pagemap, Mapping) else None
+    tags = metatags[0] if isinstance(metatags, list) and metatags else None
+    if not isinstance(tags, Mapping):
+        return ""
+    for key in _DESCRIPTION_KEYS:
+        value = tags.get(key)
+        text = _normalize(value) if isinstance(value, str) else ""
+        if text and text.rstrip(".").casefold() not in _PLACEHOLDERS:
+            return text
+    return ""
+
+
+def _normalize(text: str) -> str:
+    return _WHITESPACE.sub(" ", html.unescape(text)).strip()

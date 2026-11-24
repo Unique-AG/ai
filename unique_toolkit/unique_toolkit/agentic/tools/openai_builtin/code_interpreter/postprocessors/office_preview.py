@@ -16,6 +16,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from unique_toolkit.log_redaction import redact_filename
+
 _SOFFICE_TIMEOUT_SECONDS = 180
 
 # Canonical MIME types so slim containers without ``/etc/mime.types`` still
@@ -77,10 +79,10 @@ def _run_soffice(
         )
     if proc.returncode != 0:
         logger.warning(
-            "office_preview: soffice exited %d for '%s' "
+            "office_preview: soffice exited %d for %s "
             "(stdout=%d bytes, stderr=%d bytes)",
             proc.returncode,
-            source.name,
+            redact_filename(source.name),
             len((proc.stdout or "").strip()),
             len((proc.stderr or "").strip()),
         )
@@ -113,8 +115,8 @@ async def convert_office_bytes_to_preview_pdf(
     if soffice is None:
         logger.warning(
             "office_preview: soffice/libreoffice not found on PATH — "
-            "uploading '%s' without a PDF preview.",
-            safe_filename,
+            "uploading %s without a PDF preview.",
+            redact_filename(safe_filename),
         )
         return None
 
@@ -128,18 +130,18 @@ async def convert_office_bytes_to_preview_pdf(
         )
     except subprocess.TimeoutExpired:
         logger.warning(
-            "office_preview: soffice timed out after %ds for '%s' — "
+            "office_preview: soffice timed out after %ds for %s — "
             "uploading original only",
             _SOFFICE_TIMEOUT_SECONDS,
-            safe_filename,
+            redact_filename(safe_filename),
         )
         return None
     except subprocess.CalledProcessError:
         return None
     except Exception:
         logger.exception(
-            "office_preview: unexpected error for '%s' — uploading original only",
-            safe_filename,
+            "office_preview: unexpected error for %s — uploading original only",
+            redact_filename(safe_filename),
         )
         return None
 
@@ -147,8 +149,8 @@ async def convert_office_bytes_to_preview_pdf(
         return target
 
     logger.warning(
-        "office_preview: soffice returned 0 but '%s' is missing for '%s'",
-        target.name,
-        safe_filename,
+        "office_preview: soffice returned 0 but %s is missing for %s",
+        redact_filename(target.name),
+        redact_filename(safe_filename),
     )
     return None

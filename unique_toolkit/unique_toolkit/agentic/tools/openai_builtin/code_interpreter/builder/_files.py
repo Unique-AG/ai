@@ -22,6 +22,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._memor
 from unique_toolkit.content.schemas import (
     Content,
 )
+from unique_toolkit.log_redaction import redact_filename
 
 logger = logging.getLogger(__name__)
 
@@ -126,8 +127,8 @@ async def upload_file_to_container(
 ) -> str:
     logger.info(
         "Uploading file %s (%s) to container %s",
+        redact_filename(filename),
         content_id,
-        filename,
         container_id,
     )
 

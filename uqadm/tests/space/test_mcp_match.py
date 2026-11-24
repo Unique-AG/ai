@@ -280,6 +280,7 @@ def test_upsert_dry_run_prints_name_match_and_does_not_create(
             target_space_id=None,
             dry_run=True,
             cwd=None,
+            with_mcp_servers=True,
             mcp_match="name",
         )
         mock_create.assert_not_called()

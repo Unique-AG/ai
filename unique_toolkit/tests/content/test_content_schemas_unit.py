@@ -197,6 +197,38 @@ class TestContentIsIngested:
 
         assert content.is_ingested() is True
 
+    @pytest.mark.ai
+    def test__finished_with_chunks_is_ingested(self):
+        """
+        Purpose: FINISHED with at least one chunk is ingested.
+        Why this matters: FINISHED alone is also used when ingestion was skipped.
+                          Chunks are the signal that the file is searchable.
+        Setup summary: FINISHED content with one chunk and INGESTION mode.
+        """
+        content = make_content(
+            ingestion_state="FINISHED",
+            chunks=[ContentChunk(text="page")],
+            applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+        )
+
+        assert content.is_ingested() is True
+
+    @pytest.mark.ai
+    def test__finished_with_no_chunks_is_not_ingested(self):
+        """
+        Purpose: FINISHED with zero chunks is not ingested.
+        Why this matters: A skipped upload is stored as FINISHED with no chunks
+                          and must not be offered as searchable.
+        Setup summary: FINISHED content, empty chunks, INGESTION mode.
+        """
+        content = make_content(
+            ingestion_state="FINISHED",
+            chunks=[],
+            applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+        )
+
+        assert content.is_ingested() is False
+
     def test__default_if_unknown_arg_is_keyword_only(self):
         """
         Purpose: Verify that default_if_unknown cannot be passed as a positional argument.

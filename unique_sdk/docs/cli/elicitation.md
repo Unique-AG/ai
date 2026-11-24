@@ -131,6 +131,18 @@ unique-cli elicit ask "Permanently delete /Archive/2024 and all its contents? Co
   --tool-name confirm_delete \
   --timeout 120 \
   --schema '{"type": "object", "properties": {}}'
+
+# Outbound text: the draft is an editable, prefilled field, not part of the
+# message. Send the "body" from Response:, which holds the user's edits.
+unique-cli elicit ask "Post this brief to #ps-efg?" \
+  --tool-name confirm_slack_post \
+  --schema '{
+    "type": "object",
+    "properties": {
+      "body": {"type": "string", "title": "Message", "multiline": true, "default": "Draft text"}
+    },
+    "required": ["body"]
+  }'
 ```
 
 **Sample output:**
@@ -395,6 +407,7 @@ For the common case of "ask and immediately use the answer", `elicit ask` collap
 - Always set `"required"` on fields that must be present -- this prevents empty submissions.
 - Use `"enum"` for finite choices so the UI renders a selector instead of a free-text box.
 - The Confirm button is the consent, on any form -- do **not** add a boolean `confirm` field. The UI's Confirm button and a checkbox are two separate signals: a user can press Confirm with the box unchecked, showing **Accepted** in the UI while the response carries `confirm: false`. State the consequence in the message text of the form the user confirms; when there is nothing else to ask, use an empty-properties schema (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED`. Treat `DECLINED` / `REJECTED` / `CANCELLED` / `EXPIRED` as "stop". Reserve `"type": "boolean"` for genuine data fields where `false` is a valid submittable answer.
+- Before sending text that leaves the platform (a Slack post, an email), put the draft in a required string field with `"multiline": true` and the draft as `"default"`, never in the message text. The form opens with the draft in an editable text box. Send the value from `Response:`, because the user may have edited it. Build that schema with `json.dumps` rather than a single-quoted literal, since drafts contain quotes and newlines.
 - `"required"` on a boolean means "must be answered", not "must be ticked". An unchecked box is a valid `false` and the form submits with it on the first Confirm; there is no schema keyword that forces a checkbox on.
 - Always give boolean properties a `"title"`. The checkbox label and its required marker are rendered from `title`; a boolean with only a `description` renders without a label.
 - Add short `"description"` strings -- they appear as helper text next to each field.

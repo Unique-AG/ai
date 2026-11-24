@@ -18,7 +18,7 @@ image:
   pullPolicy: IfNotPresent
   registry: ghcr.io
   repository: unique-ag/ai/search-proxy
-  tag: "2026.44.0" # x-release-please-version
+  tag: "2026.48.0" # x-release-please-version
   useDigest: false # not yet supported for out-of-tree charts
 
 ports:
@@ -179,15 +179,25 @@ requestLimits:
     maxUrlLength: 2048
     maxConcurrentFetches: 10
     maxConcurrentCrawls: 4
+    maxConcurrentUrlChecks: 3
   timeouts:
     maxTimeoutSeconds: 120
+
+pdfProcessing:
+  connection:
+    extractor: pypdf
+    maxPdfPages: 100
+    maxExtractedChars: 100000
+    extractionTimeoutSeconds: 10.0
+    maxExtractionMemoryMb: 512
+    maxConcurrentExtractions: 1
 
 urlSafety:
   enabled: true
   redirects:
     resolveRedirects: true
     maxRedirectHops: 10
-    redirectTimeoutSeconds: 10.0
+    redirectTimeoutSeconds: 5.0
   network:
     allowedSchemes:
       - http

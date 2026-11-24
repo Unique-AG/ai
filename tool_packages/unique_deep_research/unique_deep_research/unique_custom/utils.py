@@ -353,10 +353,12 @@ async def execute_tool_safely(
 
         # Handle token limit errors specifically
         if is_token_error(e):
-            _LOGGER.warning(f"Token limit exceeded in tool {tool_name}: {str(e)}")
+            _LOGGER.warning(f"Token limit exceeded in tool {tool_name}")
             return f"Tool {tool_name} failed due to token limit: {str(e)}"
         else:
-            _LOGGER.exception(f"Error executing tool {tool_name}: {str(e)}")
+            # Tool errors can carry the search query or URL (e.g. argument
+            # validation errors echo the input), so log only the type.
+            _LOGGER.error(f"Error executing tool {tool_name}: {type(e).__name__}")
             return f"Error executing tool {tool_name}: {str(e)}"
 
 

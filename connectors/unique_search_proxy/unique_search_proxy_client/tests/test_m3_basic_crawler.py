@@ -40,7 +40,10 @@ def _is_example_com_request(request: httpx.Request) -> bool:
 
 
 @pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+def client(
+    monkeypatch: pytest.MonkeyPatch,
+    make_pdf: Callable[[list[str]], bytes],
+) -> TestClient:
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
         host_header = request.headers.get("host", "")
@@ -49,7 +52,13 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         if "file.pdf" in url:
             return httpx.Response(
                 200,
-                text="%PDF-1.4",
+                content=b"%PDF-1.4\n%fake",
+                headers={"content-type": "application/pdf"},
+            )
+        if "real.pdf" in url:
+            return httpx.Response(
+                200,
+                content=make_pdf(["Rating calendar 2026"]),
                 headers={"content-type": "application/pdf"},
             )
         if "blocked.example" in host_header or "blocked.example" in url:
@@ -451,6 +460,11 @@ def test_crawl_records_per_url_outcome_metrics(client: TestClient) -> None:
 
 @pytest.mark.ai
 def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
+    """
+    Purpose: Verify disabled PDF processing returns content-type without raw bytes.
+    Why this matters: Untrusted PDF bodies must not be echoed in crawl results.
+    Setup summary: Crawl a PDF URL with default pdf=false and assert raw/content null.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -462,7 +476,7 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
     result = resp.json()["results"][0]
     assert result["error"] is None
     assert result["contentType"] == "application/pdf"
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
 
 
@@ -521,6 +535,11 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
 
 @pytest.mark.ai
 def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
+    """
+    Purpose: Verify pdf=false skips extraction and omits raw PDF bytes.
+    Why this matters: Default deny must not process or retain PDF content.
+    Setup summary: Crawl with default toggles and assert a clean unprocessed result.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -531,12 +550,19 @@ def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
     assert resp.status_code == 200
     result = resp.json()["results"][0]
     assert result["error"] is None
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
 
 
 @pytest.mark.ai
-def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
+def test_crawl_pdf_allowed_uses_default_pypdf_extractor(
+    client: TestClient,
+) -> None:
+    """
+    Purpose: Verify enabling PDF uses the default pypdf adapter without a license gate.
+    Why this matters: Spaces should extract text-layer PDFs out of the box.
+    Setup summary: Allow pdf and crawl a minimal PDF; accept empty or unsupported.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -547,9 +573,121 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
-    assert result["error"] is not None
-    assert "PDF processing" in result["error"]["message"]
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
+    # Minimal synthetic PDF may be empty/unsupported; it must not require licensing.
+    if result["error"] is not None:
+        assert result["error"]["code"] in {
+            ProxyErrorCode.PDF_UNSUPPORTED.value,
+            ProxyErrorCode.UPSTREAM_ERROR.value,
+        }
+    else:
+        assert result["content"] is not None
+
+
+@pytest.mark.ai
+def test_crawl_pdf_allowed_extracts_with_fake_adapter(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the crawl path returns Markdown when a fake extractor is wired.
+    Why this matters: End-to-end PDF processing must work once an adapter is selected.
+    Setup summary: Monkeypatch get_pdf_processor with FakePdfExtractor and crawl a PDF.
+    """
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
+        FakePdfExtractor,
+        InProcessExtractionRunner,
+        PdfProcessor,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+        ExtractionOutcome,
+        ExtractionResult,
+        PageChunk,
+    )
+
+    extractor = FakePdfExtractor(
+        result=ExtractionResult(
+            outcome=ExtractionOutcome.EXTRACTED,
+            chunks=(PageChunk(page_number=1, text="Rating calendar"),),
+            total_page_count=1,
+            adapter_name="fake",
+        )
+    )
+    processor = PdfProcessor(
+        extractor=extractor,
+        runner=InProcessExtractionRunner(extractor),
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring.get_pdf_processor",
+        lambda: processor,
+    )
+
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/file.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
+    assert result["error"] is None
+    assert result["content"] == "Rating calendar"
+    assert result["raw"] is None
+
+
+@pytest.mark.ai
+def test_crawl_pdf_allowed_returns_text_of_real_pdf(client: TestClient) -> None:
+    """
+    Purpose: Verify an enabled, parseable PDF comes back as its text end to end.
+    Why this matters: This is the feature: answer questions from PDF content.
+    Setup summary: Crawl a generated one-page PDF through the default pypdf child process.
+    """
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/real.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
+    assert result["error"] is None
+    assert result["content"] == "Rating calendar 2026"
+    assert result["raw"] is None
+
+
+@pytest.mark.ai
+def test_crawl_unreadable_pdf_fails_only_its_own_url(client: TestClient) -> None:
+    """
+    Purpose: Verify an unreadable PDF fails its URL while the rest of the crawl succeeds.
+    Why this matters: One bad PDF must not cost the model the other sources.
+    Setup summary: Crawl an unparseable PDF, a real PDF and an HTML page in one request.
+    """
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": [
+                "https://example.com/file.pdf",
+                "https://example.com/real.pdf",
+                "https://example.com/article",
+            ],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True, "html": True},
+        },
+    )
+    assert resp.status_code == 200
+    broken, real, html = resp.json()["results"]
+    assert broken["error"]["code"] == ProxyErrorCode.PDF_UNSUPPORTED.value
+    assert broken["error"]["message"] == (
+        "PDF could not be parsed. Retrying will not help."
+    )
+    assert broken["content"] is None
+    assert real["content"] == "Rating calendar 2026"
+    assert html["error"] is None
+    assert "Hello" in html["content"]
 
 
 def _cap_crawler_bodies(monkeypatch: pytest.MonkeyPatch, *, max_kib: int) -> None:
@@ -611,6 +749,132 @@ async def test_crawl_pinned__maps_oversized_body_to_per_url_error(
     assert big_result.raw is None
     assert small_result.error is None
     assert small_result.raw == "small"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("pdf_enabled", "expected_code"),
+    [
+        (False, ProxyErrorCode.RESPONSE_TOO_LARGE),
+        (True, ProxyErrorCode.PDF_LIMIT_EXCEEDED),
+    ],
+)
+async def test_crawl_pinned__oversized_pdf_code__depends_on_pdf_content_type(
+    monkeypatch: pytest.MonkeyPatch,
+    pdf_enabled: bool,
+    expected_code: ProxyErrorCode,
+) -> None:
+    """
+    Purpose: Verify an oversized PDF keeps RESPONSE_TOO_LARGE unless PDF is enabled.
+    Why this matters: Spaces that keep PDF off must see the same errors as before.
+    Setup summary: 1 KiB cap and a 4 KiB PDF; assert the code with PDF off and on.
+    """
+    _cap_crawler_bodies(monkeypatch, max_kib=1)
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            200,
+            content=b"%PDF-1.4\n" + b"x" * 4096,
+            headers={"content-type": "application/pdf"},
+        ),
+    )
+    request = parse_crawl_request(
+        {
+            "urls": ["https://big.example/file.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"pdf": pdf_enabled},
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        (result,) = await crawler.crawl_pinned(
+            request,
+            [_pinned_target("https://big.example/file.pdf", "big.example")],
+        )
+
+    assert result.error is not None
+    assert result.error.code == expected_code.value
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__pdf_extraction__releases_fetch_slot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify a PDF waiting for extraction does not hold the crawl's fetch slot.
+    Why this matters: Queued PDFs would otherwise stall the other URLs of the crawl.
+    Setup summary: One fetch slot; the PDF's extraction waits until the HTML URL
+        after it has been fetched, which only happens if the slot was released.
+    """
+    import asyncio
+
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
+        FakePdfExtractor,
+        PdfProcessor,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+        ExtractionLimits,
+        ExtractionOutcome,
+        ExtractionResult,
+        PageChunk,
+    )
+
+    html_fetched = asyncio.Event()
+
+    class WaitForHtmlRunner:
+        async def run(self, path: object, limits: ExtractionLimits) -> ExtractionResult:
+            await html_fetched.wait()
+            return ExtractionResult(
+                outcome=ExtractionOutcome.EXTRACTED,
+                chunks=(PageChunk(page_number=1, text="PDF text"),),
+                total_page_count=1,
+                adapter_name="fake",
+            )
+
+    processor = PdfProcessor(extractor=FakePdfExtractor(), runner=WaitForHtmlRunner())
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring.get_pdf_processor",
+        lambda: processor,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["Host"] == "pdf.example":
+            return httpx.Response(
+                200,
+                content=b"%PDF-1.4\n%fake",
+                headers={"content-type": "application/pdf"},
+            )
+        html_fetched.set()
+        return httpx.Response(200, text="html")
+
+    http_client, _ = _recording_client(handler)
+    request = parse_crawl_request(
+        {
+            "urls": ["https://pdf.example/file.pdf", "https://html.example/"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 2,
+            "maxConcurrentRequests": 1,
+            "contentTypes": {"pdf": True},
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        pdf_result, html_result = await crawler.crawl_pinned(
+            request,
+            [
+                _pinned_target("https://pdf.example/file.pdf", "pdf.example"),
+                _pinned_target("https://html.example/", "html.example"),
+            ],
+            deadline=asyncio.get_running_loop().time() + 2,
+        )
+
+    assert pdf_result.error is None
+    assert pdf_result.content == "PDF text"
+    assert html_result.error is None
 
 
 @pytest.mark.ai

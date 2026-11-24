@@ -1,0 +1,6 @@
+component: Toolkit
+kind: Security
+body: Toolkit raises its minimum Pillow dependency to a release that patches published vulnerabilities.
+time: 2026-11-11T13:32:38.636235+01:00
+custom:
+    Audience: developer

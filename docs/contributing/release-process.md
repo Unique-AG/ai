@@ -226,6 +226,20 @@ flowchart TD
 
 ---
 
+## Release notes (changie)
+
+Curated, audience-tagged release notes are kept with [changie](https://changie.dev/), the same way as in the monorepo. They complement the per-package `CHANGELOG.md` files that release-please generates from commit subjects.
+
+- **Every PR** that changes package source adds a fragment under `.changelog/unreleased/`:
+  `changie new --interactive=false --kind Fixed --component Toolkit --body "…" --custom Audience=developer --custom Ticket=UN-12345`.
+  Allowed kinds, components and audiences live in `.changie.yaml`; wording rules are in the `changelog-fragment` skill.
+- `changelog-check.yaml` fails a PR without a fragment unless it only touches docs/tests/CI, or carries `no-changelog` (docs-only or pure refactors), `autorelease: pending`, `dev-version-bump` or `dependencies`.
+- On every stable or hotfix release, `cd-release.yaml` calls `changelog-batch.yaml`, which runs `changie batch <version>` on `release/YYYY.WW`, producing `.changelog/<version>.md`, and mirrors that commit to `main` through an auto-merged `changelog-batch` PR.
+- Backports carry their fragment along with the cherry-pick; the hotfix release batches it, and the mirror removes it from `main`'s `unreleased/`. Fragments must therefore land on `main` first (enforced by the release-lineage check); a release-only fragment cannot be mirrored.
+- `custom.Ticket` is for internal traceability only: it is validated but not rendered, and nothing consumes it beyond the archived `.changelog/<version>/*.yaml` files.
+
+---
+
 ## Syncing AI versions to the monorepo
 
 Syncing AI package versions into the monorepo is [documented in the monorepo](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow).

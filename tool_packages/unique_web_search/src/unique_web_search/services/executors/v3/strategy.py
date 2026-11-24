@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from typing import cast
 
-from jinja2 import Template
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit.language_model import LanguageModelFunction
 
 from unique_web_search.services.executors.context import (
@@ -45,7 +45,7 @@ class WebSearchV3Strategy(WebSearchModeStrategy):
 
     def tool_description(self, ctx: WebSearchToolContext) -> str:
         """Render the V3 tool description with the live schema hint."""
-        return Template(self.mode_config.tool_description).render(
+        return sandboxed_template(self.mode_config.tool_description).render(
             tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(
                 ctx.exposed_params_cls,
             ),
@@ -53,7 +53,9 @@ class WebSearchV3Strategy(WebSearchModeStrategy):
 
     def system_prompt(self, ctx: WebSearchToolContext) -> str:
         """Render the V3 system prompt with the current date string."""
-        return Template(self.mode_config.tool_description_for_system_prompt).render(
+        return sandboxed_template(
+            self.mode_config.tool_description_for_system_prompt
+        ).render(
             date_string=ctx.date_string,
         )
 

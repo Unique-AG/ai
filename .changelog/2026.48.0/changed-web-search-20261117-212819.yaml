@@ -1,0 +1,6 @@
+component: Web Search
+kind: Changed
+body: Google search result snippets now include additional metadata.
+time: 2026-11-17T21:28:19.789003+01:00
+custom:
+    Audience: user

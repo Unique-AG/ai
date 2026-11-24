@@ -24,7 +24,10 @@ from unique_web_search.services.search_engine.bing import (  # noqa: E402
     BingSearch,
     BingSearchConfig,
 )
-from unique_web_search.services.search_engine.brave import BraveSearch  # noqa: E402
+from unique_web_search.services.search_engine.brave import (  # noqa: E402
+    BraveSearch,
+    BraveSearchConfig,
+)
 from unique_web_search.services.search_engine.custom_api import (  # noqa: E402
     CustomAPI,
     CustomAPIConfig,
@@ -32,6 +35,7 @@ from unique_web_search.services.search_engine.custom_api import (  # noqa: E402
 from unique_web_search.services.search_engine.google import GoogleSearch  # noqa: E402
 from unique_web_search.services.search_engine.perplexity import (  # noqa: E402
     PerplexitySearch,
+    PerplexitySearchConfig,
 )
 from unique_web_search.services.search_engine.vertexai import (  # noqa: E402
     VertexAI,
@@ -45,8 +49,8 @@ SearchEngineConfigTypes = (
     GoogleConfig
     | BingSearchConfig
     | CustomAPIConfig
-    | BraveConfig
-    | PerplexityConfig
+    | BraveSearchConfig
+    | PerplexitySearchConfig
     | VertexAIConfig
 )
 
@@ -76,8 +80,10 @@ __all__ = [
     "BingSearch",
     "BraveSearch",
     "BraveConfig",
+    "BraveSearchConfig",
     "PerplexitySearch",
     "PerplexityConfig",
+    "PerplexitySearchConfig",
     "get_search_engine_service",
     "SearchEngine",
     "get_search_engine_config_types_from_names",

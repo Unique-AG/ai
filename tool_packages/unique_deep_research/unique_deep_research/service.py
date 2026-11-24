@@ -776,9 +776,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     or not isinstance(event.item.action.url, str)
                                     or "https://" not in event.item.action.url
                                 ):
-                                    _LOGGER.warning(
-                                        f"Invalid URL from OpenAI: {event.item.action}"
-                                    )
+                                    _LOGGER.warning("Invalid URL from OpenAI")
                                     continue
 
                                 _, title, success = await crawl_url(
@@ -787,13 +785,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 )
                                 if not success:
                                     _LOGGER.info(
-                                        f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
+                                        "Failed to crawl URL but openai still opened the page"
                                     )
                                     continue
                                 if not title:
-                                    _LOGGER.info(
-                                        f"No title found for URL: {event.item.action.url}"
-                                    )
+                                    _LOGGER.info("No title found for URL")
                                     continue
                                 self.chat_service.create_message_log(
                                     message_id=self.chat_service.assistant_message_id,

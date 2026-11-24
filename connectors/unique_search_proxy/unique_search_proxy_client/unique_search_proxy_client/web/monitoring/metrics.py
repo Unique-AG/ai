@@ -40,6 +40,14 @@ def _exponential_buckets(start: float, ceiling: float, count: int) -> tuple[floa
 _SEARCH_LATENCY_BUCKETS = _linear_buckets(ceiling=5.0, steps=20)
 _CRAWL_LATENCY_BUCKETS = _linear_buckets(ceiling=60.0, steps=20)
 _AGENT_SEARCH_LATENCY_BUCKETS = _linear_buckets(ceiling=120.0, steps=20)
+# Half-second steps up to 10s, so checks that hit the per-hop redirect timeout
+# (5s by default) show up as their own bucket.
+_URL_SAFETY_CHECK_LATENCY_BUCKETS = _linear_buckets(ceiling=10.0, steps=20)
+# Reads take under a second, but a queued PDF can wait until the request deadline.
+_PDF_EXTRACTION_LATENCY_BUCKETS = _exponential_buckets(
+    start=0.05, ceiling=120.0, count=20
+)
+_PDF_PAGE_COUNT_BUCKETS = (1, 2, 5, 10, 20, 50, 100, 200, 500, 1000)
 
 # One histogram covers every endpoint, from sub-second /v1/search to /v1/agent-search
 # runs approaching 120s — exponential buckets keep resolution useful at both ends.
@@ -94,11 +102,41 @@ crawl_blocked_total = m.counter(
     "Crawl targets blocked by URL safety policy",
     ["reason_category"],
 )
+url_safety_check_duration_seconds = m.histogram(
+    "url_safety_check_duration_seconds",
+    "Time to check one crawl URL (redirect probes and DNS), by outcome",
+    ["outcome"],
+    buckets=_URL_SAFETY_CHECK_LATENCY_BUCKETS,
+)
 url_safety_application_checks_enabled = m.gauge(
     "url_safety_application_checks_enabled",
     "Whether application-level URL safety checks are enabled (1) or delegated "
     "to a configured corporate proxy (0)",
     [],
+)
+
+crawl_pdf_extractions_total = m.counter(
+    "crawl_pdf_extractions_total",
+    "PDF text extractions by outcome",
+    ["outcome"],
+)
+crawl_pdf_extraction_duration_seconds = m.histogram(
+    "crawl_pdf_extraction_duration_seconds",
+    "Time to read one PDF, including any wait for an extraction slot, by outcome",
+    ["outcome"],
+    buckets=_PDF_EXTRACTION_LATENCY_BUCKETS,
+)
+crawl_pdf_extraction_wait_seconds = m.histogram(
+    "crawl_pdf_extraction_wait_seconds",
+    "Time a PDF waited for a free extraction slot",
+    [],
+    buckets=_PDF_EXTRACTION_LATENCY_BUCKETS,
+)
+crawl_pdf_page_count = m.histogram(
+    "crawl_pdf_page_count",
+    "Total pages of PDFs whose text was read",
+    [],
+    buckets=_PDF_PAGE_COUNT_BUCKETS,
 )
 
 agent_search_duration_seconds = m.histogram(
@@ -182,8 +220,31 @@ def record_crawl_blocked(reason_category: str, count: int = 1) -> None:
     crawl_blocked_total.labels(reason_category=reason_category).inc(count)
 
 
+def record_url_safety_check(outcome: str, duration_seconds: float) -> None:
+    """Record one URL check; ``outcome`` is allowed, blocked or unfinished."""
+    url_safety_check_duration_seconds.labels(outcome=outcome).observe(duration_seconds)
+
+
 def set_url_safety_application_checks_enabled(enabled: bool) -> None:
     url_safety_application_checks_enabled.set(int(enabled))
+
+
+def record_crawl_pdf_extraction(
+    outcome: str,
+    duration_seconds: float,
+    page_count: int | None = None,
+) -> None:
+    """Record one PDF read; ``outcome`` is extracted, truncated or a failure kind."""
+    crawl_pdf_extractions_total.labels(outcome=outcome).inc()
+    crawl_pdf_extraction_duration_seconds.labels(outcome=outcome).observe(
+        duration_seconds,
+    )
+    if page_count is not None:
+        crawl_pdf_page_count.observe(page_count)
+
+
+def record_crawl_pdf_extraction_wait(duration_seconds: float) -> None:
+    crawl_pdf_extraction_wait_seconds.observe(duration_seconds)
 
 
 def record_agent_search_success(engine: str, duration_seconds: float) -> None:

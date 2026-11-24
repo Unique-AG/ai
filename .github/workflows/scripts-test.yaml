@@ -6,6 +6,8 @@ on:
       - ".github/scripts/**"
       - ".github/workflows/scripts-test.yaml"
       - ".github/actions/get-packages-matrix/package_configuration.json"
+      - ".github/actions/container-image-vuln-gate/**"
+      - ".github/actions/pull-request-labels/**"
   push:
     branches:
       - main
@@ -13,6 +15,8 @@ on:
       - ".github/scripts/**"
       - ".github/workflows/scripts-test.yaml"
       - ".github/actions/get-packages-matrix/package_configuration.json"
+      - ".github/actions/container-image-vuln-gate/**"
+      - ".github/actions/pull-request-labels/**"
 
 jobs:
   test-scripts:
@@ -20,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -34,16 +38,33 @@ jobs:
           bats .github/scripts/tests/*.bats --tap
 
       - name: Install uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: '0.11.28'
+          version: '0.13.7'
 
       - name: Run Python unit tests
         run: |
           # Resolver tests need only stdlib; rewriter tests need tomlkit.
-          # One venv for both keeps the step simple.
-          uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
+          # Floor bumps need packaging. One venv for all keeps the step simple.
+          uv run --quiet --no-project --with 'tomlkit==0.14.0' --with 'packaging==26.2' -- \
             python3 -m unittest discover \
               --start-directory .github/scripts/tests \
               --pattern 'test_*.py' \
               --verbose
+
+  test-actions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26"
+
+      - name: Run composite action unit tests
+        run: node --test .github/actions/container-image-vuln-gate/*.test.mjs .github/actions/pull-request-labels/*.test.mjs

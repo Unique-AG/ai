@@ -31,6 +31,26 @@ _SLOT_HELP = (
     "Omit to use the configured default (see `uqadm env set-default`)."
 )
 
+_NO_ACCESS_HELP = (
+    "Do not add source/snapshot access entries (assistantAccess); the "
+    "destination ACL is left untouched. On create, the new space only has "
+    "the creator's default access."
+)
+
+_WITH_MCP_HELP = (
+    "Also attach MCP server bindings (assistantMcpServers). Each binding is "
+    "matched against the servers on the destination (see --mcp-match); "
+    "unmatched ones are dropped with a warning. Only listed servers change; "
+    "servers already bound on the destination are never removed."
+)
+
+_MCP_MATCH_HELP = (
+    "With --with-mcp-servers: how to match MCP servers to the destination. "
+    "id keeps a binding whose mcpServerId exists there. "
+    "name keeps a binding only when exactly one destination "
+    "server has that name, and sends that destination id."
+)
+
 
 def _get_cwd(ctx: typer.Context) -> Path | None:
     return (ctx.obj or {}).get("cwd")
@@ -94,11 +114,21 @@ def space_export(
             help="Write snapshot to file; suffix must be .json, .yaml, or .yml.",
         ),
     ] = None,
+    no_access: Annotated[
+        bool,
+        typer.Option(
+            "--no-access",
+            help=(
+                "Omit access entries (assistantAccess/access) from the snapshot, "
+                "so a later upsert leaves the target ACL untouched."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Export one space: JSON on stdout, or JSON/YAML to -o by extension."""
     resolved_slot = _resolve(slot)
     cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
-    cmd_export(space_id, cfg=cfg, output=output)
+    cmd_export(space_id, cfg=cfg, output=output, no_access=no_access)
 
 
 @space_app.command(
@@ -135,23 +165,25 @@ def space_upsert(
             "--dry-run", help="Print actions without calling create/update APIs."
         ),
     ] = False,
+    no_access: Annotated[
+        bool, typer.Option("--no-access", help=_NO_ACCESS_HELP)
+    ] = False,
+    with_mcp_servers: Annotated[
+        bool, typer.Option("--with-mcp-servers", help=_WITH_MCP_HELP)
+    ] = False,
     mcp_match: Annotated[
         Literal["id", "name"],
-        typer.Option(
-            "--mcp-match",
-            help=(
-                "How to match snapshot MCP servers to the destination. "
-                "id keeps a binding whose mcpServerId exists there. "
-                "name keeps a binding only when exactly one destination "
-                "server has that name, and sends that destination id."
-            ),
-        ),
+        typer.Option("--mcp-match", help=_MCP_MATCH_HELP),
     ] = "id",
 ) -> None:
     """Create or update a space from a snapshot file.
 
     Omit --target to create a new space. Provide --target SPACE_ID to update
     an existing space. --slot selects the credential slot (default slot if omitted).
+
+    Access entries in the snapshot are merged into the destination ACL
+    (never removed); pass --no-access to leave the ACL untouched. Scope rules
+    are never applied.
     """
     resolved_slot = _resolve(slot)
     target_space_id: str | None = None
@@ -167,6 +199,8 @@ def space_upsert(
         target_space_id=target_space_id,
         dry_run=dry_run,
         cwd=_get_cwd(ctx),
+        no_access=no_access,
+        with_mcp_servers=with_mcp_servers,
         mcp_match=mcp_match,
     )
 
@@ -205,6 +239,13 @@ def space_diff(
             show_default=True,
         ),
     ] = "unified",
+    ignore_access: Annotated[
+        bool,
+        typer.Option(
+            "--ignore-access",
+            help="Exclude access entries (assistantAccess/access) from the comparison.",
+        ),
+    ] = False,
 ) -> None:
     """Compare two spaces (normalized by default); exit 1 if they differ."""
     cmd_diff(
@@ -213,6 +254,7 @@ def space_diff(
         strict=strict,
         output_format=output_format,
         cwd=_get_cwd(ctx),
+        ignore_access=ignore_access,
     )
 
 
@@ -250,20 +292,23 @@ def space_migrate(
             help="Reserved for same-environment extended migration (currently informational only).",
         ),
     ] = False,
+    no_access: Annotated[
+        bool, typer.Option("--no-access", help=_NO_ACCESS_HELP)
+    ] = False,
+    with_mcp_servers: Annotated[
+        bool, typer.Option("--with-mcp-servers", help=_WITH_MCP_HELP)
+    ] = False,
     mcp_match: Annotated[
         Literal["id", "name"],
-        typer.Option(
-            "--mcp-match",
-            help=(
-                "How to match source MCP servers to the destination. "
-                "id keeps a binding whose mcpServerId exists there. "
-                "name keeps a binding only when exactly one destination "
-                "server has that name, and sends that destination id."
-            ),
-        ),
+        typer.Option("--mcp-match", help=_MCP_MATCH_HELP),
     ] = "id",
 ) -> None:
-    """Clone assistant configuration from source space to destination."""
+    """Clone assistant configuration from source space to destination.
+
+    Source access entries are merged into the destination ACL (never
+    removed); pass --no-access to leave the destination ACL untouched.
+    Scope rules are never applied.
+    """
     cmd_migrate(
         source,
         destination,
@@ -271,6 +316,8 @@ def space_migrate(
         with_knowledge=with_knowledge,
         mcp_match=mcp_match,
         cwd=_get_cwd(ctx),
+        no_access=no_access,
+        with_mcp_servers=with_mcp_servers,
     )
 
 

@@ -549,6 +549,10 @@
             "maxConcurrentCrawls": {
               "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS.",
               "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentUrlChecks": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_URL_CHECKS.",
+              "$ref": "#/$defs/valueSourceInteger"
             }
           }
         },
@@ -558,6 +562,43 @@
           "properties": {
             "maxTimeoutSeconds": {
               "description": "Maps to env var REQUEST_LIMITS_MAX_TIMEOUT_SECONDS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
+    "pdfProcessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "PDF Processing configuration. Generated from PdfSettings (PDF_* env vars).",
+      "properties": {
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "extractor": {
+              "description": "Maps to env var PDF_EXTRACTOR.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "maxPdfPages": {
+              "description": "Maps to env var PDF_MAX_PDF_PAGES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxExtractedChars": {
+              "description": "Maps to env var PDF_MAX_EXTRACTED_CHARS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "extractionTimeoutSeconds": {
+              "description": "Maps to env var PDF_EXTRACTION_TIMEOUT_SECONDS.",
+              "type": "number"
+            },
+            "maxExtractionMemoryMb": {
+              "description": "Maps to env var PDF_MAX_EXTRACTION_MEMORY_MB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentExtractions": {
+              "description": "Maps to env var PDF_MAX_CONCURRENT_EXTRACTIONS.",
               "$ref": "#/$defs/valueSourceInteger"
             }
           }

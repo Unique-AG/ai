@@ -1,0 +1,6 @@
+component: uqadm
+kind: Added
+body: '`uqadm space upsert` and `uqadm space migrate` take `--no-access` to update a space without adding the source''s access entries, so the destination keeps its access rights, and `--with-mcp-servers` to also copy MCP server bindings (skipped when migrating between environments). `uqadm space export --no-access` leaves access entries out of the snapshot, `uqadm space diff --ignore-access` compares spaces without them, and `uqadm kb sync --no-inherit-access` creates new folders without inheriting parent access. Both commands now warn that scope rules are never copied. A destination slot without `UNIQUE_API_BASE` no longer inherits the source slot''s API base during `migrate`.'
+time: 2026-11-18T10:39:57.000000+01:00
+custom:
+    Audience: admin

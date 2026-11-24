@@ -1282,9 +1282,10 @@ def test_inject_code_execution_fences__logs_warning__when_no_inline_ref_matches(
 
     assert result == text
     assert any(
-        "chart.png" in r.message and r.levelno == logging.WARNING
+        "cont_img1" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
     )
+    assert not any("chart.png" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1331,8 +1332,10 @@ def test_replace_container_image_citation__logs_warning__when_no_sandbox_link(
 
     assert replaced is False
     assert any(
-        "plot.png" in r.message and r.levelno == logging.WARNING for r in caplog.records
+        "cont_x" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert any("<redacted>.png" in r.message for r in caplog.records)
+    assert not any("plot.png" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1354,8 +1357,9 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
 
     assert replaced is False
     assert any(
-        "data.csv" in r.message and r.levelno == logging.WARNING for r in caplog.records
+        "cont_y" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert not any("data.csv" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1373,9 +1377,9 @@ def test_replace_container_html_citation__logs_warning__when_no_sandbox_link(
 
     assert replaced is False
     assert any(
-        "report.html" in r.message and r.levelno == logging.WARNING
-        for r in caplog.records
+        "cont_z" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert not any("report.html" in r.message for r in caplog.records)
 
 
 # ============================================================================
@@ -1671,9 +1675,10 @@ def test_replace_dangling_sandbox_links__replaces_and_warns__when_sandbox_link_p
     assert "could not be retrieved" in result
     assert "sandbox:/mnt/data/chart.png" not in result
     assert any(
-        "sandbox:/mnt/data/chart.png" in r.message and r.levelno == logging.WARNING
+        "Dangling sandbox link" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
     )
+    assert not any("chart.png" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1717,9 +1722,12 @@ def test_replace_dangling_sandbox_links__hallucination_message__when_ci_never_ra
     assert "could not be retrieved" not in result
     assert "sandbox:/mnt/data/report.docx" not in result
     assert any(
-        "sandbox:/mnt/data/report.docx" in r.message and r.levelno == logging.WARNING
+        "Dangling sandbox link" in r.message
+        and "ci_ran=False" in r.message
+        and r.levelno == logging.WARNING
         for r in caplog.records
     )
+    assert not any("report.docx" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1768,9 +1776,9 @@ def test_warn_unmatched_code_blocks__logs_warning__when_file_not_in_any_block(
         _warn_unmatched_code_blocks(content_map, code_blocks)
 
     assert any(
-        "report.xlsx" in r.message and r.levelno == logging.WARNING
-        for r in caplog.records
+        "cont_abc" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert not any("report.xlsx" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai

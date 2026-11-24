@@ -423,7 +423,7 @@ class HistoryManager:
 
         cited: set[int] = {
             int(m)
-            for m in re.findall(r"\[source(\d+)\]", assistant_text, re.IGNORECASE)
+            for m in re.findall(r"\[source[\s_]?(\d+)\]", assistant_text, re.IGNORECASE)
         }
 
         return [

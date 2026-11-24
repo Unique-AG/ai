@@ -114,7 +114,7 @@ jobs:
           echo "::error::dev cuts can only be dispatched from main, got '${DISPATCH_REF}'"
           exit 1
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Enough history for paths-filter to diff before..after.
           fetch-depth: 0
@@ -143,7 +143,6 @@ jobs:
             ".github/actions/get-packages-matrix/package_configuration.json"
             ".github/actions/detect-changes/action.yml"
             ".github/actions/select-packages/action.yml"
-            ".github/actions/publish-to-pypi-with-uv/action.yml"
             ".github/workflows/ci-containerize.yaml"
             ".github/workflows/cd-containerize.yaml"
             ".github/workflows/cd-helm-publish.yaml"
@@ -213,9 +212,9 @@ jobs:
 
       - name: Install uv
         if: fromJson(steps.publishable.outputs.matrix).include[0] != null
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: '0.11.28'
+          version: '0.13.7'
 
       - name: Compute CalVer cycle
         id: calver
@@ -256,26 +255,28 @@ jobs:
             echo "branch_suffix=$(tr -d '\n' < "$RUNNER_TEMP/resolve/branch_suffix.txt")"
           } >> "$GITHUB_OUTPUT"
 
-  publish:
+  build:
     needs: resolve
     if: fromJson(needs.resolve.outputs.matrix).include[0] != null
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
-    name: publish-dev-${{ matrix.id }}
+    name: build-dev-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: '0.11.28'
+          version: '0.13.7'
 
       - name: Rewrite pyproject.toml for dev version
         env:
@@ -323,9 +324,43 @@ jobs:
           " "$WHEEL" | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Upload distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-${{ matrix.id }}
+          path: ${{ matrix.dir }}/dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # Only this job can request a PyPI OIDC token. It runs no repository or
+  # build code: it downloads the distributions built above and uploads them.
+  publish:
+    needs: [resolve, build]
+    if: ${{ !cancelled() && needs.resolve.result == 'success' && needs.build.result != 'skipped' && fromJson(needs.resolve.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    environment: pypi-publish
+    permissions:
+      contents: read
+      id-token: write # PyPI Trusted Publishing (OIDC), no stored token
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
+    name: publish-dev-${{ matrix.id }}
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist-${{ matrix.id }}
+          path: dist
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.7'
+          enable-cache: false
+
       - name: Publish to PyPI
-        working-directory: ${{ matrix.dir }}
-        run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
+        run: uv publish --trusted-publishing always dist/*
 
   containerize:
     needs: [resolve, publish]
@@ -379,13 +414,13 @@ jobs:
     steps:
       - name: Generate GitHub App token
         id: app-token
-        uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
+        uses: unique-ag/actions/github/app-token-create@9524ae40b5c9e274735d1aea8435b90ed3e33ee0 # app-token-create@1.0.0
         with:
           app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Tag and notes target the commit the dev wheels were built from,
           # not whatever main looks like by the time this job runs.
@@ -480,21 +515,21 @@ jobs:
     steps:
       - name: Generate GitHub App token
         id: app-token
-        uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
+        uses: unique-ag/actions/github/app-token-create@9524ae40b5c9e274735d1aea8435b90ed3e33ee0 # app-token-create@1.0.0
         with:
           app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: '0.11.28'
+          version: '0.13.7'
 
       - name: Ensure dev-version-bump label exists
         env:

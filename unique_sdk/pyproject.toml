@@ -1,6 +1,6 @@
 [project]
 name = "unique_sdk"
-version = "2026.44.0"
+version = "2026.48.0"
 description = ""
 readme = "README.md"
 license = { text = "MIT" }
@@ -40,11 +40,11 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 
 [dependency-groups]
 dev = [
-    "python-dotenv>=1.2.2",
+    "python-dotenv>=1.2.4",
 ]
 
 [tool.deptry]

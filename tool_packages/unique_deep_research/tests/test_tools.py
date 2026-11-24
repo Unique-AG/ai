@@ -2,9 +2,11 @@
 Tests for unique_deep_research.unique_custom.tools module.
 """
 
+import logging
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from httpx import HTTPStatusError, Request, Response
 from langchain_core.runnables import RunnableConfig
 from unique_search_proxy_core.context import (
     LOCAL_REQUEST_CONTEXT,
@@ -26,6 +28,7 @@ from unique_deep_research.unique_custom.tools import (
     get_today_str,
     research_complete,
     research_complete_tool_called,
+    web_fetch,
     web_search,
 )
 
@@ -173,6 +176,62 @@ async def test_crawl_url__returns_error_message__when_request_fails() -> None:
     assert success is False
     assert "Unable to crawl URL in web_fetch" in content
     assert title is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_url__logs_error_type_and_status_without_url__when_request_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify a failed crawl logs the error type and HTTP status, not the URL.
+    Why this matters: httpx error messages include the URL, which can reveal what the user researches.
+    Setup summary: Mock AsyncClient to raise an HTTPStatusError naming the URL, assert the log omits it.
+    """
+    # Arrange
+    url = "https://example.com/private-report"
+    request = Request("GET", url)
+    mock_client = AsyncMock()
+    mock_client.get.side_effect = HTTPStatusError(
+        f"Client error '404 Not Found' for url '{url}'",
+        request=request,
+        response=Response(404, request=request),
+    )
+
+    # Act
+    _, _, success = await crawl_url(mock_client, url)
+
+    # Assert
+    assert success is False
+    assert "Failed to crawl URL: HTTPStatusError (status 404)" in caplog.text
+    assert "example.com" not in caplog.text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_web_fetch__does_not_log_url__when_fetch_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify web_fetch keeps the URL out of the log when a page cannot be fetched.
+    Why this matters: Fetched URLs can reveal what the user researches.
+    Setup summary: Patch crawl_url to fail, assert the tool result names the URL and the log does not.
+    """
+    # Arrange
+    url = "https://example.com/private-report"
+    caplog.set_level(logging.INFO)
+
+    # Act
+    with patch(
+        "unique_deep_research.unique_custom.tools.crawl_url",
+        AsyncMock(return_value=("Unable to crawl URL in web_fetch", None, False)),
+    ):
+        result = await web_fetch.ainvoke({"url": url}, RunnableConfig())
+
+    # Assert
+    assert url in result
+    assert "Unable to fetch content in web_fetch" in caplog.text
+    assert "example.com" not in caplog.text
 
 
 @pytest.mark.ai

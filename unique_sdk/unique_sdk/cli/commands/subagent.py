@@ -5,13 +5,25 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import signal
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
 
 from unique_sdk._error import APIError
 from unique_sdk.api_resources._space import Space
 from unique_sdk.cli.state import ShellState
-from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
+from unique_sdk.cli.subagent_turns import (
+    TURNS_RELATIVE_DIR,
+    record_turn_ended,
+    record_turn_started,
+)
+from unique_sdk.cli.workspace import manifest_path
+from unique_sdk.utils.chat_in_space import (
+    MessageWaitTimeoutError,
+    send_message_and_wait_for_completion,
+)
 
 CONFIG_FILENAME = ".unique-subagents.json"
 STATE_FILENAME = ".unique-subagent-chats.json"
@@ -30,6 +42,12 @@ class SubagentDefinition(TypedDict, total=False):
     pollInterval: float
     maxWait: float
     stopCondition: Literal["stoppedStreamingAt", "completedAt"]
+
+
+@dataclass
+class _CreatedTurn:
+    chat_id: str | None = None
+    message_id: str | None = None
 
 
 def is_error_output(output: str) -> bool:
@@ -196,6 +214,7 @@ async def _send_to_subagent(
     parent_chat_id: str | None,
     parent_message_id: str | None,
     parent_assistant_id: str | None,
+    on_turn_created: Callable[[str, str], None],
 ) -> Space.Message:
     assistant_id = _get_str(
         subagent,
@@ -204,6 +223,7 @@ async def _send_to_subagent(
         required=True,
     )
     assert assistant_id is not None
+    _cancel_wait_on_sigterm()
 
     correlation: Space.Correlation | None = None
     if parent_chat_id and parent_message_id and parent_assistant_id:
@@ -212,6 +232,9 @@ async def _send_to_subagent(
             "parentChatId": parent_chat_id,
             "parentAssistantId": parent_assistant_id,
         }
+
+    async def _on_message_created(posted: Space.Message) -> None:
+        on_turn_created(posted["chatId"], posted["id"])
 
     return await send_message_and_wait_for_completion(
         user_id=state.config.user_id,
@@ -234,6 +257,56 @@ async def _send_to_subagent(
         ),
         stop_condition=_get_stop_condition(subagent),
         correlation=correlation,
+        stop_on_abandon=True,
+        on_message_created=_on_message_created,
+    )
+
+
+def _cancel_wait_on_sigterm() -> None:
+    """Turn SIGTERM into a cancellation, so the wait stops the subagent turn first."""
+    task = asyncio.current_task()
+    if task is None:
+        return
+    try:
+        asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, task.cancel)
+    except (NotImplementedError, RuntimeError, ValueError):
+        # Windows event loops and non-main threads cannot install signal handlers.
+        return
+
+
+def _remember_chat(
+    *,
+    state_path: Path,
+    chat_state: dict[str, str],
+    tool_name: str,
+    chat_id: str,
+) -> bool:
+    chat_state = chat_state or _load_chat_state(state_path)
+    chat_state[tool_name] = chat_id
+    try:
+        _save_chat_state(state_path, chat_state)
+    except OSError:
+        return False
+    return True
+
+
+def _timeout_note(*, display_name: str, timeout: MessageWaitTimeoutError) -> str:
+    if timeout.turn_stopped:
+        return f"{display_name} did not answer in time. Its turn was stopped."
+    return (
+        f"{display_name} did not answer in time and could not be stopped. "
+        f"It is still running in chat {timeout.chat_id}. "
+        "Do not send the same task again."
+    )
+
+
+def _terminated_note(*, display_name: str, chat_id: str | None) -> str:
+    note = f"{SUBAGENT_ERROR_PREFIX} terminated while waiting for {display_name}."
+    if chat_id is None:
+        return note
+    return (
+        f"{note} Its turn in chat {chat_id} was asked to stop. "
+        "Do not send the same task again before checking that chat."
     )
 
 
@@ -267,26 +340,69 @@ def cmd_subagent(
             chat_state = _load_chat_state(state_path)
             chat_id = chat_state.get(tool_name)
 
-        response = asyncio.run(
-            _send_to_subagent(
-                state=state,
-                subagent=subagent,
-                message=message,
-                chat_id=chat_id,
+        remembers_chat = configured_chat_id is None and reuse_chat
+        turns_dir = manifest_path(TURNS_RELATIVE_DIR)
+        created = _CreatedTurn()
+        saved_chat_ids: set[str] = set()
+
+        def _on_turn_created(turn_chat_id: str, turn_message_id: str) -> None:
+            created.chat_id = turn_chat_id
+            created.message_id = turn_message_id
+            record_turn_started(
+                turns_dir=turns_dir,
+                chat_id=turn_chat_id,
+                message_id=turn_message_id,
                 parent_chat_id=parent_chat_id,
                 parent_message_id=parent_message_id,
-                parent_assistant_id=parent_assistant_id,
             )
-        )
+            if remembers_chat and _remember_chat(
+                state_path=state_path,
+                chat_state=chat_state,
+                tool_name=tool_name,
+                chat_id=turn_chat_id,
+            ):
+                saved_chat_ids.add(turn_chat_id)
+
+        try:
+            response = asyncio.run(
+                _send_to_subagent(
+                    state=state,
+                    subagent=subagent,
+                    message=message,
+                    chat_id=chat_id,
+                    parent_chat_id=parent_chat_id,
+                    parent_message_id=parent_message_id,
+                    parent_assistant_id=parent_assistant_id,
+                    on_turn_created=_on_turn_created,
+                )
+            )
+        except MessageWaitTimeoutError as timeout:
+            # A turn that could not be stopped keeps its record, so the
+            # caller's host can stop it later.
+            if timeout.turn_stopped:
+                record_turn_ended(turns_dir=turns_dir, message_id=timeout.message_id)
+            note = _timeout_note(display_name=display_name, timeout=timeout)
+            return f"{SUBAGENT_ERROR_PREFIX} {note}"
+        except asyncio.CancelledError:
+            # The wait does not report whether its stop succeeded, so the
+            # record stays. The host skips a turn that is already stopped.
+            print(
+                _terminated_note(display_name=display_name, chat_id=created.chat_id),
+                flush=True,
+            )
+            raise SystemExit(128 + signal.SIGTERM) from None
+
+        if created.message_id is not None:
+            record_turn_ended(turns_dir=turns_dir, message_id=created.message_id)
 
         response_chat_id = response.get("chatId")
-        if configured_chat_id is None and reuse_chat and response_chat_id:
-            chat_state = chat_state or _load_chat_state(state_path)
-            chat_state[tool_name] = response_chat_id
-            try:
-                _save_chat_state(state_path, chat_state)
-            except OSError:
-                pass
+        if remembers_chat and response_chat_id not in (None, *saved_chat_ids):
+            _remember_chat(
+                state_path=state_path,
+                chat_state=chat_state,
+                tool_name=tool_name,
+                chat_id=response_chat_id,
+            )
 
         return _format_response(
             tool_name=tool_name,

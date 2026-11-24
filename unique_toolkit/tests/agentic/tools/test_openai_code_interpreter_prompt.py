@@ -1,4 +1,4 @@
-"""Tests for the default code interpreter system prompt (fence variant)."""
+"""Tests for the default code interpreter system prompts (base and fence variants)."""
 
 import pytest
 
@@ -6,8 +6,81 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool import (
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool.config import (
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
 )
+
+_DEFAULT_PROMPTS = pytest.mark.parametrize(
+    "prompt",
+    [
+        DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
+    ],
+    ids=["base", "fence"],
+)
+
+
+def _bullet(prompt: str, identifier: str) -> str:
+    """Return the prompt line that names `identifier`, so asserts check one rule only."""
+    return next(line for line in prompt.splitlines() if identifier in line)
+
+
+@pytest.mark.ai
+@_DEFAULT_PROMPTS
+def test_default_prompts__require_wrapping_pdf_layout__and_width_check(
+    prompt: str,
+) -> None:
+    """
+    Purpose: Verify both default prompts carry the PDF rules the fix depends on.
+    Why this matters: UN-28750 reported a PDF drawn line by line with `canvas.drawString`,
+    so long lines ran off the page and words were cut off.
+    Setup summary: Assert the identifiers for Platypus and the check, and that the bullet
+    naming `drawString` still forbids it.
+    """
+    assert "SimpleDocTemplate" in prompt
+    assert "NEVER" in _bullet(prompt, "drawString")
+    assert "pdfplumber" in prompt
+
+
+@pytest.mark.ai
+@_DEFAULT_PROMPTS
+def test_default_prompts__pdf_rules_cover_tables_escaping_rebuild_and_empty_pdf(
+    prompt: str,
+) -> None:
+    """
+    Purpose: Verify both default prompts carry the rules for the cases found on UAT1.
+    Why this matters: Plain-string table cells ran off the page, unescaped `&` printed a stray
+    `;` (and a `"` in a URL breaks the `href`), and a regeneration that reused a built
+    `story` delivered a PDF with 0 pages that still passed a width-only check.
+    Setup summary: Assert the identifiers each rule names, plus short tokens in the
+    `pdfplumber` bullet for its page, words and width asserts, not whole sentences, so the
+    wording can keep improving.
+    """
+    assert "Paragraph" in prompt
+    assert "xml.sax.saxutils.escape" in prompt
+    assert "&quot;" in prompt
+    assert "doc.build(story)" in prompt
+    check = _bullet(prompt, "pdfplumber")
+    assert "one page" in check
+    assert "words" in check
+    assert "x1" in check
+
+
+@pytest.mark.ai
+@_DEFAULT_PROMPTS
+def test_default_prompts__pdf_rules_sit_before_dataframe_section(prompt: str) -> None:
+    """
+    Purpose: Verify the PDF section is placed with the file rules, ahead of the table section.
+    Why this matters: The section is concatenated into the prompt; a misplaced join would split
+    another section or drop the text that follows it.
+    Setup summary: Compare the positions of the PDF heading and the dataframe heading.
+    """
+    pdf_index = prompt.index("PDF files: CRITICAL rules")
+    tables_index = prompt.index("# Displaying Dataframes/Tables:")
+    file_types_index = prompt.index("Only the following file types are allowed")
+
+    assert file_types_index < pdf_index < tables_index
+    assert prompt.count("PDF files: CRITICAL rules") == 1
 
 
 @pytest.mark.ai

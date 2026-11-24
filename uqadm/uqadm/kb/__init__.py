@@ -182,6 +182,23 @@ def kb_sync(
             help="Upload without archiving prior blobs.",
         ),
     ] = False,
+    inherit_access: Annotated[
+        bool,
+        typer.Option(
+            "--inherit-access/--no-inherit-access",
+            help=(
+                "Whether folders created by sync inherit parent access "
+                "(default: inherit). Existing folders are never changed."
+            ),
+        ),
+    ] = True,
+    skip_ingestion: Annotated[
+        bool,
+        typer.Option(
+            "--skip-ingestion",
+            help="Store files as uploaded, without ingesting them (for code and skills).",
+        ),
+    ] = False,
 ) -> None:
     """Upload the contents of LOCAL_DIR into a knowledge-base folder.
 
@@ -203,6 +220,8 @@ def kb_sync(
       uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
       uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
       uqadm kb sync ./docs --scope-id scope_abc --no-version
+      uqadm kb sync ./docs --folder-path /Private/New -r --no-inherit-access
+      uqadm kb sync ./skills --folder-path /Skills -r --skip-ingestion
     """
     resolved_slot = _resolve(slot)
     cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
@@ -214,6 +233,8 @@ def kb_sync(
         recursive=recursive,
         dry_run=dry_run,
         versioning=not no_version,
+        inherit_access=inherit_access,
+        skip_ingestion=skip_ingestion,
     )
 
 

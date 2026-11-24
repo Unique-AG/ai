@@ -2,8 +2,8 @@ import json
 from logging import getLogger
 from typing import Any, Sequence
 
-from jinja2 import Template
 from unique_toolkit import LanguageModelService
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.validators import LMI
 
 from unique_swot.services.generation.agentic.commands import (
@@ -154,13 +154,13 @@ async def extract_facts(
     component_definition = get_component_definition(
         component, component_definition_prompt_config
     )
-    system_prompt = Template(prompts_config.system_prompt).render(
+    system_prompt = sandboxed_template(prompts_config.system_prompt).render(
         company_name=company_name,
         component=component,
         component_definition=component_definition,
     )
 
-    user_message = Template(prompts_config.user_prompt).render(
+    user_message = sandboxed_template(prompts_config.user_prompt).render(
         company_name=company_name,
         component=component,
         source_batches=source_batches,
@@ -199,7 +199,7 @@ async def _generate_plan(
     swot_report_registry: SWOTReportRegistry,
     prompts_config: PlanPromptConfig,
 ) -> GenerationPlan:
-    system_prompt = Template(prompts_config.system_prompt).render(
+    system_prompt = sandboxed_template(prompts_config.system_prompt).render(
         company_name=company_name,
         component=component,
     )
@@ -211,7 +211,7 @@ async def _generate_plan(
 
     fact_view = json.dumps(fact_id_map, indent=1)
 
-    user_message = Template(prompts_config.user_prompt).render(
+    user_message = sandboxed_template(prompts_config.user_prompt).render(
         fact_view=fact_view,
         existing_sections_view=existing_sections_view,
     )
@@ -332,14 +332,14 @@ async def _generate_cluster_plan(
     prompts_config: ClusterPlanPromptConfig,
 ) -> GenerationPlan:
     """One-shot clustering planner that groups all accumulated facts into sections."""
-    system_prompt = Template(prompts_config.system_prompt).render(
+    system_prompt = sandboxed_template(prompts_config.system_prompt).render(
         company_name=company_name,
         component=component,
     )
 
     fact_view = json.dumps(fact_id_map, indent=1)
 
-    user_message = Template(prompts_config.user_prompt).render(
+    user_message = sandboxed_template(prompts_config.user_prompt).render(
         fact_view=fact_view,
     )
 

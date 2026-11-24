@@ -638,6 +638,22 @@ class TestCmdWebSearch:
         assert mock_search.call_args[1]["chatId"] == "chat_123"
 
     @patch("unique_sdk.WebSearch.search")
+    def test_cmd_web_search_with_message_id_sends_message_id(
+        self, mock_search: MagicMock
+    ) -> None:
+        mock_search.return_value = _FakeResource(_make_search_payload(results=[]))
+        cmd_web_search(_state(), "x", chat_id="chat_123", message_id="msg_1")
+        assert mock_search.call_args[1]["messageId"] == "msg_1"
+
+    @patch("unique_sdk.WebSearch.search")
+    def test_cmd_web_search_without_message_id_omits_message_id(
+        self, mock_search: MagicMock
+    ) -> None:
+        mock_search.return_value = _FakeResource(_make_search_payload(results=[]))
+        cmd_web_search(_state(), "x", chat_id="chat_123")
+        assert "messageId" not in mock_search.call_args[1]
+
+    @patch("unique_sdk.WebSearch.search")
     def test_cmd_web_search_without_chat_id_omits_chat_id(
         self, mock_search: MagicMock
     ) -> None:
@@ -710,6 +726,17 @@ class TestCmdWebCrawl:
         assert "nope" in out
 
     @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_request_rejection_is_a_crawl_error(
+        self, mock_crawl: MagicMock
+    ) -> None:
+        mock_crawl.side_effect = unique_sdk.InvalidRequestError(
+            "property messageId should not exist", params=None, http_status=400
+        )
+        out = cmd_web_crawl(_state(), ["u"], message_id="msg_1")
+        assert out.startswith("web-crawl:")
+        assert "messageId" in out
+
+    @patch("unique_sdk.WebCrawl.crawl")
     def test_cmd_web_crawl_with_chat_id_sends_chat_id(
         self, mock_crawl: MagicMock
     ) -> None:
@@ -718,12 +745,56 @@ class TestCmdWebCrawl:
         assert mock_crawl.call_args[1]["chatId"] == "chat_123"
 
     @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_message_id_is_sent_only_when_set(
+        self, mock_crawl: MagicMock
+    ) -> None:
+        mock_crawl.return_value = _FakeResource(_make_crawl_payload(results=[]))
+        cmd_web_crawl(_state(), ["https://a"], message_id="msg_1")
+        cmd_web_crawl(_state(), ["https://a"])
+        sent = [call[1] for call in mock_crawl.call_args_list]
+        assert sent[0]["messageId"] == "msg_1"
+        assert "messageId" not in sent[1]
+
+    @patch("unique_sdk.WebCrawl.crawl")
     def test_cmd_web_crawl_without_chat_id_omits_chat_id(
         self, mock_crawl: MagicMock
     ) -> None:
         mock_crawl.return_value = _FakeResource(_make_crawl_payload(results=[]))
         cmd_web_crawl(_state(), ["https://a"])
         assert "chatId" not in mock_crawl.call_args[1]
+
+    @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_writes_to_the_given_refs_log(
+        self, mock_crawl: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_crawl.return_value = _FakeResource(
+            _make_crawl_payload(
+                results=[{"url": "https://a", "content": "page", "error": None}]
+            )
+        )
+        manifest = tmp_path / "turn" / ".unique" / "web-refs.jsonl"
+
+        cmd_web_crawl(_state(), ["https://a"], refs_log_path=manifest)
+
+        rows = [json.loads(line) for line in manifest.read_text().splitlines()]
+        assert [row["url"] for row in rows] == ["https://a"]
+
+    @patch("unique_sdk.WebSearch.search")
+    def test_cmd_web_search_writes_to_the_given_refs_log(
+        self, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_search.return_value = _FakeResource(
+            _make_search_payload(
+                results=[
+                    {"url": "https://a", "title": "A", "snippet": "s", "content": ""}
+                ]
+            )
+        )
+        manifest = tmp_path / "turn" / ".unique" / "web-refs.jsonl"
+
+        cmd_web_search(_state(), "x", refs_log_path=manifest)
+
+        assert manifest.read_text().count("https://a") == 1
 
 
 class TestApiResourceContract:

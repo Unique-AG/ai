@@ -21,6 +21,11 @@ from unique_internal_search.uploaded_search.config import (
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit._common.utils.jinja.sandbox import (
+    TemplateError,
+    validate_sandboxed_template,
+)
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -68,6 +73,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
+from unique_toolkit.log_redaction import redact_text
 from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
@@ -274,8 +280,47 @@ class LoopConfiguration(BaseToolConfig):
     model_specific: ModelSpecificConfig = ModelSpecificConfig()
 
 
+class ContradictionCheckConfig(BaseToolConfig):
+    """Space setting for Conduct's contradiction check."""
+
+    enabled: bool = Field(
+        default=True,
+        description=(
+            "Run the check on answers from this space. By default it uses the "
+            "space model."
+        ),
+    )
+    language_model: Annotated[
+        LanguageModelName | None,
+        RJSFMetaTag(
+            {
+                "ui:field": "nullableActive",
+                "ui:fieldReplacesAnyOrOneOf": True,
+                "ui:options": {
+                    "activeLabel": "Use a different model",
+                    "activeValue": LanguageModelName.AZURE_GPT_51_2025_1113.value,
+                },
+            }
+        ),
+    ] = Field(
+        default=None,
+        title="Model",
+        description=(
+            "The model that judges the answer. When unset, the space's "
+            "chat model is used."
+        ),
+    )
+
+
 class EvaluationConfig(BaseToolConfig):
     hallucination_config: HallucinationConfig = HallucinationConfig()
+    contradiction_check_config: ContradictionCheckConfig = Field(
+        default_factory=ContradictionCheckConfig,
+        title="Hallucination check",
+        description=(
+            "Checks cited search answers for statements that contradict a source."
+        ),
+    )
 
 
 # ------------------------------------------------------------
@@ -284,6 +329,8 @@ class EvaluationConfig(BaseToolConfig):
 
 
 class UniqueAIPromptConfig(BaseToolConfig):
+    model_config = get_configuration_dict(hide_input_in_errors=True)
+
     system_prompt_template: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(rows=25),
@@ -309,6 +356,17 @@ class UniqueAIPromptConfig(BaseToolConfig):
         title="User Metadata",
         description="User metadata fields to be ingested in the system prompt.",
     )
+
+    @field_validator("system_prompt_template", "user_message_prompt_template")
+    @classmethod
+    def validate_prompt_template(cls, value: str) -> str:
+        try:
+            return validate_sandboxed_template(value)
+        except TemplateError as exc:
+            redacted = redact_text(value, label="prompt")
+            raise ValueError(
+                f"Invalid prompt template {redacted} ({type(exc).__name__})."
+            ) from None
 
 
 class UniqueAIServices(BaseToolConfig):
@@ -531,6 +589,9 @@ GPT_FRONTIER_MODELS: frozenset[LanguageModelName] = frozenset(
         LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
         LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
         LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+        LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
+        LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+        LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
         LanguageModelName.LITELLM_OPENAI_GPT_55,
         LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
         LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
@@ -540,11 +601,16 @@ GPT_FRONTIER_MODELS: frozenset[LanguageModelName] = frozenset(
         LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
         LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
         LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+        LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
     }
 )
 
 
 class UniqueAIConfig(BaseToolConfig):
+    model_config = get_configuration_dict(hide_input_in_errors=True)
+
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
     agent: UniqueAIAgentConfig = UniqueAIAgentConfig()

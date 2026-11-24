@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
@@ -26,6 +26,13 @@ class FollowUpQuestionsConfig(BaseModel):
     language_model: LMI = Field(
         default=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
         description="The language model to be used for the follow-up question.",
+    )
+    additional_llm_options: dict[str, Any] = Field(
+        default={},
+        description=(
+            "Additional options passed to every follow-up questions LLM call, "
+            "including language detection (e.g. `reasoning_effort`)."
+        ),
     )
 
     user_prompt: Annotated[

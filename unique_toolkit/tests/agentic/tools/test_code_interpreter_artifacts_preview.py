@@ -144,7 +144,8 @@ async def test_save_code_execution_artifact__office_file__uploads_with_preview(
             "container_id": "cntr-1",
             "file_id": "cfile-1",
             "filepath": "/mnt/data/random_document.docx",
-        }
+        },
+        "assistantGenerated": True,
     }
 
 

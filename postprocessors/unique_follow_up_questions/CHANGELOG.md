@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.46.0...unique-follow-up-questions-v2026.48.0) (2026-11-20)
+
+
+### Bug Fixes
+
+* **follow-up-questions:** pass additionalLlmOptions to follow-up LLM calls [UN-28359] ([#2725](https://github.com/Unique-AG/ai/issues/2725)) ([189af77](https://github.com/Unique-AG/ai/commit/189af7714c4c22d91af8e239e6f5f83f73f859be))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.44.0...unique-follow-up-questions-v2026.46.0) (2026-11-06)
+
+
+### Bug Fixes
+
+* **toolkit:** render configurable prompt templates in a jinja sandbox ([#2658](https://github.com/Unique-AG/ai/issues/2658)) ([87c67c7](https://github.com/Unique-AG/ai/commit/87c67c74384077953e88447a113614be7f701633))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.42.0...unique-follow-up-questions-v2026.44.0) (2026-10-23)
 
 

@@ -6,10 +6,12 @@ from typing import (
     TypedDict,
     cast,
 )
+from urllib.parse import quote
 
 from typing_extensions import Unpack
 
 from unique_sdk._api_resource import APIResource
+from unique_sdk._error import InvalidRequestError
 from unique_sdk._request_options import RequestOptions
 
 
@@ -163,8 +165,14 @@ class MagicTableActivityResponse(TypedDict):
 
 
 class MagicTableActionResult(TypedDict, total=False):
-    """Generic `{status, message?}` response from lifecycle mutations (import, generate-artifact, sheet metadata writes)."""
+    """Action response from a magic-table lifecycle mutation.
 
+    ``object`` is ``magic-table-action``. ``id`` is the sheet the action was
+    performed on. ``message`` is set when the API sent one.
+    """
+
+    object: Literal["magic-table-action"]
+    id: str
     status: bool
     message: str | None
 
@@ -763,6 +771,62 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+            ),
+        )
+
+    @classmethod
+    async def delete_row(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        rowId: str,
+    ) -> MagicTableActionResult:
+        """Permanently delete one content row by id.
+
+        Calls ``DELETE /magic-table/{tableId}/row/{rowId}``. ``rowId`` is the
+        id on a cell from ``get_sheet_data(..., includeCells=True)`` or
+        ``get_cell``, not the row order.
+        The header row, a locked row, and a row in a final review status are
+        rejected. A caller who is not a member of the sheet is rejected. A
+        row on a completed sheet can be deleted; the sheet status is then
+        recomputed. A missing sheet or row is not found.
+
+        Args:
+            user_id (str): Caller user id.
+            company_id (str): Caller company id.
+            tableId (str): Agentic Table sheet id.
+            rowId (str): Row id (``mt_row_...``), not the row order.
+
+        Returns:
+            MagicTableActionResult: ``object`` is ``magic-table-action``,
+            ``id`` is the sheet id, ``status`` says whether the delete was
+            accepted, and ``message`` is optional.
+
+        Raises:
+            InvalidRequestError: When ``rowId`` is ``.`` or ``..``. Those
+                segments are resolved by the HTTP client and would not address
+                the row.
+            UniqueError: On HTTP failure, including 400 for a rejected row and
+                404 when the sheet or row does not exist.
+        """
+        # Quote both segments. A raw slash in rowId would select
+        # DELETE /magic-table/{tableId}/row/metadata/{metadataId}.
+        # "." and ".." are not encoded by quote, and the HTTP client resolves
+        # them, so "." becomes DELETE .../row and ".." becomes DELETE .../{tableId}.
+        if rowId in {".", ".."}:
+            raise InvalidRequestError(
+                "rowId must be a row id, not '.' or '..'",
+                "rowId",
+            )
+        url = f"/magic-table/{quote(tableId, safe='')}/row/{quote(rowId, safe='')}"
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "delete",
+                url,
+                user_id,
+                company_id,
             ),
         )
 

@@ -832,12 +832,7 @@ class ContentService:
             },
         )
 
-        content: list[Content] = []
-        for c in chat_contents:
-            if self.is_file_content(c.key):
-                content.append(c)
-
-        return content
+        return [c for c in chat_contents if not self.is_image_content(c.key)]
 
     async def get_documents_uploaded_to_chat_async(self) -> list[Content]:
         chat_contents = await self.search_contents_async(
@@ -848,12 +843,7 @@ class ContentService:
             },
         )
 
-        content: list[Content] = []
-        for c in chat_contents:
-            if self.is_file_content(c.key):
-                content.append(c)
-
-        return content
+        return [c for c in chat_contents if not self.is_image_content(c.key)]
 
     def get_images_uploaded_to_chat(self) -> list[Content]:
         chat_contents = self.search_contents(

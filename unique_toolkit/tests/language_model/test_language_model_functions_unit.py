@@ -560,6 +560,12 @@ def test_supported_reasoning_efforts_set_correctly():
     _, effort = kimi.resolve_temp_and_reasoning(0.0, "medium")
     assert effort == "medium"
 
+    kimi_k31_pro = LanguageModelInfo.from_name(LanguageModelName.LITELLM_KIMI_K3_1_PRO)
+    assert kimi_k31_pro.supported_reasoning_efforts == ["low", "high", "max"]
+    assert kimi_k31_pro.default_options["reasoning_effort"] == "max"
+    _, effort = kimi_k31_pro.resolve_temp_and_reasoning(0.0, None)
+    assert effort == "max"
+
     deepseek_v41_flash = LanguageModelInfo.from_name(
         LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH
     )
@@ -720,3 +726,59 @@ def test_caller_supplied_max_completion_tokens_wins_over_max_tokens():
 
     assert "max_tokens" not in options
     assert options["max_completion_tokens"] == 200
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+        LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+        LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+    ],
+)
+def test_gpt_62_chat_completions_options_omit_unsupported_params(
+    model_name: LanguageModelName,
+) -> None:
+    """
+    Purpose: GPT-6.2 Chat Completions requests omit temperature, top_p, logprobs and top_logprobs.
+    Why this matters: The GPT-6.2 migration guide lists these as unsupported parameters.
+    Setup summary: Pass all four through other_options and temperature; assert none are forwarded.
+    """
+    options = _prepare_options_for_model(
+        model_name,
+        {"top_p": 0.9, "logprobs": True, "top_logprobs": 3},
+    )
+
+    for key in ("temperature", "top_p", "logprobs", "top_logprobs"):
+        assert key not in options
+
+
+@pytest.mark.ai
+def test_other_models_chat_completions_keep_temperature() -> None:
+    """
+    Purpose: Models without the flag still receive temperature.
+    Why this matters: The omission must not leak to other models.
+    Setup summary: Prepare options for GPT-4o and assert temperature is set.
+    """
+    options = _prepare_options_for_model(LanguageModelName.AZURE_GPT_4o_2024_1120, {})
+
+    assert "temperature" in options
+
+
+@pytest.mark.ai
+def test_gpt_62_chat_completions_options_omit_temperature_for_string_model_name() -> (
+    None
+):
+    """
+    Purpose: A registered GPT-6.2 name passed as a plain string still omits temperature.
+    Why this matters: The public functions accept ``LanguageModelName | str``.
+    Setup summary: Pass the enum value as a string and assert temperature is not forwarded.
+    """
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_62_SOL_2026_1117.value, {"top_p": 0.9}
+    )
+
+    assert "temperature" not in options
+    assert "top_p" not in options

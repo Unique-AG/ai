@@ -1,0 +1,132 @@
+name: "[Security] Bump constraints"
+
+# Opens the pull request as github-actions[bot]. pull_request workflows do not
+# run on that PR; a later human push starts them.
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Optional. One package per line: name, or name>=version. Empty applies every fix uv audit reports."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: security-bump-constraints
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Bump floors and open a PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+
+      - uses: ./.github/actions/setup-uv
+        with:
+          install_dependencies: "false"
+
+      - name: Audit the lock
+        run: |
+          set -euo pipefail
+          capture() {
+            out="$1"
+            shift
+            err="$(mktemp)"
+            rc=0
+            uv audit --preview-features audit-command,json-output --frozen --output-format json "$@" >"$out" 2>"$err" || rc=$?
+            if [ "$rc" -gt 1 ]; then
+              echo "uv audit failed to run" >&2
+              cat "$err" >&2
+              rm -f "$err"
+              exit "$rc"
+            fi
+            rm -f "$err"
+          }
+          capture /tmp/audit-default.json
+          capture /tmp/audit-docs.json --only-group docs
+          jq -s '{vulnerabilities: (map(.vulnerabilities // []) | add)}' \
+            /tmp/audit-default.json /tmp/audit-docs.json > /tmp/audit.json
+
+      - name: Raise constraint floors
+        id: apply
+        env:
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$PACKAGES" > /tmp/packages.txt
+          uv run --quiet --no-project --with 'packaging==26.2' -- \
+            python3 .github/scripts/bump-constraints.py apply \
+              --pyproject pyproject.toml \
+              --packages /tmp/packages.txt \
+              --audit /tmp/audit.json \
+              --manifest /tmp/bumps.json
+          changed="$(jq -r '.changed' /tmp/bumps.json)"
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+          if [ "$changed" != "true" ]; then
+            echo "No floors to raise. No pull request."
+          fi
+
+      - name: Relock upgraded packages
+        if: steps.apply.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          args=()
+          while IFS= read -r name; do
+            args+=(--upgrade-package "$name")
+          done < <(jq -r '.bumps[] | select(.changed) | .name' /tmp/bumps.json)
+          if ! uv lock "${args[@]}"; then
+            echo "Lock failed. If the release is inside the 3-day exclude-newer window, add an exclude-newer-package entry and rerun." >&2
+            exit 1
+          fi
+          uv run --quiet --no-project --with 'packaging==26.2' -- \
+            python3 .github/scripts/bump-constraints.py verify \
+              --lock uv.lock \
+              --manifest /tmp/bumps.json
+
+      - name: Open pull request
+        if: steps.apply.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          count="$(jq '[.bumps[] | select(.changed)] | length' /tmp/bumps.json)"
+          if [ "$count" -eq 1 ]; then
+            name="$(jq -r '.bumps[] | select(.changed) | .name' /tmp/bumps.json)"
+            floor="$(jq -r '.bumps[] | select(.changed) | .floor' /tmp/bumps.json)"
+            title="fix(deps): bump ${name} to >=${floor}"
+          else
+            title="fix(deps): bump dependency floors"
+          fi
+          branch="fix/security-bump-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add pyproject.toml uv.lock
+          git commit -m "$title"
+          git push -u origin HEAD
+
+          body="$(mktemp)"
+          {
+            echo "## Summary"
+            echo "- Raises dependency floors in \`constraint-dependencies\` and regenerates \`uv.lock\`."
+            echo "- Opened by github-actions[bot]. Workflows that run on pull_request do not start for this PR."
+            echo
+            echo "## Bumps"
+            echo
+            echo "| package | previous | floor | locked | advisory |"
+            echo "| --- | --- | --- | --- | --- |"
+            jq -r '.bumps[] | select(.changed) | "| `\(.name)` | `\(.previous // "—")` | `>=\(.floor)` | `\(.locked)` | \(.audit) |"' /tmp/bumps.json
+            echo
+            echo "## Test plan"
+            echo "- [ ] \`uv lock\` resolved each requested floor"
+          } > "$body"
+
+          gh pr create --title "$title" --body-file "$body" --head "$branch" --base main --label no-changelog

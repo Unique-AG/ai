@@ -14,6 +14,9 @@ import unique_search_proxy_client.web.api.v1.crawl as crawl_module
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 from unique_search_proxy_client.web.core.crawl_limiter import CrawlLimiter
+from unique_search_proxy_client.web.core.provider_response import (
+    crawl_forbidden_target,
+)
 from unique_search_proxy_client.web.core.url_safety.gate import UrlSafetyGateResult
 
 
@@ -188,20 +191,26 @@ def test_crawl__clamps_timeout__when_above_server_ceiling(
     """
     Purpose: Verify a crawl timeout above the server ceiling is lowered.
     Why this matters: Callers must not hold a crawl slot longer than allowed.
-    Setup summary: Ceiling 1s, request timeout 600s, gate sleeping 2s;
-        assert 504 reporting the 1s ceiling.
+    Setup summary: Ceiling 1s, request timeout 600s; assert the deadline given
+        to the URL safety gate is at most 1s away.
     """
+    seconds_left: list[float] = []
 
-    async def slow_gate(
-        _urls: list[str],
+    async def record_deadline(
+        urls: list[str],
         *,
         redirect_http_client: object | None = None,
+        deadline: float | None = None,
     ) -> UrlSafetyGateResult:
         del redirect_http_client
-        await asyncio.sleep(2)
-        return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
+        assert deadline is not None
+        seconds_left.append(deadline - asyncio.get_running_loop().time())
+        return UrlSafetyGateResult(
+            allowed_targets=[],
+            blocked_by_index={0: crawl_forbidden_target(urls[0], "blocked")},
+        )
 
-    monkeypatch.setattr(crawl_module, "apply_url_safety_gate", slow_gate)
+    monkeypatch.setattr(crawl_module, "apply_url_safety_gate", record_deadline)
     monkeypatch.setattr(
         crawl_module,
         "request_limits_settings",
@@ -219,5 +228,5 @@ def test_crawl__clamps_timeout__when_above_server_ceiling(
         },
     )
 
-    assert response.status_code == 504
-    assert "after 1s" in response.json()["error"]["message"]
+    assert response.status_code == 200
+    assert seconds_left[0] <= 1

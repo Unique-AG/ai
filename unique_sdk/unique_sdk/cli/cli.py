@@ -20,6 +20,7 @@ from unique_sdk.cli.commands.agentic_table import (
 )
 from unique_sdk.cli.commands.agentic_table_write import (
     cmd_create_sheet,
+    cmd_delete_row,
     cmd_export,
     cmd_import,
     cmd_rerun_row,
@@ -96,6 +97,7 @@ from unique_sdk.cli.commands.scheduled_tasks import (
 )
 from unique_sdk.cli.commands.search import (
     cmd_search,
+    cmd_search_many,
     cmd_uploaded_search,
 )
 from unique_sdk.cli.commands.search import (
@@ -545,7 +547,7 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
 
 
 @main.command(name="cite")
-@click.argument("name_or_id")
+@click.argument("names_or_ids", nargs=-1, required=True)
 @click.option(
     "--pages",
     "-p",
@@ -569,19 +571,22 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
 @click.pass_context
 def cite(
     ctx: click.Context,
-    name_or_id: str,
+    names_or_ids: tuple[str, ...],
     pages: str | None,
     read_method: str,
 ) -> None:
-    """Declare page citations for a file.
+    """Declare page citations for one or more files.
 
     \b
     Registers [filesourceN] markers for pages you referenced in your answer.
     Does NOT read or extract the file — use your own tools for that.
-    NAME_OR_ID can be a file path, current-directory file name, or content ID.
+    Each NAME_OR_ID can be a file path, current-directory file name, or
+    content ID. Pass several to cite them in one call.
     --read-method is mandatory: it records how you read the page(s).
     --pages is optional; omit it to cite the whole file (e.g. non-paginated
-    formats).
+    formats). With several files, --pages and --read-method apply to each.
+    A file that fails does not stop the others; the exit code is non-zero
+    when any file failed.
 
     \b
     Examples:
@@ -589,9 +594,19 @@ def cite(
       unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
       unique-cli cite cont_abc123 --pages 1-4 --read-method indexed
       unique-cli cite notes.docx --read-method text
+      unique-cli cite a.xlsx b.xlsx c.csv --read-method text
     """
-    output = cmd_cite_file(LazyState.get(ctx), name_or_id, pages, read_method)
-    emit(output, is_error=_is_cite_error_output)
+    state = LazyState.get(ctx)
+    any_failed = False
+    for name_or_id in names_or_ids:
+        output = cmd_cite_file(state, name_or_id, pages, read_method)
+        if _is_cite_error_output(output):
+            any_failed = True
+            click.echo(output, err=True)
+        else:
+            click.echo(output)
+    if any_failed:
+        raise SystemExit(1)
 
 
 @main.command(name="read")
@@ -716,6 +731,13 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 @main.command()
 @click.argument("query")
 @click.option(
+    "--query",
+    "-q",
+    "extra_queries",
+    multiple=True,
+    help="Another query to run in the same call. Repeat for more, up to 8 in total.",
+)
+@click.option(
     "--folder",
     "-f",
     default=None,
@@ -742,6 +764,7 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 def search(
     ctx: click.Context,
     query: str,
+    extra_queries: tuple[str, ...],
     folder: str | None,
     metadata: tuple[str, ...],
     limit: int,
@@ -749,8 +772,16 @@ def search(
     """Search the knowledge base using combined (vector + full-text) search.
 
     \b
-    QUERY is the search text. Results are ranked by relevance using
-    both semantic similarity and keyword matching.
+    QUERY is the search text; quote it when it has several words. Results
+    are ranked by relevance using both semantic similarity and keyword
+    matching.
+
+    \b
+    Pass further queries with -q in ONE call instead of one call per
+    query: up to 8 per call, 4 run at the same time. Each query gets its
+    own block of results; --folder, --metadata and --limit apply to every
+    query. A chunk found by several queries is shown once, and the output
+    stops at about 100,000 tokens, best results of every query first.
 
     \b
     Without an active task scope, searches within the current directory
@@ -763,6 +794,7 @@ def search(
     \b
     Examples:
       unique-cli search "revenue growth"
+      unique-cli search "revenue growth" -q "operating margin" -q "headcount"
       unique-cli search "earnings" --folder /Reports/Q1 --limit 50
       unique-cli search "compliance" -f scope_abc123
       unique-cli search "audit" -m department=Legal -m year=2025
@@ -778,9 +810,18 @@ def search(
             k, v = kv.split("=", 1)
             parsed_metadata.append((k, v))
 
-    output = cmd_search(
-        state, query, folder=folder, metadata=parsed_metadata, limit=limit
-    )
+    if not extra_queries:
+        output = cmd_search(
+            state, query, folder=folder, metadata=parsed_metadata, limit=limit
+        )
+    else:
+        output = cmd_search_many(
+            state,
+            [query, *extra_queries],
+            folder=folder,
+            metadata=parsed_metadata,
+            limit=limit,
+        )
     click.echo(output)
     if _is_search_error_output(output):
         ctx.exit(1)
@@ -801,15 +842,14 @@ def uploaded_search(
     query: str,
     limit: int,
 ) -> None:
-    """Search the documents uploaded for this task (not the knowledge base).
+    """Search the documents attached to the current message (not the knowledge base).
 
     \b
-    QUERY is the search text. This searches only the files attached to this
-    row/task (e.g. an Agentic Table row's uploaded documents), which are NOT
-    part of the knowledge-base folder scope and therefore never appear in
-    `unique-cli search`. Results are ranked the same way and cite as
-    `[sourceN]`, with numbering continuous across `search` and
-    `uploaded-search` within a turn.
+    QUERY is the search text. This searches only the documents this message
+    selects (files the user uploaded to this chat, or an Agentic Table row's
+    documents), which knowledge-base search never returns. Results cite as
+    `[sourceN]`, numbered continuously with knowledge-base search results
+    within a turn.
 
     \b
     Examples:
@@ -2394,8 +2434,9 @@ Work with Agentic Table (magic table) sheets over the public magic-table API.
 \b
 Reads (get-sheet / get-cell / cell-history / list-exports) are Tier 0: no
 confirmation, no side effects. Writes (create-sheet / import / rerun-row /
-set-cell / export) build and run a sheet — the full loop of create, populate,
-run, and export — plus re-answering a single row or writing one cell's text.
+delete-row / set-cell / export) build and run a sheet — the full loop of
+create, populate, run, and export — plus re-answering a single row, deleting
+one content row, or writing one cell's text.
 Every call is scoped to the current user/company; sheet-role access (Owner / Can
 manage / Can edit) is enforced server-side and a denial is reported as
 `agentic-table: permission denied`.
@@ -2412,6 +2453,7 @@ Write subcommands:
   create-sheet   Create a new sheet in a space
   import         Import questions/sources (adding questions triggers the run)
   rerun-row      Re-run the agent for a single row (import cannot redo a row)
+  delete-row     Permanently delete one content row by its row id
   set-cell       Write text into one cell by row/column order (no run)
   export         Generate export artifacts (report / question export)
 
@@ -2796,6 +2838,44 @@ def agentic_table_rerun_row(
             wait=wait,
             timeout=timeout,
             start_timeout=start_timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="delete-row")
+@click.argument("table_id")
+@click.argument("row_id")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_delete_row(
+    ctx: click.Context,
+    table_id: str,
+    row_id: str,
+    output_json: bool,
+) -> None:
+    """Permanently delete one content row by its row id.
+
+    \b
+    ROW_ID is the rowId on a cell (mt_row_...), not the row order get-cell
+    --row prints. Read it with get-cell --json or get-sheet --cells --json.
+    The header row, a locked row, and a row in a final review status are
+    rejected. A caller who is not a member of the sheet is rejected. A row on
+    a completed sheet can be deleted; the sheet status is then recomputed.
+    One call deletes one row, the same way the sheet UI does.
+
+    \b
+    Examples:
+      unique-cli agentic-table delete-row mt_abc123 mt_row_e4d94icb5mtj99rmu2efhyel
+    """
+    emit(
+        cmd_delete_row(
+            LazyState.get(ctx),
+            table_id,
+            row_id,
             output_json=output_json,
         ),
         is_error=_is_agentic_table_error_output,

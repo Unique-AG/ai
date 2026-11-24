@@ -23,6 +23,12 @@ Understand how to connect Unique AI credentials with MCP tools for secure access
 ### [Using MCP Tools in Unique AI](mcp_unique_ai.md)
 Discover how to use MCP tools within the Unique AI platform.
 
+### [Calling MCP Tools from a Custom Module](mcp_custom_module.md)
+Consume the MCP tools configured on a space from your own external module.
+
+### [MCP Tools Across Sub-Agents](mcp_subagents.md)
+Surface the login prompts for a sub-agent's MCP servers when the user opens the orchestrator space.
+
 ## Getting Started
 
 If you're new to MCP, we recommend starting with the [Fundamentals](mcp_fundamentals.md) guide, which covers the core concepts and architecture you'll need to understand before diving into specific implementations.

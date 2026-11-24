@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Fixed
+body: 'The hallucination check now finds every source the chat shows as cited, including `[source 7]`, `[source_7]`, `[7]`, `[source: 1, 2]` and bold `[**7**]` citations. Before, it only matched `[sourceN]`, so answers using other forms gave the judge no context and were scored high risk. Custom `reference_pattern` settings keep working, and a warning is logged when sources exist but none are cited.'
+time: 2026-11-19T11:32:31.000000+01:00
+custom:
+    Audience: user
+    Ticket: UN-28753

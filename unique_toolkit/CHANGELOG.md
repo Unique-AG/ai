@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.46.0...unique-toolkit-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **toolkit:** add Activity Records AMQP and logging senders [UN-28050] ([#2800](https://github.com/Unique-AG/ai/issues/2800)) ([31cade1](https://github.com/Unique-AG/ai/commit/31cade1d8f398f3f27f584c32146ee8630936761))
+* **toolkit:** add Activity Records event model [UN-28050] ([#2722](https://github.com/Unique-AG/ai/issues/2722)) ([fa8933f](https://github.com/Unique-AG/ai/commit/fa8933f25e0dff34fbe54417577908daad9b478d))
+* **toolkit:** add Activity Records outbox relay and enqueue [UN-28050] ([#2728](https://github.com/Unique-AG/ai/issues/2728)) ([76c40a6](https://github.com/Unique-AG/ai/commit/76c40a6bb32129cc58274121de987cc22b85cabc))
+* **toolkit:** add Activity Records outbox row preparation [UN-28050] ([#2726](https://github.com/Unique-AG/ai/issues/2726)) ([1100239](https://github.com/Unique-AG/ai/commit/11002391f9835b4d9ba1e33e1995df64719d5198))
+* **toolkit:** add Activity Records outbox store and migration [UN-28050] ([#2727](https://github.com/Unique-AG/ai/issues/2727)) ([28d6e76](https://github.com/Unique-AG/ai/commit/28d6e76d45a88db59437908bad4fc56083d90653))
+* **toolkit:** add gemini-4-hydrogen model info [UN-29622] ([#2778](https://github.com/Unique-AG/ai/issues/2778)) ([c73d50e](https://github.com/Unique-AG/ai/commit/c73d50e8f94a110be7a2926c46152633a4f9eae6))
+* **toolkit:** add gpt-6.2-sol and gpt-6.2-astra model info [UN-29888] ([#2803](https://github.com/Unique-AG/ai/issues/2803)) ([6908eaf](https://github.com/Unique-AG/ai/commit/6908eaf99f6853f40482b2be1adf6d046adb6a84))
+* **toolkit:** add the chat ui language to the event payload [UN-28174] ([#2724](https://github.com/Unique-AG/ai/issues/2724)) ([cf0d61b](https://github.com/Unique-AG/ai/commit/cf0d61b9abdf81ade1047f1207743bbbe81984e9))
+
+
+### Bug Fixes
+
+* **deps:** require pillow 13 or newer ([#2742](https://github.com/Unique-AG/ai/issues/2742)) ([84f61c0](https://github.com/Unique-AG/ai/commit/84f61c0668410d92bb2371c956904edb01e3cf5b))
+* **toolkit:** add PDF layout rules to the code interpreter default prompts [UN-28750] ([#2801](https://github.com/Unique-AG/ai/issues/2801)) ([2c7136a](https://github.com/Unique-AG/ai/commit/2c7136afc2649102c9c391632ad4e5ba0f4befe0))
+* **toolkit:** normalise citations before hallucination source selection ([#2703](https://github.com/Unique-AG/ai/issues/2703)) ([37743c3](https://github.com/Unique-AG/ai/commit/37743c36cba9f6fa1a413298a1f5b501ad074d2a))
+* **toolkit:** use English for chat titles when the message language is unclear ([#2718](https://github.com/Unique-AG/ai/issues/2718)) ([39f27a2](https://github.com/Unique-AG/ai/commit/39f27a2267d9bfa5bb8bf9a762c1340529d1c475))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.44.0...unique-toolkit-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **sdk, toolkit, orchestrator:** generate a short title for new chats ([#2651](https://github.com/Unique-AG/ai/issues/2651)) ([b157977](https://github.com/Unique-AG/ai/commit/b1579770d3390c1ec145fa1f56c978a52ee8623a))
+* **toolkit:** add gemini-4-carbon model info [UN-28515] ([#2673](https://github.com/Unique-AG/ai/issues/2673)) ([eb132e0](https://github.com/Unique-AG/ai/commit/eb132e0b3e165715f4281c9da86a92d972158228))
+* **toolkit:** add gpt-6.1-terra model info [UN-28622] ([#2684](https://github.com/Unique-AG/ai/issues/2684)) ([6bf8619](https://github.com/Unique-AG/ai/commit/6bf86198744660a79d80f3434a06023a94bbe972))
+* **toolkit:** add kimi-k3.1-pro model info ([#2698](https://github.com/Unique-AG/ai/issues/2698)) ([c61b862](https://github.com/Unique-AG/ai/commit/c61b8625cf88bdd90fac2810b3c6386084bdaa9b))
+* **toolkit:** mark assistant-generated chat uploads in content metadata [UN-28507] ([#2682](https://github.com/Unique-AG/ai/issues/2682)) ([b090262](https://github.com/Unique-AG/ai/commit/b0902628fae6350446645b3a8346d50084debf74))
+
+
+### Bug Fixes
+
+* **orchestrator:** validate prompt templates on config load ([#2667](https://github.com/Unique-AG/ai/issues/2667)) ([94033c6](https://github.com/Unique-AG/ai/commit/94033c6e68fc30030b551becbd055589a08dc2b8))
+* **toolkit:** correct Kimi K3 and DeepSeek V4.1 Flash reasoning efforts [UN-28191] ([#2646](https://github.com/Unique-AG/ai/issues/2646)) ([bb59fe3](https://github.com/Unique-AG/ai/commit/bb59fe3d6531094ba2e4439ceecdac38ffffd5f6))
+* **toolkit:** generate chat titles for scheduled runs in multi-segment chats ([#2705](https://github.com/Unique-AG/ai/issues/2705)) ([8b7ad94](https://github.com/Unique-AG/ai/commit/8b7ad94afe81bfccffae043638ed0271d0ecf7e5))
+* **toolkit:** price cache reads and writes at their own rates [UN-28490] ([#2663](https://github.com/Unique-AG/ai/issues/2663)) ([3c43851](https://github.com/Unique-AG/ai/commit/3c438518189372af229a955abcc600593ce87685))
+* **toolkit:** render configurable prompt templates in a jinja sandbox ([#2658](https://github.com/Unique-AG/ai/issues/2658)) ([87c67c7](https://github.com/Unique-AG/ai/commit/87c67c74384077953e88447a113614be7f701633))
+* **toolkit:** show stored uploads outside the MIME catalog [UN-28414] ([#2652](https://github.com/Unique-AG/ai/issues/2652)) ([343c508](https://github.com/Unique-AG/ai/commit/343c5087c0d24c6161099e447e69797d6dc8190b))
+* **toolkit:** stop logging generated file names [UN-28546] ([#2676](https://github.com/Unique-AG/ai/issues/2676)) ([0ec1f6f](https://github.com/Unique-AG/ai/commit/0ec1f6f83d9b1f97874f3ba3a85e558a8d219d85))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.42.0...unique-toolkit-v2026.44.0) (2026-10-23)
 
 

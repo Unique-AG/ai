@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: Chat and Agentic Table events expose the chat UI language as `payload.ui_language` (`None` when the platform does not send it). `ui_language(event)` from `unique_toolkit.app.ui_language` returns it as a `UiLanguage` (`en`, `de`, `fr`), falling back to English.
+time: 2026-11-10T15:26:31.019619+01:00
+custom:
+    Audience: developer
+    Ticket: UN-28174

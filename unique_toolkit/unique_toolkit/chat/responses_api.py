@@ -372,6 +372,10 @@ def _prepare_responses_args(
     for k, v in strip_translated_responses_options(other_options).items():
         openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
+    LanguageModelInfo.from_name(params.model_name).drop_unsupported_options(
+        openai_options  # pyright: ignore[reportArgumentType]
+    )
+
     options["options"] = openai_options
 
     return options

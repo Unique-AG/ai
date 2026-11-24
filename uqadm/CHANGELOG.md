@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.46.0...uqadm-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **uqadm:** add --no-access and access/MCP portability flags ([#2805](https://github.com/Unique-AG/ai/issues/2805)) ([610258d](https://github.com/Unique-AG/ai/commit/610258debd764fdef57c4e0560a5f5a1e2349092))
+* **uqadm:** kb sync --skip-ingestion and a kb rm -r that empties the tree ([#2819](https://github.com/Unique-AG/ai/issues/2819)) ([c822430](https://github.com/Unique-AG/ai/commit/c822430566ccba3724a55224be164da9299657ca))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.44.0...uqadm-v2026.46.0) (2026-11-06)
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
 ## [2026.44.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.42.0...uqadm-v2026.44.0) (2026-10-23)
 
 

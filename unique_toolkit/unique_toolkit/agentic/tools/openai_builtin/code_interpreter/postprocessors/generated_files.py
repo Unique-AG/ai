@@ -40,6 +40,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
+from unique_toolkit.log_redaction import redact_filename, redact_filenames
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -221,10 +222,10 @@ class _FileProgressTracker:
                         time.monotonic() - lock_wait_t0
                     ) * 1000 - lock_wait_ms
                     self._log.warning(
-                        "Tracker.update('%s', phase=%s): "
+                        "Tracker.update(%s, phase=%s): "
                         "lock_wait=%.0fms, publish=%.0fms, "
                         "lock_held=%.0fms",
-                        filename,
+                        redact_filename(filename),
                         phase,
                         lock_wait_ms,
                         publish_ms,
@@ -232,8 +233,8 @@ class _FileProgressTracker:
                     )
             elif lock_wait_ms > 100:
                 self._log.warning(
-                    "Tracker.update('%s', phase=%s): lock_wait=%.0fms (no publish)",
-                    filename,
+                    "Tracker.update(%s, phase=%s): lock_wait=%.0fms (no publish)",
+                    redact_filename(filename),
                     phase,
                     lock_wait_ms,
                 )
@@ -262,18 +263,18 @@ class _FileProgressTracker:
                         time.monotonic() - lock_wait_t0
                     ) * 1000 - lock_wait_ms
                     self._log.warning(
-                        "Tracker.tick_elapsed('%s'): "
+                        "Tracker.tick_elapsed(%s): "
                         "lock_wait=%.0fms, publish=%.0fms, "
                         "lock_held=%.0fms",
-                        filename,
+                        redact_filename(filename),
                         lock_wait_ms,
                         publish_ms,
                         lock_held_ms,
                     )
             elif lock_wait_ms > 100:
                 self._log.warning(
-                    "Tracker.tick_elapsed('%s'): lock_wait=%.0fms (no publish)",
-                    filename,
+                    "Tracker.tick_elapsed(%s): lock_wait=%.0fms (no publish)",
+                    redact_filename(filename),
                     lock_wait_ms,
                 )
 
@@ -455,7 +456,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             "Recovering %d unresolved sandbox link(s) from container %s: %s",
             len(unresolved_files),
             container_id,
-            list(unresolved_files),
+            redact_filenames(unresolved_files),
         )
 
         try:
@@ -497,7 +498,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             self._log.info(
                 "%d sandbox link(s) left unresolved after recovery: %s",
                 len(unresolved_files),
-                list(unresolved_files),
+                redact_filenames(unresolved_files),
             )
 
         return container_files
@@ -514,7 +515,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._log.info(
             "run() resolved %d container file(s): %s",
             len(container_files),
-            [cf.filename for cf in container_files],
+            redact_filenames(cf.filename for cf in container_files),
         )
 
         # Per-turn byte sizes of successfully uploaded files. Not persisted to
@@ -528,7 +529,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 self._log.info(
                     "run() loaded %d previous file(s) from short-term memory: %s",
                     len(self._content_map),
-                    list(self._content_map.keys()),
+                    redact_filenames(self._content_map),
                 )
         except Exception:
             self._log.exception(
@@ -574,8 +575,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
             "succeeded=%s, failed=%s",
             len(succeeded),
             len(failed),
-            list(succeeded.keys()),
-            failed,
+            redact_filenames(succeeded),
+            redact_filenames(failed),
         )
 
         phase_t0 = time.monotonic()
@@ -723,8 +724,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
             if replaced:
                 replaced_files.append(filename)
                 self._log.info(
-                    "Replaced sandbox link for '%s' (type=%s, content_id=%s)",
-                    filename,
+                    "Replaced sandbox link for %s (type=%s, content_id=%s)",
+                    redact_filename(filename),
                     file_type,
                     content_id,
                 )
@@ -747,9 +748,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         self._log.info(
             "Stage-1 replacement summary — replaced=%s, missed=%s, error=%s",
-            replaced_files,
-            missed_files,
-            error_files,
+            redact_filenames(replaced_files),
+            redact_filenames(missed_files),
+            redact_filenames(error_files),
         )
 
         if self._fence_enabled:
@@ -762,7 +763,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
             self._log.info(
                 "Fence injection — %d code block(s), files: %s",
                 len(code_blocks),
-                [f.filename for b in code_blocks for f in b.files],
+                redact_filenames(
+                    f.filename for block in code_blocks for f in block.files
+                ),
             )
             _warn_unmatched_code_blocks(
                 self._content_map, code_blocks, include_html=self._html_fence_enabled
@@ -817,9 +820,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
     ) -> _ContentInfo | None:
         async with semaphore:
             pipeline_t0 = time.monotonic()
+            logged_name = redact_filename(container_file.filename)
             self._log.info(
-                "Downloading container file '%s' (container=%s, file_id=%s)",
-                container_file.filename,
+                "Downloading container file %s (container=%s, file_id=%s)",
+                logged_name,
                 container_file.container_id,
                 container_file.file_id,
             )
@@ -831,10 +835,11 @@ class DisplayCodeInterpreterFilesPostProcessor(
             download_ms = (time.monotonic() - download_t0) * 1000
 
             self._log.info(
-                "Downloaded container file '%s' (%d bytes, %.0fms)",
-                container_file.filename,
+                "Downloaded container file %s (%d bytes, %.0fms, file_id=%s)",
+                logged_name,
                 len(file_bytes),
                 download_ms,
+                container_file.file_id,
             )
 
             if tracker:
@@ -854,10 +859,11 @@ class DisplayCodeInterpreterFilesPostProcessor(
             upload_ms = (time.monotonic() - upload_t0) * 1000
             if upload_ms > 2000:
                 self._log.warning(
-                    "SDK upload for '%s' took %.0fms — "
+                    "SDK upload for %s took %.0fms (file_id=%s) — "
                     "backend contention or slow blob storage suspected",
-                    container_file.filename,
+                    logged_name,
                     upload_ms,
+                    container_file.file_id,
                 )
 
             if tracker:
@@ -867,9 +873,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             pipeline_ms = (time.monotonic() - pipeline_t0) * 1000
             self._log.info(
-                "Uploaded '%s' — content_id=%s. "
+                "Uploaded %s — content_id=%s. "
                 "Timing: download=%.0fms, upload=%.0fms, pipeline=%.0fms",
-                container_file.filename,
+                logged_name,
                 content.id,
                 download_ms,
                 upload_ms,
@@ -898,6 +904,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         download_start = time.monotonic()
         last_exception: Exception | None = None
 
+        logged_name = redact_filename(container_file.filename)
         ticker_task: asyncio.Task[None] | None = None
         if tracker:
 
@@ -906,9 +913,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     await asyncio.sleep(self._config.progress_update_interval)
                     elapsed = time.monotonic() - download_start
                     self._log.info(
-                        "Still downloading '%s' (%.0fs elapsed)",
-                        container_file.filename,
+                        "Still downloading %s (%.0fs elapsed, file_id=%s)",
+                        logged_name,
                         elapsed,
+                        container_file.file_id,
                     )
                     await tracker.tick_elapsed(container_file.filename, elapsed)
 
@@ -923,11 +931,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
                             2 ** (retry_num - 1)
                         )
                         self._log.warning(
-                            "Retrying download of '%s' (attempt %d/%d) after %.1fs",
-                            container_file.filename,
+                            "Retrying download of %s (attempt %d/%d) after %.1fs (file_id=%s)",
+                            logged_name,
                             attempt_num,
                             max_attempts,
                             delay,
+                            container_file.file_id,
                         )
                         if tracker:
                             await tracker.update(
@@ -946,11 +955,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 except Exception as exc:
                     last_exception = exc
                     self._log.warning(
-                        "Download attempt %d/%d failed for '%s': %s",
+                        "Download attempt %d/%d failed for %s (file_id=%s): %s",
                         attempt_num,
                         max_attempts,
-                        container_file.filename,
-                        exc,
+                        logged_name,
+                        container_file.file_id,
+                        type(exc).__name__,
                     )
 
             assert last_exception is not None
@@ -977,6 +987,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         tracker.  A shorter read timeout avoids waiting 10 minutes on a
         stalled connection.
         """
+        logged_name = redact_filename(container_file.filename)
         t0 = time.monotonic()
         async with self._client.with_options(
             max_retries=0,
@@ -987,12 +998,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
         ) as response:
             first_byte_ms = (time.monotonic() - t0) * 1000
             self._log.info(
-                "Stream opened for '%s' — first-byte latency=%.0fms, "
-                "content-length=%s, status=%s",
-                container_file.filename,
+                "Stream opened for %s — first-byte latency=%.0fms, "
+                "content-length=%s, status=%s, file_id=%s",
+                logged_name,
                 first_byte_ms,
                 response.headers.get("content-length", "unknown"),
                 response.status_code,
+                container_file.file_id,
             )
             content_length = response.headers.get("content-length")
             total = int(content_length) if content_length else None
@@ -1006,11 +1018,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 chunk_gap_ms = (now - last_chunk_time) * 1000
                 if chunk_gap_ms > 500:
                     self._log.warning(
-                        "Download chunk gap for '%s': %.0fms "
-                        "(downloaded=%d bytes so far)",
-                        container_file.filename,
+                        "Download chunk gap for %s: %.0fms "
+                        "(downloaded=%d bytes so far, file_id=%s)",
+                        logged_name,
                         chunk_gap_ms,
                         downloaded,
+                        container_file.file_id,
                     )
                 chunks.append(chunk)
                 downloaded += len(chunk)
@@ -1029,18 +1042,20 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     update_ms = (time.monotonic() - update_t0) * 1000
                     if update_ms > 200:
                         self._log.warning(
-                            "tracker.update() blocked download stream for '%s' "
-                            "for %.0fms (lock contention or slow modify_message)",
-                            container_file.filename,
+                            "tracker.update() blocked download stream for %s "
+                            "for %.0fms (file_id=%s, lock contention or slow modify_message)",
+                            logged_name,
                             update_ms,
+                            container_file.file_id,
                         )
                 last_chunk_time = time.monotonic()
             transfer_ms = (time.monotonic() - t0) * 1000 - first_byte_ms
             self._log.info(
-                "Stream complete for '%s' — transfer=%.0fms, total=%d bytes",
-                container_file.filename,
+                "Stream complete for %s — transfer=%.0fms, total=%d bytes, file_id=%s",
+                logged_name,
                 transfer_ms,
                 downloaded,
+                container_file.file_id,
             )
             return b"".join(chunks)
 
@@ -1256,10 +1271,10 @@ def _inject_code_execution_fences(
                 any_fence_injected = True
             else:
                 logger.warning(
-                    "Fence injection skipped: no inline ref matched for '%s' "
+                    "Fence injection skipped: no inline ref matched for %s "
                     "(content_id=%s); fence discarded. "
                     "The file was uploaded but will not appear in the message.",
-                    file.filename,
+                    redact_filename(file.filename),
                     file.content_id,
                 )
             # Remove duplicate refs (overwrite case)
@@ -1412,11 +1427,11 @@ def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> 
             continue
         if content_id not in text:
             logger.info(
-                "End-of-pipeline check: content_id '%s' for file '%s' is not present "
+                "End-of-pipeline check: content_id '%s' for %s is not present "
                 "in the final message text — the file was uploaded but will not be "
                 "visible to the user.",
                 content_id,
-                filename,
+                redact_filename(filename),
             )
 
 
@@ -1467,10 +1482,10 @@ def _replace_dangling_sandbox_links(
         filenames = _extract_container_file_citations_from_text(m.group())
         filename = filenames[0] if filenames else "the file"
         logger.warning(
-            "Dangling sandbox link found in final text: '%s'. ci_ran=%s. "
+            "Dangling sandbox link found in final text for %s. ci_ran=%s. "
             "The file was either never generated or the link format did not match "
             "the expected pattern — replacing with per-file notice.",
-            m.group(),
+            redact_filename(filename),
             ci_ran,
         )
         if not ci_ran:
@@ -1504,13 +1519,11 @@ def _warn_unmatched_code_blocks(
             continue
         if filename not in fenced_filenames:
             logger.warning(
-                "File '%s' (content_id=%s) could not be matched to any code block "
-                "(literal path '/mnt/data/%s' not found in executed code). "
+                "File %s (content_id=%s) could not be matched to any code block. "
                 "It will appear as a plain download link without code context — "
                 "consider re-running the query if the artifact UI is expected.",
-                filename,
+                redact_filename(filename),
                 content_id,
-                filename,
             )
 
 
@@ -1530,13 +1543,16 @@ def _replace_container_file_error(
 
     if not re.search(image_markdown, text):
         logger.warning(
-            "No sandbox link found for '%s'; file was uploaded but the LLM did not "
+            "No sandbox link found for %s; file was uploaded but the LLM did not "
             "reference it — it will not be displayed.",
-            filename,
+            redact_filename(filename),
         )
         return text, False
 
-    logger.info("Replacing failed download for '%s' with error message", filename)
+    logger.info(
+        "Replacing failed download for %s with error message",
+        redact_filename(filename),
+    )
     return re.sub(
         image_markdown,
         error_message,
@@ -1551,14 +1567,18 @@ def _replace_container_image_citation(
 
     if not re.search(image_markdown, text):
         logger.warning(
-            "No sandbox link found for image '%s' (content_id=%s); "
+            "No sandbox link found for image %s (content_id=%s); "
             "file was uploaded but the LLM did not reference it — it will not be displayed.",
-            filename,
+            redact_filename(filename),
             content_id,
         )
         return text, False
 
-    logger.info("Inserting image citation for '%s'", filename)
+    logger.info(
+        "Inserting image citation for %s (content_id=%s)",
+        redact_filename(filename),
+        content_id,
+    )
     return re.sub(
         image_markdown,
         f"![image](unique://content/{content_id})",
@@ -1574,14 +1594,18 @@ def _replace_container_html_citation(
 
     if not re.search(html_markdown, text):
         logger.warning(
-            "No sandbox link found for HTML file '%s' (content_id=%s); "
+            "No sandbox link found for HTML file %s (content_id=%s); "
             "file was uploaded but the LLM did not reference it — it will not be displayed.",
-            filename,
+            redact_filename(filename),
             content_id,
         )
         return text, False
 
-    logger.info("Inserting HTML rendering block for '%s'", filename)
+    logger.info(
+        "Inserting HTML rendering block for %s (content_id=%s)",
+        redact_filename(filename),
+        content_id,
+    )
     block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
 
     # Pattern 1 — link is the only non-whitespace content on its line (the common case
@@ -1631,14 +1655,18 @@ def _replace_container_file_citation(
 
     if not re.search(file_markdown, text):
         logger.warning(
-            "No sandbox link found for file '%s' (content_id=%s); "
+            "No sandbox link found for file %s (content_id=%s); "
             "file was uploaded but the LLM did not reference it — it will not be displayed.",
-            filename,
+            redact_filename(filename),
             content_id,
         )
         return text, False
 
-    logger.info("Displaying file %s", filename)
+    logger.info(
+        "Displaying file %s (content_id=%s)",
+        redact_filename(filename),
+        content_id,
+    )
     replacement = (
         f"[{filename}](unique://content/{content_id})"
         if use_content_link

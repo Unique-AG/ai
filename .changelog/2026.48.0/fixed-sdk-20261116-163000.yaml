@@ -1,0 +1,7 @@
+component: SDK
+kind: Fixed
+body: '`unique-cli search` with several queries now shows the results of every query. Against a real backend each query printed "Results left out: output budget reached." because the search response was not read as a list. A single query was not affected.'
+time: 2026-11-16T16:30:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29738

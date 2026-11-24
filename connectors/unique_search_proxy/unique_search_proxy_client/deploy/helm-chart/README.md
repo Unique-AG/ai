@@ -1,6 +1,6 @@
 # search-proxy
 
-![Version: 2026.44.0](https://img.shields.io/badge/Version-2026.44.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.44.0](https://img.shields.io/badge/AppVersion-2026.44.0-informational?style=flat-square)
+![Version: 2026.48.0](https://img.shields.io/badge/Version-2026.48.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.48.0](https://img.shields.io/badge/AppVersion-2026.48.0-informational?style=flat-square)
 
 Dedicated Helm chart for the Unique search proxy connector
 
@@ -19,7 +19,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://ghcr.io/unique-ag/helm | base | 0.1.0-7ddb46 |
+| oci://ghcr.io/unique-ag/helm | base | 0.1.0-4c726f |
 
 ## Values
 
@@ -59,7 +59,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"unique-ag/ai/search-proxy"` |  |
-| image.tag | string | `"2026.44.0"` |  |
+| image.tag | string | `"2026.48.0"` |  |
 | image.useDigest | bool | `false` |  |
 | internalServices.dependents.assistantsCore.name | string | `"assistants-core"` |  |
 | internalServices.dependents.assistantsCore.namespace | string | `"chat"` |  |
@@ -76,6 +76,12 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | networkPolicy.enabled | bool | `true` | Rendering fails when false unless `allowDisabled` is true. |
 | networkPolicy.flavor | string | `"cilium"` |  |
 | pdb.maxUnavailable | string | `"30%"` |  |
+| pdfProcessing.connection.extractionTimeoutSeconds | float | `10` |  |
+| pdfProcessing.connection.extractor | string | `"pypdf"` |  |
+| pdfProcessing.connection.maxConcurrentExtractions | int | `1` |  |
+| pdfProcessing.connection.maxExtractedChars | int | `100000` |  |
+| pdfProcessing.connection.maxExtractionMemoryMb | int | `512` |  |
+| pdfProcessing.connection.maxPdfPages | int | `100` |  |
 | perplexitySearch.connection.apiEndpoint | string | `"https://api.perplexity.ai/search"` |  |
 | perplexitySearch.enabled | bool | `false` |  |
 | podSecurityContext.runAsNonRoot | bool | `true` |  |
@@ -101,6 +107,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | replicaCount | int | `1` | Use at least 2 in production. |
 | requestLimits.crawl.maxConcurrentCrawls | int | `4` |  |
 | requestLimits.crawl.maxConcurrentFetches | int | `10` |  |
+| requestLimits.crawl.maxConcurrentUrlChecks | int | `3` |  |
 | requestLimits.crawl.maxCrawlResponseKib | int | `10240` |  |
 | requestLimits.crawl.maxUrlLength | int | `2048` |  |
 | requestLimits.crawl.maxUrlsPerCrawl | int | `100` |  |
@@ -132,7 +139,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | urlSafety.network.metadataHosts[4] | string | `"metadata.google.internal"` |  |
 | urlSafety.network.serviceSuffix | string | `".svc"` |  |
 | urlSafety.redirects.maxRedirectHops | int | `10` |  |
-| urlSafety.redirects.redirectTimeoutSeconds | float | `10` |  |
+| urlSafety.redirects.redirectTimeoutSeconds | float | `5` |  |
 | urlSafety.redirects.resolveRedirects | bool | `true` |  |
 | vertexaiAgent.connection.credentialType | string | `"workload_identity"` |  |
 | vertexaiAgent.connection.serviceAccountScopes[0] | string | `"https://www.googleapis.com/auth/cloud-platform"` |  |

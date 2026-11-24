@@ -6,8 +6,8 @@ to the agent so it knows which command to reach for. Two invariants matter for
 the uploaded-document search feature (UN-21780):
 
 1. ``unique-cli-uploaded-search`` is its **own** skill, so the monorepo can
-   gate it on the ``UploadedSearch`` synthetic tool and hide it entirely when a
-   space has no uploaded files / the feature is off.
+   install it only for the companies its uploaded-search flag enables and
+   leave it out entirely when the flag is off.
 2. The always-on ``unique-cli-search`` skill must **not** mention
    ``uploaded-search`` — otherwise the agent is told about the uploaded path
    even when it is gated off, which defeats the clean off-switch.
@@ -35,6 +35,16 @@ def _read_skill(name: str) -> str:
     return skill.read_text(encoding="utf-8")
 
 
+def _citation_rules(name: str) -> str:
+    match = re.search(
+        r"^## Citation Rules\n(.*?)(?=^## |\Z)",
+        _read_skill(name),
+        re.M | re.S,
+    )
+    assert match is not None, f"{name} lost its Citation Rules section"
+    return " ".join(match.group(1).split())
+
+
 def test_uploaded_search_skill_exists_and_is_named() -> None:
     text = _read_skill("unique-cli-uploaded-search")
     assert "name: unique-cli-uploaded-search" in text
@@ -60,6 +70,17 @@ def test_search_skill_does_not_reference_uploaded_search() -> None:
     assert "searching uploaded documents" not in text
 
 
+def test_elicitation_skill_makes_outbound_text_editable() -> None:
+    """UN-27939: a draft placed in the message text renders read-only, so
+    Confirm sends it unchanged. The skill must teach the editable-field shape
+    for outbound text and send the returned value, not the draft."""
+    text = _read_skill("unique-cli-elicitation")
+    assert "### Outbound content" in text
+    assert '"multiline": True, "default": draft' in text
+    assert "never your earlier draft" in text
+    assert "Never use it to confirm text you are about to send" in text
+
+
 def test_agentic_table_skill_documents_every_command() -> None:
     """The agentic-table skill is ungated and carries the full command range,
     reads and writes alike. Awareness gating was rejected because a user's
@@ -76,6 +97,7 @@ def test_agentic_table_skill_documents_every_command() -> None:
         "agentic-table create-sheet",
         "agentic-table import",
         "agentic-table rerun-row",
+        "agentic-table delete-row",
         "agentic-table set-cell",
         "agentic-table export",
     ):
@@ -100,6 +122,18 @@ def test_agentic_table_skill_documents_nothing_that_is_not_a_command() -> None:
     assert not unknown, f"skill documents commands the CLI does not have: {unknown}"
 
 
+def test_agentic_table_skill_requires_confirmation_before_delete() -> None:
+    """Purpose: delete-row tells the agent to confirm before it runs.
+    Why this matters: The delete is permanent, and a destructive command
+    needs a confirmation elicitation.
+    Setup summary: The skill text is read from the package.
+    """
+    text = _read_skill("unique-cli-agentic-table")
+    assert "confirmation elicitation" in text
+    assert "empty-properties schema" in text
+    assert "`ACCEPTED`" in text
+
+
 def test_agentic_table_skill_teaches_permission_handling() -> None:
     """Because the skill advertises commands the caller may not be entitled to
     use on a given sheet, it has to teach what to do about that: access varies
@@ -111,3 +145,23 @@ def test_agentic_table_skill_teaches_permission_handling() -> None:
     assert "probing" in text or "probe" in text, (
         "skill must forbid probing other sheet ids after a denial"
     )
+
+
+def test_mcp_skill_says_source_numbers_are_chat_wide() -> None:
+    """``[mcpsourceN]`` numbers are chat-wide; seeded by ``mcp-refs-seed.json``."""
+    body = _citation_rules("unique-cli-mcp")
+    assert "Numbers are chat-wide" in body
+    assert "A number from an earlier turn still resolves" in body
+    assert "Re-fetching an item in the same turn returns its old number" in body
+    assert "later turn can assign a new number" in body
+    assert "cannot be checked against its source" in body
+    assert "NEVER re-run a tool only to refresh" in body
+    assert "stale" not in body
+    assert "ungrounded" not in body
+
+
+def test_mcp_skill_teaches_enriched_markers_and_action_tools() -> None:
+    body = _citation_rules("unique-cli-mcp")
+    assert "[mcpsource2;ABC-123 — Fix login flow;" in body
+    assert "you MUST include it" in body
+    assert "Action tools too" in body

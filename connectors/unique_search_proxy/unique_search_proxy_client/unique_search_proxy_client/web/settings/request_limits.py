@@ -23,6 +23,7 @@ REQUEST_LIMITS_ENV_PREFIX = "REQUEST_LIMITS_"
             "max_url_length",
             "max_concurrent_fetches",
             "max_concurrent_crawls",
+            "max_concurrent_url_checks",
         ],
         "timeouts": ["max_timeout_seconds"],
     },
@@ -80,6 +81,14 @@ class RequestLimitsSettings(BaseSettings):
         description=(
             "Crawl requests one worker process runs at once. Requests beyond "
             "this get a 429 instead of queueing."
+        ),
+    )
+    max_concurrent_url_checks: int = Field(
+        default=3,
+        ge=1,
+        description=(
+            "URL safety checks one crawl request runs at once before fetching. "
+            "Each check probes the URL's redirects with HEAD requests."
         ),
     )
     max_timeout_seconds: int = Field(
