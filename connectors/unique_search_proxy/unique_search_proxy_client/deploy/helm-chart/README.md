@@ -26,6 +26,9 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | autoscaling.enabled | bool | `false` |  |
+| awsSearch.connection.apiEndpoint | string | `"https://bedrock-agentcore.us-east-1.amazonaws.com"` |  |
+| awsSearch.connection.region | string | `"us-east-1"` |  |
+| awsSearch.enabled | bool | `false` |  |
 | bingAgent.connection.azureIdentityCredentialType | string | `"default"` |  |
 | bingAgent.connection.azureIdentityValidateTokenUrl | string | `"https://management.azure.com/.default"` |  |
 | bingAgent.connection.cleanupOnStart | bool | `false` |  |
@@ -33,6 +36,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | bingAgent.enabled | bool | `false` |  |
 | braveSearch.connection.apiEndpoint | string | `"https://api.search.brave.com/res/v1/web/search"` |  |
 | braveSearch.enabled | bool | `false` |  |
+| crawl.connection.enabled | bool | `true` |  |
 | deployment.metadata.annotations."reloader.stakater.com/auto" | string | `"true"` |  |
 | deployment.revisionHistoryLimit | int | `3` |  |
 | env.LOG_LEVEL | string | `"info"` |  |
