@@ -122,7 +122,7 @@ relevant_chunks, logs = await executor.run()
 - **Parallel Scheduling** – Steps run via `asyncio.create_task`, allowing concurrent execution.
 - **Max Step Enforcement** – `max_steps` prevents runaway plans; trims plan to safe size.
 - **Per-Step Logging** – Each step tracked in `StepDebugInfo` with config and duration.
-- **Flexible Crawler Usage** – `READ_URL` steps go straight to the crawler without a search engine.
+- **Flexible Crawler Usage** – `READ_URL` steps first check the URL against the space's domain settings, then go to the crawler without a search engine.
 - **Reuse of Base Components** – Shares the same content processing / reduction pipeline as V1.
 
 ### Configuration Options
