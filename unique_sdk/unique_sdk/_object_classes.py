@@ -9,6 +9,7 @@ OBJECT_CLASSES = {
     unique_sdk.ScheduledTask.OBJECT_NAME: unique_sdk.ScheduledTask,
     unique_sdk.Briefing.OBJECT_NAME: unique_sdk.Briefing,
     unique_sdk.WebSearch.OBJECT_NAME: unique_sdk.WebSearch,
+    unique_sdk.WebSearchReview.OBJECT_NAME: unique_sdk.WebSearchReview,
     unique_sdk.WebCrawl.OBJECT_NAME: unique_sdk.WebCrawl,
     unique_sdk.ProjectMemory.OBJECT_NAME: unique_sdk.ProjectMemory,
 }

@@ -83,6 +83,20 @@ unique-cli web-search search "Git first release" "Redis first release" "Docker f
   return. The command exits `1` only when every query failed.
 - A single query behaves exactly as before.
 
+### Query review
+
+Some spaces require the user to approve every web search query before it is sent. You do not turn this on. When it is on, `search` does not search yet:
+
+1. The command prints that the user must approve the queries, and a review id. It does not wait.
+2. Run `unique-cli elicit wait <review-id> --timeout 300`.
+3. Then run `unique-cli web-search search --review-id <review-id>`. That searches the queries the user approved, including any they edited. To search a different wording, pass those queries after `--review-id`.
+
+If the user declines, or the review is cancelled or expires, the command exits with a `web-search:` error. Tell the user the search did not run. Do not search those queries.
+
+A pending review is not an error: wait, then search with `--review-id`. Calling `search` again with the same queries while the review is still pending returns the same review id. Do not poll inside another command; only `elicit wait` is a protected wait.
+
+Spaces with query review off, and any search that has no chat id, behave exactly as they do today.
+
 ### Per-call engine override
 
 Force a specific engine (or any engine-specific knob) without changing server config:
@@ -166,7 +180,9 @@ discriminator:
 
 ## Command Reference
 
-### `unique-cli web-search search <query> [<query>...]`
+### `unique-cli web-search search [query...]`
+
+Positional queries are required unless `--review-id` is set.
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
@@ -176,6 +192,7 @@ discriminator:
 | `--crawler-config` | | none | Override `crawlerConfig` (JSON object) — only used with `--include-content` |
 | `--config` | `-c` | none | Per-call override of the group's `--config` path |
 | `--json` | | off | Emit `{engine, query, results: [...]}` JSON envelope |
+| `--review-id` | | none | Search queries the user already approved. With no positional queries, read them from the review. See [Query review](#query-review) |
 
 ### `unique-cli web-search crawl <url>...`
 
@@ -312,7 +329,10 @@ directory is unsafe). With several queries in one `search` call, a failed
 query alone does not change the exit code: it exits `1` only when every
 query failed, or when the call is invalid (more than 8 queries, bad
 override JSON). Error messages are prefixed with
-`web-search:` or `web-crawl:` so they're easy to grep.
+`web-search:` or `web-crawl:` so they're easy to grep. A pending query
+review is not an error (exit `0`): run `elicit wait`, then search again
+with `--review-id`. A declined, cancelled or expired review is an error
+(exit `1`): tell the user the search did not run.
 
 ```bash
 unique-cli web-search crawl  # no URLs → exits 1
@@ -407,7 +427,10 @@ for entry in pages.results:
 ```
 
 Both classes have `*_async` variants (`WebSearch.search_async`,
-`WebCrawl.crawl_async`) for async contexts.
+`WebCrawl.crawl_async`) for async contexts. `WebSearchReview.review`
+(`review_async`) posts the batch to `/web-search-api/review`. Pass the
+returned `reviewId` as `reviewId` on `WebSearch.search` after the user
+accepts. The CLI does this for you; see [Query review](#query-review).
 
 ## Citation Rules
 

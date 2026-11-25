@@ -7,6 +7,11 @@ locally. Engine and crawler are resolved server-side from
 ``ACTIVE_SEARCH_ENGINES`` / ``ACTIVE_INHOUSE_CRAWLERS``; per-call
 overrides use the same discriminated-union shapes the server expects.
 
+When the call carries a chat id, the batch is sent once to
+``POST /web-search-api/review`` before any search. A space with query
+review off searches as before. A space with review on does not search
+until the user approves the queries; this command does not poll.
+
 Override precedence (highest first):
     1. Inline ``--engine-config`` / ``--crawler-config`` / ``--fetch-size`` flags
     2. Config file (``--config``, ``$UNIQUE_WEBSEARCH_CONFIG``, or
@@ -20,6 +25,7 @@ from __future__ import annotations
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -50,6 +56,25 @@ _WEB_REFS_LOCK_FILENAME = "web-refs.lock"
 
 WEB_SEARCH_ERROR_PREFIX = "web-search:"
 WEB_CRAWL_ERROR_PREFIX = "web-crawl:"
+
+# The server clamps a review form's lifetime to this. One supervised
+# ``elicit wait`` of this length covers every configured review window.
+QUERY_REVIEW_WAIT_TIMEOUT_SECONDS = 300
+USER_APPROVED_QUERIES_NOTICE = "These are the user-approved queries."
+_REVIEW_TERMINAL_ERRORS = {
+    "DECLINED": (
+        "The user declined the web search queries. "
+        "Tell the user that the web search did not run."
+    ),
+    "CANCELLED": (
+        "The user did not approve the web search queries in time. "
+        "Tell the user that the web search did not run."
+    ),
+    "EXPIRED": (
+        "The user did not approve the web search queries in time. "
+        "Tell the user that the web search did not run."
+    ),
+}
 
 
 def _source_numbers_by_url(entries: list[dict[str, Any]]) -> dict[str, int]:
@@ -368,6 +393,7 @@ def cmd_web_search(
     *,
     refs_log_path: Path | None = None,
     message_id: str | None = None,
+    review_id: str | None = None,
 ) -> str:
     """Run a web search via the public API.
 
@@ -393,37 +419,36 @@ def cmd_web_search(
         output_json: When ``True``, return a JSON envelope instead of a
             human-friendly table.
         chat_id: Optional chat id this call is made on behalf of. When
-            set, the space's Web Search toggle is enforced server-side.
+            set, the space's Web Search toggle is enforced server-side
+            and query review runs once before the search.
         refs_log_path: The per-turn web citation manifest. When ``None``,
             it resolves from the workspace root.
-        message_id: Optional assistant message this call serves; sent as
-            ``messageId`` only when set.
+        message_id: Optional assistant message this call serves. Sent as
+            ``messageId`` on the search, and on the review call when
+            query review runs. Omitted when unset.
+        review_id: Id of a review the user already answered. The query is
+            searched with that id. Without a chat id this is ignored.
+
+    Returns:
+        str: The formatted search, a pending-review instruction, or a
+        ``web-search:`` error. A single query keeps today's text unless
+        the user approved a different query.
     """
-    options = _search_request_options(
+    return _execute_web_searches(
+        state,
+        [query],
+        single_format=True,
         fetch_size=fetch_size,
         include_content=include_content,
         engine_config_raw=engine_config_raw,
         crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
         config_path=config_path,
         chat_id=chat_id,
+        refs_log_path=refs_log_path,
         message_id=message_id,
+        review_id=review_id,
     )
-    if isinstance(options, str):
-        return options
-
-    payload = _fetch_search_payload(state, query, options)
-    if isinstance(payload, str):
-        return payload
-
-    try:
-        payload = _annotate_web_results_for_citations(
-            payload, refs_log_path=refs_log_path
-        )
-    except UnsafeRefsLogPathError as exc:
-        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
-    if output_json:
-        return _format_search_results_json(payload)
-    return _format_search_results(payload)
 
 
 def _search_request_options(
@@ -488,35 +513,16 @@ def _fetch_search_payload(
     return _payload_from_resource(resource)
 
 
-def cmd_web_search_many(
-    state: ShellState,
-    queries: list[str],
-    fetch_size: int | None = None,
-    include_content: bool = False,
-    engine_config_raw: str | None = None,
-    crawler_config_raw: str | None = None,
-    output_json: bool = False,
-    config_path: str | None = None,
-    chat_id: str | None = None,
-    *,
-    refs_log_path: Path | None = None,
-    message_id: str | None = None,
-) -> str:
-    """Run several web searches in one call and return one block per query.
+def _nonempty(value: str | None) -> str | None:
+    """Return ``value`` stripped, or ``None`` when it is blank."""
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
 
-    Requests run concurrently, at most ``SEARCH_CONCURRENCY`` at a time.
-    Citation numbers are assigned afterwards, one query at a time in the
-    order given, so ``[websourceN]`` is the same on every run. A URL found
-    by several queries keeps one number; the manifest gets one row per search.
 
-    A failed query shows its own error and does not drop the others. The
-    output is a ``web-search:`` error only when every query failed.
-    ``output_json`` returns a list with one entry per query: the usual
-    ``{engine, query, results}`` object, or ``{query, error}`` on failure.
-    ``refs_log_path`` is the per-turn web citation manifest; ``None``
-    resolves it from the workspace root. ``message_id`` is sent as
-    ``messageId`` only when set.
-    """
+def _query_count_error(queries: list[str]) -> str | None:
+    """The batch-size error, or ``None`` when the batch may be searched."""
     if not queries:
         return f"{WEB_SEARCH_ERROR_PREFIX} no queries provided."
     if len(queries) > MAX_SEARCH_QUERIES:
@@ -525,6 +531,218 @@ def cmd_web_search_many(
             f"the limit is {MAX_SEARCH_QUERIES} per call. "
             "Split them across several calls."
         )
+    return None
+
+
+def _resource_dict(resource: Any) -> dict[str, Any]:
+    """Read a SDK response as a dict, including the lighter test doubles."""
+    to_dict = getattr(resource, "to_dict_recursive", None)
+    if callable(to_dict):
+        converted = to_dict()
+        if isinstance(converted, dict):
+            return converted
+    if isinstance(resource, dict):
+        return resource
+    return {}
+
+
+def _string_list(value: Any) -> list[str] | None:
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return value
+    return None
+
+
+def _pending_query_review_output(review_id: str) -> str:
+    """Tell the agent how to wait, without searching or blocking.
+
+    Args:
+        review_id (str): Review id, which is also the elicitation id.
+
+    Returns:
+        str: Non-error instructions. The text does not include the queries.
+    """
+    return (
+        "The user must approve the web search queries before they are sent.\n"
+        f"Review id: {review_id}\n"
+        "Wait for the answer, then search the approved queries:\n"
+        f"unique-cli elicit wait {review_id} "
+        f"--timeout {QUERY_REVIEW_WAIT_TIMEOUT_SECONDS}\n"
+        f"unique-cli web-search search --review-id {review_id}"
+    )
+
+
+def _review_terminal_error(status: str) -> str:
+    detail = _REVIEW_TERMINAL_ERRORS.get(
+        status,
+        (
+            "The user did not approve the web search queries. "
+            "Tell the user that the web search did not run."
+        ),
+    )
+    return f"{WEB_SEARCH_ERROR_PREFIX} {detail}"
+
+
+def _load_approved_queries(state: ShellState, review_id: str) -> list[str] | str:
+    """Read ``responseContent.queries`` from the review elicitation.
+
+    Uses the same ``Elicitation.get_elicitation`` call as
+    ``cli/commands/elicitation.py``. A review the user has not answered
+    yet returns the pending instructions instead of searching.
+
+    Args:
+        state (ShellState): Credentials for the get call.
+        review_id (str): Elicitation id returned by the review endpoint.
+
+    Returns:
+        list[str] | str: The approved queries, or text to return as the
+        command output.
+    """
+    try:
+        elicitation = unique_sdk.Elicitation.get_elicitation(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            elicitation_id=review_id,
+        )
+    except (ValueError, unique_sdk.UniqueError) as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+
+    payload = _resource_dict(elicitation)
+    content = payload.get("responseContent")
+    queries = _string_list(
+        content.get("queries") if isinstance(content, dict) else None
+    )
+    if queries:
+        return queries
+
+    status = str(payload.get("status") or "").upper()
+    if status in _REVIEW_TERMINAL_ERRORS:
+        return _review_terminal_error(status)
+    if status in {"", "PENDING", "CREATED"}:
+        return _pending_query_review_output(review_id)
+    return (
+        f"{WEB_SEARCH_ERROR_PREFIX} review {review_id} has no approved queries. "
+        "The search did not run."
+    )
+
+
+@dataclass(frozen=True)
+class _SearchPlan:
+    """Queries to search and the request fields shared by every query."""
+
+    queries: list[str]
+    options: dict[str, Any]
+    notice: str | None
+
+
+def _request_query_review(
+    state: ShellState,
+    *,
+    chat_id: str,
+    message_id: str | None,
+    queries: list[str],
+    options: dict[str, Any],
+) -> _SearchPlan | str:
+    """Ask once for the batch. Return a plan, or text to show instead.
+
+    Args:
+        state (ShellState): Credentials for the review call.
+        chat_id (str): Chat whose space decides whether review is on.
+        message_id (str | None): Assistant message the form is attached to.
+        queries (list[str]): Proposed queries. Not logged.
+        options (dict[str, Any]): Search fields already built for the batch.
+
+    Returns:
+        _SearchPlan | str: A plan whose queries are safe to search, or
+        command output that means the search did not run.
+    """
+    try:
+        if message_id:
+            resource = unique_sdk.WebSearchReview.review(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                chatId=chat_id,
+                messageId=message_id,
+                queries=queries,
+            )
+        else:
+            resource = unique_sdk.WebSearchReview.review(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                chatId=chat_id,
+                queries=queries,
+            )
+    except (ValueError, unique_sdk.UniqueError) as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+
+    payload = _resource_dict(resource)
+    status = payload.get("status")
+    if status == "NOT_REQUIRED":
+        return _SearchPlan(queries=queries, options=options, notice=None)
+    if status == "PENDING":
+        review_id = payload.get("reviewId")
+        if not isinstance(review_id, str) or not review_id:
+            return (
+                f"{WEB_SEARCH_ERROR_PREFIX} the query review is pending but "
+                "no review id was returned. The search did not run."
+            )
+        return _pending_query_review_output(review_id)
+    if status == "ACCEPTED":
+        approved = _string_list(payload.get("queries"))
+        if not approved:
+            return (
+                f"{WEB_SEARCH_ERROR_PREFIX} The user did not approve any "
+                "web search queries. Tell the user that the web search did not run."
+            )
+        count_error = _query_count_error(approved)
+        if count_error:
+            return count_error
+        review_id = payload.get("reviewId")
+        if not isinstance(review_id, str) or not review_id:
+            return (
+                f"{WEB_SEARCH_ERROR_PREFIX} the accepted query review did not "
+                "include a review id. The search did not run."
+            )
+        return _SearchPlan(
+            queries=approved,
+            options={**options, "reviewId": review_id},
+            notice=USER_APPROVED_QUERIES_NOTICE,
+        )
+    if isinstance(status, str) and status in _REVIEW_TERMINAL_ERRORS:
+        return _review_terminal_error(status)
+    return (
+        f"{WEB_SEARCH_ERROR_PREFIX} unexpected web search query review "
+        f"status {status!r}. The search did not run."
+    )
+
+
+def _plan_web_search(
+    state: ShellState,
+    queries: list[str],
+    *,
+    fetch_size: int | None,
+    include_content: bool,
+    engine_config_raw: str | None,
+    crawler_config_raw: str | None,
+    config_path: str | None,
+    chat_id: str | None,
+    message_id: str | None,
+    review_id: str | None,
+) -> _SearchPlan | str:
+    """Resolve review, then return the queries and options to search.
+
+    Without ``chat_id`` the plan is today's search: no review call and no
+    ``reviewId``. With ``review_id`` the review endpoint is not called again.
+    """
+    review_id = _nonempty(review_id)
+    if chat_id and review_id and not queries:
+        loaded = _load_approved_queries(state, review_id)
+        if isinstance(loaded, str):
+            return loaded
+        queries = loaded
+
+    count_error = _query_count_error(queries)
+    if count_error:
+        return count_error
 
     options = _search_request_options(
         fetch_size=fetch_size,
@@ -537,7 +755,53 @@ def cmd_web_search_many(
     )
     if isinstance(options, str):
         return options
+    if not chat_id:
+        return _SearchPlan(queries=queries, options=options, notice=None)
+    if review_id:
+        return _SearchPlan(
+            queries=queries,
+            options={**options, "reviewId": review_id},
+            notice=None,
+        )
+    return _request_query_review(
+        state,
+        chat_id=chat_id,
+        message_id=message_id,
+        queries=queries,
+        options=options,
+    )
 
+
+def _render_one_search(
+    state: ShellState,
+    query: str,
+    options: dict[str, Any],
+    *,
+    output_json: bool,
+    refs_log_path: Path | None,
+) -> str:
+    payload = _fetch_search_payload(state, query, options)
+    if isinstance(payload, str):
+        return payload
+    try:
+        payload = _annotate_web_results_for_citations(
+            payload, refs_log_path=refs_log_path
+        )
+    except UnsafeRefsLogPathError as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+    if output_json:
+        return _format_search_results_json(payload)
+    return _format_search_results(payload)
+
+
+def _render_many_searches(
+    state: ShellState,
+    queries: list[str],
+    options: dict[str, Any],
+    *,
+    output_json: bool,
+    refs_log_path: Path | None,
+) -> str:
     with ThreadPoolExecutor(
         max_workers=min(SEARCH_CONCURRENCY, len(queries))
     ) as executor:
@@ -569,10 +833,148 @@ def cmd_web_search_many(
             f"{WEB_SEARCH_ERROR_PREFIX} all {len(queries)} queries failed.\n"
             + "\n".join(failures)
         )
-
     if output_json:
         return _format_many_search_results_json(queries, outcomes)
     return _format_many_search_results(queries, outcomes)
+
+
+def _with_user_approved_notice(output: str, *, output_json: bool) -> str:
+    """Mark a successful search as the queries the user approved.
+
+    Text gains a leading sentence. JSON gains a ``notice`` field so the
+    document stays parseable.
+    """
+    if not output_json:
+        return f"{USER_APPROVED_QUERIES_NOTICE}\n\n{output}"
+    parsed = json.loads(output)
+    if isinstance(parsed, dict):
+        noted: Any = {"notice": USER_APPROVED_QUERIES_NOTICE, **parsed}
+    elif isinstance(parsed, list):
+        noted = [
+            {"notice": USER_APPROVED_QUERIES_NOTICE, **entry}
+            if isinstance(entry, dict)
+            else entry
+            for entry in parsed
+        ]
+    else:
+        return output
+    return json.dumps(noted, indent=2, ensure_ascii=False)
+
+
+def _execute_web_searches(
+    state: ShellState,
+    queries: list[str],
+    *,
+    single_format: bool,
+    fetch_size: int | None,
+    include_content: bool,
+    engine_config_raw: str | None,
+    crawler_config_raw: str | None,
+    output_json: bool,
+    config_path: str | None,
+    chat_id: str | None,
+    refs_log_path: Path | None,
+    message_id: str | None,
+    review_id: str | None,
+) -> str:
+    """Review the batch once, then search. One query keeps today's format."""
+    plan = _plan_web_search(
+        state,
+        queries,
+        fetch_size=fetch_size,
+        include_content=include_content,
+        engine_config_raw=engine_config_raw,
+        crawler_config_raw=crawler_config_raw,
+        config_path=config_path,
+        chat_id=chat_id,
+        message_id=message_id,
+        review_id=review_id,
+    )
+    if isinstance(plan, str):
+        return plan
+    if single_format and len(plan.queries) == 1:
+        output = _render_one_search(
+            state,
+            plan.queries[0],
+            plan.options,
+            output_json=output_json,
+            refs_log_path=refs_log_path,
+        )
+    else:
+        output = _render_many_searches(
+            state,
+            plan.queries,
+            plan.options,
+            output_json=output_json,
+            refs_log_path=refs_log_path,
+        )
+    if plan.notice and not output.startswith(WEB_SEARCH_ERROR_PREFIX):
+        return _with_user_approved_notice(output, output_json=output_json)
+    return output
+
+
+def cmd_web_search_many(
+    state: ShellState,
+    queries: list[str],
+    fetch_size: int | None = None,
+    include_content: bool = False,
+    engine_config_raw: str | None = None,
+    crawler_config_raw: str | None = None,
+    output_json: bool = False,
+    config_path: str | None = None,
+    chat_id: str | None = None,
+    *,
+    refs_log_path: Path | None = None,
+    message_id: str | None = None,
+    review_id: str | None = None,
+) -> str:
+    """Run several web searches in one call and return one block per query.
+
+    Requests run concurrently, at most ``SEARCH_CONCURRENCY`` at a time.
+    Citation numbers are assigned afterwards, one query at a time in the
+    order given, so ``[websourceN]`` is the same on every run. A URL found
+    by several queries keeps one number; the manifest gets one row per search.
+
+    A failed query shows its own error and does not drop the others. The
+    output is a ``web-search:`` error only when every query failed.
+    ``output_json`` returns a list with one entry per query: the usual
+    ``{engine, query, results}`` object, or ``{query, error}`` on failure.
+    ``refs_log_path`` is the per-turn web citation manifest; ``None``
+    resolves it from the workspace root. ``message_id`` is sent as
+    ``messageId`` only when set.
+
+    Query review, when ``chat_id`` is set, runs once for the whole batch.
+    ``review_id`` searches queries the user already approved. With no
+    queries it reads ``responseContent.queries`` from that elicitation.
+
+    Args:
+        state (ShellState): Shell state carrying user/company credentials.
+        queries (list[str]): Queries to search. Empty only with ``review_id``.
+        review_id (str | None): Accepted review to search under.
+        message_id (str | None): Assistant message the review is attached to.
+        chat_id (str | None): Chat the searches are made for. Without it,
+            review is skipped and the output matches a call that never
+            heard of query review.
+
+    Returns:
+        str: One block per query, a pending-review instruction, or a
+        ``web-search:`` error.
+    """
+    return _execute_web_searches(
+        state,
+        list(queries),
+        single_format=False,
+        fetch_size=fetch_size,
+        include_content=include_content,
+        engine_config_raw=engine_config_raw,
+        crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
+        config_path=config_path,
+        chat_id=chat_id,
+        refs_log_path=refs_log_path,
+        message_id=message_id,
+        review_id=review_id,
+    )
 
 
 def _format_many_search_results(
