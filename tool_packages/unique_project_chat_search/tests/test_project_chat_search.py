@@ -283,17 +283,16 @@ async def test_read_page_two_continues_after_page_one_and_offers_page_three(
         "list_chunks_async",
         ProjectChatChunkPage(chunks=[_chunk(index=0)], next_cursor="c1"),
         ProjectChatChunkPage(chunks=[_chunk(index=1)], next_cursor="c2"),
-        ProjectChatChunkPage(chunks=[_chunk(index=2)], next_cursor=None),
     )
 
     response = await _tool(chunks_per_page=1).run(
         _call(mode="read", chat_id=NVIDIA_CHAT, page=2)
     )
 
+    # A full page plus a cursor is enough to offer page 3; "c2" is never fetched.
     assert [call.kwargs["after"] for call in list_chunks.await_args_list] == [
         None,
         "c1",
-        "c2",
     ]
     assert [chunk.chunk_id for chunk in response.content_chunks or []] == ["1"]
     assert "page=3" in response.system_reminder
@@ -410,13 +409,13 @@ async def test_recent_lists_chats_as_metadata_only_sources(
         ProjectChatSummaryPage(
             chats=[_summary(), _summary("chat_qa", None)], next_cursor="c1"
         ),
-        ProjectChatSummaryPage(chats=[_summary("chat_old")], next_cursor=None),
     )
 
     response = await _tool(recent_limit=2).run(
         _call(mode="recent", query="ignored", after="2026-11-01")
     )
 
+    list_recent.assert_awaited_once()
     kwargs = list_recent.await_args_list[0].kwargs
     assert kwargs["exclude_chat_ids"] == [CURRENT_CHAT]
     assert kwargs["updated_after"] == datetime(2026, 11, 1, tzinfo=UTC)

@@ -308,6 +308,10 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
                 used += tokens
             if cursor is None:
                 break
+            if current == page_number and len(page) >= per_page:
+                # The page is full and the cursor says more exist: no need to
+                # fetch the next endpoint page just to learn that.
+                return page, True
         return (page if current == page_number else []), False
 
     def _sources_response(
