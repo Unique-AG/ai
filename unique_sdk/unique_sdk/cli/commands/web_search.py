@@ -423,9 +423,9 @@ def cmd_web_search(
             and query review runs once before the search.
         refs_log_path: The per-turn web citation manifest. When ``None``,
             it resolves from the workspace root.
-        message_id: Optional assistant message this call serves. Sent as
-            ``messageId`` on the search, and on the review call when
-            query review runs. Omitted when unset.
+        message_id: Optional assistant message the review form is attached
+            to. Sent as ``messageId`` on the review call only; the search
+            endpoint does not accept it.
         review_id: Id of a review the user already answered. The query is
             searched with that id. Without a chat id this is ignored.
 
@@ -459,7 +459,6 @@ def _search_request_options(
     crawler_config_raw: str | None,
     config_path: str | None,
     chat_id: str | None,
-    message_id: str | None = None,
 ) -> dict[str, Any] | str:
     """Build the request fields shared by every query, or return an error string."""
     file_overrides = _load_file_overrides(config_path)
@@ -490,8 +489,6 @@ def _search_request_options(
         options["crawlerConfig"] = crawler_override
     if chat_id:
         options["chatId"] = chat_id
-    if message_id:
-        options["messageId"] = message_id
     return options
 
 
@@ -751,7 +748,6 @@ def _plan_web_search(
         crawler_config_raw=crawler_config_raw,
         config_path=config_path,
         chat_id=chat_id,
-        message_id=message_id,
     )
     if isinstance(options, str):
         return options
@@ -941,7 +937,7 @@ def cmd_web_search_many(
     ``{engine, query, results}`` object, or ``{query, error}`` on failure.
     ``refs_log_path`` is the per-turn web citation manifest; ``None``
     resolves it from the workspace root. ``message_id`` is sent as
-    ``messageId`` only when set.
+    ``messageId`` on the review call only.
 
     Query review, when ``chat_id`` is set, runs once for the whole batch.
     ``review_id`` searches queries the user already approved. With no

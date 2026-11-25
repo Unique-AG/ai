@@ -643,7 +643,7 @@ class TestCmdWebSearch:
         assert "reviewId" not in mock_search.call_args[1]
 
     @patch("unique_sdk.WebSearch.search")
-    def test_cmd_web_search_with_message_id_sends_message_id(
+    def test_cmd_web_search_with_message_id_does_not_send_it_on_the_search(
         self, mock_search: MagicMock
     ) -> None:
         mock_search.return_value = _FakeResource(_make_search_payload(results=[]))
@@ -652,7 +652,7 @@ class TestCmdWebSearch:
             return_value={"status": "NOT_REQUIRED", "reviewId": None, "queries": ["x"]},
         ):
             cmd_web_search(_state(), "x", chat_id="chat_123", message_id="msg_1")
-        assert mock_search.call_args[1]["messageId"] == "msg_1"
+        assert "messageId" not in mock_search.call_args[1]
 
     @patch("unique_sdk.WebSearch.search")
     def test_cmd_web_search_without_message_id_omits_message_id(

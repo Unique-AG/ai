@@ -12,6 +12,7 @@ import pytest
 from click.testing import CliRunner
 
 import unique_sdk
+from unique_sdk._error import PermissionError as SdkPermissionError
 from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.web_search import (
     QUERY_REVIEW_WAIT_TIMEOUT_SECONDS,
@@ -104,7 +105,7 @@ def _search_rejection(status: int, message: str) -> unique_sdk.UniqueError:
     """The SDK error class the public API uses for this HTTP status."""
     if status == 409:
         return unique_sdk.APIError(message, http_status=status)
-    return unique_sdk.PermissionError(message, http_status=status)
+    return SdkPermissionError(message, http_status=status)
 
 
 def _manifest(path: Path) -> bytes:
@@ -303,11 +304,15 @@ class TestReviewStatuses:
         refs = tmp_path / "web-refs.jsonl"
 
         out = cmd_web_search(
-            _state(), "q", chat_id="chat_1", message_id="msg_1", refs_log_path=refs
+            _state(),
+            "private-query-text",
+            chat_id="chat_1",
+            message_id="msg_1",
+            refs_log_path=refs,
         )
 
         assert out == f"{WEB_SEARCH_ERROR_PREFIX} {expected}"
-        assert "q" not in out
+        assert "private-query-text" not in out
         assert is_error_output(out) is True
         assert not refs.exists()
         mock_search.assert_not_called()
@@ -670,7 +675,7 @@ class TestClickQueryReview:
         assert mock_review.call_args.kwargs["messageId"] == "msg_1"
         reviewed_call = mock_search.call_args_list[-1].kwargs
         assert reviewed_call["chatId"] == "chat_1"
-        assert reviewed_call["messageId"] == "msg_1"
+        assert "messageId" not in reviewed_call
         assert "reviewId" not in reviewed_call
         assert "chatId" not in mock_search.call_args_list[0].kwargs
 
