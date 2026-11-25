@@ -12,6 +12,8 @@ USER_ID = "user_1"
 COMPANY_ID = "company_1"
 PROJECT_ID = "custom_space_1"
 URL = f"/projects/{PROJECT_ID}/memory"
+SERVICE_ID = "assistants-core"
+SERVICE_HEADERS = {"x-service-id": SERVICE_ID}
 MEMORY = {
     "id": "project_memory_1",
     "projectId": PROJECT_ID,
@@ -54,7 +56,9 @@ def test_retrieve_requests_the_project_memory(mock_request):
 
     result = ProjectMemory.retrieve(USER_ID, COMPANY_ID, PROJECT_ID)
 
-    mock_request.assert_called_once_with("get", URL, USER_ID, COMPANY_ID)
+    mock_request.assert_called_once_with(
+        "get", URL, USER_ID, COMPANY_ID, supplied_headers=None
+    )
     assert result == EMPTY
 
 
@@ -76,6 +80,7 @@ def test_modify_patches_document_and_state(mock_request):
         USER_ID,
         COMPANY_ID,
         params={"document": "# Project memory", "state": '{"schema_version": 3}'},
+        supplied_headers=None,
     )
     assert result == MEMORY
 
@@ -88,7 +93,12 @@ def test_modify_without_state_sends_only_the_document(mock_request):
     ProjectMemory.modify(USER_ID, COMPANY_ID, PROJECT_ID, document="# New")
 
     mock_request.assert_called_once_with(
-        "patch", URL, USER_ID, COMPANY_ID, params={"document": "# New"}
+        "patch",
+        URL,
+        USER_ID,
+        COMPANY_ID,
+        params={"document": "# New"},
+        supplied_headers=None,
     )
 
 
@@ -98,7 +108,9 @@ def test_delete_removes_the_project_memory(mock_request):
 
     result = ProjectMemory.delete(USER_ID, COMPANY_ID, PROJECT_ID)
 
-    mock_request.assert_called_once_with("delete", URL, USER_ID, COMPANY_ID)
+    mock_request.assert_called_once_with(
+        "delete", URL, USER_ID, COMPANY_ID, supplied_headers=None
+    )
     assert result == DELETED
 
 
@@ -108,7 +120,9 @@ async def test_retrieve_async_requests_the_project_memory(mock_request):
 
     result = await ProjectMemory.retrieve_async(USER_ID, COMPANY_ID, PROJECT_ID)
 
-    mock_request.assert_awaited_once_with("get", URL, USER_ID, COMPANY_ID)
+    mock_request.assert_awaited_once_with(
+        "get", URL, USER_ID, COMPANY_ID, supplied_headers=None
+    )
     assert result == MEMORY
 
 
@@ -130,6 +144,7 @@ async def test_modify_async_patches_document_and_state(mock_request):
         USER_ID,
         COMPANY_ID,
         params={"document": "# Project memory", "state": '{"schema_version": 3}'},
+        supplied_headers=None,
     )
     assert result == MEMORY
 
@@ -140,8 +155,79 @@ async def test_delete_async_removes_the_project_memory(mock_request):
 
     result = await ProjectMemory.delete_async(USER_ID, COMPANY_ID, PROJECT_ID)
 
-    mock_request.assert_awaited_once_with("delete", URL, USER_ID, COMPANY_ID)
+    mock_request.assert_awaited_once_with(
+        "delete", URL, USER_ID, COMPANY_ID, supplied_headers=None
+    )
     assert result == DELETED
+
+
+@patch.object(ProjectMemory, "_static_request")
+def test_service_id_is_sent_as_x_service_id(mock_request):
+    # The endpoint is service-only: the project memory service calls it for
+    # the owner and identifies itself with x-service-id.
+    mock_request.return_value = MEMORY
+
+    ProjectMemory.retrieve(USER_ID, COMPANY_ID, PROJECT_ID, service_id=SERVICE_ID)
+    ProjectMemory.modify(
+        USER_ID,
+        COMPANY_ID,
+        PROJECT_ID,
+        document="# New",
+        state="{}",
+        service_id=SERVICE_ID,
+    )
+    ProjectMemory.delete(USER_ID, COMPANY_ID, PROJECT_ID, service_id=SERVICE_ID)
+
+    calls = mock_request.call_args_list
+    assert [call.args[0] for call in calls] == ["get", "patch", "delete"]
+    assert all(call.args[1:] == (URL, USER_ID, COMPANY_ID) for call in calls)
+    assert all(call.kwargs["supplied_headers"] == SERVICE_HEADERS for call in calls)
+    assert calls[1].kwargs["params"] == {"document": "# New", "state": "{}"}
+
+
+@patch.object(ProjectMemory, "_static_request_async", new_callable=AsyncMock)
+async def test_service_id_is_sent_as_x_service_id_async(mock_request):
+    mock_request.return_value = MEMORY
+
+    await ProjectMemory.retrieve_async(
+        USER_ID, COMPANY_ID, PROJECT_ID, service_id=SERVICE_ID
+    )
+    await ProjectMemory.modify_async(
+        USER_ID, COMPANY_ID, PROJECT_ID, document="# New", service_id=SERVICE_ID
+    )
+    await ProjectMemory.delete_async(
+        USER_ID, COMPANY_ID, PROJECT_ID, service_id=SERVICE_ID
+    )
+
+    calls = mock_request.await_args_list
+    assert [call.args[0] for call in calls] == ["get", "patch", "delete"]
+    assert all(call.kwargs["supplied_headers"] == SERVICE_HEADERS for call in calls)
+    # The service id never ends up in the PATCH body.
+    assert calls[1].kwargs["params"] == {"document": "# New"}
+
+
+@pytest.mark.parametrize("service_id", ["", "   "])
+@patch.object(ProjectMemory, "_static_request")
+def test_empty_service_id_is_rejected(mock_request, service_id):
+    with pytest.raises(ValueError):
+        ProjectMemory.retrieve(USER_ID, COMPANY_ID, PROJECT_ID, service_id=service_id)
+    with pytest.raises(ValueError):
+        ProjectMemory.modify(
+            USER_ID, COMPANY_ID, PROJECT_ID, document="# New", service_id=service_id
+        )
+    with pytest.raises(ValueError):
+        ProjectMemory.delete(USER_ID, COMPANY_ID, PROJECT_ID, service_id=service_id)
+    mock_request.assert_not_called()
+
+
+@patch.object(ProjectMemory, "_static_request")
+def test_service_id_is_keyword_only(mock_request):
+    # Positional use could be confused with project_id or document.
+    with pytest.raises(TypeError):
+        ProjectMemory.retrieve(USER_ID, COMPANY_ID, PROJECT_ID, SERVICE_ID)  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        ProjectMemory.delete(USER_ID, COMPANY_ID, PROJECT_ID, SERVICE_ID)  # type: ignore[misc]
+    mock_request.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -173,7 +259,12 @@ def test_modify_with_state_none_keeps_the_stored_state(mock_request):
     ProjectMemory.modify(USER_ID, COMPANY_ID, PROJECT_ID, document="# New", state=None)
 
     mock_request.assert_called_once_with(
-        "patch", URL, USER_ID, COMPANY_ID, params={"document": "# New"}
+        "patch",
+        URL,
+        USER_ID,
+        COMPANY_ID,
+        params={"document": "# New"},
+        supplied_headers=None,
     )
 
 

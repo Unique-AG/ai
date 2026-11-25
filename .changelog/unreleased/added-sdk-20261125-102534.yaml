@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`unique_sdk.ProjectMemory` methods (`retrieve`, `modify`, `delete` and their `_async` variants) take a keyword-only `service_id`, sent as the `x-service-id` header. The project memory endpoint is service-only: callers pass `service_id="assistants-core"` and the project owner''s `user_id` and `company_id`; calls without it get 403.'
+time: 2026-11-25T10:25:34.353449+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29144

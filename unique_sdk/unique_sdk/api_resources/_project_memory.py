@@ -1,7 +1,11 @@
 """Project memory: the per-project memory of a user's project chats.
 
-Wraps the public endpoint ``/projects/{projectId}/memory``. Each project has
-one memory, which only the project's owner can read, replace or delete.
+Wraps the endpoint ``/projects/{projectId}/memory``. Each project has one
+memory. The endpoint is service-only: the calling service (the nightly
+project memory job, which runs in assistants-core) acts for the project's
+owner, so every call takes the owner's ``user_id`` and ``company_id`` and the
+service's ``service_id``, sent as ``x-service-id``. Direct calls by users,
+including the owner, are rejected (403).
 """
 
 from typing import Any, Literal, TypedDict, cast
@@ -12,7 +16,7 @@ from unique_sdk._util import classproperty
 
 
 class ProjectMemory(APIResource["ProjectMemory"]):
-    """The calling user's memory for one of their projects.
+    """The memory of one project, read and written for its owner.
 
     Until the memory is first written, ``id``, ``document``, ``state``,
     ``createdAt`` and ``updatedAt`` are ``None``.
@@ -75,63 +79,103 @@ class ProjectMemory(APIResource["ProjectMemory"]):
             body["state"] = state
         return body
 
+    @staticmethod
+    def _headers(service_id: str | None) -> dict[str, str] | None:
+        # One named header instead of arbitrary headers, for the same reason
+        # as _update_body: nothing else can be smuggled into the request.
+        if service_id is None:
+            return None
+        if not service_id.strip():
+            raise ValueError("service_id must not be empty")
+        return {"x-service-id": service_id}
+
     @classmethod
     def retrieve(
-        cls, user_id: str, company_id: str, project_id: str
+        cls,
+        user_id: str,
+        company_id: str,
+        project_id: str,
+        *,
+        service_id: str | None = None,
     ) -> "ProjectMemory":
-        """Get the memory of a project the user owns.
+        """Get the memory of a project, for its owner.
 
         Args:
-            user_id (str): The user who owns the project.
-            company_id (str): The user's company.
+            user_id (str): The project's owner.
+            company_id (str): The owner's company.
             project_id (str): The project.
+            service_id (str | None): The calling service, sent as
+                ``x-service-id``. Required by the endpoint, which only admits
+                the project memory service (``"assistants-core"``).
 
         Returns:
             ProjectMemory: The memory; its fields are ``None`` until it is
                 first written.
 
         Raises:
-            ValueError: ``project_id`` is empty, ``.`` or ``..``.
+            ValueError: ``project_id`` is empty, ``.`` or ``..``, or
+                ``service_id`` is empty.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404).
             AuthenticationError: The API key is missing or invalid (401).
-            PermissionError: The user lacks access, e.g. the Projects feature
-                flag is off (403).
+            PermissionError: The caller is not the project memory service,
+                the user lacks access, or the Projects feature flag is off
+                (403).
             APIError: Any other API failure.
         """
         return cast(
             "ProjectMemory",
-            cls._static_request("get", cls._url(project_id), user_id, company_id),
+            cls._static_request(
+                "get",
+                cls._url(project_id),
+                user_id,
+                company_id,
+                supplied_headers=cls._headers(service_id),
+            ),
         )
 
     @classmethod
     async def retrieve_async(
-        cls, user_id: str, company_id: str, project_id: str
+        cls,
+        user_id: str,
+        company_id: str,
+        project_id: str,
+        *,
+        service_id: str | None = None,
     ) -> "ProjectMemory":
-        """Get the memory of a project the user owns.
+        """Get the memory of a project, for its owner.
 
         Args:
-            user_id (str): The user who owns the project.
-            company_id (str): The user's company.
+            user_id (str): The project's owner.
+            company_id (str): The owner's company.
             project_id (str): The project.
+            service_id (str | None): The calling service, sent as
+                ``x-service-id``. Required by the endpoint, which only admits
+                the project memory service (``"assistants-core"``).
 
         Returns:
             ProjectMemory: The memory; its fields are ``None`` until it is
                 first written.
 
         Raises:
-            ValueError: ``project_id`` is empty, ``.`` or ``..``.
+            ValueError: ``project_id`` is empty, ``.`` or ``..``, or
+                ``service_id`` is empty.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404).
             AuthenticationError: The API key is missing or invalid (401).
-            PermissionError: The user lacks access, e.g. the Projects feature
-                flag is off (403).
+            PermissionError: The caller is not the project memory service,
+                the user lacks access, or the Projects feature flag is off
+                (403).
             APIError: Any other API failure.
         """
         return cast(
             "ProjectMemory",
             await cls._static_request_async(
-                "get", cls._url(project_id), user_id, company_id
+                "get",
+                cls._url(project_id),
+                user_id,
+                company_id,
+                supplied_headers=cls._headers(service_id),
             ),
         )
 
@@ -144,29 +188,35 @@ class ProjectMemory(APIResource["ProjectMemory"]):
         *,
         document: str,
         state: str | None = None,
+        service_id: str | None = None,
     ) -> "ProjectMemory":
-        """Create or replace the memory of a project the user owns.
+        """Create or replace the memory of a project, for its owner.
 
         Args:
-            user_id (str): The user who owns the project.
-            company_id (str): The user's company.
+            user_id (str): The project's owner.
+            company_id (str): The owner's company.
             project_id (str): The project.
             document (str): Markdown document that replaces the stored one,
                 at most 32 KB of UTF-8.
             state (str | None): JSON string that replaces the stored job
                 state, at most 256 KB of UTF-8. When omitted or ``None``, the
                 stored state is kept.
+            service_id (str | None): The calling service, sent as
+                ``x-service-id``. Required by the endpoint, which only admits
+                the project memory service (``"assistants-core"``).
 
         Returns:
             ProjectMemory: The updated memory.
 
         Raises:
-            ValueError: ``project_id`` is empty, ``.`` or ``..``.
+            ValueError: ``project_id`` is empty, ``.`` or ``..``, or
+                ``service_id`` is empty.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404), or a field is too large (400).
             AuthenticationError: The API key is missing or invalid (401).
-            PermissionError: The user lacks access, e.g. the Projects feature
-                flag is off (403).
+            PermissionError: The caller is not the project memory service,
+                the user lacks access, or the Projects feature flag is off
+                (403).
             APIError: Any other API failure.
         """
         return cast(
@@ -177,6 +227,7 @@ class ProjectMemory(APIResource["ProjectMemory"]):
                 user_id,
                 company_id,
                 params=cls._update_body(document, state),
+                supplied_headers=cls._headers(service_id),
             ),
         )
 
@@ -189,29 +240,35 @@ class ProjectMemory(APIResource["ProjectMemory"]):
         *,
         document: str,
         state: str | None = None,
+        service_id: str | None = None,
     ) -> "ProjectMemory":
-        """Create or replace the memory of a project the user owns.
+        """Create or replace the memory of a project, for its owner.
 
         Args:
-            user_id (str): The user who owns the project.
-            company_id (str): The user's company.
+            user_id (str): The project's owner.
+            company_id (str): The owner's company.
             project_id (str): The project.
             document (str): Markdown document that replaces the stored one,
                 at most 32 KB of UTF-8.
             state (str | None): JSON string that replaces the stored job
                 state, at most 256 KB of UTF-8. When omitted or ``None``, the
                 stored state is kept.
+            service_id (str | None): The calling service, sent as
+                ``x-service-id``. Required by the endpoint, which only admits
+                the project memory service (``"assistants-core"``).
 
         Returns:
             ProjectMemory: The updated memory.
 
         Raises:
-            ValueError: ``project_id`` is empty, ``.`` or ``..``.
+            ValueError: ``project_id`` is empty, ``.`` or ``..``, or
+                ``service_id`` is empty.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404), or a field is too large (400).
             AuthenticationError: The API key is missing or invalid (401).
-            PermissionError: The user lacks access, e.g. the Projects feature
-                flag is off (403).
+            PermissionError: The caller is not the project memory service,
+                the user lacks access, or the Projects feature flag is off
+                (403).
             APIError: Any other API failure.
         """
         return cast(
@@ -222,69 +279,100 @@ class ProjectMemory(APIResource["ProjectMemory"]):
                 user_id,
                 company_id,
                 params=cls._update_body(document, state),
+                supplied_headers=cls._headers(service_id),
             ),
         )
 
     @classmethod
     def delete(
-        cls, user_id: str, company_id: str, project_id: str
+        cls,
+        user_id: str,
+        company_id: str,
+        project_id: str,
+        *,
+        service_id: str | None = None,
     ) -> "ProjectMemory.DeletedObject":
-        """Delete the memory of a project the user owns.
+        """Delete the memory of a project, for its owner.
 
         Deleting a memory that does not exist succeeds.
 
         Args:
-            user_id (str): The user who owns the project.
-            company_id (str): The user's company.
+            user_id (str): The project's owner.
+            company_id (str): The owner's company.
             project_id (str): The project.
+            service_id (str | None): The calling service, sent as
+                ``x-service-id``. Required by the endpoint, which only admits
+                the project memory service (``"assistants-core"``).
 
         Returns:
             ProjectMemory.DeletedObject: The deletion result, with the project
                 id as ``id``.
 
         Raises:
-            ValueError: ``project_id`` is empty, ``.`` or ``..``.
+            ValueError: ``project_id`` is empty, ``.`` or ``..``, or
+                ``service_id`` is empty.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404).
             AuthenticationError: The API key is missing or invalid (401).
-            PermissionError: The user lacks access, e.g. the Projects feature
-                flag is off (403).
+            PermissionError: The caller is not the project memory service,
+                the user lacks access, or the Projects feature flag is off
+                (403).
             APIError: Any other API failure.
         """
         return cast(
             "ProjectMemory.DeletedObject",
-            cls._static_request("delete", cls._url(project_id), user_id, company_id),
+            cls._static_request(
+                "delete",
+                cls._url(project_id),
+                user_id,
+                company_id,
+                supplied_headers=cls._headers(service_id),
+            ),
         )
 
     @classmethod
     async def delete_async(
-        cls, user_id: str, company_id: str, project_id: str
+        cls,
+        user_id: str,
+        company_id: str,
+        project_id: str,
+        *,
+        service_id: str | None = None,
     ) -> "ProjectMemory.DeletedObject":
-        """Delete the memory of a project the user owns.
+        """Delete the memory of a project, for its owner.
 
         Deleting a memory that does not exist succeeds.
 
         Args:
-            user_id (str): The user who owns the project.
-            company_id (str): The user's company.
+            user_id (str): The project's owner.
+            company_id (str): The owner's company.
             project_id (str): The project.
+            service_id (str | None): The calling service, sent as
+                ``x-service-id``. Required by the endpoint, which only admits
+                the project memory service (``"assistants-core"``).
 
         Returns:
             ProjectMemory.DeletedObject: The deletion result, with the project
                 id as ``id``.
 
         Raises:
-            ValueError: ``project_id`` is empty, ``.`` or ``..``.
+            ValueError: ``project_id`` is empty, ``.`` or ``..``, or
+                ``service_id`` is empty.
             InvalidRequestError: The project does not exist or belongs to
                 another user or company (404).
             AuthenticationError: The API key is missing or invalid (401).
-            PermissionError: The user lacks access, e.g. the Projects feature
-                flag is off (403).
+            PermissionError: The caller is not the project memory service,
+                the user lacks access, or the Projects feature flag is off
+                (403).
             APIError: Any other API failure.
         """
         return cast(
             "ProjectMemory.DeletedObject",
             await cls._static_request_async(
-                "delete", cls._url(project_id), user_id, company_id
+                "delete",
+                cls._url(project_id),
+                user_id,
+                company_id,
+                supplied_headers=cls._headers(service_id),
             ),
         )
