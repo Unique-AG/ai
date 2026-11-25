@@ -46,13 +46,14 @@ from logging import Logger
 from typing import TYPE_CHECKING
 
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.loader import parse_skill_file
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
+
+from unique_orchestrator._builders.skill_file_loader import load_skill
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -96,6 +97,7 @@ def normalize_available_skills_for_tool(
                 name=choice.name,
                 scope_id=choice.scope_id,
                 content_id=choice.content_id,
+                updated_at=choice.updated_at,
             )
         )
     return out
@@ -113,58 +115,41 @@ async def load_selectable_skills(
     leave a blank row as a placeholder). Failures are logged and do not
     abort the rest of the registry so one broken entry cannot hide the
     rest of the skill list.
+
+    A reference that carries ``updated_at`` is served from the process-wide
+    skill cache when its file was parsed before; see ``skill_file_loader``.
     """
     valid_entries = [entry for entry in selectable_skills if entry.content_id]
     if not valid_entries:
         logger.info("SkillTool has no selectable_skills with a content_id set.")
         return {}
 
-    download_results = await asyncio.gather(
+    load_results = await asyncio.gather(
         *(
-            content_service.download_content_to_bytes_async(content_id=entry.content_id)
+            load_skill(content_service=content_service, reference=entry, logger=logger)
             for entry in valid_entries
         ),
         return_exceptions=True,
     )
 
     skill_registry: dict[str, SkillDefinition] = {}
-    for entry, result in zip(valid_entries, download_results, strict=True):
+    cached_count = 0
+    failed_count = 0
+    for entry, result in zip(valid_entries, load_results, strict=True):
         label = entry.name or entry.content_id
         if isinstance(result, BaseException):
+            failed_count += 1
             logger.warning(
-                "Failed to download selectable skill '%s' (%s) — skipping.",
+                "Failed to load selectable skill '%s' (%s) — skipping.",
                 label,
                 entry.content_id,
                 exc_info=result,
             )
             continue
 
-        try:
-            file_text = result.decode("utf-8")
-        except UnicodeDecodeError:
-            logger.warning(
-                "Failed to decode selectable skill '%s' (%s) as UTF-8 — skipping.",
-                label,
-                entry.content_id,
-                exc_info=True,
-            )
-            continue
-
-        try:
-            skill = parse_skill_file(
-                file_text=file_text,
-                content_id=entry.content_id,
-                source_label=label,
-                logger=logger,
-            )
-        except Exception:
-            logger.warning(
-                "Unexpected error building selectable skill '%s' (%s) — skipping.",
-                label,
-                entry.content_id,
-                exc_info=True,
-            )
-            continue
+        skill, from_cache = result
+        if from_cache:
+            cached_count += 1
 
         if skill is None:
             logger.debug(
@@ -185,8 +170,13 @@ async def load_selectable_skills(
         skill_registry[skill.name] = skill
 
     logger.info(
-        "Loaded %d skill(s) from selectable_skills.",
+        "Loaded %d skill(s) from selectable_skills "
+        "(listed=%d, from_cache=%d, downloaded=%d, failed=%d).",
         len(skill_registry),
+        len(valid_entries),
+        cached_count,
+        len(valid_entries) - cached_count - failed_count,
+        failed_count,
     )
     return skill_registry
 

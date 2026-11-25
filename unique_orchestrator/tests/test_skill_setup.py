@@ -270,6 +270,20 @@ class TestMessageSkillsAsSelectable:
         )
         assert rows == [SkillReference(name="first", scope_id="a", content_id="x")]
 
+    def test_keeps_updated_at(self) -> None:
+        rows = normalize_available_skills_for_tool(
+            [
+                SkillReference(
+                    content_id="x",
+                    scope_id="a",
+                    name="stamped",
+                    updated_at="2026-11-20T10:00:00.000Z",
+                ),
+                SkillReference(content_id="y", scope_id="a", name="unstamped"),
+            ]
+        )
+        assert [row.updated_at for row in rows] == ["2026-11-20T10:00:00.000Z", None]
+
 
 class TestLoadSelectableSkills:
     @pytest.mark.asyncio

@@ -1,0 +1,7 @@
+component: Orchestrator
+kind: Fixed
+body: Spaces with many skills now load every skill on each turn. Before, all skill files were downloaded at once, and a download that timed out silently dropped that skill for the turn. Downloads now share a limit of 10 at a time across all turns, wait up to 20 seconds and are retried once. A skill whose reference carries the file's last-modified time is parsed once and then kept in memory, so later turns download only new or edited skills. That part takes effect once the platform sends the last-modified time with the skill list.
+time: 2026-11-25T22:25:00.000000+01:00
+custom:
+    Audience: user
+    Ticket: UN-30534
