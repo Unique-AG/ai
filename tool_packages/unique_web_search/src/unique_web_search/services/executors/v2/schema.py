@@ -139,8 +139,7 @@ class WebSearchPlan(BaseModel):
         """Build a multi-step example plan, adapted to *mode*.
 
         In agent mode the search engine performs comprehensive research
-        internally, so we consolidate into a single search step. With
-        crawling off, the example has no ``read_url`` step.
+        internally, so we consolidate into a single search step.
         """
         if mode == SearchEngineMode.AGENT:
             return WebSearchPlan(

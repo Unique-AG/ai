@@ -412,18 +412,38 @@ class TestAwsSearchService:
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
-        "endpoint",
+        ("endpoint", "region"),
         [
-            "https://bedrock-agentcore.eu-west-1.amazonaws.com",
-            "https://vpce-0abc-xyz.bedrock-agentcore.eu-west-1.vpce.amazonaws.com/",
-            "https://vpce-0abc-xyz-eu-west-1a.bedrock-agentcore.eu-west-1.vpce.amazonaws.com",
-            "https://bedrock-agentcore-fips.us-east-1.amazonaws.com",
+            ("https://bedrock-agentcore.eu-west-1.amazonaws.com", "eu-west-1"),
+            (
+                "https://vpce-0abc-xyz.bedrock-agentcore.eu-west-1.vpce.amazonaws.com/",
+                "eu-west-1",
+            ),
+            (
+                "https://vpce-0abc-xyz-eu-west-1a.bedrock-agentcore.eu-west-1.vpce.amazonaws.com",
+                "eu-west-1",
+            ),
+            ("https://bedrock-agentcore-fips.us-east-1.amazonaws.com", "us-east-1"),
         ],
     )
-    def test_aws_endpoints_are_accepted(self, endpoint: str) -> None:
-        assert service._invoke_url(endpoint).endswith(
+    def test_aws_endpoints_are_accepted(self, endpoint: str, region: str) -> None:
+        assert service._invoke_url(endpoint, region).endswith(
             "/web-search/web-search.v1/invoke"
         )
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "https://bedrock-agentcore.us-east-1.amazonaws.com",
+            "https://vpce-0abc.bedrock-agentcore.us-east-1.vpce.amazonaws.com",
+        ],
+    )
+    def test_endpoint_outside_the_signing_region_is_refused(
+        self, endpoint: str
+    ) -> None:
+        with pytest.raises(EngineNotConfiguredError):
+            service._invoke_url(endpoint, "eu-west-1")
 
     @pytest.mark.ai
     def test_session_is_reused_across_requests(

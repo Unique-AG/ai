@@ -30,8 +30,8 @@ class _AwsSearchCredentials(ProviderCredentials):
             "AgentCore endpoint. Must be "
             "https://bedrock-agentcore.<region>.amazonaws.com for the region above, "
             "or an AgentCore PrivateLink endpoint "
-            "(<id>.bedrock-agentcore.<region>.vpce.amazonaws.com). "
-            "Other hosts are refused."
+            "(<id>.bedrock-agentcore.<region>.vpce.amazonaws.com) in that region. "
+            "Other hosts and regions are refused."
         ),
     )
 
