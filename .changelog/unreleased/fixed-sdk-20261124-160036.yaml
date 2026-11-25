@@ -1,0 +1,7 @@
+component: SDK
+kind: Fixed
+body: SDK logs show request URLs without their query string, so GET and DELETE parameters such as knowledge-base folder paths no longer appear in logs. The request line lists the parameter names as `query_keys`, without their values. The `Unique error received` line redacts the server's error message, which can repeat request input, and connection error messages drop URL query strings. Set `INSECURE_UNIQUE_SDK_LOG_PAYLOADS=true` to log them in full, as for request bodies and headers.
+time: 2026-11-24T16:00:36.306389+01:00
+custom:
+    Audience: operator
+    Ticket: UN-29153

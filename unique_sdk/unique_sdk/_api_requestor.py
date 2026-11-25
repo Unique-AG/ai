@@ -80,6 +80,15 @@ def _abs_api_url(api_base: str, path: str) -> str:
     return base + segment
 
 
+def _query_keys_for_log(
+    method: str, params: Mapping[str, Any] | None
+) -> dict[str, str]:
+    """Param names, never values, for GET and DELETE; empty for other methods."""
+    if method not in ("get", "delete") or not params:
+        return {}
+    return {"query_keys": ",".join(str(key) for key in params)}
+
+
 class APIRequestor(object):
     api_key: str | None
     app_id: str | None
@@ -193,7 +202,12 @@ class APIRequestor(object):
             supplied_headers,
         )
 
-        _util.log_info("Request to Unique", method=method, path=abs_url)
+        _util.log_info(
+            "Request to Unique",
+            method=method,
+            path=_util.url_for_log(abs_url),
+            **_query_keys_for_log(method, params),
+        )
         _util.log_request_details(
             data=post_data,
             headers=headers,
@@ -204,7 +218,7 @@ class APIRequestor(object):
             method, abs_url, headers, post_data
         )
 
-        _util.log_info("Unique response", path=abs_url, status=rcode)
+        _util.log_info("Unique response", path=_util.url_for_log(abs_url), status=rcode)
         _util.log_response_body(body=rcontent)
 
         if "Request-Id" in rheaders:
@@ -228,7 +242,12 @@ class APIRequestor(object):
             supplied_headers,
         )
 
-        _util.log_info("Async request to Unique", method=method, path=abs_url)
+        _util.log_info(
+            "Async request to Unique",
+            method=method,
+            path=_util.url_for_log(abs_url),
+            **_query_keys_for_log(method, params),
+        )
         _util.log_request_details(
             data=post_data,
             headers=headers,
@@ -240,7 +259,7 @@ class APIRequestor(object):
             method, abs_url, headers, post_data
         )
 
-        _util.log_info("Unique response", path=abs_url, status=rcode)
+        _util.log_info("Unique response", path=_util.url_for_log(abs_url), status=rcode)
         _util.log_response_body(body=rcontent)
 
         if "Request-Id" in rheaders:
@@ -406,7 +425,7 @@ class APIRequestor(object):
             "Unique error received",
             error_code=status,
             error_type=error_data.get("type"),
-            error_message=error_data.get("message"),
+            error_message=_util.redacted_error_message(error_data.get("message")),
             error_params=_util.redacted_error_params(error_data.get("params")),
         )
 

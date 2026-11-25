@@ -20,6 +20,7 @@ from typing import (
     cast,
     overload,
 )
+from urllib.parse import urlsplit, urlunsplit
 
 from typing_extensions import TYPE_CHECKING
 
@@ -78,6 +79,38 @@ def _headers_for_log(headers: Mapping[str, str] | None) -> dict[str, str] | str 
 def _body_for_log(body: Any) -> Any:
     if _insecure_log_payloads_enabled():
         return body
+    return _REDACTED
+
+
+def url_for_log(url: str) -> str:
+    """Drops the query string and fragment unless payload logging is on."""
+    if _insecure_log_payloads_enabled():
+        return url
+    scheme, netloc, path, _query, _fragment = urlsplit(url)
+    return urlunsplit((scheme, netloc, path, "", ""))
+
+
+# A URL or path, then a query string up to whitespace, a quote or "#".
+_URL_QUERY_RE = re.compile(r"((?:[A-Za-z][A-Za-z0-9+.-]*://|/)[^\s?#'\"]*)\?[^\s'\"#]*")
+
+
+def strip_url_queries(text: str) -> str:
+    """Removes URL query strings from exception text unless payload logging is on.
+
+    HTTP libraries such as ``requests`` quote the request URL in their errors.
+    """
+    if _insecure_log_payloads_enabled():
+        return text
+    return _URL_QUERY_RE.sub(r"\1", text)
+
+
+def redacted_error_message(message: Any) -> Any:
+    """Redacts a server error message for logs; the exception keeps the original.
+
+    The public API echoes request input, such as folder paths, in messages.
+    """
+    if message is None or _insecure_log_payloads_enabled():
+        return message
     return _REDACTED
 
 
