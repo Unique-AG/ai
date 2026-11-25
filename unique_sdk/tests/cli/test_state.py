@@ -313,6 +313,96 @@ class TestWorkspaceScopes:
         s = ShellState(_config())
         assert s.workspace_metadata_filter is None
 
+    @pytest.mark.ai
+    def test_shell_state__search_scope__comes_from_workspace_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: An explicit directory supplies the search scope.
+        Why this matters: A shared process environment belongs to no single turn.
+        Setup summary: UNIQUE_WORKSPACE_DIR and workspace_dir hold different scope files.
+        """
+        env_root = tmp_path / "env"
+        turn_root = tmp_path / "turn"
+        env_root.mkdir()
+        turn_root.mkdir()
+        rule = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_turn",
+        }
+        (env_root / ".unique-search.json").write_text(
+            json.dumps(
+                {
+                    "scopeIds": ["scope_env"],
+                    "metaDataFilter": {
+                        "path": ["folderIdPath"],
+                        "operator": "equals",
+                        "value": "scope_env",
+                    },
+                }
+            )
+        )
+        (turn_root / ".unique-search.json").write_text(
+            json.dumps({"scopeIds": ["scope_turn"], "metaDataFilter": rule})
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(env_root))
+
+        state = ShellState(_config(), workspace_dir=turn_root)
+
+        assert state.workspace_scope_ids == ["scope_turn"]
+        assert state.workspace_metadata_filter == rule
+
+    @pytest.mark.ai
+    def test_shell_state__search_scope__missing_file_in_workspace_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: A workspace_dir with no scope file means no search scope.
+        Why this matters: The process environment must not fill that gap.
+        Setup summary: The env directory has a scope file; workspace_dir does not.
+        """
+        env_root = tmp_path / "env"
+        turn_root = tmp_path / "turn"
+        env_root.mkdir()
+        turn_root.mkdir()
+        (env_root / ".unique-search.json").write_text(
+            json.dumps({"scopeIds": ["scope_env"]})
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(env_root))
+
+        state = ShellState(_config(), workspace_dir=turn_root)
+
+        assert state.workspace_scope_ids == []
+        assert state.workspace_metadata_filter is None
+
+    @pytest.mark.ai
+    def test_shell_state__uploaded_scope__stays_on_process_workspace(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: workspace_dir does not retarget uploaded-search files.
+        Why this matters: Only the knowledge-base scope is per turn here.
+        Setup summary: Env and workspace_dir each have their own uploaded file.
+        """
+        env_root = tmp_path / "env"
+        turn_root = tmp_path / "turn"
+        env_root.mkdir()
+        turn_root.mkdir()
+        (env_root / ".unique-uploaded.json").write_text(
+            json.dumps({"chatId": "chat_env", "contentIds": ["cont_env"]})
+        )
+        (turn_root / ".unique-search.json").write_text(
+            json.dumps({"scopeIds": ["scope_turn"]})
+        )
+        (turn_root / ".unique-uploaded.json").write_text(
+            json.dumps({"chatId": "chat_turn", "contentIds": ["cont_turn"]})
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(env_root))
+
+        state = ShellState(_config(), workspace_dir=turn_root)
+
+        assert state.workspace_scope_ids == ["scope_turn"]
+        assert state.uploaded_search_chat_id == "chat_env"
+        assert state.uploaded_search_content_ids == ["cont_env"]
+
     def test_is_within_workspace_no_restriction(self) -> None:
         s = ShellState(_config())
         s.workspace_scope_ids = []
