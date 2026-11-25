@@ -314,14 +314,12 @@ class TestMultiQueryFailures:
 
 class TestMultiQueryMessageId:
     @patch("unique_sdk.WebSearch.search")
-    def test_every_query_carries_the_message_id(self, mock_search: MagicMock) -> None:
+    def test_no_query_carries_the_message_id(self, mock_search: MagicMock) -> None:
         mock_search.side_effect = _search_by_query(URLS)
 
         cmd_web_search_many(_state(), ["git", "docker"], message_id="msg_1")
 
-        assert {call[1]["messageId"] for call in mock_search.call_args_list} == {
-            "msg_1"
-        }
+        assert all("messageId" not in call[1] for call in mock_search.call_args_list)
 
 
 class TestMultiQueryRefsLogPath:
@@ -393,14 +391,28 @@ class TestMultiQueryConcurrency:
     ) -> None:
         mock_search.side_effect = _search_by_query(URLS)
 
-        cmd_web_search_many(
-            _state(),
-            ["git", "redis"],
-            fetch_size=3,
-            include_content=True,
-            engine_config_raw='{"searchEngineName":"Google"}',
-            chat_id="chat_1",
-        )
+        with patch(
+            "unique_sdk.WebSearchReview.review",
+            return_value={
+                "status": "NOT_REQUIRED",
+                "reviewId": None,
+                "queries": ["git", "redis"],
+            },
+        ) as mock_review:
+            cmd_web_search_many(
+                _state(),
+                ["git", "redis"],
+                fetch_size=3,
+                include_content=True,
+                engine_config_raw='{"searchEngineName":"Google"}',
+                chat_id="chat_1",
+            )
+
+        mock_review.assert_called_once()
+        assert mock_review.call_args.kwargs["chatId"] == "chat_1"
+        assert mock_review.call_args.kwargs["queries"] == ["git", "redis"]
+        assert mock_review.call_args.kwargs["user_id"] == "u1"
+        assert mock_review.call_args.kwargs["company_id"] == "c1"
 
         calls = [call.kwargs for call in mock_search.call_args_list]
         assert sorted(call["query"] for call in calls) == ["git", "redis"]
@@ -409,6 +421,7 @@ class TestMultiQueryConcurrency:
             assert call["includeContent"] is True
             assert call["searchEngineConfig"] == {"searchEngineName": "Google"}
             assert call["chatId"] == "chat_1"
+            assert "reviewId" not in call
             assert call["user_id"] == "u1"
             assert call["company_id"] == "c1"
 

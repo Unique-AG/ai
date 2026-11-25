@@ -117,6 +117,7 @@ from unique_sdk.api_resources._briefing import Briefing as Briefing
 from unique_sdk.api_resources._web_search import (
     WebSearch as WebSearch,
     WebCrawl as WebCrawl,
+    WebSearchReview as WebSearchReview,
     WebSearchResultItem as WebSearchResultItem,
     WebCrawlResultItem as WebCrawlResultItem,
 )

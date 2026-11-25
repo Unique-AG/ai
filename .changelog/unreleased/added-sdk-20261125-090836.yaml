@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`unique-cli web-search search` asks the user to approve queries before searching when the chat''s space has web search query review on (`queryElicitationConfig.enableElicitation` on the WebSearch tool; off unless that space sets it to true). A pending review tells the agent to run `unique-cli elicit wait`, then search again with `--chat-id <chat-id> --review-id <review-id>` and the options of the first call. Spaces with review off, and searches without a chat id, are unchanged. On a platform without `/web-search-api/review` (HTTP 404), the search falls back to a plain search. With `--json`, a pending review is the object `{status, reviewId, chatId}`.'
+time: 2026-11-25T09:08:36.802119+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29691

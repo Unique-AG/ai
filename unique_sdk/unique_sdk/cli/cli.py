@@ -111,9 +111,11 @@ from unique_sdk.cli.commands.subagent import (
     is_error_output as _is_subagent_error_output,
 )
 from unique_sdk.cli.commands.web_search import (
+    QUERY_REVIEW_WAIT_TIMEOUT_SECONDS,
     cmd_web_crawl,
     cmd_web_search,
     cmd_web_search_many,
+    cmd_web_search_resume,
 )
 from unique_sdk.cli.commands.web_search import (
     is_error_output as _is_web_search_error_output,
@@ -2198,6 +2200,11 @@ def web_search_group(ctx: click.Context, config_path: str | None) -> None:
     Subcommands:
       search    Run a web search and print URLs + snippets
       crawl     Crawl a list of URLs and print their content
+
+    \b
+    Query review:
+      A space can require the user to approve search queries before they
+      are sent. See `web-search search --help`.
     """
     if config_path is not None:
         ctx.meta[_WEB_SEARCH_GROUP_CONFIG_KEY] = config_path
@@ -2219,7 +2226,8 @@ def _emit_web_search(ctx: click.Context, output: str) -> None:
         ctx.exit(1)
 
 
-_SEARCH_HELP = """\
+_SEARCH_HELP = (
+    """\
 Run a web search via /web-search-api/search.
 
 \b
@@ -2232,11 +2240,26 @@ Examples:
   unique-cli web-search search "tax reform" \\
     --engine-config '{"searchEngineName":"Google","fetchSize":3}'
   unique-cli web-search --config ./ws.json search "EU AI act"
+  unique-cli web-search search --review-id rev_123
 """
+    + f"""
+\b
+Query review:
+  When the chat's space requires query review, this command asks the user
+  to approve the queries and does not search until they do. If the output
+  says the review is pending, run `unique-cli elicit wait <review-id>
+  --timeout {QUERY_REVIEW_WAIT_TIMEOUT_SECONDS}`, then
+  `unique-cli web-search search --chat-id <chat-id> --review-id <review-id>`.
+  Repeat the options of the first call (--json, --include-content, -n) and
+  pass no queries with --review-id; different wording needs a new search
+  without --review-id.
+  If the user declines, tell them the search did not run.
+"""
+)
 
 
 @web_search_group.command("search", help=_SEARCH_HELP)
-@click.argument("queries", nargs=-1, required=True)
+@click.argument("queries", nargs=-1, required=False)
 @click.option(
     "--fetch-size",
     "-n",
@@ -2275,7 +2298,7 @@ Examples:
     "--json",
     "output_json",
     is_flag=True,
-    help="Output results as JSON (suitable for piping into web-search crawl --stdin).",
+    help="Output results as JSON (suitable for piping into web-search crawl --stdin). A pending query review is the object {status, reviewId, chatId}.",
 )
 @click.option(
     "--chat-id",
@@ -2289,6 +2312,17 @@ Examples:
         "rejected if Web Search is disabled for that space."
     ),
 )
+@click.option(
+    "--review-id",
+    "review_id",
+    default=None,
+    help=(
+        "Id of a query review the user already answered. With no "
+        "positional queries, the approved queries are read from the "
+        "review. Do not pass other queries with it. After a pending "
+        "review, run elicit wait, then search again with this option."
+    ),
+)
 @click.pass_context
 def web_search_search_cmd(
     ctx: click.Context,
@@ -2300,10 +2334,36 @@ def web_search_search_cmd(
     config_path: str | None,
     output_json: bool,
     chat_id: str | None,
+    review_id: str | None,
 ) -> None:
     """Search the web via the Unique public API."""
+    if not queries and not (review_id and review_id.strip()):
+        raise click.UsageError(
+            "Missing argument QUERIES. Pass one or more queries, or "
+            "--review-id to search queries the user already approved."
+        )
     resolved_config = _resolve_web_search_config_path(ctx, config_path)
-    if len(queries) == 1:
+    resolved_chat_id = _resolve_cli_chat_id(ctx, chat_id)
+    # No chat id means no review, so leave the search call unchanged.
+    # The message id only goes on a new review request, never on a resume.
+    resolved_message_id = (
+        _resolve_cli_message_id(ctx, None)
+        if resolved_chat_id and not (review_id and review_id.strip())
+        else None
+    )
+    if not queries:
+        output = cmd_web_search_resume(
+            LazyState.get(ctx),
+            review_id or "",
+            resolved_chat_id,
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+        )
+    elif len(queries) == 1:
         output = cmd_web_search(
             LazyState.get(ctx),
             queries[0],
@@ -2313,7 +2373,9 @@ def web_search_search_cmd(
             crawler_config_raw=crawler_config_raw,
             output_json=output_json,
             config_path=resolved_config,
-            chat_id=_resolve_cli_chat_id(ctx, chat_id),
+            chat_id=resolved_chat_id,
+            message_id=resolved_message_id,
+            review_id=review_id,
         )
     else:
         output = cmd_web_search_many(
@@ -2325,7 +2387,9 @@ def web_search_search_cmd(
             crawler_config_raw=crawler_config_raw,
             output_json=output_json,
             config_path=resolved_config,
-            chat_id=_resolve_cli_chat_id(ctx, chat_id),
+            chat_id=resolved_chat_id,
+            message_id=resolved_message_id,
+            review_id=review_id,
         )
     _emit_web_search(ctx, output)
 
