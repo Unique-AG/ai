@@ -580,6 +580,7 @@ class TestContentServiceUnit:
                 company_id="test_company",
                 content_id="test_content_id",
                 chat_id="test_chat_id",
+                timeout=None,
             )
 
     @pytest.mark.ai
@@ -611,6 +612,7 @@ class TestContentServiceUnit:
                 company_id="test_company",
                 content_id="test_content_id",
                 chat_id="test_chat",
+                timeout=None,
             )
 
     @patch("requests.get")
