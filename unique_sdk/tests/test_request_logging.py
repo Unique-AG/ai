@@ -184,11 +184,7 @@ def test_error_params_passthrough_when_insecure_flag_set(
     assert _util.redacted_error_params(params) is params
 
 
-# --- Request URLs (UN-29153) ------------------------------------------------
-#
-# GET and DELETE put their params in the query string. The query string can
-# carry customer data (knowledge-base folder paths), so it is logged only with
-# INSECURE_UNIQUE_SDK_LOG_PAYLOADS=true.
+# Request URL logging.
 
 _SENTINEL = "SENTINEL-7f3a"
 _FOLDER_PATH = f"/home/Jane.Doe/skills-{_SENTINEL}"
@@ -345,10 +341,7 @@ def test_AI_url_for_log_drops_query_and_fragment(
     assert _util.url_for_log(url) == expected
 
 
-# --- Server error messages ---------------------------------------------------
-#
-# The public API echoes request input in error messages, e.g. node-chat's
-# "Folder with id or path /home/<name>/... not found".
+# Server error messages echo request input.
 
 
 def test_AI_error_received_log_redacts_server_message(
@@ -396,10 +389,7 @@ def test_AI_error_received_log_keeps_server_message_when_insecure_flag_set(
     assert _SENTINEL in error_line
 
 
-# --- Connection errors -------------------------------------------------------
-#
-# `requests` quotes the request URL in its connection errors, and
-# str(APIConnectionError) appends the original error.
+# Connection errors quote the request URL.
 
 _REQUESTS_CONNECTION_ERROR = (
     "HTTPSConnectionPool(host='gw.example', port=443): Max retries exceeded "
@@ -449,6 +439,7 @@ def test_AI_connection_error_message_keeps_url_query_when_insecure_flag_set(
         ("url: /a/b?x=1&y=%2Fhome (Caused", "url: /a/b (Caused"),
         ("GET https://gw.example/a?x=1 failed", "GET https://gw.example/a failed"),
         ("'https://gw.example/a?x=1'", "'https://gw.example/a'"),
+        ("GET /a?p=/home/Jane)Doe/private failed", "GET /a failed"),
         ("Is it done? Not yet.", "Is it done? Not yet."),
         ("no url here", "no url here"),
     ],

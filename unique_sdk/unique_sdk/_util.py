@@ -83,30 +83,21 @@ def _body_for_log(body: Any) -> Any:
 
 
 def url_for_log(url: str) -> str:
-    """The URL without its query string, unless payload logging is on.
-
-    GET and DELETE send their params in the query string, which can carry
-    customer data such as knowledge-base folder paths.
-    """
+    """Drops the query string and fragment unless payload logging is on."""
     if _insecure_log_payloads_enabled():
         return url
     scheme, netloc, path, _query, _fragment = urlsplit(url)
     return urlunsplit((scheme, netloc, path, "", ""))
 
 
-# An absolute URL or a path, followed by a query string. Query strings built
-# by the SDK are URL-encoded, so they hold no whitespace or quotes.
-_URL_QUERY_RE = re.compile(
-    r"((?:[A-Za-z][A-Za-z0-9+.-]*://|/)[^\s?#'\"]*)\?[^\s'\"#)]*"
-)
+# A URL or path, then a query string up to whitespace, a quote or "#".
+_URL_QUERY_RE = re.compile(r"((?:[A-Za-z][A-Za-z0-9+.-]*://|/)[^\s?#'\"]*)\?[^\s'\"#]*")
 
 
 def strip_url_queries(text: str) -> str:
-    """``text`` with the query string of every URL in it removed.
+    """Removes URL query strings from exception text unless payload logging is on.
 
-    Used on exception text from HTTP libraries, which quote the request URL
-    (``requests``: "Max retries exceeded with url: /folder/info?folderPath=...").
-    Kept unchanged when payload logging is on.
+    HTTP libraries such as ``requests`` quote the request URL in their errors.
     """
     if _insecure_log_payloads_enabled():
         return text
@@ -114,11 +105,9 @@ def strip_url_queries(text: str) -> str:
 
 
 def redacted_error_message(message: Any) -> Any:
-    """Server error message for the INFO-level 'Unique error received' log.
+    """Redacts a server error message for logs; the exception keeps the original.
 
-    The public API echoes request input in messages, e.g. "Folder with id or
-    path /home/<name>/... not found", so the message is redacted unless the
-    insecure opt-in is set. The exception raised to the caller keeps it.
+    The public API echoes request input, such as folder paths, in messages.
     """
     if message is None or _insecure_log_payloads_enabled():
         return message

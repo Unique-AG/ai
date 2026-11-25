@@ -83,11 +83,7 @@ def _abs_api_url(api_base: str, path: str) -> str:
 def _query_keys_for_log(
     method: str, params: Mapping[str, Any] | None
 ) -> dict[str, str]:
-    """Names, never values, of the params a GET or DELETE puts in the URL.
-
-    ``url_for_log`` drops the query string, so this keeps some signal for
-    debugging. Empty for other methods, whose params go in the body.
-    """
+    """Param names, never values, for GET and DELETE; empty for other methods."""
     if method not in ("get", "delete") or not params:
         return {}
     return {"query_keys": ",".join(str(key) for key in params)}
