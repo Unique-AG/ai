@@ -398,7 +398,7 @@ class TestMultiQueryConcurrency:
                 "reviewId": None,
                 "queries": ["git", "redis"],
             },
-        ):
+        ) as mock_review:
             cmd_web_search_many(
                 _state(),
                 ["git", "redis"],
@@ -407,6 +407,12 @@ class TestMultiQueryConcurrency:
                 engine_config_raw='{"searchEngineName":"Google"}',
                 chat_id="chat_1",
             )
+
+        mock_review.assert_called_once()
+        assert mock_review.call_args.kwargs["chatId"] == "chat_1"
+        assert mock_review.call_args.kwargs["queries"] == ["git", "redis"]
+        assert mock_review.call_args.kwargs["user_id"] == "u1"
+        assert mock_review.call_args.kwargs["company_id"] == "c1"
 
         calls = [call.kwargs for call in mock_search.call_args_list]
         assert sorted(call["query"] for call in calls) == ["git", "redis"]

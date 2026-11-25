@@ -2248,7 +2248,10 @@ Query review:
   to approve the queries and does not search until they do. If the output
   says the review is pending, run `unique-cli elicit wait <review-id>
   --timeout {QUERY_REVIEW_WAIT_TIMEOUT_SECONDS}`, then
-  `unique-cli web-search search --review-id <review-id>`.
+  `unique-cli web-search search --chat-id <chat-id> --review-id <review-id>`.
+  Repeat the options of the first call (--json, --include-content, -n) and
+  pass no queries with --review-id; different wording needs a new search
+  without --review-id.
   If the user declines, tell them the search did not run.
 """
 )
@@ -2313,9 +2316,9 @@ Query review:
     "review_id",
     default=None,
     help=(
-        "Id of a query review the user already answered. Searches the "
-        "given queries with that review. With no positional queries, the "
-        "approved queries are read from the review. After a pending "
+        "Id of a query review the user already answered. With no "
+        "positional queries, the approved queries are read from the "
+        "review. Do not pass other queries with it. After a pending "
         "review, run elicit wait, then search again with this option."
     ),
 )
@@ -2341,8 +2344,11 @@ def web_search_search_cmd(
     resolved_config = _resolve_web_search_config_path(ctx, config_path)
     resolved_chat_id = _resolve_cli_chat_id(ctx, chat_id)
     # No chat id means no review, so leave the search call unchanged.
+    # The message id only goes on a new review request, never on a resume.
     resolved_message_id = (
-        _resolve_cli_message_id(ctx, None) if resolved_chat_id else None
+        _resolve_cli_message_id(ctx, None)
+        if resolved_chat_id and not (review_id and review_id.strip())
+        else None
     )
     if len(queries) == 1:
         output = cmd_web_search(

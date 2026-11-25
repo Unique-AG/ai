@@ -549,11 +549,13 @@ def _string_list(value: Any) -> list[str] | None:
     return None
 
 
-def _pending_query_review_output(review_id: str) -> str:
+def _pending_query_review_output(review_id: str, chat_id: str) -> str:
     """Tell the agent how to wait, without searching or blocking.
 
     Args:
         review_id (str): Review id, which is also the elicitation id.
+        chat_id (str): Chat the review belongs to. The resume command repeats
+            it so the search does not depend on the environment.
 
     Returns:
         str: Non-error instructions. The text does not include the queries.
@@ -564,7 +566,9 @@ def _pending_query_review_output(review_id: str) -> str:
         "Wait for the answer, then search the approved queries:\n"
         f"unique-cli elicit wait {review_id} "
         f"--timeout {QUERY_REVIEW_WAIT_TIMEOUT_SECONDS}\n"
-        f"unique-cli web-search search --review-id {review_id}"
+        f"unique-cli web-search search --chat-id {chat_id} --review-id {review_id}\n"
+        "Repeat any other options you used, such as --json, "
+        "--include-content or -n."
     )
 
 
@@ -579,7 +583,9 @@ def _review_terminal_error(status: str) -> str:
     return f"{WEB_SEARCH_ERROR_PREFIX} {detail}"
 
 
-def _load_approved_queries(state: ShellState, review_id: str) -> list[str] | str:
+def _load_approved_queries(
+    state: ShellState, review_id: str, chat_id: str
+) -> list[str] | str:
     """Read ``responseContent.queries`` from the review elicitation.
 
     Uses the same ``Elicitation.get_elicitation`` call as
@@ -589,6 +595,7 @@ def _load_approved_queries(state: ShellState, review_id: str) -> list[str] | str
     Args:
         state (ShellState): Credentials for the get call.
         review_id (str): Elicitation id returned by the review endpoint.
+        chat_id (str): Chat the review belongs to, repeated in the resume command.
 
     Returns:
         list[str] | str: The approved queries, or text to return as the
@@ -615,7 +622,7 @@ def _load_approved_queries(state: ShellState, review_id: str) -> list[str] | str
     if status in _REVIEW_TERMINAL_ERRORS:
         return _review_terminal_error(status)
     if status in {"", "PENDING", "CREATED"}:
-        return _pending_query_review_output(review_id)
+        return _pending_query_review_output(review_id, chat_id)
     return (
         f"{WEB_SEARCH_ERROR_PREFIX} review {review_id} has no approved queries. "
         "The search did not run."
@@ -682,7 +689,7 @@ def _request_query_review(
                 f"{WEB_SEARCH_ERROR_PREFIX} the query review is pending but "
                 "no review id was returned. The search did not run."
             )
-        return _pending_query_review_output(review_id)
+        return _pending_query_review_output(review_id, chat_id)
     if status == "ACCEPTED":
         approved = _string_list(payload.get("queries"))
         if not approved:
@@ -732,7 +739,7 @@ def _plan_web_search(
     """
     review_id = _nonempty(review_id)
     if chat_id and review_id and not queries:
-        loaded = _load_approved_queries(state, review_id)
+        loaded = _load_approved_queries(state, review_id, chat_id)
         if isinstance(loaded, str):
             return loaded
         queries = loaded

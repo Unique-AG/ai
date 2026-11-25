@@ -221,6 +221,8 @@ class WebSearchReview(APIResource["WebSearchReview"]):
         return "web-search.review"
 
     class ReviewParams(RequestOptions):
+        """Request body of the review call: the chat, its message and the queries."""
+
         chatId: str
         messageId: NotRequired[str | None]
         queries: list[str]
@@ -273,7 +275,9 @@ class WebSearchReview(APIResource["WebSearchReview"]):
         Args:
             user_id (str): User the call is made as.
             company_id (str): Company the call is made in.
-            **params: ``chatId``, optional ``messageId``, and ``queries``.
+            **params: ``chatId``, optional ``messageId``, and ``queries``
+                (1 to 20). ``messageId`` is required by the server when
+                the space has query review on.
 
         Returns:
             WebSearchReview: The review status and, when accepted, the

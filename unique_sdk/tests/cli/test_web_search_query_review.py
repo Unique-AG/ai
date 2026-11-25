@@ -40,7 +40,8 @@ _PENDING_OUTPUT = (
     "Review id: rev_1\n"
     "Wait for the answer, then search the approved queries:\n"
     f"unique-cli elicit wait rev_1 --timeout {QUERY_REVIEW_WAIT_TIMEOUT_SECONDS}\n"
-    "unique-cli web-search search --review-id rev_1"
+    "unique-cli web-search search --chat-id chat_1 --review-id rev_1\n"
+    "Repeat any other options you used, such as --json, --include-content or -n."
 )
 _SECRET_QUERY = "zz-unlisted-query-should-not-leak"
 
@@ -276,6 +277,12 @@ class TestReviewStatuses:
 
         assert first == second == _PENDING_OUTPUT
         assert mock_review.call_count == 2
+        for call in mock_review.call_args_list:
+            assert call.kwargs["queries"] == ["q"]
+            assert call.kwargs["chatId"] == "chat_1"
+            assert call.kwargs["messageId"] == "msg_1"
+            assert call.kwargs["user_id"] == "u1"
+            assert call.kwargs["company_id"] == "c1"
         mock_search.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -352,7 +359,7 @@ class TestReviewStatuses:
         mock_review.assert_called_once()
         assert mock_review.call_args.kwargs["queries"] == ["git", "redis"]
         searched = [call.kwargs["query"] for call in mock_search.call_args_list]
-        assert searched == ["approved git", "approved redis"]
+        assert sorted(searched) == ["approved git", "approved redis"]
         assert {call.kwargs["reviewId"] for call in mock_search.call_args_list} == {
             "rev_9"
         }
@@ -469,9 +476,9 @@ class TestReviewIdSearch:
         mock_review.assert_not_called()
         mock_get.assert_called_once()
         assert mock_get.call_args.kwargs["elicitation_id"] == "rev_9"
-        assert [call.kwargs["query"] for call in mock_search.call_args_list] == [
-            "from form",
+        assert sorted(call.kwargs["query"] for call in mock_search.call_args_list) == [
             "also",
+            "from form",
         ]
         assert {call.kwargs["reviewId"] for call in mock_search.call_args_list} == {
             "rev_9"
@@ -730,6 +737,32 @@ class TestClickQueryReview:
         assert "query: 'edited query'" in result.output
         mock_get.assert_not_called()
         assert mock_search.call_args.kwargs["query"] == "edited query"
+        assert mock_search.call_args.kwargs["reviewId"] == "rev_9"
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.WebSearch.search")
+    def test_resume_does_not_need_a_readable_turn_identity(
+        self,
+        mock_search: MagicMock,
+        mock_get: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """Purpose: Resuming with ``--review-id`` never reads the message id.
+        Why this matters: A broken turn-identity file must not block a search that can run.
+        Setup summary: Point the identity file at a missing path and resume with an explicit chat.
+        """
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(tmp_path / "missing.json"))
+        mock_search.side_effect = _search_returning_its_query
+        mock_get.return_value = {"responseContent": {"queries": ["approved"]}}
+
+        result = CliRunner().invoke(
+            cli_main,
+            ["web-search", "search", "--chat-id", "chat_1", "--review-id", "rev_9"],
+        )
+
+        assert result.exit_code == 0
         assert mock_search.call_args.kwargs["reviewId"] == "rev_9"
 
     @patch("unique_sdk.WebSearch.search")

@@ -89,7 +89,7 @@ Some spaces require the user to approve every web search query before it is sent
 
 1. The command prints that the user must approve the queries, and a review id. It does not wait.
 2. Run `unique-cli elicit wait <review-id> --timeout 300`.
-3. Then run `unique-cli web-search search --review-id <review-id>`. That searches the queries the user approved, including any they edited. To search a different wording, pass those queries after `--review-id`.
+3. Then run `unique-cli web-search search --chat-id <chat-id> --review-id <review-id>`, repeating the options of the first call (`--json`, `--include-content`, `-n`). That searches the queries the user approved, including any they edited. Do not pass other queries with `--review-id`. To search a different wording, run `search "<new wording>"` without `--review-id`; that submits a new review.
 
 If the user declines, or the review is cancelled or expires, the command exits with a `web-search:` error. Tell the user the search did not run. Do not search those queries.
 
