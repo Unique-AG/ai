@@ -5,6 +5,7 @@ import json
 import threading
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -323,6 +324,35 @@ class TestAwsSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_timed_out_callers_detach_from_the_shared_lookup(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        release = threading.Event()
+
+        def stalled_resolve() -> Credentials:
+            release.wait(5)
+            return _credentials()
+
+        monkeypatch.setattr(service, "resolve_aws_credentials", stalled_resolve)
+        try:
+            with pytest.raises(UpstreamTimeoutError):
+                await service.aws_credentials_within(0.01)
+            assert service._credentials_lookup is not None
+            shared = service._credentials_lookup[1]
+            # The only remaining callback is wrap_future's own link to the thread.
+            baseline = len(shared._callbacks or [])  # type: ignore[attr-defined]
+            for _ in range(20):
+                with pytest.raises(UpstreamTimeoutError):
+                    await service.aws_credentials_within(0.01)
+            assert service._credentials_lookup[1] is shared
+            assert not shared.done()
+            assert len(shared._callbacks or []) == baseline  # type: ignore[attr-defined]
+        finally:
+            release.set()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_failed_lookup_is_retried_by_the_next_caller(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -497,3 +527,13 @@ class TestAwsSearchService:
             {"query": "q", "publishedAfter": same, "publishedBefore": same}
         )
         AwsSearchRequest.model_validate({"query": "q", "publishedAfter": same})
+
+    @pytest.mark.ai
+    def test_bounds_in_one_zone_are_compared_in_utc(self) -> None:
+        zone = ZoneInfo("America/Los_Angeles")
+        # 01:30 PDT (08:30 UTC) is before the repeated 01:15 PST (09:15 UTC).
+        after = datetime(2020, 11, 1, 1, 30, tzinfo=zone, fold=0)
+        before = datetime(2020, 11, 1, 1, 15, tzinfo=zone, fold=1)
+        AwsSearchRequest(query="q", published_after=after, published_before=before)
+        with pytest.raises(ValueError, match="publishedAfter"):
+            AwsSearchRequest(query="q", published_after=before, published_before=after)

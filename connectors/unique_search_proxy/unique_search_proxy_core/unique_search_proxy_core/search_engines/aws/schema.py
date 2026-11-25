@@ -53,8 +53,11 @@ def _bare_domains(entries: list[str] | None) -> list[str]:
 
 
 def _check_published_range(after: datetime | None, before: datetime | None) -> None:
+    # astimezone: two values sharing a tzinfo compare without offsets or fold.
     def utc(value: datetime) -> datetime:
-        return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
 
     if after is not None and before is not None and utc(after) > utc(before):
         raise ValueError("publishedAfter must not be later than publishedBefore")

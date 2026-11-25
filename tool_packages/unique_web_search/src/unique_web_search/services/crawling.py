@@ -78,7 +78,7 @@ def _fetch_crawling_enabled(base_url: str) -> bool:
             response = list_providers.sync(client=client)
     except Exception as error:
         _LOGGER.warning(
-            "Could not read crawlingEnabled from the search proxy: %s", error
+            "Could not read crawlingEnabled from the search proxy", exc_info=error
         )
         return True
     return _read_crawling_enabled(response)
@@ -90,7 +90,7 @@ async def _fetch_crawling_enabled_async(base_url: str) -> bool:
             response = await list_providers.asyncio(client=client)
     except Exception as error:
         _LOGGER.warning(
-            "Could not read crawlingEnabled from the search proxy: %s", error
+            "Could not read crawlingEnabled from the search proxy", exc_info=error
         )
         return True
     return _read_crawling_enabled(response)

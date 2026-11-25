@@ -181,7 +181,8 @@ def test_v3_prompts_stop_offering_read_urls_when_crawling_is_off() -> None:
     assert "Pages cannot be opened" in system_prompt
 
 
-def test_v3_prompts_offer_read_urls_by_default() -> None:
+def test_v3_prompts_offer_read_urls_by_default(monkeypatch) -> None:
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", None)
     description, system_prompt = _v3_prompts()
     assert 'command: "read_urls"' in description
     assert 'the first call should be `command: "read_urls"`' in system_prompt
@@ -282,7 +283,8 @@ def test_v2_prompt_and_examples_drop_read_url_when_crawling_is_off() -> None:
     assert "plan only `search` steps" in system_prompt
 
 
-def test_v2_prompt_and_examples_keep_read_url_by_default() -> None:
+def test_v2_prompt_and_examples_keep_read_url_by_default(monkeypatch) -> None:
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", None)
     system_prompt = _v2_system_prompt()
     assert '"step_type": "read_url"' in system_prompt
     assert "URL Reading Steps" in system_prompt

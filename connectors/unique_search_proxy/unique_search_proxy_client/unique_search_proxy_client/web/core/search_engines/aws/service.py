@@ -61,9 +61,12 @@ _WEB_SEARCH_ID = "web-search.v1"
 _CREDENTIALS_EXECUTOR = ThreadPoolExecutor(
     max_workers=1, thread_name_prefix="aws-credentials"
 )
-# The lookup in flight. Searches that arrive while it runs wait for it instead
-# of queueing their own, so a stalled STS call holds at most one queue entry.
-_credentials_lookup: Future[Credentials] | None = None
+# The lookup in flight, as one awaitable per event loop. Searches that arrive
+# while it runs await it instead of queueing their own, so a stalled STS call
+# holds one queue entry and one future, however many callers wait or time out.
+_credentials_lookup: (
+    tuple[asyncio.AbstractEventLoop, asyncio.Future[Credentials]] | None
+) = None
 
 # Regional (optionally FIPS) AgentCore hosts, and PrivateLink endpoint names.
 _AGENTCORE_HOST = re.compile(
@@ -97,7 +100,9 @@ _STS_THROTTLING_ERROR_CODES = frozenset(
 
 def _sts_error(exc: ClientError) -> Exception:
     code = exc.response.get("Error", {}).get("Code", "")
-    _LOGGER.warning("AWS credential exchange failed: %s", code or "unknown error")
+    _LOGGER.warning(
+        "AWS credential exchange failed: %s", code or "unknown error", exc_info=exc
+    )
     if code in _STS_SETUP_ERROR_CODES:
         return EngineNotConfiguredError()
     message = f"AWS credential exchange failed: {code or 'unknown error'}"
@@ -111,7 +116,7 @@ def resolve_aws_credentials() -> Credentials:
     try:
         resolved = _aws_session().get_credentials()
     except BotoCoreError as exc:
-        _LOGGER.warning("AWS credentials are not available: %s", exc)
+        _LOGGER.warning("AWS credentials are not available", exc_info=exc)
         raise EngineNotConfiguredError() from exc
     except ClientError as exc:
         raise _sts_error(exc) from exc
@@ -120,7 +125,7 @@ def resolve_aws_credentials() -> Credentials:
     try:
         frozen = resolved.get_frozen_credentials()
     except BotoCoreError as exc:
-        _LOGGER.warning("AWS credentials are not available: %s", exc)
+        _LOGGER.warning("AWS credentials are not available", exc_info=exc)
         raise EngineNotConfiguredError() from exc
     except ClientError as exc:
         raise _sts_error(exc) from exc
@@ -129,19 +134,28 @@ def resolve_aws_credentials() -> Credentials:
     return Credentials(frozen.access_key, frozen.secret_key, frozen.token)
 
 
-def _shared_credentials_lookup() -> Future[Credentials]:
+def _shared_credentials_lookup() -> asyncio.Future[Credentials]:
     global _credentials_lookup
-    if _credentials_lookup is None or _credentials_lookup.done():
-        _credentials_lookup = _CREDENTIALS_EXECUTOR.submit(resolve_aws_credentials)
-    return _credentials_lookup
+    loop = asyncio.get_running_loop()
+    if (
+        _credentials_lookup is None
+        or _credentials_lookup[0] is not loop
+        or _credentials_lookup[1].done()
+    ):
+        lookup: Future[Credentials] = _CREDENTIALS_EXECUTOR.submit(
+            resolve_aws_credentials
+        )
+        _credentials_lookup = (loop, asyncio.wrap_future(lookup, loop=loop))
+    return _credentials_lookup[1]
 
 
 async def aws_credentials_within(timeout: float) -> Credentials:
     """Resolve credentials off the event loop, sharing one lookup across callers."""
-    # shield: a caller that times out must not cancel the lookup others share.
+    # shield: a caller that times out must not cancel the lookup others share,
+    # and its cancelled shield detaches from the shared future.
     try:
         return await asyncio.wait_for(
-            asyncio.shield(asyncio.wrap_future(_shared_credentials_lookup())),
+            asyncio.shield(_shared_credentials_lookup()),
             timeout=timeout,
         )
     except TimeoutError as exc:
