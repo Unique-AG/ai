@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from unique_sdk import _util
+from unique_sdk._api_requestor import APIRequestor
+from unique_sdk._error import APIConnectionError, InvalidRequestError
 
 
 @pytest.fixture
@@ -179,3 +182,280 @@ def test_error_params_passthrough_when_insecure_flag_set(
 
     params = {"text": "Dr. Client Name"}
     assert _util.redacted_error_params(params) is params
+
+
+# --- Request URLs (UN-29153) ------------------------------------------------
+#
+# GET and DELETE put their params in the query string. The query string can
+# carry customer data (knowledge-base folder paths), so it is logged only with
+# INSECURE_UNIQUE_SDK_LOG_PAYLOADS=true.
+
+_SENTINEL = "SENTINEL-7f3a"
+_FOLDER_PATH = f"/home/Jane.Doe/skills-{_SENTINEL}"
+
+
+def _requestor_with_client(client: Any) -> APIRequestor:
+    requestor = APIRequestor(
+        user_id="user_id", company_id="company_id", key="api_key", app_id="app_id"
+    )
+    requestor._client = client
+    return requestor
+
+
+def _sync_client(status: int = 200) -> MagicMock:
+    client = MagicMock()
+    client.name = "test"
+    client.request.return_value = (b"{}", status, {})
+    return client
+
+
+def _async_client(status: int = 200) -> MagicMock:
+    client = MagicMock()
+    client.name = "test"
+    client.request_async = AsyncMock(return_value=(b"{}", status, {}))
+    return client
+
+
+def _messages(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [record.getMessage() for record in caplog.records]
+
+
+def _url_lines(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [m for m in _messages(caplog) if "path=" in m]
+
+
+def test_AI_get_request_logs_path_without_query_string(
+    monkeypatch: pytest.MonkeyPatch,
+    capture_unique_debug_logs: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+    client = _sync_client()
+
+    _requestor_with_client(client).request_raw(
+        "get", "/folder/info", {"folderPath": _FOLDER_PATH, "take": 5}
+    )
+
+    # The request itself still carries the query string.
+    assert _SENTINEL in client.request.call_args.args[1]
+    lines = _url_lines(capture_unique_debug_logs)
+    assert len(lines) == 2  # request and response
+    for message in _messages(capture_unique_debug_logs):
+        assert _SENTINEL not in message
+        assert "Jane.Doe" not in message
+        assert "?" not in message
+    for line in lines:
+        assert "/folder/info" in line
+
+
+@pytest.mark.asyncio
+async def test_AI_async_get_request_logs_path_without_query_string(
+    monkeypatch: pytest.MonkeyPatch,
+    capture_unique_debug_logs: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+    client = _async_client()
+
+    await _requestor_with_client(client).request_raw_async(
+        "delete", "/folder/info", {"folderPath": _FOLDER_PATH}
+    )
+
+    assert _SENTINEL in client.request_async.call_args.args[1]
+    lines = _url_lines(capture_unique_debug_logs)
+    assert len(lines) == 2
+    for message in _messages(capture_unique_debug_logs):
+        assert _SENTINEL not in message
+        assert "?" not in message
+    for line in lines:
+        assert "/folder/info" in line
+
+
+def test_AI_get_request_logs_query_param_names_not_values(
+    monkeypatch: pytest.MonkeyPatch,
+    capture_unique_debug_logs: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+
+    _requestor_with_client(_sync_client()).request_raw(
+        "get", "/folder/info", {"folderPath": _FOLDER_PATH, "take": 5}
+    )
+
+    request_line = next(
+        m
+        for m in _messages(capture_unique_debug_logs)
+        if "message='Request to Unique'" in m
+    )
+    assert "query_keys=folderPath,take" in request_line
+    assert _SENTINEL not in request_line
+
+
+def test_AI_get_request_logs_full_url_when_insecure_flag_set(
+    monkeypatch: pytest.MonkeyPatch,
+    capture_unique_debug_logs: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", "true")
+
+    _requestor_with_client(_sync_client()).request_raw(
+        "get", "/folder/info", {"folderPath": _FOLDER_PATH}
+    )
+
+    lines = _url_lines(capture_unique_debug_logs)
+    assert len(lines) == 2
+    for line in lines:
+        assert "/folder/info?folderPath=" in line
+        assert _SENTINEL in line
+
+
+def test_AI_post_request_log_line_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+    capture_unique_debug_logs: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+    client = _sync_client()
+
+    _requestor_with_client(client).request_raw(
+        "post", "/folder", {"paths": [_FOLDER_PATH]}
+    )
+
+    # POST params go in the body, which is redacted; no query_keys field.
+    assert client.request.call_args.args[3] == {"paths": [_FOLDER_PATH]}
+    request_line = next(
+        m
+        for m in _messages(capture_unique_debug_logs)
+        if "message='Request to Unique'" in m
+    )
+    assert "/folder " in request_line or request_line.endswith("/folder")
+    assert "query_keys" not in request_line
+    for message in _messages(capture_unique_debug_logs):
+        assert _SENTINEL not in message
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://gw.example/a/b?x=1&y=2", "https://gw.example/a/b"),
+        ("https://gw.example/a/b", "https://gw.example/a/b"),
+        ("https://gw.example/a/b?x=1#frag", "https://gw.example/a/b"),
+    ],
+)
+def test_AI_url_for_log_drops_query_and_fragment(
+    monkeypatch: pytest.MonkeyPatch, url: str, expected: str
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+
+    assert _util.url_for_log(url) == expected
+
+
+# --- Server error messages ---------------------------------------------------
+#
+# The public API echoes request input in error messages, e.g. node-chat's
+# "Folder with id or path /home/<name>/... not found".
+
+
+def test_AI_error_received_log_redacts_server_message(
+    monkeypatch: pytest.MonkeyPatch,
+    capture_unique_debug_logs: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+    server_message = f"Folder with id or path {_FOLDER_PATH} not found"
+    body = {"error": {"message": server_message, "type": "not_found"}}
+
+    with pytest.raises(InvalidRequestError) as excinfo:
+        _requestor_with_client(_sync_client()).handle_error_response(
+            "{}", 404, body, {}
+        )
+
+    # The caller still gets the server's message on the exception.
+    assert _SENTINEL in str(excinfo.value)
+    error_line = next(
+        m
+        for m in _messages(capture_unique_debug_logs)
+        if "message='Unique error received'" in m
+    )
+    assert "error_message=<redacted>" in error_line
+    assert "error_code=404" in error_line
+    assert _SENTINEL not in error_line
+
+
+def test_AI_error_received_log_keeps_server_message_when_insecure_flag_set(
+    monkeypatch: pytest.MonkeyPatch,
+    capture_unique_debug_logs: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", "true")
+    body = {"error": {"message": f"Folder {_SENTINEL} not found", "type": "x"}}
+
+    with pytest.raises(InvalidRequestError):
+        _requestor_with_client(_sync_client()).handle_error_response(
+            "{}", 404, body, {}
+        )
+
+    error_line = next(
+        m
+        for m in _messages(capture_unique_debug_logs)
+        if "message='Unique error received'" in m
+    )
+    assert _SENTINEL in error_line
+
+
+# --- Connection errors -------------------------------------------------------
+#
+# `requests` quotes the request URL in its connection errors, and
+# str(APIConnectionError) appends the original error.
+
+_REQUESTS_CONNECTION_ERROR = (
+    "HTTPSConnectionPool(host='gw.example', port=443): Max retries exceeded "
+    f"with url: /public/chat-gen2/folder/info?folderPath={_FOLDER_PATH}&take=5 "
+    "(Caused by NewConnectionError('Failed to establish a new connection'))"
+)
+
+
+def test_AI_connection_error_message_drops_url_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+    client = MagicMock()
+    client.name = "test"
+    client.request.side_effect = APIConnectionError(
+        "Unexpected error communicating with Unique.",
+        original_error=ConnectionError(_REQUESTS_CONNECTION_ERROR),
+    )
+
+    with pytest.raises(APIConnectionError) as excinfo:
+        _requestor_with_client(client).request_raw(
+            "get", "/folder/info", {"folderPath": _FOLDER_PATH}
+        )
+
+    message = str(excinfo.value)
+    assert _SENTINEL not in message
+    assert "with url: /public/chat-gen2/folder/info (Caused by" in message
+    # The original exception stays available, unchanged, for callers.
+    assert _SENTINEL in str(excinfo.value.original_error)
+
+
+def test_AI_connection_error_message_keeps_url_query_when_insecure_flag_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", "true")
+    error = APIConnectionError(
+        "Unexpected error communicating with Unique.",
+        original_error=ConnectionError(_REQUESTS_CONNECTION_ERROR),
+    )
+
+    assert _SENTINEL in str(error)
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("url: /a/b?x=1&y=%2Fhome (Caused", "url: /a/b (Caused"),
+        ("GET https://gw.example/a?x=1 failed", "GET https://gw.example/a failed"),
+        ("'https://gw.example/a?x=1'", "'https://gw.example/a'"),
+        ("Is it done? Not yet.", "Is it done? Not yet."),
+        ("no url here", "no url here"),
+    ],
+)
+def test_AI_strip_url_queries(
+    monkeypatch: pytest.MonkeyPatch, text: str, expected: str
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+
+    assert _util.strip_url_queries(text) == expected

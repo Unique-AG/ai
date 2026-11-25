@@ -48,7 +48,11 @@ class UniqueError(Exception):
     def __str__(self):
         msg = self._message or "<empty message>"
         if self.original_error:
-            msg += f"\n(Original error) {str(self.original_error)}"
+            # Lazy import: _util imports this module.
+            from unique_sdk._util import strip_url_queries
+
+            # HTTP libraries quote the request URL, query string included.
+            msg += f"\n(Original error) {strip_url_queries(str(self.original_error))}"
         return msg
 
 
