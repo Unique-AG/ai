@@ -648,6 +648,11 @@ def _request_query_review(
 ) -> _SearchPlan | str:
     """Ask once for the batch. Return a plan, or text to show instead.
 
+    Every chat-scoped search without ``review_id`` posts to
+    ``/web-search-api/review``, including spaces with review off. The gate
+    fails closed: a platform without that route answers with its error and
+    the search does not run, so this SDK needs a platform that serves it.
+
     Args:
         state (ShellState): Credentials for the review call.
         chat_id (str): Chat whose space decides whether review is on.
@@ -948,7 +953,8 @@ def cmd_web_search_many(
 
     Query review, when ``chat_id`` is set, runs once for the whole batch.
     ``review_id`` searches queries the user already approved. With no
-    queries it reads ``responseContent.queries`` from that elicitation.
+    queries it reads ``responseContent.queries`` from that elicitation, and
+    a single approved query keeps the single-query output format.
 
     Args:
         state (ShellState): Shell state carrying user/company credentials.
@@ -966,7 +972,7 @@ def cmd_web_search_many(
     return _execute_web_searches(
         state,
         list(queries),
-        single_format=False,
+        single_format=not queries,
         fetch_size=fetch_size,
         include_content=include_content,
         engine_config_raw=engine_config_raw,

@@ -741,6 +741,31 @@ class TestClickQueryReview:
 
     @patch("unique_sdk.Elicitation.get_elicitation")
     @patch("unique_sdk.WebSearch.search")
+    def test_resume_json_shape_follows_the_approved_query_count(
+        self,
+        mock_search: MagicMock,
+        mock_get: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Purpose: A resume with one approved query returns the single-query JSON object.
+        Why this matters: The documented ``.results[].url`` pipeline needs an object, not a list.
+        Setup summary: Resume with ``--json`` against one, then two approved queries.
+        """
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_1")
+        mock_search.side_effect = _search_returning_its_query
+        args = ["web-search", "search", "--json", "--review-id", "rev_9"]
+
+        mock_get.return_value = {"responseContent": {"queries": ["only"]}}
+        one = CliRunner().invoke(cli_main, args)
+        mock_get.return_value = {"responseContent": {"queries": ["a", "b"]}}
+        two = CliRunner().invoke(cli_main, args)
+
+        assert isinstance(json.loads(one.output), dict)
+        assert isinstance(json.loads(two.output), list)
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.WebSearch.search")
     def test_resume_does_not_need_a_readable_turn_identity(
         self,
         mock_search: MagicMock,
