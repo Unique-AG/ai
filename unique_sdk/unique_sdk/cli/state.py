@@ -20,9 +20,10 @@ _MCP_TOOLS_CONFIG_FILENAME = ".unique-mcp-tools.json"
 _CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
 
 
-def _load_search_config() -> dict[str, Any]:
-    """Load ``.unique-search.json`` from the workspace root, not the shell cwd."""
-    config_path = workspace_root() / _SEARCH_CONFIG_FILENAME
+def _load_search_config(*, workspace_dir: Path | None = None) -> dict[str, Any]:
+    """Load ``.unique-search.json`` from ``workspace_dir``, or the workspace root."""
+    root = workspace_root() if workspace_dir is None else workspace_dir
+    config_path = root / _SEARCH_CONFIG_FILENAME
     if not config_path.is_file():
         return {}
     try:
@@ -138,7 +139,12 @@ def _load_chat_file_content_ids() -> set[str]:
 class ShellState:
     """Tracks the virtual working directory within the Unique folder hierarchy."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, *, workspace_dir: Path | None = None) -> None:
+        """``workspace_dir`` selects ``.unique-search.json`` only.
+
+        Uploaded files, MCP tool config, and chat-file ids still come from
+        ``workspace_root()``.
+        """
         self.config = config
         self._path = "/"
         self._scope_id: str | None = None
@@ -155,7 +161,7 @@ class ShellState:
         # gate (owner path) and citation title resolution so a read+cite of
         # the same document costs one info call per turn. See UN-21780.
         self._content_info_cache: dict[str, unique_sdk.Content.ContentInfo | None] = {}
-        _search_config = _load_search_config()
+        _search_config = _load_search_config(workspace_dir=workspace_dir)
         self.workspace_scope_ids: list[str] = _load_workspace_scope_ids(_search_config)
         # The MetadataFilter (when present) is rebuilt by the property setter,
         # which injects this state's cached path/owner resolvers. Both backing
