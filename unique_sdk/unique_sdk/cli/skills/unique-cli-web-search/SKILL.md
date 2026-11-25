@@ -93,7 +93,7 @@ Some spaces require the user to approve every web search query before it is sent
 
 If the user declines, or the review is cancelled or expires, the command exits with a `web-search:` error. Tell the user the search did not run. Do not search those queries.
 
-A pending review is not an error: wait, then search with `--review-id`. Calling `search` again with the same queries while the review is still pending returns the same review id. Do not poll inside another command; only `elicit wait` is a protected wait.
+With `--json`, a pending review is the object `{"status": "PENDING", "reviewId": "<id>", "chatId": "<chat id>"}` instead of text. A pending review is not an error: wait, then search with `--review-id`. Calling `search` again with the same queries while the review is still pending returns the same review id. Do not poll inside another command; only `elicit wait` is a protected wait.
 
 Spaces with query review off, and any search that has no chat id, behave exactly as they do today.
 
@@ -191,7 +191,7 @@ Positional queries are required unless `--review-id` is set.
 | `--engine-config` | | none | Override `searchEngineConfig` (JSON object, must include `searchEngineName`) |
 | `--crawler-config` | | none | Override `crawlerConfig` (JSON object) — only used with `--include-content` |
 | `--config` | `-c` | none | Per-call override of the group's `--config` path |
-| `--json` | | off | Emit `{engine, query, results: [...]}` JSON envelope |
+| `--json` | | off | Emit `{engine, query, results: [...]}` JSON envelope. A pending query review is `{status, reviewId, chatId}` |
 | `--review-id` | | none | Search queries the user already approved. With no positional queries, read them from the review. See [Query review](#query-review) |
 
 ### `unique-cli web-search crawl <url>...`

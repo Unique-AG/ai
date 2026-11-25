@@ -115,6 +115,7 @@ from unique_sdk.cli.commands.web_search import (
     cmd_web_crawl,
     cmd_web_search,
     cmd_web_search_many,
+    cmd_web_search_resume,
 )
 from unique_sdk.cli.commands.web_search import (
     is_error_output as _is_web_search_error_output,
@@ -2297,7 +2298,7 @@ Query review:
     "--json",
     "output_json",
     is_flag=True,
-    help="Output results as JSON (suitable for piping into web-search crawl --stdin).",
+    help="Output results as JSON (suitable for piping into web-search crawl --stdin). A pending query review is the object {status, reviewId, chatId}.",
 )
 @click.option(
     "--chat-id",
@@ -2350,7 +2351,19 @@ def web_search_search_cmd(
         if resolved_chat_id and not (review_id and review_id.strip())
         else None
     )
-    if len(queries) == 1:
+    if not queries:
+        output = cmd_web_search_resume(
+            LazyState.get(ctx),
+            review_id or "",
+            resolved_chat_id,
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+        )
+    elif len(queries) == 1:
         output = cmd_web_search(
             LazyState.get(ctx),
             queries[0],

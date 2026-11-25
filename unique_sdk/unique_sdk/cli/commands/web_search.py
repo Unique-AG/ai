@@ -549,6 +549,26 @@ def _string_list(value: Any) -> list[str] | None:
     return None
 
 
+@dataclass(frozen=True)
+class _PendingReview:
+    """A review the user has not answered yet. Nothing was searched."""
+
+    review_id: str
+    chat_id: str
+
+    def render(self, *, output_json: bool) -> str:
+        if output_json:
+            return json.dumps(
+                {
+                    "status": "PENDING",
+                    "reviewId": self.review_id,
+                    "chatId": self.chat_id,
+                },
+                indent=2,
+            )
+        return _pending_query_review_output(self.review_id, self.chat_id)
+
+
 def _pending_query_review_output(review_id: str, chat_id: str) -> str:
     """Tell the agent how to wait, without searching or blocking.
 
@@ -585,12 +605,13 @@ def _review_terminal_error(status: str) -> str:
 
 def _load_approved_queries(
     state: ShellState, review_id: str, chat_id: str
-) -> list[str] | str:
+) -> list[str] | _PendingReview | str:
     """Read ``responseContent.queries`` from the review elicitation.
 
     Uses the same ``Elicitation.get_elicitation`` call as
-    ``cli/commands/elicitation.py``. A review the user has not answered
-    yet returns the pending instructions instead of searching.
+    ``cli/commands/elicitation.py``. Only an ACCEPTED review yields queries.
+    A review the user has not answered yet returns a pending marker instead
+    of searching.
 
     Args:
         state (ShellState): Credentials for the get call.
@@ -598,8 +619,8 @@ def _load_approved_queries(
         chat_id (str): Chat the review belongs to, repeated in the resume command.
 
     Returns:
-        list[str] | str: The approved queries, or text to return as the
-        command output.
+        list[str] | _PendingReview | str: The approved queries, a pending
+        review, or text to return as the command output.
     """
     try:
         elicitation = unique_sdk.Elicitation.get_elicitation(
@@ -611,18 +632,18 @@ def _load_approved_queries(
         return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
 
     payload = _resource_dict(elicitation)
-    content = payload.get("responseContent")
-    queries = _string_list(
-        content.get("queries") if isinstance(content, dict) else None
-    )
-    if queries:
-        return queries
-
     status = str(payload.get("status") or "").upper()
-    if status in _REVIEW_TERMINAL_ERRORS:
+    if status == "ACCEPTED":
+        content = payload.get("responseContent")
+        queries = _string_list(
+            content.get("queries") if isinstance(content, dict) else None
+        )
+        if queries:
+            return queries
+    elif status in _REVIEW_TERMINAL_ERRORS:
         return _review_terminal_error(status)
-    if status in {"", "PENDING", "CREATED"}:
-        return _pending_query_review_output(review_id, chat_id)
+    elif status in {"", "PENDING", "CREATED"}:
+        return _PendingReview(review_id, chat_id)
     return (
         f"{WEB_SEARCH_ERROR_PREFIX} review {review_id} has no approved queries. "
         "The search did not run."
@@ -645,13 +666,16 @@ def _request_query_review(
     message_id: str | None,
     queries: list[str],
     options: dict[str, Any],
-) -> _SearchPlan | str:
-    """Ask once for the batch. Return a plan, or text to show instead.
+) -> _SearchPlan | _PendingReview | str:
+    """Ask once for the batch. Return a plan, or output to show instead.
 
     Every chat-scoped search without ``review_id`` posts to
-    ``/web-search-api/review``, including spaces with review off. The gate
-    fails closed: a platform without that route answers with its error and
-    the search does not run, so this SDK needs a platform that serves it.
+    ``/web-search-api/review``, including spaces with review off. A 404 from
+    that call falls back to a plain search. The gate is the server's search
+    check, not this call: a platform without the route has no review feature,
+    and on a platform with it a 404 means an unknown chat, which the search
+    then answers with the same 404. Every other error is a ``web-search:``
+    error and the search does not run.
 
     Args:
         state (ShellState): Credentials for the review call.
@@ -661,8 +685,9 @@ def _request_query_review(
         options (dict[str, Any]): Search fields already built for the batch.
 
     Returns:
-        _SearchPlan | str: A plan whose queries are safe to search, or
-        command output that means the search did not run.
+        _SearchPlan | _PendingReview | str: A plan whose queries are safe to
+        search, a pending review, or command output that means the search
+        did not run.
     """
     try:
         if message_id:
@@ -680,7 +705,11 @@ def _request_query_review(
                 chatId=chat_id,
                 queries=queries,
             )
-    except (ValueError, unique_sdk.UniqueError) as exc:
+    except unique_sdk.UniqueError as exc:
+        if exc.http_status == 404:
+            return _SearchPlan(queries=queries, options=options, notice=None)
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+    except ValueError as exc:
         return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
 
     payload = _resource_dict(resource)
@@ -694,7 +723,7 @@ def _request_query_review(
                 f"{WEB_SEARCH_ERROR_PREFIX} the query review is pending but "
                 "no review id was returned. The search did not run."
             )
-        return _pending_query_review_output(review_id, chat_id)
+        return _PendingReview(review_id, chat_id)
     if status == "ACCEPTED":
         approved = _string_list(payload.get("queries"))
         if not approved:
@@ -736,7 +765,7 @@ def _plan_web_search(
     chat_id: str | None,
     message_id: str | None,
     review_id: str | None,
-) -> _SearchPlan | str:
+) -> _SearchPlan | _PendingReview | str:
     """Resolve review, then return the queries and options to search.
 
     Without ``chat_id`` the plan is today's search: no review call and no
@@ -745,7 +774,7 @@ def _plan_web_search(
     review_id = _nonempty(review_id)
     if chat_id and review_id and not queries:
         loaded = _load_approved_queries(state, review_id, chat_id)
-        if isinstance(loaded, str):
+        if not isinstance(loaded, list):
             return loaded
         queries = loaded
 
@@ -898,6 +927,8 @@ def _execute_web_searches(
         message_id=message_id,
         review_id=review_id,
     )
+    if isinstance(plan, _PendingReview):
+        return plan.render(output_json=output_json)
     if isinstance(plan, str):
         return plan
     if single_format and len(plan.queries) == 1:
@@ -945,16 +976,17 @@ def cmd_web_search_many(
 
     A failed query shows its own error and does not drop the others. The
     output is a ``web-search:`` error only when every query failed.
-    ``output_json`` returns a list with one entry per query: the usual
-    ``{engine, query, results}`` object, or ``{query, error}`` on failure.
+    ``output_json`` returns a list with one entry per query, also when a
+    resume approves exactly one: the usual ``{engine, query, results}``
+    object, or ``{query, error}`` on failure. A pending review in JSON mode
+    is the object ``{"status": "PENDING", "reviewId": ..., "chatId": ...}``.
     ``refs_log_path`` is the per-turn web citation manifest; ``None``
     resolves it from the workspace root. ``message_id`` is sent as
     ``messageId`` on the review call only.
 
     Query review, when ``chat_id`` is set, runs once for the whole batch.
     ``review_id`` searches queries the user already approved. With no
-    queries it reads ``responseContent.queries`` from that elicitation, and
-    a single approved query keeps the single-query output format.
+    queries it reads ``responseContent.queries`` from that elicitation.
 
     Args:
         state (ShellState): Shell state carrying user/company credentials.
@@ -966,13 +998,13 @@ def cmd_web_search_many(
             heard of query review.
 
     Returns:
-        str: One block per query, a pending-review instruction, or a
-        ``web-search:`` error.
+        str: One block per query, a pending review (instructions, or the JSON
+        object in JSON mode), or a ``web-search:`` error.
     """
     return _execute_web_searches(
         state,
         list(queries),
-        single_format=not queries,
+        single_format=False,
         fetch_size=fetch_size,
         include_content=include_content,
         engine_config_raw=engine_config_raw,
@@ -982,6 +1014,46 @@ def cmd_web_search_many(
         chat_id=chat_id,
         refs_log_path=refs_log_path,
         message_id=message_id,
+        review_id=review_id,
+    )
+
+
+def cmd_web_search_resume(
+    state: ShellState,
+    review_id: str,
+    chat_id: str | None,
+    fetch_size: int | None = None,
+    include_content: bool = False,
+    engine_config_raw: str | None = None,
+    crawler_config_raw: str | None = None,
+    output_json: bool = False,
+    config_path: str | None = None,
+    *,
+    refs_log_path: Path | None = None,
+) -> str:
+    """Search the queries the user approved in ``review_id``.
+
+    The command-line variant of a resume: one approved query is formatted
+    like a single search, several like ``cmd_web_search_many``. Programmatic
+    callers use ``cmd_web_search_many``, whose JSON is always a list.
+
+    Returns:
+        str: The formatted searches, a pending review, or a ``web-search:``
+        error.
+    """
+    return _execute_web_searches(
+        state,
+        [],
+        single_format=True,
+        fetch_size=fetch_size,
+        include_content=include_content,
+        engine_config_raw=engine_config_raw,
+        crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
+        config_path=config_path,
+        chat_id=chat_id,
+        refs_log_path=refs_log_path,
+        message_id=None,
         review_id=review_id,
     )
 

@@ -20,6 +20,7 @@ from unique_sdk.cli.commands.web_search import (
     WEB_SEARCH_ERROR_PREFIX,
     cmd_web_search,
     cmd_web_search_many,
+    cmd_web_search_resume,
     is_error_output,
 )
 from unique_sdk.cli.config import Config
@@ -100,6 +101,22 @@ def _review(
         "reviewId": review_id,
         "queries": queries or [],
     }
+
+
+def _accepted(queries: list[str]) -> dict[str, Any]:
+    return {"status": "ACCEPTED", "responseContent": {"queries": queries}}
+
+
+def _no_route(status: int) -> unique_sdk.UniqueError:
+    if status == 404:
+        return unique_sdk.APIError(
+            "Cannot POST /web-search-api/review", http_status=404
+        )
+    if status == 403:
+        return SdkPermissionError("Web search is not enabled", http_status=403)
+    if status == 409:
+        return unique_sdk.APIError("conflict", http_status=409)
+    return unique_sdk.APIError("boom", http_status=status)
 
 
 def _search_rejection(status: int, message: str) -> unique_sdk.UniqueError:
@@ -450,6 +467,153 @@ class TestReviewStatuses:
         mock_search.assert_not_called()
 
 
+class TestReviewRouteMissing:
+    @patch("unique_sdk.WebSearch.search")
+    @patch("unique_sdk.WebSearchReview.review")
+    def test_404_searches_exactly_like_review_off(
+        self, mock_review: MagicMock, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        """Purpose: A 404 from the review call falls back to a plain search.
+        Why this matters: Older platforms have no review route and no gate.
+        Setup summary: Review raises 404; compare to a call without chat id.
+        """
+        mock_search.side_effect = _search_returning_its_query
+        mock_review.side_effect = _no_route(404)
+
+        for output_json in (False, True):
+            plain = cmd_web_search_many(
+                _state(),
+                ["a", "b"],
+                output_json=output_json,
+                refs_log_path=tmp_path / "plain.jsonl",
+            )
+            fallback = cmd_web_search_many(
+                _state(),
+                ["a", "b"],
+                output_json=output_json,
+                chat_id="chat_1",
+                refs_log_path=tmp_path / "fallback.jsonl",
+            )
+            assert fallback == plain
+            assert USER_APPROVED_QUERIES_NOTICE not in fallback
+        assert _manifest(tmp_path / "fallback.jsonl") == _manifest(
+            tmp_path / "plain.jsonl"
+        )
+        assert all("reviewId" not in c.kwargs for c in mock_search.call_args_list)
+
+    @pytest.mark.parametrize("status", [403, 409, 500])
+    @patch("unique_sdk.WebSearch.search")
+    @patch("unique_sdk.WebSearchReview.review")
+    def test_other_errors_do_not_fall_back(
+        self, mock_review: MagicMock, mock_search: MagicMock, status: int
+    ) -> None:
+        """Purpose: Only a 404 falls back; every other review error stops the search.
+        Why this matters: A fallback on a 403 or 5xx would hide a closed gate.
+        Setup summary: Review raises each status; assert the error and no search.
+        """
+        mock_review.side_effect = _no_route(status)
+
+        out = cmd_web_search(_state(), "q", chat_id="chat_1")
+
+        assert out.startswith(WEB_SEARCH_ERROR_PREFIX)
+        mock_search.assert_not_called()
+
+
+class TestStructuredPendingAndJsonList:
+    _PENDING_JSON = {"status": "PENDING", "reviewId": "rev_1", "chatId": "chat_1"}
+
+    @patch("unique_sdk.WebSearch.search")
+    @patch("unique_sdk.WebSearchReview.review")
+    def test_json_pending_is_a_structured_object(
+        self, mock_review: MagicMock, mock_search: MagicMock, tmp_path: Path
+    ) -> None:
+        """Purpose: JSON mode reports a pending review as an object, not prose.
+        Why this matters: Programmatic callers branch on the status field.
+        Setup summary: PENDING review for one and several queries, json on.
+        """
+        mock_review.return_value = _review("PENDING", queries=["q"])
+        refs = tmp_path / "refs.jsonl"
+
+        many = cmd_web_search_many(
+            _state(), ["q", "r"], output_json=True, chat_id="chat_1", refs_log_path=refs
+        )
+        one = cmd_web_search(
+            _state(), "q", output_json=True, chat_id="chat_1", refs_log_path=refs
+        )
+
+        assert json.loads(many) == self._PENDING_JSON
+        assert json.loads(one) == self._PENDING_JSON
+        assert is_error_output(many) is False
+        assert not refs.exists()
+        mock_search.assert_not_called()
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.WebSearch.search")
+    def test_json_resume_still_pending_is_the_same_object(
+        self, mock_search: MagicMock, mock_get: MagicMock
+    ) -> None:
+        """Purpose: A resume that is still pending also returns the object.
+        Why this matters: The caller polls with the same shape.
+        Setup summary: Elicitation PENDING, json on, no queries.
+        """
+        mock_get.return_value = {"status": "PENDING", "responseContent": None}
+
+        out = cmd_web_search_many(
+            _state(), [], output_json=True, chat_id="chat_1", review_id="rev_1"
+        )
+
+        assert json.loads(out) == self._PENDING_JSON
+        mock_search.assert_not_called()
+
+    @pytest.mark.parametrize("approved", [["only"], ["a", "b"]])
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.WebSearch.search")
+    def test_json_resume_is_always_a_list(
+        self, mock_search: MagicMock, mock_get: MagicMock, approved: list[str]
+    ) -> None:
+        """Purpose: The Python API returns a list for one or several approved queries.
+        Why this matters: Callers should not branch on the approved query count.
+        Setup summary: Resume with one, then two approved queries, json on.
+        """
+        mock_search.side_effect = _search_returning_its_query
+        mock_get.return_value = _accepted(approved)
+
+        out = json.loads(
+            cmd_web_search_many(
+                _state(), [], output_json=True, chat_id="chat_1", review_id="rev_9"
+            )
+        )
+
+        assert isinstance(out, list)
+        assert [entry["query"] for entry in out] == approved
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.WebSearch.search")
+    def test_resume_helper_keeps_the_single_query_object(
+        self, mock_search: MagicMock, mock_get: MagicMock
+    ) -> None:
+        """Purpose: The command-line resume keeps the single-query format.
+        Why this matters: The documented jq pipeline reads an object.
+        Setup summary: cmd_web_search_resume with one approved query.
+        """
+        mock_search.side_effect = _search_returning_its_query
+        mock_get.return_value = _accepted(["only"])
+
+        out = cmd_web_search_resume(_state(), "rev_9", "chat_1", output_json=True)
+
+        assert isinstance(json.loads(out), dict)
+
+    @patch("unique_sdk.WebSearchReview.review")
+    def test_text_pending_is_unchanged(self, mock_review: MagicMock) -> None:
+        """Purpose: Text mode keeps the instructions.
+        Why this matters: The agent prompt depends on this wording.
+        Setup summary: PENDING with output_json false.
+        """
+        mock_review.return_value = _review("PENDING", queries=["q"])
+
+        assert cmd_web_search_many(_state(), ["q"], chat_id="chat_1") == _PENDING_OUTPUT
+
+
 class TestReviewIdSearch:
     @patch("unique_sdk.Elicitation.get_elicitation")
     @patch("unique_sdk.WebSearchReview.review")
@@ -465,7 +629,7 @@ class TestReviewIdSearch:
         Setup summary: Elicitation returns two approved queries; review is not called again.
         """
         mock_search.side_effect = _search_returning_its_query
-        mock_get.return_value = {"responseContent": {"queries": ["from form", "also"]}}
+        mock_get.return_value = _accepted(["from form", "also"])
 
         out = cmd_web_search_many(
             _state(), [], chat_id="chat_1", message_id="msg_1", review_id="rev_9"
@@ -523,6 +687,31 @@ class TestReviewIdSearch:
 
         assert out == _PENDING_OUTPUT
         assert is_error_output(out) is False
+        mock_search.assert_not_called()
+
+    @pytest.mark.parametrize("status", ["PENDING", "DECLINED", "EXPIRED"])
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.WebSearch.search")
+    def test_queries_are_ignored_unless_the_review_is_accepted(
+        self, mock_search: MagicMock, mock_get: MagicMock, status: str
+    ) -> None:
+        """Purpose: Only an ACCEPTED review yields queries.
+        Why this matters: Proposed queries in an unanswered form must not be searched.
+        Setup summary: Each non-accepted status carries queries in responseContent.
+        """
+        mock_get.return_value = {
+            "status": status,
+            "responseContent": {"queries": ["proposed"]},
+        }
+
+        out = cmd_web_search_many(_state(), [], chat_id="chat_1", review_id="rev_1")
+
+        assert out == (
+            _PENDING_OUTPUT
+            if status == "PENDING"
+            else f"{WEB_SEARCH_ERROR_PREFIX} "
+            + (_DECLINED if status == "DECLINED" else _NOT_IN_TIME)
+        )
         mock_search.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -701,7 +890,7 @@ class TestClickQueryReview:
         self._bootstrap_env(monkeypatch)
         monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_1")
         mock_search.side_effect = _search_returning_its_query
-        mock_get.return_value = {"responseContent": {"queries": ["approved"]}}
+        mock_get.return_value = _accepted(["approved"])
 
         result = CliRunner().invoke(
             cli_main, ["web-search", "search", "--review-id", "rev_9"]
@@ -756,9 +945,9 @@ class TestClickQueryReview:
         mock_search.side_effect = _search_returning_its_query
         args = ["web-search", "search", "--json", "--review-id", "rev_9"]
 
-        mock_get.return_value = {"responseContent": {"queries": ["only"]}}
+        mock_get.return_value = _accepted(["only"])
         one = CliRunner().invoke(cli_main, args)
-        mock_get.return_value = {"responseContent": {"queries": ["a", "b"]}}
+        mock_get.return_value = _accepted(["a", "b"])
         two = CliRunner().invoke(cli_main, args)
 
         assert isinstance(json.loads(one.output), dict)
@@ -780,7 +969,7 @@ class TestClickQueryReview:
         self._bootstrap_env(monkeypatch)
         monkeypatch.setenv(TURN_IDENTITY_ENV_VAR, str(tmp_path / "missing.json"))
         mock_search.side_effect = _search_returning_its_query
-        mock_get.return_value = {"responseContent": {"queries": ["approved"]}}
+        mock_get.return_value = _accepted(["approved"])
 
         result = CliRunner().invoke(
             cli_main,
@@ -816,4 +1005,31 @@ class TestClickQueryReview:
         assert pending.output == _PENDING_OUTPUT + "\n"
         assert declined.exit_code == 1
         assert declined.output == f"{WEB_SEARCH_ERROR_PREFIX} {_DECLINED}\n"
+        mock_search.assert_not_called()
+
+    @patch("unique_sdk.WebSearch.search")
+    @patch("unique_sdk.WebSearchReview.review")
+    def test_json_pending_exits_zero_with_the_object(
+        self,
+        mock_review: MagicMock,
+        mock_search: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Purpose: ``--json`` prints the pending object and exits zero.
+        Why this matters: A script reads the object instead of parsing prose.
+        Setup summary: PENDING review through the CLI with --json.
+        """
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_1")
+        monkeypatch.setenv("UNIQUE_MESSAGE_ID", "msg_1")
+        mock_review.return_value = _review("PENDING", queries=["q"])
+
+        result = CliRunner().invoke(cli_main, ["web-search", "search", "q", "--json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.output) == {
+            "status": "PENDING",
+            "reviewId": "rev_1",
+            "chatId": "chat_1",
+        }
         mock_search.assert_not_called()
