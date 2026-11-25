@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import override
 
 from pydantic import ValidationError
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -14,9 +15,9 @@ from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.experimental.resources.project_chat import (
-    ProjectChatChunkPage,
+    ProjectChatChunk,
     ProjectChats,
-    ProjectChatSummaryPage,
+    ProjectChatSummary,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -33,7 +34,7 @@ from unique_project_chat_search.sources import (
 
 PROJECT_CHAT_SEARCH_TOOL_NAME = "ProjectChatSearch"
 
-type _Fetch[PageT] = Callable[[str | None], Awaitable[PageT]]
+type _Fetch[ItemT] = Callable[[str | None], Awaitable[tuple[list[ItemT], str | None]]]
 
 USAGE = (
     'Call ProjectChatSearch with a `mode`: {"mode": "search", "query": "..."}, '
@@ -58,7 +59,7 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
 
     One input schema for every use (``mode`` = search, read or recent) and one
     output: the platform's standard sources, cited like internal or web search
-    results. The orchestrator injects the tool only for project chats.
+    results. It needs a chat event with a ``project_id`` (a project chat).
     """
 
     name = PROJECT_CHAT_SEARCH_TOOL_NAME
@@ -153,7 +154,8 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
             excerpt_source(chunk, url_template=self.config.chat_url_template)
             for chunk in page.chunks
         ]
-        return self._sources_response(call_id, sources, next_page=None)
+        kept, omitted = fit_to_budget(sources, self.config.max_tokens)
+        return self._sources_response(call_id, kept, omitted=omitted, next_page=None)
 
     async def _read(
         self,
@@ -169,19 +171,25 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
             )
         self._check_page(arguments.page)
 
-        async def fetch(cursor: str | None) -> ProjectChatChunkPage:
-            return await project_chats.list_chunks_async(
+        async def fetch(
+            cursor: str | None,
+        ) -> tuple[list[ProjectChatChunk], str | None]:
+            page = await project_chats.list_chunks_async(
                 chat_id=chat_id, limit=self.config.chunks_per_page, after=cursor
             )
+            return page.chunks, page.next_cursor
 
-        page, has_more = await self._walk_to_page(fetch, arguments.page)
-        if arguments.page == 1 and (page is None or not page.chunks):
+        sources, has_more = await self._collect_page(
+            fetch,
+            lambda chunk, _position: excerpt_source(
+                chunk, url_template=self.config.chat_url_template
+            ),
+            page_number=arguments.page,
+            per_page=self.config.chunks_per_page,
+        )
+        if arguments.page == 1 and not sources:
             # The endpoint answers an unknown chat id with an empty page.
             raise _Correction(UNKNOWN_CHAT)
-        sources = [
-            excerpt_source(chunk, url_template=self.config.chat_url_template)
-            for chunk in (page.chunks if page else [])
-        ]
         return self._sources_response(
             call_id, sources, next_page=arguments.page + 1 if has_more else None
         )
@@ -196,25 +204,26 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
         self._check_page(arguments.page)
         after, before = self._window(arguments)
 
-        async def fetch(cursor: str | None) -> ProjectChatSummaryPage:
-            return await project_chats.list_recent_async(
+        async def fetch(
+            cursor: str | None,
+        ) -> tuple[list[ProjectChatSummary], str | None]:
+            page = await project_chats.list_recent_async(
                 exclude_chat_ids=current_chats,
                 updated_after=after,
                 updated_before=before,
                 limit=self.config.recent_limit,
                 after=cursor,
             )
+            return page.chats, page.next_cursor
 
-        page, has_more = await self._walk_to_page(fetch, arguments.page)
-        offset = (arguments.page - 1) * self.config.recent_limit
-        sources = [
-            listing_source(
-                chat,
-                position=offset + index,
-                url_template=self.config.chat_url_template,
-            )
-            for index, chat in enumerate(page.chats if page else [])
-        ]
+        sources, has_more = await self._collect_page(
+            fetch,
+            lambda chat, position: listing_source(
+                chat, position=position, url_template=self.config.chat_url_template
+            ),
+            page_number=arguments.page,
+            per_page=self.config.recent_limit,
+        )
         return self._sources_response(
             call_id, sources, next_page=arguments.page + 1 if has_more else None
         )
@@ -257,30 +266,58 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
                 + 'Narrow it down with mode "search" instead.'
             )
 
-    async def _walk_to_page[PageT: ProjectChatChunkPage | ProjectChatSummaryPage](
+    async def _collect_page[ItemT](
         self,
-        fetch: _Fetch[PageT],
+        fetch: _Fetch[ItemT],
+        to_source: Callable[[ItemT, int], ContentChunk],
+        *,
         page_number: int,
-    ) -> tuple[PageT | None, bool]:
-        """Follow the endpoint's cursors to page ``page_number`` (from 1).
+        per_page: int,
+    ) -> tuple[list[ContentChunk], bool]:
+        """Return page ``page_number`` (from 1) as the model sees it.
+
+        A page holds at most ``per_page`` sources and ``max_tokens`` tokens, so
+        what one page leaves out starts the next page and nothing is skipped.
+        A single source larger than the budget gets a page of its own. The
+        endpoint's cursors are followed from the start.
 
         Returns:
-            The page, or ``None`` when there are fewer pages, and whether a
-            further page exists.
+            The page's sources (empty past the last page) and whether a further
+            page exists.
         """
+        page: list[ContentChunk] = []
+        current = 1
+        used = 0
+        position = 0
         cursor: str | None = None
-        for _ in range(page_number - 1):
-            skipped = await fetch(cursor)
-            cursor = skipped.next_cursor
+        while True:
+            items, cursor = await fetch(cursor)
+            for item in items:
+                source = to_source(item, position)
+                position += 1
+                tokens = count_tokens(source.text)
+                if page and (
+                    len(page) >= per_page or used + tokens > self.config.max_tokens
+                ):
+                    if current == page_number:
+                        return page, True
+                    current += 1
+                    page = []
+                    used = 0
+                page.append(source)
+                used += tokens
             if cursor is None:
-                return None, False
-        page = await fetch(cursor)
-        return page, page.next_cursor is not None
+                break
+        return (page if current == page_number else []), False
 
     def _sources_response(
-        self, call_id: str, sources: list[ContentChunk], *, next_page: int | None
+        self,
+        call_id: str,
+        sources: list[ContentChunk],
+        *,
+        next_page: int | None,
+        omitted: int = 0,
     ) -> ToolCallResponse:
-        kept, omitted = fit_to_budget(sources, self.config.max_tokens)
         reminders: list[str] = []
         if omitted:
             reminders.append(
@@ -298,7 +335,7 @@ class ProjectChatSearchTool(Tool[ProjectChatSearchConfig]):
                     'There are more results; use mode "search" to find specific ones.'
                 )
         return self._response(
-            call_id, content_chunks=kept, system_reminder="\n".join(reminders)
+            call_id, content_chunks=sources, system_reminder="\n".join(reminders)
         )
 
     def _response(

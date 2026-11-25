@@ -8,7 +8,7 @@ manager, citations and reference chips treat it like any other source.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 from unique_toolkit._common.token import count_tokens
@@ -33,7 +33,9 @@ def chat_url(template: str, chat_id: str) -> str:
 
 
 def _day(value: datetime) -> str:
-    return value.strftime("%Y-%m-%d %H:%M UTC")
+    # Naive values are taken as UTC; aware ones are converted first.
+    utc = value.astimezone(UTC) if value.tzinfo else value
+    return utc.strftime("%Y-%m-%d %H:%M UTC")
 
 
 def _pairs(chunk: ProjectChatChunk) -> str:

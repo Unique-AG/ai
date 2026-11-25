@@ -275,7 +275,7 @@ async def test_read_returns_the_chat_in_order(monkeypatch: pytest.MonkeyPatch) -
     assert response.system_reminder == ""
 
 
-async def test_read_page_two_follows_one_cursor_and_offers_page_three(
+async def test_read_page_two_continues_after_page_one_and_offers_page_three(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     list_chunks = _patch(
@@ -283,16 +283,43 @@ async def test_read_page_two_follows_one_cursor_and_offers_page_three(
         "list_chunks_async",
         ProjectChatChunkPage(chunks=[_chunk(index=0)], next_cursor="c1"),
         ProjectChatChunkPage(chunks=[_chunk(index=1)], next_cursor="c2"),
+        ProjectChatChunkPage(chunks=[_chunk(index=2)], next_cursor=None),
     )
 
-    response = await _tool().run(_call(mode="read", chat_id=NVIDIA_CHAT, page=2))
+    response = await _tool(chunks_per_page=1).run(
+        _call(mode="read", chat_id=NVIDIA_CHAT, page=2)
+    )
 
     assert [call.kwargs["after"] for call in list_chunks.await_args_list] == [
         None,
         "c1",
+        "c2",
     ]
     assert [chunk.chunk_id for chunk in response.content_chunks or []] == ["1"]
     assert "page=3" in response.system_reminder
+
+
+async def test_read_pages_never_skip_excerpts_cut_for_the_token_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    long_text = "word " * 400
+    chunks = [_chunk(index=i, text=long_text) for i in range(3)]
+
+    def api_page(*_: Any, **__: Any) -> ProjectChatChunkPage:
+        return ProjectChatChunkPage(chunks=chunks, next_cursor=None)
+
+    monkeypatch.setattr(
+        ProjectChats, "list_chunks_async", AsyncMock(side_effect=api_page)
+    )
+    tool = _tool(chunks_per_page=3, max_tokens=1200)
+
+    first = await tool.run(_call(mode="read", chat_id=NVIDIA_CHAT))
+    second = await tool.run(_call(mode="read", chat_id=NVIDIA_CHAT, page=2))
+
+    assert [c.chunk_id for c in first.content_chunks or []] == ["0", "1"]
+    assert "page=2" in first.system_reminder
+    assert [c.chunk_id for c in second.content_chunks or []] == ["2"]
+    assert second.system_reminder == ""
 
 
 async def test_read_past_the_last_page_returns_no_sources(
@@ -383,13 +410,14 @@ async def test_recent_lists_chats_as_metadata_only_sources(
         ProjectChatSummaryPage(
             chats=[_summary(), _summary("chat_qa", None)], next_cursor="c1"
         ),
+        ProjectChatSummaryPage(chats=[_summary("chat_old")], next_cursor=None),
     )
 
     response = await _tool(recent_limit=2).run(
         _call(mode="recent", query="ignored", after="2026-11-01")
     )
 
-    kwargs = list_recent.await_args.kwargs
+    kwargs = list_recent.await_args_list[0].kwargs
     assert kwargs["exclude_chat_ids"] == [CURRENT_CHAT]
     assert kwargs["updated_after"] == datetime(2026, 11, 1, tzinfo=UTC)
     assert kwargs["limit"] == 2
@@ -519,4 +547,23 @@ def _assistant_message(text: str) -> Any:
         role=ChatMessageRole.ASSISTANT,
         text=text,
         content=text,
+    )
+
+
+def test_dates_with_an_offset_are_shown_in_utc() -> None:
+    from datetime import timedelta, timezone
+
+    from unique_project_chat_search.sources import excerpt_source
+
+    chunk = _chunk().model_copy(
+        update={
+            "created_at": datetime(
+                2026, 11, 24, 16, 17, tzinfo=timezone(timedelta(hours=2))
+            )
+        }
+    )
+
+    assert (
+        "2026-11-24 14:17 UTC"
+        in excerpt_source(chunk, url_template="/chat/{chat_id}").text
     )
