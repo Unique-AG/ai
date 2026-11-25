@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import re
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, datetime
 from functools import cache
 from typing import Any
@@ -61,6 +61,9 @@ _WEB_SEARCH_ID = "web-search.v1"
 _CREDENTIALS_EXECUTOR = ThreadPoolExecutor(
     max_workers=1, thread_name_prefix="aws-credentials"
 )
+# The lookup in flight. Searches that arrive while it runs wait for it instead
+# of queueing their own, so a stalled STS call holds at most one queue entry.
+_credentials_lookup: Future[Credentials] | None = None
 
 # Regional (optionally FIPS) AgentCore hosts, and PrivateLink endpoint names.
 _AGENTCORE_HOST = re.compile(
@@ -126,6 +129,27 @@ def resolve_aws_credentials() -> Credentials:
     return Credentials(frozen.access_key, frozen.secret_key, frozen.token)
 
 
+def _shared_credentials_lookup() -> Future[Credentials]:
+    global _credentials_lookup
+    if _credentials_lookup is None or _credentials_lookup.done():
+        _credentials_lookup = _CREDENTIALS_EXECUTOR.submit(resolve_aws_credentials)
+    return _credentials_lookup
+
+
+async def aws_credentials_within(timeout: float) -> Credentials:
+    """Resolve credentials off the event loop, sharing one lookup across callers."""
+    # shield: a caller that times out must not cancel the lookup others share.
+    try:
+        return await asyncio.wait_for(
+            asyncio.shield(asyncio.wrap_future(_shared_credentials_lookup())),
+            timeout=timeout,
+        )
+    except TimeoutError as exc:
+        raise UpstreamTimeoutError(
+            f"AWS credential exchange timed out after {timeout}s",
+        ) from exc
+
+
 class AwsSearchService(SearchEngineService[AwsSearchRequest]):
     """AgentCore InvokeWebSearch, signed with SigV4 and sent through httpx."""
 
@@ -152,18 +176,7 @@ class AwsSearchService(SearchEngineService[AwsSearchRequest]):
         url = _invoke_url(credentials.api_endpoint)
         body = _request_body(request, query)
         payload = body.encode()
-        # A refresh can call STS synchronously, so keep it off the event loop.
-        try:
-            aws_credentials = await asyncio.wait_for(
-                asyncio.get_running_loop().run_in_executor(
-                    _CREDENTIALS_EXECUTOR, resolve_aws_credentials
-                ),
-                timeout=request.timeout,
-            )
-        except TimeoutError as exc:
-            raise UpstreamTimeoutError(
-                f"AWS credential exchange timed out after {request.timeout}s",
-            ) from exc
+        aws_credentials = await aws_credentials_within(request.timeout)
         headers = _signed_headers(
             url=url,
             payload=payload,

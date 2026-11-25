@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import threading
 from datetime import UTC, datetime
@@ -14,6 +15,7 @@ from unique_search_proxy_core.errors import (
     EngineNotConfiguredError,
     RateLimitedError,
     UpstreamError,
+    UpstreamTimeoutError,
     ValidationProxyError,
 )
 from unique_search_proxy_core.search_engines.aws.schema import (
@@ -29,8 +31,9 @@ from unique_search_proxy_client.web.core.search_engines.aws.service import (
 
 
 @pytest.fixture(autouse=True)
-def _fresh_aws_session() -> None:
+def _fresh_aws_session(monkeypatch: pytest.MonkeyPatch) -> None:
     service._aws_session.cache_clear()
+    monkeypatch.setattr(service, "_credentials_lookup", None)
 
 
 def _request(**fields: Any) -> AwsSearchRequest:
@@ -286,6 +289,59 @@ class TestAwsSearchService:
         assert threads[0] is not threading.main_thread()
         # A dedicated thread, not the shared default executor.
         assert threads[0].name.startswith("aws-credentials")
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_concurrent_and_timed_out_callers_share_one_lookup(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        release = threading.Event()
+        calls: list[int] = []
+
+        def slow_resolve() -> Credentials:
+            calls.append(1)
+            release.wait(5)
+            return _credentials()
+
+        monkeypatch.setattr(service, "resolve_aws_credentials", slow_resolve)
+        try:
+            # Callers that give up while STS stalls do not queue new lookups.
+            for _ in range(3):
+                with pytest.raises(UpstreamTimeoutError):
+                    await service.aws_credentials_within(0.05)
+            waiting = [
+                asyncio.create_task(service.aws_credentials_within(5)) for _ in range(5)
+            ]
+            await asyncio.sleep(0.05)
+        finally:
+            release.set()
+        results = await asyncio.gather(*waiting)
+
+        assert len(calls) == 1
+        assert all(result.access_key == "AKIDEXAMPLE" for result in results)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_failed_lookup_is_retried_by_the_next_caller(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        outcomes: list[Exception | Credentials] = [
+            EngineNotConfiguredError(),
+            _credentials(),
+        ]
+
+        def resolve() -> Credentials:
+            outcome = outcomes.pop(0)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        monkeypatch.setattr(service, "resolve_aws_credentials", resolve)
+        with pytest.raises(EngineNotConfiguredError):
+            await service.aws_credentials_within(5)
+        assert (await service.aws_credentials_within(5)).access_key == "AKIDEXAMPLE"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
