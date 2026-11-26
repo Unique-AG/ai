@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.1](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.48.0...unique-toolkit-v2026.48.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **orchestrator:** limit, retry and cache skill file downloads [UN-30534] ([#2869](https://github.com/Unique-AG/ai/issues/2869)) ([433fada](https://github.com/Unique-AG/ai/commit/433fada96d75c14dd9913a12cc23002931d2d0ac))
+
 ## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.46.0...unique-toolkit-v2026.48.0) (2026-11-20)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.48.1](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.48.0...unique-skill-tool-v2026.48.1) (2026-11-26)
+
+
+### Features
+
+* **skill-tool:** size the skill list by the model's context window [UN-30534] ([#2875](https://github.com/Unique-AG/ai/issues/2875)) ([7b5c357](https://github.com/Unique-AG/ai/commit/7b5c3570581dafdcb26823455c1d761a7a45558c))
+
 ## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.46.0...unique-skill-tool-v2026.48.0) (2026-11-20)
 
 
