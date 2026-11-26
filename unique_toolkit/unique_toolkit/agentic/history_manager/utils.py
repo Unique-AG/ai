@@ -116,14 +116,10 @@ def transform_chunks_to_string(
 def _loads_json_with_optional_reminder(content: str) -> Any:
     """One JSON value, then only whitespace or a blank-line reminder."""
     data, end = json.JSONDecoder().raw_decode(content)
-    rest = content[end:]
-    index = 0
-    while index < len(rest):
-        if rest.startswith("\n\n", index):
-            return data
-        if rest[index] not in " \t\r\n":
-            raise json.JSONDecodeError("Extra data", content, end + index)
-        index += 1
+    head = content[end:].partition("\n\n")[0]
+    junk = head.lstrip(" \t\r\n")
+    if junk:
+        raise json.JSONDecodeError("Extra data", content, end + len(head) - len(junk))
     return data
 
 
