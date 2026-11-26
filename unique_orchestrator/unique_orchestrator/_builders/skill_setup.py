@@ -110,6 +110,23 @@ def normalize_available_skills_for_tool(
     return out
 
 
+_NO_SKILLS_LOADED: dict[str, int] = {
+    "listed": 0,
+    "loaded": 0,
+    "from_cache": 0,
+    "downloaded": 0,
+    "failed": 0,
+    "timed_out": 0,
+}
+
+
+def _record_skill_loading(
+    debug_info_manager: DebugInfoManager | None, stats: Mapping[str, int]
+) -> None:
+    if debug_info_manager is not None:
+        debug_info_manager.add("skill_loading", dict(stats))
+
+
 async def load_selectable_skills(
     *,
     content_service: ContentService,
@@ -139,6 +156,7 @@ async def load_selectable_skills(
     valid_entries = [entry for entry in selectable_skills if entry.content_id]
     if not valid_entries:
         logger.info("SkillTool has no selectable_skills with a content_id set.")
+        _record_skill_loading(debug_info_manager, _NO_SKILLS_LOADED)
         return {}
 
     tasks = [
@@ -227,8 +245,7 @@ async def load_selectable_skills(
         stats["failed"],
         stats["timed_out"],
     )
-    if debug_info_manager is not None:
-        debug_info_manager.add("skill_loading", stats)
+    _record_skill_loading(debug_info_manager, stats)
     return skill_registry
 
 
@@ -272,6 +289,7 @@ async def configure_skill_tool(
             "SkillTool is enabled but selectable_skills is empty — "
             "no skills will be loaded."
         )
+        _record_skill_loading(debug_info_manager, _NO_SKILLS_LOADED)
         tool_manager.exclude_tool(SkillTool.name)
         return
 
