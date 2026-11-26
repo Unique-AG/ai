@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.1](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.48.0...unique-orchestrator-v2026.48.1) (2026-11-26)
+
+
+### Features
+
+* **orchestrator:** show skill load counts in the debug info [UN-30534] ([#2880](https://github.com/Unique-AG/ai/issues/2880)) ([b954ea2](https://github.com/Unique-AG/ai/commit/b954ea2b906d3a5721d6fb5fdcbe535c1eb81170))
+* **skill-tool:** size the skill list by the model's context window [UN-30534] ([#2875](https://github.com/Unique-AG/ai/issues/2875)) ([7b5c357](https://github.com/Unique-AG/ai/commit/7b5c3570581dafdcb26823455c1d761a7a45558c))
+
+
+### Bug Fixes
+
+* **orchestrator:** limit, retry and cache skill file downloads [UN-30534] ([#2869](https://github.com/Unique-AG/ai/issues/2869)) ([433fada](https://github.com/Unique-AG/ai/commit/433fada96d75c14dd9913a12cc23002931d2d0ac))
+* **orchestrator:** record zero skill counts when no skills are usable [UN-30534] ([#2881](https://github.com/Unique-AG/ai/issues/2881)) ([ef6cd64](https://github.com/Unique-AG/ai/commit/ef6cd640973f579cbf3105710997910c2ceb688d))
+
 ## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.46.0...unique-orchestrator-v2026.48.0) (2026-11-20)
 
 
