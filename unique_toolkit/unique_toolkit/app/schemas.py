@@ -288,14 +288,6 @@ class ChatEventSkill(BaseModel):
         default="",
         description="Knowledge base content ID of the ``SKILL.md`` file.",
     )
-    updated_at: str | None = Field(
-        default=None,
-        description=(
-            "Last-modified time of the ``SKILL.md`` file. The platform sets it "
-            "only for a skill the acting user can read, so a consumer may serve "
-            "such a skill from a cache keyed by content ID and this value."
-        ),
-    )
 
 
 SkillReference = ChatEventSkill

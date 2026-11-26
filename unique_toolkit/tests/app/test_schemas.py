@@ -2,7 +2,6 @@ from unique_toolkit.app.schemas import (
     ChatEventAdditionalParameters,
     ChatEventAssistantMessage,
     ChatEventPayload,
-    ChatEventSkill,
     ChatEventUserMessage,
     Event,
     EventAssistantMessage,
@@ -291,22 +290,6 @@ class TestEventSchemas:
         assert payload.available_skills[0].content_id == "cont_a"
         assert payload.available_skills[0].scope_id == "scope_b"
         assert payload.available_skills[0].name == ""
-
-    def test_chat_event_skill_reads_updated_at_from_the_platform_payload(self) -> None:
-        stamped = ChatEventSkill.model_validate(
-            {
-                "contentId": "cont_a",
-                "scopeId": "scope_b",
-                "name": "pdf",
-                "updatedAt": "2026-11-20T10:00:00.000Z",
-            }
-        )
-        unstamped = ChatEventSkill.model_validate(
-            {"contentId": "cont_a", "scopeId": "scope_b", "name": "pdf"}
-        )
-
-        assert stamped.updated_at == "2026-11-20T10:00:00.000Z"
-        assert unstamped.updated_at is None
 
     def test_additional_parameters__uploaded_files__object_format_deserialization(self):
         json_data = """{

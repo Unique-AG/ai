@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`unique_sdk.Space.get_skills` and `get_skills_async` return the skills of a space that the calling user can read, each with the content ID, folder ID, name and last-modified time of its skill file. They need a platform version that serves `GET /space/{spaceId}/skills`.'
+time: 2026-11-26T11:00:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-30534
