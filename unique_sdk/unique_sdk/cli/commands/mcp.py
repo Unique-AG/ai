@@ -42,10 +42,11 @@ _MCP_TURN_TEXT_BUDGET_BYTES = 64_000_000
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
 # (UN-21285). One entry per retrieved item: a short *title* describing what was
-# retrieved, plus that item's own http(s) link when the tool result includes
-# one. The link is stored on the row and is not copied into the Sources block.
-# The runner labels the chip with that title + the MCP tool name; falls back
-# to the tool alone when the result carries no recognizable title.
+# retrieved, plus that item's own http(s) or ``unique://content`` link when the
+# tool result includes one. The link is stored on the row and is not copied
+# into the Sources block. The runner labels the chip with that title + the MCP
+# tool name; falls back to the tool alone when the result carries no
+# recognizable title.
 _MCP_REFS_LOG_RELATIVE_PATH = Path(".unique") / "mcp-refs.jsonl"
 _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 # Persistent per-chat seed for ``[mcpsourceN]`` numbering. The SI runner wipes

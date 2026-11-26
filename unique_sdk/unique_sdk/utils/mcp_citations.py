@@ -1,8 +1,5 @@
-"""Citable records in an MCP tool result.
-
-Shared by ``unique-cli mcp`` (Conduct) and the Unique AI MCP tool wrapper, so a
-tool result is split into the same records, titles and links on both paths.
-"""
+"""Citable records in an MCP tool result, shared by ``unique-cli mcp`` and the
+Unique AI MCP tool wrapper."""
 
 from __future__ import annotations
 
