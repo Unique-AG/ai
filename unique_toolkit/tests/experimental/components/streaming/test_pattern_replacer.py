@@ -141,7 +141,7 @@ def test_chunks_to_sdk_references__maps_chunks_to_sdk_shape():
             internally_stored_at=None,
         ),
         ContentChunk(
-            id="c2",
+            id="cont_c2",
             chunk_id="ch2",
             key=None,
             title=None,
@@ -161,9 +161,9 @@ def test_chunks_to_sdk_references__maps_chunks_to_sdk_shape():
     assert refs[0]["url"] == "https://example.com/a"
     assert refs[0]["sourceId"] == "c1"
     assert refs[1]["sequenceNumber"] == 2
-    assert refs[1]["name"] == "c2"
-    assert refs[1]["url"] == "unique://content/c2"
-    assert refs[1]["sourceId"] == "c2_ch2"
+    assert refs[1]["name"] == "cont_c2"
+    assert refs[1]["url"] == "unique://content/cont_c2"
+    assert refs[1]["sourceId"] == "cont_c2_ch2"
 
 
 @pytest.mark.ai

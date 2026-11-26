@@ -16,6 +16,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
 from unique_toolkit.agentic.history_manager.utils import (
     _loads_json_with_optional_reminder,
+    _reminder_after_json,
     serialize_tool_content_json,
     transform_chunks_to_string,
 )
@@ -467,10 +468,12 @@ def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
     ):
         return content
 
+    reminder = _reminder_after_json(content)
     if not cited:
         return (
             "The search did not produce any relevant information that could be cited."
+            + reminder
         )
 
     filtered = [item for item in data if item.get("source_number") in cited]
-    return serialize_tool_content_json(filtered)
+    return serialize_tool_content_json(filtered) + reminder

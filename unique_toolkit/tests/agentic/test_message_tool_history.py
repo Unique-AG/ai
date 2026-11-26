@@ -812,6 +812,39 @@ class TestCompactMessageTools:
         )
 
     @pytest.mark.ai
+    def test_keeps_reminder_when_compacting_sources(self):
+        """A blank-line reminder stays after cited sources are filtered."""
+        content = self._make_sources([0, 1]) + "\n\nnext_cursor=c2"
+        cited = HistoryManager.compact_message_tools(
+            records=[self._make_record(content)],
+            assistant_text="See [source0].",
+        )
+        body, reminder = cited[0].response.content.split("\n\n", 1)
+        assert [item["source_number"] for item in json.loads(body)] == [0]
+        assert reminder == "next_cursor=c2"
+
+        none = HistoryManager.compact_message_tools(
+            records=[self._make_record(content)],
+            assistant_text="No sources used here.",
+        )
+        assert none[0].response.content == (
+            "The search did not produce any relevant information that could be cited."
+            "\n\nnext_cursor=c2"
+        )
+
+    @pytest.mark.ai
+    def test_keeps_reminder_when_json_has_leading_whitespace(self):
+        """Leading whitespace does not hide the JSON or its reminder."""
+        content = " \n" + self._make_sources([0]) + "\n\nnext_cursor=c2"
+        result = HistoryManager.compact_message_tools(
+            records=[self._make_record(content)],
+            assistant_text="See [source0].",
+        )
+        body, reminder = result[0].response.content.split("\n\n", 1)
+        assert [item["source_number"] for item in json.loads(body)] == [0]
+        assert reminder == "next_cursor=c2"
+
+    @pytest.mark.ai
     def test_strips_uncited_sources(self):
         """
         Purpose: Only sources whose source_number appears as [sourceN] in the

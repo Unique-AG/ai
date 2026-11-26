@@ -353,7 +353,9 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         if not records:
             return [], [], None
         remainder = _text_outside_records(
-            texts, [text for item in items if (text := item.get("text"))]
+            texts,
+            [text for item in items if (text := item.get("text"))],
+            list_path=mapping.list_path if mapping else None,
         )
 
         chunks: list[ContentChunk] = []
@@ -514,7 +516,12 @@ def _link_label(item: dict[str, Any]) -> str | None:
     return f"{title}\n{url}" if title and url else None
 
 
-def _text_outside_records(texts: list[str], record_texts: list[str]) -> str | None:
+def _text_outside_records(
+    texts: list[str],
+    record_texts: list[str],
+    *,
+    list_path: str | None,
+) -> str | None:
     """Text of the result minus the cited records, removed once per record so an
     equal value elsewhere, such as a page token, stays visible to the model."""
     full_text = "\n\n".join(text for text in texts if text.strip())
@@ -522,12 +529,16 @@ def _text_outside_records(texts: list[str], record_texts: list[str]) -> str | No
         return None
     remaining = Counter(record_texts)
     parts = [
-        part for text in texts if (part := _block_outside_records(text, remaining))
+        part
+        for text in texts
+        if (part := _block_outside_records(text, remaining, list_path=list_path))
     ]
     return "\n\n".join(parts) or None
 
 
-def _block_outside_records(text: str, remaining: Counter[str]) -> str | None:
+def _block_outside_records(
+    text: str, remaining: Counter[str], *, list_path: str | None
+) -> str | None:
     if not text.strip():
         return None
     found = find_embedded_json(text)
@@ -538,7 +549,9 @@ def _block_outside_records(text: str, remaining: Counter[str]) -> str | None:
                 remaining[record_text] -= 1
         return text.strip() or None
     parsed, start, end = found
-    pruned = _without_records(parsed, remaining, in_list=False)
+    pruned = _without_records(
+        parsed, remaining, path="", list_path=list_path, in_record_list=False
+    )
     body = (
         None
         if pruned is _REMOVED or not _has_value(pruned)
@@ -552,32 +565,57 @@ def _block_outside_records(text: str, remaining: Counter[str]) -> str | None:
 _REMOVED = object()
 
 
-def _without_records(value: Any, remaining: Counter[str], *, in_list: bool) -> Any:
+def _without_records(
+    value: Any,
+    remaining: Counter[str],
+    *,
+    path: str,
+    list_path: str | None,
+    in_record_list: bool,
+) -> Any:
     """``value`` without its records, or ``_REMOVED`` when the value was only records.
-    A plain string is a record only as a list entry."""
-    if _take_record(value, remaining, in_list=in_list):
+    A plain string is a record only inside the record list."""
+    if _take_record(value, remaining, in_record_list=in_record_list):
         return _REMOVED
     if isinstance(value, dict):
         kept_dict = {
             key: kept
             for key, item in value.items()
-            if (kept := _without_records(item, remaining, in_list=False))
+            if (
+                kept := _without_records(
+                    item,
+                    remaining,
+                    path=f"{path}.{key}" if path else key,
+                    list_path=list_path,
+                    in_record_list=False,
+                )
+            )
             is not _REMOVED
         }
         return _REMOVED if value and not kept_dict else kept_dict
     if isinstance(value, list):
+        elements_are_records = path == list_path or (list_path is None and path == "")
         kept_list = [
             kept
             for item in value
-            if (kept := _without_records(item, remaining, in_list=True)) is not _REMOVED
+            if (
+                kept := _without_records(
+                    item,
+                    remaining,
+                    path=path,
+                    list_path=list_path,
+                    in_record_list=elements_are_records,
+                )
+            )
+            is not _REMOVED
         ]
         return _REMOVED if value and not kept_list else kept_list
     return value
 
 
-def _take_record(value: Any, remaining: Counter[str], *, in_list: bool) -> bool:
+def _take_record(value: Any, remaining: Counter[str], *, in_record_list: bool) -> bool:
     """Matches how the extractor serializes a record into its ``text``."""
-    if isinstance(value, str) and in_list:
+    if isinstance(value, str) and in_record_list:
         key = value
     elif isinstance(value, dict):
         key = json.dumps(value, ensure_ascii=False, default=str)

@@ -89,7 +89,8 @@ class ContentChunk(BaseModel):
 
         return unique_sdk.Message.Reference(
             name=self.title or self.key or self.id or "",
-            url=self.url or f"unique://content/{self.id}",
+            url=self.url
+            or (f"unique://content/{self.id}" if self.id.startswith("cont_") else None),
             sequenceNumber=sequence_number + 1,
             sourceId=(f"{self.id}_{self.chunk_id}" if self.chunk_id else self.id or ""),
             source="node-ingestion-chunks",

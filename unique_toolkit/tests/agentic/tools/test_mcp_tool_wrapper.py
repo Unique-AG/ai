@@ -1832,6 +1832,25 @@ class TestMCPToolWrapperRecordReferences:
         assert json.loads(remainder)["next_page_token"] == "page-2"
 
     @pytest.mark.ai
+    def test_extract_record_references__keeps_a_paging_list_equal_to_a_record_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+        mock_mcp_tool: McpTool,
+    ) -> None:
+        mock_mcp_tool.reference_mapping = McpReferenceMapping(
+            list_path="rows", title_from_text=True
+        )
+        result = _json_text_result({"next_cursors": ["page-2"], "rows": ["page-2"]})
+
+        chunks, _, remainder = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [(c.title, c.text) for c in chunks] == [("page-2", "page-2")]
+        assert remainder is not None
+        parsed = json.loads(remainder)
+        assert parsed["next_cursors"] == ["page-2"]
+        assert "rows" not in parsed
+
+    @pytest.mark.ai
     def test_extract_record_references__keeps_a_block_found_inside_a_record_AI(
         self,
         mcp_tool_wrapper: MCPToolWrapper,

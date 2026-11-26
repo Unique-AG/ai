@@ -113,14 +113,32 @@ def transform_chunks_to_string(
     return serialize_tool_content_json(sources), sources
 
 
+def _decode_json_value(content: str) -> tuple[Any, int]:
+    """One JSON value, skipping leading whitespace. End index is into ``content``."""
+    start = len(content) - len(content.lstrip(" \t\r\n"))
+    return json.JSONDecoder().raw_decode(content, start)
+
+
 def _loads_json_with_optional_reminder(content: str) -> Any:
     """One JSON value, then only whitespace or a blank-line reminder."""
-    data, end = json.JSONDecoder().raw_decode(content)
+    data, end = _decode_json_value(content)
     head = content[end:].partition("\n\n")[0]
     junk = head.lstrip(" \t\r\n")
     if junk:
         raise json.JSONDecodeError("Extra data", content, end + len(head) - len(junk))
     return data
+
+
+def _reminder_after_json(content: str) -> str:
+    """The ``\\n\\n`` reminder after one JSON value, or empty."""
+    try:
+        _, end = _decode_json_value(content)
+    except json.JSONDecodeError:
+        return ""
+    head, sep, rest = content[end:].partition("\n\n")
+    if not sep or head.lstrip(" \t\r\n"):
+        return ""
+    return sep + rest
 
 
 def load_sources_from_string(
