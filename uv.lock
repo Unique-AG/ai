@@ -22,6 +22,7 @@ unique-follow-up-questions = false
 unique-internal-search = false
 unique-mcp = false
 unique-orchestrator = false
+unique-project-chat-search = false
 unique-quartr = false
 unique-sdk = false
 unique-search-proxy = false
@@ -43,6 +44,7 @@ members = [
     "unique-internal-search",
     "unique-mcp",
     "unique-orchestrator",
+    "unique-project-chat-search",
     "unique-quartr",
     "unique-sdk",
     "unique-search-proxy",
@@ -5796,6 +5798,24 @@ requires-dist = [
     { name = "unique-toolkit", editable = "unique_toolkit" },
     { name = "unique-user-memory", editable = "postprocessors/unique_user_memory" },
     { name = "unique-web-search", editable = "tool_packages/unique_web_search" },
+]
+
+[package.metadata.requires-dev]
+dev = []
+
+[[package]]
+name = "unique-project-chat-search"
+version = "2026.48.0"
+source = { editable = "tool_packages/unique_project_chat_search" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "unique-toolkit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.8.2,<3" },
+    { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
 
 [package.metadata.requires-dev]

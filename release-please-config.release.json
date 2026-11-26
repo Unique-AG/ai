@@ -77,6 +77,9 @@
     },
     "tool_packages/unique_skill_tool": {
       "component": "unique-skill-tool"
+    },
+    "tool_packages/unique_project_chat_search": {
+      "component": "unique-project-chat-search"
     }
   },
   "plugins": [
@@ -101,7 +104,8 @@
         "unique-search-proxy",
         "unique-search-proxy-core",
         "unique-search-proxy-sdk",
-        "unique-skill-tool"
+        "unique-skill-tool",
+        "unique-project-chat-search"
       ]
     }
   ]

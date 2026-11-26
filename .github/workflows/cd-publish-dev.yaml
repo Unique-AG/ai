@@ -73,6 +73,7 @@ on:
           - deep_research
           - internal_search
           - skill_tool
+          - project_chat_search
           - quartr
           - six
           - search_proxy
