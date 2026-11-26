@@ -319,6 +319,31 @@ class TestSkillToolUserPrompt:
 class TestSkillToolSystemReminder:
     """Per-turn ``<system-reminder>`` listing injected into the user message."""
 
+    def test_large_context_window_keeps_full_descriptions(self) -> None:
+        description = "d" * 240
+        skills = [
+            _make_skill(f"skill-{index:03d}", description=description)
+            for index in range(100)
+        ]
+        config = SkillToolConfig(language_model_max_input_tokens=1_000_000)
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills), config=config)
+
+        reminder = tool.tool_system_reminder_for_user_prompt()
+
+        assert reminder.count(description) == 100
+
+    def test_unknown_context_window_shortens_descriptions(self) -> None:
+        description = "d" * 240
+        skills = [
+            _make_skill(f"skill-{index:03d}", description=description)
+            for index in range(100)
+        ]
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
+
+        reminder = tool.tool_system_reminder_for_user_prompt()
+
+        assert description not in reminder
+
     def test_includes_system_reminder_block(self) -> None:
         skills = [_make_skill("my-skill", description="Does stuff")]
         tool = _make_tool(skill_registry=_make_skill_registry(*skills))
@@ -367,15 +392,24 @@ class TestGetCharBudget:
         config = SkillToolConfig()
         assert get_char_budget(None, config) == 8_000
 
-    def test_context_window_based(self) -> None:
-        config = SkillToolConfig(skill_budget_context_percent=0.01)
-        budget = get_char_budget(200_000, config)
-        assert budget == 200_000 * 4 * 0.01
+    def test_default_share_of_a_large_context_window(self) -> None:
+        config = SkillToolConfig()
+        assert get_char_budget(1_000_000, config) == 1_000_000 * 4 * 0.015
 
     def test_custom_percent(self) -> None:
-        config = SkillToolConfig(skill_budget_context_percent=0.05)
-        budget = get_char_budget(100_000, config)
-        assert budget == 100_000 * 4 * 0.05
+        config = SkillToolConfig(skill_listing_context_percent=0.05)
+        budget = get_char_budget(200_000, config)
+        assert budget == 200_000 * 4 * 0.05
+
+    def test_never_below_the_fallback(self) -> None:
+        config = SkillToolConfig()
+        assert get_char_budget(128_000, config) == 8_000
+
+    def test_hidden_fields_are_not_in_the_schema(self) -> None:
+        properties = SkillToolConfig.model_json_schema()["properties"]
+        assert "skillBudgetContextPercent" not in properties
+        assert "languageModelMaxInputTokens" not in properties
+        assert "skillListingContextPercent" in properties
 
 
 # ---------------------------------------------------------------------------
@@ -416,12 +450,9 @@ class TestFormatSkillListing:
 
     def test_names_only_fallback_when_extreme_budget(self) -> None:
         long_desc = "B" * 300
-        skills = [_make_skill(f"s{i}", description=long_desc) for i in range(100)]
+        skills = [_make_skill(f"s{i}", description=long_desc) for i in range(1_000)]
 
-        config = SkillToolConfig(skill_budget_context_percent=0.01)
-        result = format_skill_listing(
-            skills, context_window_tokens=1_000, config=config
-        )
+        result = format_skill_listing(skills, context_window_tokens=1_000)
 
         for skill in skills:
             assert f"- {skill.name}" in result
