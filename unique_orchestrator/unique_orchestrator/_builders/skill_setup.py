@@ -54,6 +54,7 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
+from unique_orchestrator._builders import skill_file_loader
 from unique_orchestrator._builders.skill_file_loader import (
     fetch_readable_skill_versions,
     load_skill,
@@ -133,8 +134,8 @@ async def load_selectable_skills(
         logger.info("SkillTool has no selectable_skills with a content_id set.")
         return {}
 
-    load_results = await asyncio.gather(
-        *(
+    tasks = [
+        asyncio.ensure_future(
             load_skill(
                 content_service=content_service,
                 reference=entry,
@@ -142,16 +143,27 @@ async def load_selectable_skills(
                 readable_version=versions.get(entry.content_id),
                 logger=logger,
             )
-            for entry in valid_entries
-        ),
-        return_exceptions=True,
-    )
+        )
+        for entry in valid_entries
+    ]
+    try:
+        _, pending = await asyncio.wait(
+            tasks, timeout=skill_file_loader.SKILL_LOAD_BUDGET_S
+        )
+    finally:
+        for task in tasks:
+            task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
 
     skill_registry: dict[str, SkillDefinition] = {}
     cached_count = 0
     failed_count = 0
-    for entry, result in zip(valid_entries, load_results, strict=True):
+    for entry, task in zip(valid_entries, tasks, strict=True):
         label = entry.name or entry.content_id
+        if task in pending:
+            continue
+        result = task.exception() or task.result()
         if isinstance(result, BaseException):
             failed_count += 1
             logger.warning(
@@ -184,14 +196,21 @@ async def load_selectable_skills(
 
         skill_registry[skill.name] = skill
 
+    if pending:
+        logger.warning(
+            "Left out %d skill(s) not loaded within %.0f s.",
+            len(pending),
+            skill_file_loader.SKILL_LOAD_BUDGET_S,
+        )
     logger.info(
         "Loaded %d skill(s) from selectable_skills "
-        "(listed=%d, from_cache=%d, downloaded=%d, failed=%d).",
+        "(listed=%d, from_cache=%d, downloaded=%d, failed=%d, timed_out=%d).",
         len(skill_registry),
         len(valid_entries),
         cached_count,
-        len(valid_entries) - cached_count - failed_count,
+        len(valid_entries) - cached_count - failed_count - len(pending),
         failed_count,
+        len(pending),
     )
     return skill_registry
 

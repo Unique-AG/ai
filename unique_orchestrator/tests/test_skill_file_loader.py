@@ -466,13 +466,55 @@ class TestLoadSelectableSkillsSummary:
 
         logger.info.assert_called_with(  # type: ignore[attr-defined]
             "Loaded %d skill(s) from selectable_skills "
-            "(listed=%d, from_cache=%d, downloaded=%d, failed=%d).",
+            "(listed=%d, from_cache=%d, downloaded=%d, failed=%d, timed_out=%d).",
             2,
             3,
             1,
             1,
             1,
+            0,
         )
+
+    async def test_skills_not_ready_within_the_budget_are_left_out(
+        self, logger: Logger
+    ) -> None:
+        release = asyncio.Event()
+
+        async def download(*, content_id: str, **_: object) -> bytes:
+            if content_id == "slow":
+                await release.wait()
+            return _skill_file(content_id)
+
+        download_mock = AsyncMock(side_effect=download)
+        content_service = _content_service(download_mock)
+        skills = [_reference("fast", name="fast"), _reference("slow", name="slow")]
+        versions = {"fast": UPDATED_AT, "slow": UPDATED_AT}
+
+        with patch.object(skill_file_loader, "SKILL_LOAD_BUDGET_S", 0.05):
+            registry = await load_selectable_skills(
+                content_service=content_service,
+                selectable_skills=skills,
+                logger=logger,
+                company_id="company-1",
+                readable_skill_versions=versions,
+            )
+
+        assert sorted(registry) == ["fast"]
+        assert logger.info.call_args.args[-1] == 1  # type: ignore[attr-defined]
+
+        release.set()
+        for _ in range(5):
+            await asyncio.sleep(0)
+        registry = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=skills,
+            logger=logger,
+            company_id="company-1",
+            readable_skill_versions=versions,
+        )
+
+        assert sorted(registry) == ["fast", "slow"]
+        assert download_mock.await_count == 2
 
 
 class TestFetchReadableSkillVersions:
@@ -503,6 +545,31 @@ class TestFetchReadableSkillVersions:
             skill_file_loader,
             "get_readable_skill_versions_async",
             new=AsyncMock(side_effect=_HttpStatusError(404)),
+        ):
+            versions = await fetch_readable_skill_versions(
+                user_id="user-1",
+                company_id="company-1",
+                space_id="assistant-1",
+                logger=logger,
+            )
+
+        assert versions == {}
+        logger.warning.assert_called_once()  # type: ignore[attr-defined]
+
+    async def test_returns_no_versions_when_the_platform_is_too_slow(
+        self, logger: Logger
+    ) -> None:
+        async def stalled(**_: object) -> dict[str, str]:
+            await asyncio.sleep(60)
+            return {}
+
+        with (
+            patch.object(skill_file_loader, "READABLE_SKILLS_LOOKUP_TIMEOUT_S", 0.01),
+            patch.object(
+                skill_file_loader,
+                "get_readable_skill_versions_async",
+                new=AsyncMock(side_effect=stalled),
+            ),
         ):
             versions = await fetch_readable_skill_versions(
                 user_id="user-1",

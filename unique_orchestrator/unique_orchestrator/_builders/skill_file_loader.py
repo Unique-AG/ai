@@ -29,6 +29,10 @@ SKILL_DOWNLOAD_ATTEMPTS = 2
 SKILL_DOWNLOAD_BACKOFF_S = 0.25
 MAX_SKILL_FILE_BYTES = 1_000_000
 SKILL_CACHE_MAX_ENTRIES = 2048
+READABLE_SKILLS_LOOKUP_TIMEOUT_S = 5.0
+# A skill not ready by then is left out of the turn. A cacheable download
+# still finishes and serves the next turn.
+SKILL_LOAD_BUDGET_S = 30.0
 
 # Company, content id and the file's last-modified time. An edited file gets
 # a new last-modified time, so it never matches the entry of the old text.
@@ -160,13 +164,14 @@ async def fetch_readable_skill_versions(
 ) -> dict[str, str]:
     """Return content id to last-modified time for the skills the user can read.
 
-    Empty when the platform cannot answer, for example an older platform
-    without this endpoint. Every skill is then downloaded as the user.
+    Empty when the platform cannot answer in time, for example an older
+    platform without this endpoint. Every skill is then downloaded as the user.
     """
     try:
-        return await get_readable_skill_versions_async(
-            user_id=user_id, company_id=company_id, space_id=space_id
-        )
+        async with asyncio.timeout(READABLE_SKILLS_LOOKUP_TIMEOUT_S):
+            return await get_readable_skill_versions_async(
+                user_id=user_id, company_id=company_id, space_id=space_id
+            )
     except Exception:
         logger.warning(
             "Could not list the readable skills of space '%s' — "
