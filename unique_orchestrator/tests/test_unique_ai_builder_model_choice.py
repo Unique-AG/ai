@@ -6,6 +6,8 @@ import pytest
 from pydantic import ValidationError
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
+from unique_skill_tool.config import SkillToolConfig
+from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -652,6 +654,10 @@ def test_model_choice_refreshes_search_tool_token_limits() -> None:
                     name=WebSearchTool.name,
                     configuration=WebSearchConfig(),
                 ),
+                ToolBuildConfig(
+                    name=SkillTool.name,
+                    configuration=SkillToolConfig(),
+                ),
             ],
         ),
         agent={
@@ -675,12 +681,14 @@ def test_model_choice_refreshes_search_tool_token_limits() -> None:
             InternalSearchTool.name,
             WebSearchTool.name,
             RetrieveSearchScopeTool.name,
+            SkillTool.name,
         }
     }
     assert token_limits_by_tool_name == {
         InternalSearchTool.name: 4_000,
         WebSearchTool.name: 4_000,
         RetrieveSearchScopeTool.name: 4_000,
+        SkillTool.name: 4_000,
     }
 
 
