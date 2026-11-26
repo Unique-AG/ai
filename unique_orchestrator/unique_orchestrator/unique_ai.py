@@ -127,9 +127,9 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
-        project_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
         chat_title_generator: ChatTitleGenerator | None = None,
+        project_memory_text: str = "",
     ) -> None: ...
 
     # Responses API Dependencies
@@ -155,9 +155,9 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
-        project_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
         chat_title_generator: ChatTitleGenerator | None = None,
+        project_memory_text: str = "",
     ) -> None: ...
 
     def __init__(
@@ -182,9 +182,9 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
-        project_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
         chat_title_generator: ChatTitleGenerator | None = None,
+        project_memory_text: str = "",
     ) -> None:
         self._logger = logger
         self._event = event
