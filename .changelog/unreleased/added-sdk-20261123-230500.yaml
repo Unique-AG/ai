@@ -4,4 +4,4 @@ body: '`Elicitation.list_pending` and `list_pending_async` return the pending el
 time: 2026-11-23T23:05:00.000000+01:00
 custom:
     Audience: developer
-    Ticket: UN-30320
+    Ticket: UN-30554
