@@ -706,7 +706,11 @@ def request_content_by_id(
 
 
 async def request_content_by_id_async(
-    user_id: str, company_id: str, content_id: str, chat_id: str | None
+    user_id: str,
+    company_id: str,
+    content_id: str,
+    chat_id: str | None,
+    timeout: float | None = None,
 ) -> httpx.Response:
     """
     Sends an async request to download content.
@@ -716,6 +720,7 @@ async def request_content_by_id_async(
         company_id (str): The company ID.
         content_id (str): The ID of the content to download.
         chat_id (str): The ID of the chat from which to download the content. Defaults to None to download from knowledge base.
+        timeout (float | None): Seconds to wait for the response. Defaults to None, which keeps the httpx default.
 
     Returns:
         httpx.Response: The response object containing the downloaded content.
@@ -735,7 +740,8 @@ async def request_content_by_id_async(
     }
     headers: dict[str, str] = {k: v for k, v in raw_headers.items() if v is not None}
 
-    async with httpx.AsyncClient() as client:
+    client_options: dict[str, Any] = {} if timeout is None else {"timeout": timeout}
+    async with httpx.AsyncClient(**client_options) as client:
         return await client.get(url, headers=headers)
 
 
@@ -835,6 +841,7 @@ async def download_content_to_bytes_async(
     company_id: str,
     content_id: str,
     chat_id: str | None,
+    timeout: float | None = None,
 ) -> bytes:
     """
     Asynchronously downloads content to memory.
@@ -844,13 +851,14 @@ async def download_content_to_bytes_async(
         company_id (str): The company ID.
         content_id (str): The ID of the content to download.
         chat_id (str | None): The chat ID, or None to download from the knowledge base.
+        timeout (float | None): Seconds to wait for the response. Defaults to None, which keeps the httpx default.
 
     raises:
         httpx.HTTPStatusError: If the download fails.
     """
     logger.info(f"Downloading content with content_id: {content_id}")
     response = await request_content_by_id_async(
-        user_id, company_id, content_id, chat_id
+        user_id, company_id, content_id, chat_id, timeout
     )
 
     if not response.is_success:

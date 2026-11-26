@@ -327,6 +327,20 @@ class Space(APIResource["Space"]):
         spaceId: str
         mcpServers: list["Space.McpServerStatus"]
 
+    class Skill(TypedDict):
+        """
+        A skill of a space that the calling user can read.
+        """
+
+        contentId: str
+        scopeId: str
+        name: str
+        updatedAt: str | None
+
+    class SkillsResponse(TypedDict):
+        spaceId: str
+        skills: list["Space.Skill"]
+
     class Module(TypedDict):
         """
         Represents a module configured for a space.
@@ -962,6 +976,48 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def get_skills(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.SkillsResponse":
+        """
+        Get the skills of a space that the calling user can read, each with the
+        last-modified time of its skill file (``updatedAt``).
+        """
+        return cast(
+            "Space.SkillsResponse",
+            cls._static_request(
+                "get",
+                f"/space/{space_id}/skills",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_skills_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.SkillsResponse":
+        """
+        Async get the skills of a space that the calling user can read, each with
+        the last-modified time of its skill file (``updatedAt``).
+        """
+        return cast(
+            "Space.SkillsResponse",
+            await cls._static_request_async(
+                "get",
+                f"/space/{space_id}/skills",
+                user_id,
+                company_id,
             ),
         )
 
