@@ -127,6 +127,7 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        project_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
         chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None: ...
@@ -154,6 +155,7 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        project_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
         chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None: ...
@@ -180,6 +182,7 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        project_memory_text: str = "",
         selected_uploaded_content_ids: frozenset[str] | None = None,
         chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None:
@@ -190,6 +193,7 @@ class UniqueAI:
         self._content_service = content_service
         self._uploaded_documents = uploaded_documents or []
         self._user_memory_text = user_memory_text
+        self._project_memory_text = project_memory_text
         self._skill_choices: list[SkillReference] = getattr(
             event.payload, "skill_choices", []
         )
@@ -902,6 +906,7 @@ class UniqueAI:
             user_metadata=user_metadata,
             uploaded_documents_expired=uploaded_documents_expired,
             user_memory=self._user_memory_text,
+            project_memory=self._project_memory_text,
         )
         return system_message
 
