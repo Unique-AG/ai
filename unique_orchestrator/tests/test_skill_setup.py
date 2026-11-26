@@ -270,20 +270,6 @@ class TestMessageSkillsAsSelectable:
         )
         assert rows == [SkillReference(name="first", scope_id="a", content_id="x")]
 
-    def test_keeps_updated_at(self) -> None:
-        rows = normalize_available_skills_for_tool(
-            [
-                SkillReference(
-                    content_id="x",
-                    scope_id="a",
-                    name="stamped",
-                    updated_at="2026-11-20T10:00:00.000Z",
-                ),
-                SkillReference(content_id="y", scope_id="a", name="unstamped"),
-            ]
-        )
-        assert [row.updated_at for row in rows] == ["2026-11-20T10:00:00.000Z", None]
-
 
 class TestLoadSelectableSkills:
     @pytest.mark.asyncio
@@ -413,6 +399,8 @@ class TestConfigureSkillTool:
             content_service=content_service,
             selectable_skills=expected_selectable,
             logger=logger,
+            company_id="",
+            readable_skill_versions={},
         )
         assert skill_tool.skill_registry == expected_registry
         tool_manager.exclude_tool.assert_not_called()
@@ -455,6 +443,8 @@ class TestConfigureSkillTool:
             content_service=content_service,
             selectable_skills=expected_selectable,
             logger=logger,
+            company_id="",
+            readable_skill_versions={},
         )
         assert skill_tool.skill_registry == expected_registry
         tool_manager.exclude_tool.assert_not_called()
@@ -490,6 +480,8 @@ class TestConfigureSkillTool:
             content_service=content_service,
             selectable_skills=expected_selectable,
             logger=logger,
+            company_id="",
+            readable_skill_versions={},
         )
         assert skill_tool.skill_registry == expected_registry
         tool_manager.exclude_tool.assert_not_called()
@@ -540,6 +532,8 @@ class TestConfigureSkillTool:
             content_service=content_service,
             selectable_skills=expected_merged,
             logger=logger,
+            company_id="",
+            readable_skill_versions={},
         )
         assert skill_tool.skill_registry == expected_registry
         tool_manager.exclude_tool.assert_not_called()
@@ -568,3 +562,80 @@ class TestConfigureSkillTool:
         mock_load_selectable_skills.assert_awaited_once()
         tool_manager.exclude_tool.assert_called_once_with(SkillTool.name)
         tool_manager.get_tool_by_name.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_asks_the_platform_which_skills_the_user_can_read(
+        self, logger: Logger
+    ) -> None:
+        config = self._build_config(is_enabled=True)
+        content_service = MagicMock()
+        tool_manager = MagicMock()
+        tool_manager.get_tool_by_name.return_value = self._make_skill_tool()
+        from_message = [SkillReference(content_id="cid-1", scope_id="", name="Skill 1")]
+        versions = {"cid-1": "2026-11-20T10:00:00.000Z"}
+
+        with (
+            patch(
+                "unique_orchestrator._builders.skill_setup.fetch_readable_skill_versions",
+                new=AsyncMock(return_value=versions),
+            ) as mock_fetch_versions,
+            patch(
+                "unique_orchestrator._builders.skill_setup.load_selectable_skills",
+                new=AsyncMock(return_value={"foo": _make_skill("foo")}),
+            ) as mock_load_selectable_skills,
+        ):
+            await configure_skill_tool(
+                config=config,
+                logger=logger,
+                content_service=content_service,
+                tool_manager=tool_manager,
+                selectable_skills=normalize_available_skills_for_tool(from_message),
+                user_id="user-1",
+                company_id="company-1",
+                space_id="assistant-1",
+            )
+
+        mock_fetch_versions.assert_awaited_once_with(
+            user_id="user-1",
+            company_id="company-1",
+            space_id="assistant-1",
+            logger=logger,
+        )
+        assert mock_load_selectable_skills.await_args is not None
+        load_kwargs = mock_load_selectable_skills.await_args.kwargs
+        assert load_kwargs["company_id"] == "company-1"
+        assert load_kwargs["readable_skill_versions"] == versions
+
+    @pytest.mark.asyncio
+    async def test_does_not_ask_the_platform_without_user_and_space(
+        self, logger: Logger
+    ) -> None:
+        config = self._build_config(is_enabled=True)
+        tool_manager = MagicMock()
+        tool_manager.get_tool_by_name.return_value = self._make_skill_tool()
+        from_message = [SkillReference(content_id="cid-1", scope_id="", name="Skill 1")]
+
+        with (
+            patch(
+                "unique_orchestrator._builders.skill_setup.fetch_readable_skill_versions",
+                new=AsyncMock(),
+            ) as mock_fetch_versions,
+            patch(
+                "unique_orchestrator._builders.skill_setup.load_selectable_skills",
+                new=AsyncMock(return_value={"foo": _make_skill("foo")}),
+            ) as mock_load_selectable_skills,
+        ):
+            await configure_skill_tool(
+                config=config,
+                logger=logger,
+                content_service=MagicMock(),
+                tool_manager=tool_manager,
+                selectable_skills=normalize_available_skills_for_tool(from_message),
+            )
+
+        mock_fetch_versions.assert_not_awaited()
+        assert mock_load_selectable_skills.await_args is not None
+        assert (
+            mock_load_selectable_skills.await_args.kwargs["readable_skill_versions"]
+            == {}
+        )

@@ -42,6 +42,7 @@ content injected when the skill is invoked.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from logging import Logger
 from typing import TYPE_CHECKING
 
@@ -53,7 +54,10 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
-from unique_orchestrator._builders.skill_file_loader import load_skill
+from unique_orchestrator._builders.skill_file_loader import (
+    fetch_readable_skill_versions,
+    load_skill,
+)
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -97,7 +101,6 @@ def normalize_available_skills_for_tool(
                 name=choice.name,
                 scope_id=choice.scope_id,
                 content_id=choice.content_id,
-                updated_at=choice.updated_at,
             )
         )
     return out
@@ -108,6 +111,8 @@ async def load_selectable_skills(
     content_service: ContentService,
     selectable_skills: list[SkillReference],
     logger: Logger,
+    company_id: str = "",
+    readable_skill_versions: Mapping[str, str] | None = None,
 ) -> dict[str, SkillDefinition]:
     """Load skills from an explicit list of ``SkillReference`` references.
 
@@ -116,9 +121,13 @@ async def load_selectable_skills(
     abort the rest of the registry so one broken entry cannot hide the
     rest of the skill list.
 
-    A reference that carries ``updated_at`` is served from the process-wide
-    skill cache when its file was parsed before; see ``skill_file_loader``.
+    ``readable_skill_versions`` maps the content id of each skill the acting
+    user can read to the last-modified time of its file, as the platform
+    lists them. A skill in that map is served from the process-wide skill
+    cache when its file was parsed before; see ``skill_file_loader``. Any
+    other skill is downloaded as the user.
     """
+    versions = readable_skill_versions or {}
     valid_entries = [entry for entry in selectable_skills if entry.content_id]
     if not valid_entries:
         logger.info("SkillTool has no selectable_skills with a content_id set.")
@@ -126,7 +135,13 @@ async def load_selectable_skills(
 
     load_results = await asyncio.gather(
         *(
-            load_skill(content_service=content_service, reference=entry, logger=logger)
+            load_skill(
+                content_service=content_service,
+                reference=entry,
+                company_id=company_id,
+                readable_version=versions.get(entry.content_id),
+                logger=logger,
+            )
             for entry in valid_entries
         ),
         return_exceptions=True,
@@ -188,8 +203,16 @@ async def configure_skill_tool(
     content_service: ContentService,
     tool_manager: ToolManager | ResponsesApiToolManager,
     selectable_skills: list[SkillReference] | None = None,
+    user_id: str = "",
+    company_id: str = "",
+    space_id: str = "",
 ) -> None:
-    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``."""
+    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
+
+    With ``user_id``, ``company_id`` and ``space_id``, the platform is asked
+    once which skills this user can read in the space. Only those are served
+    from the skill cache.
+    """
     skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
     if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
         return
@@ -215,10 +238,21 @@ async def configure_skill_tool(
         tool_manager.exclude_tool(SkillTool.name)
         return
 
+    readable_skill_versions: dict[str, str] = {}
+    if user_id and company_id and space_id:
+        readable_skill_versions = await fetch_readable_skill_versions(
+            user_id=user_id,
+            company_id=company_id,
+            space_id=space_id,
+            logger=logger,
+        )
+
     skill_registry = await load_selectable_skills(
         content_service=content_service,
         selectable_skills=to_load,
         logger=logger,
+        company_id=company_id,
+        readable_skill_versions=readable_skill_versions,
     )
 
     if not skill_registry:

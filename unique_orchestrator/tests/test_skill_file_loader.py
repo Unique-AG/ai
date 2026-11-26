@@ -19,6 +19,7 @@ from unique_orchestrator._builders.skill_file_loader import (
     SKILL_DOWNLOAD_TIMEOUT_S,
     SkillCache,
     clear_skill_cache,
+    fetch_readable_skill_versions,
     load_skill,
 )
 from unique_orchestrator._builders.skill_setup import load_selectable_skills
@@ -32,23 +33,30 @@ def _skill_file(name: str, description: str = "Does a thing.") -> bytes:
     ).encode()
 
 
-def _content_service(
-    download: AsyncMock, *, company_id: str | None = "company-1"
-) -> MagicMock:
+def _content_service(download: AsyncMock) -> MagicMock:
     content_service = MagicMock()
-    content_service.company_id = company_id
     content_service.download_content_to_bytes_async = download
     return content_service
 
 
-def _reference(
-    content_id: str = "cont-1",
+def _reference(content_id: str = "cont-1", *, name: str = "pdf") -> SkillReference:
+    return SkillReference(name=name, scope_id="scope-1", content_id=content_id)
+
+
+async def _load(
+    content_service: MagicMock,
+    logger: Logger,
     *,
-    updated_at: str | None = UPDATED_AT,
-    name: str = "pdf",
-) -> SkillReference:
-    return SkillReference(
-        name=name, scope_id="scope-1", content_id=content_id, updated_at=updated_at
+    readable_version: str | None = UPDATED_AT,
+    company_id: str = "company-1",
+    content_id: str = "cont-1",
+) -> tuple[SkillDefinition | None, bool]:
+    return await load_skill(
+        content_service=content_service,
+        reference=_reference(content_id),
+        company_id=company_id,
+        readable_version=readable_version,
+        logger=logger,
     )
 
 
@@ -78,12 +86,8 @@ class TestLoadSkillCache:
         download = AsyncMock(return_value=_skill_file("pdf"))
         content_service = _content_service(download)
 
-        first, first_from_cache = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
-        second, second_from_cache = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
+        first, first_from_cache = await _load(content_service, logger)
+        second, second_from_cache = await _load(content_service, logger)
 
         assert first is not None and first.name == "pdf"
         assert second == first
@@ -100,13 +104,9 @@ class TestLoadSkillCache:
         )
         content_service = _content_service(download)
 
-        old, _ = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
-        new, from_cache = await load_skill(
-            content_service=content_service,
-            reference=_reference(updated_at="2026-11-21T08:00:00.000Z"),
-            logger=logger,
+        old, _ = await _load(content_service, logger)
+        new, from_cache = await _load(
+            content_service, logger, readable_version="2026-11-21T08:00:00.000Z"
         )
 
         assert old is not None and old.description == "Old."
@@ -114,54 +114,40 @@ class TestLoadSkillCache:
         assert from_cache is False
         assert download.await_count == 2
 
-    async def test_skill_without_updated_at_is_never_cached(
+    async def test_skill_the_platform_did_not_list_is_never_cached(
         self, logger: Logger
     ) -> None:
         download = AsyncMock(return_value=_skill_file("pdf"))
         content_service = _content_service(download)
-        reference = _reference(updated_at=None)
 
-        _, first_from_cache = await load_skill(
-            content_service=content_service, reference=reference, logger=logger
+        _, first_from_cache = await _load(
+            content_service, logger, readable_version=None
         )
-        _, second_from_cache = await load_skill(
-            content_service=content_service, reference=reference, logger=logger
+        _, second_from_cache = await _load(
+            content_service, logger, readable_version=None
         )
 
         assert (first_from_cache, second_from_cache) == (False, False)
         assert download.await_count == 2
 
-    async def test_unstamped_request_does_not_read_a_stamped_cache_entry(
+    async def test_unlisted_skill_does_not_read_the_cache_entry_of_a_listed_one(
         self, logger: Logger
     ) -> None:
         download = AsyncMock(return_value=_skill_file("pdf"))
         content_service = _content_service(download)
-        await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
+        await _load(content_service, logger)
 
-        _, from_cache = await load_skill(
-            content_service=content_service,
-            reference=_reference(updated_at=None),
-            logger=logger,
-        )
+        _, from_cache = await _load(content_service, logger, readable_version=None)
 
         assert from_cache is False
         assert download.await_count == 2
 
     async def test_cache_is_not_shared_between_companies(self, logger: Logger) -> None:
         download = AsyncMock(return_value=_skill_file("pdf"))
-        await load_skill(
-            content_service=_content_service(download, company_id="company-1"),
-            reference=_reference(),
-            logger=logger,
-        )
+        content_service = _content_service(download)
+        await _load(content_service, logger, company_id="company-1")
 
-        _, from_cache = await load_skill(
-            content_service=_content_service(download, company_id="company-2"),
-            reference=_reference(),
-            logger=logger,
-        )
+        _, from_cache = await _load(content_service, logger, company_id="company-2")
 
         assert from_cache is False
         assert download.await_count == 2
@@ -170,14 +156,10 @@ class TestLoadSkillCache:
         self, logger: Logger
     ) -> None:
         download = AsyncMock(return_value=_skill_file("pdf"))
-        content_service = _content_service(download, company_id=None)
+        content_service = _content_service(download)
 
-        await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
-        _, from_cache = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
+        await _load(content_service, logger, company_id="")
+        _, from_cache = await _load(content_service, logger, company_id="")
 
         assert from_cache is False
         assert download.await_count == 2
@@ -186,15 +168,11 @@ class TestLoadSkillCache:
         self, logger: Logger
     ) -> None:
         content_service = _content_service(AsyncMock(return_value=_skill_file("pdf")))
-        first, _ = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
+        first, _ = await _load(content_service, logger)
         assert first is not None
         first.description = "changed by a turn"
 
-        second, _ = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
+        second, _ = await _load(content_service, logger)
 
         assert second is not None and second.description == "Does a thing."
 
@@ -204,12 +182,8 @@ class TestLoadSkillCache:
         download = AsyncMock(return_value=b"no frontmatter here")
         content_service = _content_service(download)
 
-        first, _ = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
-        second, from_cache = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
+        first, _ = await _load(content_service, logger)
+        second, from_cache = await _load(content_service, logger)
 
         assert first is None and second is None
         assert from_cache is True
@@ -222,12 +196,8 @@ class TestLoadSkillCache:
         content_service = _content_service(download)
 
         with pytest.raises(_HttpStatusError):
-            await load_skill(
-                content_service=content_service, reference=_reference(), logger=logger
-            )
-        skill, from_cache = await load_skill(
-            content_service=content_service, reference=_reference(), logger=logger
-        )
+            await _load(content_service, logger)
+        skill, from_cache = await _load(content_service, logger)
 
         assert skill is not None and skill.name == "pdf"
         assert from_cache is False
@@ -244,16 +214,8 @@ class TestLoadSkillCache:
         download = AsyncMock(side_effect=slow_download)
         content_service = _content_service(download)
 
-        first_turn = asyncio.create_task(
-            load_skill(
-                content_service=content_service, reference=_reference(), logger=logger
-            )
-        )
-        second_turn = asyncio.create_task(
-            load_skill(
-                content_service=content_service, reference=_reference(), logger=logger
-            )
-        )
+        first_turn = asyncio.create_task(_load(content_service, logger))
+        second_turn = asyncio.create_task(_load(content_service, logger))
         await asyncio.sleep(0)
         await asyncio.sleep(0)
         release.set()
@@ -275,16 +237,8 @@ class TestLoadSkillCache:
         download = AsyncMock(side_effect=slow_download)
         content_service = _content_service(download)
 
-        cancelled_turn = asyncio.create_task(
-            load_skill(
-                content_service=content_service, reference=_reference(), logger=logger
-            )
-        )
-        waiting_turn = asyncio.create_task(
-            load_skill(
-                content_service=content_service, reference=_reference(), logger=logger
-            )
-        )
+        cancelled_turn = asyncio.create_task(_load(content_service, logger))
+        waiting_turn = asyncio.create_task(_load(content_service, logger))
         await asyncio.sleep(0)
         await asyncio.sleep(0)
         cancelled_turn.cancel()
@@ -330,10 +284,8 @@ class TestDownloadRetryAndLimit:
     ) -> None:
         download = AsyncMock(side_effect=[error, _skill_file("pdf")])
 
-        skill, _ = await load_skill(
-            content_service=_content_service(download),
-            reference=_reference(updated_at=None),
-            logger=logger,
+        skill, _ = await _load(
+            _content_service(download), logger, readable_version=None
         )
 
         assert skill is not None and skill.name == "pdf"
@@ -346,11 +298,7 @@ class TestDownloadRetryAndLimit:
         download = AsyncMock(side_effect=_HttpStatusError(status_code))
 
         with pytest.raises(_HttpStatusError):
-            await load_skill(
-                content_service=_content_service(download),
-                reference=_reference(updated_at=None),
-                logger=logger,
-            )
+            await _load(_content_service(download), logger, readable_version=None)
 
         download.assert_awaited_once()
 
@@ -360,21 +308,15 @@ class TestDownloadRetryAndLimit:
         download = AsyncMock(side_effect=TimeoutError("read timed out"))
 
         with pytest.raises(TimeoutError):
-            await load_skill(
-                content_service=_content_service(download),
-                reference=_reference(updated_at=None),
-                logger=logger,
-            )
+            await _load(_content_service(download), logger, readable_version=None)
 
         assert download.await_count == SKILL_DOWNLOAD_ATTEMPTS
 
     async def test_oversized_file_is_skipped(self, logger: Logger) -> None:
         download = AsyncMock(return_value=b"x" * (MAX_SKILL_FILE_BYTES + 1))
 
-        skill, _ = await load_skill(
-            content_service=_content_service(download),
-            reference=_reference(updated_at=None),
-            logger=logger,
+        skill, _ = await _load(
+            _content_service(download), logger, readable_version=None
         )
 
         assert skill is None
@@ -382,10 +324,8 @@ class TestDownloadRetryAndLimit:
     async def test_file_that_is_not_utf8_is_skipped(self, logger: Logger) -> None:
         download = AsyncMock(return_value=b"\xff\xfe\x00bad")
 
-        skill, _ = await load_skill(
-            content_service=_content_service(download),
-            reference=_reference(updated_at=None),
-            logger=logger,
+        skill, _ = await _load(
+            _content_service(download), logger, readable_version=None
         )
 
         assert skill is None
@@ -411,9 +351,7 @@ class TestDownloadRetryAndLimit:
                     content_service=_content_service(
                         AsyncMock(side_effect=tracked_download)
                     ),
-                    selectable_skills=[
-                        _reference(str(index), updated_at=None) for index in range(40)
-                    ],
+                    selectable_skills=[_reference(str(index)) for index in range(40)],
                     logger=logger,
                 )
             )
@@ -445,6 +383,33 @@ class TestLoadSelectableSkillsSummary:
 
         assert sorted(registry) == ["alpha", "beta"]
 
+    async def test_only_skills_the_platform_listed_use_the_cache(
+        self, logger: Logger
+    ) -> None:
+        download = AsyncMock(
+            side_effect=lambda *, content_id, **_: _skill_file(content_id)
+        )
+        content_service = _content_service(download)
+        skills = [
+            _reference("listed", name="listed"),
+            _reference("other", name="other"),
+        ]
+        versions = {"listed": UPDATED_AT}
+
+        for _ in range(2):
+            registry = await load_selectable_skills(
+                content_service=content_service,
+                selectable_skills=skills,
+                logger=logger,
+                company_id="company-1",
+                readable_skill_versions=versions,
+            )
+
+        assert sorted(registry) == ["listed", "other"]
+        downloaded = [call.kwargs["content_id"] for call in download.await_args_list]
+        assert downloaded.count("listed") == 1
+        assert downloaded.count("other") == 2
+
     async def test_summary_counts_cached_downloaded_and_failed_skills(
         self, logger: Logger
     ) -> None:
@@ -454,10 +419,13 @@ class TestLoadSelectableSkillsSummary:
             return _skill_file(content_id)
 
         content_service = _content_service(AsyncMock(side_effect=download))
+        versions = {"alpha": UPDATED_AT, "beta": UPDATED_AT, "broken": UPDATED_AT}
         await load_selectable_skills(
             content_service=content_service,
             selectable_skills=[_reference("alpha", name="alpha")],
             logger=logger,
+            company_id="company-1",
+            readable_skill_versions=versions,
         )
 
         await load_selectable_skills(
@@ -468,6 +436,8 @@ class TestLoadSelectableSkillsSummary:
                 _reference("broken", name="broken"),
             ],
             logger=logger,
+            company_id="company-1",
+            readable_skill_versions=versions,
         )
 
         logger.info.assert_called_with(  # type: ignore[attr-defined]
@@ -479,3 +449,43 @@ class TestLoadSelectableSkillsSummary:
             1,
             1,
         )
+
+
+class TestFetchReadableSkillVersions:
+    async def test_returns_the_versions_the_platform_lists_for_the_user(
+        self, logger: Logger
+    ) -> None:
+        with patch.object(
+            skill_file_loader,
+            "get_readable_skill_versions_async",
+            new=AsyncMock(return_value={"cont-1": UPDATED_AT}),
+        ) as lookup:
+            versions = await fetch_readable_skill_versions(
+                user_id="user-1",
+                company_id="company-1",
+                space_id="assistant-1",
+                logger=logger,
+            )
+
+        assert versions == {"cont-1": UPDATED_AT}
+        lookup.assert_awaited_once_with(
+            user_id="user-1", company_id="company-1", space_id="assistant-1"
+        )
+
+    async def test_returns_no_versions_when_the_platform_cannot_answer(
+        self, logger: Logger
+    ) -> None:
+        with patch.object(
+            skill_file_loader,
+            "get_readable_skill_versions_async",
+            new=AsyncMock(side_effect=_HttpStatusError(404)),
+        ):
+            versions = await fetch_readable_skill_versions(
+                user_id="user-1",
+                company_id="company-1",
+                space_id="assistant-1",
+                logger=logger,
+            )
+
+        assert versions == {}
+        logger.warning.assert_called_once()  # type: ignore[attr-defined]

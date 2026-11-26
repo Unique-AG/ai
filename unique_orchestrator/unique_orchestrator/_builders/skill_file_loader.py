@@ -6,10 +6,12 @@ the content API, so downloads share one process-wide limit and are retried,
 and a skill the platform vouches for is parsed once and then served from
 memory.
 
-The cache is safe to share between users because of its key. The platform
-sets ``updated_at`` on a skill reference only after it has checked that the
-acting user can read the file. A reference without ``updated_at`` is never
-cached: it is downloaded as the user, so the content API checks access.
+A cache hit skips the content API and its access check, so the cache is only
+used for a skill the platform has just listed as readable for the acting
+user. ``fetch_readable_skill_versions`` asks for that list once per turn, as
+the user. The skill list in the message is never trusted for this: it comes
+from the client. A skill that is not in the platform's list is downloaded as
+the user and not cached.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from typing import TYPE_CHECKING
 from unique_skill_tool.loader import parse_skill_file
 from unique_skill_tool.schemas import SkillDefinition
 from unique_toolkit.app.schemas import SkillReference
+from unique_toolkit.skills import get_readable_skill_versions_async
 
 if TYPE_CHECKING:
     from unique_toolkit.content.service import ContentService
@@ -158,15 +161,48 @@ def clear_skill_cache() -> None:
     _skill_cache.clear()
 
 
+async def fetch_readable_skill_versions(
+    *,
+    user_id: str,
+    company_id: str,
+    space_id: str,
+    logger: Logger,
+) -> dict[str, str]:
+    """Return content id to last-modified time for the skills the user can read.
+
+    Empty when the platform cannot answer, for example an older platform
+    without this endpoint. Every skill is then downloaded as the user.
+    """
+    try:
+        return await get_readable_skill_versions_async(
+            user_id=user_id, company_id=company_id, space_id=space_id
+        )
+    except Exception:
+        logger.warning(
+            "Could not list the readable skills of space '%s' — "
+            "loading every skill without the cache.",
+            space_id,
+            exc_info=True,
+        )
+        return {}
+
+
 async def load_skill(
     *,
     content_service: ContentService,
     reference: SkillReference,
+    company_id: str,
+    readable_version: str | None,
     logger: Logger,
 ) -> tuple[SkillDefinition | None, bool]:
     """Return the parsed skill and whether it came from the cache.
 
-    ``None`` means the file is not a usable skill. A failed download raises.
+    ``readable_version`` is the skill file's last-modified time from the
+    platform's list of skills the acting user can read, or ``None`` when the
+    skill is not in that list. Only a listed skill uses the cache.
+
+    ``None`` as the skill means the file is not a usable skill. A failed
+    download raises.
     """
 
     async def fetch() -> SkillDefinition | None:
@@ -174,12 +210,11 @@ async def load_skill(
             content_service=content_service, reference=reference, logger=logger
         )
 
-    company_id = content_service.company_id
-    if not reference.updated_at or not company_id:
+    if not readable_version or not company_id:
         return await fetch(), False
 
     skill, from_cache = await _skill_cache.get_or_load(
-        key=(company_id, reference.content_id, reference.updated_at), load=fetch
+        key=(company_id, reference.content_id, readable_version), load=fetch
     )
     # Callers get their own copy, so no turn can change the cached skill.
     return (skill.model_copy() if skill is not None else None), from_cache

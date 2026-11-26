@@ -702,6 +702,9 @@ async def _build_responses(
         selectable_skills=normalize_available_skills_for_tool(
             event.payload.available_skills
         ),
+        user_id=event.user_id,
+        company_id=event.company_id,
+        space_id=event.payload.assistant_id,
     )
 
     loop_iteration_runner = build_responses_loop_iteration_runner(
@@ -828,6 +831,9 @@ async def _build_completions(
         selectable_skills=normalize_available_skills_for_tool(
             event.payload.available_skills
         ),
+        user_id=event.user_id,
+        company_id=event.company_id,
+        space_id=event.payload.assistant_id,
     )
 
     postprocessor_manager = common_components.postprocessor_manager
