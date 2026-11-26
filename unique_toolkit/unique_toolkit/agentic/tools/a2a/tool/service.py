@@ -31,7 +31,6 @@ from unique_toolkit.agentic.tools.a2a.tool._schema import (
     SubAgentToolInput,
 )
 from unique_toolkit.agentic.tools.a2a.tool.config import (
-    SubAgentElicitationHandling,
     SubAgentSystemReminderType,
     SubAgentToolConfig,
     SystemReminderConfigType,
@@ -462,12 +461,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                     parentMessageId=self._chat_service._assistant_message_id,
                     parentChatId=self._event.payload.chat_id,
                     parentAssistantId=self.config.assistant_id,
-                ),
-                auto_approve_elicitation=(
-                    True
-                    if self.config.elicitation_handling
-                    == SubAgentElicitationHandling.AUTO_APPROVE
-                    else None
                 ),
                 on_message_update=on_message_update,
                 wait_for_invocations=True,
