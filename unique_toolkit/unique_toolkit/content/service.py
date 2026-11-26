@@ -801,6 +801,7 @@ class ContentService:
         self,
         content_id: str,
         chat_id: str | None = None,
+        timeout: float | None = None,
     ) -> bytes:
         """
         Asynchronously downloads content to memory.
@@ -808,6 +809,7 @@ class ContentService:
         Args:
             content_id (str): The id of the uploaded content.
             chat_id (Optional[str]): The chat_id, defaults to None.
+            timeout (Optional[float]): Seconds to wait for the response, defaults to None (httpx default).
 
         Returns:
             bytes: The downloaded content.
@@ -821,6 +823,7 @@ class ContentService:
             company_id=self._company_id,
             content_id=content_id,
             chat_id=chat_id,
+            timeout=timeout,
         )
 
     def get_documents_uploaded_to_chat(self) -> list[Content]:
