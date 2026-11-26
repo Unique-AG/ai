@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: 'A sub-agent tool has the setting `elicitation_handling`. `relay` (the default) shows the sub-agent''s questions in the parent chat. `auto_approve` runs the sub-agent with auto-approved elicitations, so it asks nothing.'
+time: 2026-11-23T23:06:00.000000+01:00
+custom:
+    Audience: admin
+    Ticket: UN-30320

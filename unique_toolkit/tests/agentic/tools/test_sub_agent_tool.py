@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from unique_toolkit.agentic.tools.a2a.tool.config import (
+    SubAgentElicitationHandling,
     SubAgentPassthroughConfig,
     SubAgentToolConfig,
 )
@@ -379,6 +380,64 @@ class TestSubAgentToolRun:
 
             # But progress reporter should NOT be called
             mock_progress_reporter.notify_from_tool_call.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("handling", "expected"),
+        [
+            (SubAgentElicitationHandling.RELAY, None),
+            (SubAgentElicitationHandling.AUTO_APPROVE, True),
+        ],
+    )
+    async def test_run__sends_auto_approve__only_when_configured_AI(
+        self,
+        mock_sub_agent_config: SubAgentToolConfig,
+        mock_chat_event: ChatEvent,
+        handling: SubAgentElicitationHandling,
+        expected: bool | None,
+    ) -> None:
+        """
+        Purpose: Verify elicitation_handling decides whether the sub-agent run auto-approves.
+        Why this matters: An auto-approving sub-agent must never ask the user; a relaying one must.
+        Setup summary: Run the tool with each handling and read the flag sent with the message.
+        """
+        tool = SubAgentTool(
+            configuration=mock_sub_agent_config.model_copy(
+                update={"elicitation_handling": handling}
+            ),
+            event=mock_chat_event,
+            name="TestSubAgent",
+            display_name="Test Sub Agent",
+        )
+        tool._message_step_logger = Mock()
+        tool_call = LanguageModelFunction(
+            id="call_123",
+            name="TestSubAgent",
+            arguments={"user_message": "test message"},
+        )
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
+                new_callable=AsyncMock,
+                return_value={
+                    "text": "Sub agent response",
+                    "assessment": None,
+                    "chatId": "new_chat_id",
+                    "references": None,
+                },
+            ) as mock_send,
+            patch.object(
+                tool, "_get_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+            patch.object(
+                tool, "_save_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+        ):
+            _ = await tool.run(tool_call)
+
+        assert mock_send.await_args.kwargs["auto_approve_elicitation"] is expected
 
     @pytest.mark.ai
     @pytest.mark.asyncio
