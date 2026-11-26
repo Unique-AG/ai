@@ -18,6 +18,7 @@ from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import (
     UploadedSearchConfig,
 )
+from unique_skill_tool.service import SkillTool
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
@@ -211,6 +212,7 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
                 InternalSearchTool.name,
                 WebSearchTool.name,
                 RetrieveSearchScopeTool.name,
+                SkillTool.name,
             ):
                 tool.configuration.language_model_max_input_tokens = (  # type: ignore
                     info.data["language_model"].token_limits.token_limit_input

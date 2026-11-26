@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import CustomWidgetName, RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
@@ -20,6 +21,7 @@ from unique_skill_tool.prompts import (
 CHARS_PER_TOKEN = 4
 DEFAULT_CHAR_BUDGET = 8_000
 SKILL_BUDGET_CONTEXT_PERCENT = 0.03
+SKILL_LISTING_CONTEXT_PERCENT = 0.02
 MAX_LISTING_DESC_CHARS = 250
 
 
@@ -121,9 +123,27 @@ class SkillToolConfig(BaseToolConfig):
         ),
     )
 
-    skill_budget_context_percent: float = Field(
+    skill_budget_context_percent: SkipJsonSchema[float] = Field(
         default=SKILL_BUDGET_CONTEXT_PERCENT,
         ge=0.01,
         le=0.15,
-        description="Percentage of context window allocated for the skill listing.",
+        description="Not applied; replaced by skill_listing_context_percent.",
+    )
+
+    skill_listing_context_percent: float = Field(
+        default=SKILL_LISTING_CONTEXT_PERCENT,
+        ge=0.005,
+        le=0.15,
+        title="Skill List Budget (Share of Context Window)",
+        description=(
+            "Share of the model's input context window for the skill list, "
+            "as a fraction (0.02 = 2%). The list never gets less than "
+            "8,000 characters. When the list is over budget, descriptions "
+            "are shortened."
+        ),
+    )
+
+    language_model_max_input_tokens: SkipJsonSchema[int | None] = Field(
+        default=None,
+        description="Input token limit of the space's model, set by the orchestrator.",
     )
