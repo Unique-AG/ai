@@ -1,17 +1,7 @@
 """Download ``SKILL.md`` files for the Skill tool, and cache the parsed result.
 
-A space can list a hundred skills, and every turn needs the name and
-description of each. Downloading all files at once on every turn overloads
-the content API, so downloads share one process-wide limit and are retried,
-and a skill the platform vouches for is parsed once and then served from
-memory.
-
-A cache hit skips the content API and its access check, so the cache is only
-used for a skill the platform has just listed as readable for the acting
-user. ``fetch_readable_skill_versions`` asks for that list once per turn, as
-the user. The skill list in the message is never trusted for this: it comes
-from the client. A skill that is not in the platform's list is downloaded as
-the user and not cached.
+The cache is only used for a skill the platform has just listed as readable
+for the acting user, because a cache hit skips the access check of a download.
 """
 
 from __future__ import annotations
@@ -44,7 +34,7 @@ SKILL_CACHE_MAX_ENTRIES = 2048
 # a new last-modified time, so it never matches the entry of the old text.
 SkillCacheKey = tuple[str, str, str]
 
-_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+_TOO_MANY_REQUESTS = 429
 
 
 class _DownloadLimiter:
@@ -259,7 +249,11 @@ async def _download_and_parse(
 async def _download(*, content_service: ContentService, content_id: str) -> bytes:
     for attempt in range(1, SKILL_DOWNLOAD_ATTEMPTS + 1):
         try:
-            async with _download_limiter.slot():
+            # The HTTP timeout applies to each read, not to the whole download.
+            async with (
+                _download_limiter.slot(),
+                asyncio.timeout(SKILL_DOWNLOAD_TIMEOUT_S),
+            ):
                 return await content_service.download_content_to_bytes_async(
                     content_id=content_id, timeout=SKILL_DOWNLOAD_TIMEOUT_S
                 )
@@ -274,4 +268,6 @@ async def _download(*, content_service: ContentService, content_id: str) -> byte
 def _is_retryable(error: Exception) -> bool:
     """A download is safe to repeat, so only a definite client error is final."""
     status_code = getattr(getattr(error, "response", None), "status_code", None)
-    return not isinstance(status_code, int) or status_code in _RETRYABLE_STATUS_CODES
+    if not isinstance(status_code, int):
+        return True
+    return status_code == _TOO_MANY_REQUESTS or 500 <= status_code <= 599

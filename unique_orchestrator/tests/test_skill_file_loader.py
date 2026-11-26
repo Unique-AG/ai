@@ -277,7 +277,13 @@ class TestSkillCacheEviction:
 class TestDownloadRetryAndLimit:
     @pytest.mark.parametrize(
         "error",
-        [TimeoutError("read timed out"), _HttpStatusError(429), _HttpStatusError(503)],
+        [
+            TimeoutError("read timed out"),
+            _HttpStatusError(429),
+            _HttpStatusError(503),
+            _HttpStatusError(507),
+            _HttpStatusError(529),
+        ],
     )
     async def test_temporary_failure_is_retried(
         self, logger: Logger, error: Exception
@@ -291,7 +297,25 @@ class TestDownloadRetryAndLimit:
         assert skill is not None and skill.name == "pdf"
         assert download.await_count == 2
 
-    @pytest.mark.parametrize("status_code", [403, 404])
+    async def test_download_slower_than_the_deadline_is_cut_off_and_retried(
+        self, logger: Logger
+    ) -> None:
+        async def download(**_: object) -> bytes:
+            if download_mock.await_count == 1:
+                await asyncio.sleep(60)
+            return _skill_file("pdf")
+
+        download_mock = AsyncMock(side_effect=download)
+
+        with patch.object(skill_file_loader, "SKILL_DOWNLOAD_TIMEOUT_S", 0.01):
+            skill, _ = await _load(
+                _content_service(download_mock), logger, readable_version=None
+            )
+
+        assert skill is not None and skill.name == "pdf"
+        assert download_mock.await_count == 2
+
+    @pytest.mark.parametrize("status_code", [400, 403, 404])
     async def test_client_error_is_not_retried(
         self, logger: Logger, status_code: int
     ) -> None:
