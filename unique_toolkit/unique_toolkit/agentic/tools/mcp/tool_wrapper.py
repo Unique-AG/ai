@@ -146,8 +146,11 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             result = await self._call_mcp_tool_via_sdk(arguments)
 
             content_chunks, references = self._extract_structured_references(result)
+            remainder = None
             if not content_chunks:
-                content_chunks, references = self._try_extract_record_references(result)
+                content_chunks, references, remainder = (
+                    self._try_extract_record_references(result)
+                )
             content_str, image_data_urls = await asyncio.to_thread(
                 self._process_mcp_result, result
             )
@@ -169,6 +172,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 content=content_str,
                 content_chunks=content_chunks or None,
                 image_data_urls=image_data_urls,
+                system_reminder=remainder or "",
             )
 
             # Update message log entry to completed
@@ -301,7 +305,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
     def _try_extract_record_references(
         self, result: dict[str, Any]
-    ) -> tuple[list[ContentChunk], list[ContentReference]]:
+    ) -> tuple[list[ContentChunk], list[ContentReference], str | None]:
         """The tool call already succeeded, so a citation failure (such as a
         ``RecursionError`` on deeply nested JSON) falls back to the flat text."""
         try:
@@ -310,17 +314,17 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             self.logger.warning(
                 f"Could not cite the result of MCP tool {self.name}: {e!r}"
             )
-            return [], []
+            return [], [], None
 
     def _extract_record_references(
         self, result: dict[str, Any]
-    ) -> tuple[list[ContentChunk], list[ContentReference]]:
+    ) -> tuple[list[ContentChunk], list[ContentReference], str | None]:
         """Fallback for results without ``unique.app/reference``: one chunk per
         record the shared MCP citation extractor finds (the same records Conduct
         cites), or one chunk for the whole result when it has no titled record.
 
-        A chunk's text is all the model sees of it, so fields outside the
-        records, such as a page token, are kept in one trailing chunk.
+        Also returns the text outside the records (a page token, a warning) for
+        ``system_reminder``: the model sees it, but it is not a citable source.
         """
         content_items = self._extract_content_items(result)
         texts = [
@@ -334,7 +338,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         )
         full_text = "\n\n".join(text for text in texts if text.strip())
         if not full_text or has_image or self._is_error_result(result):
-            return [], []
+            return [], [], None
 
         mapping = self._mcp_tool.reference_mapping
         items = extract_mcp_citation_items(
@@ -351,11 +355,11 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             for item in items
             if (text := item.get("text") or _link_label(item))
         ]
+        if not records:
+            return [], [], None
         remainder = _text_outside_records(
             texts, [text for item in items if (text := item.get("text"))]
         )
-        if remainder:
-            records.append((self._source_name(), None, remainder))
 
         chunks: list[ContentChunk] = []
         references: list[ContentReference] = []
@@ -381,7 +385,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                     url=url,
                 )
             )
-        return chunks, references
+        return chunks, references, remainder
 
     def _source_name(self) -> str:
         return self.display_name() or self.name

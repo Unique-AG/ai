@@ -1502,7 +1502,7 @@ class TestMCPToolWrapperRecordReferences:
             }
         )
 
-        chunks, references = mcp_tool_wrapper._extract_record_references(result)
+        chunks, references, _ = mcp_tool_wrapper._extract_record_references(result)
 
         assert [(c.title, c.url) for c in chunks] == [
             ("Quarterly Plan.xlsx", "https://contoso.sharepoint.com/sites/a/plan"),
@@ -1519,7 +1519,7 @@ class TestMCPToolWrapperRecordReferences:
         assert references[0].source_id == chunks[0].id
 
     @pytest.mark.ai
-    def test_extract_record_references__keeps_fields_outside_records_AI(
+    def test_extract_record_references__returns_fields_outside_records_AI(
         self,
         mcp_tool_wrapper: MCPToolWrapper,
     ) -> None:
@@ -1532,12 +1532,14 @@ class TestMCPToolWrapperRecordReferences:
             }
         )
 
-        chunks, references = mcp_tool_wrapper._extract_record_references(result)
+        chunks, references, remainder = mcp_tool_wrapper._extract_record_references(
+            result
+        )
 
-        assert len(chunks) == 2
-        assert chunks[1].url is None
-        assert json.loads(chunks[1].text) == {"next_page_token": "page-2"}
-        assert references[1].url is None
+        assert len(chunks) == 1
+        assert len(references) == 1
+        assert remainder is not None
+        assert json.loads(remainder) == {"next_page_token": "page-2"}
 
     @pytest.mark.ai
     def test_extract_record_references__single_record_has_no_remainder_AI(
@@ -1552,7 +1554,7 @@ class TestMCPToolWrapperRecordReferences:
             }
         )
 
-        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+        chunks, _, _ = mcp_tool_wrapper._extract_record_references(result)
 
         assert [(c.title, c.url) for c in chunks] == [
             ("Board meeting", "https://outlook.office.com/calendar/item/1")
@@ -1565,7 +1567,7 @@ class TestMCPToolWrapperRecordReferences:
     ) -> None:
         result = {"content": [{"type": "text", "text": "Mailbox is 80% full."}]}
 
-        chunks, references = mcp_tool_wrapper._extract_record_references(result)
+        chunks, references, _ = mcp_tool_wrapper._extract_record_references(result)
 
         assert len(chunks) == 1
         assert chunks[0].text == "Mailbox is 80% full."
@@ -1586,7 +1588,7 @@ class TestMCPToolWrapperRecordReferences:
             ]
         }
 
-        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+        chunks, _, _ = mcp_tool_wrapper._extract_record_references(result)
 
         assert [c.text for c in chunks] == [
             "Mailbox is 80% full.\n\nArchive old items."
@@ -1618,14 +1620,14 @@ class TestMCPToolWrapperRecordReferences:
             ]
         }
 
-        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+        chunks, _, remainder = mcp_tool_wrapper._extract_record_references(result)
 
         assert [(c.title, c.url) for c in chunks] == [
             ("Fix login", "https://example.atlassian.net/browse/PROJ-1"),
-            ("test_mcp_tool", None),
         ]
-        assert "PROJ-1" not in chunks[1].text
-        assert chunks[1].text.startswith("[IMPORTANT: cite issues]\n")
+        assert remainder is not None
+        assert "PROJ-1" not in remainder
+        assert remainder.startswith("[IMPORTANT: cite issues]\n")
 
     @pytest.mark.ai
     def test_extract_record_references__applies_reference_mapping_AI(
@@ -1638,7 +1640,7 @@ class TestMCPToolWrapperRecordReferences:
         )
         result = _json_text_result({"rows": [{"id": "7", "label": "Fund A"}]})
 
-        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+        chunks, _, _ = mcp_tool_wrapper._extract_record_references(result)
 
         assert chunks[0].title == "7 Fund A"
 
@@ -1663,7 +1665,7 @@ class TestMCPToolWrapperRecordReferences:
         mcp_tool_wrapper: MCPToolWrapper,
         result: dict[str, object],
     ) -> None:
-        assert mcp_tool_wrapper._extract_record_references(result) == ([], [])
+        assert mcp_tool_wrapper._extract_record_references(result) == ([], [], None)
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -1696,6 +1698,45 @@ class TestMCPToolWrapperRecordReferences:
         assert [r.url for r in completed[0].kwargs["references"]] == [
             "https://example.test/plan"
         ]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__sends_paging_and_warning_as_system_reminder_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        tool_call = LanguageModelFunction(
+            id="call_outlook", name="test_mcp_tool", arguments={"query": "mail"}
+        )
+        result = _json_text_result(
+            {
+                "results": [
+                    {"title": "Offsite", "url": "https://outlook.test/mail/1"},
+                    {"title": "Budget", "url": "https://outlook.test/mail/2"},
+                ],
+                "hasMore": True,
+                "next_cursor": "c2",
+                "syncWarning": "Mailbox sync is 2 hours behind.",
+            }
+        )
+
+        with (
+            patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log") as mock_log,
+        ):
+            mock_sdk_call.return_value = result
+            response = await mcp_tool_wrapper.run(tool_call)
+
+        assert response.content_chunks is not None
+        assert [c.title for c in response.content_chunks] == ["Offsite", "Budget"]
+        assert "c2" in response.system_reminder
+        assert "Mailbox sync is 2 hours behind." in response.system_reminder
+        completed = [
+            c
+            for c in mock_log.call_args_list
+            if c.kwargs.get("status") == MessageLogStatus.COMPLETED
+        ]
+        assert len(completed[0].kwargs["references"]) == 2
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -1737,13 +1778,15 @@ class TestMCPToolWrapperRecordReferences:
             ]
         }
 
-        chunks, references = mcp_tool_wrapper._extract_record_references(result)
+        chunks, references, remainder = mcp_tool_wrapper._extract_record_references(
+            result
+        )
 
         assert [(c.title, c.url, c.text) for c in chunks] == [
             ("Auth overview", url, f"Auth overview\n{url}"),
-            ("test_mcp_tool", None, "Found one page."),
         ]
-        assert [r.url for r in references] == [url, None]
+        assert [r.url for r in references] == [url]
+        assert remainder == "Found one page."
 
     @pytest.mark.ai
     def test_extract_record_references__keeps_a_field_equal_to_a_record_AI(
@@ -1756,10 +1799,11 @@ class TestMCPToolWrapperRecordReferences:
         )
         result = _json_text_result({"rows": ["page-2"], "next_page_token": "page-2"})
 
-        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+        chunks, _, remainder = mcp_tool_wrapper._extract_record_references(result)
 
-        assert [(c.title, c.text) for c in chunks][0] == ("page-2", "page-2")
-        assert json.loads(chunks[1].text)["next_page_token"] == "page-2"
+        assert [(c.title, c.text) for c in chunks] == [("page-2", "page-2")]
+        assert remainder is not None
+        assert json.loads(remainder)["next_page_token"] == "page-2"
 
     @pytest.mark.ai
     def test_extract_record_references__keeps_a_block_found_inside_a_record_AI(
@@ -1782,10 +1826,11 @@ class TestMCPToolWrapperRecordReferences:
             ]
         }
 
-        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+        chunks, _, remainder = mcp_tool_wrapper._extract_record_references(result)
 
-        assert [c.title for c in chunks] == ["Budget", "test_mcp_tool"]
-        assert chunks[1].text.endswith("ok")
+        assert [c.title for c in chunks] == ["Budget"]
+        assert remainder is not None
+        assert remainder.endswith("ok")
 
     @pytest.mark.ai
     def test_extract_record_references__keeps_text_around_the_json_AI(
@@ -1796,12 +1841,9 @@ class TestMCPToolWrapperRecordReferences:
         text = f"Results:\n{json.dumps(record)}\nShowing 1 of 9."
         result = {"content": [{"type": "text", "text": text}]}
 
-        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+        _, _, remainder = mcp_tool_wrapper._extract_record_references(result)
 
-        assert [(c.title, c.text) for c in chunks][1] == (
-            "test_mcp_tool",
-            "Results:\nShowing 1 of 9.",
-        )
+        assert remainder == "Results:\nShowing 1 of 9."
 
     @pytest.mark.ai
     def test_extract_record_references__keeps_an_explicit_end_of_pages_AI(
@@ -1817,6 +1859,7 @@ class TestMCPToolWrapperRecordReferences:
             }
         )
 
-        chunks, _ = mcp_tool_wrapper._extract_record_references(result)
+        _, _, remainder = mcp_tool_wrapper._extract_record_references(result)
 
-        assert json.loads(chunks[1].text) == {"next_page_token": None}
+        assert remainder is not None
+        assert json.loads(remainder) == {"next_page_token": None}
