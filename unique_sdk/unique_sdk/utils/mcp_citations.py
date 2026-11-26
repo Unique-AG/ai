@@ -35,7 +35,7 @@ _URL_KEYS = (
 )
 
 # Internal reference: a Unique knowledge-base document, opened in the preview.
-_INTERNAL_URL = re.compile(r"unique://content/\S+")
+_INTERNAL_URL = re.compile(r"unique://content/[^\s/?#]\S*")
 
 # How deep untitled wrapper objects are searched for lists of titled records.
 _MAX_WRAPPER_DEPTH = 4
@@ -171,11 +171,14 @@ def loads_embedded_json(text: str) -> Any:
 def find_embedded_json(text: str) -> tuple[Any, int, int] | None:
     """Like :func:`loads_embedded_json`, but also returns the ``start`` and
     ``end`` offsets of the decoded JSON so text around it can be kept."""
+    decoder = json.JSONDecoder()
+    start = len(text) - len(text.lstrip(" \t\n\r"))
     try:
-        return json.loads(text), 0, len(text)
+        value, end = decoder.raw_decode(text, start)
+        if not text[end:].strip(" \t\n\r"):
+            return value, start, end
     except (ValueError, TypeError):
         pass
-    decoder = json.JSONDecoder()
     for index, char in enumerate(text):
         if char in "{[":
             try:
@@ -358,10 +361,9 @@ def _get_by_dotted_path(obj: Any, path: str) -> Any:
         if isinstance(current, dict):
             current = current.get(segment)
         elif isinstance(current, list) and segment.lstrip("-").isdigit():
-            index = int(segment)
             try:
-                current = current[index]
-            except IndexError:
+                current = current[int(segment)]
+            except (ValueError, IndexError):
                 return None
         else:
             return None
@@ -441,7 +443,8 @@ def _mapped_records(response: Any, list_path: str | None) -> list[Any]:
 
     for parsed in sources:
         target = _get_by_dotted_path(parsed, list_path) if list_path else parsed
-        target = _connection_nodes(target) or target
+        nodes = _connection_nodes(target)
+        target = target if nodes is None else nodes
         if isinstance(target, list):
             records = [entry for entry in target if isinstance(entry, (dict, str))]
             if records:

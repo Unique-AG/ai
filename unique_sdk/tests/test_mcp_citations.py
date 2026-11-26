@@ -89,11 +89,14 @@ def test_url_path_mapping_keeps_internal_url() -> None:
 
 
 @pytest.mark.ai
-@pytest.mark.parametrize("url", ["ftp://x", "unique://other/x"])
+@pytest.mark.parametrize(
+    "url", ["ftp://x", "unique://other/x", "unique://content/?view=preview"]
+)
 def test_other_schemes_are_dropped(url: str) -> None:
     from_json = extract_mcp_citation_items(_json_response({"title": "Doc", "url": url}))
     from_link = extract_mcp_citation_items(
         {"content": [{"type": "resource_link", "name": "Doc", "uri": url}]}
     )
 
-    assert [item.get("url") for item in from_json + from_link] == [None, None]
+    assert [(item["title"], item.get("url")) for item in from_json] == [("Doc", None)]
+    assert [(item["title"], item.get("url")) for item in from_link] == [("Doc", None)]
