@@ -37,6 +37,9 @@ _URL_KEYS = (
     "link",
 )
 
+# Internal reference: a Unique knowledge-base document, opened in the preview.
+_INTERNAL_URL = re.compile(r"unique://content/\S+")
+
 # How deep untitled wrapper objects are searched for lists of titled records.
 _MAX_WRAPPER_DEPTH = 4
 
@@ -257,17 +260,24 @@ def _is_http_url(value: object) -> str | None:
     return None
 
 
+def _is_citable_url(value: object) -> str | None:
+    """Return ``value`` when it is an http(s) or ``unique://content/<id>`` URL."""
+    if isinstance(value, str) and _INTERNAL_URL.fullmatch(value.strip()):
+        return value.strip()
+    return _is_http_url(value)
+
+
 def _url_from_item(obj: dict[str, Any]) -> str | None:
-    """First http(s) field on a record. Preferred keys, then any string field,
+    """First citable URL on a record. Preferred keys, then any string field,
     unless a preferred key is present but empty: the record then has no link."""
     for key in _URL_KEYS:
-        url = _is_http_url(obj.get(key))
+        url = _is_citable_url(obj.get(key))
         if url:
             return url
     if any(key in obj and obj[key] in ("", None) for key in _URL_KEYS):
         return None
     for value in obj.values():
-        url = _is_http_url(value)
+        url = _is_citable_url(value)
         if url:
             return url
     return None
@@ -557,7 +567,7 @@ def _extract_with_reference_mapping(
         url = None
         if is_dict:
             if url_path:
-                url = _is_http_url(_get_by_dotted_path(record, url_path))
+                url = _is_citable_url(_get_by_dotted_path(record, url_path))
             if not url:
                 url = _url_from_item(record)
         items.append(
@@ -610,10 +620,10 @@ def extract_mcp_citation_items(
     JSON-in-text), or a markdown list that pairs a title with an indented
     http(s) URL. Typed content blocks from an MCP client library are
     normalized to dicts first so a list result is not collapsed to one
-    title-less chip. An http(s) link on a record is stored on the row and is
-    not copied into the Sources block. Falls back to a single title-less item
-    (the runner names it after the tool) when the result carries no
-    recognizable title.
+    title-less chip. An http(s) or ``unique://content/<id>`` link on a record is
+    stored on the row and is not copied into the Sources block. Falls back to a
+    single title-less item (the runner names it after the tool) when the result
+    carries no recognizable title.
 
     ``text`` is the item's underlying retrieved text (the serialized record, a
     fetched document body, or — for the title-less fallback — ``fallback_text``,
@@ -643,7 +653,7 @@ def extract_mcp_citation_items(
                             "snippet": _snippet(normalized.get("description")),
                             "text": normalized.get("description") or None,
                         },
-                        _is_http_url(normalized.get("uri")),
+                        _is_citable_url(normalized.get("uri")),
                     )
                 )
 
