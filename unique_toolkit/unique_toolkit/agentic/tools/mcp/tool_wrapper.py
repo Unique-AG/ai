@@ -319,13 +319,8 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     def _extract_record_references(
         self, result: dict[str, Any]
     ) -> tuple[list[ContentChunk], list[ContentReference], str | None]:
-        """Fallback for results without ``unique.app/reference``: one chunk per
-        record the shared MCP citation extractor finds (the same records Conduct
-        cites), or one chunk for the whole result when it has no titled record.
-
-        Also returns the text outside the records (a page token, a warning) for
-        ``system_reminder``: the model sees it, but it is not a citable source.
-        """
+        """One chunk per record the shared extractor finds.
+        Text outside those records is a system reminder, not a source."""
         content_items = self._extract_content_items(result)
         texts = [
             str(item.get("text") or "")
@@ -558,9 +553,8 @@ _REMOVED = object()
 
 
 def _without_records(value: Any, remaining: Counter[str], *, in_list: bool) -> Any:
-    """``value`` without the records still in ``remaining``, or ``_REMOVED`` when
-    ``value`` is one or held only records. A plain-string record is only ever a
-    list entry."""
+    """``value`` without its records, or ``_REMOVED`` when the value was only records.
+    A plain string is a record only as a list entry."""
     if _take_record(value, remaining, in_list=in_list):
         return _REMOVED
     if isinstance(value, dict):
