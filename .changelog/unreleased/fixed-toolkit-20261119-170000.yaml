@@ -1,6 +1,0 @@
-component: Toolkit
-kind: Fixed
-body: 'An MCP tool result with text and without `unique.app/reference` metadata is now citable in Unique AI. `MCPToolWrapper` splits it with the same extractor `unique-cli mcp` uses, so each titled record becomes a `[sourceN]` source, linked to the record''s web page when it has one, and a result with no titled record becomes one source named after the tool. The tool''s reference mapping is applied first. Fields and text outside the records, such as a page token, stay visible to the model in one extra source. Error and image results are unchanged.'
-time: 2026-11-19T17:00:00.000000+01:00
-custom:
-    Audience: user
