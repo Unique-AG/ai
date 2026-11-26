@@ -36,6 +36,11 @@ on:
 
 jobs:
   resolve-package:
+    # dev-cut-* prereleases also fire release events; only package release tags publish here.
+    if: >-
+      github.event_name != 'release'
+      || startsWith(github.event.release.tag_name, 'unique-')
+      || startsWith(github.event.release.tag_name, 'uqadm-v')
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.resolve.outputs.matrix }}
