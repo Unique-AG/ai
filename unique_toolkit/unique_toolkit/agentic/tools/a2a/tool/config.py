@@ -18,6 +18,11 @@ class SubAgentSystemReminderType(StrEnum):
     NO_REFERENCE = "no_reference"
 
 
+class SubAgentElicitationHandling(StrEnum):
+    RELAY = "relay"
+    AUTO_APPROVE = "auto_approve"
+
+
 T = TypeVar("T", bound=SubAgentSystemReminderType)
 
 
@@ -198,6 +203,16 @@ class SubAgentToolConfig(BaseToolConfig):
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = Field(
         default="completedAt",
         description="The condition that will be used to stop the polling for the sub-agent response.",
+    )
+
+    elicitation_handling: SubAgentElicitationHandling = Field(
+        default=SubAgentElicitationHandling.RELAY,
+        description=(
+            "What happens when the sub-agent needs an answer from the user. "
+            "`relay` shows the question in the parent chat. `auto_approve` accepts "
+            "forms with their default values and skips tool confirmations, so "
+            "nothing is asked."
+        ),
     )
 
     tool_input_json_schema: Annotated[
