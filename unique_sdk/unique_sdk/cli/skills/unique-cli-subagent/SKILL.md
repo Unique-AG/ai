@@ -33,12 +33,28 @@ from `$UNIQUE_TURN_IDENTITY_FILE` automatically.
    details that are not in the response.
 4. If the connected space has references in its text, preserve them exactly.
 
+## When the connected space asks the user a question
+
+The connected space can need an answer from the user. The user sees the
+question in this chat. The command then prints a line that starts with
+`subagent-question:` and exits with code 3. The connected space is still
+running.
+
+Do this, in this order:
+
+1. Wait for the answer: `unique-cli elicit wait <id>`. The output names the id.
+2. Continue the same call: `unique-cli subagent "<tool_name>" --resume <id>`.
+
+Do not send the task again. Do not answer the question yourself. If step 2
+prints `subagent-question:` again, repeat both steps with the new id.
+
 ## Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `<tool_name>` | required | Name of the configured connected-space tool. |
-| `<message>` | required | Prompt sent to the connected space. |
+| `<message>` | required unless `--resume` | Prompt sent to the connected space. |
+| `--resume <id>` | none | Wait again for the turn that asked question `<id>`. Sends no message. |
 | `--reset-chat` | off | Start from a fresh subagent chat instead of reusing the saved chat. |
 | `--json` | off | Print the raw response JSON. |
 | `--config` | `.unique-subagents.json` | Override the config path. |

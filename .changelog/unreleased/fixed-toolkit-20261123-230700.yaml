@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Fixed
+body: '`get_pending_elicitations` and `ElicitationService.list_pending` failed to parse the platform''s answer, which is a JSON array. They now return the list.'
+time: 2026-11-23T23:07:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-30320

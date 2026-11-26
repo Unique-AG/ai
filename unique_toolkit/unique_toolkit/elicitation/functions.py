@@ -240,7 +240,7 @@ def get_pending_elicitations(
             user_id=user_id,
             company_id=company_id,
         )
-        return ElicitationList.model_validate(response, by_alias=True)
+        return _pending_list(response)
     except Exception as e:
         _LOGGER.exception(f"Error getting pending elicitations: {e}")
         raise e
@@ -269,7 +269,7 @@ async def get_pending_elicitations_async(
             user_id=user_id,
             company_id=company_id,
         )
-        return ElicitationList.model_validate(response, by_alias=True)
+        return _pending_list(response)
     except Exception as e:
         _LOGGER.exception(f"Error getting pending elicitations: {e}")
         raise e
@@ -365,3 +365,10 @@ async def respond_to_elicitation_async(
     except Exception as e:
         _LOGGER.exception(f"Error responding to elicitation {elicitation_id}: {e}")
         raise e
+
+
+def _pending_list(response: object) -> ElicitationList:
+    """The platform answers with a JSON array, not with the object the SDK declares."""
+    if isinstance(response, list):
+        response = {"elicitations": response}
+    return ElicitationList.model_validate(response, by_alias=True)

@@ -52,6 +52,32 @@ The Chat in Space utilities provide:
         print(f"No answer in time. Turn stopped: {timeout.turn_stopped}")
     ```
 
+    **Example - End the wait early without stopping the turn:**
+
+    `interrupt` is an async check that runs after every poll that found no answer. When it returns `True`, the wait raises `MessageWaitInterruptedError` and the turn keeps running, even with `stop_on_abandon`. Call `wait_for_message_completion` again with the same `chat_id` and `message_id` to resume. `unique-cli subagent` uses it to return when a sub-agent asks the user a question.
+
+    ```python
+    from unique_sdk.utils.chat_in_space import (
+        MessageWaitInterruptedError,
+        wait_for_message_completion,
+    )
+
+    async def user_must_answer_first() -> bool:
+        ...
+
+    try:
+        message = await wait_for_message_completion(
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=posted["chatId"],
+            message_id=posted["id"],
+            stop_on_abandon=True,
+            interrupt=user_must_answer_first,
+        )
+    except MessageWaitInterruptedError:
+        ...  # The turn is still running. Wait again later.
+    ```
+
     To stop a running turn yourself, call `Message.stop_async(user_id, company_id, message_id, chatId=chat_id)`. It is the same stop a user triggers in the chat: it marks the turn as aborted by the user (`userAbortedAt`), ends every unfinished assistant segment, and cancels the turn's pending elicitations.
 
     `stop_on_abandon` is meant for chats nobody else watches, such as a connected space called as a sub-agent, so the turn does not keep running unobserved.
