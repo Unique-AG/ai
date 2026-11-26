@@ -20,6 +20,7 @@ This section contains documentation for all API resources available in the Uniqu
 - [Message Execution API](message_execution.md) - Message execution operations
 - [Message Log API](message_log.md) - Message logging and history
 - [MCP API](mcp.md) - Call MCP tools from assistants
+- [Project Chat API](project_chat.md) - Search and read the earlier chats of a user's project
 - [Project Memory API](project_memory.md) - Per-project memory of a user's project chats
 - [ScheduledTask API](scheduled_task.md) - Cron-based recurring task scheduling
 - [Search API](search.md) - Search functionality

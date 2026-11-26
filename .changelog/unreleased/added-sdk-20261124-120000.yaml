@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`ProjectChat` searches and reads the earlier chats of a user''s project through `/search/project-chats`: `search` returns the best matching chunks, `list_chunks` reads one chat in order, and `list_recent` lists the chats most recently active first. Each has an `_async` variant.'
+time: 2026-11-24T12:00:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29429

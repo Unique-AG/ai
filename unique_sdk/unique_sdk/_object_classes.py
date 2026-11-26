@@ -12,4 +12,6 @@ OBJECT_CLASSES = {
     unique_sdk.WebSearchReview.OBJECT_NAME: unique_sdk.WebSearchReview,
     unique_sdk.WebCrawl.OBJECT_NAME: unique_sdk.WebCrawl,
     unique_sdk.ProjectMemory.OBJECT_NAME: unique_sdk.ProjectMemory,
+    unique_sdk.ProjectChat.OBJECT_NAME: unique_sdk.ProjectChat,
+    unique_sdk.ProjectChatChunk.OBJECT_NAME: unique_sdk.ProjectChatChunk,
 }
