@@ -705,6 +705,7 @@ async def _build_responses(
         user_id=event.user_id,
         company_id=event.company_id,
         space_id=event.payload.assistant_id,
+        debug_info_manager=debug_info_manager,
     )
 
     loop_iteration_runner = build_responses_loop_iteration_runner(
@@ -834,6 +835,7 @@ async def _build_completions(
         user_id=event.user_id,
         company_id=event.company_id,
         space_id=event.payload.assistant_id,
+        debug_info_manager=debug_info_manager,
     )
 
     postprocessor_manager = common_components.postprocessor_manager
