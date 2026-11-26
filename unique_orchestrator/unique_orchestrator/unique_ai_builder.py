@@ -100,6 +100,7 @@ from unique_orchestrator.config import (
     UniqueAIConfig,
     UploadedSearchToolConfig,
 )
+from unique_orchestrator.project_memory import load_project_memory_text
 from unique_orchestrator.unique_ai import UniqueAI
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
@@ -241,6 +242,7 @@ class _CommonComponents(NamedTuple):
     mcp_servers: list[McpServer]
     user_memory_text: str
     chat_title_generator: ChatTitleGenerator | None
+    project_memory_text: str = ""
 
 
 def _apply_model_choice_override(
@@ -506,6 +508,8 @@ async def _build_common(
                 with_settings_entry=False
             )
 
+    project_memory_text = await load_project_memory_text(event=event, logger=logger)
+
     chat_title_generator = (
         ChatTitleGenerator(
             logger=logger,
@@ -532,6 +536,7 @@ async def _build_common(
         tool_manager_config=tool_manager_config,
         mcp_servers=event.payload.mcp_servers,
         user_memory_text=user_memory_text,
+        project_memory_text=project_memory_text,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
         message_step_logger=message_step_logger,
@@ -769,6 +774,7 @@ async def _build_responses(
         loop_iteration_runner=loop_iteration_runner,
         agent_file_registry=agent_file_registry,
         user_memory_text=common_components.user_memory_text,
+        project_memory_text=common_components.project_memory_text,
         selected_uploaded_content_ids=(
             frozenset(selected_uploaded_content_ids)
             if selected_uploaded_content_ids is not None
@@ -872,6 +878,7 @@ async def _build_completions(
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
         user_memory_text=common_components.user_memory_text,
+        project_memory_text=common_components.project_memory_text,
         chat_title_generator=common_components.chat_title_generator,
     )
 

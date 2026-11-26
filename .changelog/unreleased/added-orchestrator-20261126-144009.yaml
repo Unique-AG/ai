@@ -1,0 +1,7 @@
+component: Orchestrator
+kind: Added
+body: Project chats include the project's memory, built nightly from the user's earlier chats in the project, in the system prompt under "What I know about this project". Applies to chats in a project (Projects enabled for the company) once a memory exists; a failed read runs the turn without it. Spaces with a custom system prompt template need `{{ project_memory }}` added to show it.
+time: 2026-11-26T14:40:09.58036+01:00
+custom:
+    Audience: user
+    Ticket: UN-29145
