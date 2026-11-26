@@ -361,6 +361,30 @@ def test_get_pending_elicitations__validates_to_list__with_multiple_items(
 
 
 @pytest.mark.ai
+def test_get_pending_elicitations__validates_to_list__with_plain_array(
+    mocker,
+    base_elicitation_response: dict[str, Any],
+) -> None:
+    """
+    Purpose: Verify get_pending_elicitations accepts the JSON array the platform sends.
+    Why this matters: The platform answers with an array, not with a wrapping object.
+    Setup summary: Mock SDK with a plain list, call function, verify list.
+    """
+    mocker.patch(
+        "unique_sdk.Elicitation.get_pending_elicitations",
+        return_value=[base_elicitation_response],
+    )
+
+    result = get_pending_elicitations(
+        user_id="test_user",
+        company_id="test_company",
+    )
+
+    assert isinstance(result, ElicitationList)
+    assert [item.id for item in result.elicitations] == ["elic_func_123"]
+
+
+@pytest.mark.ai
 def test_get_pending_elicitations__logs_and_raises__on_sdk_error(mocker) -> None:
     """
     Purpose: Verify get_pending_elicitations logs and re-raises SDK exceptions.
