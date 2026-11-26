@@ -61,6 +61,9 @@ from unique_orchestrator._builders.skill_file_loader import (
 )
 
 if TYPE_CHECKING:
+    from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+        DebugInfoManager,
+    )
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
     from unique_toolkit.agentic.tools.tool_manager import (
         ResponsesApiToolManager,
@@ -114,6 +117,7 @@ async def load_selectable_skills(
     logger: Logger,
     company_id: str = "",
     readable_skill_versions: Mapping[str, str] | None = None,
+    debug_info_manager: DebugInfoManager | None = None,
 ) -> dict[str, SkillDefinition]:
     """Load skills from an explicit list of ``SkillReference`` references.
 
@@ -127,6 +131,9 @@ async def load_selectable_skills(
     lists them. A skill in that map is served from the process-wide skill
     cache when its file was parsed before; see ``skill_file_loader``. Any
     other skill is downloaded as the user.
+
+    With ``debug_info_manager``, the counts are also stored under the
+    ``skill_loading`` key of the turn's debug info.
     """
     versions = readable_skill_versions or {}
     valid_entries = [entry for entry in selectable_skills if entry.content_id]
@@ -202,16 +209,26 @@ async def load_selectable_skills(
             len(pending),
             skill_file_loader.SKILL_LOAD_BUDGET_S,
         )
+    stats = {
+        "listed": len(valid_entries),
+        "loaded": len(skill_registry),
+        "from_cache": cached_count,
+        "downloaded": len(valid_entries) - cached_count - failed_count - len(pending),
+        "failed": failed_count,
+        "timed_out": len(pending),
+    }
     logger.info(
         "Loaded %d skill(s) from selectable_skills "
         "(listed=%d, from_cache=%d, downloaded=%d, failed=%d, timed_out=%d).",
-        len(skill_registry),
-        len(valid_entries),
-        cached_count,
-        len(valid_entries) - cached_count - failed_count - len(pending),
-        failed_count,
-        len(pending),
+        stats["loaded"],
+        stats["listed"],
+        stats["from_cache"],
+        stats["downloaded"],
+        stats["failed"],
+        stats["timed_out"],
     )
+    if debug_info_manager is not None:
+        debug_info_manager.add("skill_loading", stats)
     return skill_registry
 
 
@@ -225,6 +242,7 @@ async def configure_skill_tool(
     user_id: str = "",
     company_id: str = "",
     space_id: str = "",
+    debug_info_manager: DebugInfoManager | None = None,
 ) -> None:
     """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
 
@@ -272,6 +290,7 @@ async def configure_skill_tool(
         logger=logger,
         company_id=company_id,
         readable_skill_versions=readable_skill_versions,
+        debug_info_manager=debug_info_manager,
     )
 
     if not skill_registry:

@@ -286,6 +286,53 @@ class TestLoadSelectableSkills:
         assert result == {}
         content_service.download_content_to_bytes_async.assert_not_awaited()
 
+    @pytest.mark.asyncio
+    async def test_records_load_counts_in_debug_info(self, logger: Logger) -> None:
+        results: dict[str, tuple[SkillDefinition, bool] | Exception] = {
+            "cid-cached": (_make_skill("cached", content_id="cid-cached"), True),
+            "cid-downloaded": (
+                _make_skill("downloaded", content_id="cid-downloaded"),
+                False,
+            ),
+            "cid-failed": RuntimeError("download failed"),
+        }
+
+        async def fake_load_skill(
+            *, reference: SkillReference, **_: object
+        ) -> tuple[SkillDefinition, bool]:
+            result = results[reference.content_id]
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+        debug_info_manager = MagicMock()
+        with patch(
+            "unique_orchestrator._builders.skill_setup.load_skill",
+            new=fake_load_skill,
+        ):
+            registry = await load_selectable_skills(
+                content_service=MagicMock(),
+                selectable_skills=[
+                    SkillReference(content_id=content_id, name=content_id)
+                    for content_id in results
+                ],
+                logger=logger,
+                debug_info_manager=debug_info_manager,
+            )
+
+        assert set(registry) == {"cached", "downloaded"}
+        debug_info_manager.add.assert_called_once_with(
+            "skill_loading",
+            {
+                "listed": 3,
+                "loaded": 2,
+                "from_cache": 1,
+                "downloaded": 1,
+                "failed": 1,
+                "timed_out": 0,
+            },
+        )
+
 
 class TestConfigureSkillTool:
     def _build_config(
@@ -401,6 +448,7 @@ class TestConfigureSkillTool:
             logger=logger,
             company_id="",
             readable_skill_versions={},
+            debug_info_manager=None,
         )
         assert skill_tool.skill_registry == expected_registry
         tool_manager.exclude_tool.assert_not_called()
@@ -445,6 +493,7 @@ class TestConfigureSkillTool:
             logger=logger,
             company_id="",
             readable_skill_versions={},
+            debug_info_manager=None,
         )
         assert skill_tool.skill_registry == expected_registry
         tool_manager.exclude_tool.assert_not_called()
@@ -482,6 +531,7 @@ class TestConfigureSkillTool:
             logger=logger,
             company_id="",
             readable_skill_versions={},
+            debug_info_manager=None,
         )
         assert skill_tool.skill_registry == expected_registry
         tool_manager.exclude_tool.assert_not_called()
@@ -534,6 +584,7 @@ class TestConfigureSkillTool:
             logger=logger,
             company_id="",
             readable_skill_versions={},
+            debug_info_manager=None,
         )
         assert skill_tool.skill_registry == expected_registry
         tool_manager.exclude_tool.assert_not_called()
@@ -573,6 +624,7 @@ class TestConfigureSkillTool:
         tool_manager.get_tool_by_name.return_value = self._make_skill_tool()
         from_message = [SkillReference(content_id="cid-1", scope_id="", name="Skill 1")]
         versions = {"cid-1": "2026-11-20T10:00:00.000Z"}
+        debug_info_manager = MagicMock()
 
         with (
             patch(
@@ -593,6 +645,7 @@ class TestConfigureSkillTool:
                 user_id="user-1",
                 company_id="company-1",
                 space_id="assistant-1",
+                debug_info_manager=debug_info_manager,
             )
 
         mock_fetch_versions.assert_awaited_once_with(
@@ -602,6 +655,10 @@ class TestConfigureSkillTool:
             logger=logger,
         )
         assert mock_load_selectable_skills.await_args is not None
+        assert (
+            mock_load_selectable_skills.await_args.kwargs["debug_info_manager"]
+            is debug_info_manager
+        )
         load_kwargs = mock_load_selectable_skills.await_args.kwargs
         assert load_kwargs["company_id"] == "company-1"
         assert load_kwargs["readable_skill_versions"] == versions

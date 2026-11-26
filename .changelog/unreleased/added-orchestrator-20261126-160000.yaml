@@ -1,0 +1,7 @@
+component: Orchestrator
+kind: Added
+body: 'The debug information of each turn now has a `skill_loading` entry with how many skills were listed, loaded, taken from the cache, downloaded, failed, and left out because they were not loaded in time. Before, these counts were only in the service logs.'
+time: 2026-11-26T16:00:00.000000+01:00
+custom:
+    Audience: user
+    Ticket: UN-30534
