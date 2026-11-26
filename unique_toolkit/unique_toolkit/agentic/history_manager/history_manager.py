@@ -15,6 +15,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
 )
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
 from unique_toolkit.agentic.history_manager.utils import (
+    _loads_json_with_optional_reminder,
     serialize_tool_content_json,
     transform_chunks_to_string,
 )
@@ -454,7 +455,7 @@ def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
     is returned unchanged.
     """
     try:
-        data = json.loads(content)
+        data = _loads_json_with_optional_reminder(content)
     except (json.JSONDecodeError, TypeError):
         return content
 

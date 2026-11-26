@@ -2,7 +2,10 @@ import json
 
 import pytest
 
-from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.history_manager.utils import (
+    _parse_sources_from_response,
+    transform_chunks_to_string,
+)
 from unique_toolkit.content.schemas import ContentChunk
 
 
@@ -98,3 +101,13 @@ def test_transform_chunks_to_string__starts_source_numbers_from_offset_AI() -> N
     assert decoded_sources[1]["source_number"] == 4
     assert decoded_sources[0]["content"] == "最初の結果"
     assert decoded_sources[1]["content"] == "二番目の結果"
+
+
+@pytest.mark.ai
+def test_parse_sources_from_response__returns_list_when_reminder_follows_json_AI() -> (
+    None
+):
+    """Persisted tool content keeps its sources when a reminder follows the JSON."""
+    content = '[{"source_number": 0}]\n\nsome reminder'
+
+    assert _parse_sources_from_response(content) == [{"source_number": 0}]

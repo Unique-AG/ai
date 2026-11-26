@@ -113,6 +113,20 @@ def transform_chunks_to_string(
     return serialize_tool_content_json(sources), sources
 
 
+def _loads_json_with_optional_reminder(content: str) -> Any:
+    """One JSON value, then only whitespace or a blank-line reminder."""
+    data, end = json.JSONDecoder().raw_decode(content)
+    rest = content[end:]
+    index = 0
+    while index < len(rest):
+        if rest.startswith("\n\n", index):
+            return data
+        if rest[index] not in " \t\r\n":
+            raise json.JSONDecodeError("Extra data", content, end + index)
+        index += 1
+    return data
+
+
 def load_sources_from_string(
     source_string: str,
 ) -> list[Source] | None:
@@ -120,7 +134,7 @@ def load_sources_from_string(
 
     try:
         # First, try parsing as JSON (new format)
-        sources_data = json.loads(source_string)
+        sources_data = _loads_json_with_optional_reminder(source_string)
         return [Source.model_validate(source) for source in sources_data]
     except (json.JSONDecodeError, ValueError):
         logger.warning("Failed to parse source string")
@@ -133,7 +147,7 @@ def _parse_sources_from_response(content: str) -> list[dict[str, Any]]:
     Returns an empty list when the content is not valid JSON or not a list.
     """
     try:
-        data = json.loads(content)
+        data = _loads_json_with_optional_reminder(content)
         if isinstance(data, list):
             return data
         return []
