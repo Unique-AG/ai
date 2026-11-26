@@ -100,3 +100,44 @@ def test_other_schemes_are_dropped(url: str) -> None:
 
     assert [(item["title"], item.get("url")) for item in from_json] == [("Doc", None)]
     assert [(item["title"], item.get("url")) for item in from_link] == [("Doc", None)]
+
+
+@pytest.mark.ai
+def test_find_embedded_json_span_excludes_surrounding_whitespace() -> None:
+    text = ' \t{"a": 1}\n'
+
+    value, start, end = find_embedded_json(text) or (None, 0, 0)
+
+    assert value == {"a": 1}
+    assert text[start:end] == '{"a": 1}'
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("list_path", "expected_titles"),
+    [("rows.-1", ["B"]), ("rows.--1", [None])],
+)
+def test_invalid_list_path_index_is_a_missing_path(
+    list_path: str, expected_titles: list[str | None]
+) -> None:
+    response = _json_response({"rows": [{"t": "A"}, {"t": "B"}]})
+    mapping = {"listPath": list_path, "titlePath": "t"}
+
+    items = extract_mcp_citation_items(response, reference_mapping=mapping)
+
+    assert [item["title"] for item in items] == expected_titles
+
+
+@pytest.mark.ai
+def test_empty_connection_nodes_fall_through_to_the_next_source() -> None:
+    response = {
+        "structuredContent": {"issues": {"nodes": [], "label": "Search"}},
+        "content": [
+            {"type": "text", "text": json.dumps({"issues": [{"label": "Doc"}]})}
+        ],
+    }
+    mapping = {"listPath": "issues", "titlePath": "label"}
+
+    items = extract_mcp_citation_items(response, reference_mapping=mapping)
+
+    assert [item["title"] for item in items] == ["Doc"]
