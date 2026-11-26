@@ -1645,6 +1645,32 @@ class TestMCPToolWrapperRecordReferences:
         assert chunks[0].title == "7 Fund A"
 
     @pytest.mark.ai
+    def test_extract_record_references__reads_link_from_url_path_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+        mock_mcp_tool: McpTool,
+    ) -> None:
+        mock_mcp_tool.reference_mapping = McpReferenceMapping(
+            list_path="rows", title_path="label", url_path="links.web"
+        )
+        result = _json_text_result(
+            {
+                "rows": [
+                    {
+                        "id": "7",
+                        "label": "Fund A",
+                        "links": {"web": "https://example.test/funds/7"},
+                    }
+                ]
+            }
+        )
+
+        chunks, references, _ = mcp_tool_wrapper._extract_record_references(result)
+
+        assert chunks[0].url == "https://example.test/funds/7"
+        assert references[0].url == "https://example.test/funds/7"
+
+    @pytest.mark.ai
     @pytest.mark.parametrize(
         "result",
         [
