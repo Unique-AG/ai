@@ -128,6 +128,56 @@ async def test_get_mcp_server_status_async_gets_status_route() -> None:
     )
 
 
+def test_get_skills_gets_skills_route() -> None:
+    skills = {
+        "object": "space-skills",
+        "spaceId": "assistant_1",
+        "skills": [
+            {
+                "contentId": "cont_1",
+                "scopeId": "scope_1",
+                "name": "pdf",
+                "updatedAt": "2026-11-20T10:00:00.000Z",
+            }
+        ],
+    }
+    with patch.object(Space, "_static_request", return_value=skills) as request:
+        result = Space.get_skills(
+            user_id="user_1",
+            company_id="company_1",
+            space_id="assistant_1",
+        )
+
+    request.assert_called_once_with(
+        "get",
+        "/space/assistant_1/skills",
+        "user_1",
+        "company_1",
+    )
+    assert result["skills"][0]["updatedAt"] == "2026-11-20T10:00:00.000Z"
+
+
+@pytest.mark.asyncio
+async def test_get_skills_async_gets_skills_route() -> None:
+    with patch.object(
+        Space,
+        "_static_request_async",
+        new=AsyncMock(return_value={"spaceId": "assistant_1", "skills": []}),
+    ) as request:
+        await Space.get_skills_async(
+            user_id="user_1",
+            company_id="company_1",
+            space_id="assistant_1",
+        )
+
+    request.assert_awaited_once_with(
+        "get",
+        "/space/assistant_1/skills",
+        "user_1",
+        "company_1",
+    )
+
+
 def test_list_mcp_servers_gets_servers_route() -> None:
     servers = {"object": "mcp-servers", "mcpServers": []}
     with patch.object(MCP, "_static_request", return_value=servers) as request:

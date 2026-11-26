@@ -630,6 +630,74 @@ async def test_request_content_by_id_async__returns_response__with_valid_params(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("timeout", "expected_client_options"),
+    [(None, {}), (20.0, {"timeout": 20.0})],
+)
+async def test_request_content_by_id_async__passes_timeout_to_the_client__only_when_set(
+    mock_sdk,
+    timeout: float | None,
+    expected_client_options: dict[str, float],
+) -> None:
+    """
+    Purpose: Verify the optional timeout reaches httpx and the default stays untouched.
+    Why this matters: Callers that download many files need a longer wait than the httpx default.
+    Setup summary: Mock httpx.AsyncClient, call with and without timeout, assert constructor args.
+    """
+    with patch("unique_toolkit.content.functions.httpx.AsyncClient") as mock_client_cls:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.get.return_value = Mock(status_code=200)
+        mock_client_cls.return_value = mock_client
+
+        # Act
+        await request_content_by_id_async(
+            user_id="user123",
+            company_id="company123",
+            content_id="content123",
+            chat_id=None,
+            timeout=timeout,
+        )
+
+        # Assert
+        mock_client_cls.assert_called_once_with(**expected_client_options)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_content_to_bytes_async__forwards_timeout_to_the_request(
+    mock_sdk,
+) -> None:
+    """
+    Purpose: Verify the download passes its timeout on to the request.
+    Why this matters: Without it the caller's timeout would be ignored silently.
+    Setup summary: Mock request_content_by_id_async, call download with a timeout, assert it arrives.
+    """
+    # Arrange
+    mock_response = Mock(is_success=True, content=b"test content")
+
+    with patch(
+        "unique_toolkit.content.functions.request_content_by_id_async",
+        new=AsyncMock(return_value=mock_response),
+    ) as mock_request:
+        # Act
+        await download_content_to_bytes_async(
+            user_id="user123",
+            company_id="company123",
+            content_id="content123",
+            chat_id="chat123",
+            timeout=20.0,
+        )
+
+        # Assert
+        mock_request.assert_awaited_once_with(
+            "user123", "company123", "content123", "chat123", 20.0
+        )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_download_content_to_bytes_async__returns_bytes__with_successful_response(
     mock_sdk,
 ) -> None:

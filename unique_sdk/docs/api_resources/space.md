@@ -378,6 +378,31 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
             print(f"Sign in to {server['name']}: {server['oauth2Url']}")
     ```
 
+??? example "`unique_sdk.Space.get_skills` - Get the skills the caller can read"
+
+    Get the skills of a space that the calling user can read: personal skills first, then the skills in the space's configured skill folders. Each skill comes with the last-modified time of its skill file, which changes whenever the file is edited. The list is empty when the space has no skills or the caller may not use the space.
+
+    **Parameters:**
+
+    - `space_id` (str, required) - The ID of the space
+
+    **Returns:**
+
+    Returns a [`SkillsResponse`](#spaceskillsresponse) object.
+
+    **Example:**
+
+    ```python
+    result = unique_sdk.Space.get_skills(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_abc123",
+    )
+
+    for skill in result["skills"]:
+        print(skill["name"], skill["contentId"], skill["updatedAt"])
+    ```
+
 ??? example "`unique_sdk.Space.get_space_access` - Get space access entries"
 
     Get access entries for a space. Requires manage access to the space.
@@ -1129,6 +1154,21 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
         - `enabledToolNames` (List[str]) - Tools enabled on the space that the caller can run
 
     **Returned by:** `Space.get_mcp_server_status()`
+
+#### Space.SkillsResponse {#spaceskillsresponse}
+
+??? note "The `Space.SkillsResponse` object contains the skills of a space the caller can read"
+
+    **Fields:**
+
+    - `spaceId` (str) - Space ID
+    - `skills` (List[Skill]) - Skills the calling user can read, personal skills first:
+        - `contentId` (str) - Content ID of the skill file (`SKILL.md`)
+        - `scopeId` (str) - Knowledge base folder ID of the skill
+        - `name` (str) - Skill name, the name of its folder
+        - `updatedAt` (str | None) - Last-modified time of the skill file, ISO-8601
+
+    **Returned by:** `Space.get_skills()`
 
 #### Space.Module {#spacemodule}
 
