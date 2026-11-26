@@ -287,6 +287,31 @@ class TestLoadSelectableSkills:
         content_service.download_content_to_bytes_async.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_records_zero_counts_without_usable_references(
+        self, logger: Logger
+    ) -> None:
+        debug_info_manager = MagicMock()
+
+        await load_selectable_skills(
+            content_service=MagicMock(),
+            selectable_skills=[SkillReference(content_id="", name="blank row")],
+            logger=logger,
+            debug_info_manager=debug_info_manager,
+        )
+
+        debug_info_manager.add.assert_called_once_with(
+            "skill_loading",
+            {
+                "listed": 0,
+                "loaded": 0,
+                "from_cache": 0,
+                "downloaded": 0,
+                "failed": 0,
+                "timed_out": 0,
+            },
+        )
+
+    @pytest.mark.asyncio
     async def test_records_load_counts_in_debug_info(self, logger: Logger) -> None:
         results: dict[str, tuple[SkillDefinition, bool] | Exception] = {
             "cid-cached": (_make_skill("cached", content_id="cid-cached"), True),
@@ -383,6 +408,26 @@ class TestConfigureSkillTool:
 
         tool_manager.exclude_tool.assert_called_once_with(SkillTool.name)
         tool_manager.get_tool_by_name.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_enabled_without_available_skills_records_zero_counts(
+        self, logger: Logger
+    ) -> None:
+        config = self._build_config(is_enabled=True, selectable_skills=[])
+        debug_info_manager = MagicMock()
+
+        await configure_skill_tool(
+            config=config,
+            logger=logger,
+            content_service=MagicMock(),
+            tool_manager=MagicMock(),
+            debug_info_manager=debug_info_manager,
+        )
+
+        debug_info_manager.add.assert_called_once()
+        key, stats = debug_info_manager.add.call_args.args
+        assert key == "skill_loading"
+        assert set(stats.values()) == {0}
 
     @pytest.mark.asyncio
     async def test_space_selectables_ignored_without_available_skills(
