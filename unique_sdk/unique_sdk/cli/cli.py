@@ -106,15 +106,9 @@ from unique_sdk.cli.commands.search import (
 from unique_sdk.cli.commands.search import (
     is_uploaded_search_error_output as _is_uploaded_search_error_output,
 )
-from unique_sdk.cli.commands.subagent import (
-    SUBAGENT_QUESTION_EXIT_CODE,
-    cmd_subagent,
-)
+from unique_sdk.cli.commands.subagent import cmd_subagent
 from unique_sdk.cli.commands.subagent import (
     is_error_output as _is_subagent_error_output,
-)
-from unique_sdk.cli.commands.subagent import (
-    is_question_output as _is_subagent_question_output,
 )
 from unique_sdk.cli.commands.web_search import (
     cmd_web_crawl,
@@ -958,16 +952,7 @@ def mcp(
 
 @main.command()
 @click.argument("tool_name")
-@click.argument("message", required=False)
-@click.option(
-    "--resume",
-    "resume_question_id",
-    default=None,
-    help=(
-        "Elicitation ID of a question the subagent asked. Waits again for the "
-        "same subagent turn instead of sending MESSAGE."
-    ),
-)
+@click.argument("message")
 @click.option(
     "--config",
     "config_path",
@@ -1017,8 +1002,7 @@ def mcp(
 def subagent(
     ctx: click.Context,
     tool_name: str,
-    message: str | None,
-    resume_question_id: str | None,
+    message: str,
     config_path: str | None,
     parent_chat_id: str | None,
     parent_message_id: str | None,
@@ -1033,15 +1017,9 @@ def subagent(
     MESSAGE to that connected assistant and waits for the assistant response.
 
     \b
-    When the subagent asks the user a question, the command prints what to do
-    next and exits with code 3. The subagent keeps running. Wait for the
-    answer with `elicit wait`, then call again with --resume.
-
-    \b
     Examples:
       unique-cli subagent LegalReview "Review this contract clause"
       unique-cli subagent Finance "Summarize Q4 revenue" --reset-chat
-      unique-cli subagent LegalReview --resume elicit_abc123
     """
     resolved_message_id = _resolve_cli_message_id(ctx, parent_message_id)
     resolved_chat_id = _resolve_cli_chat_id(ctx, parent_chat_id)
@@ -1055,11 +1033,8 @@ def subagent(
         parent_assistant_id=parent_assistant_id,
         reset_chat=reset_chat,
         output_json=output_json,
-        resume_question_id=resume_question_id,
     )
     click.echo(output)
-    if _is_subagent_question_output(output):
-        ctx.exit(SUBAGENT_QUESTION_EXIT_CODE)
     if _is_subagent_error_output(output):
         ctx.exit(1)
 

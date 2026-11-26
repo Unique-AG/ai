@@ -35,15 +35,6 @@ class MessageWaitTimeoutError(TimeoutError):
         self.turn_stopped = turn_stopped
 
 
-class MessageWaitInterruptedError(Exception):
-    """``interrupt`` ended the wait. The assistant turn keeps running."""
-
-    def __init__(self, *, chat_id: str, message_id: str) -> None:
-        super().__init__("The wait for prompt completion was interrupted.")
-        self.chat_id = chat_id
-        self.message_id = message_id
-
-
 def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
     """Per-LLM-invocation stats for a completed Space message, read from
     `debugInfo.llm_invocations` (a plain list, one entry per LLM call).
@@ -74,7 +65,6 @@ async def send_message_and_wait_for_completion(
     wait_for_invocations: bool = False,
     stop_on_abandon: bool = False,
     on_message_created: Callable[[Space.Message], Awaitable[None]] | None = None,
-    interrupt: Callable[[], Awaitable[bool]] | None = None,
 ) -> Space.Message:
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -116,14 +106,12 @@ async def send_message_and_wait_for_completion(
         on_message_created: Optional async callback called once with the posted USER
             message, before the wait starts. Its ``chatId`` and ``id`` identify the
             turn, for example to stop it with ``Message.stop_async``.
-        interrupt: See ``wait_for_message_completion``.
 
     Returns:
         The completed Space.Message.
 
     Raises:
         MessageWaitTimeoutError: The turn did not finish within ``max_wait``.
-        MessageWaitInterruptedError: ``interrupt`` ended the wait.
     """
     create_message_params: Space.CreateMessageParams = {
         "assistantId": assistant_id,
@@ -168,7 +156,6 @@ async def send_message_and_wait_for_completion(
         on_message_update=on_message_update,
         wait_for_invocations=wait_for_invocations,
         stop_on_abandon=stop_on_abandon,
-        interrupt=interrupt,
     )
 
 
@@ -183,7 +170,6 @@ async def wait_for_message_completion(
     on_message_update: Callable[[Space.Message], Awaitable[None]] | None = None,
     wait_for_invocations: bool = False,
     stop_on_abandon: bool = False,
-    interrupt: Callable[[], Awaitable[bool]] | None = None,
 ) -> Space.Message:
     """
     Polls a chat until the assistant turn started by an already posted message finishes.
@@ -200,10 +186,6 @@ async def wait_for_message_completion(
         wait_for_invocations: See ``send_message_and_wait_for_completion``.
         stop_on_abandon: When True, stop the assistant turn if this wait ends without
             an answer: at ``max_wait``, on cancellation, or on an error.
-        interrupt: Optional async check that runs after every poll that found no
-            answer. When it returns True the wait ends with
-            ``MessageWaitInterruptedError``. The turn is not stopped, even with
-            ``stop_on_abandon``. Wait for the same message again to resume.
 
     Returns:
         The completed Space.Message.
@@ -211,7 +193,6 @@ async def wait_for_message_completion(
     Raises:
         MessageWaitTimeoutError: The turn did not finish within ``max_wait``. It is a
             ``TimeoutError`` and says whether the turn was stopped.
-        MessageWaitInterruptedError: ``interrupt`` ended the wait.
     """
     try:
         answer = await _poll_for_completion(
@@ -224,10 +205,7 @@ async def wait_for_message_completion(
             stop_condition=stop_condition,
             on_message_update=on_message_update,
             wait_for_invocations=wait_for_invocations,
-            interrupt=interrupt,
         )
-    except MessageWaitInterruptedError:
-        raise
     except BaseException:
         if stop_on_abandon:
             _ = await _stop_turn_despite_cancellation(
@@ -262,7 +240,6 @@ async def _poll_for_completion(
     stop_condition: Literal["stoppedStreamingAt", "completedAt"],
     on_message_update: Callable[[Space.Message], Awaitable[None]] | None,
     wait_for_invocations: bool,
-    interrupt: Callable[[], Awaitable[bool]] | None,
 ) -> Space.Message | None:
     """Return the finished message, or None when ``max_wait`` ran out."""
     max_attempts = int(max_wait // poll_interval)
@@ -314,8 +291,6 @@ async def _poll_for_completion(
                 print(f"Failed to load debug info from user message: {e}")
 
             return answer
-        if interrupt is not None and await interrupt():
-            raise MessageWaitInterruptedError(chat_id=chat_id, message_id=message_id)
         await asyncio.sleep(poll_interval)
 
     return None

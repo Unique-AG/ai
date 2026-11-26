@@ -169,46 +169,6 @@ class Elicitation(APIResource["Elicitation"]):
         )
 
     @classmethod
-    def list_pending(
-        cls,
-        user_id: str,
-        company_id: str,
-        chat_id: str | None = None,
-    ) -> list["Elicitation.Elicitation"]:
-        """
-        List the user's pending elicitation requests, optionally of one chat.
-        """
-        return _pending_list(
-            cls._static_request(
-                "get",
-                "/elicitation/pending",
-                user_id,
-                company_id,
-            ),
-            chat_id=chat_id,
-        )
-
-    @classmethod
-    async def list_pending_async(
-        cls,
-        user_id: str,
-        company_id: str,
-        chat_id: str | None = None,
-    ) -> list["Elicitation.Elicitation"]:
-        """
-        Async list the user's pending elicitation requests, optionally of one chat.
-        """
-        return _pending_list(
-            await cls._static_request_async(
-                "get",
-                "/elicitation/pending",
-                user_id,
-                company_id,
-            ),
-            chat_id=chat_id,
-        )
-
-    @classmethod
     def get_elicitation(
         cls,
         user_id: str,
@@ -289,17 +249,3 @@ class Elicitation(APIResource["Elicitation"]):
                 params=params,
             ),
         )
-
-
-def _pending_list(
-    response: object, *, chat_id: str | None
-) -> list["Elicitation.Elicitation"]:
-    """The platform answers with a JSON array. Some proxies wrap it in ``elicitations``."""
-    if isinstance(response, dict):
-        response = cast("dict[str, Any]", response).get("elicitations")
-    if not isinstance(response, list):
-        return []
-    pending = cast("list[Elicitation.Elicitation]", response)
-    if chat_id is None:
-        return pending
-    return [item for item in pending if item.get("chatId") == chat_id]

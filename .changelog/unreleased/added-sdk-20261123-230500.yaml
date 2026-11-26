@@ -1,7 +1,0 @@
-component: SDK
-kind: Added
-body: '`Elicitation.list_pending` and `list_pending_async` return the pending elicitations as a list, optionally of one chat. `unique_sdk.utils.subagent_question` finds the pending question a sub-agent turn asked in the parent chat, through the marks the platform puts on it.'
-time: 2026-11-23T23:05:00.000000+01:00
-custom:
-    Audience: developer
-    Ticket: UN-30320
