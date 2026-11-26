@@ -1,6 +1,6 @@
 component: Tools
 kind: Changed
-body: The skill list in Unique AI chat now grows with the model's context window. Its budget is 1.5% of the input window, and never less than the previous fixed 8,000 characters. Spaces on large-window models keep longer skill descriptions, so the model can tell the skills apart. Admins can change the share per space in the Skills settings ("Skill List Budget"). The unused "Skill Budget Context Percent" setting is no longer shown.
+body: The skill list in Unique AI chat now grows with the model's context window. Its budget is 2% of the input window, and never less than the previous fixed 8,000 characters. Spaces on large-window models keep longer skill descriptions, so the model can tell the skills apart. Admins can change the share per space in the Skills settings ("Skill List Budget"). The unused "Skill Budget Context Percent" setting is no longer shown.
 time: 2026-11-26T15:00:00.000000+01:00
 custom:
     Audience: admin

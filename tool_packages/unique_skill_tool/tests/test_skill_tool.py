@@ -394,7 +394,7 @@ class TestGetCharBudget:
 
     def test_default_share_of_a_large_context_window(self) -> None:
         config = SkillToolConfig()
-        assert get_char_budget(1_000_000, config) == 1_000_000 * 4 * 0.015
+        assert get_char_budget(1_000_000, config) == 1_000_000 * 4 * 0.02
 
     def test_custom_percent(self) -> None:
         config = SkillToolConfig(skill_listing_context_percent=0.05)
@@ -403,7 +403,7 @@ class TestGetCharBudget:
 
     def test_never_below_the_fallback(self) -> None:
         config = SkillToolConfig()
-        assert get_char_budget(128_000, config) == 8_000
+        assert get_char_budget(64_000, config) == 8_000
 
     def test_hidden_fields_are_not_in_the_schema(self) -> None:
         properties = SkillToolConfig.model_json_schema()["properties"]
