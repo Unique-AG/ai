@@ -129,7 +129,6 @@ from unique_sdk.cli.config import load_config
 from unique_sdk.cli.identity import (
     TurnIdentityError,
     resolve_chat_id,
-    resolve_elicitation_target,
     resolve_message_id,
 )
 from unique_sdk.cli.shell import UniqueShell
@@ -186,26 +185,6 @@ def _resolve_cli_chat_id(
         )
         ctx.exit(2)
     return resolved
-
-
-def _redirect_to_elicitation_target(
-    ctx: click.Context, elicit_kwargs: dict[str, Any]
-) -> None:
-    """Point a new elicitation at the turn's elicitation target, when it has one."""
-    try:
-        target = resolve_elicitation_target()
-    except TurnIdentityError as exc:
-        click.echo(f"Error: {exc}", err=True)
-        ctx.exit(2)
-    if target is None:
-        return
-    elicit_kwargs["chat_id"] = target.chat_id
-    elicit_kwargs["message_id"] = target.message_id
-    elicit_kwargs["message"] = target.with_header(elicit_kwargs["message"])
-    elicit_kwargs["metadata"] = [
-        *(elicit_kwargs.get("metadata") or []),
-        *target.metadata.items(),
-    ]
 
 
 MAIN_HELP = """\
@@ -1533,7 +1512,6 @@ def elicit_ask(
         ask_kwargs["placeholder_text"] = placeholder_text
     if cleanup_mode is not None:
         ask_kwargs["cleanup_mode"] = cleanup_mode.lower()
-    _redirect_to_elicitation_target(ctx, ask_kwargs)
     click.echo(cmd_elicit_ask(LazyState.get(ctx), **ask_kwargs))
 
 
@@ -1691,7 +1669,6 @@ def elicit_create(
         create_kwargs["placeholder_text"] = placeholder_text
     if cleanup_mode is not None:
         create_kwargs["cleanup_mode"] = cleanup_mode.lower()
-    _redirect_to_elicitation_target(ctx, create_kwargs)
     click.echo(cmd_elicit_create(LazyState.get(ctx), **create_kwargs))
 
 

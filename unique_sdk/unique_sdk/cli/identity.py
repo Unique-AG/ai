@@ -20,24 +20,18 @@ chatless preboot carries a synthetic ``chat_preboot*`` placeholder in its
 frozen environment. The placeholder never names a real chat (the platform
 rejects it), so it is treated as absent at every precedence level and the
 turn-identity file supplies the adopted chat's real ID.
-
-The file may also carry an ``elicitation_target``. A sub-agent turn runs in a
-hidden chat, so its runner names the parent chat and message there. ``elicit
-ask`` and ``elicit create`` then create the elicitation on that target, whatever
-``--chat-id`` and ``--message-id`` say.
 """
 
 from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 TURN_IDENTITY_ENV_VAR = "UNIQUE_TURN_IDENTITY_FILE"
 MESSAGE_ID_ENV_VAR = "UNIQUE_MESSAGE_ID"
 CHAT_ID_ENV_VAR = "UNIQUE_CHAT_ID"
-ELICITATION_TARGET_KEY = "elicitation_target"
 
 # Synthetic chat-id prefix used by the sandbox runner for clients spawned
 # before their chat exists (chatless preboot). Adoption re-keys the client
@@ -47,26 +41,6 @@ PREBOOT_CHAT_ID_PREFIX = "chat_preboot"
 
 class TurnIdentityError(ValueError):
     """Raised when the turn-identity file is configured but unusable."""
-
-
-@dataclass(frozen=True)
-class ElicitationTarget:
-    """Where this turn's elicitations go when the user is in another chat.
-
-    A sub-agent turn runs in a hidden chat. Its runner names the parent chat
-    and message here, so the user sees the question. ``header`` is put in
-    front of the question, and ``metadata`` is added to the elicitation.
-    """
-
-    chat_id: str
-    message_id: str
-    header: str = ""
-    metadata: dict[str, str] = field(default_factory=dict)
-
-    def with_header(self, message: str) -> str:
-        if not self.header:
-            return message
-        return f"{self.header}\n\n{message}"
 
 
 @dataclass(frozen=True)
@@ -82,7 +56,6 @@ class TurnIdentity:
 
     message_id: str
     chat_id: str | None = None
-    elicitation_target: ElicitationTarget | None = None
 
 
 def read_turn_identity(
@@ -133,59 +106,7 @@ def read_turn_identity(
     parsed_chat_id = (
         chat_id.strip() if isinstance(chat_id, str) and chat_id.strip() else None
     )
-    return TurnIdentity(
-        message_id=message_id.strip(),
-        chat_id=parsed_chat_id,
-        elicitation_target=_parse_elicitation_target(
-            payload.get(ELICITATION_TARGET_KEY), raw_path=raw_path
-        ),
-    )
-
-
-def _parse_elicitation_target(
-    raw: object, *, raw_path: str
-) -> ElicitationTarget | None:
-    """A malformed target is an error: the question would land where nobody sees it."""
-    if raw is None:
-        return None
-    if not isinstance(raw, dict):
-        raise TurnIdentityError(
-            f"turn-identity file {raw_path!r}: {ELICITATION_TARGET_KEY!r} "
-            "must be a JSON object"
-        )
-    ids: dict[str, str] = {}
-    for key in ("chat_id", "message_id"):
-        value = raw.get(key)
-        if not isinstance(value, str) or not value.strip():
-            raise TurnIdentityError(
-                f"turn-identity file {raw_path!r}: {ELICITATION_TARGET_KEY!r} "
-                f"is missing a non-empty {key!r} string"
-            )
-        ids[key] = value.strip()
-    header = raw.get("header")
-    metadata = raw.get("metadata")
-    return ElicitationTarget(
-        chat_id=ids["chat_id"],
-        message_id=ids["message_id"],
-        header=header.strip() if isinstance(header, str) else "",
-        metadata={
-            key: value
-            for key, value in (metadata if isinstance(metadata, dict) else {}).items()
-            if isinstance(key, str) and isinstance(value, str)
-        },
-    )
-
-
-def resolve_elicitation_target() -> ElicitationTarget | None:
-    """The elicitation target of the current turn, or None for the turn's own chat.
-
-    Raises ``TurnIdentityError`` when the turn-identity file is configured but
-    unusable.
-    """
-    identity = read_turn_identity()
-    if identity is None:
-        return None
-    return identity.elicitation_target
+    return TurnIdentity(message_id=message_id.strip(), chat_id=parsed_chat_id)
 
 
 def resolve_message_id(explicit: str | None = None) -> str | None:

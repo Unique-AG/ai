@@ -95,33 +95,6 @@ elicit ask <message> [options]
     opt out once the permanent UI fix (ticket UN-19815) has landed in your
     environment.
 
-!!! note "Questions from a sub-agent turn"
-    A sub-agent turn runs in a hidden chat, so the user would never see a
-    question asked there. Its runner can name the parent chat and message as
-    `elicitation_target` in the turn-identity file
-    (`$UNIQUE_TURN_IDENTITY_FILE`). `elicit ask` and `elicit create` then
-    create the elicitation on that target, whatever `--chat-id` and
-    `--message-id` say. They put the target's `header` in front of the
-    message and add its `metadata`. `unique-cli subagent` in the parent turn
-    finds the question through that metadata.
-
-    ```json
-    {
-      "message_id": "msg_child",
-      "chat_id": "chat_child",
-      "elicitation_target": {
-        "chat_id": "chat_parent",
-        "message_id": "msg_parent",
-        "header": "Sub-agent «Client Researcher» needs your input",
-        "metadata": {
-          "subAgentName": "Client Researcher",
-          "subAgentChatId": "chat_child",
-          "subAgentMessageId": "msg_child_user"
-        }
-      }
-    }
-    ```
-
 **Default schema (when `--schema` is omitted):**
 
 ```json
