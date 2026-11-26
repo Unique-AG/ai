@@ -30,8 +30,10 @@ class UniqueObject(dict[str, Any]):
     ):
         super(UniqueObject, self).__init__()
 
-        self.user_id = user_id
-        self.company_id = company_id
+        # Real instance attributes: the custom __setattr__ would store these as
+        # dict items, which refresh_from clears.
+        object.__setattr__(self, "user_id", user_id)
+        object.__setattr__(self, "company_id", company_id)
 
         self._unsaved_values: set[str] = set()
         self._transient_values: set[str] = set()
@@ -292,8 +294,10 @@ class UniqueObject(dict[str, Any]):
     # wholesale because some data that's returned from the API may not be valid
     # if it was set to be set manually. Here we override the class' copy
     # arguments so that we can bypass these possible exceptions on __setitem__.
-    def __copy__(self) -> "UniqueObject":
-        copied = UniqueObject(
+    def __copy__(self) -> Self:
+        # type(self) rather than UniqueObject, so that a copy of a typed
+        # resource or a ListObject keeps its class and with it its methods.
+        copied = type(self)(
             self.user_id,
             self.company_id,
             self.get("id"),
@@ -313,7 +317,7 @@ class UniqueObject(dict[str, Any]):
     # wholesale because some data that's returned from the API may not be valid
     # if it was set to be set manually. Here we override the class' copy
     # arguments so that we can bypass these possible exceptions on __setitem__.
-    def __deepcopy__(self, memo: dict[int, Any]) -> "UniqueObject":
+    def __deepcopy__(self, memo: dict[int, Any]) -> Self:
         copied = self.__copy__()
         memo[id(self)] = copied
 
