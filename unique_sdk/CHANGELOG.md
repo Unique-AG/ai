@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.50.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.48.0...unique-sdk-v2026.50.0) (2026-11-27)
+
+
+### Features
+
+* **sdk:** add the ProjectChat resource for project chat search [UN-29429] ([#2856](https://github.com/Unique-AG/ai/issues/2856)) ([a234d35](https://github.com/Unique-AG/ai/commit/a234d35cfa07df079d544aa8aa951b3ee4b931e8))
+* **sdk:** keep code, params and http_status on retry error [UN-27940] ([#2832](https://github.com/Unique-AG/ai/issues/2832)) ([30bf592](https://github.com/Unique-AG/ai/commit/30bf5927c1e33b2637bad2a8ce286f93da4a47d9))
+* **sdk:** let ShellState load its search scope from a given directory [UN-29661] ([#2863](https://github.com/Unique-AG/ai/issues/2863)) ([ed62b9b](https://github.com/Unique-AG/ai/commit/ed62b9b535688df97bbf9b01c1443b6e55b4f79a))
+* **sdk:** record running subagent turns so a killed CLI call can be stopped [UN-30319] ([#2853](https://github.com/Unique-AG/ai/issues/2853)) ([fd26125](https://github.com/Unique-AG/ai/commit/fd261257805a8589a8176bdf2ad6755bf933bd6c))
+* **sdk:** Reverts [#2832](https://github.com/Unique-AG/ai/issues/2832) ([#2844](https://github.com/Unique-AG/ai/issues/2844)) ([4bb513a](https://github.com/Unique-AG/ai/commit/4bb513adf4fb24c851b51c2abef61db6cc51a9ef))
+* **sdk:** review web search queries before they are sent [UN-29691] ([#2865](https://github.com/Unique-AG/ai/issues/2865)) ([4156aa2](https://github.com/Unique-AG/ai/commit/4156aa23ef0d31fafd449267e9f6b1320c410875))
+* **sdk:** stop an abandoned assistant turn [UN-30319] ([#2848](https://github.com/Unique-AG/ai/issues/2848)) ([c63c5bf](https://github.com/Unique-AG/ai/commit/c63c5bf438bbbdf8e281b6b080ea2d94696282e3))
+* **sdk:** write web citations to a given refs log and run all web queries at once [UN-29879] ([#2845](https://github.com/Unique-AG/ai/issues/2845)) ([262c170](https://github.com/Unique-AG/ai/commit/262c170aa98491b2cff4a0ce5e0c74af07afef3b))
+
+
+### Bug Fixes
+
+* **orchestrator:** limit, retry and cache skill file downloads [UN-30534] ([#2869](https://github.com/Unique-AG/ai/issues/2869)) ([b7cf94e](https://github.com/Unique-AG/ai/commit/b7cf94e3d55bd153faf4b49a9523e571c692df23))
+* **sdk:** cite every linked MCP record, including Atlassian searches, with its own web link ([#2812](https://github.com/Unique-AG/ai/issues/2812)) ([f4a5222](https://github.com/Unique-AG/ai/commit/f4a52220250cede97ba6838ddba271e69a16c078))
+* **sdk:** keep user_id and company_id on API-built objects [UN-30307] ([#2852](https://github.com/Unique-AG/ai/issues/2852)) ([a15d820](https://github.com/Unique-AG/ai/commit/a15d8209df7891076a01820e77477540d09e282e))
+* **sdk:** stop logging request query strings [UN-29153] ([#2860](https://github.com/Unique-AG/ai/issues/2860)) ([736dce7](https://github.com/Unique-AG/ai/commit/736dce7e6658faf87cb06350aafcd4ac484d0b5e))
+
+
+### Miscellaneous
+
+* arm release 2026.50.0 ([32ba2fe](https://github.com/Unique-AG/ai/commit/32ba2fe1069cc772127bab1b2794318eb6d3d167))
+
 ## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.46.0...unique-sdk-v2026.48.0) (2026-11-20)
 
 
