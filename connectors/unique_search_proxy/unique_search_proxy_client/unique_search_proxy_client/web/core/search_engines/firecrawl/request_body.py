@@ -13,8 +13,6 @@ from unique_search_proxy_core.search_engines.firecrawl.schema import (
     FirecrawlSearchRequest,
 )
 
-from unique_search_proxy_client.web.core.firecrawl_parsers import firecrawl_parsers
-
 _LOGGER = logging.getLogger(__name__)
 
 _MS_PER_SECOND = 1000
@@ -30,8 +28,8 @@ def build_firecrawl_search_body(
 
     Args:
         query (str): Search query; cut to Firecrawl's 500-character limit.
-        request (FirecrawlSearchRequest): Merged request. Its ``timeout`` and
-            cache age are in seconds and are sent in milliseconds.
+        request (FirecrawlSearchRequest): Merged request. Its ``timeout`` is
+            in seconds and is sent in milliseconds.
         enterprise (list[str] | None): Zero data retention mode to send, if any.
 
     Returns:
@@ -53,7 +51,9 @@ def build_firecrawl_search_body(
         "limit": request.fetch_size,
         "sources": list(FIRECRAWL_SOURCES[request.sources]),
         "timeout": request.timeout * _MS_PER_SECOND,
-        "ignoreInvalidURLs": request.ignore_invalid_urls,
+        # Leaves out results Firecrawl cannot read itself, so that a
+        # Firecrawl Web Page Reader does not fail on them.
+        "ignoreInvalidURLs": True,
     }
 
     if enterprise:
@@ -81,9 +81,6 @@ def build_firecrawl_search_body(
         )
     )
 
-    if request.scrape_results:
-        body["scrapeOptions"] = _scrape_options(request)
-
     return body
 
 
@@ -95,18 +92,6 @@ def _time_based_search(
     if request.time_filter is not None:
         parts.append(request.time_filter)
     return ",".join(parts) or None
-
-
-def _scrape_options(
-    request: FirecrawlSearchRequest,  # type: ignore[valid-type]
-) -> dict[str, Any]:
-    return {
-        "formats": [{"type": "markdown"}],
-        "onlyMainContent": request.only_main_content,
-        "removeBase64Images": True,
-        "maxAge": request.max_cache_age_seconds * _MS_PER_SECOND,
-        "parsers": firecrawl_parsers(request.max_pdf_pages),
-    }
 
 
 def _domain_filters(

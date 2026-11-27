@@ -30,19 +30,12 @@ _SERVICE_CREDENTIALS = (
 )
 
 
-def _web_item(
-    *,
-    url: str = "https://example.com/page",
-    markdown: str | None = "# Example page",
-) -> dict[str, Any]:
-    item: dict[str, Any] = {
+def _web_item(*, url: str = "https://example.com/page") -> dict[str, Any]:
+    return {
         "url": url,
         "title": "Example",
         "description": "An example description",
     }
-    if markdown is not None:
-        item["markdown"] = markdown
-    return item
 
 
 def _firecrawl_payload(**data: list[dict[str, Any]]) -> dict[str, Any]:
@@ -96,15 +89,16 @@ async def _search(
 class TestFirecrawlSearchService:
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_search__maps_scraped_page_to_content__for_web_result(
+    async def test_search__maps_web_result__to_url_title_and_preview(
         self, firecrawl_env: None
     ) -> None:
         """
-        Purpose: Verify a web result is mapped with its scraped Markdown as content.
-        Why this matters: The page text is what the model reads; if it is lost,
-            callers fall back to snippets or crawl the page a second time.
-        Setup summary: Mock one web item with Markdown; assert url, title, snippet
-            and content, and that the call is authenticated with the API key.
+        Purpose: Verify a web result is mapped to its URL, title and preview,
+            without page text.
+        Why this matters: The preview is what the model sees first; page text
+            comes from the Web Page Reader, never from the search.
+        Setup summary: Mock one web item; assert url, title, snippet and empty
+            content, and that the call is authenticated with the API key.
         """
         captured: dict[str, Any] = {}
 
@@ -124,7 +118,7 @@ class TestFirecrawlSearchService:
         assert curated.results[0].url == "https://example.com/page"
         assert curated.results[0].title == "Example"
         assert curated.results[0].snippet == "An example description"
-        assert curated.results[0].content == "# Example page"
+        assert not curated.results[0].content
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -591,8 +585,8 @@ class TestFirecrawlSearchService:
     ) -> None:
         """
         Purpose: Verify a transport timeout raises UpstreamTimeoutError.
-        Why this matters: Searches that also scrape pages are slow; a timeout
-            must be reported as such and not as a generic failure.
+        Why this matters: A slow search must be reported as a timeout the
+            caller can handle and not as a generic failure.
         Setup summary: Raise a read timeout from the transport; assert the error.
         """
 

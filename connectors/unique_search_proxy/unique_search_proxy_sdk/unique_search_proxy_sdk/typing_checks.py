@@ -22,7 +22,6 @@ async def _search_provider_kwargs(client: SearchClient) -> None:
         query="rates",
         sources="web_and_news",
         time_filter="qdr:w",
-        scrape_results=True,
         category="pdf",
     )
     # Unknown kwargs should fail static checking:

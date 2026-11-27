@@ -101,20 +101,15 @@ markdowns = await get_crawler_service(config).crawl(["https://example.com"])
 | `mobile` | `false` | |
 | `block_ads` | `true` | |
 | `remove_base64_images` | `true` | |
-| `proxy` | `auto` | `basic`, `enhanced` or `auto`; same cost. Only sent when not `auto` |
-| `max_cache_age_seconds` | `600` | How old Firecrawl's cached copy may be, in seconds; `0` reads live (slower, fails more often). Firecrawl's own default is `172800` (two days) |
-| `store_in_cache` | `true` | `false` keeps the pages out of Firecrawl's cache and index |
-| `max_pdf_pages` | `20` | Read at most this many pages of each PDF (Firecrawl bills per PDF page). 20 pages are about what the default 10,000-token page limit keeps. `10000` is Firecrawl's maximum |
-| `pdf_mode` | `auto` | `fast` reads embedded text only, `ocr` forces OCR |
-| `country` / `languages` | unset | Where and in which languages the pages are read (Firecrawl `location`) |
-| `skip_tls_verification` | `false` | |
-| `zero_data_retention` | `false` | Read with zero data retention even when the Search Proxy is deployed without it; 1 extra credit per page |
+| `proxy` | `auto` | Firecrawl proxy tier |
+| `max_age` | `600000` | How old Firecrawl's cached copy may be, in milliseconds; `0` reads live. Firecrawl's own default is `172800000` (two days) |
+| `store_in_cache` | `true` | `false` keeps the pages out of Firecrawl's cache |
+| `max_pdf_pages` | `20` | Firecrawl bills each PDF page; `10000` is its maximum |
+| `country` / `languages` | unset | Where and in which languages the pages are read |
+| `zero_data_retention` | `false` | Read with zero data retention even when the Search Proxy is deployed without it |
 | `include_tags` / `exclude_tags` / `scrape_headers` | unset | Optional |
-| `max_age` | unset | Deprecated, milliseconds, hidden in the form; a stored value is used when `max_cache_age_seconds` is absent |
 
-Zero data retention for a whole deployment is a Search Proxy setting (`FIRECRAWL_ZERO_DATA_RETENTION`, shared with Firecrawl search). `zero_data_retention` in this config can turn it on for one configuration but never off.
-
-The direct path (no Search Proxy) sends only the URLs and the timeout to Firecrawl. It cannot send zero data retention, so with `zero_data_retention` on it refuses to read: the crawl raises `RuntimeError` and the web search call fails.
+The direct path (no Search Proxy) sends only the URLs and the timeout to Firecrawl. It cannot send zero data retention, so with `zero_data_retention` on the crawl raises and the web search call fails.
 
 ---
 

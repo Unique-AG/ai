@@ -1,4 +1,4 @@
-from typing import Annotated, Any, TypeAlias, override
+from typing import Annotated, TypeAlias, override
 
 from pydantic import BaseModel, Field
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
@@ -17,46 +17,25 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-# The proxy waits ``timeout`` plus its own margin for Firecrawl; wait longer
-# than that so the proxy's timeout error arrives instead of a dropped call.
-_PROXY_CLIENT_TIMEOUT_MARGIN_SECONDS = 10.0
-
-
 PreviewCharsOrNone: TypeAlias = (
     Annotated[int, Field(title="Characters", ge=50)]
     | Annotated[None, Field(title="Whole preview", description="None")]
 )
 
 
-class _RequiresScraping(BaseModel):
+class FirecrawlSearchConfig(firecrawl_schema.FirecrawlSearchConfig):
     # The admin form stores requires_scraping as null after an engine switch.
-    # NoneToDefault reads null as False; json_schema_extra lets the form accept it.
     requires_scraping: Annotated[bool, NoneToDefault] = Field(
         default=False,
         title="Requires scraping",
         description=(
-            "Read every search result and pass the full page content to the "
-            "model instead of only the Firecrawl previews. Off by default: "
-            "Firecrawl's previews follow the query, and in search mode V3 the "
-            "model reads the pages it needs with the Web Page Reader whatever "
-            "this is set to. The settings from here to 'Preview length on "
-            "read pages' only apply when this is on."
+            "Read every search result with the Web Page Reader and pass the "
+            "full page to the model. Off by default: Firecrawl's previews "
+            "follow the query, and in search mode V3 the model reads the pages "
+            "it needs whatever this is set to."
         ),
         json_schema_extra={"type": ["boolean", "null"]},
     )
-
-
-class FirecrawlSearchConfig(
-    firecrawl_schema.FirecrawlInSearchScrapeOptions,
-    _RequiresScraping,
-    firecrawl_schema.FirecrawlSearchOptions,
-):
-    """Firecrawl search settings as the admin form shows them.
-
-    The base order puts 'Requires scraping' after the search options and
-    directly above the page-reading settings that depend on it.
-    """
-
     repeated_preview_max_chars: PreviewCharsOrNone = Field(
         default=500,
         title="Preview length on read pages",
@@ -73,18 +52,6 @@ class FirecrawlSearchConfig(
     def request_model(cls) -> type[BaseModel]:
         """Use the proxy's wire contract, excluding tool-only configuration fields."""
         return firecrawl_schema.FirecrawlSearchRequest
-
-    @property
-    def scrapes_inside_search(self) -> bool:
-        """Whether Firecrawl itself reads the result pages during the search."""
-        return self.requires_scraping and self.scrape_results
-
-    def _merge_defaults(self) -> dict[str, Any]:
-        # 'Requires scraping' is the one switch for reading result pages, as on
-        # every other engine; without it Firecrawl must not read them either.
-        defaults = super()._merge_defaults()
-        defaults["scrape_results"] = self.scrapes_inside_search
-        return defaults
 
 
 @register_search_engine(
@@ -103,16 +70,11 @@ class FirecrawlSearch(SearchEngine[FirecrawlSearchConfig]):
 
     @property
     def requires_scraping(self) -> bool:
-        """Whether the Web Page Reader still has to read the result pages."""
-        return self.config.requires_scraping and not self.config.scrapes_inside_search
+        return getattr(self.config, "requires_scraping", False)
 
     @property
     def repeated_snippet_max_chars(self) -> int | None:
         return self.config.repeated_preview_max_chars
-
-    @property
-    def _standard_proxy_client_timeout(self) -> float:
-        return float(self.config.timeout) + _PROXY_CLIENT_TIMEOUT_MARGIN_SECONDS
 
     @override
     async def _legacy_search(

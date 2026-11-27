@@ -4,9 +4,6 @@ from typing import Any
 
 import pytest
 from pydantic import ValidationError
-from unique_search_proxy_core.crawlers.firecrawl.schema import (
-    FIRECRAWL_MAX_CACHE_AGE_SECONDS,
-)
 from unique_search_proxy_core.errors import BadRequestProxyError
 from unique_search_proxy_core.search_engines.config_types import parse_search_request
 from unique_search_proxy_core.search_engines.firecrawl.schema import (
@@ -57,7 +54,6 @@ class TestFirecrawlMerge:
         assert request.country == "CH"
         assert request.fetch_size == 5
         assert request.sources == "web"
-        assert request.scrape_results is False
 
     @pytest.mark.ai
     def test_parse_search_request__accepts_camel_case_payload__for_firecrawl(
@@ -74,7 +70,6 @@ class TestFirecrawlMerge:
                 "query": "unique ag",
                 "fetchSize": 5,
                 "sources": "web_and_news",
-                "scrapeResults": True,
                 "includeDomains": ["example.com"],
                 "timeFilter": "qdr:m",
             },
@@ -83,7 +78,6 @@ class TestFirecrawlMerge:
         assert isinstance(request, FirecrawlSearchRequest)
         assert request.fetch_size == 5
         assert request.sources == "web_and_news"
-        assert request.scrape_results is True
         assert request.include_domains == ["example.com"]
         assert request.time_filter == "qdr:m"
 
@@ -95,35 +89,16 @@ class TestFirecrawlRequestBody:
         Purpose: Verify the default body asks Firecrawl for ten web results
             and no page content.
         Why this matters: Defaults decide cost and data flow for every space
-            that does not change them. Reading pages inside the search costs a
-            credit per result on every search, so it must be a choice.
+            that does not change them. A search must never make Firecrawl read
+            the result pages: that is the Web Page Reader's job.
         Setup summary: Build the body from a default config; assert it in full.
         """
         assert _body() == {
             "query": "hello",
             "limit": 10,
             "sources": ["web"],
-            "timeout": 60000,
+            "timeout": 30000,
             "ignoreInvalidURLs": True,
-        }
-
-    @pytest.mark.ai
-    def test_build_body__reads_recent_pages_as_markdown__when_scraping(self) -> None:
-        """
-        Purpose: Verify reading pages inside the search asks for Markdown, at
-            most ten minutes old, with PDFs capped at 10 pages.
-        Why this matters: These options decide the cost and freshness of every
-            page Firecrawl reads for the space.
-        Setup summary: Build the body with page reading on; assert the options.
-        """
-        body = _body(FirecrawlSearchConfig(scrape_results=True))
-
-        assert body["scrapeOptions"] == {
-            "formats": [{"type": "markdown"}],
-            "onlyMainContent": True,
-            "removeBase64Images": True,
-            "maxAge": 600_000,
-            "parsers": [{"type": "pdf", "maxPages": 10}, "image"],
         }
 
     @pytest.mark.ai
@@ -139,7 +114,6 @@ class TestFirecrawlRequestBody:
             highlights=False,
             safe_search=True,
             sort_by_date=True,
-            ignore_invalid_urls=False,
             time_filter=ExposableTimeFilter(expose=False, value="qdr:w"),
             category=ExposableCategory(expose=False, value="pdf"),
         )
@@ -150,7 +124,6 @@ class TestFirecrawlRequestBody:
         assert body["safe"] is True
         assert body["tbs"] == "sbd:1,qdr:w"
         assert body["categories"] == ["pdf"]
-        assert body["ignoreInvalidURLs"] is False
 
     @pytest.mark.ai
     def test_build_body__sorts_by_date__without_a_time_filter(self) -> None:
@@ -181,76 +154,18 @@ class TestFirecrawlRequestBody:
         assert "category" in config.exposed_params_model().model_fields
 
     @pytest.mark.ai
-    def test_config__reads_null_cache_age_and_pdf_cap__as_the_defaults(self) -> None:
-        """
-        Purpose: Verify a stored null cache age or PDF cap loads as the default.
-        Why this matters: Null values are dropped between the web search tool,
-            the SDK and the proxy, so null could never mean "no limit". Both
-            settings are plain numbers; a null left in a stored config must
-            not make the space's web search fail.
-        Setup summary: Validate a config with both fields null; assert the
-            defaults and the scrape options sent to Firecrawl.
-        """
-        config = FirecrawlSearchConfig.model_validate(
-            {
-                "engine": "firecrawl",
-                "scrapeResults": True,
-                "maxCacheAgeSeconds": None,
-                "maxPdfPages": None,
-            }
-        )
-
-        options = _body(config)["scrapeOptions"]
-
-        assert config.max_cache_age_seconds == 600
-        assert config.max_pdf_pages == 10
-        assert options["maxAge"] == 600_000
-        assert options["parsers"] == [{"type": "pdf", "maxPages": 10}, "image"]
-
-    @pytest.mark.ai
-    def test_config__rejects_pdf_pages__outside_firecrawl_range(self) -> None:
-        """
-        Purpose: Verify the PDF page limit stays within what Firecrawl accepts.
-        Why this matters: Firecrawl rejects `maxPages` below 1 or above 10000,
-            which would fail every search of the space.
-        Setup summary: Build configs with 0 and 10001 pages; assert both fail.
-        """
-        with pytest.raises(ValidationError):
-            FirecrawlSearchConfig(max_pdf_pages=0)
-        with pytest.raises(ValidationError):
-            FirecrawlSearchConfig(max_pdf_pages=10_001)
-
-    @pytest.mark.ai
-    def test_build_body__omits_scrape_options__when_pages_are_not_read(self) -> None:
-        """
-        Purpose: Verify no scrape options are sent when Firecrawl does not read
-            the result pages.
-        Why this matters: Sending them makes Firecrawl fetch every result page
-            and charge a credit for each, against the admin's setting.
-        Setup summary: Build the body with page reading off; assert the key
-            is absent.
-        """
-        body = _body(FirecrawlSearchConfig(scrape_results=False))
-
-        assert "scrapeOptions" not in body
-
-    @pytest.mark.ai
     def test_build_body__maps_optional_settings__to_firecrawl_fields(self) -> None:
         """
         Purpose: Verify optional settings use Firecrawl's field names.
         Why this matters: A wrong field name is ignored by Firecrawl without an
             error, so the filter would silently not apply.
-        Setup summary: Set time filter, country, location and cache age; assert
-            each Firecrawl field, with the cache age converted from seconds to
-            milliseconds.
+        Setup summary: Set time filter, country and location; assert each
+            Firecrawl field.
         """
         config = FirecrawlSearchConfig(
             time_filter=ExposableTimeFilter(expose=False, value="qdr:w"),
             country=ExposableCountry(expose=False, value="CH"),
             location=ExposableLocation(expose=False, value="Zurich,Switzerland"),
-            scrape_results=True,
-            max_cache_age_seconds=30,
-            only_main_content=False,
         )
 
         body = _body(config)
@@ -258,8 +173,6 @@ class TestFirecrawlRequestBody:
         assert body["tbs"] == "qdr:w"
         assert body["country"] == "CH"
         assert body["location"] == "Zurich,Switzerland"
-        assert body["scrapeOptions"]["maxAge"] == 30_000
-        assert body["scrapeOptions"]["onlyMainContent"] is False
 
     @pytest.mark.ai
     def test_build_body__converts_timeout_to_milliseconds(self) -> None:
@@ -503,21 +416,6 @@ class TestFirecrawlConfigValidation:
         assert body["sources"] == ["web", "news"]
 
     @pytest.mark.ai
-    def test_build_body__sends_firecrawl_own_cache_age__as_a_number(self) -> None:
-        """
-        Purpose: Verify Firecrawl's own two-day cache can be configured as a
-            number of seconds.
-        Why this matters: It replaces the former "Firecrawl default" choice,
-            which was stored as null and never reached Firecrawl.
-        Setup summary: Build the body with 172800 seconds; assert `maxAge`.
-        """
-        body = _body(
-            FirecrawlSearchConfig(scrape_results=True, max_cache_age_seconds=172_800)
-        )
-
-        assert body["scrapeOptions"]["maxAge"] == 172_800_000
-
-    @pytest.mark.ai
     def test_config__rejects_fetch_size__above_the_firecrawl_cap(self) -> None:
         """
         Purpose: Verify the result count is capped for admins and for requests.
@@ -531,20 +429,6 @@ class TestFirecrawlConfigValidation:
         with pytest.raises(ValidationError):
             FirecrawlSearchConfig().merge(
                 {"fetchSize": FIRECRAWL_MAX_RESULTS + 1}, query="hello"
-            )
-
-    @pytest.mark.ai
-    def test_config__rejects_cache_age__above_seven_days(self) -> None:
-        """
-        Purpose: Verify the cache age cannot exceed Firecrawl's seven-day cap.
-        Why this matters: Firecrawl silently lowers larger values, so the admin
-            would see a setting that is not applied.
-        Setup summary: Build a config one second over seven days; assert
-            validation fails.
-        """
-        with pytest.raises(ValidationError):
-            FirecrawlSearchConfig(
-                max_cache_age_seconds=FIRECRAWL_MAX_CACHE_AGE_SECONDS + 1
             )
 
 

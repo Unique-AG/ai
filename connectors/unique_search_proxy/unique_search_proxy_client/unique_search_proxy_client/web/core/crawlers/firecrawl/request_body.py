@@ -6,10 +6,6 @@ from unique_search_proxy_core.crawlers.firecrawl.schema import (
     FirecrawlCrawlRequest,
 )
 
-from unique_search_proxy_client.web.core.firecrawl_parsers import firecrawl_parsers
-
-_MS_PER_SECOND = 1000
-
 
 def _firecrawl_common_scrape_fields(
     request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
@@ -29,11 +25,9 @@ def _firecrawl_common_scrape_fields(
     }
     if request.proxy != "auto":
         body["proxy"] = request.proxy
-    # The next three are sent only when they differ from Firecrawl's default.
+    # Sent only when it differs from Firecrawl's default.
     if not request.store_in_cache:
         body["storeInCache"] = False
-    if request.skip_tls_verification:
-        body["skipTlsVerification"] = True
     location = _location(request)
     if location is not None:
         body["location"] = location
@@ -44,26 +38,15 @@ def _firecrawl_common_scrape_fields(
         body["excludeTags"] = request.exclude_tags
     if request.scrape_headers is not None:
         body["headers"] = request.scrape_headers
-    body["maxAge"] = _max_age_ms(request)
-    body["parsers"] = firecrawl_parsers(request.max_pdf_pages, request.pdf_mode)
+    body["maxAge"] = request.max_age
+    # A ``parsers`` list turns off every parser it does not name, so ``image``
+    # is listed to keep Firecrawl's default image OCR on.
+    body["parsers"] = [{"type": "pdf", "maxPages": request.max_pdf_pages}, "image"]
     # Sent only when on: accounts without zero data retention reject the field.
     if zero_data_retention:
         body["zeroDataRetention"] = True
 
     return body
-
-
-def _max_age_ms(
-    request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
-) -> int:
-    # A caller that sends only the deprecated ``max_age`` means that value, not
-    # the default of the field that replaced it.
-    legacy_ms: int | None = request.max_age
-    if legacy_ms is not None and (
-        "max_cache_age_seconds" not in request.model_fields_set
-    ):
-        return legacy_ms
-    return request.max_cache_age_seconds * _MS_PER_SECOND
 
 
 def _location(

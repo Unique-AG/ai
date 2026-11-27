@@ -211,7 +211,6 @@ class TestSearchClient:
         ) -> tuple[SearchEngineRaw, WebSearchResults]:
             received["sources"] = request.sources
             received["time_filter"] = request.time_filter
-            received["scrape_results"] = request.scrape_results
             received["zero_data_retention"] = request.zero_data_retention
             return SearchEngineRaw(pages=[]), WebSearchResults(
                 results=[
@@ -233,7 +232,6 @@ class TestSearchClient:
             query="rates",
             sources="web_and_news",
             time_filter="qdr:w",
-            scrape_results=True,
             zero_data_retention="zdr",
         )
 
@@ -241,7 +239,6 @@ class TestSearchClient:
         assert received == {
             "sources": "web_and_news",
             "time_filter": "qdr:w",
-            "scrape_results": True,
             "zero_data_retention": "zdr",
         }
         assert response.curated[0].content == "# Page"
@@ -291,65 +288,6 @@ class TestCrawlClient:
         assert response.crawler == CrawlerType.BASIC.value
         assert len(response.results) == 1
         assert response.results[0].url == "https://example.com"
-
-    @pytest.mark.ai
-    @pytest.mark.parametrize(
-        ("kwargs", "expected_max_age_ms"),
-        [
-            ({}, 600_000),
-            ({"max_age": 172_800_000}, 172_800_000),
-            ({"max_cache_age_seconds": 30}, 30_000),
-            ({"max_age": 172_800_000, "max_cache_age_seconds": 30}, 30_000),
-        ],
-        ids=["default", "legacy-only", "seconds-only", "seconds-win"],
-    )
-    async def test_firecrawl_crawl__keeps_the_callers_cache_age__through_the_sdk(
-        self,
-        sdk_client: UniqueSearchProxyClient,
-        monkeypatch: pytest.MonkeyPatch,
-        kwargs: dict[str, int],
-        expected_max_age_ms: int,
-    ) -> None:
-        """
-        Purpose: Verify the cache age an SDK caller passes is the one Firecrawl
-            would receive, including the deprecated millisecond `max_age`.
-        Why this matters: The SDK used to send its own 600-second default with
-            every call, which overrode a caller's `max_age` without notice.
-        Setup summary: Crawl through the SDK with each combination; build the
-            Firecrawl body from the request the proxy received; assert `maxAge`.
-        """
-        from unique_search_proxy_client.web.core.crawlers.firecrawl.request_body import (
-            build_firecrawl_scrape_body,
-        )
-        from unique_search_proxy_core.crawlers.firecrawl.schema import (
-            FirecrawlCrawlRequest,
-        )
-        from unique_search_proxy_core.schema import CrawlUrlResult
-
-        received: dict[str, int] = {}
-
-        async def fake_crawl(
-            self: object,
-            request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
-        ) -> list[CrawlUrlResult]:
-            body = build_firecrawl_scrape_body("https://example.com", request)
-            received["max_age_ms"] = body["maxAge"]
-            return [
-                CrawlUrlResult(
-                    url="https://example.com",
-                    content="# Page",
-                    content_type="text/markdown",
-                ),
-            ]
-
-        monkeypatch.setattr(
-            "unique_search_proxy_client.web.core.crawlers.firecrawl.service.FirecrawlCrawlerService.crawl",
-            fake_crawl,
-        )
-
-        await sdk_client.crawl.firecrawl(urls=["https://example.com"], **kwargs)
-
-        assert received["max_age_ms"] == expected_max_age_ms
 
     @pytest.mark.ai
     async def test_crawl_dispatcher_compat(

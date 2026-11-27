@@ -54,7 +54,7 @@ _NON_RETRYABLE_STATUS_CODES = frozenset({401, 402, 403})
 
 
 class FirecrawlSearchService(SearchEngineService[FirecrawlSearchRequest]):
-    """Firecrawl ``/v2/search`` provider: search, optionally with page scraping."""
+    """Firecrawl ``/v2/search`` provider: titles and previews, no page text."""
 
     engine_id = SearchEngineType.FIRECRAWL.value
 
@@ -193,7 +193,6 @@ def _to_result(item: object) -> WebSearchResult | None:
         # News items carry their text in ``description`` too, despite the docs
         # naming it ``snippet``; read both.
         snippet=item.get("description") or item.get("snippet") or "",
-        content=item.get("markdown") or "",
     )
 
 

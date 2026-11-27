@@ -71,7 +71,6 @@ class TestToSdkSearchRequest:
                 "query": "hello",
                 "fetchSize": 3,
                 "sources": "web_and_news",
-                "scrapeResults": True,
                 "category": "pdf",
                 "zeroDataRetention": "zdr",
                 "timeFilter": "qdr:d",
@@ -85,7 +84,6 @@ class TestToSdkSearchRequest:
         assert body["engine"] == "firecrawl"
         assert body["fetchSize"] == 3
         assert body["sources"] == "web_and_news"
-        assert body["scrapeResults"] is True
         assert body["category"] == "pdf"
         assert body["zeroDataRetention"] == "zdr"
         assert body["timeFilter"] == "qdr:d"

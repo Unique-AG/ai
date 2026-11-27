@@ -34,7 +34,7 @@ Query → normalised results (URL / title / snippet / optional content). Optiona
 | Google | legacy + proxy | Requires scraping by default |
 | Brave | **proxy-only** | Rich snippets; configurable `requires_scraping` (on by default); `ExposableParam` knobs |
 | Perplexity | **proxy-only** | Content extraction knobs; configurable `requires_scraping` (on by default); `ExposableParam` |
-| Firecrawl | **proxy-only** | `requires_scraping` (default off; when on, the Web Page Reader reads the pages); `scrape_results` lets Firecrawl read the pages inside the search call instead; `ExposableParam` |
+| Firecrawl | **proxy-only** | Query-matched previews; `requires_scraping` off by default; `ExposableParam` |
 | Custom API | legacy + proxy | Your REST endpoint; proxy mode rejects redirects |
 
 Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `value`) for optional provider knobs. See [Search Engines README](./src/unique_web_search/services/search_engine/README.md).

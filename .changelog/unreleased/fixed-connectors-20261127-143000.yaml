@@ -1,11 +1,9 @@
 component: Connectors
 kind: Fixed
 body: >-
-  The Firecrawl crawler on Search Proxy now matches each page of a multi-URL read
-  to its URL by Firecrawl's `metadata.sourceURL`. Firecrawl returns batch results
-  in the order the pages finish, so a page's text could be returned under another
-  page's URL.
+  The Firecrawl crawler on Search Proxy no longer returns a page's text under
+  another page's URL when several URLs are read at once.
 time: 2026-11-27T14:30:00.000000+01:00
 custom:
     Audience: operator
-    Ticket: UN-30449
+    Ticket: UN-30449, UN-29805

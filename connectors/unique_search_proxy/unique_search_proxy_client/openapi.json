@@ -859,11 +859,9 @@
                     "blockAds": true,
                     "removeBase64Images": true,
                     "proxy": "auto",
-                    "maxCacheAgeSeconds": 600,
+                    "maxAge": 600000,
                     "storeInCache": true,
                     "maxPdfPages": 20,
-                    "pdfMode": "auto",
-                    "skipTlsVerification": false,
                     "zeroDataRetention": false,
                     "urls": [
                       "https://example.com"
@@ -884,11 +882,9 @@
                     "blockAds": true,
                     "removeBase64Images": true,
                     "proxy": "enhanced",
-                    "maxCacheAgeSeconds": 600,
+                    "maxAge": 600000,
                     "storeInCache": true,
                     "maxPdfPages": 20,
-                    "pdfMode": "auto",
-                    "skipTlsVerification": false,
                     "zeroDataRetention": false,
                     "urls": [
                       "https://example.com"
@@ -1826,13 +1822,16 @@
             "title": "Scrape headers",
             "description": "Headers sent to the target page (cookies, user-agent, etc.)."
           },
-          "maxCacheAgeSeconds": {
-            "type": "integer",
-            "title": "Max cache age",
-            "description": "How old Firecrawl's cached copy of a page may be, in seconds. The default of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more often. Cached copies cost the same credits but come back in under a second instead of 5 to 10. Firecrawl's own default is `172800` (two days).",
-            "default": 600,
-            "ge": 0,
-            "le": 604800
+          "maxAge": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "maximum": 604800000.0,
+            "minimum": 0.0,
+            "title": "Max cache age (milliseconds)",
+            "description": "How old Firecrawl's cached copy of a page may be. The default of `600000` (ten minutes) keeps prices and news current. `0` always reads the page live, which is slower and fails more often. Cached copies cost the same credits but come back in under a second instead of 5 to 10. Firecrawl's own default is `172800000` (two days).",
+            "default": 600000
           },
           "storeInCache": {
             "type": "boolean",
@@ -1842,22 +1841,11 @@
           },
           "maxPdfPages": {
             "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
             "title": "Max PDF pages to read",
             "description": "Read at most this many pages of each PDF. Each PDF page costs about 1 Firecrawl credit. The default of 20 is about what fits the default page length limit of 10,000 tokens, so more pages would be paid for and then cut. `10000` is Firecrawl's maximum.",
-            "default": 20,
-            "ge": 1,
-            "le": 10000
-          },
-          "pdfMode": {
-            "type": "string",
-            "enum": [
-              "auto",
-              "fast",
-              "ocr"
-            ],
-            "title": "PDF reading mode",
-            "description": "`auto` reads the embedded text and falls back to OCR. `fast` reads embedded text only. `ocr` runs OCR on every page.",
-            "default": "auto"
+            "default": 20
           },
           "country": {
             "anyOf": [
@@ -1886,29 +1874,11 @@
             "title": "Languages",
             "description": "Preferred languages for the pages, most wanted first, for example `de-CH`. Sent together with the country; without one Firecrawl's default country `US` is used."
           },
-          "skipTlsVerification": {
-            "type": "boolean",
-            "title": "Skip TLS verification",
-            "description": "Read pages even when their TLS certificate is invalid.",
-            "default": false
-          },
           "zeroDataRetention": {
             "type": "boolean",
             "title": "Zero data retention",
             "description": "Read pages with zero data retention even when the Search Proxy is deployed without it. It can never turn off what the deployment sets. Costs 1 extra Firecrawl credit per page. Firecrawl must have enabled it for the account, otherwise every read fails.",
             "default": false
-          },
-          "maxAge": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max age (milliseconds)",
-            "description": "Deprecated: use the max cache age in seconds."
           }
         },
         "type": "object",
@@ -1942,11 +1912,11 @@
           },
           "timeout": {
             "type": "integer",
-            "maximum": 300.0,
+            "maximum": 600.0,
             "minimum": 1.0,
             "title": "Timeout",
-            "description": "Request timeout in seconds. Raise it when Firecrawl reads the result pages inside the search call.",
-            "default": 60
+            "description": "Request timeout in seconds",
+            "default": 30
           },
           "sources": {
             "type": "string",
@@ -1976,12 +1946,6 @@
             "title": "Sort by date",
             "description": "Return the newest web results first instead of the best matches.",
             "default": false
-          },
-          "ignoreInvalidUrls": {
-            "type": "boolean",
-            "title": "Skip unreadable URLs",
-            "description": "Leave out results Firecrawl itself could not read, so that a Firecrawl Web Page Reader does not fail on them.",
-            "default": true
           },
           "zeroDataRetention": {
             "type": "string",
@@ -2082,34 +2046,6 @@
             ],
             "title": "Category",
             "description": "Only return one kind of web result: `research` (academic and research sites), `pdf` (PDF documents), `gov` (government publications, which cost no search credits) or `developer` (developer sites)."
-          },
-          "scrapeResults": {
-            "type": "boolean",
-            "title": "Read pages inside the search call",
-            "description": "Firecrawl reads every result page inside the search call and returns it as Markdown, for about 1 extra Firecrawl credit per page (2 with zero data retention). Off leaves page reading to the caller.",
-            "default": false
-          },
-          "onlyMainContent": {
-            "type": "boolean",
-            "title": "Only main content",
-            "description": "Drop headers, navigation and footers from the pages. Only applies when Firecrawl reads the pages inside the search call.",
-            "default": true
-          },
-          "maxCacheAgeSeconds": {
-            "type": "integer",
-            "title": "Max cache age",
-            "description": "How old Firecrawl's cached copy of a page may be, in seconds. The default of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more often. Cached copies cost the same credits but come back faster. Firecrawl's own default is `172800` (two days). Only applies when Firecrawl reads the pages inside the search call.",
-            "default": 600,
-            "ge": 0,
-            "le": 604800
-          },
-          "maxPdfPages": {
-            "type": "integer",
-            "title": "Max PDF pages to read",
-            "description": "Read at most this many pages of each PDF in the results. Each PDF page costs about 1 Firecrawl credit. `10000` is Firecrawl's maximum. Only applies when Firecrawl reads the pages inside the search call.",
-            "default": 10,
-            "ge": 1,
-            "le": 10000
           }
         },
         "type": "object",

@@ -23,9 +23,6 @@ from .crawl_url_result import CrawlUrlResult
 from .custom_api_request_method import CustomApiRequestMethod
 from .custom_api_search_request import CustomApiSearchRequest
 from .firecrawl_crawl_request import FirecrawlCrawlRequest
-from .firecrawl_crawl_request_pdf_reading_mode import (
-    FirecrawlCrawlRequestPDFReadingMode,
-)
 from .firecrawl_crawl_request_proxy_mode import FirecrawlCrawlRequestProxyMode
 from .firecrawl_crawl_request_scrape_headers_type_0 import (
     FirecrawlCrawlRequestScrapeHeadersType0,
@@ -93,7 +90,6 @@ __all__ = (
     "CustomApiRequestMethod",
     "CustomApiSearchRequest",
     "FirecrawlCrawlRequest",
-    "FirecrawlCrawlRequestPDFReadingMode",
     "FirecrawlCrawlRequestProxyMode",
     "FirecrawlCrawlRequestScrapeHeadersType0",
     "FirecrawlSearchRequest",

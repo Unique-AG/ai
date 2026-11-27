@@ -102,7 +102,7 @@ Path A never hits the network. Path B never re-derives schemas — it consumes t
 
 | Capability | Endpoint | Providers | Kind |
 |------------|----------|-----------|------|
-| Standard search | `POST /v1/search` | `google`, `brave`, `perplexity`, `firecrawl` | Classic SERP-style APIs; `firecrawl` can also return the result pages |
+| Standard search | `POST /v1/search` | `google`, `brave`, `perplexity`, `firecrawl` | Classic SERP-style APIs |
 | Agent search (grounding) | `POST /v1/agent-search` | `bing`, `vertexai` | Grounded agents / models |
 | Agent search (stream) | `POST /v1/agent-search/stream` | `bing`, `vertexai` | Same, streaming |
 | URL crawl | `POST /v1/crawl` | `Basic`, `Tavily`, `Jina`, `Firecrawl` | Page readers |

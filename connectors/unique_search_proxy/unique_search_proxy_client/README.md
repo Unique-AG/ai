@@ -126,7 +126,7 @@ The usage line goes through its own logger (`unique_search_proxy_core.usage`) wi
 | Google | Search | Custom Search JSON API | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
 | Brave | Search | Brave Search API | `BRAVE_SEARCH_API_KEY` |
 | Perplexity | Search | Perplexity API | `PERPLEXITY_SEARCH_API_KEY` |
-| Firecrawl | Search | Firecrawl search API (previews; optionally the result pages from the same call) | `FIRECRAWL_API_KEY`, optional `FIRECRAWL_ZERO_DATA_RETENTION` |
+| Firecrawl | Search | Firecrawl search API | `FIRECRAWL_API_KEY`, optional `FIRECRAWL_ZERO_DATA_RETENTION` |
 | Bing | Agent | Azure AI Projects grounding | `BING_AGENT_*` |
 | VertexAI | Agent | Google GenAI + grounding | `VERTEXAI_AGENT_*` or ADC |
 | Basic | Crawl | Direct httpx + HTML/PDF processors | (none) |
@@ -134,7 +134,7 @@ The usage line goes through its own logger (`unique_search_proxy_core.usage`) wi
 | Jina | Crawl | Jina Reader API | `JINA_API_KEY` |
 | Firecrawl | Crawl | Firecrawl scrape (with polling) | `FIRECRAWL_API_KEY`, optional `FIRECRAWL_ZERO_DATA_RETENTION` |
 
-Firecrawl search and the Firecrawl crawler share one key. `FIRECRAWL_ZERO_DATA_RETENTION` sets zero data retention for both: `none` (default), `anon` or `zdr`. Searches send it as `enterprise`. Page reads by the Firecrawl crawler have no anonymized mode, so `anon` and `zdr` both send `zeroDataRetention: true`, which costs 1 extra credit per page. A request can raise the mode for itself (`zeroDataRetention` on a Firecrawl search or crawl request) but never lower it. With zero data retention, Firecrawl returns the websites' short descriptions as previews instead of query-matched passages. Firecrawl has to enable the mode for the account; until then every call fails with a non-retryable `UPSTREAM_ERROR`.
+Firecrawl search and the Firecrawl crawler share one key. `FIRECRAWL_ZERO_DATA_RETENTION` sets zero data retention for both: `none` (default), `anon` or `zdr`. A request can raise the mode for itself (`zeroDataRetention`) but never lower it. Page reads have no anonymized mode, so `anon` and `zdr` both read with zero data retention. Firecrawl has to enable the mode for the account; until then every call fails with a non-retryable `UPSTREAM_ERROR`.
 
 Unconfigured providers return **503** `ENGINE_NOT_CONFIGURED` with missing env var names. `GET /v1/configuration/providers` lists what is registered in the running pod.
 

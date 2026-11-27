@@ -2,14 +2,10 @@ from __future__ import annotations
 
 from typing import Annotated, ClassVar, Literal, TypeAlias
 
-from pydantic import BaseModel, Field, WithJsonSchema
+from pydantic import Field, WithJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import NoneToDefault
 
-from unique_search_proxy_core.crawlers.firecrawl.schema import (
-    MaxCacheAgeSeconds,
-    MaxPdfPages,
-)
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.schema import DeactivatedNone
 from unique_search_proxy_core.search_engines.base import (
@@ -100,10 +96,10 @@ ExposableDomainList = ExposableParam[DomainListOrNone]
 ExposableCategory = ExposableParam[CategoryOrNone]
 
 
-class FirecrawlSearchOptions(
+class FirecrawlSearchConfig(
     BaseSearchEngineConfig[Literal[SearchEngineType.FIRECRAWL]]
 ):
-    """Field group: what a Firecrawl search looks for and returns."""
+    """Firecrawl ``POST /v2/search`` deployment config: titles and previews."""
 
     _request_model_name: ClassVar[str] = "FirecrawlSearchRequest"
     _exposed_params_model_name: ClassVar[str] = "FirecrawlExposedParams"
@@ -124,15 +120,6 @@ class FirecrawlSearchOptions(
             "bills every started block of 10 results: 2 credits, or 10 credits "
             "with end-to-end zero data retention (`zdr`). So 11 results cost "
             "twice as much as 10."
-        ),
-    )
-    timeout: int = Field(
-        default=60,
-        ge=1,
-        le=300,
-        description=(
-            "Request timeout in seconds. Raise it when Firecrawl reads the "
-            "result pages inside the search call."
         ),
     )
     sources: Annotated[
@@ -168,14 +155,6 @@ class FirecrawlSearchOptions(
         default=False,
         title="Sort by date",
         description="Return the newest web results first instead of the best matches.",
-    )
-    ignore_invalid_urls: bool = Field(
-        default=True,
-        title="Skip unreadable URLs",
-        description=(
-            "Leave out results Firecrawl itself could not read, so that a "
-            "Firecrawl Web Page Reader does not fail on them."
-        ),
     )
     zero_data_retention: Annotated[
         FirecrawlSearchZeroDataRetention,
@@ -255,59 +234,6 @@ class FirecrawlSearchOptions(
     )
 
 
-class FirecrawlInSearchScrapeOptions(BaseModel):
-    """Field group: Firecrawl reading the result pages inside the search call."""
-
-    scrape_results: bool = Field(
-        default=False,
-        title="Read pages inside the search call",
-        description=(
-            "Firecrawl reads every result page inside the search call and "
-            "returns it as Markdown, for about 1 extra Firecrawl credit per "
-            "page (2 with zero data retention). Off leaves page reading to the "
-            "caller."
-        ),
-    )
-    only_main_content: bool = Field(
-        default=True,
-        title="Only main content",
-        description=(
-            "Drop headers, navigation and footers from the pages. Only applies "
-            "when Firecrawl reads the pages inside the search call."
-        ),
-    )
-    max_cache_age_seconds: MaxCacheAgeSeconds = Field(
-        default=600,
-        title="Max cache age",
-        description=(
-            "How old Firecrawl's cached copy of a page may be, in seconds. The "
-            "default of ten minutes keeps prices and news current. `0` always "
-            "reads the page live, which is slower and fails more often. Cached "
-            "copies cost the same credits but come back faster. Firecrawl's "
-            "own default is `172800` (two days). Only applies when Firecrawl "
-            "reads the pages inside the search call."
-        ),
-    )
-    max_pdf_pages: MaxPdfPages = Field(
-        default=10,
-        title="Max PDF pages to read",
-        description=(
-            "Read at most this many pages of each PDF in the results. Each PDF "
-            "page costs about 1 Firecrawl credit. `10000` is Firecrawl's "
-            "maximum. Only applies when Firecrawl reads the pages inside the "
-            "search call."
-        ),
-    )
-
-
-class FirecrawlSearchConfig(FirecrawlInSearchScrapeOptions, FirecrawlSearchOptions):
-    """Firecrawl ``POST /v2/search`` deployment config.
-
-    A search returns titles and previews. With ``scrape_results`` Firecrawl also
-    reads every result page inside the same call.
-    """
-
-
 FirecrawlSearchRequest = FirecrawlSearchConfig.request_model()
 
 
@@ -323,8 +249,6 @@ __all__ = [
     "FirecrawlSearchConfig",
     "FirecrawlSearchRequest",
     "FirecrawlCategory",
-    "FirecrawlInSearchScrapeOptions",
-    "FirecrawlSearchOptions",
     "FirecrawlSearchZeroDataRetention",
     "FirecrawlSearchSource",
     "FirecrawlSourceChoice",

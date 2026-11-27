@@ -36,8 +36,7 @@ class FirecrawlSearchRequest:
         fetch_size (int | Unset): Number of results per search, web and news together. Firecrawl bills every started
             block of 10 results: 2 credits, or 10 credits with end-to-end zero data retention (`zdr`). So 11 results cost
             twice as much as 10. Default: 10.
-        timeout (int | Unset): Request timeout in seconds. Raise it when Firecrawl reads the result pages inside the
-            search call. Default: 60.
+        timeout (int | Unset): Request timeout in seconds Default: 30.
         sources (FirecrawlSearchRequestSources | Unset): Web searches regular web pages, News searches news articles.
             Web and news searches both: each source returns the full result count, so up to twice the results and the cost.
             The time filter does not apply to news. Default: FirecrawlSearchRequestSources.WEB.
@@ -46,8 +45,6 @@ class FirecrawlSearchRequest:
             retention always return the short description. Default: True.
         safe_search (bool | Unset): Filter explicit content from the results. Default: False.
         sort_by_date (bool | Unset): Return the newest web results first instead of the best matches. Default: False.
-        ignore_invalid_urls (bool | Unset): Leave out results Firecrawl itself could not read, so that a Firecrawl Web
-            Page Reader does not fail on them. Default: True.
         zero_data_retention (FirecrawlSearchRequestZeroDataRetention | Unset): Raise zero data retention for this
             configuration above what the Search Proxy is deployed with. It can never lower it. `anon` costs 2 credits per 10
             results, `zdr` 10. Firecrawl must have enabled the mode for the account, otherwise every search fails. Default:
@@ -65,29 +62,16 @@ class FirecrawlSearchRequest:
         category (FirecrawlSearchRequestCategoryType0 | None | Unset): Only return one kind of web result: `research`
             (academic and research sites), `pdf` (PDF documents), `gov` (government publications, which cost no search
             credits) or `developer` (developer sites).
-        scrape_results (bool | Unset): Firecrawl reads every result page inside the search call and returns it as
-            Markdown, for about 1 extra Firecrawl credit per page (2 with zero data retention). Off leaves page reading to
-            the caller. Default: False.
-        only_main_content (bool | Unset): Drop headers, navigation and footers from the pages. Only applies when
-            Firecrawl reads the pages inside the search call. Default: True.
-        max_cache_age_seconds (int | Unset): How old Firecrawl's cached copy of a page may be, in seconds. The default
-            of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more
-            often. Cached copies cost the same credits but come back faster. Firecrawl's own default is `172800` (two days).
-            Only applies when Firecrawl reads the pages inside the search call. Default: 600.
-        max_pdf_pages (int | Unset): Read at most this many pages of each PDF in the results. Each PDF page costs about
-            1 Firecrawl credit. `10000` is Firecrawl's maximum. Only applies when Firecrawl reads the pages inside the
-            search call. Default: 10.
     """
 
     query: str
     engine: Literal["firecrawl"] | Unset = "firecrawl"
     fetch_size: int | Unset = 10
-    timeout: int | Unset = 60
+    timeout: int | Unset = 30
     sources: FirecrawlSearchRequestSources | Unset = FirecrawlSearchRequestSources.WEB
     highlights: bool | Unset = True
     safe_search: bool | Unset = False
     sort_by_date: bool | Unset = False
-    ignore_invalid_urls: bool | Unset = True
     zero_data_retention: FirecrawlSearchRequestZeroDataRetention | Unset = (
         FirecrawlSearchRequestZeroDataRetention.DEPLOYMENT
     )
@@ -97,10 +81,6 @@ class FirecrawlSearchRequest:
     location: None | str | Unset = UNSET
     include_domains: list[str] | None | Unset = UNSET
     category: FirecrawlSearchRequestCategoryType0 | None | Unset = UNSET
-    scrape_results: bool | Unset = False
-    only_main_content: bool | Unset = True
-    max_cache_age_seconds: int | Unset = 600
-    max_pdf_pages: int | Unset = 10
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -121,8 +101,6 @@ class FirecrawlSearchRequest:
         safe_search = self.safe_search
 
         sort_by_date = self.sort_by_date
-
-        ignore_invalid_urls = self.ignore_invalid_urls
 
         zero_data_retention: str | Unset = UNSET
         if not isinstance(self.zero_data_retention, Unset):
@@ -174,14 +152,6 @@ class FirecrawlSearchRequest:
         else:
             category = self.category
 
-        scrape_results = self.scrape_results
-
-        only_main_content = self.only_main_content
-
-        max_cache_age_seconds = self.max_cache_age_seconds
-
-        max_pdf_pages = self.max_pdf_pages
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -203,8 +173,6 @@ class FirecrawlSearchRequest:
             field_dict["safeSearch"] = safe_search
         if sort_by_date is not UNSET:
             field_dict["sortByDate"] = sort_by_date
-        if ignore_invalid_urls is not UNSET:
-            field_dict["ignoreInvalidUrls"] = ignore_invalid_urls
         if zero_data_retention is not UNSET:
             field_dict["zeroDataRetention"] = zero_data_retention
         if exclude_domains is not UNSET:
@@ -219,14 +187,6 @@ class FirecrawlSearchRequest:
             field_dict["includeDomains"] = include_domains
         if category is not UNSET:
             field_dict["category"] = category
-        if scrape_results is not UNSET:
-            field_dict["scrapeResults"] = scrape_results
-        if only_main_content is not UNSET:
-            field_dict["onlyMainContent"] = only_main_content
-        if max_cache_age_seconds is not UNSET:
-            field_dict["maxCacheAgeSeconds"] = max_cache_age_seconds
-        if max_pdf_pages is not UNSET:
-            field_dict["maxPdfPages"] = max_pdf_pages
 
         return field_dict
 
@@ -255,8 +215,6 @@ class FirecrawlSearchRequest:
         safe_search = d.pop("safeSearch", UNSET)
 
         sort_by_date = d.pop("sortByDate", UNSET)
-
-        ignore_invalid_urls = d.pop("ignoreInvalidUrls", UNSET)
 
         _zero_data_retention = d.pop("zeroDataRetention", UNSET)
         zero_data_retention: FirecrawlSearchRequestZeroDataRetention | Unset
@@ -357,14 +315,6 @@ class FirecrawlSearchRequest:
 
         category = _parse_category(d.pop("category", UNSET))
 
-        scrape_results = d.pop("scrapeResults", UNSET)
-
-        only_main_content = d.pop("onlyMainContent", UNSET)
-
-        max_cache_age_seconds = d.pop("maxCacheAgeSeconds", UNSET)
-
-        max_pdf_pages = d.pop("maxPdfPages", UNSET)
-
         firecrawl_search_request = cls(
             query=query,
             engine=engine,
@@ -374,7 +324,6 @@ class FirecrawlSearchRequest:
             highlights=highlights,
             safe_search=safe_search,
             sort_by_date=sort_by_date,
-            ignore_invalid_urls=ignore_invalid_urls,
             zero_data_retention=zero_data_retention,
             exclude_domains=exclude_domains,
             time_filter=time_filter,
@@ -382,10 +331,6 @@ class FirecrawlSearchRequest:
             location=location,
             include_domains=include_domains,
             category=category,
-            scrape_results=scrape_results,
-            only_main_content=only_main_content,
-            max_cache_age_seconds=max_cache_age_seconds,
-            max_pdf_pages=max_pdf_pages,
         )
 
         firecrawl_search_request.additional_properties = d

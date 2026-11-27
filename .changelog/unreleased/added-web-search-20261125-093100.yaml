@@ -1,18 +1,10 @@
 component: Web Search
 kind: Added
 body: >-
-  Firecrawl is available as a search engine for web search. A search returns
-  titles and previews that follow the query. "Requires scraping" works as for
-  the other engines but is off by default: when on, the space's Web Page Reader
-  reads every result page (search modes V1 and V2). In V3 the model reads the
-  pages it needs. "Read pages inside the search call" lets Firecrawl read them
-  instead. Previews are passed whole, except on pages that were read, where
-  they are cut to 500 characters ("Preview length on read pages"). The engine
-  is not offered by default and runs only through Search Proxy: add `firecrawl`
-  to `ACTIVE_SEARCH_ENGINES`, enable Firecrawl on the Search Proxy, then select
-  Firecrawl as the search engine of a space. To offer the Firecrawl Web Page
-  Reader without a Firecrawl key on the assistant, add `firecrawl` to
-  `ACTIVE_INHOUSE_CRAWLERS`.
+  Web search can use Firecrawl as a search engine: add `firecrawl` to
+  `ACTIVE_SEARCH_ENGINES` and enable Firecrawl on the Search Proxy. The
+  Firecrawl Web Page Reader can be offered without a Firecrawl key on the
+  assistant by adding `firecrawl` to `ACTIVE_INHOUSE_CRAWLERS`.
 time: 2026-11-25T09:31:00.000000+01:00
 custom:
     Audience: admin

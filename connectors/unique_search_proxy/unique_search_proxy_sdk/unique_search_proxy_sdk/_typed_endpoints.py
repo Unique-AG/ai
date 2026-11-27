@@ -11,11 +11,6 @@ from unique_search_proxy_core.agent_engines.bing.schema import (
     BingMarket,
 )
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
-from unique_search_proxy_core.crawlers.firecrawl.schema import (
-    FIRECRAWL_MAX_CACHE_AGE_SECONDS,
-    FirecrawlPdfMode,
-    FirecrawlProxyMode,
-)
 from unique_search_proxy_core.crawlers.jina.schema import (
     JinaEngine,
     JinaRetainImages,
@@ -195,16 +190,11 @@ class FirecrawlSearchEndpoint(_TypedPostEndpoint[SearchResponse]):
         query: str,
         engine: Literal["firecrawl"] = "firecrawl",
         fetch_size: int = 10,
-        timeout: int = 60,
+        timeout: int = 30,
         sources: FirecrawlSourceChoice = "web",
         highlights: bool = True,
         safe_search: bool = False,
         sort_by_date: bool = False,
-        ignore_invalid_urls: bool = True,
-        scrape_results: bool = False,
-        only_main_content: bool = True,
-        max_cache_age_seconds: int = 600,
-        max_pdf_pages: int = 10,
         zero_data_retention: FirecrawlSearchZeroDataRetention = "deployment",
         exclude_domains: list[str] | None = None,
         time_filter: FirecrawlTimeFilter | None = None,
@@ -222,11 +212,6 @@ class FirecrawlSearchEndpoint(_TypedPostEndpoint[SearchResponse]):
             highlights=highlights,
             safe_search=safe_search,
             sort_by_date=sort_by_date,
-            ignore_invalid_urls=ignore_invalid_urls,
-            scrape_results=scrape_results,
-            only_main_content=only_main_content,
-            max_cache_age_seconds=max_cache_age_seconds,
-            max_pdf_pages=max_pdf_pages,
             zero_data_retention=zero_data_retention,
             exclude_domains=exclude_domains,
             time_filter=time_filter,
@@ -476,26 +461,17 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         mobile: bool = False,
         block_ads: bool = True,
         remove_base64_images: bool = True,
-        proxy: FirecrawlProxyMode = "auto",
+        proxy: Literal["basic", "enhanced", "auto"] = "auto",
         include_tags: list[str] | None = None,
         exclude_tags: list[str] | None = None,
         scrape_headers: dict[str, str] | None = None,
-        max_cache_age_seconds: int | None = None,
+        max_age: int = 600_000,
         store_in_cache: bool = True,
         max_pdf_pages: int = 20,
-        pdf_mode: FirecrawlPdfMode = "auto",
         country: str | None = None,
         languages: list[str] | None = None,
-        skip_tls_verification: bool = False,
         zero_data_retention: bool = False,
-        max_age: int | None = None,
     ) -> CrawlResponse:
-        # The request always carries a cache age in seconds, which wins over
-        # the deprecated millisecond ``max_age``; convert a lone ``max_age``.
-        if max_cache_age_seconds is None and max_age is not None:
-            max_cache_age_seconds = min(
-                max_age // 1000, FIRECRAWL_MAX_CACHE_AGE_SECONDS
-            )
         return await self._call(
             urls=urls,
             crawler=crawler,
@@ -512,15 +488,12 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
             include_tags=include_tags,
             exclude_tags=exclude_tags,
             scrape_headers=scrape_headers,
-            max_cache_age_seconds=max_cache_age_seconds,
+            max_age=max_age,
             store_in_cache=store_in_cache,
             max_pdf_pages=max_pdf_pages,
-            pdf_mode=pdf_mode,
             country=country,
             languages=languages,
-            skip_tls_verification=skip_tls_verification,
             zero_data_retention=zero_data_retention,
-            max_age=max_age,
         )
 
 

@@ -36,54 +36,23 @@ class TestFirecrawlSearchConfig:
     @pytest.mark.ai
     def test_config__reads_no_result_pages__by_default(self) -> None:
         """
-        Purpose: Verify by default a search returns previews only: neither the
-            Web Page Reader nor Firecrawl reads the result pages.
+        Purpose: Verify by default a search returns previews only and the Web
+            Page Reader reads the result pages when scraping is turned on.
         Why this matters: The default decides who connects to the result
             websites and what a search costs. Reading every result costs a
             credit per page (two with zero data retention) on every search,
             while in search mode V3 the model reads only the pages it needs.
-        Setup summary: Build a default config; assert both switches and the
-            preview limit.
+        Setup summary: Build a default config and one with scraping on; assert
+            the switch, the preview limit and the engine's crawl decision.
         """
         config = FirecrawlSearchConfig()
+        scraping = FirecrawlSearchConfig(requires_scraping=True)
 
         assert config.engine == SearchEngineType.FIRECRAWL
         assert config.requires_scraping is False
-        assert config.scrape_results is False
         assert config.repeated_preview_max_chars == 500
         assert FirecrawlSearch(config).requires_scraping is False
-
-    @pytest.mark.ai
-    def test_config__lists_page_reading_settings__under_requires_scraping(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify the admin form shows 'Requires scraping' directly above
-            the settings that only apply when it is on, after the search options.
-        Why this matters: Field order is the form order. Settings that depend on
-            a switch shown elsewhere look as if they always applied.
-        Setup summary: Read the field order of the config; assert the last six
-            fields and that the same order reaches the JSON schema.
-        """
-        expected_tail = [
-            "requires_scraping",
-            "scrape_results",
-            "only_main_content",
-            "max_cache_age_seconds",
-            "max_pdf_pages",
-            "repeated_preview_max_chars",
-        ]
-        schema = FirecrawlSearchConfig.model_json_schema(by_alias=True)
-
-        assert list(FirecrawlSearchConfig.model_fields)[-6:] == expected_tail
-        assert list(schema["properties"])[-6:] == [
-            "requiresScraping",
-            "scrapeResults",
-            "onlyMainContent",
-            "maxCacheAgeSeconds",
-            "maxPdfPages",
-            "repeatedPreviewMaxChars",
-        ]
+        assert FirecrawlSearch(scraping).requires_scraping is True
 
     @pytest.mark.ai
     def test_config__names_the_scraping_switch__like_other_engines(self) -> None:
@@ -117,40 +86,6 @@ class TestFirecrawlSearchInit:
         service = get_search_engine_service(FirecrawlSearchConfig(), Mock())
 
         assert isinstance(service, FirecrawlSearch)
-
-    @pytest.mark.ai
-    @pytest.mark.parametrize(
-        ("requires_scraping", "scrape_results", "expected"),
-        [
-            (True, False, True),
-            (True, True, False),
-            (False, False, False),
-            (False, True, False),
-        ],
-        ids=["reader", "inside-search", "off", "off-wins"],
-    )
-    def test_requires_scraping__runs_web_page_reader__unless_firecrawl_read_pages(
-        self,
-        requires_scraping: bool,
-        scrape_results: bool,
-        expected: bool,
-    ) -> None:
-        """
-        Purpose: Verify the Web Page Reader runs when scraping is required and
-            Firecrawl did not already read the pages inside the search.
-        Why this matters: Crawling pages Firecrawl already read fetches each
-            page twice and pays twice; crawling with scraping off contacts
-            websites the admin did not want read.
-        Setup summary: Build the engine for each switch combination; assert its
-            crawl decision.
-        """
-        search = FirecrawlSearch(
-            FirecrawlSearchConfig(
-                requires_scraping=requires_scraping, scrape_results=scrape_results
-            )
-        )
-
-        assert search.requires_scraping is expected
 
     @pytest.mark.ai
     def test_is_configured__follows_search_proxy__without_local_credentials(
@@ -191,14 +126,14 @@ class TestFirecrawlSearch:
             await search._legacy_search("query", params=None)
 
     @pytest.mark.ai
-    async def test_search__sends_admin_settings_to_proxy__and_keeps_page_content(
+    async def test_search__sends_admin_settings_to_proxy__without_tool_only_fields(
         self,
     ) -> None:
         """
         Purpose: Verify the admin's settings reach the Search Proxy and the
-            scraped page content is returned.
+            tool-only settings stay out of the call.
         Why this matters: Dropped settings change which sources are searched;
-            dropped content means the model only sees snippets.
+            a tool-only field in the call is rejected by the proxy.
         Setup summary: Search with a configured engine against a mocked proxy;
             assert the call kwargs and the mapped result.
         """
@@ -206,7 +141,6 @@ class TestFirecrawlSearch:
             fetch_size=3,
             sources="web_and_news",
             requires_scraping=True,
-            scrape_results=True,
             exclude_domains=["blocked.com"],
             time_filter=ExposableTimeFilter(expose=False, value="qdr:w"),
             country=ExposableCountry(expose=False, value="CH"),
@@ -217,7 +151,7 @@ class TestFirecrawlSearch:
                 url="https://example.com/page",
                 title="Hit",
                 snippet="Details",
-                content="# Page",
+                content="",
             )
         ]
         mock_search = AsyncMock(return_value=response)
@@ -233,7 +167,6 @@ class TestFirecrawlSearch:
         assert call_kwargs["exclude_domains"] == ["blocked.com"]
         assert call_kwargs["time_filter"] == "qdr:w"
         assert call_kwargs["country"] == "CH"
-        assert call_kwargs["scrape_results"] is True
         assert "requires_scraping" not in call_kwargs
         assert "repeated_preview_max_chars" not in call_kwargs
         assert results == [
@@ -241,42 +174,9 @@ class TestFirecrawlSearch:
                 url="https://example.com/page",
                 title="Hit",
                 snippet="Details",
-                content="# Page",
+                content="",
             )
         ]
-
-    @pytest.mark.ai
-    @pytest.mark.parametrize(
-        ("requires_scraping", "scrape_results"),
-        [(True, False), (False, True), (False, False)],
-        ids=["reader", "scraping-off-wins", "off"],
-    )
-    async def test_search__asks_proxy_for_previews_only__unless_both_switches_are_on(
-        self,
-        requires_scraping: bool,
-        scrape_results: bool,
-    ) -> None:
-        """
-        Purpose: Verify Firecrawl reads pages inside the search only when
-            scraping is required and the inside-search option is on.
-        Why this matters: 'Requires scraping' is the one switch for reading
-            pages, as on every other engine. With it off, a leftover
-            inside-search option must not make Firecrawl read and bill every
-            result page.
-        Setup summary: Search with each other combination; assert the proxy is
-            asked for previews only.
-        """
-        config = FirecrawlSearchConfig(
-            requires_scraping=requires_scraping, scrape_results=scrape_results
-        )
-        mock_search = AsyncMock(return_value=Mock(curated=[]))
-
-        with _proxy_search(mock_search):
-            await FirecrawlSearch(config).search("test query")
-
-        call_kwargs = mock_search.await_args.kwargs
-        assert call_kwargs["engine"] == "firecrawl"
-        assert call_kwargs["scrape_results"] is False
 
     @pytest.mark.ai
     async def test_search__returns_long_previews_whole(self) -> None:
@@ -297,20 +197,3 @@ class TestFirecrawlSearch:
             results = await FirecrawlSearch(FirecrawlSearchConfig()).search("q")
 
         assert results[0].snippet == long_preview
-
-    @pytest.mark.ai
-    async def test_search__waits_longer_than_engine_timeout__for_proxy(self) -> None:
-        """
-        Purpose: Verify the proxy client timeout follows the engine timeout
-            instead of the 30 second default.
-        Why this matters: Firecrawl can read the pages inside the search call;
-            with the default the tool gives up while the search still runs.
-        Setup summary: Search with a 90 second engine timeout; assert the
-            timeout passed to the proxy client.
-        """
-        mock_search = AsyncMock(return_value=Mock(curated=[]))
-
-        with _proxy_search(mock_search) as mock_open_client:
-            await FirecrawlSearch(FirecrawlSearchConfig(timeout=90)).search("q")
-
-        assert mock_open_client.call_args.kwargs["timeout"] == 100.0
