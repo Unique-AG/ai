@@ -9,6 +9,7 @@ from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit.language_model import LanguageModelFunction
 
+from unique_web_search.services.crawling import crawling_enabled
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
@@ -45,10 +46,13 @@ class WebSearchV3Strategy(WebSearchModeStrategy):
 
     def tool_description(self, ctx: WebSearchToolContext) -> str:
         """Render the V3 tool description with the live schema hint."""
+        crawl = crawling_enabled()
         return sandboxed_template(self.mode_config.tool_description).render(
             tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(
                 ctx.exposed_params_cls,
+                crawl=crawl,
             ),
+            crawling_enabled=crawl,
         )
 
     def system_prompt(self, ctx: WebSearchToolContext) -> str:
@@ -57,6 +61,7 @@ class WebSearchV3Strategy(WebSearchModeStrategy):
             self.mode_config.tool_description_for_system_prompt
         ).render(
             date_string=ctx.date_string,
+            crawling_enabled=crawling_enabled(),
         )
 
     def format_information_for_system_prompt(self, *, default: str) -> str:

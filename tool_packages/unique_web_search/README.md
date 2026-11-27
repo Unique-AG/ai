@@ -11,7 +11,7 @@ Outbound web access should go through **Unique Search Proxy** (`connectors/uniqu
 | **Proxy (recommended)** | `SEARCH_PROXY_BASE_URL` set | `_proxy_search` / `_proxy_crawl` via the SDK |
 | **Legacy** | URL unset | Direct provider calls from this process (`_legacy_search` / `_legacy_crawl`) |
 
-- **New standard engines (Brave, Perplexity) are proxy-only** — legacy raises.
+- **New standard engines (Brave, Perplexity, AWS AgentCore) are proxy-only** — legacy raises.
 - **Custom API** uses proxy egress only when
   `FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736` is enabled; otherwise
   the legacy path reports URL-safety outcomes without blocking.
@@ -34,7 +34,10 @@ Query → normalised results (URL / title / snippet / optional content). Optiona
 | Google | legacy + proxy | Requires scraping by default |
 | Brave | **proxy-only** | Rich snippets; configurable `requires_scraping` (on by default); `ExposableParam` knobs |
 | Perplexity | **proxy-only** | Content extraction knobs; configurable `requires_scraping` (on by default); `ExposableParam` |
+| AWS AgentCore | **proxy-only** | Index extracts; `requires_scraping` off by default. Queries are trimmed to 200 characters |
 | Custom API | legacy + proxy | Your REST endpoint; proxy mode rejects redirects |
+
+An engine only appears in the admin form when `ACTIVE_SEARCH_ENGINES` lists it (default `["google"]`). For AWS AgentCore, add `aws` and give the Search Proxy AWS credentials (see the [Search Proxy README](../../connectors/unique_search_proxy/unique_search_proxy_client/README.md)).
 
 Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `value`) for optional provider knobs. See [Search Engines README](./src/unique_web_search/services/search_engine/README.md).
 
@@ -61,7 +64,9 @@ one provisions a new agent version.
 
 No Crawl4AI. Crawler configs have **no exposable LLM knobs**.
 
-Page reads (`read_url`, `read_urls`) follow the space's domain settings: Google `siteSearch` with `siteSearchFilter`, and Perplexity `searchDomainFilter` (a leading `-` excludes). A domain covers its subdomains: excluding `wikipedia.org` also blocks `en.wikipedia.org`, while excluding `www.wikipedia.org` does not.
+Crawling follows the search proxy's `CRAWL_ENABLED`, read from `GET /v1/configuration/providers` and cached for a minute. When it is off, the tool hides the page-reader settings, skips scraping, and drops V2 `read_url` and V3 `read_urls`, so answers use the search extracts. Without a proxy, or when the proxy cannot be reached, crawling counts as on; the proxy still refuses crawl calls itself.
+
+Page reads (`read_url`, `read_urls`) follow the space's domain settings: AWS include and exclude domains, Google `siteSearch` with `siteSearchFilter`, and Perplexity `searchDomainFilter` (a leading `-` excludes). A domain covers its subdomains, as in AWS: excluding `wikipedia.org` also blocks `en.wikipedia.org`, while excluding `www.wikipedia.org` does not.
 
 ## Execution modes
 

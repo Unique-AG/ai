@@ -1,4 +1,4 @@
-Use `WebSearch` for up-to-date information from the web. It exposes two capabilities, picked per call via `command`. Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations — use **parallel** `search` calls when several facets are independent (one short `query` per call, not one long query).
+Use `WebSearch` for up-to-date information from the web. {% if crawling_enabled is not false %}It exposes two capabilities, picked per call via `command`.{% else %}Only `command: "search"` is available: full-page reads are turned off on this deployment.{% endif %} Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations — use **parallel** `search` calls when several facets are independent (one short `query` per call, not one long query).
 
 ### `phase` — research phase (required on every call)
 
@@ -21,7 +21,7 @@ Use it when:
 - You're at the **start of a complex task** and need to map out what's out there before deciding which pages are worth a deeper read.
 - You want to **scope or sanity-check** a topic cheaply (does this entity / event / product even exist? how recent is the latest coverage?).
 - You need to **cover a new gap / sub-question** in a multi-step task — issue another search rather than blindly fetching.
-
+{% if crawling_enabled is not false %}
 #### `command: "read_urls"` — fetch full page content
 
 Crawls one or more URLs and returns the full-page text. It is **slower** than search but gives the **complete content** of the chosen pages, not just a snippet.
@@ -34,9 +34,9 @@ Use it when:
 - The topic is **canonical-source-driven** — financial filings (10-K, 10-Q, earnings releases), regulator publications, official product docs, peer-reviewed papers, primary press releases — where the page itself is the source of truth.
 - You found a **highly relevant** SERP hit but the title/snippet alone doesn't support the claim you want to make.
 - The snippets from the previous "search" commands are relevant but do not fully answer the question or fill the gap and fetching the full page is necessary.
-
+{% endif %}
 **Current date:** {{ date_string }}
-
+{% if crawling_enabled is not false %}
 ### Balance exploration and exploitation
 
 - **Explore first.** Start with `command: "search"` to get a cheap, high-level read of candidate pages. Cover one `gap` per call.
@@ -44,13 +44,18 @@ Use it when:
 - **Exploit when snippets aren't enough.** Switch to `command: "read_urls"` when snippets paraphrase / hedge, or the task needs exact figures, quotes, regulatory text, specs, or canonical-source content. Pick **1-3 high-signal URLs** from the most recent SERP — complementary domains preferred.
 - **User-provided URLs go straight to fetch.** If the user pasted URL(s), the first call should be `command: "read_urls"`. Do not "search" for a URL the user already supplied.
 - **Latency is a fair trade.** `read_urls` takes longer than `search`. That latency is acceptable on complex queries where the user expects depth — give them the answer that's actually grounded. Don't fetch when a snippet already answers the question; don't refuse to fetch when the snippet doesn't.
+{% else %}
+### Search only
 
+- **Snippets are the evidence.** Answer from search snippets. If a snippet is not precise enough, refine the query before marking a gap **Not found**, and say in the answer which facts would need the full page.
+- **User-provided URLs.** Pages cannot be opened. Search for the page's title, domain or topic instead, and tell the user the page itself could not be read.
+{% endif %}
 ### WebSearch — Complex and diligence-style research
 
 Use this pattern when the user needs **multiple facts about an entity** (ownership, revenue, officers, filings, sanctions, geography, industry context)—including Source of Wealth / KYC-style profiles where not everything is on the public web.
 
 - **Before the first WebSearch call** (in your reasoning, not in tool args), decompose the task into **5–10 atomic gaps**—each gap is one verifiable facet (e.g. legal name and jurisdiction, revenue scale, ownership / UBO signals, key executives, recent filings, adverse media, industry peer context).
-- **Execute gradually:** one `command: "search"` (and `read_urls` when snippets are insufficient) **per gap**, in a deliberate order (identity → scale → ownership → corroboration). Use `phase: "exploratory"` to map, then `phase: "target"` per facet; use `phase: "redirect"` only when a target facet has no public evidence after refinement.
+- **Execute gradually:** one `command: "search"`{% if crawling_enabled is not false %} (and `read_urls` when snippets are insufficient){% endif %} **per gap**, in a deliberate order (identity → scale → ownership → corroboration). Use `phase: "exploratory"` to map, then `phase: "target"` per facet; use `phase: "redirect"` only when a target facet has no public evidence after refinement.
 - **After each tool round**, update a mental **evidence ledger** per facet: **Confirmed**, **Partial**, **Not found**, or **Related only**. Do not discard partial or adjacent SERP hits—they may matter in the final synthesis.
 
 ### WebSearch — When public evidence is missing or indirect

@@ -1,9 +1,13 @@
+from unique_search_proxy_core.search_engines.aws.schema import AwsConfig
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.custom_api.schema import CustomApiConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityConfig
 
+from unique_search_proxy_client.web.core.search_engines.aws.service import (
+    AwsSearchService,
+)
 from unique_search_proxy_client.web.core.search_engines.brave.service import (
     BraveSearchService,
 )
@@ -52,6 +56,14 @@ def register_builtin_search_engines() -> None:
         ),
     )
     register_search_engine(
+        SearchEngineType.AWS.value,
+        AwsSearchService,
+        descriptor=SearchEngineDescriptor(
+            config_model=AwsConfig,
+            service_cls=AwsSearchService,
+        ),
+    )
+    register_search_engine(
         SearchEngineType.CUSTOM_API.value,
         CustomApiSearchService,
         descriptor=SearchEngineDescriptor(
@@ -62,6 +74,8 @@ def register_builtin_search_engines() -> None:
 
 
 __all__ = [
+    "AwsConfig",
+    "AwsSearchService",
     "BraveConfig",
     "BraveSearchService",
     "CustomApiConfig",

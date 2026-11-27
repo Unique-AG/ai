@@ -15,6 +15,7 @@ from unique_web_search.metrics import (
     search_total,
 )
 from unique_web_search.schema import StepDebugInfo
+from unique_web_search.services.crawling import crawling_enabled
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
@@ -60,6 +61,8 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         self.max_steps = max_steps
 
     async def run(self) -> list[ContentChunk]:
+        # Before max_steps, so a dropped read step cannot push out a search.
+        self._drop_read_steps_if_crawling_is_off()
         await self._enforce_max_steps()
 
         results: list[WebSearchResult] = []
@@ -155,7 +158,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
 
         _LOGGER.info(f"Searched with {engine} completed in {delta_time} seconds")
 
-        if self.search_service.requires_scraping and results:
+        if self.search_service.requires_scraping and results and crawling_enabled():
             results = await self._crawl_search_results(step_name, results)
 
         return results
@@ -189,6 +192,8 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         return results
 
     async def _execute_read_url_step(self, step: Step) -> list[WebSearchResult]:
+        if not crawling_enabled():
+            return []
         step_name = step.step_type.name
         self.debug_info.steps.append(
             StepDebugInfo(
@@ -238,6 +243,15 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             for result in results
         ]
         return results
+
+    def _drop_read_steps_if_crawling_is_off(self) -> None:
+        steps = self.tool_parameters.steps
+        if any(step.step_type == StepType.READ_URL for step in steps) and (
+            not crawling_enabled()
+        ):
+            self.tool_parameters.steps = [
+                step for step in steps if step.step_type == StepType.SEARCH
+            ]
 
     async def _enforce_max_steps(self) -> None:
         if len(self.tool_parameters.steps) > self.max_steps:

@@ -7,12 +7,14 @@ import unique_search_proxy_core.url_safety.dns as url_safety_dns
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 
+from unique_web_search.services import crawling
 from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.query_elicitation import QueryElicitationConfig
 from unique_web_search.services.search_engine.domain_policy import DomainPolicy
 from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.settings import env_settings
 
 
 @pytest.fixture(autouse=True)
@@ -35,6 +37,19 @@ def stable_public_dns_for_tests(monkeypatch: pytest.MonkeyPatch) -> None:
         ]
 
     monkeypatch.setattr(url_safety_dns.socket, "getaddrinfo", fake_getaddrinfo)
+
+
+@pytest.fixture(autouse=True)
+def fresh_crawling_enabled_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(crawling, "_cached", None)
+    monkeypatch.setattr(crawling, "_refresh", None)
+
+
+@pytest.fixture
+def crawl_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Act as if the search proxy runs with CRAWL_ENABLED=false."""
+    monkeypatch.setattr(env_settings, "search_proxy_base_url", "http://proxy.test")
+    monkeypatch.setattr(crawling, "_fetch_crawling_enabled", lambda base_url: False)
 
 
 @pytest.fixture

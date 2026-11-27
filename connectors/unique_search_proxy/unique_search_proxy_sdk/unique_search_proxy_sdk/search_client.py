@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from unique_search_proxy_core.search_engines.aws.schema import AwsSearchRequest
 from unique_search_proxy_core.search_engines.brave.schema import BraveSearchRequest
 from unique_search_proxy_core.search_engines.config_types import parse_search_request
 from unique_search_proxy_core.search_engines.custom_api.schema import (
@@ -19,6 +20,7 @@ from unique_search_proxy_sdk._generated.api.search import search_v1_search_post
 from unique_search_proxy_sdk._generated.models.search_response import SearchResponse
 from unique_search_proxy_sdk._transport import OpenapiTransport
 from unique_search_proxy_sdk._typed_endpoints import (
+    AwsSearchEndpoint,
     BraveSearchEndpoint,
     CustomApiSearchEndpoint,
     GoogleSearchEndpoint,
@@ -26,7 +28,9 @@ from unique_search_proxy_sdk._typed_endpoints import (
 )
 from unique_search_proxy_sdk.converters import to_sdk_search_request
 
-_SEARCH_PROVIDERS = frozenset({"google", "brave", "perplexity", "custom_api"})
+_SEARCH_PROVIDERS = frozenset(
+    {"google", "brave", "perplexity", "custom_api", "aws"},
+)
 
 
 class SearchClient:
@@ -34,6 +38,7 @@ class SearchClient:
 
     google: GoogleSearchEndpoint
     brave: BraveSearchEndpoint
+    aws: AwsSearchEndpoint
     perplexity: PerplexitySearchEndpoint
     custom_api: CustomApiSearchEndpoint
 
@@ -63,6 +68,16 @@ class SearchClient:
             async_post_endpoint(
                 transport,
                 PerplexitySearchRequest,
+                parse=parse_search_request,
+                to_sdk=to_sdk_search_request,
+                post=search_v1_search_post.asyncio_detailed,
+                response_type=SearchResponse,
+            ),
+        )
+        self.aws = AwsSearchEndpoint(
+            async_post_endpoint(
+                transport,
+                AwsSearchRequest,
                 parse=parse_search_request,
                 to_sdk=to_sdk_search_request,
                 post=search_v1_search_post.asyncio_detailed,

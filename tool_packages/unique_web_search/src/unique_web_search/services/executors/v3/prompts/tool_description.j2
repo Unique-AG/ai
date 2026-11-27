@@ -1,7 +1,15 @@
+{% if crawling_enabled is not false -%}
 The WebSearch tool returns up-to-date information from the web. It exposes two capabilities, picked per call via `command`:
 
 - **Search** (`command: "search"`) — runs the configured search engine and returns SERP rows (URL, domain, title, snippet). Gives a high-level read of what relevant pages contain without crawling them. Useful for **exploration** and quick lookups when a snippet is enough to answer.
 - **Fetch** (`command: "read_urls"`) — crawls one or more URLs and returns full-page text. Useful for **deep dives** when the task is complex and needs exact figures, quotes, regulatory text, or specs, and when the user provides a URL directly.
+{%- else -%}
+The WebSearch tool returns up-to-date information from the web through one capability:
+
+- **Search** (`command: "search"`) — runs the configured search engine and returns SERP rows (URL, domain, title, snippet). Answer from these snippets.
+
+Full-page reads are turned off on this deployment: pages cannot be opened, including URLs the user provides.
+{%- endif %}
 
 Each call performs **one** operation. Drive multi-part tasks by chaining calls; use **parallel** `search` calls for independent facets (short `query` each, not one long query).
 
@@ -15,4 +23,4 @@ Each call performs **one** operation. Drive multi-part tasks by chaining calls; 
 
 Never invent URLs.
 
-For the full playbook (search vs fetch, diligence decomposition, partial evidence, synthesis, URL-selection, anti-patterns, SoW examples), activate the `web-search-v3` skill before/while using this tool.
+For the full playbook ({% if crawling_enabled is not false %}search vs fetch, {% endif %}diligence decomposition, partial evidence, synthesis, URL-selection, anti-patterns, SoW examples), activate the `web-search-v3` skill before/while using this tool.

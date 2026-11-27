@@ -1,5 +1,8 @@
 """Upstream provider credentials (search engines, crawlers) loaded from environment."""
 
+from unique_search_proxy_client.web.settings.providers.aws import (
+    aws_search_credentials,
+)
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
     bing_agent_credentials,
 )
@@ -26,6 +29,7 @@ from unique_search_proxy_client.web.settings.providers.vertexai_agent import (
 )
 
 __all__ = [
+    "aws_search_credentials",
     "bing_agent_credentials",
     "brave_search_credentials",
     "firecrawl_crawl_credentials",

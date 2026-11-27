@@ -117,6 +117,12 @@ perplexitySearch:
     apiEndpoint: "https://api.perplexity.ai/search"
     # apiKey: <fromSecret or fromSecretProvider>
 
+awsSearch:
+  enabled: false
+  connection:
+    region: "us-east-1"
+    apiEndpoint: "https://bedrock-agentcore.us-east-1.amazonaws.com"
+
 bingAgent:
   enabled: false
   connection:
@@ -182,6 +188,10 @@ requestLimits:
     maxConcurrentUrlChecks: 3
   timeouts:
     maxTimeoutSeconds: 120
+
+crawl:
+  connection:
+    enabled: true
 
 pdfProcessing:
   connection:
@@ -263,7 +273,7 @@ networkPolicy:
     prometheus:
       namespace: system
     egress:
-      # -- Ports 443 and 80 to the internet for crawling. Set `enabled: false` only for corporate-proxy tenants (needs a proxy host and port). Enabled providers keep their FQDN rules; Bing, Vertex AI and the Azure workload identity login then need their own rules.
+      # -- Ports 443 and 80 to the internet for crawling. Set `enabled: false` only for corporate-proxy tenants (needs a proxy host and port). Enabled providers keep their FQDN rules; Bing, Vertex AI, the Azure workload identity login and the AWS STS credential exchange then need their own rules.
       worldHttp:
         toEntities:
           - world

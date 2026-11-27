@@ -1,0 +1,7 @@
+component: Connectors
+kind: Added
+body: Search Proxy can query AWS AgentCore Web Search, and `CRAWL_ENABLED=false` turns off the crawl endpoint (`POST /v1/crawl`).
+time: 2026-11-17T14:16:54.187754+01:00
+custom:
+    Audience: operator
+    Ticket: UN-29329, UN-29331

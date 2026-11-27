@@ -18,11 +18,11 @@ return await self._legacy_search(...)      # direct provider call from this proc
 | Kind | Engines | Proxy | Legacy |
 |------|---------|-------|--------|
 | **Standard** | Google | yes | yes |
-| **Standard** | Brave, Perplexity | yes | **raises** (proxy-only) |
+| **Standard** | Brave, Perplexity, AWS AgentCore | yes | **raises** (proxy-only) |
 | **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
-Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Perplexity/Bing/VertexAI).
+Deployment configs for Google / Brave / Perplexity / AWS AgentCore (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Perplexity/Bing/VertexAI).
 
 ---
 

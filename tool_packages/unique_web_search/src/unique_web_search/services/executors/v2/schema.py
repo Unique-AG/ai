@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import typing
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from jinja2 import Template
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
+from unique_web_search.services.crawling import crawling_enabled
 from unique_web_search.services.executors.v2.prompts import STEP_QUERY_DESCRIPTION
 from unique_web_search.services.search_engine.base import SearchEngineMode
 
@@ -35,17 +36,34 @@ class WebSearchPlan(BaseModel):
     expected_outcome: str = Field(description="Expected outcome")
 
     @classmethod
-    def with_search_engine_mode(cls, mode: SearchEngineMode) -> type[WebSearchPlan]:
+    def with_search_engine_mode(
+        cls, mode: SearchEngineMode, *, crawl: bool | None = None
+    ) -> type[WebSearchPlan]:
         """Build a ``WebSearchPlan`` variant whose ``Step.query_or_url``
-        description is tailored to the search-engine mode."""
+        description is tailored to the search-engine mode.
+
+        ``crawl`` is the crawl switch; it is read once here when not given, so
+        the description and the allowed step types always agree.
+        """
+        if crawl is None:
+            crawl = crawling_enabled()
         query_desc = Template(STEP_QUERY_DESCRIPTION).render(
-            search_engine_mode=mode.value
+            search_engine_mode=mode.value,
+            crawling_enabled=crawl,
         )
 
+        step_fields: dict[str, Any] = {
+            "query_or_url": (str, Field(description=query_desc)),
+        }
+        if not crawl:
+            step_fields["step_type"] = (
+                Literal[StepType.SEARCH],
+                Field(default=StepType.SEARCH),
+            )
         DynamicStep = create_model(
             "Step",
             __base__=Step,
-            query_or_url=(str, Field(description=query_desc)),
+            **step_fields,
         )
         return create_model(
             cls.__name__,
@@ -54,14 +72,16 @@ class WebSearchPlan(BaseModel):
         )
 
     @classmethod
-    def schema_hint(cls, mode: SearchEngineMode) -> str:
+    def schema_hint(cls, mode: SearchEngineMode, *, crawl: bool | None = None) -> str:
         """Return a prompt-friendly JSON block whose values are the field
         descriptions of the (possibly dynamic) plan model.
 
         The ``query_or_url`` value automatically reflects the search-engine
         mode so the LLM sees the right guidance.
         """
-        PlanModel = cls.with_search_engine_mode(mode)
+        if crawl is None:
+            crawl = crawling_enabled()
+        PlanModel = cls.with_search_engine_mode(mode, crawl=crawl)
 
         steps_inner_type = typing.get_args(PlanModel.model_fields["steps"].annotation)[
             0
@@ -70,7 +90,7 @@ class WebSearchPlan(BaseModel):
         step_hint: dict[str, str] = {}
         for name, field in steps_inner_type.model_fields.items():
             if name == "step_type":
-                step_hint[name] = "search | read_url"
+                step_hint[name] = "search | read_url" if crawl else "search"
             else:
                 step_hint[name] = field.description or name
 
@@ -113,7 +133,9 @@ class WebSearchPlan(BaseModel):
         )
 
     @staticmethod
-    def build_example_complex(mode: SearchEngineMode) -> WebSearchPlan:
+    def build_example_complex(
+        mode: SearchEngineMode, *, crawling_enabled: bool = True
+    ) -> WebSearchPlan:
         """Build a multi-step example plan, adapted to *mode*.
 
         In agent mode the search engine performs comprehensive research
@@ -153,6 +175,26 @@ class WebSearchPlan(BaseModel):
                 ),
             )
 
+        steps = [
+            Step(
+                step_type=StepType.SEARCH,
+                objective="Find Tesla's latest quarterly earnings",
+                query_or_url="Tesla Q3 2024 earnings results financial performance",
+            ),
+            Step(
+                step_type=StepType.SEARCH,
+                objective="Get current Tesla stock price and recent performance",
+                query_or_url="Tesla stock price TSLA recent performance 2024",
+            ),
+        ]
+        if crawling_enabled:
+            steps.append(
+                Step(
+                    step_type=StepType.READ_URL,
+                    objective="Read detailed earnings report",
+                    query_or_url="[URL from previous search results]",
+                )
+            )
         return WebSearchPlan(
             objective=(
                 "Research Tesla's recent financial performance and market position"
@@ -162,23 +204,7 @@ class WebSearchPlan(BaseModel):
                 "and competitive analysis to understand Tesla's "
                 "current market position"
             ),
-            steps=[
-                Step(
-                    step_type=StepType.SEARCH,
-                    objective="Find Tesla's latest quarterly earnings",
-                    query_or_url="Tesla Q3 2024 earnings results financial performance",
-                ),
-                Step(
-                    step_type=StepType.SEARCH,
-                    objective="Get current Tesla stock price and recent performance",
-                    query_or_url="Tesla stock price TSLA recent performance 2024",
-                ),
-                Step(
-                    step_type=StepType.READ_URL,
-                    objective="Read detailed earnings report",
-                    query_or_url="[URL from previous search results]",
-                ),
-            ],
+            steps=steps,
             expected_outcome=(
                 "Comprehensive view of Tesla's financial health, "
                 "stock performance, and market position"

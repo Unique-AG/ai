@@ -24,8 +24,10 @@ CHART_DIR = Path(__file__).resolve().parents[1] / "deploy" / "helm-chart"
 def test_all_registry_groups_have_helm_keys() -> None:
     keys = {group.helm_key for group in helm_generated_groups()}
     assert keys == {
+        "awsSearch",
         "bingAgent",
         "braveSearch",
+        "crawl",
         "firecrawl",
         "googleSearch",
         "httpClient",
@@ -50,11 +52,13 @@ def test_provider_groups_are_gated_but_always_on_config_is_not() -> None:
     assert gated["urlSafety"] is False
     assert gated["requestLimits"] is False
     assert gated["pdfProcessing"] is False
+    assert gated["crawl"] is False
     provider_keys = set(gated) - {
         "httpClient",
         "requestLimits",
         "urlSafety",
         "pdfProcessing",
+        "crawl",
     }
     assert provider_keys, "expected at least one gated provider group"
     assert all(gated[key] for key in provider_keys)
