@@ -275,15 +275,6 @@ class TestActiveCrawlers:
     def test_active_crawlers__adds_keyed_crawlers__without_changing_the_setting(
         self,
     ) -> None:
-        """
-        Purpose: Verify reading the crawler list does not grow the configured
-            in-house list.
-        Why this matters: The list was appended to in place, so every read
-            added the keyed crawlers again and the setting no longer showed
-            what the operator configured.
-        Setup summary: Read the list twice with a Firecrawl key; assert the
-            same result both times and an untouched in-house list.
-        """
         settings = Base(active_inhouse_crawlers=["basic"], firecrawl_api_key="key")
 
         first, second = settings.active_crawlers, settings.active_crawlers
@@ -293,15 +284,6 @@ class TestActiveCrawlers:
 
     @pytest.mark.ai
     def test_active_crawlers__offers_a_listed_crawler__without_its_key(self) -> None:
-        """
-        Purpose: Verify a crawler can be offered by listing it, with no API key
-            on the assistant.
-        Why this matters: Firecrawl page reads go through the Search Proxy and
-            its key; the assistant must be able to offer the reader without
-            holding a second copy of the key.
-        Setup summary: List Firecrawl with no key, then with a key; assert it
-            appears once in both cases.
-        """
         listed = Base(active_inhouse_crawlers=["basic", "firecrawl"])
         listed_and_keyed = Base(
             active_inhouse_crawlers=["basic", "firecrawl"], firecrawl_api_key="key"

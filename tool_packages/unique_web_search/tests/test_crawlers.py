@@ -625,15 +625,6 @@ class TestFirecrawlCrawlerZeroDataRetention:
     async def test_legacy_crawl__refuses__when_zero_data_retention_is_required(
         self,
     ) -> None:
-        """
-        Purpose: Verify the direct Firecrawl path reads nothing when the
-            configuration requires zero data retention.
-        Why this matters: Only the Search Proxy can send zero data retention.
-            Reading directly would let Firecrawl keep page content that the
-            configuration forbids, without any error.
-        Setup summary: Call the direct path with the switch on and a mocked
-            Firecrawl client; assert it raises before the client is built.
-        """
         from unique_search_proxy_core.crawlers.firecrawl.schema import FirecrawlConfig
 
         from unique_web_search.services.crawlers.firecrawl import FirecrawlCrawler
@@ -662,15 +653,6 @@ class TestFirecrawlCrawlerZeroDataRetention:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """
-        Purpose: Verify the crawler configuration's zero data retention switch
-            reaches the Search Proxy call.
-        Why this matters: The proxy turns the switch into Firecrawl's
-            `zeroDataRetention`; a switch dropped on the way reads pages without
-            it and nothing fails.
-        Setup summary: Crawl through a mocked proxy client with the switch on;
-            assert the call carries it.
-        """
         from unique_search_proxy_core.crawlers.firecrawl.schema import FirecrawlConfig
 
         import unique_web_search.services.crawlers.base as base_module

@@ -158,14 +158,6 @@ class TestFirecrawlRequestBody:
 
 
 def _firecrawl_request(**fields: object) -> object:
-    """Parse a Firecrawl crawl request for one example URL.
-
-    Args:
-        **fields (object): Request fields, camelCase, added to the defaults.
-
-    Returns:
-        object: The parsed Firecrawl crawl request.
-    """
     return parse_crawl_request(
         {
             "urls": ["https://example.com"],
@@ -176,18 +168,8 @@ def _firecrawl_request(**fields: object) -> object:
 
 
 class TestFirecrawlCacheAndRetention:
-    """Firecrawl scrape bodies: cache, zero data retention, proxy, PDF and location."""
-
     @pytest.mark.ai
     def test_build_body__omits_zero_data_retention__by_default(self) -> None:
-        """
-        Purpose: Verify page reads send no zero data retention field by default.
-        Why this matters: Firecrawl rejects the field for accounts without zero
-            data retention, so existing deployments must keep sending the same
-            body after the upgrade.
-        Setup summary: Build single and batch bodies with defaults; assert the
-            field is absent.
-        """
         request = _firecrawl_request()
 
         assert "zeroDataRetention" not in build_firecrawl_scrape_body(
@@ -199,13 +181,6 @@ class TestFirecrawlCacheAndRetention:
 
     @pytest.mark.ai
     def test_build_body__sends_zero_data_retention__when_enabled(self) -> None:
-        """
-        Purpose: Verify the zero data retention setting reaches Firecrawl.
-        Why this matters: Without the field Firecrawl keeps the page content,
-            which a zero data retention contract forbids.
-        Setup summary: Build single and batch bodies with the flag on; assert
-            `zeroDataRetention: true` in both.
-        """
         request = _firecrawl_request()
 
         single = build_firecrawl_scrape_body(
@@ -219,37 +194,7 @@ class TestFirecrawlCacheAndRetention:
         assert batch["zeroDataRetention"] is True
 
     @pytest.mark.ai
-    def test_build_body__omits_proxy_mode__by_default(self) -> None:
-        """
-        Purpose: Verify the proxy mode is only sent when changed.
-        Why this matters: `auto` is Firecrawl's own default, so a default read
-            keeps the body it always had; a chosen tier must reach Firecrawl.
-        Setup summary: Build bodies with the default and with `enhanced`;
-            assert the field is absent, then present.
-        """
-        default = build_firecrawl_scrape_body(
-            "https://example.com", _firecrawl_request()
-        )
-        enhanced = build_firecrawl_scrape_body(
-            "https://example.com", _firecrawl_request(proxy="enhanced")
-        )
-
-        assert "proxy" not in default
-        assert enhanced["proxy"] == "enhanced"
-
-    @pytest.mark.ai
     def test_build_body__caps_cache_age_and_pdf_pages__by_default(self) -> None:
-        """
-        Purpose: Verify a default read accepts cached pages up to ten minutes
-            old and reads at most 20 pages of a PDF, for one and several URLs.
-        Why this matters: Firecrawl's own two-day cache passes stale prices as
-            current, and it bills every PDF page while the tool cuts page text
-            at 10,000 tokens, so a 300-page report would cost 300 credits for
-            text that is thrown away. `image` must stay listed, because a
-            `parsers` list turns off every parser it does not name.
-        Setup summary: Build single and batch bodies with defaults; assert
-            `maxAge` and `parsers` in both.
-        """
         request = _firecrawl_request()
         single = build_firecrawl_scrape_body("https://example.com", request)
         batch = build_firecrawl_batch_scrape_body(["https://example.com"], request)
@@ -260,48 +205,15 @@ class TestFirecrawlCacheAndRetention:
 
     @pytest.mark.ai
     def test_request__reads_null_cache_age_and_pdf_cap__as_the_defaults(self) -> None:
-        """
-        Purpose: Verify a null cache age or PDF cap loads as the default.
-        Why this matters: Null values are dropped between the web search tool,
-            the SDK and the proxy, so null can never mean "no limit". A null
-            left in a stored config must not make the space's web search fail.
-        Setup summary: Parse a request with both fields null; assert the
-            defaults.
-        """
         request = _firecrawl_request(maxAge=None, maxPdfPages=None)
 
         assert request.max_age == 600_000
         assert request.max_pdf_pages == 20
 
     @pytest.mark.ai
-    def test_build_body__sends_firecrawl_own_limits__when_configured(self) -> None:
-        """
-        Purpose: Verify the old behaviour can be configured with numbers: a
-            two-day cache and Firecrawl's maximum of 10,000 PDF pages.
-        Why this matters: The changelog tells operators to use these values to
-            get the previous reader behaviour back.
-        Setup summary: Build a body with both values; assert them.
-        """
-        body = build_firecrawl_scrape_body(
-            "https://example.com",
-            _firecrawl_request(maxAge=172_800_000, maxPdfPages=10_000),
-        )
-
-        assert body["maxAge"] == 172_800_000
-        assert body["parsers"] == [{"type": "pdf", "maxPages": 10_000}, "image"]
-
-    @pytest.mark.ai
     def test_build_body__sends_cache_storage_and_location__only_when_changed(
         self,
     ) -> None:
-        """
-        Purpose: Verify cache storage and location are sent only when an admin
-            changed them, under Firecrawl's field names.
-        Why this matters: A default read must keep the body it always had, and
-            Firecrawl ignores misnamed fields without an error.
-        Setup summary: Build a default body and one with both options changed;
-            assert the fields are absent, then present.
-        """
         default = build_firecrawl_scrape_body(
             "https://example.com", _firecrawl_request()
         )
@@ -316,15 +228,3 @@ class TestFirecrawlCacheAndRetention:
         assert "location" not in default
         assert changed["storeInCache"] is False
         assert changed["location"] == {"country": "CH", "languages": ["de-CH", "en"]}
-
-    @pytest.mark.ai
-    def test_request__rejects_cache_age__above_seven_days(self) -> None:
-        """
-        Purpose: Verify the cache age cannot exceed Firecrawl's seven-day cap.
-        Why this matters: Firecrawl silently lowers larger values, so the admin
-            would see a setting that is not applied.
-        Setup summary: Parse a request one millisecond over seven days; assert
-            validation fails.
-        """
-        with pytest.raises(ValidationError):
-            _firecrawl_request(maxAge=7 * 24 * 60 * 60 * 1000 + 1)

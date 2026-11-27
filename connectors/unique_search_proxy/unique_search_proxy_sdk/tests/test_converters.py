@@ -59,12 +59,6 @@ class TestToSdkSearchRequest:
 
     @pytest.mark.ai
     def test_firecrawl(self) -> None:
-        """
-        Purpose: Verify Firecrawl search fields survive core-to-SDK conversion.
-        Why this matters: Sources, filters and page reading decide cost and
-            results; a field dropped here never reaches Search Proxy.
-        Setup summary: Parse a Firecrawl request and inspect its serialized body.
-        """
         request = parse_search_request(
             {
                 "engine": "firecrawl",

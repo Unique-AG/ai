@@ -43,11 +43,6 @@ def _request_fields(config: type[BaseModel]) -> set[str]:
 def test_crawl_endpoint__accepts_every_request_field__for_each_crawler(
     name: str, endpoint: type
 ) -> None:
-    """
-    Purpose: Keep the hand-written crawl endpoints in step with the proxy's request models.
-    Why this matters: The crawler passes every config field as a keyword, so a missing one fails every crawl.
-    Setup summary: Compare the endpoint's keywords with the crawler request model's fields.
-    """
     config = next(c for key, c in CRAWLER_NAME_TO_CONFIG.items() if str(key) == name)
 
     assert _keyword_names(endpoint) == _request_fields(config)
@@ -58,11 +53,6 @@ def test_crawl_endpoint__accepts_every_request_field__for_each_crawler(
 def test_search_endpoint__accepts_every_request_field__for_each_engine(
     name: str, endpoint: type
 ) -> None:
-    """
-    Purpose: Keep the hand-written search endpoints in step with the proxy's request models.
-    Why this matters: The tool passes every config field as a keyword, so a missing one fails every search.
-    Setup summary: Compare the endpoint's keywords with the engine request model's fields.
-    """
     config = next(c for key, c in ENGINE_NAME_TO_CONFIG.items() if str(key) == name)
 
     assert _keyword_names(endpoint) == _request_fields(config)

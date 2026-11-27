@@ -126,13 +126,6 @@ class TestSearchEngineConfigUnion:
     def test_firecrawl_config__is_part_of_deployment_union__with_engine_fields(
         self,
     ) -> None:
-        """
-        Purpose: Verify Firecrawl is part of the deployment config union.
-        Why this matters: Space configs are parsed through this union; an engine
-            missing from it cannot be saved or loaded.
-        Setup summary: Parse a firecrawl config with engine-specific fields;
-            assert the model type and values.
-        """
         config = parse_search_engine_config(
             {
                 "engine": "firecrawl",

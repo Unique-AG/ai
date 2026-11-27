@@ -185,15 +185,6 @@ class TestSearchClient:
         sdk_client: UniqueSearchProxyClient,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """
-        Purpose: Verify a Firecrawl search sent through the SDK reaches the
-            service with its options and returns the scraped page content.
-        Why this matters: The web search tool calls the proxy through this
-            client; lost options change cost, and lost content forces a
-            second crawl of every page.
-        Setup summary: Stub the Firecrawl service, call `search.firecrawl` with
-            options, and assert the received request and the curated content.
-        """
         from unique_search_proxy_core.schema import (
             SearchEngineRaw,
             WebSearchResult,

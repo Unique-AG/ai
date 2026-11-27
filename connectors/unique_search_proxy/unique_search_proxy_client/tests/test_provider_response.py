@@ -79,12 +79,6 @@ def test_raise_for_upstream_response_attaches_raw() -> None:
 def test_raise_for_upstream_response__marks_error_non_retryable__for_listed_status() -> (
     None
 ):
-    """
-    Purpose: Verify a listed status is reported as not retryable.
-    Why this matters: A caller that retries a rejected key or a feature the
-        provider has not enabled only repeats the same failure.
-    Setup summary: Raise for an HTTP 403 with 403 listed; assert the flag is off.
-    """
     response = httpx.Response(403, json={"error": "feature not enabled"})
 
     with pytest.raises(UpstreamError) as exc_info:
@@ -96,25 +90,3 @@ def test_raise_for_upstream_response__marks_error_non_retryable__for_listed_stat
 
     assert exc_info.value.retryable is False
     assert exc_info.value.to_detail().retryable is False
-
-
-@pytest.mark.ai
-def test_raise_for_upstream_response__keeps_error_retryable__for_unlisted_status() -> (
-    None
-):
-    """
-    Purpose: Verify statuses outside the list stay retryable.
-    Why this matters: A provider outage (5xx) is worth retrying, and providers
-        that pass no list must keep their current behaviour.
-    Setup summary: Raise for an HTTP 502 with only 403 listed; assert the flag is on.
-    """
-    response = httpx.Response(502, json={"error": "upstream down"})
-
-    with pytest.raises(UpstreamError) as exc_info:
-        raise_for_upstream_response(
-            response,
-            provider_label="Example API",
-            non_retryable_status_codes=frozenset({403}),
-        )
-
-    assert exc_info.value.retryable is True

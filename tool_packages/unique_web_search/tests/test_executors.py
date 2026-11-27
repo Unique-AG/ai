@@ -1208,8 +1208,6 @@ class TestWebSearchV3ExecutorSearch:
 
 
 class TestRepeatedSnippetLimit:
-    """A long search snippet is cut only where it would be repeated."""
-
     @staticmethod
     def _results(long_snippet: str) -> list[WebSearchResult]:
         return [
@@ -1241,17 +1239,6 @@ class TestRepeatedSnippetLimit:
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
-        """
-        Purpose: Verify a long snippet is cut to the engine's limit for a read
-            page and kept whole for a result that has no page text.
-        Why this matters: A read page is split into chunks that each repeat the
-            snippet, so a 19,000-character Firecrawl preview multiplied into
-            about half of a 100k-token prompt. A result without page text is
-            only its snippet, so cutting it there would lose the answer.
-        Setup summary: Give the engine a 500-character limit and process one
-            read page, one unread result and one short snippet; assert what the
-            content processor receives and that the inputs are unchanged.
-        """
         long_snippet = "price " * 400
         results = self._results(long_snippet)
         mock_executor_dependencies["search_service"].repeated_snippet_max_chars = 500
@@ -1281,13 +1268,6 @@ class TestRepeatedSnippetLimit:
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
-        """
-        Purpose: Verify engines that set no limit keep their snippets as they are.
-        Why this matters: The limit exists for Firecrawl's long previews; Brave
-            and Google results must reach the model exactly as before.
-        Setup summary: Leave the engine without a limit; assert the content
-            processor receives the same result objects.
-        """
         results = self._results("price " * 400)
         mock_executor_dependencies["search_service"].repeated_snippet_max_chars = None
         executor = WebSearchV2Executor(
@@ -1310,15 +1290,6 @@ class TestRepeatedSnippetLimit:
         executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
-        """
-        Purpose: Verify a V3 search row carries the whole snippet even when the
-            engine limits snippets on read pages.
-        Why this matters: In V3 the snippet is all the model sees before it
-            decides whether to read a page, and it appears once, so there is
-            nothing to save by cutting it.
-        Setup summary: Give the engine a 500-character limit and search in V3
-            with a 2,400-character snippet; assert the row's snippet.
-        """
         import json
 
         long_snippet = "price " * 400
