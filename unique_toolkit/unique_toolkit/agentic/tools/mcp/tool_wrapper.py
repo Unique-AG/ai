@@ -112,7 +112,12 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
     def tool_format_information_for_system_prompt(self) -> str:
         """Return formatting information for system prompt"""
-        return self._mcp_tool.tool_format_information or ""
+        return self._mcp_tool.tool_format_information or (
+            "When the MCP tool result contains `source_number` entries, cite each "
+            "fact you use with that number as `[sourceN]`, for example `[source0]`.\n"
+            "Use only `source_number` values from the current tool result.\n"
+            "If the result has no `source_number`, do not invent one."
+        )
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         """Return evaluation check list - empty for MCP tools for now"""
@@ -332,7 +337,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             for item in content_items
         )
         full_text = "\n\n".join(text for text in texts if text.strip())
-        if not full_text or has_image or self._is_error_result(result):
+        if has_image or self._is_error_result(result):
             return [], [], None
 
         mapping = self._mcp_tool.reference_mapping
@@ -597,12 +602,12 @@ def _without_records(
         elements_are_records = path == list_path or (list_path is None and path == "")
         kept_list = [
             kept
-            for item in value
+            for index, item in enumerate(value)
             if (
                 kept := _without_records(
                     item,
                     remaining,
-                    path=path,
+                    path=f"{path}.{index}" if path else str(index),
                     list_path=list_path,
                     in_record_list=elements_are_records,
                 )

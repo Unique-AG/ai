@@ -349,6 +349,58 @@ class TestMCPToolWrapperToolDescription:
         assert format_info == "Format information for test tool"
 
     @pytest.mark.ai
+    @pytest.mark.parametrize("empty_format_info", [None, ""])
+    def test_tool_format_information_for_system_prompt__returns_default_when_empty_AI(
+        self,
+        mock_mcp_server: McpServer,
+        mock_mcp_tool_config: MCPToolConfig,
+        mock_chat_event: ChatEvent,
+        empty_format_info: str | None,
+    ) -> None:
+        tool = McpTool(
+            name="tool_empty_format",
+            input_schema={"type": "object"},
+            tool_format_information=empty_format_info,
+            is_connected=True,
+        )
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=tool,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+        )
+
+        format_info = wrapper.tool_format_information_for_system_prompt()
+
+        assert "[source0]" in format_info
+        assert "source_number" in format_info
+
+    @pytest.mark.ai
+    def test_tool_format_information_for_system_prompt__returns_configured_value_without_default_AI(
+        self,
+        mock_mcp_server: McpServer,
+        mock_mcp_tool_config: MCPToolConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        configured = "Summarize results in plain text without inline citations."
+        tool = McpTool(
+            name="tool_custom_format",
+            input_schema={"type": "object"},
+            tool_format_information=configured,
+            is_connected=True,
+        )
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=tool,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+        )
+
+        format_info = wrapper.tool_format_information_for_system_prompt()
+
+        assert format_info == configured
+
+    @pytest.mark.ai
     def test_tool_format_information_for_user_prompt__returns_empty_string__AI(
         self,
         mcp_tool_wrapper: MCPToolWrapper,
@@ -1908,3 +1960,37 @@ class TestMCPToolWrapperRecordReferences:
 
         assert remainder is not None
         assert json.loads(remainder) == {"next_page_token": None}
+
+    @pytest.mark.ai
+    def test_extract_record_references__cites_a_link_without_text_blocks_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        url = "https://example.test/docs/auth"
+        result = {
+            "content": [{"type": "resource_link", "name": "Auth overview", "uri": url}]
+        }
+
+        chunks, _, remainder = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [(c.title, c.url) for c in chunks] == [("Auth overview", url)]
+        assert remainder is None
+
+    @pytest.mark.ai
+    def test_extract_record_references__prunes_records_under_an_indexed_list_path_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+        mock_mcp_tool: McpTool,
+    ) -> None:
+        mock_mcp_tool.reference_mapping = McpReferenceMapping(
+            list_path="groups.0.rows", title_from_text=True
+        )
+        result = _json_text_result(
+            {"groups": [{"rows": ["Budget memo"]}], "next_page_token": "p2"}
+        )
+
+        chunks, _, remainder = mcp_tool_wrapper._extract_record_references(result)
+
+        assert [c.text for c in chunks] == ["Budget memo"]
+        assert remainder is not None
+        assert json.loads(remainder) == {"next_page_token": "p2"}

@@ -249,7 +249,7 @@ def _to_search_context(
     return [
         unique_sdk.Integrated.SearchResult(  # pyright: ignore[reportCallIssue]
             id=chunk.id,
-            chunkId=chunk.chunk_id,
+            chunkId=chunk.chunk_id or "",
             key=chunk.key,
             title=chunk.title,
             url=chunk.url,
