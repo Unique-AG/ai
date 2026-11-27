@@ -388,6 +388,13 @@ class ChatEventPayload(BaseEventPayload):
         default=None,
         description="The session configuration for the chat session.",
     )
+    project_id: str | None = Field(
+        default=None,
+        description=(
+            "Project the chat belongs to (its user space id). Set only for "
+            "project chats while Projects is enabled for the company."
+        ),
+    )
 
     @field_validator("raw_scope_rules", mode="before")
     def validate_scope_rules(cls, value: dict[str, Any] | None) -> UniqueQL | None:
