@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Changed
+body: Python streaming is now imported from the stable paths `unique_toolkit._internal.streaming` and `unique_toolkit.integrations.openai.streaming`. The former `unique_toolkit.experimental` streaming paths keep working and now emit a `DeprecationWarning` pointing at the new location.
+time: 2026-11-27T14:15:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-23152
