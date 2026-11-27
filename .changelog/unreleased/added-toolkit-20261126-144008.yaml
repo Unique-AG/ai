@@ -1,6 +1,6 @@
 component: Toolkit
 kind: Added
-body: Experimental `unique_toolkit.experimental.resources.project_memory.ProjectMemories` reads a project's memory document as the project owner (`from_event`, `get_document`, `get_document_async`).
+body: Chat events carry an optional `project_id` (the project of a project chat), and the experimental `unique_toolkit.experimental.resources.project_memory.ProjectMemories` reads a project's memory document as the project owner (`from_event`, `get_document`, `get_document_async`).
 time: 2026-11-26T14:40:08.900236+01:00
 custom:
     Audience: developer

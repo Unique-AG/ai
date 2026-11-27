@@ -47,6 +47,16 @@ def _chat_event(payload_extra: dict) -> ChatEvent:
 
 
 @pytest.mark.ai
+def test_chat_event_reads_project_id_from_the_wire() -> None:
+    assert _chat_event({"projectId": PROJECT_ID}).payload.project_id == PROJECT_ID
+
+
+@pytest.mark.ai
+def test_chat_event_without_project_id_defaults_to_none() -> None:
+    assert _chat_event({}).payload.project_id is None
+
+
+@pytest.mark.ai
 def test_from_event_raises_for_a_chat_outside_a_project() -> None:
     with pytest.raises(ValueError, match="project_id"):
         ProjectMemories.from_event(_chat_event({}))
