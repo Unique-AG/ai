@@ -15,6 +15,7 @@ from unique_web_search import activity_record
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.client.http_client import client_for
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
+from unique_web_search.services.search_engine.domain_policy import DomainPolicy
 from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -45,6 +46,15 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
     @property
     def endpoint(self) -> str | None:
         return get_google_search_settings().api_endpoint
+
+    @override
+    def domain_policy(self) -> DomainPolicy:
+        site = self.config.site_search.value
+        if not site:
+            return DomainPolicy()
+        if self.config.site_search_filter.value == "e":
+            return DomainPolicy.of(exclude=[site])
+        return DomainPolicy.of(include=[site])
 
     @override
     async def _legacy_search(

@@ -1,0 +1,7 @@
+component: Web Search
+kind: Fixed
+body: Web search no longer opens pages from a domain the space excludes, or outside the domains it includes, when the model asks to read a URL directly.
+time: 2026-11-17T16:15:00.000000+01:00
+custom:
+    Audience: admin
+    Ticket: UN-29330
