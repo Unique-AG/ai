@@ -106,6 +106,10 @@ class McpReferenceMapping(BaseModel):
         default=None,
         description="Dotted path to each record's title, e.g. 'key' or 'fields.summary'.",
     )
+    url_path: Optional[str] = Field(
+        default=None,
+        description="Dotted path to each record's http(s) or unique://content link, e.g. 'webUrl'.",
+    )
     title_template: Optional[str] = Field(
         default=None,
         description="Optional title template with {dotted.path} tokens, e.g. '{key} — {fields.summary}'. Takes precedence over title_path.",

@@ -863,6 +863,35 @@ def test_create_reduced_standard_sources_message__preserves_readable_unicode_AI(
     assert content_dict[1]["content"] == "مرحبا 😀"
 
 
+@pytest.mark.ai
+def test_create_reduced_standard_sources_message__keeps_system_reminder_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify a reminder appended after the source JSON survives reduction.
+    Why this matters: Dropping it hides paging hints and warnings from the model.
+    """
+    original_message = create_tool_message(
+        "tool_1", "TestTool", '[{"source_number": 0}]\n\nMore pages: p2'
+    )
+    chunks = [create_content_chunk("chunk_1", "First chunk text")]
+
+    result = loop_token_reducer._create_reduced_standard_sources_message(
+        message=original_message,
+        content_chunks=chunks,
+        source_offset=3,
+    )
+
+    sources = [
+        {
+            "source_number": 3,
+            "content_id": "cont_test123",
+            "content": "First chunk text",
+        }
+    ]
+    assert result.content == json.dumps(sources) + "\n\nMore pages: p2"
+
+
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
     loop_token_reducer: LoopTokenReducer,
 ) -> None:

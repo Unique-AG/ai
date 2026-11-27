@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Fixed
+body: An MCP tool result without reference metadata is cited in Unique AI. Each record that has text becomes a source, linked to the record's web page when the record has one. A result with no titled record becomes one source named after the tool. A record with no usable text is not cited. When none of the records have usable text, the model gets plain text instead of a source with no link. Paging and warning text stays visible to the model and is not a cited source. A reference mapping can set `url_path` to the path of each record's link. Saved sources still parse when a reminder follows the JSON. Error and image results are unchanged.
+time: 2026-11-26T14:32:08.793621+01:00
+custom:
+    Audience: user
+    Ticket: UN-30283

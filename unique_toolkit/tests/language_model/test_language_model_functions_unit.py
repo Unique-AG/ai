@@ -113,7 +113,17 @@ def test_to_search_context():
     assert result is not None
     assert len(result) == 2
     assert result[0]["id"] == "1"
+    assert result[0]["chunkId"] == "1"
     assert result[1]["id"] == "2"
+
+
+def test_to_search_context_sends_a_string_chunk_id_when_unset():
+    result = _to_search_context(
+        [ContentChunk(id="mcp:srv:content_tree:readme", key="readme", text="tree")]
+    )
+
+    assert result is not None
+    assert result[0]["chunkId"] == ""
 
 
 @patch.object(unique_sdk.ChatCompletion, "create")

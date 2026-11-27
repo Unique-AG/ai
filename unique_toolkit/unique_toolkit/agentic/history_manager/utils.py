@@ -113,6 +113,34 @@ def transform_chunks_to_string(
     return serialize_tool_content_json(sources), sources
 
 
+def _decode_json_value(content: str) -> tuple[Any, int]:
+    """One JSON value, skipping leading whitespace. End index is into ``content``."""
+    start = len(content) - len(content.lstrip(" \t\r\n"))
+    return json.JSONDecoder().raw_decode(content, start)
+
+
+def _loads_json_with_optional_reminder(content: str) -> Any:
+    """One JSON value, then only whitespace or a blank-line reminder."""
+    data, end = _decode_json_value(content)
+    head = content[end:].partition("\n\n")[0]
+    junk = head.lstrip(" \t\r\n")
+    if junk:
+        raise json.JSONDecodeError("Extra data", content, end + len(head) - len(junk))
+    return data
+
+
+def _reminder_after_json(content: str) -> str:
+    """The ``\\n\\n`` reminder after one JSON value, or empty."""
+    try:
+        _, end = _decode_json_value(content)
+    except json.JSONDecodeError:
+        return ""
+    head, sep, rest = content[end:].partition("\n\n")
+    if not sep or head.lstrip(" \t\r\n"):
+        return ""
+    return sep + rest
+
+
 def load_sources_from_string(
     source_string: str,
 ) -> list[Source] | None:
@@ -120,7 +148,7 @@ def load_sources_from_string(
 
     try:
         # First, try parsing as JSON (new format)
-        sources_data = json.loads(source_string)
+        sources_data = _loads_json_with_optional_reminder(source_string)
         return [Source.model_validate(source) for source in sources_data]
     except (json.JSONDecodeError, ValueError):
         logger.warning("Failed to parse source string")
@@ -133,7 +161,7 @@ def _parse_sources_from_response(content: str) -> list[dict[str, Any]]:
     Returns an empty list when the content is not valid JSON or not a list.
     """
     try:
-        data = json.loads(content)
+        data = _loads_json_with_optional_reminder(content)
         if isinstance(data, list):
             return data
         return []

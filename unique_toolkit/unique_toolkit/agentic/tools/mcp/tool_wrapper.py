@@ -4,10 +4,15 @@ import json
 import logging
 import mimetypes
 import uuid
+from collections import Counter
 from typing import Any
 
 import unique_sdk
 from pydantic import ValidationError
+from unique_sdk.utils.mcp_citations import (
+    extract_mcp_citation_items,
+    find_embedded_json,
+)
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
@@ -107,7 +112,12 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
     def tool_format_information_for_system_prompt(self) -> str:
         """Return formatting information for system prompt"""
-        return self._mcp_tool.tool_format_information or ""
+        return self._mcp_tool.tool_format_information or (
+            "When the MCP tool result contains `source_number` entries, cite each "
+            "fact you use with that number as `[sourceN]`, for example `[source0]`.\n"
+            "Use only `source_number` values from the current tool result.\n"
+            "If the result has no `source_number`, do not invent one."
+        )
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         """Return evaluation check list - empty for MCP tools for now"""
@@ -141,6 +151,11 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             result = await self._call_mcp_tool_via_sdk(arguments)
 
             content_chunks, references = self._extract_structured_references(result)
+            remainder = None
+            if not content_chunks:
+                content_chunks, references, remainder = (
+                    self._try_extract_record_references(result)
+                )
             content_str, image_data_urls = await asyncio.to_thread(
                 self._process_mcp_result, result
             )
@@ -162,6 +177,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 content=content_str,
                 content_chunks=content_chunks or None,
                 image_data_urls=image_data_urls,
+                system_reminder=remainder or "",
             )
 
             # Update message log entry to completed
@@ -292,6 +308,97 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             chunks.append(chunk)
         return chunks, references
 
+    def _try_extract_record_references(
+        self, result: dict[str, Any]
+    ) -> tuple[list[ContentChunk], list[ContentReference], str | None]:
+        """The tool call already succeeded, so a citation failure (such as a
+        ``RecursionError`` on deeply nested JSON) falls back to the flat text."""
+        try:
+            return self._extract_record_references(result)
+        except Exception as e:
+            self.logger.warning(
+                f"Could not cite the result of MCP tool {self.name}: {e!r}"
+            )
+            return [], [], None
+
+    def _extract_record_references(
+        self, result: dict[str, Any]
+    ) -> tuple[list[ContentChunk], list[ContentReference], str | None]:
+        """One chunk per record the shared extractor finds.
+        Text outside those records is a system reminder, not a source."""
+        content_items = self._extract_content_items(result)
+        texts = [
+            str(item.get("text") or "")
+            for item in content_items
+            if isinstance(item, dict) and item.get("type") == "text"
+        ]
+        has_image = any(
+            isinstance(item, dict) and item.get("type") == "image"
+            for item in content_items
+        )
+        full_text = "\n\n".join(text for text in texts if text.strip())
+        if has_image or self._is_error_result(result):
+            return [], [], None
+
+        mapping = self._mcp_tool.reference_mapping
+        items = extract_mcp_citation_items(
+            {"content": content_items},
+            reference_mapping=(
+                mapping.model_dump(by_alias=True, exclude_none=True)
+                if mapping
+                else None
+            ),
+            fallback_text=full_text,
+        )
+        records = [
+            (item.get("title") or self._source_name(), item.get("url"), text)
+            for item in items
+            if (text := item.get("text") or _link_label(item))
+        ]
+        if not records:
+            return [], [], None
+        remainder = _text_outside_records(
+            texts,
+            [text for item in items if (text := item.get("text"))],
+            list_path=mapping.list_path if mapping else None,
+        )
+
+        chunks: list[ContentChunk] = []
+        references: list[ContentReference] = []
+        for index, (title, url, text) in enumerate(records):
+            source_id = url or f"mcp:{self._mcp_server.name}:{self.name}:{title}"
+            chunks.append(
+                ContentChunk(
+                    id=source_id,
+                    key=title,
+                    title=title,
+                    text=text,
+                    url=url,
+                    order=index,
+                )
+            )
+            references.append(
+                ContentReference(
+                    id=source_id,
+                    name=title,
+                    sequence_number=index + 1,
+                    source=f"mcp:{self._mcp_server.name}",
+                    source_id=source_id,
+                    url=url,
+                )
+            )
+        return chunks, references, remainder
+
+    def _source_name(self) -> str:
+        return self.display_name() or self.name
+
+    @staticmethod
+    def _is_error_result(result: dict[str, Any]) -> bool:
+        inner = result.get("result")
+        return bool(
+            result.get("isError") or (isinstance(inner, dict) and inner.get("isError"))
+        )
+
     def _process_mcp_result(self, result: dict[str, Any]) -> tuple[str, list[str]]:
         """Parse MCP result content array, upload images, return content string and data URLs."""
         content_items = self._extract_content_items(result)
@@ -405,3 +512,131 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         except Exception as e:
             self.logger.error(f"SDK call failed for MCP tool {self.name}: {e}")
             raise
+
+
+def _link_label(item: dict[str, Any]) -> str | None:
+    """Text for a titled link with no body, such as a ``resource_link`` without
+    a description, so it is still a source the model can cite."""
+    title, url = item.get("title"), item.get("url")
+    return f"{title}\n{url}" if title and url else None
+
+
+def _text_outside_records(
+    texts: list[str],
+    record_texts: list[str],
+    *,
+    list_path: str | None,
+) -> str | None:
+    """Text of the result minus the cited records, removed once per record so an
+    equal value elsewhere, such as a page token, stays visible to the model."""
+    full_text = "\n\n".join(text for text in texts if text.strip())
+    if full_text in record_texts:
+        return None
+    remaining = Counter(record_texts)
+    parts = [
+        part
+        for text in texts
+        if (part := _block_outside_records(text, remaining, list_path=list_path))
+    ]
+    return "\n\n".join(parts) or None
+
+
+def _block_outside_records(
+    text: str, remaining: Counter[str], *, list_path: str | None
+) -> str | None:
+    if not text.strip():
+        return None
+    found = find_embedded_json(text)
+    if found is None:
+        for record_text in list(remaining):
+            while remaining[record_text] > 0 and record_text in text:
+                text = text.replace(record_text, "", 1)
+                remaining[record_text] -= 1
+        return text.strip() or None
+    parsed, start, end = found
+    pruned = _without_records(
+        parsed, remaining, path="", list_path=list_path, in_record_list=False
+    )
+    body = (
+        None
+        if pruned is _REMOVED or not _has_value(pruned)
+        else json.dumps(pruned, ensure_ascii=False, default=str)
+    )
+    # Text around the JSON, such as Atlassian's ``[IMPORTANT: ...]`` notice.
+    parts = (text[:start].strip(), body, text[end:].strip())
+    return "\n".join(part for part in parts if part) or None
+
+
+_REMOVED = object()
+
+
+def _without_records(
+    value: Any,
+    remaining: Counter[str],
+    *,
+    path: str,
+    list_path: str | None,
+    in_record_list: bool,
+) -> Any:
+    """``value`` without its records, or ``_REMOVED`` when the value was only records.
+    A plain string is a record only inside the record list."""
+    if _take_record(value, remaining, in_record_list=in_record_list):
+        return _REMOVED
+    if isinstance(value, dict):
+        kept_dict = {
+            key: kept
+            for key, item in value.items()
+            if (
+                kept := _without_records(
+                    item,
+                    remaining,
+                    path=f"{path}.{key}" if path else key,
+                    list_path=list_path,
+                    in_record_list=False,
+                )
+            )
+            is not _REMOVED
+        }
+        return _REMOVED if value and not kept_dict else kept_dict
+    if isinstance(value, list):
+        elements_are_records = path == list_path or (list_path is None and path == "")
+        kept_list = [
+            kept
+            for index, item in enumerate(value)
+            if (
+                kept := _without_records(
+                    item,
+                    remaining,
+                    path=f"{path}.{index}" if path else str(index),
+                    list_path=list_path,
+                    in_record_list=elements_are_records,
+                )
+            )
+            is not _REMOVED
+        ]
+        return _REMOVED if value and not kept_list else kept_list
+    return value
+
+
+def _take_record(value: Any, remaining: Counter[str], *, in_record_list: bool) -> bool:
+    """Matches how the extractor serializes a record into its ``text``."""
+    if isinstance(value, str) and in_record_list:
+        key = value
+    elif isinstance(value, dict):
+        key = json.dumps(value, ensure_ascii=False, default=str)
+    else:
+        return False
+    if remaining[key] <= 0:
+        return False
+    remaining[key] -= 1
+    return True
+
+
+def _has_value(value: Any) -> bool:
+    """Whether any field is left, counting an explicit ``null`` or ``""`` such as
+    an end-of-pagination marker."""
+    if isinstance(value, dict):
+        return any(_has_value(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_has_value(item) for item in value)
+    return True

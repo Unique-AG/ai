@@ -655,3 +655,22 @@ class TestContentChunkToReference:
 
         assert " : " not in ref.name.replace("Report : 1,2,5,8,9", "", 1)
         assert ref.name == "Report : 1,2,5,8,9"
+
+
+@pytest.mark.ai
+def test_to_sdk_reference_links_only_content_ids():
+    """A content id gets an internal link. A URL-less MCP id does not."""
+    content = ContentChunk(id="cont_123", title="Doc", text="t", order=0)
+    assert content.to_sdk_reference(0)["url"] == "unique://content/cont_123"
+
+    linked = ContentChunk(
+        id="mcp:srv:tool:Mail",
+        title="Mail",
+        text="body",
+        url="https://example.test/mail",
+        order=0,
+    )
+    assert linked.to_sdk_reference(0)["url"] == "https://example.test/mail"
+
+    plain = ContentChunk(id="mcp:srv:tool:Mail", title="Mail", text="body", order=0)
+    assert plain.to_sdk_reference(0)["url"] is None

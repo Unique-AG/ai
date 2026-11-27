@@ -15,6 +15,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
 )
 from unique_toolkit.agentic.history_manager.settings import env_settings
 from unique_toolkit.agentic.history_manager.utils import (
+    _reminder_after_json,
     get_selected_uploaded_content_ids,
     serialize_tool_content_json,
 )
@@ -755,8 +756,13 @@ class LoopTokenReducer:
             for i, chunk in enumerate(content_chunks)
         ]
 
+        reminder = (
+            _reminder_after_json(message.content)
+            if isinstance(message.content, str)
+            else ""
+        )
         return LanguageModelToolMessage(
-            content=serialize_tool_content_json(sources),
+            content=serialize_tool_content_json(sources) + reminder,
             tool_call_id=message.tool_call_id,
             name=message.name,
         )
