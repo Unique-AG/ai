@@ -154,6 +154,7 @@ firecrawl:
   connection:
     apiEndpoint: "https://api.firecrawl.dev"
     apiVersion: v2
+    zeroDataRetention: none
     # apiKey: <fromSecret or fromSecretProvider>
 
 httpClient:

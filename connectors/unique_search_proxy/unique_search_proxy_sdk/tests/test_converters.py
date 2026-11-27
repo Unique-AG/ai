@@ -58,6 +58,40 @@ class TestToSdkSearchRequest:
         assert body["searchRecencyFilter"] == "day"
 
     @pytest.mark.ai
+    def test_firecrawl(self) -> None:
+        """
+        Purpose: Verify Firecrawl search fields survive core-to-SDK conversion.
+        Why this matters: Sources, filters and page reading decide cost and
+            results; a field dropped here never reaches Search Proxy.
+        Setup summary: Parse a Firecrawl request and inspect its serialized body.
+        """
+        request = parse_search_request(
+            {
+                "engine": "firecrawl",
+                "query": "hello",
+                "fetchSize": 3,
+                "sources": "web_and_news",
+                "scrapeResults": True,
+                "category": "pdf",
+                "zeroDataRetention": "zdr",
+                "timeFilter": "qdr:d",
+                "excludeDomains": ["example.com"],
+            },
+        )
+
+        body = to_sdk_search_request(request).to_dict()
+
+        assert body["query"] == "hello"
+        assert body["engine"] == "firecrawl"
+        assert body["fetchSize"] == 3
+        assert body["sources"] == "web_and_news"
+        assert body["scrapeResults"] is True
+        assert body["category"] == "pdf"
+        assert body["zeroDataRetention"] == "zdr"
+        assert body["timeFilter"] == "qdr:d"
+        assert body["excludeDomains"] == ["example.com"]
+
+    @pytest.mark.ai
     def test_custom_api(self) -> None:
         """
         Purpose: Verify Custom API fields survive core-to-SDK conversion.

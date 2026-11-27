@@ -24,6 +24,10 @@ from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiRequestMethod,
     CustomApiSearchRequest,
 )
+from unique_search_proxy_core.search_engines.firecrawl.schema import (
+    FirecrawlSearchConfig,
+    FirecrawlSearchRequest,
+)
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
     GoogleSearchRequest,
@@ -40,6 +44,8 @@ __all__ = [
     "CustomApiConfig",
     "CustomApiRequestMethod",
     "CustomApiSearchRequest",
+    "FirecrawlSearchConfig",
+    "FirecrawlSearchRequest",
     "GoogleConfig",
     "GoogleSearchRequest",
     "PerplexityConfig",

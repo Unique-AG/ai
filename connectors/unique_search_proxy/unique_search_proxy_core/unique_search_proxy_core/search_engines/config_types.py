@@ -12,17 +12,25 @@ from unique_search_proxy_core.param_policy.exposable_config import (
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.custom_api.schema import CustomApiConfig
+from unique_search_proxy_core.search_engines.firecrawl.schema import (
+    FirecrawlSearchConfig,
+)
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityConfig
 
 SearchEngineConfigTypes: TypeAlias = (
-    GoogleConfig | BraveConfig | PerplexityConfig | CustomApiConfig
+    GoogleConfig
+    | BraveConfig
+    | PerplexityConfig
+    | FirecrawlSearchConfig
+    | CustomApiConfig
 )
 
 ENGINE_NAME_TO_CONFIG: dict[str, type[ExposableParamsConfig]] = {
     SearchEngineType.GOOGLE.value: GoogleConfig,
     SearchEngineType.BRAVE.value: BraveConfig,
     SearchEngineType.PERPLEXITY.value: PerplexityConfig,
+    SearchEngineType.FIRECRAWL.value: FirecrawlSearchConfig,
     SearchEngineType.CUSTOM_API.value: CustomApiConfig,
 }
 

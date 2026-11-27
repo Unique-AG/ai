@@ -45,6 +45,20 @@ SEARCH_PRESETS: tuple[PresetDefinition, ...] = (
         kind="search",
         provider_id="perplexity",
     ),
+    PresetDefinition(
+        id="firecrawl_search_minimal",
+        summary="Firecrawl search (minimal)",
+        description=(
+            "Flat search request for titles and previews; requires "
+            "FIRECRAWL_API_KEY in .env. Costs 2 Firecrawl credits."
+        ),
+        kind="search",
+        provider_id="firecrawl",
+        overrides={
+            "fetchSize": 3,
+            "timeout": 60,
+        },
+    ),
 )
 
 __all__ = ["SEARCH_PRESETS"]

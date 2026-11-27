@@ -172,7 +172,12 @@ class WebSearchConfig(BaseToolConfig):
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         default_factory=DefaultSearchEngine,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         title="Search Engine",
-        description="Choose and configure which search engine to use for web searches (e.g. Google, Bing, Brave).",
+        description=(
+            "Choose the search engine and its settings. Settings with a "
+            "'Let the assistant set this per search' switch can be chosen by the "
+            "assistant on each search (search modes V1 and V3). All other settings "
+            "apply to every search."
+        ),
         discriminator="engine",
     )
 

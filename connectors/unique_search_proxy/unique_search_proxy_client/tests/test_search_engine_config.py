@@ -16,6 +16,9 @@ from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiRequestMethod,
     CustomApiSearchRequest,
 )
+from unique_search_proxy_core.search_engines.firecrawl.schema import (
+    FirecrawlSearchConfig,
+)
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
     GoogleSearchRequest,
@@ -120,6 +123,32 @@ class TestSearchEngineConfigUnion:
         assert req.search_context_size == "low"
 
     @pytest.mark.ai
+    def test_firecrawl_config__is_part_of_deployment_union__with_engine_fields(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify Firecrawl is part of the deployment config union.
+        Why this matters: Space configs are parsed through this union; an engine
+            missing from it cannot be saved or loaded.
+        Setup summary: Parse a firecrawl config with engine-specific fields;
+            assert the model type and values.
+        """
+        config = parse_search_engine_config(
+            {
+                "engine": "firecrawl",
+                "fetchSize": 5,
+                "sources": "web_and_news",
+                "includeDomains": {"expose": False, "value": ["example.com"]},
+            },
+        )
+
+        assert isinstance(config, FirecrawlSearchConfig)
+        assert config.engine == SearchEngineType.FIRECRAWL
+        assert config.fetch_size == 5
+        assert config.sources == "web_and_news"
+        assert config.include_domains.value == ["example.com"]
+
+    @pytest.mark.ai
     def test_custom_api_config_accepts_endpoint_configuration(self) -> None:
         """
         Purpose: Verify Custom API is part of the deployment config union.
@@ -166,8 +195,10 @@ class TestSearchEngineConfigUnion:
         assert SearchEngineType.GOOGLE.value == "google"
         assert SearchEngineType.BRAVE.value == "brave"
         assert SearchEngineType.PERPLEXITY.value == "perplexity"
+        assert SearchEngineType.FIRECRAWL.value == "firecrawl"
         assert SearchEngineType.CUSTOM_API.value == "custom_api"
         assert SearchEngineType.GOOGLE in SearchEngineType
         assert SearchEngineType.BRAVE in SearchEngineType
         assert SearchEngineType.PERPLEXITY in SearchEngineType
+        assert SearchEngineType.FIRECRAWL in SearchEngineType
         assert SearchEngineType.CUSTOM_API in SearchEngineType

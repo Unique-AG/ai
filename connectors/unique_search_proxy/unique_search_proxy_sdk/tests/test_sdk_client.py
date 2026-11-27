@@ -180,6 +180,73 @@ class TestSearchClient:
         assert response.engine == "brave"
 
     @pytest.mark.ai
+    async def test_firecrawl_search__returns_page_content__through_the_sdk(
+        self,
+        sdk_client: UniqueSearchProxyClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify a Firecrawl search sent through the SDK reaches the
+            service with its options and returns the scraped page content.
+        Why this matters: The web search tool calls the proxy through this
+            client; lost options change cost, and lost content forces a
+            second crawl of every page.
+        Setup summary: Stub the Firecrawl service, call `search.firecrawl` with
+            options, and assert the received request and the curated content.
+        """
+        from unique_search_proxy_core.schema import (
+            SearchEngineRaw,
+            WebSearchResult,
+            WebSearchResults,
+        )
+        from unique_search_proxy_core.search_engines.firecrawl.schema import (
+            FirecrawlSearchRequest,
+        )
+
+        received: dict[str, object] = {}
+
+        async def fake_search(
+            self: object,
+            request: FirecrawlSearchRequest,
+        ) -> tuple[SearchEngineRaw, WebSearchResults]:
+            received["sources"] = request.sources
+            received["time_filter"] = request.time_filter
+            received["scrape_results"] = request.scrape_results
+            received["zero_data_retention"] = request.zero_data_retention
+            return SearchEngineRaw(pages=[]), WebSearchResults(
+                results=[
+                    WebSearchResult(
+                        url="https://example.com",
+                        title="t",
+                        snippet="s",
+                        content="# Page",
+                    ),
+                ],
+            )
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.search_engines.firecrawl.service.FirecrawlSearchService.search",
+            fake_search,
+        )
+
+        response = await sdk_client.search.firecrawl(
+            query="rates",
+            sources="web_and_news",
+            time_filter="qdr:w",
+            scrape_results=True,
+            zero_data_retention="zdr",
+        )
+
+        assert response.engine == "firecrawl"
+        assert received == {
+            "sources": "web_and_news",
+            "time_filter": "qdr:w",
+            "scrape_results": True,
+            "zero_data_retention": "zdr",
+        }
+        assert response.curated[0].content == "# Page"
+
+    @pytest.mark.ai
     async def test_search_unknown_engine_raises(
         self,
         sdk_client: UniqueSearchProxyClient,
@@ -306,6 +373,7 @@ class TestProviderRegistry:
             "google",
             "brave",
             "perplexity",
+            "firecrawl",
             "custom_api",
         }
         for engine in SEARCH_ENGINE_NAME_TO_CONFIG:

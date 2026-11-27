@@ -1,0 +1,20 @@
+component: Connectors
+kind: Added
+body: >-
+  The Firecrawl crawler on Search Proxy follows `FIRECRAWL_ZERO_DATA_RETENTION`
+  (Helm `firecrawl.connection.zeroDataRetention`), the same setting as Firecrawl
+  search: `anon` or `zdr` send Firecrawl `zeroDataRetention: true` with every
+  page read. `none` (the default) sends nothing. A crawler configuration can
+  turn it on for its own reads with `zeroDataRetention`, but never off. New
+  crawler options: `maxCacheAgeSeconds`, `storeInCache`, `maxPdfPages`,
+  `pdfMode`, `country`, `languages` and `skipTlsVerification`. Three defaults
+  change for existing Firecrawl readers: cached pages may be at most ten minutes
+  old (before: Firecrawl's default of two days), at most 20 pages of each PDF
+  are read (before: the whole document, one credit per page), and the timeout
+  is 60 seconds (before: 30). Set `maxCacheAgeSeconds` and `maxPdfPages` to
+  null for the old behaviour. The millisecond `maxAge` is hidden in the form;
+  a stored value still applies until the new field is saved.
+time: 2026-11-26T17:00:00.000000+01:00
+custom:
+    Audience: operator
+    Ticket: UN-30449

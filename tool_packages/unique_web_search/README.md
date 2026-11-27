@@ -11,7 +11,7 @@ Outbound web access should go through **Unique Search Proxy** (`connectors/uniqu
 | **Proxy (recommended)** | `SEARCH_PROXY_BASE_URL` set | `_proxy_search` / `_proxy_crawl` via the SDK |
 | **Legacy** | URL unset | Direct provider calls from this process (`_legacy_search` / `_legacy_crawl`) |
 
-- **New standard engines (Brave, Perplexity) are proxy-only** — legacy raises.
+- **New standard engines (Brave, Perplexity, Firecrawl) are proxy-only** — legacy raises.
 - **Custom API** uses proxy egress only when
   `FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736` is enabled; otherwise
   the legacy path reports URL-safety outcomes without blocking.
@@ -34,6 +34,7 @@ Query → normalised results (URL / title / snippet / optional content). Optiona
 | Google | legacy + proxy | Requires scraping by default |
 | Brave | **proxy-only** | Rich snippets; configurable `requires_scraping` (on by default); `ExposableParam` knobs |
 | Perplexity | **proxy-only** | Content extraction knobs; configurable `requires_scraping` (on by default); `ExposableParam` |
+| Firecrawl | **proxy-only** | `requires_scraping` (default off; when on, the Web Page Reader reads the pages); `scrape_results` lets Firecrawl read the pages inside the search call instead; `ExposableParam` |
 | Custom API | legacy + proxy | Your REST endpoint; proxy mode rejects redirects |
 
 Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `value`) for optional provider knobs. See [Search Engines README](./src/unique_web_search/services/search_engine/README.md).

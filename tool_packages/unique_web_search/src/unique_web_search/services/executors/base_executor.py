@@ -30,6 +30,7 @@ from unique_web_search.services.executors.context import (
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.helpers import shorten
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -155,6 +156,24 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
             )
             return [result.content for result in web_search_results]
 
+    def _shorten_repeated_snippets(
+        self, web_search_results: list[WebSearchResult]
+    ) -> list[WebSearchResult]:
+        """Cut long snippets of read pages to the engine's limit, if it has one.
+
+        Only pages with content are split into chunks that repeat the snippet;
+        a result without content is its snippet and keeps it whole.
+        """
+        limit = getattr(self.search_service, "repeated_snippet_max_chars", None)
+        if not isinstance(limit, int):
+            return web_search_results
+        return [
+            result.model_copy(update={"snippet": shorten(result.snippet, limit)})
+            if result.content and len(result.snippet) > limit
+            else result
+            for result in web_search_results
+        ]
+
     async def _content_processing(
         self, objective: str, web_search_results: list[WebSearchResult]
     ) -> list[WebPageChunk]:
@@ -162,6 +181,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         _LOGGER.info(
             f"Company {self.company_id} Content processing with {self.content_processor.config.active_processing_strategies}"
         )
+        web_search_results = self._shorten_repeated_snippets(web_search_results)
         with metric_scope(llm_duration, llm_errors, purpose="content_processing"):
             content_results = await self.content_processor.run(
                 objective, web_search_results

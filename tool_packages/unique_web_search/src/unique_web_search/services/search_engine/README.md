@@ -18,11 +18,11 @@ return await self._legacy_search(...)      # direct provider call from this proc
 | Kind | Engines | Proxy | Legacy |
 |------|---------|-------|--------|
 | **Standard** | Google | yes | yes |
-| **Standard** | Brave, Perplexity | yes | **raises** (proxy-only) |
+| **Standard** | Brave, Perplexity, Firecrawl | yes | **raises** (proxy-only) |
 | **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
-Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Perplexity/Bing/VertexAI).
+Deployment configs for Google / Brave / Perplexity / Firecrawl (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Perplexity/Firecrawl/Bing/VertexAI).
 
 ---
 
@@ -33,7 +33,7 @@ Deployment configs for Google / Brave / Perplexity (and agent base fields) live 
 | Proxy route | `POST /v1/search` | `POST /v1/agent-search` |
 | Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text (+ provider `citations`) → parsed locally |
 | LLM knobs | `ExposableParam` + `config.merge()` | `ExposableParam` (Bing only) |
-| Typical scrape | Often yes (Google; Brave and Perplexity by default) | Often no (`requires_scraping=false`) |
+| Typical scrape | Often yes (Google; Brave and Perplexity by default; Firecrawl returns the pages itself) | Often no (`requires_scraping=false`) |
 
 ---
 
@@ -131,6 +131,50 @@ Config: `unique_web_search.services.search_engine.perplexity.PerplexitySearchCon
 
 ```bash
 PERPLEXITY_API_KEY=...
+```
+
+### Firecrawl Search (proxy-only)
+
+**Provider:** Firecrawl search API · **Requires scraping:** `requires_scraping`, as for Brave and Google, but off by default · **Legacy:** not supported
+
+Config: `unique_web_search.services.search_engine.firecrawl.FirecrawlSearchConfig`. It combines the proxy-core field groups `FirecrawlSearchOptions` and `FirecrawlInSearchScrapeOptions` with the tool-only fields `requires_scraping` and `repeated_preview_max_chars`. The form lists `requires_scraping` after the search options and directly above the settings that only apply when it is on.
+
+A Firecrawl search returns titles and previews and costs 2 credits per 10 results, or 10 credits per 10 results with end-to-end zero data retention. Who reads the result pages is decided by two switches:
+
+| `requires_scraping` | `scrape_results` | Who reads the result pages |
+|---------------------|------------------|----------------------------|
+| off (default) | either | Nobody; results carry title and preview only. In V3 the model reads the pages it needs with the Web Page Reader. |
+| on | off (default) | The space's Web Page Reader, as for every other engine. Not used in V3. |
+| on | on | Firecrawl, inside the search call (about one extra credit per page). This also happens in V3, on every search, so leave it off there. |
+
+| Field | Notes |
+|-------|-------|
+| `highlights` | On by default: Firecrawl replaces each preview with the page passages that match the query, which can be a whole table (up to about 19,000 characters seen). Off returns the website's short description. Firecrawl documents that searches with zero data retention always return the short description. |
+| `repeated_preview_max_chars` | 500 by default. A result whose page was read keeps at most this many characters of its preview, because the page is split into chunks that each repeat it (V1 and V2). Results without page text keep the whole preview, as does every result in V3. `null` never cuts. |
+| `sources` | `web` (default), `news` or `web_and_news`. With both, web and news results alternate, up to the result count in total, and Firecrawl bills each source. |
+| `category` | `ExposableParam`, off by default: `research`, `pdf`, `gov` (no search credits) or `developer`. |
+| `time_filter`, `country`, `location`, `include_domains` | `ExposableParam`; only `time_filter` is exposed by default. |
+| `sort_by_date` | Newest web results first (`tbs: sbd:1`, combined with the time filter). |
+| `safe_search` | Filters explicit content. Off by default, which is Firecrawl's default. |
+| `ignore_invalid_urls` | On by default: leaves out results that Firecrawl itself cannot read, so a Firecrawl Web Page Reader does not fail on them. |
+| `exclude_domains` | Admin-only block list. Excluded hosts are also removed from `include_domains`. |
+| `fetch_size` | 10 by default, at most 100 (Firecrawl's limit). Firecrawl bills every started block of 10 results: 2 credits, or 10 credits with end-to-end zero data retention (`zdr`), so 11 results cost twice as much as 10. |
+| `only_main_content`, `max_cache_age_seconds`, `max_pdf_pages` | Only used with `scrape_results`. The cache age is in seconds, 600 by default, `0` reads live, `null` uses Firecrawl's default of two days. `max_pdf_pages` is 10 by default; Firecrawl bills each PDF page as a credit and detects PDFs by content type, so links without `.pdf` count too. |
+| `zero_data_retention` | `deployment` (default), `anon` or `zdr`. Raises zero data retention for this configuration above the Search Proxy's `FIRECRAWL_ZERO_DATA_RETENTION`; it can never lower it. |
+| `timeout` | 60 seconds by default. The proxy client waits 10 seconds longer. |
+
+**Recommended for search mode V3 with the Firecrawl Web Page Reader:** the defaults. Searches return previews only (2 credits, or 10 with end-to-end zero data retention), the model reads the pages it needs with the reader (1 credit per page, 1 more with zero data retention), and previews are never cut.
+
+The API key and the deployment-wide zero data retention mode (`FIRECRAWL_ZERO_DATA_RETENTION`) are set on the Search Proxy, not in this package.
+
+```python
+from unique_web_search.services.search_engine.firecrawl import (
+    FirecrawlSearch,
+    FirecrawlSearchConfig,
+)
+
+search = FirecrawlSearch(FirecrawlSearchConfig(fetch_size=5))
+results = await search.search("snb policy rate")  # requires SEARCH_PROXY_BASE_URL
 ```
 
 ### Custom API Search

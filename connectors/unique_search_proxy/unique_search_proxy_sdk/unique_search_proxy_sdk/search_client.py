@@ -9,6 +9,9 @@ from unique_search_proxy_core.search_engines.config_types import parse_search_re
 from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiSearchRequest,
 )
+from unique_search_proxy_core.search_engines.firecrawl.schema import (
+    FirecrawlSearchRequest,
+)
 from unique_search_proxy_core.search_engines.google.schema import GoogleSearchRequest
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexitySearchRequest,
@@ -21,12 +24,15 @@ from unique_search_proxy_sdk._transport import OpenapiTransport
 from unique_search_proxy_sdk._typed_endpoints import (
     BraveSearchEndpoint,
     CustomApiSearchEndpoint,
+    FirecrawlSearchEndpoint,
     GoogleSearchEndpoint,
     PerplexitySearchEndpoint,
 )
 from unique_search_proxy_sdk.converters import to_sdk_search_request
 
-_SEARCH_PROVIDERS = frozenset({"google", "brave", "perplexity", "custom_api"})
+_SEARCH_PROVIDERS = frozenset(
+    {"google", "brave", "perplexity", "firecrawl", "custom_api"}
+)
 
 
 class SearchClient:
@@ -35,6 +41,7 @@ class SearchClient:
     google: GoogleSearchEndpoint
     brave: BraveSearchEndpoint
     perplexity: PerplexitySearchEndpoint
+    firecrawl: FirecrawlSearchEndpoint
     custom_api: CustomApiSearchEndpoint
 
     def __init__(self, transport: OpenapiTransport) -> None:
@@ -63,6 +70,16 @@ class SearchClient:
             async_post_endpoint(
                 transport,
                 PerplexitySearchRequest,
+                parse=parse_search_request,
+                to_sdk=to_sdk_search_request,
+                post=search_v1_search_post.asyncio_detailed,
+                response_type=SearchResponse,
+            ),
+        )
+        self.firecrawl = FirecrawlSearchEndpoint(
+            async_post_endpoint(
+                transport,
+                FirecrawlSearchRequest,
                 parse=parse_search_request,
                 to_sdk=to_sdk_search_request,
                 post=search_v1_search_post.asyncio_detailed,

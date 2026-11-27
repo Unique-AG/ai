@@ -108,8 +108,26 @@ def raise_for_upstream_response(
     detail_keys: tuple[str, ...] = ("message", "error", "detail"),
     nested_error_keys: tuple[str, ...] = ("message", "detail"),
     rate_limited_message: str | None = None,
+    non_retryable_status_codes: frozenset[int] = frozenset(),
 ) -> None:
-    """Raise when an upstream HTTP response indicates failure."""
+    """Raise when an upstream HTTP response indicates failure.
+
+    Args:
+        response (httpx.Response): The provider's HTTP response.
+        provider_label (str): Provider name used in the error message.
+        detail_keys (tuple[str, ...]): Body keys searched for an error detail.
+        nested_error_keys (tuple[str, ...]): Keys searched inside a nested
+            error object.
+        rate_limited_message (str | None): Message for an HTTP 429 response.
+        non_retryable_status_codes (frozenset[int]): Statuses that a retry
+            cannot fix, such as a rejected key or a feature the provider has
+            not enabled for the account. They are reported with
+            ``retryable=False``.
+
+    Raises:
+        RateLimitedError: On HTTP 429.
+        UpstreamError: On any other non-success status.
+    """
     if response.is_success:
         return
 
@@ -136,7 +154,11 @@ def raise_for_upstream_response(
         detail_keys=detail_keys,
         nested_error_keys=nested_error_keys,
     )
-    raise UpstreamError(message, upstream_raw=raw)
+    raise UpstreamError(
+        message,
+        upstream_raw=raw,
+        retryable=response.status_code not in non_retryable_status_codes,
+    )
 
 
 def raise_batch_upstream_failure(

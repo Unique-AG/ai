@@ -74,10 +74,19 @@ class ExposableParam(BaseModel, Generic[T]):
 
     model_config = camelized_model_config
     expose: bool = Field(
-        description="When true, this parameter is included on the LLM call JSON Schema.",
+        title="Let the assistant set this per search",
+        description=(
+            "When on, the assistant can choose this value on each search, and its "
+            "choice replaces the default. Search modes V1 and V3 only; V2 always "
+            "uses the default."
+        ),
     )
     value: T = Field(
-        description="Admin default merged into each search when not ``None``.",
+        title="Default",
+        description=(
+            "Applied to every search unless the assistant sets its own value. "
+            "When unset, the provider's default applies."
+        ),
     )
 
     def is_active(self) -> bool:

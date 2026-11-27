@@ -10,6 +10,7 @@ from unique_web_search.services.search_engine import (
     BingSearchConfig,
     BraveSearchConfig,
     CustomAPIConfig,
+    FirecrawlSearchConfig,
     GoogleConfig,
     PerplexitySearchConfig,
     VertexAIConfig,
@@ -24,6 +25,7 @@ _EXPECTED_CONFIG_BASES: dict[
     SearchEngineType.GOOGLE: GoogleConfig,
     SearchEngineType.BRAVE: BraveSearchConfig,
     SearchEngineType.PERPLEXITY: PerplexitySearchConfig,
+    SearchEngineType.FIRECRAWL: FirecrawlSearchConfig,
     AgentEngineType.BING: BingSearchConfig,
     AgentEngineType.VERTEXAI: VertexAIConfig,
     LocalSearchEngineType.CUSTOM_API: CustomAPIConfig,
@@ -31,7 +33,7 @@ _EXPECTED_CONFIG_BASES: dict[
 
 
 def test_search_engine_registry__autodiscover__registers_all_engines() -> None:
-    assert len(SEARCH_ENGINE_REGISTRY.specs) == 6
+    assert len(SEARCH_ENGINE_REGISTRY.specs) == 7
 
 
 def test_search_engine_registry__enum_coverage__includes_all_discriminators() -> None:
@@ -57,11 +59,20 @@ def test_search_engine_registry__config_classes__extend_static_bases() -> None:
         (SearchEngineType.GOOGLE, False),
         (SearchEngineType.BRAVE, False),
         (SearchEngineType.PERPLEXITY, False),
+        (SearchEngineType.FIRECRAWL, False),
         (AgentEngineType.BING, False),
         (AgentEngineType.VERTEXAI, True),
         (LocalSearchEngineType.CUSTOM_API, False),
     ],
-    ids=["google", "brave", "perplexity", "bing", "vertexai", "custom_api"],
+    ids=[
+        "google",
+        "brave",
+        "perplexity",
+        "firecrawl",
+        "bing",
+        "vertexai",
+        "custom_api",
+    ],
 )
 def test_search_engine_registry__needs_language_model__per_engine(
     engine_key: SearchEngineType | AgentEngineType | LocalSearchEngineType,
@@ -78,6 +89,7 @@ def test_search_engine_registry__name_to_config__has_expected_keys() -> None:
         "bing",
         "brave",
         "perplexity",
+        "firecrawl",
         "vertexai",
         "custom_api",
     }

@@ -20,6 +20,14 @@ def beta_model_title_generator(model: type) -> str:
     return title.replace("Config", "").strip() + " (Beta)"
 
 
+def shorten(text: str, max_chars: int) -> str:
+    """Cut ``text`` at the last word within ``max_chars`` and mark the cut."""
+    if len(text) <= max_chars:
+        return text
+    cut = text[:max_chars].rsplit(None, 1)[0]
+    return f"{cut}…"
+
+
 def extract_root_domain(url: str) -> str:
     parsed_url = urlparse(url)
     domain = parsed_url.netloc

@@ -97,6 +97,15 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         return False
 
     @property
+    def repeated_snippet_max_chars(self) -> int | None:
+        """Longest snippet to keep on a result whose page was read; ``None`` for no limit.
+
+        A read page is split into chunks that each repeat the snippet, so engines
+        whose snippets can be very long set a limit.
+        """
+        return None
+
+    @property
     def endpoint(self) -> str | None:
         """Direct (non-proxy) host this engine calls, when known without an SDK."""
         return None

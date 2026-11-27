@@ -85,7 +85,13 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
         request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
         timeout: int,
     ) -> CrawlUrlResult:
-        body = build_firecrawl_scrape_body(url, request)
+        body = build_firecrawl_scrape_body(
+            url,
+            request,
+            zero_data_retention=credentials.scrape_zero_data_retention(
+                request.zero_data_retention
+            ),
+        )
 
         try:
             response = await client.post(
@@ -144,7 +150,13 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
         timeout: int,
         deadline: float,
     ) -> list[CrawlUrlResult]:
-        body = build_firecrawl_batch_scrape_body(urls, request)
+        body = build_firecrawl_batch_scrape_body(
+            urls,
+            request,
+            zero_data_retention=credentials.scrape_zero_data_retention(
+                request.zero_data_retention
+            ),
+        )
 
         try:
             start_response = await client.post(
@@ -287,8 +299,7 @@ def _map_firecrawl_batch_results(
     for index, item in enumerate(data):
         if not isinstance(item, dict):
             continue
-        item_url = item.get("url") or item.get("sourceURL") or item.get("source_url")
-        target_url = item_url if isinstance(item_url, str) else None
+        target_url = _requested_url_of(item, urls)
         if target_url is None and index < len(urls):
             target_url = urls[index]
         if target_url is None:
@@ -322,3 +333,21 @@ def _map_firecrawl_batch_results(
                 ),
             )
     return results
+
+
+def _requested_url_of(item: dict[str, Any], urls: list[str]) -> str | None:
+    """Return the requested URL a batch item belongs to, or None if it names none.
+
+    Batch items come back in completion order, not request order, and carry
+    their URL under ``metadata``: ``sourceURL`` as requested, ``url`` after
+    redirects.
+    """
+    metadata = item.get("metadata")
+    candidates = [item.get("url"), item.get("sourceURL"), item.get("source_url")]
+    if isinstance(metadata, dict):
+        candidates = [metadata.get("sourceURL"), metadata.get("url"), *candidates]
+    by_key = {url.rstrip("/"): url for url in urls}
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate.rstrip("/") in by_key:
+            return by_key[candidate.rstrip("/")]
+    return None

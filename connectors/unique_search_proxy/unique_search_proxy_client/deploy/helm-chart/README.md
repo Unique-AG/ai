@@ -40,6 +40,7 @@ search-proxy has no caller authentication. It is internal-only: do not add an In
 | env.WORKERS | string | `"2"` |  |
 | firecrawl.connection.apiEndpoint | string | `"https://api.firecrawl.dev"` |  |
 | firecrawl.connection.apiVersion | string | `"v2"` |  |
+| firecrawl.connection.zeroDataRetention | string | `"none"` |  |
 | firecrawl.enabled | bool | `false` |  |
 | fullnameOverride | string | `"search-proxy"` |  |
 | googleSearch.connection.apiEndpoint | string | `"https://www.googleapis.com/customsearch/v1"` |  |
