@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import subprocess
 import sys
 import warnings
 
@@ -67,36 +68,45 @@ def _import_with_warnings(
     return module, [w for w in caught if issubclass(w.category, DeprecationWarning)]
 
 
+_STABLE_MODULES = [
+    _NEW_INTERNAL,
+    f"{_NEW_INTERNAL}.pattern_replacer",
+    _NEW_OPENAI,
+    f"{_NEW_OPENAI}.event_routing",
+    f"{_NEW_OPENAI}.event_routing.responses.complete_with_references",
+    f"{_NEW_OPENAI}.event_routing.chat_completions.complete_with_references",
+    f"{_NEW_OPENAI}.event_routing._model_params",
+]
+
+
 @pytest.mark.ai
-@pytest.mark.parametrize(
-    "module_name",
-    [
-        _NEW_INTERNAL,
-        f"{_NEW_INTERNAL}.pattern_replacer",
-        _NEW_OPENAI,
-        f"{_NEW_OPENAI}.event_routing",
-        f"{_NEW_OPENAI}.event_routing.responses.complete_with_references",
-        f"{_NEW_OPENAI}.event_routing.chat_completions.complete_with_references",
-        f"{_NEW_OPENAI}.event_routing._model_params",
-    ],
-)
-def test_stable_streaming_imports__resolve_without_warning(module_name: str) -> None:
+def test_stable_streaming_imports__resolve_without_warning() -> None:
     """
     Purpose: Verify the graduated streaming modules import from their stable paths.
     Why this matters: Callers migrating off `unique_toolkit.experimental` must not
         be nagged by a deprecation warning on the path they were told to use.
-    Setup summary: Import each stable module with all warnings recorded.
+    Setup summary: Import every stable module in a fresh interpreter (other tests
+        have already cached them in this one) with the redirect's warning turned
+        into an error.
     """
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        module = importlib.import_module(module_name)
+    code = "import importlib\n" + "".join(
+        f"importlib.import_module({name!r})\n" for name in _STABLE_MODULES
+    )
 
-    assert module.__name__ == module_name
-    assert not [
-        w
-        for w in caught
-        if issubclass(w.category, DeprecationWarning) and "streaming" in str(w.message)
-    ]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "error:Importing from 'unique_toolkit.experimental:DeprecationWarning",
+            "-c",
+            code,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.ai
@@ -107,8 +117,9 @@ def test_deprecated_streaming_import__warns_and_reexports_same_symbols(
     """
     Purpose: Verify deprecated experimental streaming paths still resolve and warn.
     Why this matters: Callers can migrate gradually while the redirect remains.
-    Setup summary: Fresh-import the deprecated module; assert the warning and that
-        the symbol is the very same object as on the stable module (no second copy).
+    Setup summary: Fresh-import the deprecated module; assert the warning, that
+        the symbol is the very same object as on the stable module (no second copy)
+        and that `__package__` lets relative imports resolve under the old name.
     """
     old_module, deprecations = _import_with_warnings(old_name)
     new_module = importlib.import_module(new_name)
@@ -117,6 +128,11 @@ def test_deprecated_streaming_import__warns_and_reexports_same_symbols(
         old_name in str(w.message) and new_name in str(w.message) for w in deprecations
     ), f"Expected a deprecation warning naming {old_name} and {new_name}"
     assert getattr(old_module, symbol) is getattr(new_module, symbol)
+    # A package is its own `__package__`; a plain module's is its parent.
+    expected_package = (
+        old_name if hasattr(new_module, "__path__") else old_name.rpartition(".")[0]
+    )
+    assert old_module.__package__ == expected_package
 
 
 @pytest.mark.ai

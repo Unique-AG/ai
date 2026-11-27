@@ -91,7 +91,12 @@ class _DeprecatedImportLoader(Loader):
                 }
             }
         )
-        module.__package__ = self._old_name.rpartition(".")[0]
+        # A package is its own ``__package__``; a plain module's is its parent.
+        module.__package__ = (
+            self._old_name
+            if hasattr(target, "__path__")
+            else self._old_name.rpartition(".")[0]
+        )
 
 
 class _DeprecatedImportFinder(MetaPathFinder):
