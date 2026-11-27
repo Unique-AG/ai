@@ -6,7 +6,7 @@ MCP clients authenticate via OAuth 2.0 `client_credentials` flow. The Companies 
 
 ## Prerequisites
 
-- Node.js >= 20
+- Node.js >= 26
 - A Companies House API key (get one at https://developer.company-information.service.gov.uk/)
 
 ## Setup
