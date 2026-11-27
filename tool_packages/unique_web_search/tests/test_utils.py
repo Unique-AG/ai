@@ -46,3 +46,45 @@ class TestWebPageChunk:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestShorten:
+    """Cutting long text at a word boundary for repeated search snippets."""
+
+    @pytest.mark.ai
+    def test_shorten__cuts_at_the_last_whole_word__and_marks_the_cut(self) -> None:
+        """
+        Purpose: Verify long text is cut at a word boundary within the limit
+            and ends with an ellipsis, and short text is unchanged.
+        Why this matters: The cut text is what every chunk of a read page
+            repeats; a half word reads as a typo and the mark tells the model
+            the preview continues.
+        Setup summary: Shorten a sentence to 12 characters and a short one to
+            100; assert both results.
+        """
+        from unique_web_search.services.helpers import shorten
+
+        assert shorten("alpha beta gamma delta", 12) == "alpha beta…"
+        assert shorten("short", 100) == "short"
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [(" " * 501, " " * 500 + "…"), ("x" * 600, "x" * 500 + "…")],
+        ids=["only-whitespace", "no-word-break"],
+    )
+    def test_shorten__cuts_at_the_limit__when_there_is_no_word_break(
+        self, text: str, expected: str
+    ) -> None:
+        """
+        Purpose: Verify text without a usable word break is cut at the limit
+            instead of raising.
+        Why this matters: A snippet of only whitespace made the word split
+            return nothing, the lookup raised IndexError, and the whole web
+            search call failed before the page content was processed.
+        Setup summary: Shorten 501 spaces and a 600-character word to 500;
+            assert a hard cut with the mark.
+        """
+        from unique_web_search.services.helpers import shorten
+
+        assert shorten(text, 500) == expected

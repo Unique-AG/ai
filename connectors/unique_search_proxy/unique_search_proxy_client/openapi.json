@@ -1827,17 +1827,12 @@
             "description": "Headers sent to the target page (cookies, user-agent, etc.)."
           },
           "maxCacheAgeSeconds": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
             "title": "Max cache age",
-            "description": "How old Firecrawl's cached copy of a page may be, in seconds. The default of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more often. Cached copies cost the same credits but come back in under a second instead of 5 to 10.",
-            "default": 600
+            "description": "How old Firecrawl's cached copy of a page may be, in seconds. The default of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more often. Cached copies cost the same credits but come back in under a second instead of 5 to 10. Firecrawl's own default is `172800` (two days).",
+            "default": 600,
+            "ge": 0,
+            "le": 604800
           },
           "storeInCache": {
             "type": "boolean",
@@ -1846,17 +1841,12 @@
             "default": true
           },
           "maxPdfPages": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
             "title": "Max PDF pages to read",
-            "description": "Read at most this many pages of each PDF. Each PDF page costs about 1 Firecrawl credit. The default of 20 is about what fits the default page length limit of 10,000 tokens, so more pages would be paid for and then cut.",
-            "default": 20
+            "description": "Read at most this many pages of each PDF. Each PDF page costs about 1 Firecrawl credit. The default of 20 is about what fits the default page length limit of 10,000 tokens, so more pages would be paid for and then cut. `10000` is Firecrawl's maximum.",
+            "default": 20,
+            "ge": 1,
+            "le": 10000
           },
           "pdfMode": {
             "type": "string",
@@ -2106,30 +2096,20 @@
             "default": true
           },
           "maxCacheAgeSeconds": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
             "title": "Max cache age",
-            "description": "How old Firecrawl's cached copy of a page may be, in seconds. The default of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more often. Cached copies cost the same credits but come back faster. Only applies when Firecrawl reads the pages inside the search call.",
-            "default": 600
+            "description": "How old Firecrawl's cached copy of a page may be, in seconds. The default of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more often. Cached copies cost the same credits but come back faster. Firecrawl's own default is `172800` (two days). Only applies when Firecrawl reads the pages inside the search call.",
+            "default": 600,
+            "ge": 0,
+            "le": 604800
           },
           "maxPdfPages": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
             "title": "Max PDF pages to read",
-            "description": "Read at most this many pages of each PDF in the results. Each PDF page costs about 1 Firecrawl credit. Only applies when Firecrawl reads the pages inside the search call.",
-            "default": 10
+            "description": "Read at most this many pages of each PDF in the results. Each PDF page costs about 1 Firecrawl credit. `10000` is Firecrawl's maximum. Only applies when Firecrawl reads the pages inside the search call.",
+            "default": 10,
+            "ge": 1,
+            "le": 10000
           }
         },
         "type": "object",

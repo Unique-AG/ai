@@ -1,7 +1,10 @@
+"""Build the Firecrawl ``POST /v2/search`` body from a search request."""
+
 from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urlsplit
 
 from unique_search_proxy_core.errors import BadRequestProxyError
 from unique_search_proxy_core.search_engines.firecrawl.schema import (
@@ -23,7 +26,20 @@ def build_firecrawl_search_body(
     request: FirecrawlSearchRequest,  # type: ignore[valid-type]
     enterprise: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Assemble the Firecrawl ``POST /v2/search`` JSON body from the derived request."""
+    """Assemble the Firecrawl ``POST /v2/search`` JSON body.
+
+    Args:
+        query (str): Search query; cut to Firecrawl's 500-character limit.
+        request (FirecrawlSearchRequest): Merged request. Its ``timeout`` and
+            cache age are in seconds and are sent in milliseconds.
+        enterprise (list[str] | None): Zero data retention mode to send, if any.
+
+    Returns:
+        dict[str, Any]: The JSON body for Firecrawl.
+
+    Raises:
+        BadRequestProxyError: When every include domain is also excluded.
+    """
     if len(query) > FIRECRAWL_MAX_QUERY_LENGTH:
         _LOGGER.warning(
             "Firecrawl accepts queries of at most %s characters; truncating from %s",
@@ -84,17 +100,13 @@ def _time_based_search(
 def _scrape_options(
     request: FirecrawlSearchRequest,  # type: ignore[valid-type]
 ) -> dict[str, Any]:
-    options: dict[str, Any] = {
+    return {
         "formats": [{"type": "markdown"}],
         "onlyMainContent": request.only_main_content,
         "removeBase64Images": True,
+        "maxAge": request.max_cache_age_seconds * _MS_PER_SECOND,
+        "parsers": firecrawl_parsers(request.max_pdf_pages),
     }
-    if request.max_cache_age_seconds is not None:
-        options["maxAge"] = request.max_cache_age_seconds * _MS_PER_SECOND
-    parsers = firecrawl_parsers(request.max_pdf_pages)
-    if parsers is not None:
-        options["parsers"] = parsers
-    return options
 
 
 def _domain_filters(
@@ -104,8 +116,9 @@ def _domain_filters(
 ) -> dict[str, list[str]]:
     """Return ``includeDomains`` or ``excludeDomains``; Firecrawl rejects both together.
 
-    An include list already limits the search to its hosts, so excluded hosts are
-    removed from it instead of being sent separately.
+    With an include list, excluded hosts are removed from it. Excluded
+    subdomains of an included host cannot be sent: ``is_excluded_url`` drops
+    them from the results.
     """
     excluded = [_normalize_host(host) for host in exclude_domains or []]
     if include_domains:
@@ -132,4 +145,20 @@ def _is_excluded(host: str, excluded: list[str]) -> bool:
     return any(host == blocked or host.endswith(f".{blocked}") for blocked in excluded)
 
 
-__all__ = ["build_firecrawl_search_body"]
+def is_excluded_url(url: str, exclude_domains: list[str] | None) -> bool:
+    """Tell whether a result URL is on an excluded host or one of its subdomains.
+
+    Args:
+        url (str): Result URL.
+        exclude_domains (list[str] | None): Excluded hostnames.
+
+    Returns:
+        bool: True when the URL's host is excluded.
+    """
+    if not exclude_domains:
+        return False
+    host = _normalize_host(urlsplit(url).hostname or "")
+    return _is_excluded(host, [_normalize_host(d) for d in exclude_domains])
+
+
+__all__ = ["build_firecrawl_search_body", "is_excluded_url"]

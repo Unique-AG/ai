@@ -58,7 +58,7 @@ one provisions a new agent version.
 | Basic | none | HTTP + content-type toggles; tool-local `url_blocked_patterns` (legacy) |
 | Tavily | `TAVILY_API_KEY` | Extract API |
 | Jina | `JINA_API_KEY` | Reader API |
-| Firecrawl | `FIRECRAWL_API_KEY` | Batch scrape |
+| Firecrawl | `FIRECRAWL_API_KEY`, or the Search Proxy's key | Scrape (one URL) or batch scrape (several) |
 
 No Crawl4AI. Crawler configs have **no exposable LLM knobs**.
 

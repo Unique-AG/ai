@@ -158,6 +158,14 @@ class TestFirecrawlRequestBody:
 
 
 def _firecrawl_request(**fields: object) -> object:
+    """Parse a Firecrawl crawl request for one example URL.
+
+    Args:
+        **fields (object): Request fields, camelCase, added to the defaults.
+
+    Returns:
+        object: The parsed Firecrawl crawl request.
+    """
     return parse_crawl_request(
         {
             "urls": ["https://example.com"],
@@ -168,6 +176,8 @@ def _firecrawl_request(**fields: object) -> object:
 
 
 class TestFirecrawlCacheAndRetention:
+    """Firecrawl scrape bodies: cache, zero data retention, proxy, PDF and location."""
+
     @pytest.mark.ai
     def test_build_body__omits_zero_data_retention__by_default(self) -> None:
         """
@@ -252,38 +262,63 @@ class TestFirecrawlCacheAndRetention:
         )
 
     @pytest.mark.ai
-    def test_build_body__omits_parsers__when_pdfs_are_unlimited(self) -> None:
+    def test_request__reads_null_cache_age_and_pdf_cap__as_the_defaults(self) -> None:
         """
-        Purpose: Verify "No limit" with the default PDF mode sends no parsers.
-        Why this matters: An admin who wants whole documents must get
-            Firecrawl's own parser defaults, not a leftover cap.
-        Setup summary: Build a body with no PDF limit; assert no `parsers`.
+        Purpose: Verify a null cache age or PDF cap loads as the default
+            instead of failing or meaning "no limit".
+        Why this matters: Null values are dropped between the web search tool,
+            the SDK and the proxy, so "no limit" as null silently became the
+            default anyway. Both settings are plain numbers now; a null left in
+            a stored config must not make the space's web search fail.
+        Setup summary: Parse a request with both fields null; assert the
+            defaults and the body sent to Firecrawl.
+        """
+        request = _firecrawl_request(maxCacheAgeSeconds=None, maxPdfPages=None)
+        body = build_firecrawl_scrape_body("https://example.com", request)
+
+        assert request.max_cache_age_seconds == 600
+        assert request.max_pdf_pages == 20
+        assert body["maxAge"] == 600_000
+        assert body["parsers"] == [{"type": "pdf", "maxPages": 20}, "image"]
+
+    @pytest.mark.ai
+    def test_build_body__sends_firecrawl_own_limits__when_configured(self) -> None:
+        """
+        Purpose: Verify the old behaviour can be configured with numbers: a
+            two-day cache and Firecrawl's maximum of 10,000 PDF pages.
+        Why this matters: The changelog tells operators to use these values to
+            get the previous reader behaviour back.
+        Setup summary: Build a body with both values; assert them.
         """
         body = build_firecrawl_scrape_body(
-            "https://example.com", _firecrawl_request(maxPdfPages=None)
+            "https://example.com",
+            _firecrawl_request(maxCacheAgeSeconds=172_800, maxPdfPages=10_000),
         )
 
-        assert "parsers" not in body
+        assert body["maxAge"] == 172_800_000
+        assert body["parsers"] == [{"type": "pdf", "maxPages": 10_000}, "image"]
 
     @pytest.mark.ai
     def test_build_body__sends_pdf_mode__with_or_without_a_page_limit(self) -> None:
         """
-        Purpose: Verify the PDF reading mode reaches Firecrawl on its own and
-            together with the page limit.
-        Why this matters: `fast` skips OCR and `ocr` forces it; a mode that is
-            dropped when no limit is set would silently read PDFs the slow way.
-        Setup summary: Build bodies with a mode and no limit, then with both;
-            assert the parser object.
+        Purpose: Verify the PDF reading mode reaches Firecrawl with the default
+            page limit and with a chosen one.
+        Why this matters: `fast` skips OCR and `ocr` forces it; a dropped mode
+            would silently read PDFs the slow way.
+        Setup summary: Build bodies with a mode only, then with a mode and a
+            limit; assert the parser object.
         """
         mode_only = build_firecrawl_scrape_body(
-            "https://example.com",
-            _firecrawl_request(maxPdfPages=None, pdfMode="fast"),
+            "https://example.com", _firecrawl_request(pdfMode="fast")
         )
         both = build_firecrawl_scrape_body(
             "https://example.com", _firecrawl_request(maxPdfPages=5, pdfMode="ocr")
         )
 
-        assert mode_only["parsers"] == [{"type": "pdf", "mode": "fast"}, "image"]
+        assert mode_only["parsers"] == [
+            {"type": "pdf", "mode": "fast", "maxPages": 20},
+            "image",
+        ]
         assert both["parsers"] == [
             {"type": "pdf", "mode": "ocr", "maxPages": 5},
             "image",
@@ -347,23 +382,18 @@ class TestFirecrawlCacheAndRetention:
     def test_build_body__accepts_ten_minute_old_cache__by_default(self) -> None:
         """
         Purpose: Verify the reader accepts cached pages up to ten minutes old
-            by default, and Firecrawl's own two days when the admin picks that.
+            by default.
         Why this matters: Popular pages such as price and news pages are the
             ones most likely cached, and the model cannot see a page's age, so
             two days would pass stale figures as current. Always reading live
             costs 5 to 10 seconds per page and fails more often.
-        Setup summary: Build a default body and one with no cache age; assert
-            ten minutes in milliseconds, then no `maxAge`.
+        Setup summary: Build a default body; assert ten minutes in milliseconds.
         """
         default = build_firecrawl_scrape_body(
             "https://example.com", _firecrawl_request()
         )
-        firecrawl_default = build_firecrawl_scrape_body(
-            "https://example.com", _firecrawl_request(maxCacheAgeSeconds=None)
-        )
 
         assert default["maxAge"] == 600_000
-        assert "maxAge" not in firecrawl_default
 
     @pytest.mark.ai
     def test_build_body__converts_cache_age_seconds__to_milliseconds(self) -> None:

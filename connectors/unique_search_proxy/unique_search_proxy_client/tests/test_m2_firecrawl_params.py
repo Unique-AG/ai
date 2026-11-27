@@ -23,6 +23,7 @@ from unique_search_proxy_core.search_engines.firecrawl.schema import (
 
 from unique_search_proxy_client.web.core.search_engines.firecrawl.request_body import (
     build_firecrawl_search_body,
+    is_excluded_url,
 )
 
 
@@ -180,17 +181,31 @@ class TestFirecrawlRequestBody:
         assert "category" in config.exposed_params_model().model_fields
 
     @pytest.mark.ai
-    def test_build_body__omits_parsers__when_pdf_pages_unlimited(self) -> None:
+    def test_config__reads_null_cache_age_and_pdf_cap__as_the_defaults(self) -> None:
         """
-        Purpose: Verify "No limit" leaves Firecrawl's own parsers in place.
-        Why this matters: The base merge drops unset values; without the
-            override the 10-page default would silently come back.
-        Setup summary: Build the body from a config with no PDF limit; assert
-            no `parsers`.
+        Purpose: Verify a stored null cache age or PDF cap loads as the default.
+        Why this matters: Null values are dropped between the web search tool,
+            the SDK and the proxy, so null could never mean "no limit". Both
+            settings are plain numbers; a null left in a stored config must
+            not make the space's web search fail.
+        Setup summary: Validate a config with both fields null; assert the
+            defaults and the scrape options sent to Firecrawl.
         """
-        body = _body(FirecrawlSearchConfig(scrape_results=True, max_pdf_pages=None))
+        config = FirecrawlSearchConfig.model_validate(
+            {
+                "engine": "firecrawl",
+                "scrapeResults": True,
+                "maxCacheAgeSeconds": None,
+                "maxPdfPages": None,
+            }
+        )
 
-        assert "parsers" not in body["scrapeOptions"]
+        options = _body(config)["scrapeOptions"]
+
+        assert config.max_cache_age_seconds == 600
+        assert config.max_pdf_pages == 10
+        assert options["maxAge"] == 600_000
+        assert options["parsers"] == [{"type": "pdf", "maxPages": 10}, "image"]
 
     @pytest.mark.ai
     def test_config__rejects_pdf_pages__outside_firecrawl_range(self) -> None:
@@ -337,6 +352,35 @@ class TestFirecrawlDomainFilters:
         assert "excludeDomains" not in body
 
     @pytest.mark.ai
+    def test_is_excluded_url__catches_excluded_subdomain__of_an_included_host(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify a result on an excluded subdomain is recognised when
+            its parent domain is on the include list.
+        Why this matters: Firecrawl rejects include and exclude lists together,
+            so with `example.com` included the exclusion of
+            `private.example.com` cannot be sent. Without this check the
+            admin's blocked host would come back in the results.
+        Setup summary: Include a parent and exclude its subdomain; assert the
+            body keeps the parent and the check flags only the subdomain's URLs.
+        """
+        config = FirecrawlSearchConfig(
+            include_domains=ExposableDomainList(expose=False, value=["example.com"]),
+            exclude_domains=["Private.Example.com"],
+        )
+
+        body = _body(config)
+
+        assert body["includeDomains"] == ["example.com"]
+        assert is_excluded_url("https://private.example.com/a", config.exclude_domains)
+        assert is_excluded_url(
+            "https://x.private.example.com/a", config.exclude_domains
+        )
+        assert not is_excluded_url("https://www.example.com/a", config.exclude_domains)
+        assert not is_excluded_url("https://example.com/a", [])
+
+    @pytest.mark.ai
     def test_build_body__rejects_search__when_every_include_domain_is_excluded(
         self,
     ) -> None:
@@ -459,19 +503,19 @@ class TestFirecrawlConfigValidation:
         assert body["sources"] == ["web", "news"]
 
     @pytest.mark.ai
-    def test_build_body__omits_cache_age__when_firecrawl_default_is_chosen(
-        self,
-    ) -> None:
+    def test_build_body__sends_firecrawl_own_cache_age__as_a_number(self) -> None:
         """
-        Purpose: Verify choosing Firecrawl's default cache sends no `maxAge`.
-        Why this matters: Sending 0 would force live reads the admin turned off.
-        Setup summary: Build the body with no cache age; assert the key is absent.
+        Purpose: Verify Firecrawl's own two-day cache can be configured as a
+            number of seconds.
+        Why this matters: It replaces the former "Firecrawl default" choice,
+            which was stored as null and never reached Firecrawl.
+        Setup summary: Build the body with 172800 seconds; assert `maxAge`.
         """
         body = _body(
-            FirecrawlSearchConfig(scrape_results=True, max_cache_age_seconds=None)
+            FirecrawlSearchConfig(scrape_results=True, max_cache_age_seconds=172_800)
         )
 
-        assert "maxAge" not in body["scrapeOptions"]
+        assert body["scrapeOptions"]["maxAge"] == 172_800_000
 
     @pytest.mark.ai
     def test_config__rejects_fetch_size__above_the_firecrawl_cap(self) -> None:

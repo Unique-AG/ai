@@ -1,3 +1,5 @@
+"""Firecrawl search provider for the Search Proxy."""
+
 from __future__ import annotations
 
 import logging
@@ -31,6 +33,7 @@ from unique_search_proxy_client.web.core.provider_response import (
 )
 from unique_search_proxy_client.web.core.search_engines.firecrawl.request_body import (
     build_firecrawl_search_body,
+    is_excluded_url,
 )
 from unique_search_proxy_client.web.core.search_engines.service_base import (
     SearchEngineService,
@@ -63,6 +66,21 @@ class FirecrawlSearchService(SearchEngineService[FirecrawlSearchRequest]):
         self,
         request: FirecrawlSearchRequest,  # type: ignore
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
+        """Search with Firecrawl and map the results.
+
+        Args:
+            request (FirecrawlSearchRequest): Merged search request; ``timeout``
+                is in seconds.
+
+        Returns:
+            tuple[SearchEngineRaw, WebSearchResults]: Firecrawl's payload and at
+                most ``fetch_size`` deduplicated results outside the excluded domains.
+
+        Raises:
+            UpstreamTimeoutError: When Firecrawl does not answer in time.
+            UpstreamError: When the call fails or the answer is not usable.
+            EmptySearchResultsError: When no result is left.
+        """
         credentials.check_credentials()
 
         body = build_firecrawl_search_body(
@@ -102,15 +120,28 @@ class FirecrawlSearchService(SearchEngineService[FirecrawlSearchRequest]):
             rate_limited_message=f"{_FIRECRAWL_PROVIDER_LABEL} rate limit exceeded",
             non_retryable_status_codes=_NON_RETRYABLE_STATUS_CODES,
         )
-        payload = response.json()
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise UpstreamError("Firecrawl search returned invalid JSON") from exc
+        if not isinstance(payload, dict):
+            raise UpstreamError("Firecrawl search response must be a JSON object")
         if payload.get("success") is False:
             raise UpstreamError(
                 f"Firecrawl search failed: {payload.get('error') or 'unknown error'}",
             )
 
         raw_pages = SearchEngineRaw(pages=[payload])
+        # An include list replaces ``excludeDomains`` in the body, so excluded
+        # subdomains of an included host are dropped here.
         curated = WebSearchResults(
-            results=_extract_results(payload, FIRECRAWL_SOURCES[request.sources])
+            results=[
+                result
+                for result in _extract_results(
+                    payload, FIRECRAWL_SOURCES[request.sources]
+                )
+                if not is_excluded_url(result.url, request.exclude_domains)
+            ]
         )
         if not curated.results:
             raise EmptySearchResultsError("Firecrawl search returned no results")
@@ -133,13 +164,14 @@ def _extract_results(
     data = payload.get("data") or {}
     if isinstance(data, list):
         data = {"web": data}
+    if not isinstance(data, dict):
+        return []
     per_source = [
         [result for item in data.get(source) or [] if (result := _to_result(item))]
         for source in sources
     ]
-    # Firecrawl applies ``limit`` to each source and the caller keeps the first
-    # ``fetch_size`` results, so appending news after a full web list would
-    # always drop it. Interleaving keeps each source's ranking.
+    # Interleave: ``limit`` applies per source, so news appended after a full
+    # web list would be cut off by ``fetch_size``.
     return [
         result
         for round_ in zip_longest(*per_source)

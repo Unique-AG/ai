@@ -299,8 +299,10 @@ def _map_firecrawl_batch_results(
     for index, item in enumerate(data):
         if not isinstance(item, dict):
             continue
-        target_url = _requested_url_of(item, urls)
-        if target_url is None and index < len(urls):
+        named_urls = _urls_named_by(item)
+        target_url = _requested_url_of(named_urls, urls)
+        # Position is only trusted for an item that names no URL at all.
+        if target_url is None and not named_urls and index < len(urls):
             target_url = urls[index]
         if target_url is None:
             continue
@@ -335,19 +337,39 @@ def _map_firecrawl_batch_results(
     return results
 
 
-def _requested_url_of(item: dict[str, Any], urls: list[str]) -> str | None:
-    """Return the requested URL a batch item belongs to, or None if it names none.
+def _urls_named_by(item: dict[str, Any]) -> list[str]:
+    """List the URLs a batch item carries, the requested one first.
 
-    Batch items come back in completion order, not request order, and carry
-    their URL under ``metadata``: ``sourceURL`` as requested, ``url`` after
-    redirects.
+    Args:
+        item (dict[str, Any]): One entry of Firecrawl's batch ``data``.
+
+    Returns:
+        list[str]: ``metadata.sourceURL`` (as requested), ``metadata.url``
+            (after redirects), then the top-level URL fields.
     """
     metadata = item.get("metadata")
     candidates = [item.get("url"), item.get("sourceURL"), item.get("source_url")]
     if isinstance(metadata, dict):
         candidates = [metadata.get("sourceURL"), metadata.get("url"), *candidates]
-    by_key = {url.rstrip("/"): url for url in urls}
-    for candidate in candidates:
-        if isinstance(candidate, str) and candidate.rstrip("/") in by_key:
-            return by_key[candidate.rstrip("/")]
+    return [url for url in candidates if isinstance(url, str) and url]
+
+
+def _requested_url_of(named_urls: list[str], urls: list[str]) -> str | None:
+    """Find the requested URL that a batch item's URLs point to.
+
+    Args:
+        named_urls (list[str]): URLs the item carries, most reliable first.
+        urls (list[str]): The requested URLs.
+
+    Returns:
+        str | None: An exact match, else the single requested URL that differs
+            only by a trailing slash, else None.
+    """
+    for named in named_urls:
+        if named in urls:
+            return named
+    for named in named_urls:
+        matches = [url for url in urls if url.rstrip("/") == named.rstrip("/")]
+        if len(matches) == 1:
+            return matches[0]
     return None

@@ -21,11 +21,21 @@ def beta_model_title_generator(model: type) -> str:
 
 
 def shorten(text: str, max_chars: int) -> str:
-    """Cut ``text`` at the last word within ``max_chars`` and mark the cut."""
+    """Cut ``text`` at the last word within ``max_chars`` and mark the cut.
+
+    Args:
+        text (str): Text to shorten.
+        max_chars (int): Most characters to keep, not counting the mark.
+
+    Returns:
+        str: ``text`` if it fits, else its start up to the last whole word
+            (or up to ``max_chars`` when there is no word break) plus ``…``.
+    """
     if len(text) <= max_chars:
         return text
-    cut = text[:max_chars].rsplit(None, 1)[0]
-    return f"{cut}…"
+    head = text[:max_chars]
+    words = head.rsplit(None, 1)
+    return f"{words[0] if words else head}…"
 
 
 def extract_root_domain(url: str) -> str:

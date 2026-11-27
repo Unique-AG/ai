@@ -44,12 +44,8 @@ def _firecrawl_common_scrape_fields(
         body["excludeTags"] = request.exclude_tags
     if request.scrape_headers is not None:
         body["headers"] = request.scrape_headers
-    max_age_ms = _max_age_ms(request)
-    if max_age_ms is not None:
-        body["maxAge"] = max_age_ms
-    parsers = firecrawl_parsers(request.max_pdf_pages, request.pdf_mode)
-    if parsers is not None:
-        body["parsers"] = parsers
+    body["maxAge"] = _max_age_ms(request)
+    body["parsers"] = firecrawl_parsers(request.max_pdf_pages, request.pdf_mode)
     # Sent only when on: accounts without zero data retention reject the field.
     if zero_data_retention:
         body["zeroDataRetention"] = True
@@ -59,18 +55,15 @@ def _firecrawl_common_scrape_fields(
 
 def _max_age_ms(
     request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
-) -> int | None:
+) -> int:
     # A caller that sends only the deprecated ``max_age`` means that value, not
     # the default of the field that replaced it.
-    only_legacy_sent = (
-        request.max_age is not None
-        and "max_cache_age_seconds" not in request.model_fields_set
-    )
-    if only_legacy_sent:
-        return request.max_age
-    if request.max_cache_age_seconds is not None:
-        return request.max_cache_age_seconds * _MS_PER_SECOND
-    return None
+    legacy_ms: int | None = request.max_age
+    if legacy_ms is not None and (
+        "max_cache_age_seconds" not in request.model_fields_set
+    ):
+        return legacy_ms
+    return request.max_cache_age_seconds * _MS_PER_SECOND
 
 
 def _location(

@@ -298,6 +298,134 @@ def test_firecrawl_batch__maps_results_by_source_url__when_out_of_order() -> Non
     assert asyncio.run(run()) == ["# Home", "# Report PDF"]
 
 
+def _batch_transport(data: list[dict[str, object]]) -> httpx.MockTransport:
+    """Mock a Firecrawl batch scrape that completes at once with ``data``.
+
+    Args:
+        data (list[dict[str, object]]): The batch items Firecrawl returns.
+
+    Returns:
+        httpx.MockTransport: Transport answering the start and the status call.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(200, json={"success": True, "id": "job-789"})
+        return httpx.Response(200, json={"status": "completed", "data": data})
+
+    return httpx.MockTransport(handler)
+
+
+def _crawl_batch(urls: list[str], data: list[dict[str, object]]) -> list[object]:
+    """Crawl ``urls`` against a mocked batch answer and return the results.
+
+    Args:
+        urls (list[str]): Requested URLs.
+        data (list[dict[str, object]]): The batch items Firecrawl returns.
+
+    Returns:
+        list[object]: One crawl result per requested URL, in request order.
+    """
+    request = parse_crawl_request(
+        {"urls": urls, "crawler": CrawlerType.FIRECRAWL.value, "timeout": 30},
+    )
+
+    async def run() -> list[object]:
+        async with httpx.AsyncClient(transport=_batch_transport(data)) as client:
+            return await FirecrawlCrawlerService(http_client=client).crawl(request)
+
+    return asyncio.run(run())
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__leaves_item_unassigned__when_it_names_an_unknown_url() -> (
+    None
+):
+    """
+    Purpose: Verify a batch item that names a URL nobody requested is not
+        assigned by its position.
+    Why this matters: The position fallback would put that page's text under
+        the requested URL at the same index, and the model would cite the
+        wrong source. A missing page is reported; a wrong page is not noticed.
+    Setup summary: Request two URLs; answer the first position with an
+        unrelated URL and the second correctly; assert the first has no
+        content and an error, and the second its page.
+    """
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/b"],
+        [
+            {"markdown": "# Other", "metadata": {"sourceURL": "https://other.org/x"}},
+            {"markdown": "# B", "metadata": {"sourceURL": "https://example.com/b"}},
+        ],
+    )
+
+    assert results[0].content != "# Other"
+    assert results[0].error is not None
+    assert results[1].content == "# B"
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__assigns_by_position__only_when_item_names_no_url() -> None:
+    """
+    Purpose: Verify an item without any URL is still matched by position.
+    Why this matters: Older or partial Firecrawl answers carry no URL; for
+        those, request order is the only information there is.
+    Setup summary: Request two URLs; answer with two items that carry only
+        Markdown; assert each lands on its position.
+    """
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/b"],
+        [{"markdown": "# A"}, {"markdown": "# B"}],
+    )
+
+    assert [result.content for result in results] == ["# A", "# B"]
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__keeps_urls_apart__that_differ_only_by_a_trailing_slash() -> (
+    None
+):
+    """
+    Purpose: Verify two requested URLs that differ only by a trailing slash
+        each get their own page.
+    Why this matters: Matching on the slash-stripped form mapped both items to
+        one URL, so one page overwrote the other and the first URL was
+        reported as missing.
+    Setup summary: Request `/a` and `/a/`; answer in reverse order with exact
+        source URLs; assert each URL has its own content.
+    """
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/a/"],
+        [
+            {
+                "markdown": "# Slash",
+                "metadata": {"sourceURL": "https://example.com/a/"},
+            },
+            {"markdown": "# Plain", "metadata": {"sourceURL": "https://example.com/a"}},
+        ],
+    )
+
+    assert [result.content for result in results] == ["# Plain", "# Slash"]
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__ignores_slash_only_match__when_it_fits_two_urls() -> None:
+    """
+    Purpose: Verify a slash-insensitive match is not used when it fits two
+        requested URLs.
+    Why this matters: Picking either one would be a guess that can attach a
+        page to the wrong URL.
+    Setup summary: Request `/a` and `/a/`; answer with one item naming
+        `/a//`; assert neither URL receives its content.
+    """
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/a/"],
+        [{"markdown": "# Guess", "metadata": {"sourceURL": "https://example.com/a//"}}],
+    )
+
+    assert all(result.content != "# Guess" for result in results)
+
+
 @pytest.mark.ai
 def test_firecrawl_crawl__sends_zero_data_retention__from_setting(
     monkeypatch: pytest.MonkeyPatch,

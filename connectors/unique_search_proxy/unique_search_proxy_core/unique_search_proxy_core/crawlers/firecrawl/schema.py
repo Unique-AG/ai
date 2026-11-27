@@ -4,6 +4,7 @@ from typing import Annotated, Any, ClassVar, Literal, TypeAlias
 
 from pydantic import Field, model_validator
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.pydantic_helpers import NoneToDefault
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
 from unique_search_proxy_core.schema import DeactivatedNone
@@ -42,20 +43,16 @@ LanguageListOrNone: TypeAlias = (
 _MS_PER_SECOND = 1000
 # Firecrawl silently caps the cache age at seven days.
 FIRECRAWL_MAX_CACHE_AGE_SECONDS = 7 * 24 * 60 * 60
-MaxCacheAgeSecondsOrNone: TypeAlias = (
-    Annotated[
-        int,
-        Field(title="Seconds", ge=0, le=FIRECRAWL_MAX_CACHE_AGE_SECONDS),
-    ]
-    | Annotated[None, Field(title="Firecrawl default (2 days)", description="None")]
-)
+# Plain integers: None is dropped between the tool, the SDK and the proxy.
+MaxCacheAgeSeconds: TypeAlias = Annotated[
+    int, NoneToDefault, Field(ge=0, le=FIRECRAWL_MAX_CACHE_AGE_SECONDS)
+]
 
 # Firecrawl's own ceiling for ``maxPages``.
 FIRECRAWL_MAX_PDF_PAGES = 10_000
-MaxPdfPagesOrNone: TypeAlias = (
-    Annotated[int, Field(title="Pages", ge=1, le=FIRECRAWL_MAX_PDF_PAGES)]
-    | Annotated[None, Field(title="No limit", description="None")]
-)
+MaxPdfPages: TypeAlias = Annotated[
+    int, NoneToDefault, Field(ge=1, le=FIRECRAWL_MAX_PDF_PAGES)
+]
 
 
 class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
@@ -145,7 +142,7 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
         title="Scrape headers",
         description="Headers sent to the target page (cookies, user-agent, etc.).",
     )
-    max_cache_age_seconds: MaxCacheAgeSecondsOrNone = Field(
+    max_cache_age_seconds: MaxCacheAgeSeconds = Field(
         default=600,
         title="Max cache age",
         description=(
@@ -153,7 +150,7 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
             "default of ten minutes keeps prices and news current. `0` always "
             "reads the page live, which is slower and fails more often. Cached "
             "copies cost the same credits but come back in under a second "
-            "instead of 5 to 10."
+            "instead of 5 to 10. Firecrawl's own default is `172800` (two days)."
         ),
     )
     store_in_cache: bool = Field(
@@ -166,14 +163,14 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
             "further and stores nothing."
         ),
     )
-    max_pdf_pages: MaxPdfPagesOrNone = Field(
+    max_pdf_pages: MaxPdfPages = Field(
         default=20,
         title="Max PDF pages to read",
         description=(
             "Read at most this many pages of each PDF. Each PDF page costs "
             "about 1 Firecrawl credit. The default of 20 is about what fits "
             "the default page length limit of 10,000 tokens, so more pages "
-            "would be paid for and then cut."
+            "would be paid for and then cut. `10000` is Firecrawl's maximum."
         ),
     )
     pdf_mode: FirecrawlPdfMode = Field(
@@ -228,14 +225,11 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
     @model_validator(mode="before")
     @classmethod
     def _carry_over_legacy_max_age(cls, data: Any) -> Any:
-        """Read a stored ``max_age`` as the cache age when the new field is absent.
-
-        Without this the new field's default would replace the cache age such a
-        config chose.
-        """
+        """Read a stored ``max_age`` as the cache age when the new field is unset."""
         if not isinstance(data, dict):
             return data
-        if "max_cache_age_seconds" in data or "maxCacheAgeSeconds" in data:
+        current = data.get("max_cache_age_seconds", data.get("maxCacheAgeSeconds"))
+        if current is not None:
             return data
         legacy = data.get("max_age", data.get("maxAge"))
         if not isinstance(legacy, int) or isinstance(legacy, bool) or legacy < 0:
@@ -254,6 +248,6 @@ __all__ = [
     "FirecrawlProxyMode",
     "FIRECRAWL_MAX_CACHE_AGE_SECONDS",
     "FIRECRAWL_MAX_PDF_PAGES",
-    "MaxPdfPagesOrNone",
-    "MaxCacheAgeSecondsOrNone",
+    "MaxCacheAgeSeconds",
+    "MaxPdfPages",
 ]

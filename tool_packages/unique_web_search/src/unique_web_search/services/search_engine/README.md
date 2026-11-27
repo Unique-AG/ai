@@ -159,7 +159,7 @@ A Firecrawl search returns titles and previews and costs 2 credits per 10 result
 | `ignore_invalid_urls` | On by default: leaves out results that Firecrawl itself cannot read, so a Firecrawl Web Page Reader does not fail on them. |
 | `exclude_domains` | Admin-only block list. Excluded hosts are also removed from `include_domains`. |
 | `fetch_size` | 10 by default, at most 100 (Firecrawl's limit). Firecrawl bills every started block of 10 results: 2 credits, or 10 credits with end-to-end zero data retention (`zdr`), so 11 results cost twice as much as 10. |
-| `only_main_content`, `max_cache_age_seconds`, `max_pdf_pages` | Only used with `scrape_results`. The cache age is in seconds, 600 by default, `0` reads live, `null` uses Firecrawl's default of two days. `max_pdf_pages` is 10 by default; Firecrawl bills each PDF page as a credit and detects PDFs by content type, so links without `.pdf` count too. |
+| `only_main_content`, `max_cache_age_seconds`, `max_pdf_pages` | Only used with `scrape_results`. The cache age is in seconds, 600 by default, `0` reads live, `172800` is Firecrawl's own default of two days. `max_pdf_pages` is 10 by default, at most 10000; Firecrawl bills each PDF page as a credit and detects PDFs by content type, so links without `.pdf` count too. |
 | `zero_data_retention` | `deployment` (default), `anon` or `zdr`. Raises zero data retention for this configuration above the Search Proxy's `FIRECRAWL_ZERO_DATA_RETENTION`; it can never lower it. |
 | `timeout` | 60 seconds by default. The proxy client waits 10 seconds longer. |
 

@@ -3,20 +3,17 @@ from __future__ import annotations
 from typing import Any
 
 
-def firecrawl_parsers(
-    max_pdf_pages: int | None,
-    pdf_mode: str = "auto",
-) -> list[Any] | None:
-    """Firecrawl ``parsers`` for the PDF settings, or ``None`` for Firecrawl's default.
+def firecrawl_parsers(max_pdf_pages: int, pdf_mode: str = "auto") -> list[Any]:
+    """Build Firecrawl ``parsers`` for the PDF page cap and reading mode.
 
-    A ``parsers`` list turns off every parser it does not name, so ``image`` is
-    listed to keep Firecrawl's default image OCR on.
+    Args:
+        max_pdf_pages (int): Most pages Firecrawl reads of each PDF.
+        pdf_mode (str): ``auto``, ``fast`` or ``ocr``; ``auto`` is not sent.
+
+    Returns:
+        list[Any]: The PDF parser and ``image``, which a list would otherwise turn off.
     """
-    if max_pdf_pages is None and pdf_mode == "auto":
-        return None
-    pdf: dict[str, Any] = {"type": "pdf"}
+    pdf: dict[str, Any] = {"type": "pdf", "maxPages": max_pdf_pages}
     if pdf_mode != "auto":
         pdf["mode"] = pdf_mode
-    if max_pdf_pages is not None:
-        pdf["maxPages"] = max_pdf_pages
     return [pdf, "image"]

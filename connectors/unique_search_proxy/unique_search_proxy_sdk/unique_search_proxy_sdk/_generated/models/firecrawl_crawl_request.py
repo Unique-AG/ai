@@ -51,16 +51,16 @@ class FirecrawlCrawlRequest:
         exclude_tags (list[str] | None | Unset): HTML tags to exclude from scrape output.
         scrape_headers (FirecrawlCrawlRequestScrapeHeadersType0 | None | Unset): Headers sent to the target page
             (cookies, user-agent, etc.).
-        max_cache_age_seconds (int | None | Unset): How old Firecrawl's cached copy of a page may be, in seconds. The
-            default of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails
-            more often. Cached copies cost the same credits but come back in under a second instead of 5 to 10. Default:
-            600.
+        max_cache_age_seconds (int | Unset): How old Firecrawl's cached copy of a page may be, in seconds. The default
+            of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more
+            often. Cached copies cost the same credits but come back in under a second instead of 5 to 10. Firecrawl's own
+            default is `172800` (two days). Default: 600.
         store_in_cache (bool | Unset): Let Firecrawl keep the pages it reads in its cache and index for later requests.
             Turn off to keep them out; the request still shows in Firecrawl's activity log. Zero data retention goes further
             and stores nothing. Default: True.
-        max_pdf_pages (int | None | Unset): Read at most this many pages of each PDF. Each PDF page costs about 1
-            Firecrawl credit. The default of 20 is about what fits the default page length limit of 10,000 tokens, so more
-            pages would be paid for and then cut. Default: 20.
+        max_pdf_pages (int | Unset): Read at most this many pages of each PDF. Each PDF page costs about 1 Firecrawl
+            credit. The default of 20 is about what fits the default page length limit of 10,000 tokens, so more pages would
+            be paid for and then cut. `10000` is Firecrawl's maximum. Default: 20.
         pdf_mode (FirecrawlCrawlRequestPDFReadingMode | Unset): `auto` reads the embedded text and falls back to OCR.
             `fast` reads embedded text only. `ocr` runs OCR on every page. Default:
             FirecrawlCrawlRequestPDFReadingMode.AUTO.
@@ -90,9 +90,9 @@ class FirecrawlCrawlRequest:
     include_tags: list[str] | None | Unset = UNSET
     exclude_tags: list[str] | None | Unset = UNSET
     scrape_headers: FirecrawlCrawlRequestScrapeHeadersType0 | None | Unset = UNSET
-    max_cache_age_seconds: int | None | Unset = 600
+    max_cache_age_seconds: int | Unset = 600
     store_in_cache: bool | Unset = True
-    max_pdf_pages: int | None | Unset = 20
+    max_pdf_pages: int | Unset = 20
     pdf_mode: FirecrawlCrawlRequestPDFReadingMode | Unset = (
         FirecrawlCrawlRequestPDFReadingMode.AUTO
     )
@@ -164,19 +164,11 @@ class FirecrawlCrawlRequest:
         else:
             scrape_headers = self.scrape_headers
 
-        max_cache_age_seconds: int | None | Unset
-        if isinstance(self.max_cache_age_seconds, Unset):
-            max_cache_age_seconds = UNSET
-        else:
-            max_cache_age_seconds = self.max_cache_age_seconds
+        max_cache_age_seconds = self.max_cache_age_seconds
 
         store_in_cache = self.store_in_cache
 
-        max_pdf_pages: int | None | Unset
-        if isinstance(self.max_pdf_pages, Unset):
-            max_pdf_pages = UNSET
-        else:
-            max_pdf_pages = self.max_pdf_pages
+        max_pdf_pages = self.max_pdf_pages
 
         pdf_mode: str | Unset = UNSET
         if not isinstance(self.pdf_mode, Unset):
@@ -363,27 +355,11 @@ class FirecrawlCrawlRequest:
 
         scrape_headers = _parse_scrape_headers(d.pop("scrapeHeaders", UNSET))
 
-        def _parse_max_cache_age_seconds(data: object) -> int | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(int | None | Unset, data)
-
-        max_cache_age_seconds = _parse_max_cache_age_seconds(
-            d.pop("maxCacheAgeSeconds", UNSET)
-        )
+        max_cache_age_seconds = d.pop("maxCacheAgeSeconds", UNSET)
 
         store_in_cache = d.pop("storeInCache", UNSET)
 
-        def _parse_max_pdf_pages(data: object) -> int | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(int | None | Unset, data)
-
-        max_pdf_pages = _parse_max_pdf_pages(d.pop("maxPdfPages", UNSET))
+        max_pdf_pages = d.pop("maxPdfPages", UNSET)
 
         _pdf_mode = d.pop("pdfMode", UNSET)
         pdf_mode: FirecrawlCrawlRequestPDFReadingMode | Unset

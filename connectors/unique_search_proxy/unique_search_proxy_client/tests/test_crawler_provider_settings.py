@@ -11,6 +11,8 @@ from unique_search_proxy_client.web.settings.providers.tavily import _TavilyCred
 
 
 class TestCrawlerProviderEndpoints:
+    """Endpoint URLs and zero data retention modes built by the crawler provider credentials."""
+
     @pytest.mark.ai
     def test_tavily_endpoints(self) -> None:
         credentials = _TavilyCredentials(

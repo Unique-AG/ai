@@ -500,6 +500,73 @@ class TestFirecrawlSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("body", "message"),
+        [(b"[]", "must be a JSON object"), (b"<html>busy</html>", "invalid JSON")],
+        ids=["json-array", "not-json"],
+    )
+    async def test_search__raises_upstream_error__when_answer_is_not_a_json_object(
+        self,
+        firecrawl_env: None,
+        body: bytes,
+        message: str,
+    ) -> None:
+        """
+        Purpose: Verify a 200 answer that is not a JSON object becomes an
+            UpstreamError.
+        Why this matters: Reading it as an object raised AttributeError or a
+            JSON decode error, which the route reports as an internal error
+            instead of a structured upstream failure the caller can handle.
+        Setup summary: Answer 200 with a JSON array and with HTML; assert the
+            error type and message.
+        """
+
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=body)
+
+        with pytest.raises(UpstreamError, match=message):
+            await _search(handler)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__drops_results_on_excluded_subdomain__of_an_included_host(
+        self, firecrawl_env: None
+    ) -> None:
+        """
+        Purpose: Verify results on an excluded subdomain are dropped when the
+            parent domain is on the include list.
+        Why this matters: Firecrawl rejects include and exclude lists together,
+            so only the include list is sent and Firecrawl may return the
+            blocked subdomain. The admin's exclusion must still hold.
+        Setup summary: Include `example.com`, exclude `private.example.com`,
+            return one result on each; assert the body and the kept result.
+        """
+        captured: dict[str, Any] = {}
+        payload = _firecrawl_payload(
+            web=[
+                {"url": "https://private.example.com/a", "title": "Blocked"},
+                {"url": "https://www.example.com/b", "title": "Allowed"},
+            ],
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["json"] = json.loads(request.content.decode())
+            return httpx.Response(200, json=payload)
+
+        curated = await _search(
+            handler,
+            include_domains=["example.com"],
+            exclude_domains=["private.example.com"],
+        )
+
+        assert captured["json"]["includeDomains"] == ["example.com"]
+        assert "excludeDomains" not in captured["json"]
+        assert [result.url for result in curated.results] == [
+            "https://www.example.com/b"
+        ]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_search__raises_rate_limited__on_429(
         self, firecrawl_env: None
     ) -> None:

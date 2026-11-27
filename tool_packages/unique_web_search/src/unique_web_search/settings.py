@@ -123,12 +123,7 @@ class Base(BaseSettings):
 
     @property
     def active_crawlers(self) -> list[str]:
-        """Crawlers offered as Web Page Reader.
-
-        ``active_inhouse_crawlers`` plus every crawler whose API key is set. A
-        crawler served by the Search Proxy needs no key here: list it in
-        ``ACTIVE_INHOUSE_CRAWLERS``, for example ``["basic", "firecrawl"]``.
-        """
+        """Crawlers offered as Web Page Reader: the listed ones plus those with an API key."""
         crawlers = list(dict.fromkeys(self.active_inhouse_crawlers))
         keyed_crawlers = {
             "firecrawl": self.firecrawl_api_key,

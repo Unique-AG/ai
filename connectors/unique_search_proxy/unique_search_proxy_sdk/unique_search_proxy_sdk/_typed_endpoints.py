@@ -12,6 +12,7 @@ from unique_search_proxy_core.agent_engines.bing.schema import (
 )
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
 from unique_search_proxy_core.crawlers.firecrawl.schema import (
+    FIRECRAWL_MAX_CACHE_AGE_SECONDS,
     FirecrawlPdfMode,
     FirecrawlProxyMode,
 )
@@ -202,8 +203,8 @@ class FirecrawlSearchEndpoint(_TypedPostEndpoint[SearchResponse]):
         ignore_invalid_urls: bool = True,
         scrape_results: bool = False,
         only_main_content: bool = True,
-        max_cache_age_seconds: int | None = 600,
-        max_pdf_pages: int | None = 10,
+        max_cache_age_seconds: int = 600,
+        max_pdf_pages: int = 10,
         zero_data_retention: FirecrawlSearchZeroDataRetention = "deployment",
         exclude_domains: list[str] | None = None,
         time_filter: FirecrawlTimeFilter | None = None,
@@ -479,9 +480,9 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         include_tags: list[str] | None = None,
         exclude_tags: list[str] | None = None,
         scrape_headers: dict[str, str] | None = None,
-        max_cache_age_seconds: int | None = 600,
+        max_cache_age_seconds: int | None = None,
         store_in_cache: bool = True,
-        max_pdf_pages: int | None = 20,
+        max_pdf_pages: int = 20,
         pdf_mode: FirecrawlPdfMode = "auto",
         country: str | None = None,
         languages: list[str] | None = None,
@@ -489,6 +490,12 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         zero_data_retention: bool = False,
         max_age: int | None = None,
     ) -> CrawlResponse:
+        # The request always carries a cache age in seconds, which wins over
+        # the deprecated millisecond ``max_age``; convert a lone ``max_age``.
+        if max_cache_age_seconds is None and max_age is not None:
+            max_cache_age_seconds = min(
+                max_age // 1000, FIRECRAWL_MAX_CACHE_AGE_SECONDS
+            )
         return await self._call(
             urls=urls,
             crawler=crawler,

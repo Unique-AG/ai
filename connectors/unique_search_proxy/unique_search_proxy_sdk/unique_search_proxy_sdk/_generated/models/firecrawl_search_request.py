@@ -70,12 +70,13 @@ class FirecrawlSearchRequest:
             the caller. Default: False.
         only_main_content (bool | Unset): Drop headers, navigation and footers from the pages. Only applies when
             Firecrawl reads the pages inside the search call. Default: True.
-        max_cache_age_seconds (int | None | Unset): How old Firecrawl's cached copy of a page may be, in seconds. The
-            default of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails
-            more often. Cached copies cost the same credits but come back faster. Only applies when Firecrawl reads the
-            pages inside the search call. Default: 600.
-        max_pdf_pages (int | None | Unset): Read at most this many pages of each PDF in the results. Each PDF page costs
-            about 1 Firecrawl credit. Only applies when Firecrawl reads the pages inside the search call. Default: 10.
+        max_cache_age_seconds (int | Unset): How old Firecrawl's cached copy of a page may be, in seconds. The default
+            of ten minutes keeps prices and news current. `0` always reads the page live, which is slower and fails more
+            often. Cached copies cost the same credits but come back faster. Firecrawl's own default is `172800` (two days).
+            Only applies when Firecrawl reads the pages inside the search call. Default: 600.
+        max_pdf_pages (int | Unset): Read at most this many pages of each PDF in the results. Each PDF page costs about
+            1 Firecrawl credit. `10000` is Firecrawl's maximum. Only applies when Firecrawl reads the pages inside the
+            search call. Default: 10.
     """
 
     query: str
@@ -98,8 +99,8 @@ class FirecrawlSearchRequest:
     category: FirecrawlSearchRequestCategoryType0 | None | Unset = UNSET
     scrape_results: bool | Unset = False
     only_main_content: bool | Unset = True
-    max_cache_age_seconds: int | None | Unset = 600
-    max_pdf_pages: int | None | Unset = 10
+    max_cache_age_seconds: int | Unset = 600
+    max_pdf_pages: int | Unset = 10
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -177,17 +178,9 @@ class FirecrawlSearchRequest:
 
         only_main_content = self.only_main_content
 
-        max_cache_age_seconds: int | None | Unset
-        if isinstance(self.max_cache_age_seconds, Unset):
-            max_cache_age_seconds = UNSET
-        else:
-            max_cache_age_seconds = self.max_cache_age_seconds
+        max_cache_age_seconds = self.max_cache_age_seconds
 
-        max_pdf_pages: int | None | Unset
-        if isinstance(self.max_pdf_pages, Unset):
-            max_pdf_pages = UNSET
-        else:
-            max_pdf_pages = self.max_pdf_pages
+        max_pdf_pages = self.max_pdf_pages
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -368,25 +361,9 @@ class FirecrawlSearchRequest:
 
         only_main_content = d.pop("onlyMainContent", UNSET)
 
-        def _parse_max_cache_age_seconds(data: object) -> int | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(int | None | Unset, data)
+        max_cache_age_seconds = d.pop("maxCacheAgeSeconds", UNSET)
 
-        max_cache_age_seconds = _parse_max_cache_age_seconds(
-            d.pop("maxCacheAgeSeconds", UNSET)
-        )
-
-        def _parse_max_pdf_pages(data: object) -> int | None | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(int | None | Unset, data)
-
-        max_pdf_pages = _parse_max_pdf_pages(d.pop("maxPdfPages", UNSET))
+        max_pdf_pages = d.pop("maxPdfPages", UNSET)
 
         firecrawl_search_request = cls(
             query=query,

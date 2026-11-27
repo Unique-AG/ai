@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, ClassVar, Literal, TypeAlias
+from typing import Annotated, ClassVar, Literal, TypeAlias
 
-from pydantic import Field, WithJsonSchema
+from pydantic import BaseModel, Field, WithJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import NoneToDefault
 
 from unique_search_proxy_core.crawlers.firecrawl.schema import (
-    MaxCacheAgeSecondsOrNone,
-    MaxPdfPagesOrNone,
-)
-from unique_search_proxy_core.param_policy.exposable_config import (
-    ExposableParamsConfig,
+    MaxCacheAgeSeconds,
+    MaxPdfPages,
 )
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.schema import DeactivatedNone
@@ -45,9 +42,8 @@ _TIME_FILTER_LABELS: dict[FirecrawlTimeFilter, str] = {
     "qdr:y": "Past year",
 }
 
-# ``oneOf`` of titled constants makes the admin form list the labels instead of
-# the codes. ``ui:enumNames`` cannot be used: the UI schema generator does not
-# resolve the type variable of ``ExposableParam``, so tags on its value are lost.
+# The UI schema generator drops tags on ``ExposableParam`` values, so labels
+# come from ``oneOf`` titles instead of ``ui:enumNames``.
 TimeFilterOrNone: TypeAlias = (
     Annotated[
         FirecrawlTimeFilter,
@@ -107,12 +103,7 @@ ExposableCategory = ExposableParam[CategoryOrNone]
 class FirecrawlSearchOptions(
     BaseSearchEngineConfig[Literal[SearchEngineType.FIRECRAWL]]
 ):
-    """What a Firecrawl search looks for and returns, without page reading.
-
-    Kept apart from :class:`FirecrawlInSearchScrapeOptions` so that a config
-    class can place its own fields between the two groups: field order is the
-    order of the admin form.
-    """
+    """Field group: what a Firecrawl search looks for and returns."""
 
     _request_model_name: ClassVar[str] = "FirecrawlSearchRequest"
     _exposed_params_model_name: ClassVar[str] = "FirecrawlExposedParams"
@@ -264,11 +255,8 @@ class FirecrawlSearchOptions(
     )
 
 
-class FirecrawlInSearchScrapeOptions(ExposableParamsConfig):
-    """Firecrawl reading the result pages inside the search call.
-
-    A field group, combined with :class:`FirecrawlSearchOptions` into a config.
-    """
+class FirecrawlInSearchScrapeOptions(BaseModel):
+    """Field group: Firecrawl reading the result pages inside the search call."""
 
     scrape_results: bool = Field(
         default=False,
@@ -288,34 +276,28 @@ class FirecrawlInSearchScrapeOptions(ExposableParamsConfig):
             "when Firecrawl reads the pages inside the search call."
         ),
     )
-    max_cache_age_seconds: MaxCacheAgeSecondsOrNone = Field(
+    max_cache_age_seconds: MaxCacheAgeSeconds = Field(
         default=600,
         title="Max cache age",
         description=(
             "How old Firecrawl's cached copy of a page may be, in seconds. The "
             "default of ten minutes keeps prices and news current. `0` always "
             "reads the page live, which is slower and fails more often. Cached "
-            "copies cost the same credits but come back faster. Only applies "
-            "when Firecrawl reads the pages inside the search call."
+            "copies cost the same credits but come back faster. Firecrawl's "
+            "own default is `172800` (two days). Only applies when Firecrawl "
+            "reads the pages inside the search call."
         ),
     )
-    max_pdf_pages: MaxPdfPagesOrNone = Field(
+    max_pdf_pages: MaxPdfPages = Field(
         default=10,
         title="Max PDF pages to read",
         description=(
             "Read at most this many pages of each PDF in the results. Each PDF "
-            "page costs about 1 Firecrawl credit. Only applies when Firecrawl "
-            "reads the pages inside the search call."
+            "page costs about 1 Firecrawl credit. `10000` is Firecrawl's "
+            "maximum. Only applies when Firecrawl reads the pages inside the "
+            "search call."
         ),
     )
-
-    def _merge_defaults(self) -> dict[str, Any]:
-        # Unset cache age and PDF limit mean "Firecrawl's default". The base
-        # merge drops None, which would let the request defaults take over.
-        defaults = super()._merge_defaults()
-        defaults["max_cache_age_seconds"] = self.max_cache_age_seconds
-        defaults["max_pdf_pages"] = self.max_pdf_pages
-        return defaults
 
 
 class FirecrawlSearchConfig(FirecrawlInSearchScrapeOptions, FirecrawlSearchOptions):
