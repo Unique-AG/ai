@@ -1,0 +1,10 @@
+component: Toolkit
+kind: Fixed
+body: |-
+    UniqueQL metadata filters that the content tree evaluates locally while walking folders now treat a numeric `contains` or `notContains` value as text, like the backend. `contains` with `412031870` now matches the metadata value `"412031870"`, and `notContains` with it now excludes that value. Before, `contains` never matched and `notContains` kept every file.
+
+    Behavior change: `contains` with a number no longer matches a number inside a list such as `[5]`, because the backend only matches text.
+time: 2026-11-27T11:54:28.404241+01:00
+custom:
+    Audience: developer
+    Ticket: UN-30108

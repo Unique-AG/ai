@@ -1672,3 +1672,131 @@ def test_AI_uniqueql_matches_operators(
     Setup summary: Parse a UniqueQL dict, match a record, assert the boolean result.
     """
     assert _uniqueql_matches(record, parse_uniqueql(query)) is expected
+
+
+# The expected values below are what the backend returns for the same filter. It
+# compiles ``contains`` / ``notContains`` to jsonpath ``like_regex``, which only
+# compares text and so sees a numeric operand as its decimal string. It compiles
+# ``equals`` to a typed ``==`` and never turns a numeric-looking string into a
+# number. They were checked by running the backend's generated jsonpath on Postgres.
+_NUMERIC_CONTAINS_CASES = [
+    pytest.param(
+        412031870, {"mainkey": "412031870"}, True, id="number-matches-equal-string"
+    ),
+    pytest.param(
+        412031870, {"mainkey": "x412031870y"}, True, id="number-matches-substring"
+    ),
+    pytest.param(412031870, {"mainkey": "999"}, False, id="number-misses-other-string"),
+    pytest.param(
+        412031870, {"mainkey": 412031870}, False, id="number-misses-number-value"
+    ),
+    pytest.param(
+        "412031870", {"mainkey": "412031870"}, True, id="string-matches-string"
+    ),
+    pytest.param(5, {"mainkey": ["5"]}, True, id="number-matches-string-in-list"),
+    pytest.param(5, {"mainkey": [5]}, False, id="number-misses-number-in-list"),
+]
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(("value", "record", "expected"), _NUMERIC_CONTAINS_CASES)
+def test_AI_uniqueql_contains__numeric_operand__matches_backend(
+    value: str | int, record: dict, expected: bool
+) -> None:
+    """
+    Purpose: ``contains`` with a numeric operand compares text, like the backend.
+    Why this matters: A cached folder walk must return what the backend returns, but
+        ``412031870 in "412031870"`` raises, so the filter never matched.
+    Setup summary: Parse ``contains`` with an int or str operand, match string,
+        number and list metadata, assert the backend's result.
+    """
+    query = parse_uniqueql(
+        {"operator": "contains", "path": ["mainkey"], "value": value}
+    )
+    assert _uniqueql_matches(record, query) is expected
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("value", "record", "expected"),
+    [
+        pytest.param(
+            412031870, {"mainkey": "412031870"}, False, id="number-drops-equal-string"
+        ),
+        pytest.param(
+            412031870, {"mainkey": "x412031870y"}, False, id="number-drops-substring"
+        ),
+        pytest.param(
+            412031870, {"mainkey": "999"}, True, id="number-keeps-other-string"
+        ),
+        pytest.param(
+            412031870, {"mainkey": 412031870}, True, id="number-keeps-number-value"
+        ),
+        pytest.param(412031870, {}, True, id="number-keeps-missing-key"),
+        pytest.param(
+            "412031870", {"mainkey": "412031870"}, False, id="string-drops-string"
+        ),
+        pytest.param(5, {"mainkey": ["5"]}, False, id="number-drops-string-in-list"),
+        pytest.param(5, {"mainkey": [5]}, True, id="number-keeps-number-in-list"),
+    ],
+)
+def test_AI_uniqueql_not_contains__numeric_operand__matches_backend(
+    value: str | int, record: dict, expected: bool
+) -> None:
+    """
+    Purpose: ``notContains`` with a numeric operand is the exact inverse of ``contains``.
+    Why this matters: A cached folder walk must return what the backend returns, but
+        the evaluator treated the ``TypeError`` as "does not contain" and kept every file.
+    Setup summary: Parse ``notContains`` with an int or str operand, match string,
+        number, list and missing metadata, assert the backend's result.
+    """
+    query = parse_uniqueql(
+        {"operator": "notContains", "path": ["mainkey"], "value": value}
+    )
+    assert _uniqueql_matches(record, query) is expected
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("operator", "value", "record", "expected"),
+    [
+        pytest.param(
+            "equals", "412031870", {"mainkey": "412031870"}, True, id="str-matches-str"
+        ),
+        pytest.param(
+            "equals", "412031870", {"mainkey": 412031870}, False, id="str-misses-number"
+        ),
+        pytest.param(
+            "equals", 412031870, {"mainkey": "412031870"}, False, id="number-misses-str"
+        ),
+        pytest.param(
+            "equals",
+            412031870,
+            {"mainkey": 412031870},
+            True,
+            id="number-matches-number",
+        ),
+        pytest.param(
+            "notEquals",
+            "412031870",
+            {"mainkey": "412031870"},
+            False,
+            id="not-equals-str-drops-str",
+        ),
+        pytest.param(
+            "in", ["111", "222"], {"mainkey": "111"}, True, id="in-str-matches-str"
+        ),
+    ],
+)
+def test_AI_uniqueql_equals__numeric_looking_string__is_not_coerced(
+    operator: str, value: str | int | list[str], record: dict, expected: bool
+) -> None:
+    """
+    Purpose: A literal numeric-looking string stays text in ``equals``, ``notEquals``, ``in``.
+    Why this matters: The backend compares it as text, so it matches a string value and
+        not a JSON number. A cached walk that coerced it would disagree with the backend.
+    Setup summary: Parse filters with a quoted or bare number, match string and number
+        metadata, assert the backend's result. This already matched before the fix.
+    """
+    query = parse_uniqueql({"operator": operator, "path": ["mainkey"], "value": value})
+    assert _uniqueql_matches(record, query) is expected

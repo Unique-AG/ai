@@ -122,6 +122,18 @@ def _uniqueql_fill_nullish_values(node: Any) -> Any:
     return filled
 
 
+def _contains_needle(expected: Any) -> Any:
+    """Return the operand of ``contains`` / ``notContains`` as the backend sees it.
+
+    The backend matches both with a text-only regex and turns a numeric operand
+    into its decimal string first, so ``412031870`` finds ``"412031870"`` and never
+    finds a number. A ``bool`` is an ``int`` in Python but is not a numeric operand.
+    """
+    if isinstance(expected, int) and not isinstance(expected, bool):
+        return str(expected)
+    return expected
+
+
 def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
     if isinstance(query, AndStatement):
         return bool(query.and_list) and all(
@@ -147,12 +159,12 @@ def _uniqueql_matches(record: Mapping[str, Any], query: UniqueQL) -> bool:
             return actual != expected
         case Operator.CONTAINS:
             try:
-                return expected in cast(Any, actual)
+                return _contains_needle(expected) in cast(Any, actual)
             except TypeError:
                 return False
         case Operator.NOT_CONTAINS:
             try:
-                return expected not in cast(Any, actual)
+                return _contains_needle(expected) not in cast(Any, actual)
             except TypeError:
                 return True
         case Operator.IN:
