@@ -508,7 +508,11 @@ async def _build_common(
                 with_settings_entry=False
             )
 
-    project_memory_text = await load_project_memory_text(event=event, logger=logger)
+    project_memory_text = await load_project_memory_text(
+        event=event,
+        logger=logger,
+        language_model=config.space.language_model,
+    )
 
     chat_title_generator = (
         ChatTitleGenerator(
