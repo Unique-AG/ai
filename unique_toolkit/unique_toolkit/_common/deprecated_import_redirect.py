@@ -6,7 +6,7 @@ import sys
 import warnings
 from dataclasses import dataclass
 from importlib import import_module
-from importlib.abc import MetaPathFinder
+from importlib.abc import Loader, MetaPathFinder
 from importlib.util import spec_from_loader
 from types import ModuleType
 from typing import TYPE_CHECKING
@@ -39,7 +39,7 @@ def warn_deprecated_import(*, old_path: str, new_path: str, removal_date: str) -
         f"Use {new_path!r} instead. "
         f"This import path will be removed on {removal_date}.",
         DeprecationWarning,
-        stacklevel=2,
+        stacklevel=3,
     )
 
 
@@ -52,7 +52,7 @@ def _resolve_stable_module_name(module_name: str) -> DeprecatedImportMapping | N
     return None
 
 
-class _DeprecatedImportLoader:
+class _DeprecatedImportLoader(Loader):
     """Load a stable module under a deprecated import name."""
 
     def __init__(
