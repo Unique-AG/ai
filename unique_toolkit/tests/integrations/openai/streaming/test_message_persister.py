@@ -25,23 +25,23 @@ from unique_toolkit.app.unique_settings import (
     UniqueSettings,
 )
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.events import (
+from unique_toolkit.integrations.openai.streaming.event_routing.events import (
     ActivityProgress,
     StreamEnded,
     StreamEventBus,
     StreamStarted,
     TextUpdate,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.subscribers.message_persister import (
+from unique_toolkit.integrations.openai.streaming.event_routing.subscribers.message_persister import (
     MessagePersistingSubscriber,
 )
 
 _MODIFY = (
-    "unique_toolkit.experimental.integrations.openai.streaming.event_routing."
+    "unique_toolkit.integrations.openai.streaming.event_routing."
     "subscribers.message_persister.unique_sdk.Message.modify_async"
 )
 _CREATE_EVENT = (
-    "unique_toolkit.experimental.integrations.openai.streaming.event_routing."
+    "unique_toolkit.integrations.openai.streaming.event_routing."
     "subscribers.message_persister.unique_sdk.Message.create_event_async"
 )
 
@@ -297,7 +297,7 @@ async def test_AI_persister__text_delta_sdk_failure__is_swallowed_and_logged(cap
         with caplog.at_level(
             logging.WARNING,
             logger=(
-                "unique_toolkit.experimental.integrations.openai.streaming.event_routing."
+                "unique_toolkit.integrations.openai.streaming.event_routing."
                 "subscribers.message_persister"
             ),
         ):

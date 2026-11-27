@@ -16,11 +16,11 @@ from openai.types.responses.response_code_interpreter_call_interpreting_event im
     ResponseCodeInterpreterCallInterpretingEvent,
 )
 
-from unique_toolkit.experimental._internal.streaming import (
+from unique_toolkit._internal.streaming import (
     ActivityProgressUpdate,
     AppendixProducer,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
+from unique_toolkit.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
     ResponsesCodeInterpreterEventHandler,
 )
 

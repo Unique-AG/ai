@@ -14,8 +14,8 @@ from openai.types.chat.chat_completion_chunk import (
 )
 from openai.types.completion_usage import CompletionUsage
 
-from unique_toolkit.experimental._internal.streaming import TextFlushed
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.text_event_handler import (
+from unique_toolkit._internal.streaming import TextFlushed
+from unique_toolkit.integrations.openai.streaming.event_routing.chat_completions.text_event_handler import (
     ChatCompletionTextEventHandler,
 )
 

@@ -24,10 +24,10 @@ from unique_toolkit.app.unique_settings import (
     UniqueContext,
     UniqueSettings,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.complete_with_references import (
+from unique_toolkit.integrations.openai.streaming.event_routing.chat_completions.complete_with_references import (
     ChatCompletionsCompleteWithReferences,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.events import (
+from unique_toolkit.integrations.openai.streaming.event_routing.events import (
     StreamStarted,
 )
 
@@ -79,13 +79,13 @@ def _build_orchestrator(
     client: Any,
 ) -> ChatCompletionsCompleteWithReferences:
     """Build an orchestrator with no default subscribers and an injected client."""
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.stream_event_router import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.chat_completions.stream_event_router import (
         ChatCompletionStreamEventRouter,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.text_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.chat_completions.text_event_handler import (
         ChatCompletionTextEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.tool_call_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.chat_completions.tool_call_event_handler import (
         ChatCompletionToolCallEventHandler,
     )
 
@@ -103,22 +103,22 @@ def _build_orchestrator(
 
 def _build_responses_orchestrator(*, client: Any) -> Any:
     """Build a Responses orchestrator with no default subscribers."""
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
         ResponsesCodeInterpreterEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.complete_with_references import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.complete_with_references import (
         ResponsesCompleteWithReferences,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
         ResponsesCompletedEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.stream_event_router import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.stream_event_router import (
         ResponsesStreamEventRouter,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
         ResponsesTextDeltaEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
         ResponsesToolCallEventHandler,
     )
 
@@ -257,7 +257,7 @@ async def test_AI_chat_completions__unsupported_protocol_kwargs__logged(caplog):
     with caplog.at_level(
         logging.WARNING,
         logger=(
-            "unique_toolkit.experimental.integrations.openai.streaming.event_routing."
+            "unique_toolkit.integrations.openai.streaming.event_routing."
             "chat_completions.complete_with_references"
         ),
     ):
@@ -377,7 +377,7 @@ async def test_AI_chat_completions__text_flush_between_requests__is_logged(caplo
     """
     import logging
 
-    from unique_toolkit.experimental._internal.streaming import TextFlushed
+    from unique_toolkit._internal.streaming import TextFlushed
 
     fake_client = MagicMock()
     fake_client.chat.completions.create = AsyncMock(return_value=_FakeStream([]))
@@ -386,7 +386,7 @@ async def test_AI_chat_completions__text_flush_between_requests__is_logged(caplo
     with caplog.at_level(
         logging.WARNING,
         logger=(
-            "unique_toolkit.experimental.integrations.openai.streaming.event_routing."
+            "unique_toolkit.integrations.openai.streaming.event_routing."
             "chat_completions.complete_with_references"
         ),
     ):

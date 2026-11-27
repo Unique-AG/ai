@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from openai.types.responses import ResponseInputItemParam
 
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.complete_with_references import (
+from unique_toolkit.integrations.openai.streaming.event_routing.responses.complete_with_references import (
     _is_language_model_messages,
     _is_response_input_items,
     _is_response_output_items,
@@ -117,22 +117,22 @@ async def test_AI_responses_orchestrator__heterogeneous_messages__raises_type_er
         UniqueContext,
         UniqueSettings,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
         ResponsesCodeInterpreterEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.complete_with_references import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.complete_with_references import (
         ResponsesCompleteWithReferences,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
         ResponsesCompletedEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.stream_event_router import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.stream_event_router import (
         ResponsesStreamEventRouter,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
         ResponsesTextDeltaEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
         ResponsesToolCallEventHandler,
     )
 
@@ -197,22 +197,22 @@ async def test_AI_responses_orchestrator__final_response__includes_request_and_d
         UniqueContext,
         UniqueSettings,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
         ResponsesCodeInterpreterEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.complete_with_references import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.complete_with_references import (
         ResponsesCompleteWithReferences,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
         ResponsesCompletedEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.stream_event_router import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.stream_event_router import (
         ResponsesStreamEventRouter,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
         ResponsesTextDeltaEventHandler,
     )
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
         ResponsesToolCallEventHandler,
     )
 

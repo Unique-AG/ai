@@ -6,8 +6,7 @@ import re
 
 import pytest
 
-from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
+from unique_toolkit._internal.streaming.pattern_replacer import (
     BATCH_NORMALIZATION_PATTERNS,
     NORMALIZATION_MAX_MATCH_LENGTH,
     NORMALIZATION_PATTERNS,
@@ -16,6 +15,7 @@ from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
     extract_cited_sequence_numbers,
     filter_cited_sdk_references,
 )
+from unique_toolkit.content.schemas import ContentChunk
 
 
 def _apply_batch_normalization(text: str) -> str:

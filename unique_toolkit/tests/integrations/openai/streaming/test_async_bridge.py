@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing._async_bridge import (
+from unique_toolkit.integrations.openai.streaming.event_routing._async_bridge import (
     run_async_from_sync,
 )
 

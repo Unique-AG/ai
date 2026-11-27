@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing._model_params import (
+from unique_toolkit.integrations.openai.streaming.event_routing._model_params import (
     prepare_chat_completions_model_params,
     prepare_responses_model_params,
 )

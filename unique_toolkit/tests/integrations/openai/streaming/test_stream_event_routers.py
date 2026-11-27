@@ -28,18 +28,18 @@ from openai.types.responses.response_usage import (
 )
 
 from unique_toolkit._common.event_bus import TypedEventBus
-from unique_toolkit.experimental._internal.streaming import TextFlushed, TextState
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.stream_event_router import (
+from unique_toolkit._internal.streaming import TextFlushed, TextState
+from unique_toolkit.integrations.openai.streaming.event_routing.chat_completions.stream_event_router import (
     ChatCompletionStreamEventRouter,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
+from unique_toolkit.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
     ResponsesCompletedEventHandler,
     _extract_usage,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.stream_event_router import (
+from unique_toolkit.integrations.openai.streaming.event_routing.responses.stream_event_router import (
     ResponsesStreamEventRouter,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
+from unique_toolkit.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
     ResponsesToolCallEventHandler,
 )
 from unique_toolkit.language_model.schemas import (

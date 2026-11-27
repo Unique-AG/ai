@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import pytest
 
-from unique_toolkit.experimental._internal.streaming import TextFlushed
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
+from unique_toolkit._internal.streaming import TextFlushed
+from unique_toolkit.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
     ResponsesTextDeltaEventHandler,
 )
 
