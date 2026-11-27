@@ -2,6 +2,9 @@ import re
 from logging import getLogger
 
 from unique_toolkit._common.utils.jinja.render import render_template
+from unique_toolkit._internal.streaming.pattern_replacer import (
+    normalize_citations_to_brackets,
+)
 from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
 from unique_toolkit.agentic.evaluation.exception import EvaluatorException
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
@@ -17,9 +20,6 @@ from unique_toolkit.agentic.evaluation.schemas import (
 )
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
-    normalize_citations_to_brackets,
-)
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.language_model.invocation_stats import (
