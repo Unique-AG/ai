@@ -138,11 +138,15 @@ def is_excluded_url(url: str, exclude_domains: list[str] | None) -> bool:
         exclude_domains (list[str] | None): Excluded hostnames.
 
     Returns:
-        bool: True when the URL's host is excluded.
+        bool: True when the URL's host is excluded, or cannot be read while
+            domains are excluded.
     """
     if not exclude_domains:
         return False
-    host = _normalize_host(urlsplit(url).hostname or "")
+    try:
+        host = _normalize_host(urlsplit(url).hostname or "")
+    except ValueError:
+        return True
     return _is_excluded(host, [_normalize_host(d) for d in exclude_domains])
 
 

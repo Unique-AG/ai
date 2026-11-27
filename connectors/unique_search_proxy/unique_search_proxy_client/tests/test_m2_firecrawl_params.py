@@ -294,6 +294,22 @@ class TestFirecrawlDomainFilters:
         assert not is_excluded_url("https://example.com/a", [])
 
     @pytest.mark.ai
+    def test_is_excluded_url__drops_unreadable_url__when_domains_are_excluded(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify a result URL that cannot be parsed counts as excluded
+            when domains are excluded, and is left alone otherwise.
+        Why this matters: Parsing such a URL raised ValueError and failed the
+            whole search. Its host is unknown, so it must not pass a block
+            list either.
+        Setup summary: Check a URL with an unclosed bracket with and without
+            an exclude list; assert excluded, then not.
+        """
+        assert is_excluded_url("https://[bad", ["blocked.com"])
+        assert not is_excluded_url("https://[bad", [])
+
+    @pytest.mark.ai
     def test_build_body__rejects_search__when_every_include_domain_is_excluded(
         self,
     ) -> None:

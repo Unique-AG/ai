@@ -70,20 +70,25 @@ class TestShorten:
     @pytest.mark.ai
     @pytest.mark.parametrize(
         ("text", "expected"),
-        [(" " * 501, " " * 500 + "…"), ("x" * 600, "x" * 500 + "…")],
-        ids=["only-whitespace", "no-word-break"],
+        [
+            (" " * 501, "…"),
+            ("x" * 600, "x" * 500 + "…"),
+            ("A " + "b" * 498 + " next", "A " + "b" * 498 + "…"),
+        ],
+        ids=["only-whitespace", "no-word-break", "word-ends-at-limit"],
     )
     def test_shorten__cuts_at_the_limit__when_there_is_no_word_break(
         self, text: str, expected: str
     ) -> None:
         """
         Purpose: Verify text without a usable word break is cut at the limit
-            instead of raising.
+            instead of raising, and a word that ends exactly at the limit is kept.
         Why this matters: A snippet of only whitespace made the word split
             return nothing, the lookup raised IndexError, and the whole web
-            search call failed before the page content was processed.
-        Setup summary: Shorten 501 spaces and a 600-character word to 500;
-            assert a hard cut with the mark.
+            search call failed. A word ending at the limit was dropped whole,
+            which could leave almost nothing of the preview.
+        Setup summary: Shorten 501 spaces, a 600-character word and a text
+            whose long word ends at character 500; assert each result.
         """
         from unique_web_search.services.helpers import shorten
 

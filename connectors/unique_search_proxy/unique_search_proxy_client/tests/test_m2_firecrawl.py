@@ -523,6 +523,39 @@ class TestFirecrawlSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_search__skips_malformed_items__and_reports_a_malformed_result(
+        self, firecrawl_env: None
+    ) -> None:
+        """
+        Purpose: Verify malformed parts of a 200 answer never surface as a
+            Python error: unusable items are skipped and a result that cannot
+            be built becomes an UpstreamError.
+        Why this matters: A source that is not a list or an item with broken
+            metadata raised TypeError or AttributeError, which the route
+            reports as an internal error instead of an upstream failure.
+        Setup summary: Answer with a non-list news source, an item whose
+            metadata is a number and one valid item; assert the valid one is
+            kept. Then answer with a title that is not text; assert the error.
+        """
+        mixed = _firecrawl_payload(
+            web=[{"metadata": 1}, {"url": 7}, _web_item()], news=1
+        )
+        broken = _firecrawl_payload(
+            web=[{"url": "https://example.com", "title": ["not", "text"]}]
+        )
+
+        curated = await _search(
+            lambda _request: httpx.Response(200, json=mixed), sources="web_and_news"
+        )
+
+        assert [result.url for result in curated.results] == [
+            "https://example.com/page"
+        ]
+        with pytest.raises(UpstreamError, match="unexpected shape"):
+            await _search(lambda _request: httpx.Response(200, json=broken))
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_search__drops_results_on_excluded_subdomain__of_an_included_host(
         self, firecrawl_env: None
     ) -> None:

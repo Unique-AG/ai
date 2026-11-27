@@ -382,6 +382,30 @@ def test_firecrawl_batch__assigns_by_position__only_when_item_names_no_url() -> 
 
 
 @pytest.mark.ai
+def test_firecrawl_batch__ignores_position__when_any_item_names_a_url() -> None:
+    """
+    Purpose: Verify an item without a URL is not placed by position when
+        another item in the same answer names its URL.
+    Why this matters: With named items the answer is not in request order, so
+        the unnamed item would land on a slot a named item already holds and
+        overwrite that page.
+    Setup summary: Request A and B; answer with B named first and one unnamed
+        item second; assert B keeps its page and A is reported as missing.
+    """
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/b"],
+        [
+            {"markdown": "# B", "metadata": {"sourceURL": "https://example.com/b"}},
+            {"markdown": "# Unnamed"},
+        ],
+    )
+
+    assert results[1].content == "# B"
+    assert results[0].content != "# Unnamed"
+    assert results[0].error is not None
+
+
+@pytest.mark.ai
 def test_firecrawl_batch__keeps_urls_apart__that_differ_only_by_a_trailing_slash() -> (
     None
 ):

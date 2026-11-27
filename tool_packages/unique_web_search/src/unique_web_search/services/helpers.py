@@ -34,8 +34,11 @@ def shorten(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
         return text
     head = text[:max_chars]
-    words = head.rsplit(None, 1)
-    return f"{words[0] if words else head}…"
+    # A word that ends exactly at the limit is whole; otherwise drop the cut one.
+    if not text[max_chars].isspace():
+        words = head.rsplit(None, 1)
+        head = words[0] if len(words) > 1 else head
+    return f"{head.rstrip()}…"
 
 
 def extract_root_domain(url: str) -> str:

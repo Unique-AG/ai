@@ -295,14 +295,17 @@ def _map_firecrawl_batch_results(
             raw=payload,
         )
 
+    # Position is only trusted when no item names a URL: with named items in
+    # the answer, an unnamed one could overwrite another URL's page.
+    match_by_position = not any(
+        _urls_named_by(item) for item in data if isinstance(item, dict)
+    )
     by_url: dict[str, CrawlUrlResult] = {}
     for index, item in enumerate(data):
         if not isinstance(item, dict):
             continue
-        named_urls = _urls_named_by(item)
-        target_url = _requested_url_of(named_urls, urls)
-        # Position is only trusted for an item that names no URL at all.
-        if target_url is None and not named_urls and index < len(urls):
+        target_url = _requested_url_of(_urls_named_by(item), urls)
+        if target_url is None and match_by_position and index < len(urls):
             target_url = urls[index]
         if target_url is None:
             continue

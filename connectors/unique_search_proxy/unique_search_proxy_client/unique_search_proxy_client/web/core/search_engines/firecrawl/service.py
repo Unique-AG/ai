@@ -132,14 +132,18 @@ class FirecrawlSearchService(SearchEngineService[FirecrawlSearchRequest]):
             )
 
         raw_pages = SearchEngineRaw(pages=[payload])
+        try:
+            results = _extract_results(payload, FIRECRAWL_SOURCES[request.sources])
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise UpstreamError(
+                "Firecrawl search returned results in an unexpected shape"
+            ) from exc
         # An include list replaces ``excludeDomains`` in the body, so excluded
         # subdomains of an included host are dropped here.
         curated = WebSearchResults(
             results=[
                 result
-                for result in _extract_results(
-                    payload, FIRECRAWL_SOURCES[request.sources]
-                )
+                for result in results
                 if not is_excluded_url(result.url, request.exclude_domains)
             ]
         )
@@ -167,7 +171,7 @@ def _extract_results(
     if not isinstance(data, dict):
         return []
     per_source = [
-        [result for item in data.get(source) or [] if (result := _to_result(item))]
+        [result for item in _items(data.get(source)) if (result := _to_result(item))]
         for source in sources
     ]
     # Interleave: ``limit`` applies per source, so news appended after a full
@@ -180,12 +184,18 @@ def _extract_results(
     ]
 
 
+def _items(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
+
+
 def _to_result(item: object) -> WebSearchResult | None:
     if not isinstance(item, dict):
         return None
-    metadata = item.get("metadata") or {}
-    url = item.get("url") or metadata.get("url") or ""
-    if not url:
+    metadata = item.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    url = item.get("url") or metadata.get("url")
+    if not isinstance(url, str) or not url:
         return None
     return WebSearchResult(
         url=url.strip(),
