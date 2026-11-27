@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import cache
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 from urllib.parse import urlsplit
 
 from unique_toolkit.experimental.resources.activity_records import (
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from unique_toolkit.language_model.schemas import LanguageModelFunction
 
     from unique_web_search.service import WebSearchTool
+    from unique_web_search.services.search_engine.registry import EngineKey
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,6 +33,8 @@ ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG = (
 )
 
 Outcome = Literal["called", "denied", "failed"]
+DirectCallOrigin = Literal["conduct", "api"]
+CallOrigin = Literal["chat", DirectCallOrigin]
 
 
 class _Screening(TypedDict):
@@ -47,16 +50,16 @@ class _Elicitation(TypedDict):
 # total=False subclasses, not NotRequired: under the __future__ import Python 3.12
 # reports NotRequired keys as required.
 class _SharedRequired(TypedDict):
-    chatId: str
-    messageId: str
-    toolCallId: str
-    userPrompt: str
     args: Any
     argumentScreening: _Screening
     elicitation: _Elicitation
 
 
 class _SharedCriticalData(_SharedRequired, total=False):
+    chatId: str
+    messageId: str
+    toolCallId: str
+    userPrompt: str
     userPromptTruncated: bool
 
 
@@ -91,10 +94,11 @@ _SHARED_KEYS = (
 
 @dataclass
 class ActivityRecord:
+    source: CallOrigin
     company_id: str
     user_id: str
-    assistant_id: str
-    executor_mode: str
+    assistant_id: str | None
+    executor_mode: str | None
     engine_id: str
     engine_name: str
     critical_data: _CallCriticalData
@@ -108,20 +112,24 @@ def _emit(
     build_critical_data: Callable[[], Mapping[str, object]],
 ) -> None:
     try:
+        # Empty agent id and subtype fail ActivityEventData (min_length=1); omit them.
+        data: dict[str, Any] = {
+            "actor": {"id": record.user_id, "type": "user"},
+            "companyId": record.company_id,
+            "targetType": "searchEngine",
+            "targetId": record.engine_id,
+            "targetName": record.engine_name,
+            "criticalData": build_critical_data(),
+        }
+        if record.assistant_id:
+            data["agent"] = {"id": record.assistant_id}
+        if record.executor_mode:
+            data["subtype"] = record.executor_mode
         # build() cuts over-long metadata instead of raising, so the record is never dropped.
         event = ActivityCloudEvent.build(
-            source="web-search",
+            source=record.source,
             type=type_,
-            data={
-                "actor": {"id": record.user_id, "type": "user"},
-                "agent": {"id": record.assistant_id},
-                "companyId": record.company_id,
-                "targetType": "searchEngine",
-                "targetId": record.engine_id,
-                "targetName": record.engine_name,
-                "subtype": record.executor_mode,
-                "criticalData": build_critical_data(),
-            },
+            data=data,
         )
         enqueue(event)
     except Exception as exc:
@@ -146,7 +154,7 @@ def _warn_outbox_down() -> None:
     )
 
 
-async def _count_call_while_outbox_down(tool: WebSearchTool) -> None:
+async def _count_call_while_outbox_down(company_id: str, user_id: str) -> None:
     # Imported here: the metrics module needs prometheus, an optional extra.
     try:
         from unique_toolkit.experimental.resources.activity_records.metrics import (
@@ -155,8 +163,8 @@ async def _count_call_while_outbox_down(tool: WebSearchTool) -> None:
 
         if not await get_feature_flag_client().is_enabled(
             ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG,
-            company_id=tool.company_id,
-            user_id=tool.event.user_id,
+            company_id=company_id,
+            user_id=user_id,
         ):
             return
         get_or_create_activity_event_outbox_metrics().record_failures.inc()
@@ -169,50 +177,48 @@ async def _count_call_while_outbox_down(tool: WebSearchTool) -> None:
     _warn_outbox_down()
 
 
-async def start(
-    tool: WebSearchTool, tool_call: LanguageModelFunction
+async def _start(
+    source: CallOrigin,
+    ids: Callable[[], tuple[str, str]],
+    describe: Callable[[], tuple[EngineKey, str | None, str | None, dict[str, Any]]],
 ) -> ActivityRecord | None:
-    if not is_running():
-        await _count_call_while_outbox_down(tool)
-        return None
-    # Imported here: the registry imports search_engine.base, which imports this module.
-    from unique_web_search.services.search_engine.registry import (
-        SEARCH_ENGINE_REGISTRY,
-    )
-
+    """Gate on outbox and flag, then build the record. ``describe`` runs only past the gate."""
     try:
+        company_id, user_id = ids()
+        if not is_running():
+            await _count_call_while_outbox_down(company_id, user_id)
+            return None
         # A flag read that raises lands in the except below and records nothing.
-        # On outages the client itself falls back to its stale cache or env default.
         if not await get_feature_flag_client().is_enabled(
             ENABLE_WEB_SEARCH_ACTIVITY_RECORDS_FLAG,
-            company_id=tool.company_id,
-            user_id=tool.event.user_id,
+            company_id=company_id,
+            user_id=user_id,
         ):
             return None
-        payload = tool.event.payload
-        engine = tool.search_engine_service.config.engine
-        prompt = payload.user_message.text
-        record = ActivityRecord(
-            company_id=tool.company_id,
-            user_id=tool.event.user_id,
-            assistant_id=payload.assistant_id,
-            executor_mode=tool.config.web_search_mode_config.mode.value,
-            engine_id=engine.value,
-            engine_name=SEARCH_ENGINE_REGISTRY[engine].config_display_name,
-            critical_data={
-                "chatId": payload.chat_id,
-                "messageId": payload.assistant_message.id,
-                "toolCallId": tool_call.id,
-                "userPrompt": prompt[:_USER_PROMPT_MAX_LENGTH],
-                # Replaced by the validated parameters once _run has parsed them.
-                "args": tool_call.arguments,
+        # Imported here: the registry imports search_engine.base, which imports this module.
+        from unique_web_search.services.search_engine.registry import (
+            SEARCH_ENGINE_REGISTRY,
+        )
+
+        engine, assistant_id, executor_mode, fields = describe()
+        critical_data = cast(
+            "_CallCriticalData",
+            {
+                **fields,
                 "argumentScreening": {"status": "notRun", "reason": None},
                 "elicitation": {"status": "notRun", "proposedQueries": []},
             },
         )
-        if len(prompt) > _USER_PROMPT_MAX_LENGTH:
-            record.critical_data["userPromptTruncated"] = True
-        return record
+        return ActivityRecord(
+            source=source,
+            company_id=company_id,
+            user_id=user_id,
+            assistant_id=assistant_id,
+            executor_mode=executor_mode,
+            engine_id=engine.value,
+            engine_name=SEARCH_ENGINE_REGISTRY[engine].config_display_name,
+            critical_data=critical_data,
+        )
     except Exception as exc:
         # Class name only: a validation error message can echo client data.
         _LOGGER.error(
@@ -220,6 +226,57 @@ async def start(
             type(exc).__name__,
         )
         return None
+
+
+async def start(
+    tool: WebSearchTool, tool_call: LanguageModelFunction
+) -> ActivityRecord | None:
+    def describe() -> tuple[EngineKey, str | None, str | None, dict[str, Any]]:
+        payload = tool.event.payload
+        prompt = payload.user_message.text
+        fields: dict[str, Any] = {
+            "chatId": payload.chat_id,
+            "messageId": payload.assistant_message.id,
+            "toolCallId": tool_call.id,
+            "userPrompt": prompt[:_USER_PROMPT_MAX_LENGTH],
+            # Replaced by the validated parameters once _run has parsed them.
+            "args": tool_call.arguments,
+        }
+        if len(prompt) > _USER_PROMPT_MAX_LENGTH:
+            fields["userPromptTruncated"] = True
+        return (
+            tool.search_engine_service.config.engine,
+            payload.assistant_id,
+            tool.config.web_search_mode_config.mode.value,
+            fields,
+        )
+
+    return await _start("chat", lambda: (tool.company_id, tool.event.user_id), describe)
+
+
+async def start_direct(
+    *,
+    company_id: str,
+    user_id: str,
+    engine: EngineKey,
+    call_origin: DirectCallOrigin,
+    args: Mapping[str, Any],
+    assistant_id: str | None = None,
+    chat_id: str | None = None,
+    message_id: str | None = None,
+) -> ActivityRecord | None:
+    if not company_id or not user_id:
+        return None
+
+    def describe() -> tuple[EngineKey, str | None, str | None, dict[str, Any]]:
+        fields: dict[str, Any] = {"args": dict(args)}
+        if chat_id:
+            fields["chatId"] = chat_id
+        if message_id:
+            fields["messageId"] = message_id
+        return engine, assistant_id, None, fields
+
+    return await _start(call_origin, lambda: (company_id, user_id), describe)
 
 
 @contextmanager
