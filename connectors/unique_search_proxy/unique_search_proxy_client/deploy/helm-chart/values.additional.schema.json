@@ -183,10 +183,6 @@
               "description": "Maps to env var BING_AGENT_BING_RESOURCE_CONNECTION_STRING.",
               "$ref": "#/$defs/valueSourceSensitive"
             },
-            "agentId": {
-              "description": "Maps to env var BING_AGENT_AGENT_ID.",
-              "$ref": "#/$defs/valueSourceString"
-            },
             "bingAgentModel": {
               "description": "Maps to env var BING_AGENT_BING_AGENT_MODEL.",
               "$ref": "#/$defs/valueSourceSensitive"
@@ -202,6 +198,10 @@
             },
             "usePrivateEndpointTransport": {
               "description": "Maps to env var BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT.",
+              "$ref": "#/$defs/valueSourceBoolean"
+            },
+            "cleanupOnStart": {
+              "description": "Maps to env var BING_AGENT_CLEANUP_ON_START.",
               "$ref": "#/$defs/valueSourceBoolean"
             }
           }
@@ -475,6 +475,21 @@
             "proxySslKeyPath": {
               "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_KEY_PATH.",
               "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyUsernameSource": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME_SOURCE.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyUsernameMetadataField": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME_METADATA_FIELD.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "perUserProxyCompanyIds": {
+              "description": "Maps to env var HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -482,6 +497,10 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "httpClientCacheSize": {
+              "description": "Maps to env var HTTP_CLIENT_HTTP_CLIENT_CACHE_SIZE.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
             "poolTimeoutSeconds": {
               "description": "Maps to env var HTTP_CLIENT_POOL_TIMEOUT_SECONDS.",
               "type": "number"
@@ -492,6 +511,94 @@
             },
             "maxKeepaliveConnections": {
               "description": "Maps to env var HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxResponseKib": {
+              "description": "Maps to env var HTTP_CLIENT_MAX_RESPONSE_KIB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
+    "requestLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Request Limits configuration. Generated from RequestLimitsSettings (REQUEST_LIMITS_* env vars).",
+      "properties": {
+        "crawl": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxCrawlResponseKib": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxUrlsPerCrawl": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_URLS_PER_CRAWL.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxUrlLength": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_URL_LENGTH.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentFetches": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_FETCHES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentCrawls": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentUrlChecks": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_URL_CHECKS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        },
+        "timeouts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxTimeoutSeconds": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_TIMEOUT_SECONDS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
+    "pdfProcessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "PDF Processing configuration. Generated from PdfSettings (PDF_* env vars).",
+      "properties": {
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "extractor": {
+              "description": "Maps to env var PDF_EXTRACTOR.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "maxPdfPages": {
+              "description": "Maps to env var PDF_MAX_PDF_PAGES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxExtractedChars": {
+              "description": "Maps to env var PDF_MAX_EXTRACTED_CHARS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "extractionTimeoutSeconds": {
+              "description": "Maps to env var PDF_EXTRACTION_TIMEOUT_SECONDS.",
+              "type": "number"
+            },
+            "maxExtractionMemoryMb": {
+              "description": "Maps to env var PDF_MAX_EXTRACTION_MEMORY_MB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentExtractions": {
+              "description": "Maps to env var PDF_MAX_CONCURRENT_EXTRACTIONS.",
               "$ref": "#/$defs/valueSourceInteger"
             }
           }
@@ -550,6 +657,13 @@
                 "type": "string"
               }
             },
+            "customApiTrustedPrivateHosts": {
+              "description": "Maps to env var CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "clusterLocalSuffix": {
               "description": "Maps to env var URL_SAFETY_CLUSTER_LOCAL_SUFFIX.",
               "$ref": "#/$defs/valueSourceString"
@@ -559,6 +673,19 @@
               "$ref": "#/$defs/valueSourceString"
             }
           }
+        }
+      }
+    },
+    "networkPolicy": {
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "allowDisabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow networkPolicy.enabled=false. Set only if another control restricts who can reach search-proxy."
         }
       }
     }

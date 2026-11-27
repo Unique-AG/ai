@@ -7,10 +7,13 @@ import unique_sdk
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.functions import (
     _add_tools_to_options,
+    _prepare_all_completions_params_util,
     _prepare_completion_params_util,
     _to_search_context,
     complete,
     complete_async,
+    complete_with_references,
+    complete_with_references_async,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -137,6 +140,57 @@ def test_complete_basic(mock_create):
 
     assert result.choices[0].message.content == "Test response"
     mock_create.assert_called_once()
+    assert "headers" not in mock_create.call_args.kwargs
+
+
+@pytest.mark.ai
+@patch.object(unique_sdk.ChatCompletion, "create")
+def test_complete__forwards_non_empty_attribution_ids_as_headers(mock_create) -> None:
+    """Purpose: Verify sync completion forwards chat attribution as HTTP headers.
+    Why this matters: Model usage must link to chat and assistant without JSON leakage.
+    Setup summary: Complete with both IDs and inspect the SDK call arguments.
+    """
+    mock_create.return_value = {"choices": []}
+
+    complete(
+        company_id="test_company",
+        user_id="test_user",
+        messages=LanguageModelMessages([]),
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+    )
+
+    assert mock_create.call_args.kwargs["headers"] == {
+        "x-chat-id": "chat_1",
+        "x-assistant-id": "assistant_1",
+    }
+
+
+@pytest.mark.ai
+@patch.object(unique_sdk.ChatCompletion, "create")
+def test_complete__forwards_assistant_message_id_as_header(mock_create) -> None:
+    """Purpose: Verify sync completion forwards the message id as an HTTP header.
+    Why this matters: Model usage must be attributable to the individual message.
+    Setup summary: Complete with all three IDs and inspect the SDK call arguments.
+    """
+    mock_create.return_value = {"choices": []}
+
+    complete(
+        company_id="test_company",
+        user_id="test_user",
+        messages=LanguageModelMessages([]),
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+        assistant_message_id="message_1",
+    )
+
+    assert mock_create.call_args.kwargs["headers"] == {
+        "x-chat-id": "chat_1",
+        "x-assistant-id": "assistant_1",
+        "x-assistant-message-id": "message_1",
+    }
 
 
 @pytest.mark.asyncio
@@ -165,6 +219,100 @@ async def test_complete_async_basic(mock_create):
 
     assert result.choices[0].message.content == "Test response"
     mock_create.assert_called_once()
+    assert "headers" not in mock_create.call_args.kwargs
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch.object(unique_sdk.ChatCompletion, "create_async")
+async def test_complete_async__omits_empty_attribution_ids(mock_create) -> None:
+    """Purpose: Verify async completion forwards only non-empty attribution IDs.
+    Why this matters: Empty identifiers must not become misleading usage headers.
+    Setup summary: Complete with one empty ID and inspect the SDK headers.
+    """
+    mock_create.return_value = {"choices": []}
+
+    await complete_async(
+        company_id="test_company",
+        user_id="test_user",
+        messages=LanguageModelMessages([]),
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
+        chat_id="chat_1",
+        assistant_id="",
+    )
+
+    assert mock_create.call_args.kwargs["headers"] == {"x-chat-id": "chat_1"}
+
+
+@pytest.mark.ai
+@patch.object(unique_sdk.ChatCompletion, "create")
+def test_complete_with_references__forwards_attribution_ids(mock_create) -> None:
+    """Purpose: Verify referenced sync completions retain usage attribution.
+    Why this matters: Reference rendering must not drop chat and assistant headers.
+    Setup summary: Complete with references and inspect the SDK request headers.
+    """
+    mock_create.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "finishReason": "completed",
+                "message": {"content": "Test response", "role": "assistant"},
+            }
+        ]
+    }
+
+    complete_with_references(
+        company_id="test_company",
+        user_id="test_user",
+        messages=LanguageModelMessages([]),
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+        assistant_message_id="message_1",
+    )
+
+    assert mock_create.call_args.kwargs["headers"] == {
+        "x-chat-id": "chat_1",
+        "x-assistant-id": "assistant_1",
+        "x-assistant-message-id": "message_1",
+    }
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch.object(unique_sdk.ChatCompletion, "create_async")
+async def test_complete_with_references_async__forwards_attribution_ids(
+    mock_create,
+) -> None:
+    """Purpose: Verify referenced async completions retain usage attribution.
+    Why this matters: Async reference rendering must preserve attribution headers.
+    Setup summary: Complete with references and inspect the async SDK request headers.
+    """
+    mock_create.return_value = {
+        "choices": [
+            {
+                "index": 0,
+                "finishReason": "completed",
+                "message": {"content": "Test response", "role": "assistant"},
+            }
+        ]
+    }
+
+    await complete_with_references_async(
+        company_id="test_company",
+        user_id="test_user",
+        messages=LanguageModelMessages([]),
+        model_name=LanguageModelName.AZURE_GPT_4_0613,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+        assistant_message_id="message_1",
+    )
+
+    assert mock_create.call_args.kwargs["headers"] == {
+        "x-chat-id": "chat_1",
+        "x-assistant-id": "assistant_1",
+        "x-assistant-message-id": "message_1",
+    }
 
 
 def test_resolve_temp_and_reasoning_clamps_temperature():
@@ -289,6 +437,24 @@ def test_resolve_temp_and_reasoning_warns_on_out_of_bounds_temperature(caplog):
     assert effort == "none"  # model default applied
 
 
+def test_resolve_temp_and_reasoning_keeps_xhigh_for_codex(caplog):
+    """Regression for UN-25265: xhigh must not be downgraded (previously fell back
+    to the first supported effort, "none", silently disabling reasoning)."""
+    for codex_name in (
+        LanguageModelName.AZURE_GPT_51_CODEX_2025_1113,
+        LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113,
+    ):
+        codex = LanguageModelInfo.from_name(codex_name)
+        with caplog.at_level(
+            logging.WARNING, logger="unique_toolkit.language_model.infos"
+        ):
+            temp, effort = codex.resolve_temp_and_reasoning(0.5, "xhigh")
+
+        assert "not supported" not in caplog.text
+        assert effort == "xhigh"
+        assert temp == 1.0
+
+
 def test_resolve_temp_and_reasoning_no_warning_for_valid_effort(caplog):
     """No warning is logged when reasoning_effort is valid for the model."""
     # gpt-5.4-pro supports ["medium", "high", "xhigh"]
@@ -319,6 +485,20 @@ def test_supported_reasoning_efforts_set_correctly():
     assert gpt51.supported_reasoning_efforts == ["none", "low", "medium", "high"]
     assert "minimal" not in gpt51.supported_reasoning_efforts
 
+    # gpt-5.1 codex family additionally supports xhigh (UN-25265)
+    for codex_name in (
+        LanguageModelName.AZURE_GPT_51_CODEX_2025_1113,
+        LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113,
+    ):
+        codex = LanguageModelInfo.from_name(codex_name)
+        assert codex.supported_reasoning_efforts == [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+        ]
+
     # Thinking-only variants do not include none or low
     gpt54_pro = LanguageModelInfo.from_name(
         LanguageModelName.AZURE_GPT_54_PRO_2026_0305
@@ -335,7 +515,66 @@ def test_supported_reasoning_efforts_set_correctly():
     o1_mini = LanguageModelInfo.from_name(LanguageModelName.AZURE_o1_MINI_2024_0912)
     assert o1_mini.supported_reasoning_efforts == []
 
-    # Third-party models (DeepSeek, Qwen) have no reasoning_effort support
+    # Extended-thinking Claude models have no effort parameter
+    haiku = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_4_5)
+    assert haiku.supported_reasoning_efforts == []
+
+    opus_45 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_5)
+    assert opus_45.supported_reasoning_efforts == ["low", "medium", "high"]
+    assert "reasoning_effort" not in opus_45.default_options
+    _, effort = opus_45.resolve_temp_and_reasoning(0.0, None)
+    assert effort is None
+
+    opus_46 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6)
+    assert opus_46.supported_reasoning_efforts == ["low", "medium", "high", "max"]
+
+    sonnet_5 = LanguageModelInfo.from_name(LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5)
+    assert sonnet_5.supported_reasoning_efforts == [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+    ]
+    vertex_sonnet_5 = LanguageModelInfo.from_name(
+        LanguageModelName.VERTEX_CLAUDE_SONNET_5
+    )
+    assert (
+        vertex_sonnet_5.supported_reasoning_efforts
+        == sonnet_5.supported_reasoning_efforts
+    )
+
+    gemini_31 = LanguageModelInfo.from_name(LanguageModelName.GEMINI_3_1_PRO_PREVIEW)
+    assert gemini_31.supported_reasoning_efforts == ["low", "medium", "high"]
+
+    gemini_3_pro = LanguageModelInfo.from_name(LanguageModelName.GEMINI_3_PRO_PREVIEW)
+    assert gemini_3_pro.supported_reasoning_efforts == ["low", "high"]
+
+    deepseek_v4 = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_V4_PRO)
+    assert deepseek_v4.supported_reasoning_efforts == ["high", "max"]
+    assert deepseek_v4.default_options["reasoning_effort"] == "high"
+
+    kimi = LanguageModelInfo.from_name(LanguageModelName.LITELLM_KIMI_K3)
+    assert kimi.supported_reasoning_efforts == ["low", "medium", "high", "max"]
+    assert kimi.default_options["reasoning_effort"] == "medium"
+    _, effort = kimi.resolve_temp_and_reasoning(0.0, "medium")
+    assert effort == "medium"
+
+    kimi_k31_pro = LanguageModelInfo.from_name(LanguageModelName.LITELLM_KIMI_K3_1_PRO)
+    assert kimi_k31_pro.supported_reasoning_efforts == ["low", "high", "max"]
+    assert kimi_k31_pro.default_options["reasoning_effort"] == "max"
+    _, effort = kimi_k31_pro.resolve_temp_and_reasoning(0.0, None)
+    assert effort == "max"
+
+    deepseek_v41_flash = LanguageModelInfo.from_name(
+        LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH
+    )
+    assert deepseek_v41_flash.supported_reasoning_efforts == []
+    assert "reasoning_effort" not in deepseek_v41_flash.default_options
+    _, effort = deepseek_v41_flash.resolve_temp_and_reasoning(0.0, None)
+    assert effort is None
+
+    # DeepSeek R1 has no reasoning_effort parameter
     deepseek = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)
     assert deepseek.supported_reasoning_efforts == []
 
@@ -422,3 +661,124 @@ def test_resolve_unknown_model_respects_declared_bounds():
 
     temp, effort = model.resolve_temp_and_reasoning(1.0, None)
     assert temp == 1.0
+
+
+def _prepare_options_for_model(
+    model_name: LanguageModelName | str,
+    other_options: dict,
+) -> dict:
+    options, _, _, _ = _prepare_all_completions_params_util(
+        messages=LanguageModelMessages([]),
+        model_name=model_name,
+        temperature=0.5,
+        other_options=other_options,
+    )
+    return options
+
+
+def test_max_tokens_translated_for_openai_reasoning_model():
+    """GPT-5 rejects `max_tokens` on the Chat Completions API; the toolkit must
+    rename it to `max_completion_tokens`."""
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_5_2025_0807,
+        {"max_tokens": 100},
+    )
+
+    assert "max_tokens" not in options
+    assert options["max_completion_tokens"] == 100
+
+
+def test_max_tokens_untouched_for_openai_non_reasoning_model():
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_4o_2024_1120,
+        {"max_tokens": 100},
+    )
+
+    assert options["max_tokens"] == 100
+    assert "max_completion_tokens" not in options
+
+
+def test_max_tokens_untouched_for_non_openai_reasoning_model():
+    options = _prepare_options_for_model(
+        LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING,
+        {"max_tokens": 100},
+    )
+
+    assert options["max_tokens"] == 100
+    assert "max_completion_tokens" not in options
+
+
+def test_max_tokens_untouched_for_unknown_string_model():
+    options = _prepare_options_for_model(
+        "custom_model",
+        {"max_tokens": 100},
+    )
+
+    assert options["max_tokens"] == 100
+    assert "max_completion_tokens" not in options
+
+
+def test_caller_supplied_max_completion_tokens_wins_over_max_tokens():
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_5_2025_0807,
+        {"max_tokens": 100, "max_completion_tokens": 200},
+    )
+
+    assert "max_tokens" not in options
+    assert options["max_completion_tokens"] == 200
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+        LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+        LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+    ],
+)
+def test_gpt_62_chat_completions_options_omit_unsupported_params(
+    model_name: LanguageModelName,
+) -> None:
+    """
+    Purpose: GPT-6.2 Chat Completions requests omit temperature, top_p, logprobs and top_logprobs.
+    Why this matters: The GPT-6.2 migration guide lists these as unsupported parameters.
+    Setup summary: Pass all four through other_options and temperature; assert none are forwarded.
+    """
+    options = _prepare_options_for_model(
+        model_name,
+        {"top_p": 0.9, "logprobs": True, "top_logprobs": 3},
+    )
+
+    for key in ("temperature", "top_p", "logprobs", "top_logprobs"):
+        assert key not in options
+
+
+@pytest.mark.ai
+def test_other_models_chat_completions_keep_temperature() -> None:
+    """
+    Purpose: Models without the flag still receive temperature.
+    Why this matters: The omission must not leak to other models.
+    Setup summary: Prepare options for GPT-4o and assert temperature is set.
+    """
+    options = _prepare_options_for_model(LanguageModelName.AZURE_GPT_4o_2024_1120, {})
+
+    assert "temperature" in options
+
+
+@pytest.mark.ai
+def test_gpt_62_chat_completions_options_omit_temperature_for_string_model_name() -> (
+    None
+):
+    """
+    Purpose: A registered GPT-6.2 name passed as a plain string still omits temperature.
+    Why this matters: The public functions accept ``LanguageModelName | str``.
+    Setup summary: Pass the enum value as a string and assert temperature is not forwarded.
+    """
+    options = _prepare_options_for_model(
+        LanguageModelName.AZURE_GPT_62_SOL_2026_1117.value, {"top_p": 0.9}
+    )
+
+    assert "temperature" not in options
+    assert "top_p" not in options

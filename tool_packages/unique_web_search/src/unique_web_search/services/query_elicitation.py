@@ -6,9 +6,10 @@ allowing users to review and modify proposed search queries before execution.
 
 import asyncio
 import logging
-from typing import Self
+from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.elicitation import (
@@ -19,6 +20,10 @@ from unique_toolkit.elicitation import (
     ElicitationMode,
     ElicitationStatus,
 )
+
+from unique_web_search import activity_record
+from unique_web_search.metrics import query_length
+from unique_web_search.schema import WebSearchDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +43,34 @@ class QueryElicitationConfig(BaseModel):
         ge=1,
         le=300,
     )
+    max_query_length: Annotated[
+        int | None,
+        RJSFMetaTag(
+            {
+                "ui:field": "nullableActive",
+                "ui:fieldReplacesAnyOrOneOf": True,
+                "ui:widget": "updown",
+                "ui:options": {
+                    "activeLabel": "Limit query length",
+                    "activeValue": 200,
+                },
+            }
+        ),
+    ] = Field(
+        default=None,
+        title="Maximum Query Length",
+        description="Limits the number of characters in each search query.",
+        ge=1,
+    )
+
+    def query_length_instruction(self) -> str | None:
+        """Return the system-prompt sentence for the query length limit, or ``None`` when no limit applies."""
+        if not self.enable_elicitation or self.max_query_length is None:
+            return None
+        return (
+            f"Keep each search query under {self.max_query_length} characters. "
+            "Longer queries are cut off before the user reviews them."
+        )
 
 
 class QueryElicitationModel(BaseModel):
@@ -48,11 +81,13 @@ class QueryElicitationModel(BaseModel):
     creation with default values for form pre-population.
     """
 
-    model_config = ConfigDict(title="Query Elicitation")
+    model_config = ConfigDict(title="Query Elicitation", hide_input_in_errors=True)
     queries: list[str] = Field(description="The queries to search the web for")
 
     @classmethod
-    def create_model_with_default_queries(cls, queries: list[str]) -> type[Self]:
+    def create_model_with_default_queries(
+        cls, queries: list[str], max_length: int | None
+    ) -> type[Self]:
         """Create a model with default query values.
 
         This method dynamically creates a Pydantic model where the root field
@@ -62,6 +97,8 @@ class QueryElicitationModel(BaseModel):
 
         Args:
             queries: List of default query strings to pre-populate
+            max_length: Maximum number of characters per query, exposed to the
+                form as the items' ``maxLength``. ``None`` means no limit.
 
         Returns:
             A new model class with default values set
@@ -69,7 +106,7 @@ class QueryElicitationModel(BaseModel):
         model = create_model(
             cls.__name__,
             queries=(
-                list[str],
+                list[Annotated[str, Field(max_length=max_length)]],
                 Field(
                     default=queries,
                 ),
@@ -92,25 +129,40 @@ class QueryElicitationService:
         chat_service: ChatService,
         display_name: str,
         config: QueryElicitationConfig,
+        debug_info: WebSearchDebugInfo,
+        engine: str,
     ):
         """Initialize the query elicitation service.
 
         Args:
             chat_service: Service for interacting with chat/elicitation APIs
             display_name: Display name for the tool in elicitation UI
-            timeout_seconds: Timeout in seconds for waiting for user approval
+            config: Elicitation configuration
+            debug_info: Web search debug information updated with the outcome
+            engine: Search engine name, used as a metric label
         """
         self._chat_service = chat_service
         self._display_name = display_name
         self._config = config
+        self._debug_info = debug_info
+        self._engine = engine
 
     async def __call__(self, queries: list[str]) -> list[str]:
+        self._record_query_lengths(queries)
+
         if not self._config.enable_elicitation:
+            activity_record.set_elicitation("notRun", queries)
             return queries
+
+        max_length = self._config.max_query_length
+        if max_length is not None:
+            queries = [query[:max_length] for query in queries]
 
         _LOGGER.info("Creating elicitation...")
 
-        model = QueryElicitationModel.create_model_with_default_queries(queries)
+        model = QueryElicitationModel.create_model_with_default_queries(
+            queries, max_length
+        )
         elicitation = await self._chat_service.elicitation.create_async(
             mode=ElicitationMode.FORM,
             tool_name=self._display_name,
@@ -118,6 +170,8 @@ class QueryElicitationService:
             json_schema=model.model_json_schema(),
             expires_in_seconds=self._config.timeout_seconds,
         )
+        self._debug_info.elicitation_approval = False
+        self._debug_info.elicitation_prompt_change = False
         _LOGGER.info(
             f"Elicitation created: {elicitation.id}. Waiting for user response for {self._config.timeout_seconds} seconds..."
         )
@@ -129,11 +183,18 @@ class QueryElicitationService:
             )
             if elicitation.status == ElicitationStatus.ACCEPTED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} accepted")
-                queries = QueryElicitationModel.model_validate(
+                self._debug_info.elicitation_approval = True
+                submitted_queries = QueryElicitationModel.model_validate(
                     elicitation.response_content
                 ).queries
+                self._debug_info.elicitation_prompt_change = (
+                    submitted_queries != queries
+                )
+                activity_record.set_elicitation(
+                    "edited" if submitted_queries != queries else "approved", queries
+                )
 
-                if len(queries) == 0:
+                if len(submitted_queries) == 0:
                     raise ElicitationFailedException(
                         context="The user approved the web search request but removed all search queries from the form, resulting in zero queries to execute.",
                         instruction="The web search tool did not execute because no search queries were provided. "
@@ -144,20 +205,41 @@ class QueryElicitationService:
                         "Ask if they would like to retry the search with specific queries, or if they can describe what information they're looking for so you can help formulate appropriate search queries for the next approval.",
                     )
 
-                return queries
+                if max_length is not None and any(
+                    len(query) > max_length for query in submitted_queries
+                ):
+                    raise ElicitationFailedException(
+                        context=f"The user approved the web search request, but at least one search query is longer than the {max_length}-character limit.",
+                        instruction="The web search tool did not execute. "
+                        f"Tell the user that each search query can be at most {max_length} characters, "
+                        "and ask them to retry with shorter queries.",
+                    )
+
+                return submitted_queries
 
             elif elicitation.status == ElicitationStatus.DECLINED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} declined")
+                activity_record.set_elicitation("declined", queries)
                 raise ElicitationDeclinedException(
-                    f"Elicitation triggered with queries {queries} was declined"
+                    f"Query elicitation {elicitation.id} was declined"
                 )
 
             elif elicitation.status == ElicitationStatus.CANCELLED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} cancelled")
+                activity_record.set_elicitation("cancelled", queries)
                 raise ElicitationCancelledException(
-                    f"Elicitation triggered with queries {queries} was cancelled"
+                    f"Query elicitation {elicitation.id} was cancelled"
                 )
 
+        activity_record.set_elicitation("expired", queries)
         raise ElicitationExpiredException(
             f"Query elicitation {elicitation.id} not accepted"
         )
+
+    def _record_query_lengths(self, queries: list[str]) -> None:
+        labels = query_length.labels(
+            engine=self._engine,
+            query_review=str(self._config.enable_elicitation).lower(),
+        )
+        for query in queries:
+            labels.observe(len(query))

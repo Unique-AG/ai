@@ -40,6 +40,7 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET,
             LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING,
             LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_4_5,
+            LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_5_5,
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_1,
@@ -47,9 +48,12 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_5,
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6,
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5,
+            LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5_5,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_8,
+            LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5,
+            LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5_5,
             LanguageModelName.ANTHROPIC_CLAUDE_FABLE_5,
             LanguageModelName.GEMINI_2_0_FLASH,
             LanguageModelName.GEMINI_2_5_FLASH,
@@ -60,10 +64,18 @@ class TestLanguageModelInfos:
             LanguageModelName.GEMINI_2_5_PRO_EXP_0325,
             LanguageModelName.GEMINI_2_5_PRO_PREVIEW_0605,
             LanguageModelName.GEMINI_3_1_PRO_PREVIEW,
+            LanguageModelName.GEMINI_3_6_FLASH,
+            LanguageModelName.GEMINI_3_8_FLASH,
             LanguageModelName.GEMINI_3_FLASH_PREVIEW,
             LanguageModelName.GEMINI_3_PRO_PREVIEW,
+            LanguageModelName.GEMINI_4_ARGON,
+            LanguageModelName.GEMINI_4_CARBON,
+            LanguageModelName.GEMINI_4_HYDROGEN,
             LanguageModelName.GROK_4_1_FAST_NON_REASONING,
             LanguageModelName.GROK_4_1_FAST_REASONING,
+            LanguageModelName.GROK_4_5,
+            LanguageModelName.GROK_4_6,
+            LanguageModelName.GROK_4_7,
             LanguageModelName.AZURE_GPT_5_2025_0807,
             LanguageModelName.AZURE_GPT_5_MINI_2025_0807,
             LanguageModelName.AZURE_GPT_5_NANO_2025_0807,
@@ -77,12 +89,20 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_52_2025_1211,
             LanguageModelName.AZURE_GPT_52_CHAT_2025_1211,
             LanguageModelName.AZURE_GPT_54_2026_0305,
+            LanguageModelName.AZURE_GPT_54_MINI_2026_0317,
             LanguageModelName.AZURE_GPT_54_PRO_2026_0305,
             LanguageModelName.AZURE_GPT_55_2026_0424,
             LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
             LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
             LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
             LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+            LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
+            LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
+            LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
+            LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+            LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
             LanguageModelName.LITELLM_OPENAI_GPT_5,
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
@@ -99,12 +119,27 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
             LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
             LanguageModelName.LITELLM_DEEPSEEK_R1,
             LanguageModelName.LITELLM_DEEPSEEK_V3,
             LanguageModelName.LITELLM_DEEPSEEK_V4_PRO,
+            LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH,
             LanguageModelName.LITELLM_GLM_5_1,
             LanguageModelName.LITELLM_GLM_5_2,
+            LanguageModelName.LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH,
+            LanguageModelName.LITELLM_PHOENIQS_GEMMA_4_31B,
+            LanguageModelName.LITELLM_PHOENIQS_GLM_5_2,
+            LanguageModelName.LITELLM_PHOENIQS_GLM_5_3_FLASH,
+            LanguageModelName.LITELLM_PHOENIQS_LLAMA_4_MAVERICK,
             LanguageModelName.LITELLM_KIMI_K2_6,
+            LanguageModelName.LITELLM_KIMI_K3,
+            LanguageModelName.LITELLM_KIMI_K3_1_PRO,
             LanguageModelName.LITELLM_QWEN_3,
             LanguageModelName.LITELLM_QWEN_3_THINKING,
             LanguageModelName.LITELLM_OPENAI_O1,
@@ -115,12 +150,20 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH,
             LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO,
+            LanguageModelName.VERTEX_CLAUDE_HAIKU_5_5,
             LanguageModelName.VERTEX_CLAUDE_SONNET_4_6,
             LanguageModelName.VERTEX_CLAUDE_SONNET_5,
+            LanguageModelName.VERTEX_CLAUDE_SONNET_5_5,
             LanguageModelName.VERTEX_CLAUDE_OPUS_4_6,
             LanguageModelName.VERTEX_CLAUDE_OPUS_4_7,
             LanguageModelName.VERTEX_CLAUDE_OPUS_4_8,
+            LanguageModelName.VERTEX_CLAUDE_OPUS_5,
+            LanguageModelName.VERTEX_CLAUDE_OPUS_5_5,
             LanguageModelName.VERTEX_CLAUDE_FABLE_5,
+            LanguageModelName.VERTEX_GEMINI_3_8_FLASH,
+            LanguageModelName.VERTEX_GEMINI_4_ARGON,
+            LanguageModelName.VERTEX_GEMINI_4_CARBON,
+            LanguageModelName.VERTEX_GEMINI_4_HYDROGEN,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)
@@ -219,6 +262,269 @@ class TestLanguageModelInfos:
 
         with pytest.raises(ValueError):
             LanguageModelTokenLimits(token_limit_input=1000, fraction_input=0.5)  # type: ignore[call-arg]
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+        ],
+    )
+    def test_gpt_56_info_cutoff_matches_openai_knowledge_cutoff(self, model_name):
+        """
+        Purpose: GPT-5.6 registry cutoff matches OpenAI's knowledge cutoff.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff;
+        Azure's June last-collection date would overstate parametric knowledge.
+        Setup summary: Load each GPT-5.6 LanguageModelInfo and assert 2026-02-16.
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.info_cutoff_at == date(2026, 2, 16)
+
+    @pytest.mark.ai
+    def test_gpt_54_mini_token_limits_match_azure_400k_window(self):
+        """
+        Purpose: GPT-5.4 Mini uses the 272k/128k window, not GPT-5.4's 922k input.
+        Why this matters: Azure lists a 400k context with 272k input / 128k output.
+        Setup summary: Load AZURE_GPT_54_MINI_2026_0317 and assert token limits.
+        """
+        model = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_54_MINI_2026_0317
+        )
+        assert model.token_limits.token_limit_input == 272_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.info_cutoff_at == date(2025, 8, 31)
+        assert model.published_at == date(2026, 3, 17)
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+        ],
+    )
+    def test_gpt_6_astra_info_cutoff_matches_openai_knowledge_cutoff(self, model_name):
+        """
+        Purpose: GPT-6 Astra registry cutoff matches OpenAI's published knowledge cutoff.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff.
+        Setup summary: Load each GPT-6 Astra LanguageModelInfo and assert 2026-04-30.
+        Source: https://developers.openai.com/api/docs/models/gpt-6-astra
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.info_cutoff_at == date(2026, 4, 30)
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("model_name", "info_cutoff_at"),
+        [
+            (LanguageModelName.AZURE_GPT_6_LUNA_2026_0922, date(2026, 5, 18)),
+            (LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA, date(2026, 5, 18)),
+            (LanguageModelName.AZURE_GPT_6_SOL_2026_0922, date(2026, 4, 20)),
+            (LanguageModelName.LITELLM_OPENAI_GPT_6_SOL, date(2026, 4, 20)),
+        ],
+    )
+    def test_gpt_6_luna_and_sol_match_published_limits(
+        self, model_name, info_cutoff_at
+    ):
+        """
+        Purpose: GPT-6 Luna and Sol registry facts match the published cards.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff
+        and sizes requests from token_limits.
+        Setup summary: Load each Luna and Sol LanguageModelInfo and assert the
+        Azure 922k/128k window, the 2026-09-22 version, and the model cutoff.
+        Sources:
+        https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
+        https://developers.openai.com/api/docs/models/gpt-6-luna
+        https://developers.openai.com/api/docs/models/gpt-6-sol
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.info_cutoff_at == info_cutoff_at
+        assert model.published_at == date(2026, 9, 22)
+        assert model.version == "2026-09-22"
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+        ]
+
+    @pytest.mark.ai
+    def test_gpt_61_sol_matches_published_limits(self):
+        """
+        Purpose: GPT-6.1 Sol registry facts match the published card.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff
+        and sizes requests from token_limits.
+        Setup summary: Load the LiteLLM GPT-6.1 Sol LanguageModelInfo.
+        Sources:
+        https://developers.openai.com/api/docs/models/gpt-6.1-sol
+        https://cdn.openai.com/pdf/38e3efcf-545e-44cd-99ec-2b7eb395f4cc/oai_GPT_6_1_Sol.pdf
+        """
+        model = LanguageModelInfo.from_name(LanguageModelName.LITELLM_OPENAI_GPT_61_SOL)
+        azure = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_61_SOL_2026_0929
+        )
+        assert model.info_cutoff_at == date(2026, 4, 30)
+        assert azure.info_cutoff_at == date(2026, 4, 30)
+        assert model.published_at == date(2026, 9, 29)
+        assert azure.published_at == date(2026, 9, 29)
+        assert model.version == "2026-09-29"
+        assert azure.version == "2026-09-29"
+        assert azure.provider == LanguageModelProvider.AZURE
+        assert model.provider == LanguageModelProvider.LITELLM
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+
+    @pytest.mark.ai
+    def test_gpt_61_terra_matches_published_limits(self):
+        """
+        Purpose: GPT-6.1 Terra registry facts match the published card.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff
+        and sizes requests from token_limits.
+        Setup summary: Load the LiteLLM and Azure GPT-6.1 Terra LanguageModelInfo.
+        Sources:
+        https://developers.openai.com/api/docs/models/gpt-6.1-terra
+        https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
+        """
+        model = LanguageModelInfo.from_name(
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA
+        )
+        azure = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026
+        )
+        assert model.info_cutoff_at == date(2026, 6, 1)
+        assert azure.info_cutoff_at == date(2026, 6, 1)
+        assert model.published_at == date(2026, 10, 26)
+        assert azure.published_at == date(2026, 10, 26)
+        assert model.version == "2026-10-26"
+        assert azure.version == "2026-10-26"
+        assert azure.provider == LanguageModelProvider.AZURE
+        assert model.provider == LanguageModelProvider.LITELLM
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("model_name", "provider", "info_cutoff_at"),
+        [
+            (
+                LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+                LanguageModelProvider.AZURE,
+                date(2026, 5, 18),
+            ),
+            (
+                LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+                LanguageModelProvider.LITELLM,
+                date(2026, 5, 18),
+            ),
+            (
+                LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+                LanguageModelProvider.AZURE,
+                date(2026, 6, 1),
+            ),
+            (
+                LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+                LanguageModelProvider.LITELLM,
+                date(2026, 6, 1),
+            ),
+        ],
+    )
+    def test_gpt_62_matches_published_limits(
+        self,
+        model_name: LanguageModelName,
+        provider: LanguageModelProvider,
+        info_cutoff_at: date,
+    ):
+        """
+        Purpose: GPT-6.2 Sol and Astra registry facts match the published cards.
+        Why this matters: Unique AI injects info_cutoff_at as Knowledge cutoff,
+        sizes requests from token_limits, and must never send effort `none`,
+        which the GPT-6.2 API rejects.
+        Setup summary: Load each Azure and LiteLLM GPT-6.2 LanguageModelInfo.
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.provider == provider
+        assert model.info_cutoff_at == info_cutoff_at
+        assert model.published_at == date(2026, 11, 17)
+        assert model.version == "2026-11-17"
+        assert model.token_limits.token_limit_input == 922_000
+        assert model.token_limits.token_limit_output == 128_000
+        assert model.supports_sampling_params is False
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_5_5,
+            LanguageModelName.VERTEX_CLAUDE_HAIKU_5_5,
+        ],
+    )
+    def test_claude_haiku_5_5_matches_published_limits(self, model_name):
+        """
+        Purpose: Claude Haiku 5.5 registry facts match the published model card.
+        Why this matters: Unique AI sizes requests from token_limits, validates
+        reasoning_effort against supported_reasoning_efforts, and only forces
+        tool choice when the model accepts it.
+        Setup summary: Load the Anthropic and Vertex LiteLLM LanguageModelInfo.
+        Sources:
+        https://platform.claude.com/docs/en/models/haiku-5-5/overview
+        https://platform.claude.com/docs/en/build-with-claude/effort
+        https://platform.claude.com/docs/en/models/haiku-5-5/migration-guide
+        """
+        model = LanguageModelInfo.from_name(model_name)
+        assert model.provider == LanguageModelProvider.LITELLM
+        assert model.version == "claude-haiku-5-5"
+        assert model.published_at == date(2026, 10, 7)
+        assert model.info_cutoff_at == date(2026, 6, 1)
+        sonnet = LanguageModelInfo.from_name(
+            LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5_5
+        )
+        # Same published 1M context / 128K output as Sonnet 5.5.
+        assert model.token_limits == sonnet.token_limits
+        assert model.default_options["reasoning_effort"] == "medium"
+        assert model.supported_reasoning_efforts == [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+        assert model.supports_forced_tool_choice is True
 
 
 class TestLoadLanguageModelInfosFromEnv:

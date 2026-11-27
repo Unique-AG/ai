@@ -4,6 +4,21 @@ import mimetypes
 from enum import StrEnum
 from pathlib import Path
 
+# Takes precedence over `mimetypes` (which lacks `.msg` and varies by host)
+# so classification matches the platform's supported-mime-types catalog.
+_EXTENSION_MIME_OVERRIDES: dict[str, str] = {
+    ".msg": "application/vnd.ms-outlook",
+    ".eml": "message/rfc822",
+}
+
+
+def guess_mime_type(filename: str | Path) -> str | None:
+    suffix = Path(filename).suffix.lower()
+    if override := _EXTENSION_MIME_OVERRIDES.get(suffix):
+        return override
+    mime_type, _ = mimetypes.guess_type(str(filename))
+    return mime_type
+
 
 class FileMimeType(StrEnum):
     PDF = "application/pdf"
@@ -23,10 +38,12 @@ class FileMimeType(StrEnum):
     MD = "text/markdown"
     TXT = "text/plain"
     JSON = "application/json"
+    MSG = "application/vnd.ms-outlook"
+    EML = "message/rfc822"
 
     @classmethod
     def get_mime_from_file_path(cls, filepath: Path) -> "FileMimeType | None":
-        mime_type, _ = mimetypes.guess_type(filepath)
+        mime_type = guess_mime_type(filepath)
         if mime_type is None:
             return None
 
@@ -65,6 +82,11 @@ class FileMimeType(StrEnum):
     @property
     def is_csv(self) -> bool:
         return self == self.__class__.CSV
+
+    @property
+    def is_email(self) -> bool:
+        cls = self.__class__
+        return self in {cls.MSG, cls.EML}
 
     @classmethod
     def is_docx_mime(cls, filepath: Path) -> bool:
@@ -122,12 +144,22 @@ def get_common_name(extension: FileMimeType) -> str:
             return "markdown"
         case FileMimeType.HTML:
             return "html"
+        case FileMimeType.MSG | FileMimeType.EML:
+            return "email"
         case _:  # pyright: ignore[reportUnnecessaryComparison]
             return "unknown"  # pyright: ignore[reportUnreachable]
 
 
+_MIME_EXTENSION_OVERRIDES: dict[str, str] = {
+    mime: ext for ext, mime in _EXTENSION_MIME_OVERRIDES.items()
+}
+
+
 def get_file_extensions(mimes: list[FileMimeType]) -> list[str]:
-    types = [mimetypes.guess_extension(mime) for mime in mimes]
+    types = [
+        _MIME_EXTENSION_OVERRIDES.get(mime) or mimetypes.guess_extension(mime)
+        for mime in mimes
+    ]
     return [t for t in types if t]
 
 
@@ -142,7 +174,7 @@ class ImageMimeType(StrEnum):
 
 
 def is_file_content(filename: str) -> bool:
-    mimetype, _ = mimetypes.guess_type(filename)
+    mimetype = guess_mime_type(filename)
 
     if not mimetype:
         return False
@@ -151,7 +183,7 @@ def is_file_content(filename: str) -> bool:
 
 
 def is_image_content(filename: str) -> bool:
-    mimetype, _ = mimetypes.guess_type(filename)
+    mimetype = guess_mime_type(filename)
 
     if not mimetype:
         return False

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -19,42 +21,76 @@ from unique_sdk.cli.commands._citation_manifest import (
 )
 from unique_sdk.cli.formatting import format_mcp_response
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
+from unique_sdk.cli.workspace import unique_dir as workspace_unique_dir
 
 _LOGGER = logging.getLogger(__name__)
+
+MCP_ERROR_PREFIX = "mcp:"
+_FORMATTER_ERROR_PREFIX = "mcp: formatter error"
 
 # Per-turn manifest of MCP tool output text, consumed by the Swappable
 # Intelligence runner to ground the hallucination check against MCP-retrieved
 # information (UN-21951). Carries *text only* — no source numbers/markers
 # (referencing is UN-21285, tracked separately).
 _MCP_OUTPUT_LOG_RELATIVE_PATH = Path(".unique") / "mcp-output.jsonl"
-# Writer-side cap so a single huge/raw tool result cannot bloat the manifest.
-# This manifest is the groundedness check's source of truth, so the cap is
-# sized against the eval model's context window rather than kept minimal:
-# GPT-4o's 128k-token input fits ~400k chars, and the runner bounds the
-# combined per-turn payload separately (UN-22309). At the previous 50k, a
-# large list result (e.g. a 115k-char Jira search) lost most of its items
-# before the judge saw them, flagging well-grounded answers as hallucinations.
-_MCP_OUTPUT_TEXT_CHAR_LIMIT = 200_000
+# Runaway guard, four times the largest judge window; the runner trims by tokens.
+_MCP_TEXT_GUARD_CHARS = 16_000_000
+# Bytes of tool text each per-turn manifest may hold, about 16 judge windows.
+_MCP_TURN_TEXT_BUDGET_BYTES = 64_000_000
 
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
 # (UN-21285). One entry per retrieved item: a short *title* describing what was
-# retrieved (no URL — those are technical/misleading). The runner labels the
-# chip with that title + the MCP tool name; falls back to the tool alone when
-# the result carries no recognizable title.
+# retrieved, plus that item's own http(s) link when the tool result includes
+# one. The link is stored on the row and is not copied into the Sources block.
+# The runner labels the chip with that title + the MCP tool name; falls back
+# to the tool alone when the result carries no recognizable title.
 _MCP_REFS_LOG_RELATIVE_PATH = Path(".unique") / "mcp-refs.jsonl"
 _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
+# Persistent per-chat seed for ``[mcpsourceN]`` numbering. The SI runner wipes
+# ``mcp-refs.jsonl`` between turns, so manifest-derived numbering restarts at 1
+# every turn; this sibling file records the highest source number ever assigned
+# in the chat so numbering stays monotonic across turns (UN-23199). Body is
+# ``{"maxSourceNumber": <int>}``; the monorepo runner preserves this file across
+# its per-turn reset. Absent/unreadable → seed 0 → identical to pre-seed
+# behavior (forward/backward compatible).
+_MCP_REFS_SEED_FILENAME = "mcp-refs-seed.json"
 _MCP_SNIPPET_CHAR_LIMIT = 300
-# Writer-side cap on the per-item ``text`` recorded in the refs manifest — the
-# cited item's underlying text, consumed by the runner's hallucination check to
-# ground each ``[mcpsourceN]`` citation on what was actually retrieved
-# (UN-22762). Half the flat-output cap (``_MCP_OUTPUT_TEXT_CHAR_LIMIT``): one
-# cited item (a page, an issue record) rarely exceeds it, and the eval side
-# bounds the combined cited-text payload separately.
-_MCP_REF_TEXT_CHAR_LIMIT = 100_000
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
-_TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
+_TITLE_KEYS = (
+    "title",
+    "name",
+    "displayName",
+    "display_name",
+    "subject",
+    "summary",
+    "key",
+)
+
+# Preferred keys for a record's own http(s) link, tried before other fields.
+# One present but empty means the record has no link.
+_URL_KEYS = (
+    "url",
+    "uri",
+    "href",
+    "webUrl",
+    "web_url",
+    "webLink",
+    "web_link",
+    "outlookWebLink",
+    "link",
+)
+
+# How deep untitled wrapper objects are searched for lists of titled records.
+_MAX_WRAPPER_DEPTH = 4
+
+# Markdown list item: a bullet or numbered title, then an indented http(s) URL.
+# A list marker is required so a prose line above an indented link is not a hit.
+_MARKDOWN_TITLE_URL = re.compile(
+    r"(?m)^(?:[-*]\s+|\d+\.\s+)(.+?)\n[ \t]+(https?://\S+)\s*$"
+)
 
 # Keys an MCP tool's JSON result commonly uses for the optional "details" line
 # (UN-22310) — e.g. a date and an author such as "10/10/2026 - Jamie Dimon".
@@ -213,11 +249,11 @@ def _loads_embedded_json(text: str) -> Any:
     return None
 
 
-def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
-    """Normalize a parsed JSON value to a flat list of record dicts, unwrapping
-    a single container key (``{"issues": [...]}``) when present."""
+def _records_from_parsed(parsed: Any) -> tuple[list[dict[str, Any]], bool]:
+    """Records of a known container key's list, else of every titled list in a wrapper.
+    The flag marks wrapper records, which are cited only with a link."""
     if isinstance(parsed, list):
-        return [entry for entry in parsed if isinstance(entry, dict)]
+        return [entry for entry in parsed if isinstance(entry, dict)], False
     if isinstance(parsed, dict):
         for key in _CONTAINER_KEYS:
             value = parsed.get(key)
@@ -229,34 +265,143 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
                     # ``data``) — keep the object as one record so its title
                     # survives instead of collapsing to a title-less chip.
                     if key in _AMBIGUOUS_CONTAINER_KEYS and _title_from_json(parsed):
-                        return [parsed]
-                    return records
-        return [parsed]
-    return []
+                        return [parsed], False
+                    return records, False
+        if not _is_record(parsed):
+            titled = _titled_lists(parsed, depth=0)
+            if titled:
+                return titled, True
+        return [parsed], False
+    return [], False
+
+
+def _is_record(obj: dict[str, Any]) -> bool:
+    """A titled object, or one with its own link key, is one record rather than
+    a wrapper: a chat message with no subject is not split into its attachments."""
+    return bool(_title_from_json(obj)) or any(key in obj for key in _URL_KEYS)
+
+
+def _titled_lists(wrapper: dict[str, Any], *, depth: int) -> list[dict[str, Any]]:
+    """Records of every list holding a titled record, searching wrapper objects
+    but not inside a record."""
+    records: list[dict[str, Any]] = []
+    for value in wrapper.values():
+        value = _connection_nodes(value) or value
+        if isinstance(value, list):
+            entries = [entry for entry in value if isinstance(entry, dict)]
+            if any(_title_from_json(entry) for entry in entries):
+                records.extend(entries)
+        elif (
+            isinstance(value, dict)
+            and depth < _MAX_WRAPPER_DEPTH
+            and not _is_record(value)
+        ):
+            records.extend(_titled_lists(value, depth=depth + 1))
+    return records
+
+
+def _connection_nodes(value: object) -> list[Any] | None:
+    """The ``nodes`` list of a GraphQL-style connection, such as Atlassian's
+    ``{"issues": {"nodes": [...], "webUrl": ...}}``, whose own link is the search page."""
+    if isinstance(value, dict):
+        nodes = value.get("nodes")
+        if isinstance(nodes, list):
+            return nodes
+    return None
+
+
+def _is_http_url(value: object) -> str | None:
+    """Return ``value`` when it is an http(s) URL, else None."""
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    if stripped.startswith("https://") or stripped.startswith("http://"):
+        return stripped
+    return None
+
+
+def _url_from_item(obj: dict[str, Any]) -> str | None:
+    """First http(s) field on a record. Preferred keys, then any string field,
+    unless a preferred key is present but empty: the record then has no link."""
+    for key in _URL_KEYS:
+        url = _is_http_url(obj.get(key))
+        if url:
+            return url
+    if any(key in obj and obj[key] in ("", None) for key in _URL_KEYS):
+        return None
+    for value in obj.values():
+        url = _is_http_url(value)
+        if url:
+            return url
+    return None
+
+
+def _with_url(item: dict[str, Any], url: str | None) -> dict[str, Any]:
+    if url:
+        item["url"] = url
+    return item
 
 
 def _titles_from_json(text: str) -> list[dict[str, Any]]:
     """Best-effort: pull a human title out of a JSON result, e.g. an Atlassian
     page/issue returned as JSON-in-text. Tolerates a non-JSON preamble before
     the JSON body and unwraps a container key (``{"issues": [...]}``) so each
-    retrieved record yields its own item. Returns [] when the text carries no
-    JSON or no record has a recognizable title.
+    retrieved record yields its own item. A record from a wrapper's list, or
+    titled only by ``display_name``, needs a link. Returns [] when the text
+    carries no JSON or no record qualifies.
     """
     parsed = _loads_embedded_json(text)
     if parsed is None:
         return []
+    records, needs_link = _records_from_parsed(parsed)
     items: list[dict[str, Any]] = []
-    for entry in _records_from_parsed(parsed):
+    for entry in records:
         title = _title_from_json(entry)
-        if title:
-            items.append(
+        if not title:
+            continue
+        url = _url_from_item(entry)
+        if not url and (needs_link or _titled_by_display_name_only(entry)):
+            continue
+        items.append(
+            _with_url(
                 {
                     "title": title,
                     "snippet": None,
                     "details": _details_from_json(entry),
                     "text": _record_text(entry),
-                }
+                },
+                url,
             )
+        )
+    return items
+
+
+def _titled_by_display_name_only(entry: dict[str, Any]) -> bool:
+    return _title_from_json({**entry, "display_name": None}) is None
+
+
+def _titles_from_markdown_list(text: str) -> list[dict[str, Any]]:
+    """One item per markdown list entry that pairs a title with an http(s) URL.
+
+    Returns [] when no pair is found.
+    """
+    if not text.strip():
+        return []
+    items: list[dict[str, Any]] = []
+    for match in _MARKDOWN_TITLE_URL.finditer(text):
+        title = match.group(1).strip().lstrip("-* ").strip()
+        url = _is_http_url(match.group(2))
+        if not title or not url:
+            continue
+        items.append(
+            {
+                "title": title,
+                "snippet": None,
+                "details": None,
+                "text": match.group(0).strip(),
+                "url": url,
+            }
+        )
     return items
 
 
@@ -298,6 +443,26 @@ def _render_title_template(template: str, record: dict[str, Any]) -> str | None:
     return rendered or None
 
 
+def _as_content_dict(block: Any) -> dict[str, Any] | None:
+    """Normalize an MCP content block to a dict.
+
+    Client libraries often hand back typed objects (``mcp.types.TextContent``)
+    with the same fields as the wire dict. Only known attribute names are
+    copied so a hostile object cannot inject unexpected keys.
+    """
+    if isinstance(block, dict):
+        return block
+    block_type = getattr(block, "type", None)
+    if not isinstance(block_type, str) or not block_type.strip():
+        return None
+    out: dict[str, Any] = {"type": block_type}
+    for key in ("text", "name", "description", "uri"):
+        value = getattr(block, key, None)
+        if value is not None:
+            out[key] = value
+    return out
+
+
 def _mapped_records(response: Any, list_path: str | None) -> list[Any]:
     """Locate the records a reference mapping applies to, preferring the
     MCP-native ``structuredContent`` then any JSON-in-text block (preamble
@@ -314,13 +479,15 @@ def _mapped_records(response: Any, list_path: str | None) -> list[Any]:
     if structured is not None:
         sources.append(structured)
     for block in getattr(response, "content", None) or []:
-        if isinstance(block, dict) and block.get("type") == "text":
-            parsed = _loads_embedded_json(block.get("text") or "")
+        normalized = _as_content_dict(block)
+        if normalized is not None and normalized.get("type") == "text":
+            parsed = _loads_embedded_json(normalized.get("text") or "")
             if parsed is not None:
                 sources.append(parsed)
 
     for parsed in sources:
         target = _get_by_dotted_path(parsed, list_path) if list_path else parsed
+        target = _connection_nodes(target) or target
         if isinstance(target, list):
             records = [entry for entry in target if isinstance(entry, (dict, str))]
             if records:
@@ -351,8 +518,9 @@ def _first_text_title(response: Any, max_chars: int) -> str | None:
     """Title from the first non-empty line of the first text block — for a
     non-JSON result such as a fetched Markdown document (e.g. ``read_doc``)."""
     for block in getattr(response, "content", None) or []:
-        if isinstance(block, dict) and block.get("type") == "text":
-            title = _leading_title_line(block.get("text"), max_chars)
+        normalized = _as_content_dict(block)
+        if normalized is not None and normalized.get("type") == "text":
+            title = _leading_title_line(normalized.get("text"), max_chars)
             if title:
                 return title
     return None
@@ -363,9 +531,10 @@ def _all_text_blocks(response: Any) -> str | None:
     result (e.g. a fetched document) recorded as that item's ground truth."""
     texts: list[str] = []
     for block in getattr(response, "content", None) or []:
-        if not isinstance(block, dict) or block.get("type") != "text":
+        normalized = _as_content_dict(block)
+        if normalized is None or normalized.get("type") != "text":
             continue
-        text = block.get("text")
+        text = normalized.get("text")
         if isinstance(text, str) and text.strip():
             texts.append(text)
     return "\n\n".join(texts) or None
@@ -400,6 +569,7 @@ def _extract_with_reference_mapping(
     # points at the text field within each item (e.g. ``content``); leave unset
     # when each item is itself a plain string.
     title_text_path = mapping.get("titleTextPath") or mapping.get("title_text_path")
+    url_path = mapping.get("urlPath") or mapping.get("url_path")
     try:
         title_max_chars = int(
             mapping.get("titleMaxChars")
@@ -437,13 +607,22 @@ def _extract_with_reference_mapping(
             if details_path and is_dict
             else None
         )
+        url = None
+        if is_dict:
+            if url_path:
+                url = _is_http_url(_get_by_dotted_path(record, url_path))
+            if not url:
+                url = _url_from_item(record)
         items.append(
-            {
-                "title": title,
-                "snippet": None,
-                "details": str(details).strip() if details else None,
-                "text": _record_text(record),
-            }
+            _with_url(
+                {
+                    "title": title,
+                    "snippet": None,
+                    "details": str(details).strip() if details else None,
+                    "text": _record_text(record),
+                },
+                url,
+            )
         )
     if items:
         return items
@@ -480,9 +659,13 @@ def _extract_mcp_citation_items(
     destructuring of a list result); when it yields nothing we fall back to the
     generic heuristic: MCP ``resource_link`` names (spec-native) or a best-effort
     JSON-title heuristic over text blocks (for tools like Atlassian that return
-    JSON-in-text). No URLs are extracted — the chip is display-only. Falls back
-    to a single title-less item (the runner names it after the tool) when the
-    result carries no recognizable title.
+    JSON-in-text), or a markdown list that pairs a title with an indented
+    http(s) URL. Typed content blocks from an MCP client library are
+    normalized to dicts first so a list result is not collapsed to one
+    title-less chip. An http(s) link on a record is stored on the row and is
+    not copied into the Sources block. Falls back to a single title-less item
+    (the runner names it after the tool) when the result carries no
+    recognizable title.
 
     ``text`` is the item's underlying retrieved text (the serialized record, a
     fetched document body, or — for the title-less fallback — ``fallback_text``,
@@ -499,23 +682,39 @@ def _extract_mcp_citation_items(
     items: list[dict[str, Any]] = []
 
     for block in content:
-        if not isinstance(block, dict):
+        normalized = _as_content_dict(block)
+        if normalized is None:
             continue
-        if block.get("type") == "resource_link":
-            name = (block.get("name") or "").strip()
+        if normalized.get("type") == "resource_link":
+            name = (normalized.get("name") or "").strip()
             if name:
                 items.append(
-                    {
-                        "title": name,
-                        "snippet": _snippet(block.get("description")),
-                        "text": block.get("description") or None,
-                    }
+                    _with_url(
+                        {
+                            "title": name,
+                            "snippet": _snippet(normalized.get("description")),
+                            "text": normalized.get("description") or None,
+                        },
+                        _is_http_url(normalized.get("uri")),
+                    )
                 )
 
     if not items:
         for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                items.extend(_titles_from_json(block.get("text") or ""))
+            normalized = _as_content_dict(block)
+            if normalized is not None and normalized.get("type") == "text":
+                items.extend(_titles_from_json(normalized.get("text") or ""))
+
+    if not items:
+        for block in content:
+            normalized = _as_content_dict(block)
+            if normalized is not None and normalized.get("type") == "text":
+                items.extend(_titles_from_markdown_list(normalized.get("text") or ""))
+
+    if not items and fallback_text:
+        items.extend(_titles_from_json(fallback_text))
+        if not items:
+            items.extend(_titles_from_markdown_list(fallback_text))
 
     if not items:
         # No recognizable title — one chip named after the tool itself.
@@ -533,22 +732,117 @@ def _next_mcp_source_number(entries: list[dict[str, Any]]) -> int:
     return max(numbers, default=0) + 1
 
 
+def _read_mcp_refs_seed(seed_path: Path) -> int:
+    """Read the persisted chat-wide ``maxSourceNumber`` from the seed file.
+
+    Best-effort: returns ``0`` when the file is absent, unreadable, or malformed
+    (never raises), so a missing seed reproduces the pre-seed numbering exactly.
+    """
+    try:
+        raw = seed_path.read_text(encoding="utf-8")
+        value = json.loads(raw).get("maxSourceNumber")
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 0
+    return 0
+
+
+def _write_mcp_refs_seed(seed_path: Path, value: int) -> None:
+    """Persist the chat-wide ``maxSourceNumber`` seed (best-effort, never raises).
+
+    Only writes when ``value`` exceeds the currently persisted seed, so numbers
+    never regress across turns.
+
+    The temp file is opened with ``O_NOFOLLOW`` so a symlink pre-planted at the
+    predictable temp path cannot redirect the write outside the refs directory
+    (defense in depth on top of the per-user workspace sandbox). ``os.replace``
+    operates on the directory entry and does not follow a symlink at the target.
+    ``O_NOFOLLOW`` is POSIX-only; on platforms lacking it (e.g. Windows) it
+    degrades to ``0`` via ``getattr`` rather than raising ``AttributeError`` —
+    which, being outside the ``OSError`` handler, would otherwise bubble out of
+    ``_annotate_mcp_results_for_citations`` after entries were written and blank
+    the Sources block.
+    """
+    try:
+        if value <= _read_mcp_refs_seed(seed_path):
+            return
+        seed_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = seed_path.with_suffix(seed_path.suffix + ".tmp")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(tmp_path, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps({"maxSourceNumber": value}))
+        os.replace(tmp_path, seed_path)
+    except OSError as exc:
+        _LOGGER.warning("mcp: failed to write refs seed: %s", exc)
+
+
 def _item_dedup_key(tool_name: str, item: dict[str, Any]) -> str:
-    """Dedup by title when present (same item = one chip), else by tool."""
+    """Dedup by title when present (same item = one chip), else by tool + a short
+    content hash of the item's text.
+
+    Two distinct title-less fetches through one tool return different bodies, so
+    hashing the text keeps them as separate sources instead of collapsing onto
+    one number (identical bodies still merge). NOTE: this intentionally weakens
+    the search-then-fetch text-upgrade merge for title-less items only — titled
+    items still merge by title as before.
+    """
     title = item.get("title")
     if isinstance(title, str) and title.strip():
         return f"title:{tool_name}:{title.strip()}"
-    return f"tool:{tool_name}"
+    text = (item.get("text") or "")[:_MCP_TEXT_GUARD_CHARS]
+    text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+    return f"tool:{tool_name}:{text_hash}"
+
+
+def _item_link_key(tool_name: str, item: dict[str, Any]) -> str | None:
+    """Title-and-link key of a linked titled item, or None."""
+    title = item.get("title")
+    url = item.get("url")
+    if isinstance(title, str) and title.strip() and isinstance(url, str) and url:
+        return f"link:{tool_name}:{title.strip()}:{url}"
+    return None
+
+
+def _dedup_source_number(
+    *,
+    key: str,
+    link_key: str | None,
+    numbers_by_key: dict[str, int],
+    entries_by_number: dict[int, dict[str, Any]],
+) -> int | None:
+    """Source number an item merges onto: same title and link, or same title when
+    either side has no link."""
+    if link_key is not None and link_key in numbers_by_key:
+        return numbers_by_key[link_key]
+    number = numbers_by_key.get(key)
+    if number is None or link_key is None:
+        return number
+    stored_url = entries_by_number.get(number, {}).get("url")
+    return None if stored_url else number
 
 
 def _ref_text(item: dict[str, Any]) -> str | None:
-    """The item's underlying text for the manifest, capped at
-    ``_MCP_REF_TEXT_CHAR_LIMIT`` (single write-side cap shared by all
-    extraction modes)."""
+    """The item's underlying text for the manifest, up to the runaway guard."""
     text = item.get("text")
     if not isinstance(text, str) or not text:
         return None
-    return text[:_MCP_REF_TEXT_CHAR_LIMIT]
+    return text[:_MCP_TEXT_GUARD_CHARS]
+
+
+def _utf8_size(text: str) -> int:
+    return len(text.encode("utf-8", errors="surrogatepass"))
+
+
+def _within_bytes(text: str, room: int) -> str:
+    """Longest prefix of ``text`` that fits ``room`` UTF-8 bytes."""
+    if room <= 0:
+        return ""
+    encoded = text.encode("utf-8", errors="surrogatepass")
+    if len(encoded) <= room:
+        return text
+    return encoded[:room].decode("utf-8", errors="ignore")
 
 
 def _annotate_mcp_results_for_citations(
@@ -563,11 +857,17 @@ def _annotate_mcp_results_for_citations(
     """Assign per-turn ``[mcpsourceN]`` numbers to each retrieved item and append
     the refs manifest. Returns ``[(sourceNumber, item)]`` for the Sources block.
 
-    Items dedup by title across the turn (same item keeps one number), or by
-    tool for the title-less fallback. Best-effort — returns ``[]`` on any failure
+    Titled items dedup across the turn by title and link (same item keeps one
+    number), or by title alone when either side has no link. A title-less item
+    dedups by tool plus a content hash of its (capped) text, so two distinct
+    title-less results through one tool get distinct numbers while identical
+    bodies still merge (this weakens the search-then-fetch text-upgrade merge for
+    title-less items only). Best-effort — returns ``[]`` on any failure
     (the tool result is unaffected; only the citation Sources block is skipped).
     """
-    refs_log_path = refs_log_path or (Path.cwd() / _MCP_REFS_LOG_RELATIVE_PATH)
+    refs_log_path = refs_log_path or workspace_manifest_path(
+        _MCP_REFS_LOG_RELATIVE_PATH
+    )
     annotated: list[tuple[int, dict[str, Any]]] = []
     try:
         items = _extract_mcp_citation_items(
@@ -581,24 +881,50 @@ def _annotate_mcp_results_for_citations(
             refs_log_path, lock_filename=_MCP_REFS_LOCK_FILENAME
         ):
             entries = _read_turn_refs_manifest(refs_log_path)
+            # Chat-wide monotonic seed: the runner wipes ``mcp-refs.jsonl``
+            # between turns, so manifest-derived numbering restarts at 1 each
+            # turn. The seed file (preserved across the runner's per-turn reset)
+            # records the highest number ever assigned in the chat so a fresh
+            # number exceeds both the current manifest max AND the chat-wide max.
+            seed_path = refs_log_path.parent / _MCP_REFS_SEED_FILENAME
+            seed = _read_mcp_refs_seed(seed_path)
+            highest_assigned = seed
             numbers_by_key: dict[str, int] = {}
             for entry in entries:
                 if isinstance(entry.get("sourceNumber"), int):
+                    stored_key = entry.get("dedupKey")
                     stored_tool = entry.get("toolName") or tool_name
-                    numbers_by_key[_item_dedup_key(stored_tool, entry)] = entry[
-                        "sourceNumber"
-                    ]
+                    if not isinstance(stored_key, str):
+                        stored_key = _item_dedup_key(stored_tool, entry)
+                    numbers_by_key.setdefault(stored_key, entry["sourceNumber"])
+                    stored_link_key = _item_link_key(stored_tool, entry)
+                    if stored_link_key is not None:
+                        numbers_by_key[stored_link_key] = entry["sourceNumber"]
             entries_by_number = {
                 entry["sourceNumber"]: entry
                 for entry in entries
                 if isinstance(entry.get("sourceNumber"), int)
             }
             needs_rewrite = False
+            text_room = _MCP_TURN_TEXT_BUDGET_BYTES - sum(
+                _utf8_size(entry["text"])
+                for entry in entries
+                if isinstance(entry.get("text"), str)
+            )
             for item in items:
                 key = _item_dedup_key(tool_name, item)
-                source_number = numbers_by_key.get(key)
+                link_key = _item_link_key(tool_name, item)
+                source_number = _dedup_source_number(
+                    key=key,
+                    link_key=link_key,
+                    numbers_by_key=numbers_by_key,
+                    entries_by_number=entries_by_number,
+                )
                 if source_number is None:
-                    source_number = _next_mcp_source_number(entries)
+                    source_number = max(_next_mcp_source_number(entries), seed + 1)
+                    full_text = _ref_text(item) or ""
+                    entry_text = _within_bytes(full_text, text_room)
+                    text_room -= _utf8_size(entry_text)
                     manifest_entry = {
                         "sourceNumber": source_number,
                         "toolName": tool_name,
@@ -606,8 +932,14 @@ def _annotate_mcp_results_for_citations(
                         "title": item.get("title"),
                         "snippet": item.get("snippet"),
                         "details": item.get("details"),
-                        "text": _ref_text(item),
+                        "text": entry_text or None,
                     }
+                    # Budget-cut text no longer hashes to the key, so it is kept.
+                    if entry_text != full_text:
+                        manifest_entry["dedupKey"] = key
+                    item_url = item.get("url")
+                    if isinstance(item_url, str) and item_url:
+                        manifest_entry["url"] = item_url
                     try:
                         _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
                     except (UnsafeRefsLogPathError, OSError) as exc:
@@ -615,9 +947,12 @@ def _annotate_mcp_results_for_citations(
                             "mcp: failed to append refs manifest entry: %s", exc
                         )
                         break
-                    numbers_by_key[key] = source_number
+                    numbers_by_key.setdefault(key, source_number)
+                    if link_key is not None:
+                        numbers_by_key[link_key] = source_number
                     entries.append(manifest_entry)
                     entries_by_number[source_number] = manifest_entry
+                    highest_assigned = max(highest_assigned, source_number)
                 else:
                     # Deduped: a prior call already claimed this source number.
                     # Backfill ``details`` the first call may have lacked (the
@@ -628,6 +963,12 @@ def _annotate_mcp_results_for_citations(
                     if stored is not None and new_details and not stored.get("details"):
                         stored["details"] = new_details
                         needs_rewrite = True
+                    new_url = item.get("url")
+                    if stored is not None and new_url and not stored.get("url"):
+                        stored["url"] = new_url
+                        needs_rewrite = True
+                        if link_key is not None:
+                            numbers_by_key[link_key] = source_number
                     # ``text`` upgrades to the longer capture: the common turn
                     # is a search (small per-record JSON) followed by a full
                     # fetch of the same titled item — the later, richer text is
@@ -638,7 +979,13 @@ def _annotate_mcp_results_for_citations(
                         stored_len = (
                             len(stored_text) if isinstance(stored_text, str) else 0
                         )
-                        if len(new_text) > stored_len:
+                        growth = _utf8_size(new_text) - (
+                            _utf8_size(stored_text)
+                            if isinstance(stored_text, str)
+                            else 0
+                        )
+                        if len(new_text) > stored_len and growth <= text_room:
+                            text_room -= growth
                             stored["text"] = new_text
                             needs_rewrite = True
                 annotated.append((source_number, item))
@@ -649,6 +996,10 @@ def _annotate_mcp_results_for_citations(
                     _LOGGER.warning(
                         "mcp: failed to backfill refs manifest enrichment: %s", exc
                     )
+            # Persist the chat-wide max so next turn's numbering continues above
+            # it even after the runner wipes ``mcp-refs.jsonl``.
+            if highest_assigned > seed:
+                _write_mcp_refs_seed(seed_path, highest_assigned)
     except (UnsafeRefsLogPathError, OSError) as exc:
         _LOGGER.warning("mcp: failed to append refs manifest: %s", exc)
         return []
@@ -658,13 +1009,19 @@ def _annotate_mcp_results_for_citations(
     return annotated
 
 
-def _citation_sources_block(annotated: list[tuple[int, dict[str, Any]]]) -> str:
+def _citation_sources_block(
+    annotated: list[tuple[int, dict[str, Any]]], *, tool_name: str
+) -> str:
     """Tell the agent which marker to cite each retrieved item with.
 
     Rendered *before* the tool output (leading block, not a trailing footer):
     the agent harness spills oversized tool results to a file wholesale, and a
     partial or programmatic read of that file only reliably sees the head — a
-    trailing marker list would be exactly what such reads miss (UN-22309).
+    trailing marker list would be exactly what such reads miss.
+
+    Each line names the ``tool_name`` alongside the marker so the model has a
+    stronger anchor than a bare integer: ``{title} — {tool_name}`` when the item
+    carries a title, or ``{tool_name}`` for the title-less fallback.
     """
     if not annotated:
         return ""
@@ -674,7 +1031,11 @@ def _citation_sources_block(annotated: list[tuple[int, dict[str, Any]]]) -> str:
         "will not be referenced in the answer:",
     ]
     for source_number, item in annotated:
-        label = item.get("title") or "this MCP tool result"
+        title = item.get("title")
+        if isinstance(title, str) and title.strip():
+            label = f"{title.strip()} — {tool_name}"
+        else:
+            label = tool_name
         lines.append(f"  [mcpsource{source_number}] {label}")
     return "\n".join(lines)
 
@@ -693,18 +1054,26 @@ def _append_mcp_output_manifest(
     call when the write fails.
 
     ``output_path`` is the full path of the ``mcp-output.jsonl`` manifest. It
-    defaults to ``Path.cwd() / .unique / mcp-output.jsonl`` so the CLI flow
-    (where cwd is the agent workspace) is unchanged; callers that run outside
-    the workspace cwd (e.g. the in-process tools-mode proxy) pass it explicitly.
+    defaults to ``<workspace root>/.unique/mcp-output.jsonl``; callers outside
+    the workspace (e.g. the in-process tools-mode proxy) pass it explicitly.
     """
     try:
-        refs_log_path = output_path or (Path.cwd() / _MCP_OUTPUT_LOG_RELATIVE_PATH)
+        refs_log_path = output_path or workspace_manifest_path(
+            _MCP_OUTPUT_LOG_RELATIVE_PATH
+        )
+        recorded = refs_log_path.stat().st_size if refs_log_path.is_file() else 0
+        text = _within_bytes(
+            text[:_MCP_TEXT_GUARD_CHARS], _MCP_TURN_TEXT_BUDGET_BYTES - recorded
+        )
+        if not text:
+            _LOGGER.warning("mcp: turn output budget spent, row skipped")
+            return
         _append_turn_refs_manifest_entry(
             refs_log_path,
             {
                 "toolName": name,
                 "serverName": server_name,
-                "text": text[:_MCP_OUTPUT_TEXT_CHAR_LIMIT],
+                "text": text,
             },
         )
     except (UnsafeRefsLogPathError, OSError) as exc:
@@ -758,7 +1127,7 @@ def record_mcp_citations(
         reference_mapping=reference_mapping,
         fallback_text=formatted_text,
     )
-    return _citation_sources_block(annotated)
+    return _citation_sources_block(annotated, tool_name=tool_name)
 
 
 def _read_payload(
@@ -807,6 +1176,58 @@ def _parse_and_validate(raw: str) -> tuple[str, dict[str, Any]]:
     return name, arguments
 
 
+class McpCommandResult(str):
+    """Text returned by ``cmd_mcp``, with whether that call failed.
+
+    Subclasses ``str`` so callers can print and search the text. ``failed``
+    is set when the process should exit 1: a payload error, any
+    ``UniqueError``, or a tool result with ``isError`` set.
+    """
+
+    failed: bool
+
+    def __new__(cls, text: str, *, failed: bool) -> McpCommandResult:
+        result = str.__new__(cls, text)
+        result.failed = failed
+        return result
+
+
+def _response_is_error(response: Any) -> bool:
+    """Return whether the tool result itself is marked ``isError``.
+
+    Args:
+        response (Any): Raw MCP tool response.
+
+    Returns:
+        bool: True when ``isError`` is set. False when it is absent, false,
+        or unreadable, so a formatter failure on a successful result still
+        exits 0.
+    """
+    try:
+        return bool(getattr(response, "isError", False))
+    except Exception:
+        return False
+
+
+def is_error_output(output: str) -> bool:
+    """Return whether an MCP command result should exit non-zero.
+
+    Args:
+        output (str): Text returned by ``cmd_mcp``.
+
+    Returns:
+        bool: True for payload errors, SDK errors, and ``isError`` tool
+        results. False when the call succeeded, including when formatting
+        that successful result failed and the fallback text was returned.
+    """
+    failed = getattr(output, "failed", None)
+    if isinstance(failed, bool):
+        return failed
+    if output.startswith(_FORMATTER_ERROR_PREFIX):
+        return False
+    return output.startswith(MCP_ERROR_PREFIX)
+
+
 def cmd_mcp(
     state: ShellState,
     chat_id: str,
@@ -814,8 +1235,21 @@ def cmd_mcp(
     payload: str | None = None,
     file: str | None = None,
     stdin: bool = False,
-) -> str:
-    """Call an MCP tool with a JSON payload containing name and arguments."""
+) -> McpCommandResult:
+    """Call an MCP tool with a JSON payload containing name and arguments.
+
+    Args:
+        state (ShellState): CLI session holding the user and company ids.
+        chat_id (str): Chat the tool call is attributed to.
+        message_id (str): Message the tool call is attributed to.
+        payload (str | None): Inline JSON payload.
+        file (str | None): Path to a JSON payload file.
+        stdin (bool): Read the JSON payload from stdin.
+
+    Returns:
+        McpCommandResult: Formatted tool output, or an ``mcp:`` error line.
+        ``failed`` is true when the call itself failed.
+    """
     try:
         raw = _read_payload(payload, file, stdin)
         name, arguments = _parse_and_validate(raw)
@@ -829,8 +1263,8 @@ def cmd_mcp(
             arguments=arguments,
         )
 
-    except (ValueError, OSError, unique_sdk.APIError) as e:
-        return f"mcp: {e}"
+    except (ValueError, OSError, unique_sdk.UniqueError) as e:
+        return McpCommandResult(f"{MCP_ERROR_PREFIX} {e}", failed=True)
 
     try:
         formatted = format_mcp_response(response, tool_name=name)
@@ -839,19 +1273,20 @@ def cmd_mcp(
             fallback = json.dumps(dict(response), indent=2, default=str)
         except Exception:
             fallback = repr(response)
-        formatted = f"mcp: formatter error ({fmt_exc}); raw response:\n{fallback}"
+        formatted = f"{_FORMATTER_ERROR_PREFIX} ({fmt_exc}); raw response:\n{fallback}"
+    call_failed = _response_is_error(response)
 
     server_name = _server_name_from_tool(name) or getattr(response, "mcpServerId", None)
     sources_block = record_mcp_citations(
         response,
         tool_name=name,
         server_name=server_name,
-        unique_dir=Path.cwd() / ".unique",
+        unique_dir=workspace_unique_dir(),
         formatted_text=formatted,
         reference_mapping=state.mcp_tool_reference_mappings.get(name),
     )
     # Sources block FIRST: large outputs get spilled/truncated tail-first by
     # the agent harness, and a trailing block is what partial reads miss.
     if sources_block:
-        return sources_block + "\n\n" + formatted
-    return formatted
+        formatted = sources_block + "\n\n" + formatted
+    return McpCommandResult(formatted, failed=call_failed)

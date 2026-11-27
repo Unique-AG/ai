@@ -379,7 +379,18 @@ class UniqueApi(BaseSettings):
         )
 
     @staticmethod
-    def _legacy_base_path(hostname: str | None) -> str:
+    def _legacy_base_path(hostname: str | None, port: int | None = None) -> str:
+        # ponytail: root path inferred from unique-api hostname / local :8096;
+        # ceiling = service rename or non-8096 local bind; upgrade = explicit ApiType.
+        if hostname and "unique-api" in hostname:
+            return ""
+        if (
+            hostname
+            and port == 8096
+            and (hostname in ("localhost", "127.0.0.1") or "localhost" in hostname)
+        ):
+            return ""
+
         base_path = "/public/chat"
         if hostname and (
             "gateway.qa.unique" in hostname or "gateway.unique" in hostname
@@ -409,7 +420,7 @@ class UniqueApi(BaseSettings):
             case ApiType.INTERNAL:
                 base_path = "public"
             case ApiType.LEGACY:
-                base_path = self._legacy_base_path(parsed.hostname)
+                base_path = self._legacy_base_path(parsed.hostname, parsed.port)
 
         return parsed, base_path
 

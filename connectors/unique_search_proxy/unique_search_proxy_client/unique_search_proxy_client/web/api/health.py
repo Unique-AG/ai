@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 from fastapi import APIRouter, Request
 
-from unique_search_proxy_client.web.core.client import get_http_client_pool
+from unique_search_proxy_client.web.core.client import get_http_client_registry
 from unique_search_proxy_client.web.core.registry import (
     registered_agent_engines,
     registered_crawlers,
@@ -19,10 +17,10 @@ async def health() -> dict[str, str]:
 
 @router.get("/ready")
 async def ready(request: Request) -> dict[str, object]:
-    pool = get_http_client_pool(request.app)
+    registry = get_http_client_registry(request.app)
     return {
         "status": "ready",
-        "httpClient": "ok" if not pool.client.is_closed else "closed",
+        "httpClient": "ok" if registry.is_open else "closed",
         "searchEngines": sorted(registered_search_engines()),
         "agentEngines": sorted(registered_agent_engines()),
         "crawlers": sorted(registered_crawlers()),

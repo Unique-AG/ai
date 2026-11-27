@@ -319,6 +319,10 @@ class BaseEventPayload(BaseModel):
         default=None,
         description="The correlation to parent message in another chat.",
     )
+    ui_language: str | None = Field(
+        default=None,
+        description="Base language tag of the chat UI the event was sent from (en, de, fr).",
+    )
 
 
 class ChatEventPayload(BaseEventPayload):
@@ -333,6 +337,13 @@ class ChatEventPayload(BaseEventPayload):
     model_choice: LMI = Field(
         default_factory=lambda: LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL),
         description="The model choice the user has chosen to be used.",
+    )
+    thinking_level: str = Field(
+        default="",
+        description=(
+            "Thinking or reasoning level chosen for this turn. "
+            "Empty when the client did not send one."
+        ),
     )
     tool_choices: list[str] = Field(
         default_factory=list,
@@ -386,6 +397,10 @@ class ChatEventPayload(BaseEventPayload):
     @property
     def has_model_choice_override(self) -> bool:
         return "model_choice" in self.model_fields_set
+
+    @property
+    def has_thinking_level_override(self) -> bool:
+        return "thinking_level" in self.model_fields_set and bool(self.thinking_level)
 
 
 @deprecated("""Use `ChatEventPayload` instead.

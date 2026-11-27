@@ -5,6 +5,173 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.46.0...unique-web-search-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **orchestrator:** let build_unique_ai take evaluation factories ([#2780](https://github.com/Unique-AG/ai/issues/2780)) ([9bb60f5](https://github.com/Unique-AG/ai/commit/9bb60f5ac1b76e5b07a6179813f3daaf91d1c5ce))
+* **web-search:** add the page description to Google snippets ([#2802](https://github.com/Unique-AG/ai/issues/2802)) ([c2fa746](https://github.com/Unique-AG/ai/commit/c2fa746dfa982cbc68e4195f3db2430fb16ac578))
+* **web-search:** evaluate the activity records flag per user and count tool calls without an outbox [UN-28965] ([#2825](https://github.com/Unique-AG/ai/issues/2825)) ([f191839](https://github.com/Unique-AG/ai/commit/f191839041981b7209409916b14a32a0edd8f8f0))
+* **web-search:** record Activity Records for web search tool calls [UN-28965] ([#2782](https://github.com/Unique-AG/ai/issues/2782)) ([00d1307](https://github.com/Unique-AG/ai/commit/00d1307ffcb7eaad55c1cd34eda56fc849a7fb87))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.44.0...unique-web-search-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **web-search:** add requires scraping option to Brave and Perplexity [UN-28188] ([#2679](https://github.com/Unique-AG/ai/issues/2679)) ([c184525](https://github.com/Unique-AG/ai/commit/c1845251b32ba7fefc21287527090a455b082eb6))
+* **web-search:** crawl Brave and Perplexity results by default [UN-28188] ([#2697](https://github.com/Unique-AG/ai/issues/2697)) ([2791689](https://github.com/Unique-AG/ai/commit/2791689a83d0edf0ebac9a0fd7e2267c10221c5e))
+* **web-search:** opt-in query length limit for query review [UN-19451] ([#2668](https://github.com/Unique-AG/ai/issues/2668)) ([74a5db1](https://github.com/Unique-AG/ai/commit/74a5db17b183d175d1e466a4cf5d37cc3564295c))
+
+
+### Bug Fixes
+
+* **toolkit:** render configurable prompt templates in a jinja sandbox ([#2658](https://github.com/Unique-AG/ai/issues/2658)) ([87c67c7](https://github.com/Unique-AG/ai/commit/87c67c74384077953e88447a113614be7f701633))
+* **web-search:** keep search snippets when a crawl fails transiently ([#2654](https://github.com/Unique-AG/ai/issues/2654)) ([25a8935](https://github.com/Unique-AG/ai/commit/25a8935cf585831f578c459b9eab6c3237f1e836))
+* **web-search:** show result URLs to the model in web page chunks ([#2640](https://github.com/Unique-AG/ai/issues/2640)) ([f4affee](https://github.com/Unique-AG/ai/commit/f4affee8819c75b1ec640fe693fa988554865744))
+* **web-search:** skip PDFs when crawling without the search proxy [UN-12985] ([#2709](https://github.com/Unique-AG/ai/issues/2709)) ([536c574](https://github.com/Unique-AG/ai/commit/536c574940af31b89c84ccf8324aee375e05191f))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.42.0...unique-web-search-v2026.44.0) (2026-10-23)
+
+
+### Features
+
+* **web-search:** gate Customized API proxy rollout [UN-26736] ([#2538](https://github.com/Unique-AG/ai/issues/2538)) ([6b85a0e](https://github.com/Unique-AG/ai/commit/6b85a0ef8b1ab15c2ae7a717c52ada7d2a84eeba))
+* **web-search:** send entry point from chat tool and deep research [UN-24394] ([#2522](https://github.com/Unique-AG/ai/issues/2522)) ([d876c2b](https://github.com/Unique-AG/ai/commit/d876c2b0dae580022494429b4b48ef66546d4622))
+
+
+### Bug Fixes
+
+* **search-proxy:** resolve Vertex redirects safely [UN-26738] ([#2599](https://github.com/Unique-AG/ai/issues/2599)) ([540cd90](https://github.com/Unique-AG/ai/commit/540cd9089e4bdcb82c96189c9dadfba64890e388))
+* **web-search:** stop logging crawled URLs and search queries [UN-27835] ([#2600](https://github.com/Unique-AG/ai/issues/2600)) ([454dff2](https://github.com/Unique-AG/ai/commit/454dff2247a074ae7dd5d80f6c81e3c4476fa9ee))
+* **web-search:** use Foundry citation URLs for Bing results [UN-26467] ([#2614](https://github.com/Unique-AG/ai/issues/2614)) ([c3fabcf](https://github.com/Unique-AG/ai/commit/c3fabcfa333714e79cea3160ed201789950fb171))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.40.0...unique-web-search-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Bug Fixes
+
+* **search-proxy:** validate disabled URL safety proxy config ([#2518](https://github.com/Unique-AG/ai/issues/2518)) ([b6ecd31](https://github.com/Unique-AG/ai/commit/b6ecd31475f591c6c051edef9623015935469644))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.38.0...unique-web-search-v2026.40.0) (2026-09-24)
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.36.0...unique-web-search-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **web-search:** forward user metadata to the search proxy [UN-25449] ([#2434](https://github.com/Unique-AG/ai/issues/2434)) ([d549aab](https://github.com/Unique-AG/ai/commit/d549aab1653d4e48cec72241383bdcbc6c707717))
+
+
+### Bug Fixes
+
+* **search-proxy:** hide Bing grounding knobs from the admin config ([#2371](https://github.com/Unique-AG/ai/issues/2371)) ([36fd956](https://github.com/Unique-AG/ai/commit/36fd95623839b6a188e0fab65daefcf4b6307f82))
+* **search-proxy:** rework Bing grounding params as fixed admin values [UN-24652] ([#2397](https://github.com/Unique-AG/ai/issues/2397)) ([38edc46](https://github.com/Unique-AG/ai/commit/38edc465bc526ee7ab5568abce97985a87795ea8))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.34.0...unique-web-search-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **search-proxy:** default Bing market from environment ([#2352](https://github.com/Unique-AG/ai/issues/2352)) ([6862cad](https://github.com/Unique-AG/ai/commit/6862cad628d08f72517351875344429e8b5adc09))
+* **search-proxy:** lock Vertex AI enterprise search via env ([#2322](https://github.com/Unique-AG/ai/issues/2322)) ([a7464a1](https://github.com/Unique-AG/ai/commit/a7464a1dd09b53c338fb824928cf73664a0386dc))
+* **web-search:** let the LLM steer Bing grounding per call ([#2332](https://github.com/Unique-AG/ai/issues/2332)) ([fcc372e](https://github.com/Unique-AG/ai/commit/fcc372eab236eaf2b668a2ef83fa7a0166da7c40))
+
+
+### Bug Fixes
+
+* **web-search:** evaluate UN-18741 via FeatureFlagClient [UN-18741] ([#2338](https://github.com/Unique-AG/ai/issues/2338)) ([ec389c4](https://github.com/Unique-AG/ai/commit/ec389c45501a54382122291ddc1df21db88cb8e4))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.32.0...unique-web-search-v2026.34.0) (2026-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **web-search:** Deployments that pinned `BING_AGENT_AGENT_ID`, request `agentId`, BingSearchConfig `agent_id`/`endpoint`, or `AZURE_AI_ASSISTANT_ID` will silently switch to hash-based auto-provisioning. Project endpoint for the legacy Azure path must come from env (`azure_ai_project_endpoint` / `BING_AGENT_ENDPOINT` on the proxy).
+
+### Features
+
+* **web-search:** add elicitation outcomes in analytics ([#2225](https://github.com/Unique-AG/ai/issues/2225)) ([aadc5c8](https://github.com/Unique-AG/ai/commit/aadc5c8117d7184914b95ceca1748b5ce02060c3))
+
+
+### Bug Fixes
+
+* config validation error bing grounding ([#2209](https://github.com/Unique-AG/ai/issues/2209)) ([af3654e](https://github.com/Unique-AG/ai/commit/af3654ebdc9ec5bd60ef1feece372afb8da17385))
+* fix validation error web search ([#2206](https://github.com/Unique-AG/ai/issues/2206)) ([92b9d2e](https://github.com/Unique-AG/ai/commit/92b9d2e8be1e64ca39774d2ae3cf156e7219f3c5))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+* **web-search:** decommission Bing agent_id for auto-provisioning ([#2263](https://github.com/Unique-AG/ai/issues/2263)) ([1166358](https://github.com/Unique-AG/ai/commit/1166358f5064bb63f86a96c9e408abb404ec6f35))
+
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.30.0...unique-web-search-v2026.32.0) (2026-07-31)
+
+
+### Features
+
+* **bing:** migrate grounding to Agents v2 + Responses API [UN-23345] ([#2141](https://github.com/Unique-AG/ai/issues/2141)) ([46c2b76](https://github.com/Unique-AG/ai/commit/46c2b76548b19ffeeb40d52b31cfcee970f61f65))
+* Token count analytics ([#2112](https://github.com/Unique-AG/ai/issues/2112)) ([f475dc4](https://github.com/Unique-AG/ai/commit/f475dc4606dd723e0fecfcdd09ace2f9c329e960))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.28.0...unique-web-search-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **search-proxy:** enforce tenant context headers and enrich request logs ([#2090](https://github.com/Unique-AG/ai/issues/2090)) ([23b2562](https://github.com/Unique-AG/ai/commit/23b25623ce34859a1b8422da3b7764f245797fd4))
+* **web-search:** plug exposable engine params into tool schemas [UN-21235] ([#2047](https://github.com/Unique-AG/ai/issues/2047)) ([53ea42b](https://github.com/Unique-AG/ai/commit/53ea42b6f2781e8f5a4e4128776fc11656523491))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.26.0...unique-web-search-v2026.28.0) (2026-07-03)
 
 

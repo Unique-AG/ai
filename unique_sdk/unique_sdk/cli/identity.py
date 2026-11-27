@@ -14,6 +14,12 @@ Resolution precedence for message IDs:
 
 When ``UNIQUE_TURN_IDENTITY_FILE`` is set but the file is missing or malformed,
 resolution fails loudly — silent fallback to a stale env value is forbidden.
+
+Chat IDs resolve the same way, with one twist: a client spawned during a
+chatless preboot carries a synthetic ``chat_preboot*`` placeholder in its
+frozen environment. The placeholder never names a real chat (the platform
+rejects it), so it is treated as absent at every precedence level and the
+turn-identity file supplies the adopted chat's real ID.
 """
 
 from __future__ import annotations
@@ -25,6 +31,12 @@ from pathlib import Path
 
 TURN_IDENTITY_ENV_VAR = "UNIQUE_TURN_IDENTITY_FILE"
 MESSAGE_ID_ENV_VAR = "UNIQUE_MESSAGE_ID"
+CHAT_ID_ENV_VAR = "UNIQUE_CHAT_ID"
+
+# Synthetic chat-id prefix used by the sandbox runner for clients spawned
+# before their chat exists (chatless preboot). Adoption re-keys the client
+# to the real chat, but the spawn env keeps the placeholder forever.
+PREBOOT_CHAT_ID_PREFIX = "chat_preboot"
 
 
 class TurnIdentityError(ValueError):
@@ -36,12 +48,14 @@ class TurnIdentity:
     """Parsed contents of the per-turn identity file.
 
     The runner writes a richer JSON object (chat/user/company/assistant IDs,
-    turn counter), but the CLI only consumes ``message_id`` — the one value
-    that goes stale in a persistent process environment. Extra keys are
-    ignored; parse a field here only once the CLI actually relies on it.
+    turn counter), but the CLI only consumes the values that go stale in a
+    persistent process environment: ``message_id`` (every turn) and
+    ``chat_id`` (adopted chatless-preboot clients). Extra keys are ignored;
+    parse a field here only once the CLI actually relies on it.
     """
 
     message_id: str
+    chat_id: str | None = None
 
 
 def read_turn_identity(
@@ -88,7 +102,11 @@ def read_turn_identity(
             "'message_id' string"
         )
 
-    return TurnIdentity(message_id=message_id.strip())
+    chat_id = payload.get("chat_id")
+    parsed_chat_id = (
+        chat_id.strip() if isinstance(chat_id, str) and chat_id.strip() else None
+    )
+    return TurnIdentity(message_id=message_id.strip(), chat_id=parsed_chat_id)
 
 
 def resolve_message_id(explicit: str | None = None) -> str | None:
@@ -110,3 +128,38 @@ def resolve_message_id(explicit: str | None = None) -> str | None:
     if env_id is not None and env_id.strip():
         return env_id.strip()
     return None
+
+
+def _usable_chat_id(value: str | None) -> str | None:
+    """A non-empty chat id that is not a preboot placeholder, else None."""
+    if value is None:
+        return None
+    stripped = str(value).strip()
+    if not stripped or stripped.startswith(PREBOOT_CHAT_ID_PREFIX):
+        return None
+    return stripped
+
+
+def resolve_chat_id(explicit: str | None = None) -> str | None:
+    """Resolve the chat ID for a chat-bound CLI operation.
+
+    Same precedence as :func:`resolve_message_id` (explicit flag, then the
+    turn-identity file, then ``$UNIQUE_CHAT_ID``), except a ``chat_preboot*``
+    placeholder is skipped at every level — agents pass
+    ``--chat-id "$UNIQUE_CHAT_ID"`` from an environment that may have been
+    frozen before their chat existed. Returns ``None`` when no source yields
+    a real chat id (chat-optional callers then omit the id). Raises
+    ``TurnIdentityError`` when the turn-identity file is configured but
+    unusable.
+    """
+    explicit_id = _usable_chat_id(explicit)
+    if explicit_id is not None:
+        return explicit_id
+
+    identity = read_turn_identity()
+    if identity is not None:
+        file_id = _usable_chat_id(identity.chat_id)
+        if file_id is not None:
+            return file_id
+
+    return _usable_chat_id(os.environ.get(CHAT_ID_ENV_VAR))

@@ -6,6 +6,10 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any, Generic, Literal, TypeVar
 
 from unique_search_proxy_core.agent_engines.base import DEFAULT_GENERATION_INSTRUCTIONS
+from unique_search_proxy_core.agent_engines.bing.schema import (
+    BingFreshnessPreset,
+    BingMarket,
+)
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
 from unique_search_proxy_core.crawlers.jina.schema import (
     JinaEngine,
@@ -19,6 +23,9 @@ from unique_search_proxy_core.crawlers.tavily.schema import (
 from unique_search_proxy_core.search_engines.brave.schema import (
     BraveSafesearch,
     BraveUnits,
+)
+from unique_search_proxy_core.search_engines.custom_api.schema import (
+    CustomApiRequestMethod,
 )
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleSafeDefault,
@@ -170,6 +177,31 @@ class PerplexitySearchEndpoint(_TypedPostEndpoint[SearchResponse]):
         )
 
 
+class CustomApiSearchEndpoint(_TypedPostEndpoint[SearchResponse]):
+    async def __call__(
+        self,
+        *,
+        query: str,
+        api_endpoint: str,
+        engine: Literal["custom_api"] = "custom_api",
+        timeout: int = 120,
+        api_headers: str = '{"Content-Type": "application/json"}',
+        api_additional_query_params: str = "{}",
+        api_additional_body_params: str = "{}",
+        api_request_method: CustomApiRequestMethod = CustomApiRequestMethod.GET,
+    ) -> SearchResponse:
+        return await self._call(
+            query=query,
+            api_endpoint=api_endpoint,
+            engine=engine,
+            timeout=timeout,
+            api_headers=api_headers,
+            api_additional_query_params=api_additional_query_params,
+            api_additional_body_params=api_additional_body_params,
+            api_request_method=api_request_method,
+        )
+
+
 class BingAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
     async def __call__(
         self,
@@ -179,7 +211,8 @@ class BingAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
         generation_instructions: str = DEFAULT_GENERATION_INSTRUCTIONS,
         timeout: int = 120,
         fetch_size: int = 5,
-        agent_id: str | None = None,
+        market: BingMarket | None = None,
+        freshness: BingFreshnessPreset | None = None,
     ) -> AgentSearchResponse:
         return await self._call(
             query=query,
@@ -187,7 +220,8 @@ class BingAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
             generation_instructions=generation_instructions,
             timeout=timeout,
             fetch_size=fetch_size,
-            agent_id=agent_id,
+            market=market,
+            freshness=freshness,
         )
 
 
@@ -201,6 +235,7 @@ class VertexAIAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
         timeout: int = 120,
         vertexai_model_name: str = "gemini-3-flash-preview",
         enable_enterprise_search: bool = False,
+        enable_redirect_resolution: bool = True,
     ) -> AgentSearchResponse:
         return await self._call(
             query=query,
@@ -209,6 +244,7 @@ class VertexAIAgentSearchEndpoint(_TypedPostEndpoint[AgentSearchResponse]):
             timeout=timeout,
             vertexai_model_name=vertexai_model_name,
             enable_enterprise_search=enable_enterprise_search,
+            enable_redirect_resolution=enable_redirect_resolution,
         )
 
 
@@ -231,7 +267,8 @@ class BingAgentSearchStreamEndpoint(_TypedStreamEndpoint):
         generation_instructions: str = DEFAULT_GENERATION_INSTRUCTIONS,
         timeout: int = 120,
         fetch_size: int = 5,
-        agent_id: str | None = None,
+        market: BingMarket | None = None,
+        freshness: BingFreshnessPreset | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         async for event in self._call(
             query=query,
@@ -239,7 +276,8 @@ class BingAgentSearchStreamEndpoint(_TypedStreamEndpoint):
             generation_instructions=generation_instructions,
             timeout=timeout,
             fetch_size=fetch_size,
-            agent_id=agent_id,
+            market=market,
+            freshness=freshness,
         ):
             yield event
 
@@ -409,6 +447,7 @@ __all__ = [
     "BingAgentSearchEndpoint",
     "BingAgentSearchStreamEndpoint",
     "BraveSearchEndpoint",
+    "CustomApiSearchEndpoint",
     "FirecrawlCrawlEndpoint",
     "GoogleSearchEndpoint",
     "JinaCrawlEndpoint",

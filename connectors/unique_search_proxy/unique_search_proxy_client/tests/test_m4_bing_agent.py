@@ -1,14 +1,58 @@
 from __future__ import annotations
 
+import hashlib
+from collections.abc import AsyncIterator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
+import httpx
 import pytest
+from openai import APIError, InternalServerError, NotFoundError
+from openai.types.responses.response import Response
+from openai.types.responses.response_completed_event import ResponseCompletedEvent
+from openai.types.responses.response_output_message import ResponseOutputMessage
+from openai.types.responses.response_output_text import (
+    AnnotationURLCitation,
+    ResponseOutputText,
+)
+from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
+from unique_search_proxy_core.agent_engines.bing import settings as bing_settings
+from unique_search_proxy_core.agent_engines.bing.grounding import (
+    BING_AUTO_AGENT_NAME_PREFIX,
+    BingGroundingConfiguration,
+    bing_agent_config_hash,
+    bing_agent_name,
+)
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
-from unique_search_proxy_core.errors import EngineNotConfiguredError
+from unique_search_proxy_core.errors import EngineNotConfiguredError, UpstreamError
+from unique_search_proxy_core.http_client import DirectRoute
+from unique_search_proxy_core.schema import AnswerSpanCitation
 
+from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
+    cleanup_auto_provisioned_bing_agents,
+    maybe_cleanup_auto_provisioned_bing_agents_on_start,
+)
+from unique_search_proxy_client.web.core.agent_engines.bing.client import (
+    aclose_private_endpoint_http_client,
+)
+from unique_search_proxy_client.web.core.agent_engines.bing.client import (
+    get_openai_client as get_openai_client_from_client_module,
+)
+from unique_search_proxy_client.web.core.agent_engines.bing.instructions import (
+    build_bing_citation_instructions,
+)
+from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
+    BingStreamChunk,
+    _extract_response_url_citations,
+    _is_missing_agent_error,
+    create_bing_agent,
+    get_bing_grounding_tool,
+    resolve_bing_agent_name,
+    stream_bing_grounding_agent,
+)
 from unique_search_proxy_client.web.core.agent_engines.bing.service import (
     BingAgentSearchService,
+    _is_retryable_bing_stream_error,
 )
 
 
@@ -23,19 +67,216 @@ def _bing_request(**fields: Any) -> BingAgentSearchRequest:
     )
 
 
+def _grounding(**overrides: Any) -> BingGroundingConfiguration:
+    return BingGroundingConfiguration(**{"fetch_size": 5, **overrides})
+
+
+def _bing_service() -> BingAgentSearchService:
+    return BingAgentSearchService(
+        http_client=MagicMock(),
+        egress_route=DirectRoute(verify=True, trust_env=False, headers={}),
+    )
+
+
+async def _fake_stream(
+    *_args: Any,
+    **_kwargs: Any,
+) -> AsyncIterator[BingStreamChunk]:
+    yield BingStreamChunk("agent answer text", {"messages": []})
+
+
+def _stream_error(
+    message: str,
+    *,
+    code: str | None,
+) -> APIError:
+    body = {"code": code} if code is not None else None
+    return APIError(
+        message,
+        request=httpx.Request("POST", "https://example.azure.com/responses"),
+        body=body,
+    )
+
+
+@pytest.mark.ai
+def test_extract_response_url_citations_returns_annotation_payload() -> None:
+    text = "Grounded answer [1]"
+    annotation = AnnotationURLCitation.model_construct(
+        type="url_citation",
+        url="https://canonical.example/article",
+        title="Canonical article",
+        start_index=16,
+        end_index=19,
+    )
+    content = ResponseOutputText.model_construct(
+        type="output_text",
+        text=text,
+        annotations=[annotation],
+        logprobs=[],
+    )
+    message = ResponseOutputMessage.model_construct(
+        type="message",
+        id="msg-citation",
+        role="assistant",
+        status="completed",
+        content=[content],
+    )
+    response = Response.model_construct(
+        id="resp-citation",
+        created_at=0,
+        model="gpt-5.1",
+        object="response",
+        output=[message],
+        parallel_tool_calls=True,
+        tool_choice="auto",
+        tools=[],
+    )
+
+    with patch(
+        "unique_search_proxy_client.web.core.agent_engines.bing.runner._LOGGER"
+    ) as logger:
+        citations = _extract_response_url_citations(response)
+
+    assert len(citations) == 1
+    assert citations[0].url == "https://canonical.example/article"
+    assert citations[0].marker == "[1]"
+    logger.info.assert_called_once()
+    assert logger.info.call_args.args[1:] == ("resp-citation", 1)
+
+
+@pytest.mark.ai
+def test_response_citation_offsets_cover_concatenated_output_items() -> None:
+    messages: list[ResponseOutputMessage] = []
+    for item_id, text, start, end, url in [
+        ("msg-1", "First [1]", 6, 9, "https://canonical.example/one"),
+        ("msg-2", "Second [2]", 7, 10, "https://canonical.example/two"),
+    ]:
+        annotation = AnnotationURLCitation.model_construct(
+            type="url_citation",
+            url=url,
+            title=item_id,
+            start_index=start,
+            end_index=end,
+        )
+        content = ResponseOutputText.model_construct(
+            type="output_text",
+            text=text,
+            annotations=[annotation],
+            logprobs=[],
+        )
+        messages.append(
+            ResponseOutputMessage.model_construct(
+                type="message",
+                id=item_id,
+                role="assistant",
+                status="completed",
+                content=[content],
+            )
+        )
+    response = Response.model_construct(
+        id="resp-multiple-items",
+        created_at=0,
+        model="gpt-5.1",
+        object="response",
+        output=messages,
+        parallel_tool_calls=True,
+        tool_choice="auto",
+        tools=[],
+    )
+
+    citations = _extract_response_url_citations(response)
+
+    assert response.output_text == "First [1]Second [2]"
+    assert [(item.start_index, item.end_index) for item in citations] == [
+        (6, 9),
+        (16, 19),
+    ]
+    assert [
+        response.output_text[item.start_index : item.end_index] for item in citations
+    ] == ["[1]", "[2]"]
+
+
+class _CloseableAsyncStream:
+    """Stand-in for ``openai.AsyncStream`` (async iteration + context manager)."""
+
+    def __init__(self, agen: AsyncIterator[Any]) -> None:
+        self._agen = agen
+        self.closed = False
+
+    async def __aenter__(self) -> _CloseableAsyncStream:
+        return self
+
+    async def __aexit__(self, *_args: object) -> None:
+        self.closed = True
+        aclose = getattr(self._agen, "aclose", None)
+        if aclose is not None:
+            await aclose()
+
+    def __aiter__(self) -> AsyncIterator[Any]:
+        return self._agen
+
+
+async def _fake_response_events(*, with_deltas: bool = True) -> AsyncIterator[Any]:
+    if with_deltas:
+        yield ResponseTextDeltaEvent.model_construct(
+            type="response.output_text.delta",
+            delta="agent answer text",
+            content_index=0,
+            item_id="item-1",
+            output_index=0,
+            sequence_number=1,
+            logprobs=[],
+        )
+    text = ResponseOutputText.model_construct(
+        type="output_text",
+        text="agent answer text",
+        annotations=[],
+        logprobs=[],
+    )
+    message = ResponseOutputMessage.model_construct(
+        type="message",
+        id="msg-1",
+        role="assistant",
+        status="completed",
+        content=[text],
+    )
+    response = Response.model_construct(
+        id="resp-1",
+        created_at=0,
+        model="gpt-5.1",
+        object="response",
+        output=[message],
+        parallel_tool_calls=True,
+        tool_choice="auto",
+        tools=[],
+    )
+    yield ResponseCompletedEvent.model_construct(
+        type="response.completed",
+        sequence_number=2,
+        response=response,
+    )
+
+
+def _fake_response_stream(*, with_deltas: bool = True) -> _CloseableAsyncStream:
+    return _CloseableAsyncStream(_fake_response_events(with_deltas=with_deltas))
+
+
 @pytest.fixture
 def bing_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BING_AGENT_ENDPOINT", "https://example.azure.com")
     monkeypatch.setenv(
         "BING_AGENT_BING_RESOURCE_CONNECTION_STRING",
-        "/subscriptions/test/resourceGroups/r/providers/...",
+        "/subscriptions/test/resourceGroups/r/providers/.../connections/TestBing",
     )
-    monkeypatch.setenv("BING_AGENT_AGENT_ID", "agent-123")
-    monkeypatch.setenv("BING_AGENT_BING_AGENT_MODEL", "gpt-4o-deployment")
+    monkeypatch.setenv("BING_AGENT_BING_AGENT_MODEL", "gpt-5.1")
     from unique_search_proxy_client.web.settings.providers import bing_agent
 
     monkeypatch.setattr(
         "unique_search_proxy_client.web.core.agent_engines.bing.service.bing_agent_credentials",
+        bing_agent._get_bing_agent_credentials(),
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.agent_engines.bing.runner.settings.bing_agent_credentials",
         bing_agent._get_bing_agent_credentials(),
     )
 
@@ -47,28 +288,303 @@ class TestBingAgentSearchService:
         mock_client = MagicMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
 
         with (
             patch(
                 "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
-                return_value=MagicMock(),
+                return_value=mock_credential,
+            ) as get_credentials,
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ) as get_project_client,
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=_fake_stream,
+            ) as stream_bing_grounding_agent,
+        ):
+            service = _bing_service()
+            result = await service.search(_bing_request())
+
+        assert result.answer == "agent answer text"
+        assert result.engine == "bing"
+        assert result.raw == {"messages": []}
+        mock_credential.__aenter__.assert_awaited()
+        mock_credential.__aexit__.assert_awaited()
+        mock_client.__aenter__.assert_awaited()
+        mock_client.__aexit__.assert_awaited()
+        azure_transport = get_credentials.call_args.kwargs["transport"]
+        assert get_project_client.call_args.kwargs["transport"] is azure_transport
+        assert (
+            stream_bing_grounding_agent.call_args.kwargs["http_client"]
+            is service._http_client
+        )
+        assert stream_bing_grounding_agent.call_args.kwargs["timeout"] == 120
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_retries_transient_failures_with_backoff_before_output(
+        self,
+        bing_env: None,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+        calls = 0
+
+        async def transient_then_success(
+            *_args: Any,
+            **_kwargs: Any,
+        ) -> AsyncIterator[BingStreamChunk]:
+            nonlocal calls
+            calls += 1
+            if calls < 3:
+                raise _stream_error(
+                    "The model deployment encountered an error processing your request",
+                    code="server_error",
+                )
+            yield BingStreamChunk("agent answer text", {"messages": []})
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
             ),
             patch(
                 "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
                 return_value=mock_client,
             ),
             patch(
-                "unique_search_proxy_client.web.core.agent_engines.bing.service.run_bing_grounding_agent",
-                new_callable=AsyncMock,
-                return_value=("agent answer text", {"messages": []}),
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=transient_then_success,
             ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.asyncio.sleep",
+                new_callable=AsyncMock,
+            ) as sleep,
         ):
-            service = BingAgentSearchService()
-            result = await service.search(_bing_request())
+            result = await _bing_service().search(_bing_request())
 
         assert result.answer == "agent answer text"
-        assert result.engine == "bing"
-        assert result.raw == {"messages": []}
+        assert calls == 3
+        assert sleep.await_args_list == [call(2.0), call(8.0)]
+        assert mock_credential.__aenter__.await_count == 3
+        assert mock_client.__aenter__.await_count == 3
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_does_not_retry_after_output(
+        self,
+        bing_env: None,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+        calls = 0
+
+        async def partial_then_failure(
+            *_args: Any,
+            **_kwargs: Any,
+        ) -> AsyncIterator[BingStreamChunk]:
+            nonlocal calls
+            calls += 1
+            yield BingStreamChunk("partial", {"type": "response.output_text.delta"})
+            raise _stream_error(
+                "The model deployment encountered an error processing your request",
+                code="server_error",
+            )
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=partial_then_failure,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.asyncio.sleep",
+                new_callable=AsyncMock,
+            ) as sleep,
+        ):
+            with pytest.raises(UpstreamError, match="Bing agent search failed"):
+                await _bing_service().search(_bing_request())
+
+        assert calls == 1
+        sleep.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search_exposes_typed_citations(self, bing_env: None) -> None:
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+
+        async def _cited_stream(
+            *_args: Any,
+            **_kwargs: Any,
+        ) -> AsyncIterator[BingStreamChunk]:
+            yield BingStreamChunk("Grounded claim", {})
+            yield BingStreamChunk(
+                "",
+                {"type": "response.completed"},
+                answer="Grounded claim [1]",
+                citations=[
+                    AnswerSpanCitation(
+                        url="https://canonical.example/source",
+                        title="Canonical source",
+                        marker="[1]",
+                        start_index=15,
+                        end_index=18,
+                        output_item_id="msg-1",
+                    )
+                ],
+            )
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=_cited_stream,
+            ),
+        ):
+            result = await _bing_service().search(_bing_request())
+
+        assert result.answer == "Grounded claim [1]"
+        assert len(result.citations) == 1
+        assert result.citations[0].url == "https://canonical.example/source"
+        assert result.citations[0].marker == "[1]"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_request_knobs_reach_the_grounding_configuration(
+        self, bing_env: None
+    ) -> None:
+        """
+        Purpose: Verify request-level Bing knobs are forwarded to the runner.
+        Why this matters: They are baked into the agent version, so dropping them
+            silently serves results from the wrong market or recency window.
+        Setup summary: Patch the runner, run a request carrying both knobs.
+        """
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+        recorded: dict[str, Any] = {}
+
+        async def _recording_stream(
+            *_args: Any,
+            **kwargs: Any,
+        ) -> AsyncIterator[BingStreamChunk]:
+            recorded.update(kwargs)
+            yield BingStreamChunk("agent answer text", {})
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=_recording_stream,
+            ),
+        ):
+            await _bing_service().search(
+                _bing_request(market="fr-CH", freshness="Week"),
+            )
+
+        assert recorded["grounding"] == BingGroundingConfiguration(
+            fetch_size=5,
+            market="fr-CH",
+            freshness="Week",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("requested_market", "expected_market"),
+        [(None, "fr-FR"), ("de-CH", "de-CH")],
+    )
+    async def test_deployment_default_market_fills_a_blank_request(
+        self,
+        requested_market: str | None,
+        expected_market: str,
+        bing_env: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify ``BING_AGENT_DEFAULT_MARKET`` applies to requests without a market.
+        Why this matters: A deployment serving one country pins its market once
+            rather than per space, and the request's own market must still win.
+        Setup summary: Patch the deployment default and record the grounding used.
+        """
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", "fr-FR"
+        )
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
+        recorded: dict[str, Any] = {}
+
+        async def _recording_stream(
+            *_args: Any,
+            **kwargs: Any,
+        ) -> AsyncIterator[BingStreamChunk]:
+            recorded.update(kwargs)
+            yield BingStreamChunk("agent answer text", {})
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
+                return_value=mock_credential,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.service.stream_bing_grounding_agent",
+                side_effect=_recording_stream,
+            ),
+        ):
+            await _bing_service().search(
+                _bing_request(market=requested_market),
+            )
+
+        assert recorded["grounding"].market == expected_market
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -82,6 +598,622 @@ class TestBingAgentSearchService:
             "unique_search_proxy_client.web.core.agent_engines.bing.service.bing_agent_credentials",
             bing_agent._get_bing_agent_credentials(),
         )
-        service = BingAgentSearchService()
+        service = _bing_service()
         with pytest.raises(EngineNotConfiguredError):
             await service.search(_bing_request())
+
+
+class TestGetBingGroundingTool:
+    @pytest.mark.ai
+    def test_builds_nested_search_configuration(self, bing_env: None) -> None:
+        tool = get_bing_grounding_tool(_grounding(fetch_size=7))
+        configs = tool.bing_grounding.search_configurations
+        assert len(configs) == 1
+        assert (
+            configs[0].project_connection_id
+            == "/subscriptions/test/resourceGroups/r/providers/.../connections/TestBing"
+        )
+        assert configs[0].count == 7
+
+    @pytest.mark.ai
+    def test_forwards_market_and_freshness(self, bing_env: None) -> None:
+        tool = get_bing_grounding_tool(
+            _grounding(market="fr-CH", freshness="Week"),
+        )
+        config = tool.bing_grounding.search_configurations[0]
+        assert config.market == "fr-CH"
+        assert config.freshness == "Week"
+
+    @pytest.mark.ai
+    def test_omits_unset_knobs_so_bing_defaults_apply(self, bing_env: None) -> None:
+        """
+        Purpose: Verify unset knobs are not sent to Bing.
+        Why this matters: A deployment that configures nothing must keep today's behaviour.
+        Setup summary: Build the tool from a fetch-size-only configuration; assert nulls.
+        """
+        tool = get_bing_grounding_tool(_grounding())
+        config = tool.bing_grounding.search_configurations[0]
+        assert config.market is None
+        assert config.set_lang is None
+        assert config.freshness is None
+
+
+_BENCHMARKED_PROMPT_SHA256 = (
+    "12b6b575b1db60479de29265fd70d44da07858ba3cb1867b0466f6172868d752"
+)
+
+
+class TestBuildBingCitationInstructions:
+    @pytest.mark.ai
+    def test_build_bing_citation_instructions__matches_benchmarked_prompt(
+        self,
+    ) -> None:
+        """
+        Purpose: Pin the rendered citation prompt to the benchmarked text.
+        Why this matters: The prompt is part of the Foundry agent name hash, so any
+            edit provisions new agents, and unique_web_search pins the same hash
+            because both copies feed the same citation parser.
+        Setup summary: Render with fixed admin text and compare the SHA-256 digest.
+        """
+        rendered = build_bing_citation_instructions("Test instructions")
+
+        assert (
+            hashlib.sha256(rendered.encode()).hexdigest() == _BENCHMARKED_PROMPT_SHA256
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "generation_instructions",
+        [
+            "Answer {{ query }} briefly.",
+            "{% if x %}Use x.{% endif %}",
+            "Keep {# this #} note.",
+        ],
+    )
+    def test_build_bing_citation_instructions__keeps_jinja_syntax_in_admin_text(
+        self, generation_instructions: str
+    ) -> None:
+        """
+        Purpose: Verify admin-supplied text is inserted verbatim, not evaluated.
+        Why this matters: Generation instructions come from the space config; if
+            they were part of the template source, Jinja syntax in them would be
+            executed or silently dropped.
+        Setup summary: Render admin text containing Jinja syntax and assert it
+            appears unchanged before the citation section.
+        """
+        rendered = build_bing_citation_instructions(generation_instructions)
+
+        assert rendered.startswith(
+            f"{generation_instructions}\n\n## Source-isolated evidence list\n"
+        )
+
+    @pytest.mark.ai
+    def test_build_bing_citation_instructions__strips_trailing_admin_whitespace(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify trailing whitespace in admin text does not widen the gap
+            before the citation section.
+        Why this matters: Admin text often ends with newlines; extra whitespace
+            would change the agent name for an equivalent prompt.
+        Setup summary: Render text with trailing newlines and spaces and assert a
+            single blank line separates it from the citation section.
+        """
+        rendered = build_bing_citation_instructions("Be helpful.\n\n  ")
+
+        assert rendered.startswith("Be helpful.\n\n## Source-isolated evidence list\n")
+
+
+class TestConfigHashAndAgentName:
+    @pytest.mark.ai
+    def test_same_inputs_produce_same_hash_and_name(self) -> None:
+        a = bing_agent_config_hash(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
+        b = bing_agent_config_hash(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
+        assert a == b
+        assert len(a) == 12
+        assert (
+            bing_agent_name(
+                model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+            )
+            == f"{BING_AUTO_AGENT_NAME_PREFIX}-{a}"
+        )
+
+    @pytest.mark.ai
+    def test_different_fetch_size_or_instructions_change_name(self) -> None:
+        base = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
+        other_size = bing_agent_name(
+            model="gpt-5.1",
+            instructions="Be helpful.",
+            grounding=_grounding(fetch_size=10),
+        )
+        other_instructions = bing_agent_name(
+            model="gpt-5.1", instructions="Be concise.", grounding=_grounding()
+        )
+        assert base != other_size
+        assert base != other_instructions
+        assert other_size != other_instructions
+
+    @pytest.mark.ai
+    def test_different_model_changes_name(self) -> None:
+        base = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
+        other_model = bing_agent_name(
+            model="gpt-4o", instructions="Be helpful.", grounding=_grounding()
+        )
+        assert base != other_model
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        "knob",
+        [
+            {"market": "fr-CH"},
+            {"freshness": "Week"},
+        ],
+    )
+    def test_each_grounding_knob_changes_name(self, knob: dict[str, str]) -> None:
+        """
+        Purpose: Verify every tool knob participates in the agent name hash.
+        Why this matters: Knobs are baked into the agent version, so a shared name
+            would serve an agent configured for the wrong market/language/recency.
+        Setup summary: Hash a baseline configuration against one knob at a time.
+        """
+        base = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
+        assert (
+            bing_agent_name(
+                model="gpt-5.1",
+                instructions="Be helpful.",
+                grounding=_grounding(**knob),
+            )
+            != base
+        )
+
+    @pytest.mark.ai
+    def test_resolve_returns_hash_based_name(self) -> None:
+        expected = bing_agent_name(
+            model="gpt-5.1",
+            instructions="Be helpful.",
+            grounding=_grounding(),
+        )
+        assert (
+            resolve_bing_agent_name(
+                model="gpt-5.1",
+                instructions="Be helpful.",
+                grounding=_grounding(),
+            )
+            == expected
+        )
+
+
+class TestMissingAgentError:
+    @pytest.mark.ai
+    def test_detects_openai_not_found(self) -> None:
+        exc = NotFoundError(
+            message="Agent unique-grounding-with-bing-abc not found",
+            response=MagicMock(status_code=404, headers={}),
+            body=None,
+        )
+        assert _is_missing_agent_error(exc, agent_name="unique-grounding-with-bing-abc")
+
+
+class TestRetryableBingResponseError:
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("message", "code"),
+        [
+            (
+                "The model deployment encountered an error processing your request",
+                "server_error",
+            ),
+            ("Bing grounding returned an invalid or expired token", None),
+        ],
+    )
+    def test_detects_observed_transient_stream_errors(
+        self,
+        message: str,
+        code: str | None,
+    ) -> None:
+        assert _is_retryable_bing_stream_error(
+            _stream_error(message, code=code),
+        )
+
+    @pytest.mark.ai
+    def test_rejects_non_transient_stream_error(self) -> None:
+        assert not _is_retryable_bing_stream_error(
+            _stream_error(
+                "The request payload is invalid", code="invalid_request_error"
+            ),
+        )
+
+    @pytest.mark.ai
+    def test_leaves_http_status_retries_to_openai_client(self) -> None:
+        request = httpx.Request("POST", "https://example.azure.com/responses")
+        response = httpx.Response(500, request=request)
+        assert not _is_retryable_bing_stream_error(
+            InternalServerError(
+                "Internal server error",
+                response=response,
+                body={"code": "server_error"},
+            ),
+        )
+
+
+class TestCreateAndStreamOptimistic:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_create_bing_agent_calls_create_version(self, bing_env: None) -> None:
+        grounding = _grounding(market="fr-CH", freshness="Week")
+        expected_name = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=grounding
+        )
+        created = MagicMock()
+        created.name = expected_name
+        created.id = "new-agent-id"
+        mock_client = MagicMock()
+        mock_client.agents.create_version = AsyncMock(return_value=created)
+
+        name = await create_bing_agent(
+            mock_client,
+            agent_name=expected_name,
+            model="gpt-5.1",
+            instructions="Be helpful.",
+            grounding=grounding,
+        )
+
+        assert name == expected_name
+        call_kwargs = mock_client.agents.create_version.await_args.kwargs
+        assert call_kwargs["agent_name"] == expected_name
+        assert call_kwargs["definition"].instructions == "Be helpful."
+        search_config = call_kwargs["definition"].tools[0].bing_grounding
+        assert search_config.search_configurations[0].market == "fr-CH"
+        assert search_config.search_configurations[0].freshness == "Week"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_stream_creates_agent_when_responses_reports_missing(
+        self, bing_env: None
+    ) -> None:
+        expected_name = bing_agent_name(
+            model="gpt-5.1", instructions="Be helpful.", grounding=_grounding()
+        )
+        missing = NotFoundError(
+            message=f"Agent {expected_name} not found",
+            response=MagicMock(status_code=404, headers={}),
+            body=None,
+        )
+        mock_openai = MagicMock()
+        stream = _fake_response_stream()
+        mock_openai.responses.create = AsyncMock(
+            side_effect=[missing, stream],
+        )
+        created = MagicMock()
+        created.name = expected_name
+        created.id = "created-id"
+        mock_client = MagicMock()
+        mock_client.agents.create_version = AsyncMock(return_value=created)
+
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.bing.runner.get_openai_client",
+            return_value=mock_openai,
+        ):
+            chunks = [
+                item
+                async for item in stream_bing_grounding_agent(
+                    mock_client,
+                    query="hello",
+                    model="gpt-5.1",
+                    instructions="Be helpful.",
+                    grounding=_grounding(),
+                    timeout=120,
+                )
+            ]
+
+        assert chunks[0][0] == "agent answer text"
+        mock_client.agents.create_version.assert_awaited_once()
+        assert mock_openai.responses.create.await_count == 2
+        assert all(
+            call.kwargs["timeout"] == 120
+            for call in mock_openai.responses.create.await_args_list
+        )
+        assert stream.closed is True
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_stream_verifies_agent_after_undecodable_create_response(
+        self, bing_env: None
+    ) -> None:
+        expected_name = bing_agent_name(
+            model="gpt-5.1",
+            instructions="Be helpful.",
+            grounding=_grounding(),
+        )
+        missing = NotFoundError(
+            message=f"Agent {expected_name} not found",
+            response=MagicMock(status_code=404, headers={}),
+            body=None,
+        )
+        mock_openai = MagicMock()
+        mock_openai.responses.create = AsyncMock(
+            side_effect=[missing, _fake_response_stream()],
+        )
+        mock_client = MagicMock()
+        mock_client.agents.create_version = AsyncMock(
+            side_effect=UnicodeDecodeError("utf-8", b"\x8b", 0, 1, "invalid"),
+        )
+
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.bing.runner.get_openai_client",
+            return_value=mock_openai,
+        ):
+            chunks = [
+                item
+                async for item in stream_bing_grounding_agent(
+                    mock_client,
+                    query="hello",
+                    model="gpt-5.1",
+                    instructions="Be helpful.",
+                    grounding=_grounding(),
+                    timeout=120,
+                )
+            ]
+
+        assert chunks[0][0] == "agent answer text"
+        assert mock_openai.responses.create.await_count == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_stream_falls_back_to_completed_output_text(
+        self, bing_env: None
+    ) -> None:
+        stream = _fake_response_stream(with_deltas=False)
+        mock_openai = MagicMock()
+        mock_openai.responses.create = AsyncMock(
+            return_value=stream,
+        )
+        mock_client = MagicMock()
+
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.bing.runner.get_openai_client",
+            return_value=mock_openai,
+        ):
+            chunks = [
+                item
+                async for item in stream_bing_grounding_agent(
+                    mock_client,
+                    query="hello",
+                    model="gpt-5.1",
+                    instructions="Be helpful.",
+                    grounding=_grounding(),
+                    timeout=120,
+                )
+            ]
+
+        assert len(chunks) == 1
+        assert chunks[0].delta == "agent answer text"
+        assert chunks[0].raw_event["type"] == "response.completed"
+        assert "answer" not in chunks[0].raw_event
+        assert chunks[0].answer == "agent answer text"
+        assert stream.closed is True
+
+
+class TestPrivateEndpointHttpClientReuse:
+    @pytest.mark.ai
+    def test_public_endpoint_uses_supplied_httpx_client(
+        self, bing_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT", "false")
+        from unique_search_proxy_client.web.settings.providers import bing_agent
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.client.bing_agent_credentials",
+            bing_agent._get_bing_agent_credentials(),
+        )
+        project_client = MagicMock()
+        project_client.get_openai_client = MagicMock(return_value=MagicMock())
+        http_client = MagicMock()
+
+        get_openai_client_from_client_module(
+            project_client,
+            http_client=http_client,
+        )
+
+        project_client.get_openai_client.assert_called_once_with(
+            http_client=http_client,
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_private_endpoint_reuses_shared_httpx_client(
+        self, bing_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT", "true")
+        from unique_search_proxy_client.web.settings.providers import bing_agent
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.client.bing_agent_credentials",
+            bing_agent._get_bing_agent_credentials(),
+        )
+        await aclose_private_endpoint_http_client()
+        project_client = MagicMock()
+        project_client.get_openai_client = MagicMock(return_value=MagicMock())
+
+        get_openai_client_from_client_module(project_client)
+        get_openai_client_from_client_module(project_client)
+
+        first = project_client.get_openai_client.call_args_list[0].kwargs["http_client"]
+        second = project_client.get_openai_client.call_args_list[1].kwargs[
+            "http_client"
+        ]
+        assert first is second
+        await aclose_private_endpoint_http_client()
+
+
+class TestCleanupAutoProvisionedBingAgents:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_deletes_only_prefix_matching_agents(self) -> None:
+        keep = MagicMock(name="manual-agent")
+        keep.name = "manual-agent"
+        delete_me = MagicMock(name="hashed")
+        delete_me.name = f"{BING_AUTO_AGENT_NAME_PREFIX}-abc123def456"
+        also_keep = MagicMock(name="other-prefix")
+        also_keep.name = "unique-other-agent-xyz"
+
+        async def _agents() -> AsyncIterator[Any]:
+            for agent in (keep, delete_me, also_keep):
+                yield agent
+
+        project_client = MagicMock()
+        project_client.agents.list = MagicMock(return_value=_agents())
+        project_client.agents.delete = AsyncMock()
+
+        deleted = await cleanup_auto_provisioned_bing_agents(project_client)
+
+        assert deleted == 1
+        project_client.agents.delete.assert_awaited_once_with(delete_me.name)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_continues_when_one_delete_fails(self) -> None:
+        first = MagicMock()
+        first.name = f"{BING_AUTO_AGENT_NAME_PREFIX}-one"
+        second = MagicMock()
+        second.name = f"{BING_AUTO_AGENT_NAME_PREFIX}-two"
+
+        async def _agents() -> AsyncIterator[Any]:
+            yield first
+            yield second
+
+        project_client = MagicMock()
+        project_client.agents.list = MagicMock(return_value=_agents())
+        project_client.agents.delete = AsyncMock(
+            side_effect=[RuntimeError("boom"), None],
+        )
+
+        deleted = await cleanup_auto_provisioned_bing_agents(project_client)
+
+        assert deleted == 1
+        assert project_client.agents.delete.await_count == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_startup_cleanup_uses_settings_egress_route(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        creds = MagicMock()
+        creds.cleanup_on_start = True
+        creds.endpoint = MagicMock()
+        creds.check_credentials = MagicMock()
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_agent_credentials",
+            creds,
+        )
+        route = DirectRoute(verify=True, trust_env=False, headers={})
+        registry = MagicMock()
+        registry.settings_egress = AsyncMock(
+            return_value=MagicMock(route=route),
+        )
+        azure_transport = MagicMock()
+        transport_context = MagicMock()
+        transport_context.__aenter__ = AsyncMock(return_value=azure_transport)
+        transport_context.__aexit__ = AsyncMock(return_value=None)
+        credential = MagicMock()
+        credential_context = MagicMock()
+        credential_context.__aenter__ = AsyncMock(return_value=credential)
+        credential_context.__aexit__ = AsyncMock(return_value=None)
+        project_client = MagicMock()
+        project_context = MagicMock()
+        project_context.__aenter__ = AsyncMock(return_value=project_client)
+        project_context.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_azure_transport",
+                return_value=transport_context,
+            ) as bing_transport,
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_credentials",
+                return_value=credential_context,
+            ) as get_credentials,
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_project_client",
+                return_value=project_context,
+            ) as get_project_client,
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.cleanup_auto_provisioned_bing_agents",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+        ):
+            await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
+
+        registry.settings_egress.assert_awaited_once_with()
+        bing_transport.assert_called_once_with(route)
+        get_credentials.assert_called_once_with(transport=azure_transport)
+        assert get_project_client.call_args.kwargs["transport"] is azure_transport
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_maybe_cleanup_swallows_top_level_failures(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify startup cleanup never raises into FastAPI lifespan.
+        Why this matters: Multi-worker/replica races must not block process start.
+        Setup summary: Force credential check to pass, then fail client setup; assert no raise.
+        """
+        creds = MagicMock()
+        creds.cleanup_on_start = True
+        creds.endpoint = MagicMock()
+        creds.check_credentials = MagicMock()
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_agent_credentials",
+            creds,
+        )
+        registry = MagicMock()
+        registry.settings_egress = AsyncMock(
+            return_value=MagicMock(
+                route=DirectRoute(verify=True, trust_env=False, headers={}),
+            ),
+        )
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_credentials",
+                side_effect=RuntimeError("credential boom"),
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.read_secret",
+                return_value="https://example.azure.com",
+            ),
+        ):
+            await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_maybe_cleanup_skips_when_setting_disabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        creds = MagicMock()
+        creds.cleanup_on_start = False
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_agent_credentials",
+            creds,
+        )
+        registry = MagicMock()
+        registry.settings_egress = AsyncMock()
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_project_client",
+        ) as get_client:
+            await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
+            get_client.assert_not_called()
+            creds.check_credentials.assert_not_called()
+            registry.settings_egress.assert_not_awaited()

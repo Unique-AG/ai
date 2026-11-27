@@ -1,0 +1,1724 @@
+"""Tests for the unique-cli agentic-table write commands (full loop)."""
+
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from click.testing import CliRunner
+
+from unique_sdk._error import UniqueError
+from unique_sdk.api_resources._agentic_table import (
+    AgenticTableSheetState,
+    MagicTableArtifactState,
+    MagicTableArtifactType,
+)
+from unique_sdk.cli.cli import main as cli_main
+from unique_sdk.cli.commands.agentic_table import is_error_output
+from unique_sdk.cli.commands.agentic_table_write import (
+    _FAST_POLL_WINDOW_SECONDS,
+    _poll_interval,
+    cmd_create_sheet,
+    cmd_delete_row,
+    cmd_export,
+    cmd_import,
+    cmd_rerun_row,
+    cmd_set_cell,
+)
+from unique_sdk.cli.config import Config
+from unique_sdk.cli.state import ShellState
+
+_CREATED = {
+    "sheetId": "mt_new",
+    "dueDiligenceId": "dd_1",
+    "name": "Vendor DDQ",
+    "state": "IDLE",
+    "createdBy": "u1",
+    "companyId": "c1",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+}
+
+_OK = {"status": True, "message": "accepted"}
+
+
+def _config() -> Config:
+    return Config(
+        user_id="u1",
+        company_id="c1",
+        api_key="key",
+        app_id="app",
+        api_base="https://example.com",
+    )
+
+
+def _state() -> ShellState:
+    return ShellState(_config())
+
+
+def _patch(method: str, **kwargs: object) -> object:
+    return patch(
+        f"unique_sdk.cli.commands.agentic_table_write.AgenticTable.{method}",
+        new_callable=AsyncMock,
+        **kwargs,
+    )
+
+
+def _no_sleep() -> object:
+    return patch(
+        "unique_sdk.cli.commands.agentic_table_write.asyncio.sleep",
+        new_callable=AsyncMock,
+    )
+
+
+def _artifact(
+    artifact_type: str,
+    artifact_state: str,
+    *,
+    content_id: str | None = None,
+    updated_at: str = "2026-01-01T00:00:00.000Z",
+) -> dict[str, object]:
+    return {
+        "id": f"art_{artifact_type}_{updated_at}",
+        "artifactType": artifact_type,
+        "artifactState": artifact_state,
+        "contentId": content_id,
+        "createdAt": updated_at,
+        "updatedAt": updated_at,
+    }
+
+
+# -- create-sheet ----------------------------------------------------------
+
+
+def test_cmd_create_sheet_human_readable() -> None:
+    with _patch("create_sheet", return_value=_CREATED) as mock_create:
+        out = cmd_create_sheet(
+            _state(), "asst_1", name="Vendor DDQ", due_at="2026-12-31"
+        )
+
+    assert "Sheet:" in out and "Vendor DDQ" in out
+    assert "ID:" in out and "mt_new" in out
+    assert "Due diligence ID:" in out and "dd_1" in out
+    kwargs = mock_create.await_args.kwargs
+    assert kwargs["user_id"] == "u1"
+    assert kwargs["company_id"] == "c1"
+    assert kwargs["assistantId"] == "asst_1"
+    assert kwargs["name"] == "Vendor DDQ"
+    assert kwargs["dueAt"] == "2026-12-31"
+
+
+def test_cmd_create_sheet_omits_unset_optionals() -> None:
+    with _patch("create_sheet", return_value=_CREATED) as mock_create:
+        cmd_create_sheet(_state(), "asst_1")
+
+    kwargs = mock_create.await_args.kwargs
+    assert "name" not in kwargs
+    assert "dueAt" not in kwargs
+
+
+def test_cmd_create_sheet_json() -> None:
+    with _patch("create_sheet", return_value=_CREATED):
+        out = cmd_create_sheet(_state(), "asst_1", output_json=True)
+
+    assert json.loads(out)["sheetId"] == "mt_new"
+
+
+def test_cmd_create_sheet_maps_403() -> None:
+    with _patch("create_sheet", side_effect=UniqueError("Forbidden", http_status=403)):
+        out = cmd_create_sheet(_state(), "asst_1")
+
+    assert out == "agentic-table: permission denied"
+    assert is_error_output(out)
+
+
+# -- import (no wait) ------------------------------------------------------
+
+
+def test_cmd_import_human_readable() -> None:
+    with _patch("add_metadata", return_value=_OK) as mock_add:
+        out = cmd_import(
+            _state(),
+            "mt_1",
+            question_file_ids=["c_q"],
+            source_file_ids=["c_src"],
+        )
+
+    assert "Action:" in out and "import" in out
+    assert "Result:" in out and "OK" in out
+    kwargs = mock_add.await_args.kwargs
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["questionFileIds"] == ["c_q"]
+    assert kwargs["sourceFileIds"] == ["c_src"]
+    assert "questionTexts" not in kwargs
+    assert "context" not in kwargs
+
+
+def test_cmd_import_json() -> None:
+    with _patch("add_metadata", return_value=_OK):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"], output_json=True)
+
+    assert json.loads(out)["result"]["status"] is True
+
+
+def test_cmd_import_maps_422_verbatim() -> None:
+    with _patch(
+        "add_metadata",
+        side_effect=UniqueError("Sheet is processing", http_status=422),
+    ):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"])
+
+    assert out.startswith("agentic-table: ")
+    assert "processing" in out.lower()
+    assert is_error_output(out)
+
+
+def test_cmd_import_soft_failure_is_error() -> None:
+    """A 200 body with ``status: false`` must fail, not print FAILED and exit 0."""
+    with _patch(
+        "add_metadata", return_value={"status": False, "message": "sheet is locked"}
+    ):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"])
+
+    assert is_error_output(out)
+    assert "import rejected" in out
+    assert "sheet is locked" in out
+
+
+def test_cmd_import_soft_failure_skips_wait() -> None:
+    """A declined import must not fall through to polling for a run it never triggered."""
+    with (
+        _patch("add_metadata", return_value={"status": False}),
+        _patch("get_sheet_state") as mock_state,
+        _no_sleep(),
+    ):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"], wait=True)
+
+    assert is_error_output(out)
+    assert "no detail returned" in out
+    mock_state.assert_not_awaited()
+
+
+# -- import (--wait) -------------------------------------------------------
+
+
+def test_cmd_import_wait_run_finishes() -> None:
+    states = [
+        AgenticTableSheetState.IDLE,  # not started yet
+        AgenticTableSheetState.PROCESSING,  # run started
+        AgenticTableSheetState.IDLE,  # run finished
+    ]
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=60.0
+        )
+
+    assert "Result:" in out and "OK" in out
+    assert "Run finished" in out and "IDLE" in out
+
+
+def test_cmd_import_wait_no_run_started() -> None:
+    """Sources alone never trigger a run, so nothing starting is the expected outcome."""
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", source_file_ids=["c_src"], wait=True, timeout=0.0
+        )
+
+    assert "No agent run started" in out
+    assert not is_error_output(out)
+
+
+def test_cmd_import_wait_questions_but_no_run_is_error() -> None:
+    """A run was expected but never observed: indeterminate, so break the chain.
+
+    Exiting 0 here would let the documented ``&&`` recipe export a sheet whose
+    answers are still being generated.
+    """
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=0.0
+        )
+
+    assert is_error_output(out)
+    assert "no run started" in out
+    assert "before exporting" in out, "must steer away from exporting an unrun sheet"
+
+
+def test_cmd_import_wait_timeout_is_error() -> None:
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.PROCESSING),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=0.0
+        )
+
+    assert is_error_output(out)
+    assert "timed out" in out
+
+
+# -- export (no wait) ------------------------------------------------------
+
+
+def test_cmd_export_human_readable() -> None:
+    with _patch("generate_artifact", return_value=_OK) as mock_gen:
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"])
+
+    assert "Action:" in out and "export" in out
+    assert "Result:" in out and "OK" in out
+    kwargs = mock_gen.await_args.kwargs
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["artifactTypes"] == [MagicTableArtifactType.FULL_REPORT]
+
+
+def test_cmd_export_json() -> None:
+    with _patch("generate_artifact", return_value=_OK):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], output_json=True
+        )
+
+    assert json.loads(out)["result"]["status"] is True
+
+
+def test_cmd_export_maps_403() -> None:
+    with _patch(
+        "generate_artifact", side_effect=UniqueError("Forbidden", http_status=403)
+    ):
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"])
+
+    assert out == "agentic-table: permission denied"
+
+
+def test_cmd_export_soft_failure_is_error() -> None:
+    with _patch(
+        "generate_artifact",
+        return_value={"status": False, "message": "nothing to export"},
+    ):
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"])
+
+    assert is_error_output(out)
+    assert "export rejected" in out
+    assert "nothing to export" in out
+
+
+def test_cmd_export_unknown_type_is_an_error_line_not_an_exception() -> None:
+    """``click.Choice`` guards the CLI path; a direct caller has to be told too."""
+    with _patch("generate_artifact") as mock_generate:
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT", "SUMMARY"])
+
+    assert is_error_output(out)
+    assert "unknown artifact type: SUMMARY" in out
+    assert "FULL_REPORT" in out  # the valid one is listed as accepted, not rejected
+    mock_generate.assert_not_awaited()
+
+
+def test_cmd_export_soft_failure_skips_wait() -> None:
+    """A declined generation must not poll for artifacts that were never queued.
+
+    One call is expected regardless: the freshness baseline is taken before the
+    trigger. Anything beyond it would be polling for a generation that a
+    ``status: false`` body says never started.
+    """
+    with (
+        _patch("generate_artifact", return_value={"status": False}),
+        _patch("list_artifacts", return_value=[]) as mock_list,
+        _no_sleep(),
+    ):
+        out = cmd_export(_state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True)
+
+    assert is_error_output(out)
+    assert mock_list.await_count == 1
+
+
+# -- export (--wait) -------------------------------------------------------
+
+
+def test_cmd_export_wait_done_lists_artifacts() -> None:
+    lists = [
+        [],  # pre-trigger snapshot
+        [_artifact("FULL_REPORT", MagicTableArtifactState.IN_PROGRESS)],
+        [_artifact("FULL_REPORT", MagicTableArtifactState.DONE, content_id="cont_x")],
+    ]
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=lists),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True, timeout=60.0
+        )
+
+    assert "FULL_REPORT" in out and "DONE" in out
+    assert "cont_x" in out
+    assert not is_error_output(out)
+
+
+def test_cmd_export_wait_returns_report_finished_between_polls() -> None:
+    """The report can go DONE without its IN_PROGRESS phase ever being seen.
+
+    A sheet carries two records per type: the trigger's nameless marker, which
+    is never updated to DONE, and the report itself. On a small sheet the report
+    is written within one poll interval, so waiting to observe it IN_PROGRESS
+    would hang until timeout even though the export succeeded.
+    """
+    marker = _artifact("FULL_REPORT", MagicTableArtifactState.IN_PROGRESS)
+    stale = _artifact(
+        "FULL_REPORT", MagicTableArtifactState.DONE, content_id="cont_old"
+    )
+    fresh = _artifact(
+        "FULL_REPORT",
+        MagicTableArtifactState.DONE,
+        content_id="cont_new",
+        updated_at="2026-01-01T00:00:05.000Z",
+    )
+    lists = [[stale, marker], [stale, marker], [fresh, marker]]
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=lists),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True, timeout=60.0
+        )
+
+    assert not is_error_output(out)
+    assert "cont_new" in out
+    assert "cont_old" not in out
+
+
+def test_cmd_export_wait_error_is_error() -> None:
+    lists = [
+        [],  # pre-trigger snapshot
+        [_artifact("FULL_REPORT", MagicTableArtifactState.IN_PROGRESS)],
+        [_artifact("FULL_REPORT", MagicTableArtifactState.ERROR)],
+    ]
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=lists),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True, timeout=60.0
+        )
+
+    assert is_error_output(out)
+    assert "failed" in out and "FULL_REPORT" in out
+
+
+def test_cmd_export_wait_timeout_is_error() -> None:
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", return_value=[]),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(), "mt_1", artifact_types=["FULL_REPORT"], wait=True, timeout=0.0
+        )
+
+    assert is_error_output(out)
+    assert "timed out" in out and "FULL_REPORT" in out
+
+
+# -- error detector + CLI wiring ------------------------------------------
+
+
+# -- rerun-row -------------------------------------------------------------
+
+
+def test_cmd_rerun_row_no_wait() -> None:
+    with _patch("rerun_row", return_value=_OK) as mock_rerun:
+        out = cmd_rerun_row(_state(), "mt_1", 4)
+
+    assert "Result:" in out and "OK" in out
+    assert not is_error_output(out)
+    kwargs = mock_rerun.await_args.kwargs
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["rowOrder"] == 4
+
+
+def test_cmd_rerun_row_soft_failure_is_error() -> None:
+    """A locked or final row is declined in a 200 body, so it must still fail."""
+    with _patch(
+        "rerun_row", return_value={"status": False, "message": "row is locked"}
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4)
+
+    assert is_error_output(out)
+    assert "rerun rejected" in out
+    assert "row is locked" in out
+
+
+def test_cmd_rerun_row_soft_failure_skips_wait() -> None:
+    with (
+        _patch("rerun_row", return_value={"status": False}),
+        _patch("get_sheet_state") as mock_state,
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4, wait=True)
+
+    assert is_error_output(out)
+    mock_state.assert_not_awaited()
+
+
+def test_cmd_rerun_row_permission_denied() -> None:
+    with _patch("rerun_row", side_effect=UniqueError("nope", http_status=403)):
+        out = cmd_rerun_row(_state(), "mt_1", 4)
+
+    assert out == "agentic-table: permission denied"
+
+
+def test_cmd_rerun_row_wait_run_finishes() -> None:
+    states = [
+        AgenticTableSheetState.IDLE,  # not started yet
+        AgenticTableSheetState.PROCESSING,  # rerun started
+        AgenticTableSheetState.IDLE,  # rerun finished
+    ]
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4, wait=True, timeout=60.0)
+
+    assert "Row 4 rerun finished" in out and "IDLE" in out
+    assert not is_error_output(out)
+
+
+def test_cmd_rerun_row_wait_no_run_is_error() -> None:
+    """A rerun always triggers a run, so nothing observed is never benign."""
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4, wait=True, timeout=0.0)
+
+    assert is_error_output(out)
+    assert "no run was observed" in out
+    assert "cell-history" in out, "must say how to settle an unobserved rerun"
+
+
+def test_cmd_rerun_row_wait_timeout_is_error() -> None:
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", return_value=AgenticTableSheetState.PROCESSING),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(_state(), "mt_1", 4, wait=True, timeout=0.0)
+
+    assert is_error_output(out)
+    assert "timed out" in out
+
+
+def test_error_output_detector() -> None:
+    assert is_error_output("agentic-table: permission denied")
+    assert not is_error_output("Action:  import")
+
+
+@patch("unique_sdk.cli.cli.cmd_create_sheet")
+def test_cli_create_sheet_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "create-sheet", "asst_1", "--name", "DDQ"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["name"] == "DDQ"
+    assert mock_cmd.call_args.args[1] == "asst_1"  # type: ignore[attr-defined]
+
+
+@patch("unique_sdk.cli.cli.cmd_import")
+def test_cli_import_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "import",
+            "mt_1",
+            "--question-file-id",
+            "c_q",
+            "--source-file-id",
+            "c_src",
+            "--wait",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["question_file_ids"] == ["c_q"]
+    assert kwargs["source_file_ids"] == ["c_src"]
+    assert kwargs["wait"] is True
+
+
+@patch("unique_sdk.cli.cli.cmd_export")
+def test_cli_export_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "export", "mt_1", "--type", "FULL_REPORT", "--json"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["artifact_types"] == ["FULL_REPORT"]
+    assert kwargs["output_json"] is True
+
+
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
+def test_cli_rerun_row_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "rerun-row", "mt_1", "4", "--wait"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert mock_cmd.call_args.args[1:] == ("mt_1", 4)  # type: ignore[attr-defined]
+    assert mock_cmd.call_args.kwargs["wait"] is True  # type: ignore[attr-defined]
+
+
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
+def test_cli_rerun_row_rejects_non_integer_row(mock_cmd: object) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "rerun-row", "mt_1", "abc"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+
+
+@pytest.mark.parametrize("row", ["0", "-5"])
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
+def test_cli_rerun_row_rejects_unanswerable_rows_locally(
+    mock_cmd: object, row: str
+) -> None:
+    """Row 0 is the header and negatives address nothing.
+
+    A rerun is an audited write, so refusing these before the request keeps the
+    audit log free of entries the client could see were never valid.
+    """
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "rerun-row", "mt_1", row],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+    mock_cmd.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_cmd_rerun_row_wait_json_shape() -> None:
+    """Agents pipe this to jq, so the keys --wait adds are part of the contract."""
+    states = [
+        AgenticTableSheetState.IDLE,
+        AgenticTableSheetState.PROCESSING,
+        AgenticTableSheetState.IDLE,
+    ]
+    with (
+        _patch("rerun_row", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_rerun_row(
+            _state(), "mt_1", 4, wait=True, timeout=60.0, output_json=True
+        )
+
+    payload = json.loads(out)
+    assert payload["result"] == _OK
+    assert payload["rowOrder"] == 4
+    assert payload["finalState"] == "IDLE"
+
+
+@patch("unique_sdk.cli.cli.cmd_export")
+def test_cli_export_rejects_invalid_type(mock_cmd: object) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "export", "mt_1", "--type", "NOPE"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+
+
+@pytest.mark.parametrize(
+    ("argv", "option"),
+    [
+        (["import", "mt_1"], "--timeout"),
+        (["import", "mt_1"], "--start-timeout"),
+        (["export", "mt_1", "--type", "FULL_REPORT"], "--timeout"),
+        (["rerun-row", "mt_1", "1"], "--timeout"),
+        (["rerun-row", "mt_1", "1"], "--start-timeout"),
+    ],
+)
+@patch("unique_sdk.cli.cli.cmd_rerun_row")
+@patch("unique_sdk.cli.cli.cmd_import")
+@patch("unique_sdk.cli.cli.cmd_export")
+def test_cli_rejects_a_negative_wait_budget(
+    mock_export: object,
+    mock_import: object,
+    mock_rerun: object,
+    argv: list[str],
+    option: str,
+) -> None:
+    """A negative budget is a typo, and expires instantly — say so up front."""
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", *argv, option, "-1", "--wait"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+    assert option in result.output
+    for mock in (mock_export, mock_import, mock_rerun):
+        mock.assert_not_called()  # type: ignore[attr-defined]
+
+
+@patch("unique_sdk.cli.cli.cmd_import")
+def test_cli_write_error_exits_non_zero(mock_cmd: object) -> None:
+    mock_cmd.return_value = "agentic-table: permission denied"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "import", "mt_1", "--question-text", "q?"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 1
+    assert result.output.strip() == "agentic-table: permission denied"
+
+
+# -- polling behaviour -----------------------------------------------------
+
+
+def test_poll_interval_is_dense_before_settling() -> None:
+    """A short run fits inside one settled interval, so the opening window is
+    sampled closely; otherwise a run that finished looks like one that never
+    started."""
+    now = time.monotonic()
+    assert _poll_interval(now, 5.0) == 1.0
+    assert _poll_interval(now - _FAST_POLL_WINDOW_SECONDS - 1, 5.0) == 5.0
+
+
+def test_poll_interval_never_exceeds_the_callers_interval() -> None:
+    assert _poll_interval(time.monotonic(), 0.25) == 0.25
+
+
+def test_wait_survives_a_transient_read_failure() -> None:
+    """The write already landed, so one failed poll must not report it as failed."""
+    states = [
+        UniqueError("bad gateway", http_status=502),
+        AgenticTableSheetState.PROCESSING,
+        AgenticTableSheetState.IDLE,
+    ]
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=60.0
+        )
+
+    assert not is_error_output(out)
+    assert "Run finished" in out
+
+
+def test_wait_does_not_retry_a_denial() -> None:
+    """A 403 is a decision rather than a blip: retrying only delays the report."""
+    with (
+        _patch(
+            "get_sheet_state", side_effect=UniqueError("nope", http_status=403)
+        ) as mock_state,
+        _patch("add_metadata", return_value=_OK),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=60.0
+        )
+
+    assert out == "agentic-table: permission denied"
+    assert mock_state.await_count == 1
+
+
+def test_wait_gives_up_after_repeated_read_failures() -> None:
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", side_effect=UniqueError("down", http_status=502)),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(), "mt_1", question_texts=["q?"], wait=True, timeout=60.0
+        )
+
+    assert is_error_output(out)
+
+
+def test_export_wait_accepts_a_new_artifact_with_no_timestamp() -> None:
+    """Freshness falls back to identity when ``updatedAt`` is absent.
+
+    Comparing two missing timestamps would exclude the artifact on every poll
+    and hang the wait on a generation that had in fact succeeded.
+    """
+    stale = _artifact("FULL_REPORT", "IN_PROGRESS")
+    fresh = {
+        "id": "art_new",
+        "artifactType": "FULL_REPORT",
+        "artifactState": "DONE",
+        "contentId": "cont_1",
+    }
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=[[stale], [stale, fresh]]),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(),
+            "mt_1",
+            artifact_types=[MagicTableArtifactType.FULL_REPORT],
+            wait=True,
+            timeout=60.0,
+        )
+
+    assert not is_error_output(out)
+    assert "cont_1" in out
+
+
+# -- --json shapes under --wait --------------------------------------------
+
+
+def test_cmd_import_wait_json_shape() -> None:
+    """Agents pipe this to jq, so the keys --wait adds are part of the contract."""
+    states = [
+        AgenticTableSheetState.IDLE,
+        AgenticTableSheetState.PROCESSING,
+        AgenticTableSheetState.IDLE,
+    ]
+    with (
+        _patch("add_metadata", return_value=_OK),
+        _patch("get_sheet_state", side_effect=states),
+        _no_sleep(),
+    ):
+        out = cmd_import(
+            _state(),
+            "mt_1",
+            question_texts=["q?"],
+            wait=True,
+            timeout=60.0,
+            output_json=True,
+        )
+
+    payload = json.loads(out)
+    assert payload["result"] == _OK
+    assert payload["runStarted"] is True
+    assert payload["finalState"] == "IDLE"
+
+
+def test_cmd_export_wait_json_shape() -> None:
+    stale = _artifact("FULL_REPORT", "DONE", updated_at="2026-01-01T00:00:00.000Z")
+    fresh = _artifact(
+        "FULL_REPORT",
+        "DONE",
+        content_id="cont_1",
+        updated_at="2026-01-02T00:00:00.000Z",
+    )
+    with (
+        _patch("generate_artifact", return_value=_OK),
+        _patch("list_artifacts", side_effect=[[stale], [stale, fresh]]),
+        _no_sleep(),
+    ):
+        out = cmd_export(
+            _state(),
+            "mt_1",
+            artifact_types=[MagicTableArtifactType.FULL_REPORT],
+            wait=True,
+            timeout=60.0,
+            output_json=True,
+        )
+
+    payload = json.loads(out)
+    assert payload["result"] == _OK
+    assert [a["contentId"] for a in payload["artifacts"]] == ["cont_1"]
+
+
+def test_missing_status_field_is_not_reported_as_a_rejection() -> None:
+    """An unintelligible body may mean the mutation landed; do not invite a retry."""
+    with _patch("add_metadata", return_value={}):
+        out = cmd_import(_state(), "mt_1", question_texts=["q?"])
+
+    assert is_error_output(out)
+    assert "outcome is unknown" in out
+    assert "rejected" not in out
+
+
+# -- set-cell --------------------------------------------------------------
+
+
+_CELL = {
+    "sheetId": "mt_1",
+    "rowOrder": 1,
+    "columnOrder": 2,
+    "text": "The management fee is 2%.",
+    "rowLocked": False,
+}
+
+
+def _idle_sheet(
+    *, rows: int = 5, cols: int = 4, state: str = "IDLE"
+) -> dict[str, object]:
+    """Minimal GET /magic-table payload for set-cell guardrails."""
+    return {
+        "sheetId": "mt_1",
+        "name": "Due Diligence Q1",
+        "state": state,
+        "createdBy": "u1",
+        "companyId": "c1",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "magicTableRowCount": rows,
+        "magicTableCells": [
+            {"rowOrder": 0, "columnOrder": col, "text": f"c{col}"}
+            for col in range(cols)
+        ],
+    }
+
+
+def test_cmd_set_cell_human_readable() -> None:
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()) as mock_get,
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            text="The management fee is 2%.",
+        )
+
+    assert "Sheet:" in out and "mt_1" in out
+    assert "Row:" in out and "1" in out
+    assert "Column:" in out and "2" in out
+    assert "The management fee is 2%." in out
+    assert mock_get.await_args.kwargs["rowOrders"] == [0]
+    kwargs = mock_set.await_args.kwargs
+    assert kwargs["user_id"] == "u1"
+    assert kwargs["company_id"] == "c1"
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["rowOrder"] == 1
+    assert kwargs["columnOrder"] == 2
+    assert kwargs["text"] == "The management fee is 2%."
+    assert "logEntries" not in kwargs
+
+
+def test_cmd_set_cell_json() -> None:
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL),
+    ):
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            text="The management fee is 2%.",
+            output_json=True,
+        )
+
+    assert json.loads(out)["text"] == "The management fee is 2%."
+
+
+def test_cmd_set_cell_from_file(tmp_path: Path) -> None:
+    path = tmp_path / "answer.md"
+    path.write_text("line one\nline two\n", encoding="utf-8")
+
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            file=str(path),
+        )
+
+    assert mock_set.await_args.kwargs["text"] == "line one\nline two\n"
+    assert "logEntries" not in mock_set.await_args.kwargs
+
+
+def test_cmd_set_cell_from_stdin() -> None:
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+        patch("unique_sdk.cli.commands.agentic_table_write.sys.stdin") as mock_stdin,
+    ):
+        mock_stdin.isatty.return_value = False
+        mock_stdin.read.return_value = "from stdin"
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            stdin=True,
+        )
+
+    assert mock_set.await_args.kwargs["text"] == "from stdin"
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_stdin_tty_does_not_call_api() -> None:
+    """Purpose: A TTY stdin must fail locally instead of blocking.
+    Why this matters: Agents in a sandbox hang forever on sys.stdin.read().
+    Setup summary: isatty True; neither get_sheet_data nor set_cell is called.
+    """
+    with (
+        _patch("get_sheet_data") as mock_get,
+        _patch("set_cell") as mock_set,
+        patch("unique_sdk.cli.commands.agentic_table_write.sys.stdin") as mock_stdin,
+    ):
+        mock_stdin.isatty.return_value = True
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            stdin=True,
+        )
+
+    mock_get.assert_not_called()
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "tty" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_non_utf8_file_is_prefixed(tmp_path: Path) -> None:
+    """Purpose: Non-UTF-8 --file is reported as a read error.
+    Why this matters: UnicodeDecodeError subclasses ValueError and used to skip the prefix.
+    Setup summary: Latin-1 bytes; set_cell is not called.
+    """
+    path = tmp_path / "answer.bin"
+    path.write_bytes(b"caf\xe9")
+
+    with _patch("get_sheet_data") as mock_get, _patch("set_cell") as mock_set:
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            file=str(path),
+        )
+
+    mock_get.assert_not_called()
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "could not read --file" in out
+
+
+def test_cmd_set_cell_passes_log_json() -> None:
+    logs = [
+        {
+            "text": "manual fill",
+            "actorType": "TOOL",
+            "createdAt": "2026-01-02T09:30:00.000Z",
+            "messageId": "msg_1",
+        }
+    ]
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            text="hi",
+            log_json=json.dumps(logs),
+        )
+
+    assert mock_set.await_args.kwargs["logEntries"] == logs
+
+
+def test_cmd_set_cell_passes_log_file(tmp_path: Path) -> None:
+    logs = [
+        {
+            "text": "from file",
+            "actorType": "ASSISTANT",
+            "createdAt": "2026-01-02T09:30:00.000Z",
+        }
+    ]
+    path = tmp_path / "logs.json"
+    path.write_text(json.dumps(logs), encoding="utf-8")
+
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            text="hi",
+            log_file=str(path),
+        )
+
+    assert mock_set.await_args.kwargs["logEntries"] == logs
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "needle"),
+    [
+        ({}, "cell text is required"),
+        ({"text": "hi", "file": "x.md"}, "ambiguous input"),
+        ({"text": ""}, "cell text is empty"),
+        (
+            {"text": "hi", "log_json": "[{}"},
+            "log entries must be JSON",
+        ),
+        (
+            {"text": "hi", "log_json": "{}"},
+            "JSON array",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps([{"text": "x", "actorType": "TOOL"}]),
+            },
+            "createdAt",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [{"text": "x", "createdAt": "2026-01-02T09:30:00.000Z"}]
+                ),
+            },
+            "actorType",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [
+                        {
+                            "text": "x",
+                            "actorType": "USER",
+                            "createdAt": "2026-01-02T09:30:00.000Z",
+                        }
+                    ]
+                ),
+            },
+            "actorType",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [
+                        {
+                            "text": "x",
+                            "actorType": "SYSTEM",
+                            "createdAt": "2026-01-02T09:30:00.000Z",
+                        }
+                    ]
+                ),
+            },
+            "actorType",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [
+                        {
+                            "text": None,
+                            "actorType": "TOOL",
+                            "createdAt": "2026-01-02T09:30:00.000Z",
+                        }
+                    ]
+                ),
+            },
+            "text must be a string",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_json": json.dumps(
+                    [{"text": "x", "actorType": "TOOL", "createdAt": "t"}]
+                ),
+            },
+            "createdAt must be ISO-8601",
+        ),
+        (
+            {
+                "text": "hi",
+                "log_file": "a.json",
+                "log_json": "[]",
+            },
+            "at most one of --log-file or --log-json",
+        ),
+    ],
+)
+def test_cmd_set_cell_local_errors_do_not_call_api(
+    kwargs: dict[str, object], needle: str
+) -> None:
+    with _patch("get_sheet_data") as mock_get, _patch("set_cell") as mock_set:
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=2,
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+    mock_get.assert_not_called()
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert needle in out
+
+
+def test_cmd_set_cell_maps_403() -> None:
+    with (
+        _patch("get_sheet_data", side_effect=UniqueError("Forbidden", http_status=403)),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    mock_set.assert_not_called()
+    assert out == "agentic-table: permission denied"
+    assert is_error_output(out)
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_maps_set_cell_403() -> None:
+    """Purpose: 403 from the write itself still collapses to permission denied.
+    Why this matters: Sheet read can succeed while the cell write is denied.
+    Setup summary: get_sheet_data succeeds; set_cell raises 403.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch("set_cell", side_effect=UniqueError("Forbidden", http_status=403)),
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    assert out == "agentic-table: permission denied"
+
+
+def test_cmd_set_cell_prefixes_other_api_errors() -> None:
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet()),
+        _patch(
+            "set_cell",
+            side_effect=UniqueError(
+                "Agentic Table Row is in a locked or final state, update not allowed",
+                http_status=400,
+            ),
+        ),
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    assert is_error_output(out)
+    assert "locked or final" in out
+    assert out.startswith("agentic-table:")
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_refuses_processing_without_force() -> None:
+    """Purpose: PROCESSING sheets are refused unless --force.
+    Why this matters: A write can be overwritten by the row-runner.
+    Setup summary: get_sheet_data returns PROCESSING; set_cell is not called.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(state="PROCESSING")),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "PROCESSING" in out
+    assert "--force" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_force_writes_while_processing() -> None:
+    """Purpose: --force opts into writing during PROCESSING.
+    Why this matters: Callers who accept the race still need an escape hatch.
+    Setup summary: PROCESSING sheet plus force=True calls set_cell.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(state="PROCESSING")),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
+        out = cmd_set_cell(
+            _state(), "mt_1", row_order=1, column_order=2, text="hi", force=True
+        )
+
+    mock_set.assert_called_once()
+    assert "The management fee is 2%." in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_refuses_out_of_range_column() -> None:
+    """Purpose: A typo'd --col is refused unless --allow-create.
+    Why this matters: The API would otherwise silently grow the sheet.
+    Setup summary: 4-column sheet, --col 20; set_cell is not called.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(cols=4)),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=20, text="hi")
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "col 20 is out of range" in out
+    assert "--allow-create" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_allow_create_writes_new_column() -> None:
+    """Purpose: --allow-create may add only the next column.
+    Why this matters: The API would otherwise create a gap at any index.
+    Setup summary: 4-column sheet, --col 4 with allow_create=True calls set_cell.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(cols=4)),
+        _patch("set_cell", return_value=_CELL) as mock_set,
+    ):
+        cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=4,
+            text="hi",
+            allow_create=True,
+        )
+
+    assert mock_set.await_args.kwargs["columnOrder"] == 4
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_allow_create_refuses_gap_column() -> None:
+    """Purpose: --allow-create still refuses a far-off column.
+    Why this matters: --col 20 on a 4-column sheet would skip columns 4-19.
+    Setup summary: col 20 with allow_create=True; set_cell is not called.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(cols=4)),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=1,
+            column_order=20,
+            text="hi",
+            allow_create=True,
+        )
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "col 20 is too far" in out
+    assert "next column" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_allow_create_refuses_gap_row() -> None:
+    """Purpose: --allow-create still refuses a far-off row.
+    Why this matters: --row 50 on a 5-row sheet would skip rows 5-49.
+    Setup summary: row 50 with allow_create=True; set_cell is not called.
+    """
+    with (
+        _patch("get_sheet_data", return_value=_idle_sheet(rows=5)),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(
+            _state(),
+            "mt_1",
+            row_order=50,
+            column_order=2,
+            text="hi",
+            allow_create=True,
+        )
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "row 50 is too far" in out
+    assert "next row" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_refuses_when_header_cells_missing() -> None:
+    """Purpose: An empty cell list still blocks writes without --allow-create.
+    Why this matters: Skipping the column guard when count is 0 let a typo grow the sheet.
+    Setup summary: sheet with rows but no cells; set_cell is not called.
+    """
+    sheet = _idle_sheet(rows=5, cols=0)
+    with (
+        _patch("get_sheet_data", return_value=sheet),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "col 2 is out of range" in out
+    assert "0 columns" in out
+
+
+@pytest.mark.ai
+def test_cmd_set_cell_refuses_when_row_count_missing() -> None:
+    """Purpose: A missing row count is treated as empty, not as unbounded.
+    Why this matters: The previous guard skipped the row check when the field was absent.
+    Setup summary: sheet without magicTableRowCount; set_cell is not called.
+    """
+    sheet = _idle_sheet()
+    del sheet["magicTableRowCount"]
+    with (
+        _patch("get_sheet_data", return_value=sheet),
+        _patch("set_cell") as mock_set,
+    ):
+        out = cmd_set_cell(_state(), "mt_1", row_order=1, column_order=2, text="hi")
+
+    mock_set.assert_not_called()
+    assert is_error_output(out)
+    assert "row 1 is out of range" in out
+    assert "0 rows" in out
+
+
+@patch("unique_sdk.cli.cli.cmd_set_cell")
+def test_cli_set_cell_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "set-cell",
+            "mt_1",
+            "--row",
+            "1",
+            "--col",
+            "2",
+            "--text",
+            "hi",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert result.output.strip() == "ok"
+    assert mock_cmd.call_args.args[1] == "mt_1"  # type: ignore[attr-defined]
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["row_order"] == 1
+    assert kwargs["column_order"] == 2
+    assert kwargs["text"] == "hi"
+    assert kwargs["allow_create"] is False
+    assert kwargs["force"] is False
+
+
+@patch("unique_sdk.cli.cli.cmd_set_cell")
+def test_cli_set_cell_error_exits_non_zero(mock_cmd: object) -> None:
+    mock_cmd.return_value = "agentic-table: permission denied"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "set-cell",
+            "mt_1",
+            "--row",
+            "1",
+            "--col",
+            "2",
+            "--text",
+            "hi",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 1
+    assert result.output.strip() == "agentic-table: permission denied"
+
+
+@patch("unique_sdk.cli.cli.cmd_set_cell")
+def test_cli_set_cell_rejects_negative_row_locally(mock_cmd: object) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "set-cell",
+            "mt_1",
+            "--row",
+            "-1",
+            "--col",
+            "2",
+            "--text",
+            "hi",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code != 0
+    mock_cmd.assert_not_called()  # type: ignore[attr-defined]
+
+
+@patch("unique_sdk.cli.cli.cmd_set_cell")
+def test_cli_set_cell_allows_header_row_zero(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "agentic-table",
+            "set-cell",
+            "mt_1",
+            "--row",
+            "0",
+            "--col",
+            "0",
+            "--text",
+            "Q",
+        ],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert mock_cmd.call_args.kwargs["row_order"] == 0  # type: ignore[attr-defined]
+
+
+def test_cli_set_cell_help_lists_command() -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "--help"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert "set-cell" in result.output
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "set-cell", "--help"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+    assert result.exit_code == 0
+    assert "--row" in result.output
+    assert "--text" in result.output
+    assert "This is not a run" in result.output
+
+
+# -- delete-row ------------------------------------------------------------
+
+_DELETED = {
+    "object": "magic-table-action",
+    "id": "mt_1",
+    "status": True,
+    "message": "Agentic Table Row deleted successfully",
+}
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__accepted__prints_ok() -> None:
+    """Purpose: A successful delete prints the action result.
+    Why this matters: Agents chain on a zero exit and the printed OK.
+    Setup summary: The SDK returns status true; the formatted lines are checked.
+    """
+    with _patch("delete_row", return_value=_DELETED) as mock_delete:
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_abc")
+
+    assert "Action:" in out and "delete" in out
+    assert "Result:" in out and "OK" in out
+    assert "Agentic Table Row deleted successfully" in out
+    assert not is_error_output(out)
+    kwargs = mock_delete.await_args.kwargs
+    assert kwargs["user_id"] == "u1"
+    assert kwargs["company_id"] == "c1"
+    assert kwargs["tableId"] == "mt_1"
+    assert kwargs["rowId"] == "mt_row_abc"
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__json__wraps_result() -> None:
+    """Purpose: --json returns the action body for scripting.
+    Why this matters: Callers parse status and the sheet id from the body.
+    Setup summary: The SDK returns the action DTO; the JSON envelope is parsed.
+    """
+    with _patch("delete_row", return_value=_DELETED):
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_abc", output_json=True)
+
+    body = json.loads(out)
+    assert body["result"]["status"] is True
+    assert body["result"]["id"] == "mt_1"
+    assert not is_error_output(out)
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__status_false__is_error() -> None:
+    """Purpose: A soft rejection in a 200 body fails the command.
+    Why this matters: An && chain must not continue after a declined delete.
+    Setup summary: The SDK returns status false with a message.
+    """
+    with _patch(
+        "delete_row",
+        return_value={"status": False, "message": "The header row cannot be deleted"},
+    ):
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_header")
+
+    assert is_error_output(out)
+    assert "delete rejected" in out
+    assert "header row" in out
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__forbidden__is_permission_denied() -> None:
+    """Purpose: A 403 collapses to the stable permission-denied line.
+    Why this matters: Agents treat that line as access information.
+    Setup summary: The SDK raises UniqueError with HTTP 403.
+    """
+    with _patch("delete_row", side_effect=UniqueError("nope", http_status=403)):
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_abc")
+
+    assert out == "agentic-table: permission denied"
+
+
+@pytest.mark.ai
+def test_cmd_delete_row__bad_request__passes_message() -> None:
+    """Purpose: A 400 keeps the API message.
+    Why this matters: Locked, header, and non-member rejects are 400, not 403.
+    Setup summary: The SDK raises UniqueError with HTTP 400 and a message.
+    """
+    with _patch(
+        "delete_row",
+        side_effect=UniqueError(
+            "Only members of the sheet can delete rows.", http_status=400
+        ),
+    ):
+        out = cmd_delete_row(_state(), "mt_1", "mt_row_abc")
+
+    assert is_error_output(out)
+    assert "Only members of the sheet can delete rows." in out
+    assert "permission denied" not in out
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "row_id",
+    [
+        "",
+        "   ",
+        "mt row",
+        "mt_row\nabc",
+        ".",
+        "..",
+        "4",
+        "metadata/meta_1",
+        "mt_row_abc?hard=1",
+    ],
+)
+def test_cmd_delete_row__invalid_id__does_not_call_api(row_id: str) -> None:
+    """Purpose: Unsafe row ids are refused before the request.
+    Why this matters: A slash would hit another route, and a number is a row order.
+    Setup summary: Each invalid id is passed and the SDK mock must not be awaited.
+    """
+    with _patch("delete_row") as mock_delete:
+        out = cmd_delete_row(_state(), "mt_1", row_id)
+
+    assert is_error_output(out)
+    mock_delete.assert_not_awaited()
+
+
+@patch("unique_sdk.cli.cli.cmd_delete_row")
+@pytest.mark.ai
+def test_cli_delete_row_wiring(mock_cmd: object) -> None:
+    """Purpose: The Click command forwards the sheet id, row id, and --json.
+    Why this matters: The flag must reach the command function unchanged.
+    Setup summary: The command function is patched and the CLI is invoked.
+    """
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "delete-row", "mt_1", "mt_row_abc", "--json"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert mock_cmd.call_args.args[1:] == ("mt_1", "mt_row_abc")  # type: ignore[attr-defined]
+    assert mock_cmd.call_args.kwargs["output_json"] is True  # type: ignore[attr-defined]
+
+
+@pytest.mark.ai
+def test_cli_delete_row_help_lists_command() -> None:
+    """Purpose: Help advertises delete-row and that it takes a row id.
+    Why this matters: Agents discover the command from --help.
+    Setup summary: Group help and command help are invoked.
+    """
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "--help"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    assert "delete-row" in result.output
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "delete-row", "--help"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+    assert result.exit_code == 0
+    assert "row id" in result.output.lower()
+    assert "mt_row_" in result.output

@@ -11,6 +11,12 @@ from typing import (
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
+from ..models.bing_agent_search_request_freshness_type_0 import (
+    BingAgentSearchRequestFreshnessType0,
+)
+from ..models.bing_agent_search_request_market_type_0 import (
+    BingAgentSearchRequestMarketType0,
+)
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="BingAgentSearchRequest")
@@ -33,8 +39,14 @@ class BingAgentSearchRequest:
             information, it MUST appear in your output. When in doubt, include it.\n'.
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         fetch_size (int | Unset): Maximum number of Bing grounding results per query Default: 5.
-        agent_id (None | str | Unset): Azure AI agent id. Resolved from deployment env when not set. When empty, the
-            service auto-provisions or looks up a grounding agent.
+        market (BingAgentSearchRequestMarketType0 | None | Unset): Region and language Bing should favour, as
+            `<language>-<country>`. Examples: `de-CH`, `fr-CH`, `fr-FR`. This biases the results rather than restricting
+            them — sources from other regions can still appear. If left blank, the deployment default set in the environment
+            variable `BING_AGENT_DEFAULT_MARKET` applies. If left blank and the environment variable is not set, Bing may
+            favour the region where the underlying Microsoft Foundry resource is deployed.
+        freshness (BingAgentSearchRequestFreshnessType0 | None | Unset): Only includes results Bing discovered within
+            the chosen timeframe, counted back from each search. This is a hard filter and it applies to every search in the
+            space.
     """
 
     query: str
@@ -44,7 +56,8 @@ class BingAgentSearchRequest:
     )
     timeout: int | Unset = 120
     fetch_size: int | Unset = 5
-    agent_id: None | str | Unset = UNSET
+    market: BingAgentSearchRequestMarketType0 | None | Unset = UNSET
+    freshness: BingAgentSearchRequestFreshnessType0 | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -58,11 +71,21 @@ class BingAgentSearchRequest:
 
         fetch_size = self.fetch_size
 
-        agent_id: None | str | Unset
-        if isinstance(self.agent_id, Unset):
-            agent_id = UNSET
+        market: None | str | Unset
+        if isinstance(self.market, Unset):
+            market = UNSET
+        elif isinstance(self.market, BingAgentSearchRequestMarketType0):
+            market = self.market.value
         else:
-            agent_id = self.agent_id
+            market = self.market
+
+        freshness: None | str | Unset
+        if isinstance(self.freshness, Unset):
+            freshness = UNSET
+        elif isinstance(self.freshness, BingAgentSearchRequestFreshnessType0):
+            freshness = self.freshness.value
+        else:
+            freshness = self.freshness
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
@@ -79,8 +102,10 @@ class BingAgentSearchRequest:
             field_dict["timeout"] = timeout
         if fetch_size is not UNSET:
             field_dict["fetchSize"] = fetch_size
-        if agent_id is not UNSET:
-            field_dict["agentId"] = agent_id
+        if market is not UNSET:
+            field_dict["market"] = market
+        if freshness is not UNSET:
+            field_dict["freshness"] = freshness
 
         return field_dict
 
@@ -99,14 +124,43 @@ class BingAgentSearchRequest:
 
         fetch_size = d.pop("fetchSize", UNSET)
 
-        def _parse_agent_id(data: object) -> None | str | Unset:
+        def _parse_market(
+            data: object,
+        ) -> BingAgentSearchRequestMarketType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(None | str | Unset, data)
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                market_type_0 = BingAgentSearchRequestMarketType0(data)
 
-        agent_id = _parse_agent_id(d.pop("agentId", UNSET))
+                return market_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(BingAgentSearchRequestMarketType0 | None | Unset, data)
+
+        market = _parse_market(d.pop("market", UNSET))
+
+        def _parse_freshness(
+            data: object,
+        ) -> BingAgentSearchRequestFreshnessType0 | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                freshness_type_0 = BingAgentSearchRequestFreshnessType0(data)
+
+                return freshness_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(BingAgentSearchRequestFreshnessType0 | None | Unset, data)
+
+        freshness = _parse_freshness(d.pop("freshness", UNSET))
 
         bing_agent_search_request = cls(
             query=query,
@@ -114,7 +168,8 @@ class BingAgentSearchRequest:
             generation_instructions=generation_instructions,
             timeout=timeout,
             fetch_size=fetch_size,
-            agent_id=agent_id,
+            market=market,
+            freshness=freshness,
         )
 
         bing_agent_search_request.additional_properties = d

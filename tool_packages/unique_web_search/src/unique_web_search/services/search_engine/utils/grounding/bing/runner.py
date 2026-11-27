@@ -1,73 +1,108 @@
+from __future__ import annotations
+
 import logging
+import time
 
-from azure.ai.agents.models import (
-    AgentThreadCreationOptions,
-    BingGroundingTool,
-    MessageTextContent,
-    MessageTextUrlCitationAnnotation,
-    RunStatus,
-    ThreadMessageOptions,
-)
+import openai
 from azure.ai.projects.aio import AIProjectClient
-
-from unique_web_search.services.search_engine.schema import (
-    WebSearchResult,
+from azure.ai.projects.models import (
+    BingGroundingSearchConfiguration,
+    BingGroundingSearchToolParameters,
+    BingGroundingTool,
+    PromptAgentDefinition,
 )
-from unique_web_search.services.search_engine.utils.grounding import (
-    ResponseParser,
-    convert_response_to_search_results,
+from openai.types.responses import ResponseStreamEvent
+from openai.types.responses.response import Response
+from openai.types.responses.response_completed_event import ResponseCompletedEvent
+from openai.types.responses.response_output_message import ResponseOutputMessage
+from openai.types.responses.response_output_text import (
+    AnnotationURLCitation,
+    ResponseOutputText,
+)
+from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
+from unique_search_proxy_core.agent_engines.bing.grounding import (
+    BingGroundingConfiguration,
+    bing_agent_name,
+)
+from unique_search_proxy_core.schema import AnswerSpanCitation
+
+from unique_web_search.invocation_stats import collector
+from unique_web_search.services.search_engine.utils.grounding.bing.client import (
+    get_openai_client,
 )
 from unique_web_search.services.search_engine.utils.grounding.bing.models import (
     RESPONSE_RULE,
+    build_bing_citation_instructions,
 )
 from unique_web_search.settings import env_settings
 
 _LOGGER = logging.getLogger(__name__)
-_AGENT_NAME_IDENTIFIER = "UNIQUE_GROUNDING_WITH_BING_AGENT"
 
 
 # ---------------------------------------------------------------------------
-# Agent management
+# Agent naming
 # ---------------------------------------------------------------------------
 
 
-async def _get_agent_id(agent_client: AIProjectClient) -> str:
-    """Look up the existing Bing grounding agent by name.
+def resolve_bing_agent_name(
+    *,
+    model: str,
+    instructions: str,
+    grounding: BingGroundingConfiguration,
+) -> str:
+    """Return the hash-based agent name to use for Responses (no Foundry round-trip).
 
-    Raises:
-        Exception: If no agent with the expected name exists.
+    Derives a stable name from everything baked into the agent version: the
+    model, the instructions, and the Bing grounding tool configuration.
     """
-    list_agents = agent_client.agents.list_agents()
-
-    async for agent in list_agents:
-        if agent.name == _AGENT_NAME_IDENTIFIER:
-            _LOGGER.info(f"Found agent {agent.id} with name {agent.name}")
-            return agent.id
-
-    raise Exception(f"Agent {_AGENT_NAME_IDENTIFIER} not found")
-
-
-async def _create_agent_id(agent_client: AIProjectClient) -> str:
-    """Provision a new Bing grounding agent using the configured model."""
-    agent = await agent_client.agents.create_agent(
-        name=_AGENT_NAME_IDENTIFIER,
-        model=env_settings.azure_ai_bing_agent_model,
+    return bing_agent_name(
+        model=model,
+        instructions=instructions,
+        grounding=grounding,
     )
-    return agent.id
+
+
+async def create_bing_agent(
+    agent_client: AIProjectClient,
+    *,
+    agent_name: str,
+    model: str,
+    instructions: str,
+    grounding: BingGroundingConfiguration,
+) -> str:
+    """Create a Foundry agent version and return its name."""
+    started = time.perf_counter()
+    agent = await agent_client.agents.create_version(
+        agent_name=agent_name,
+        definition=PromptAgentDefinition(
+            model=model,
+            instructions=instructions,
+            tools=[get_bing_grounding_tool(grounding)],
+            tool_choice="required",
+        ),
+        description="Unique Bing grounding agent",
+    )
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    _LOGGER.info(
+        "Created Bing grounding agent version %s (id=%s) in %.0fms",
+        agent.name,
+        agent.id,
+        elapsed_ms,
+    )
+    return agent.name
 
 
 async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
-    """Return the Bing grounding agent id, creating one if it doesn't exist yet."""
-    if env_settings.azure_ai_assistant_id:
-        return env_settings.azure_ai_assistant_id
+    """Compatibility wrapper: return the resolved Bing grounding agent name.
 
-    try:
-        _LOGGER.info("Looking for existing agent")
-        return await _get_agent_id(agent_client)
-    except Exception as e:
-        _LOGGER.exception(f"Error getting agent: {e}")
-        _LOGGER.info("No existing agent found, creating a new one")
-        return await _create_agent_id(agent_client)
+    Does not call Foundry. Creation happens lazily on Responses miss.
+    """
+    del agent_client  # kept for call-site compatibility
+    return resolve_bing_agent_name(
+        model=env_settings.azure_ai_bing_agent_model,
+        instructions=RESPONSE_RULE,
+        grounding=BingGroundingConfiguration(fetch_size=5),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -75,11 +110,13 @@ async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
 # ---------------------------------------------------------------------------
 
 
-def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
+def get_bing_grounding_tool(
+    grounding: BingGroundingConfiguration,
+) -> BingGroundingTool:
     """Build a BingGroundingTool configured with the environment connection string.
 
     Args:
-        fetch_size: Maximum number of search results the tool should return.
+        grounding: Bing tool knobs; knobs left unset keep Bing's own defaults.
 
     Raises:
         ValueError: If the Bing resource connection string is not configured.
@@ -87,7 +124,18 @@ def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
     connection_id = env_settings.azure_ai_bing_resource_connection_string
     if not connection_id:
         raise ValueError("Azure AI Bing Resource Connection String is not set")
-    return BingGroundingTool(connection_id=connection_id, count=fetch_size)
+    return BingGroundingTool(
+        bing_grounding=BingGroundingSearchToolParameters(
+            search_configurations=[
+                BingGroundingSearchConfiguration(
+                    project_connection_id=connection_id,
+                    count=grounding.fetch_size,
+                    market=grounding.market,
+                    freshness=grounding.freshness,
+                )
+            ]
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -95,107 +143,240 @@ def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
 # ---------------------------------------------------------------------------
 
 
+def _is_missing_agent_error(exc: BaseException, *, agent_name: str) -> bool:
+    """Return True when Responses failed because the agent does not exist."""
+    status_code = getattr(exc, "status_code", None)
+    message = str(exc).lower()
+    name_lower = agent_name.lower()
+
+    if isinstance(exc, openai.NotFoundError) or status_code == 404:
+        return True
+
+    missing_markers = (
+        "not found",
+        "does not exist",
+        "unknown agent",
+        "agent_not_found",
+        "no agent",
+    )
+    if any(marker in message for marker in missing_markers) and name_lower in message:
+        return True
+    if status_code in {400, 404} and any(
+        marker in message for marker in missing_markers
+    ):
+        return True
+    return False
+
+
 async def create_and_process_run(
     agent_client: AIProjectClient,
-    agent_id: str,
     query: str,
-    fetch_size: int,
-    response_parsers_strategies: list[ResponseParser],
+    grounding: BingGroundingConfiguration,
     generation_instructions: str,
-) -> list[WebSearchResult]:
-    """Execute a Bing-grounded agent run and return parsed search results.
+) -> tuple[str, list[AnswerSpanCitation]]:
+    """Execute a Bing-grounded agent run and return its answer and citations.
 
-    Creates a thread with the user query, runs the agent with Bing grounding,
-    then converts the unstructured response into ``WebSearchResult`` objects by
-    trying each parser strategy in order until one succeeds.
+    Optimistically calls Responses with a hash-derived agent name. If the agent
+    is missing, creates it once and retries.
 
     Args:
-        agent_client: Azure AI project client used to manage agents and threads.
+        agent_client: Azure AI project client used to manage agents.
         query: The search query to send to the agent.
-        fetch_size: Maximum number of Bing results the agent should retrieve.
-        response_parsers_strategies: Ordered list of parsing strategies to try
-            when converting the agent's free-text response into structured results.
+        grounding: Bing tool knobs (result count, market, language, freshness).
+        generation_instructions: Per-request system instructions for the agent.
+
+    Returns:
+        The answer text and its citations, with offsets into that text.
 
     Raises:
-        Exception: If the agent run fails, is cancelled, or expires.
-        ValueError: If none of the parser strategies can parse the response.
+        Exception: If the agent run fails.
     """
-    if not agent_id:
-        _LOGGER.warning("No agent ID provided")
-        thread = await _create_agent_and_run_thread(
-            agent_client, query, fetch_size, generation_instructions
-        )
-    else:
-        _LOGGER.warning(f"Using existing agent ID: {agent_id}")
-        thread = await _create_agent_run_with_agent_id(agent_client, agent_id, query)
-
-    if thread.status in [RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.EXPIRED]:
-        raise Exception(f"Run failed: {thread.last_error}")
-
-    answer = await _get_answer_from_thread(thread.thread_id, agent_client)
-
-    search_results = await convert_response_to_search_results(
-        answer, response_parsers_strategies
+    model = env_settings.azure_ai_bing_agent_model
+    return await _run_responses_agent(
+        agent_client,
+        query=query,
+        model=model,
+        instructions=build_bing_citation_instructions(generation_instructions),
+        grounding=grounding,
     )
 
-    return search_results
 
-
-async def _create_agent_run_with_agent_id(
+async def _run_responses_agent(
     agent_client: AIProjectClient,
-    agent_id: str,
+    *,
     query: str,
-):
-    """Execute a Bing-grounded agent run and return parsed search results."""
-    agent_run = await agent_client.agents.create_thread_and_process_run(
-        agent_id=agent_id,
-        thread=AgentThreadCreationOptions(
-            messages=[ThreadMessageOptions(role="user", content=query)]
-        ),
-    )
-    return agent_run
+    model: str,
+    instructions: str,
+    grounding: BingGroundingConfiguration,
+) -> tuple[str, list[AnswerSpanCitation]]:
+    """Invoke the agent via Responses API and return the full output text.
 
-
-async def _create_agent_and_run_thread(
-    agent_client: AIProjectClient,
-    query: str,
-    fetch_size: int,
-    generation_instructions: str,
-):
-    agent_id = await get_or_create_agent_id(agent_client)
-
-    instructions = f"{generation_instructions}\n{RESPONSE_RULE}"
-
-    agent_run = await agent_client.agents.create_thread_and_process_run(
-        agent_id=agent_id,
-        model=env_settings.azure_ai_bing_agent_model,
-        toolset=get_bing_grounding_tool(fetch_size=fetch_size),  # type: ignore
+    Instructions must already be baked into the agent version — Foundry returns
+    ``invalid_payload`` if ``instructions`` is passed alongside ``agent_reference``.
+    Missing agents are auto-provisioned on first miss.
+    """
+    resolved_name = resolve_bing_agent_name(
+        model=model,
         instructions=instructions,
-        thread=AgentThreadCreationOptions(
-            messages=[ThreadMessageOptions(role="user", content=query)]
-        ),
+        grounding=grounding,
     )
-    return agent_run
+    openai_client = get_openai_client(agent_client)
 
-
-async def _get_answer_from_thread(thread_id: str, agent_client: AIProjectClient) -> str:
-    """Concatenate all assistant text messages from a thread into a single string."""
-    messages = agent_client.agents.messages.list(thread_id=thread_id)
-    answer = ""
-    citations: list[MessageTextUrlCitationAnnotation] = []
-
-    async for message in messages:
-        if message.role == "assistant":
-            for content in message.content:
-                if isinstance(content, MessageTextContent):
-                    answer += content.text.value
-                elif isinstance(content, MessageTextUrlCitationAnnotation):
-                    citations.append(content)
-
-    for citation in citations:
-        answer = answer.replace(
-            citation.text,
-            f"[{citation.url_citation.title}]({citation.url_citation.url})",
+    try:
+        stream = await _create_responses_stream(
+            openai_client,
+            agent_name=resolved_name,
+            query=query,
+        )
+    except Exception as exc:
+        if not _is_missing_agent_error(exc, agent_name=resolved_name):
+            raise
+        _LOGGER.info(
+            "Responses failed for missing Bing agent %s; creating then retrying: %s",
+            resolved_name,
+            exc,
+        )
+        try:
+            await create_bing_agent(
+                agent_client,
+                agent_name=resolved_name,
+                model=model,
+                instructions=instructions,
+                grounding=grounding,
+            )
+        except UnicodeDecodeError:
+            # Foundry can persist the agent but return a compressed create response
+            # that azure-core fails to decode. The Responses retry below verifies
+            # whether creation actually succeeded.
+            _LOGGER.warning(
+                "Could not decode create response for Bing agent %s; "
+                "verifying creation through Responses",
+                resolved_name,
+            )
+        stream = await _create_responses_stream(
+            openai_client,
+            agent_name=resolved_name,
+            query=query,
         )
 
-    return answer
+    answer_parts: list[str] = []
+    citations: list[AnswerSpanCitation] = []
+    completed_answer: str | None = None
+
+    async with stream:
+        async for event in stream:
+            if isinstance(event, ResponseTextDeltaEvent):
+                if event.delta:
+                    answer_parts.append(event.delta)
+            elif isinstance(event, ResponseCompletedEvent):
+                completed_answer = event.response.output_text
+                citations = _extract_response_url_citations(event.response)
+                collector.record_token_usage(
+                    model_name=model,
+                    usage=event.response.usage,
+                    source="web_search.grounding.bing",
+                )
+
+    answer = completed_answer if completed_answer is not None else "".join(answer_parts)
+    return answer, citations
+
+
+async def _create_responses_stream(
+    openai_client: openai.AsyncOpenAI,
+    *,
+    agent_name: str,
+    query: str,
+) -> openai.AsyncStream[ResponseStreamEvent]:
+    started = time.perf_counter()
+    stream = await openai_client.responses.create(
+        stream=True,
+        input=query,
+        extra_body={
+            "agent_reference": {
+                "name": agent_name,
+                "type": "agent_reference",
+            }
+        },
+    )
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    _LOGGER.info(
+        "Opened Bing Responses stream for agent %s in %.0fms",
+        agent_name,
+        elapsed_ms,
+    )
+    return stream
+
+
+def _extract_message_url_citations(
+    item: ResponseOutputMessage,
+    *,
+    start_index_offset: int = 0,
+) -> list[AnswerSpanCitation]:
+    """Turn the URL annotations on one output message into citations.
+
+    Args:
+        item: A completed assistant message. Its text can be split across
+            several ``output_text`` parts, and each annotation's offsets are
+            relative to the part it is attached to.
+        start_index_offset: Length of the answer text before this message, so
+            the returned offsets point into the full answer.
+
+    Returns:
+        One citation per URL annotation, carrying the marker text the
+        annotation spans and its offsets into the full answer. Annotations
+        without a URL or with an empty span are skipped.
+    """
+    if not item.content:
+        return []
+
+    citations: list[AnswerSpanCitation] = []
+    text_offset = start_index_offset
+    for text_content in item.content:
+        if not isinstance(text_content, ResponseOutputText):
+            continue
+        for annotation in text_content.annotations or []:
+            if not isinstance(annotation, AnnotationURLCitation):
+                continue
+            marker = text_content.text[annotation.start_index : annotation.end_index]
+            if annotation.url and marker:
+                citations.append(
+                    AnswerSpanCitation(
+                        url=annotation.url,
+                        title=annotation.title,
+                        marker=marker,
+                        start_index=text_offset + annotation.start_index,
+                        end_index=text_offset + annotation.end_index,
+                        output_item_id=item.id,
+                    )
+                )
+        text_offset += len(text_content.text)
+    return citations
+
+
+def _extract_response_url_citations(
+    response: Response,
+) -> list[AnswerSpanCitation]:
+    """Extract citations with offsets into ``response.output_text``."""
+    citations: list[AnswerSpanCitation] = []
+    text_offset = 0
+    for item in response.output or []:
+        if not isinstance(item, ResponseOutputMessage):
+            continue
+        citations.extend(
+            _extract_message_url_citations(
+                item,
+                start_index_offset=text_offset,
+            )
+        )
+        text_offset += sum(
+            len(content.text)
+            for content in item.content or []
+            if isinstance(content, ResponseOutputText)
+        )
+
+    _LOGGER.info(
+        "Foundry Bing citation annotations response_id=%s citation_count=%d",
+        response.id,
+        len(citations),
+    )
+    return citations

@@ -5,7 +5,7 @@
 # -----------------------------------------------------------------------------
 # Build stage
 # -----------------------------------------------------------------------------
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:0.13.8-python3.12-trixie-slim@sha256:ee8a8854267a3bd09ac0364420803fb74a069068b5fb279a2cf1df664f7273db AS builder
 
 WORKDIR /app
 
@@ -13,10 +13,16 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 
 # Copy dependency files first (for better caching)
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 
-# Install dependencies
-RUN uv sync --frozen --no-install-project --no-dev
+# Install dependencies from PyPI. --no-sources ignores the editable path
+# sources for unique-mcp / unique-toolkit (which live outside this build
+# context in the monorepo) so the image can be built standalone, e.g. with
+# `az acr build` from this directory.
+# Explicit .devN pins in pyproject are enough for prereleases (uv default
+# prerelease mode is if-necessary-or-explicit); no --prerelease=allow.
+RUN uv lock --no-sources && \
+    uv sync --frozen --no-install-project --no-dev
 
 # Copy the application source code
 COPY . .
@@ -27,7 +33,7 @@ RUN uv sync --frozen --no-dev
 # -----------------------------------------------------------------------------
 # Runtime stage
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS runtime
 
 WORKDIR /app
 

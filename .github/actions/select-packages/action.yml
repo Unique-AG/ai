@@ -24,11 +24,11 @@ runs:
     - name: Build matrix
       id: build
       shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        SELECTED: ${{ inputs.selected }}
+        CHANGES: ${{ inputs.changes }}
       run: |
-        PACKAGES='${{ inputs.packages }}'
-        SELECTED="${{ inputs.selected }}"
-        CHANGES='${{ inputs.changes }}'
-
         if [ "$SELECTED" = "all" ]; then
           # Compact the JSON so GITHUB_OUTPUT below stays single-line.
           # inputs.packages arrives pretty-printed from get-packages-matrix

@@ -2,10 +2,17 @@
 Tests for unique_deep_research.unique_custom.tools module.
 """
 
+import logging
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from httpx import HTTPStatusError, Request, Response
 from langchain_core.runnables import RunnableConfig
+from unique_search_proxy_core.context import (
+    LOCAL_REQUEST_CONTEXT,
+    EntryPoint,
+    RequestContext,
+)
 
 from unique_deep_research.config import UniqueEngine
 from unique_deep_research.unique_custom.tools import (
@@ -21,6 +28,7 @@ from unique_deep_research.unique_custom.tools import (
     get_today_str,
     research_complete,
     research_complete_tool_called,
+    web_fetch,
     web_search,
 )
 
@@ -168,6 +176,62 @@ async def test_crawl_url__returns_error_message__when_request_fails() -> None:
     assert success is False
     assert "Unable to crawl URL in web_fetch" in content
     assert title is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_url__logs_error_type_and_status_without_url__when_request_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify a failed crawl logs the error type and HTTP status, not the URL.
+    Why this matters: httpx error messages include the URL, which can reveal what the user researches.
+    Setup summary: Mock AsyncClient to raise an HTTPStatusError naming the URL, assert the log omits it.
+    """
+    # Arrange
+    url = "https://example.com/private-report"
+    request = Request("GET", url)
+    mock_client = AsyncMock()
+    mock_client.get.side_effect = HTTPStatusError(
+        f"Client error '404 Not Found' for url '{url}'",
+        request=request,
+        response=Response(404, request=request),
+    )
+
+    # Act
+    _, _, success = await crawl_url(mock_client, url)
+
+    # Assert
+    assert success is False
+    assert "Failed to crawl URL: HTTPStatusError (status 404)" in caplog.text
+    assert "example.com" not in caplog.text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_web_fetch__does_not_log_url__when_fetch_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify web_fetch keeps the URL out of the log when a page cannot be fetched.
+    Why this matters: Fetched URLs can reveal what the user researches.
+    Setup summary: Patch crawl_url to fail, assert the tool result names the URL and the log does not.
+    """
+    # Arrange
+    url = "https://example.com/private-report"
+    caplog.set_level(logging.INFO)
+
+    # Act
+    with patch(
+        "unique_deep_research.unique_custom.tools.crawl_url",
+        AsyncMock(return_value=("Unable to crawl URL in web_fetch", None, False)),
+    ):
+        result = await web_fetch.ainvoke({"url": url}, RunnableConfig())
+
+    # Assert
+    assert url in result
+    assert "Unable to fetch content in web_fetch" in caplog.text
+    assert "example.com" not in caplog.text
 
 
 @pytest.mark.ai
@@ -808,3 +872,42 @@ async def test_web_search__uses_snippet_label__not_content_label() -> None:
     # Assert
     assert "Snippet: This is the snippet text" in result
     assert "content: This is the snippet text" not in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("with_context", [True, False])
+async def test_web_search__passes_request_context__to_search_engine_service(
+    with_context: bool,
+) -> None:
+    """
+    Purpose: Verify web_search hands the configured request context to the search engine.
+    Why this matters: Search-proxy attributes the search from this context, and falls back to local without it.
+    Setup summary: Mock the engine factory, run with and without a context in configurable.
+    """
+    # Arrange
+    request_context = RequestContext(
+        company_id="1",
+        user_id="2",
+        chat_id="chat",
+        entry_point=EntryPoint.DEEP_RESEARCH,
+    )
+    config = _make_web_search_config()
+    if with_context:
+        config["configurable"]["request_context"] = request_context
+    mock_search_service = AsyncMock()
+    mock_search_service.search = AsyncMock(return_value=[])
+
+    # Act
+    with (
+        patch(
+            "unique_deep_research.unique_custom.tools.get_search_engine_service",
+            return_value=mock_search_service,
+        ) as mock_factory,
+        patch("unique_deep_research.unique_custom.tools.write_tool_message_log"),
+    ):
+        await web_search.ainvoke({"query": "test query"}, config)
+
+    # Assert
+    expected = request_context if with_context else LOCAL_REQUEST_CONTEXT
+    assert mock_factory.call_args.kwargs["request_context"] == expected

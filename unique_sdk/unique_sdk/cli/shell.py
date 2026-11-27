@@ -27,7 +27,12 @@ from unique_sdk.cli.commands.files import (
 )
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
-from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.navigation import (
+    LS_DEFAULT_LIMIT,
+    cmd_cd,
+    cmd_ls,
+    cmd_pwd,
+)
 from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_create,
     cmd_schedule_delete,
@@ -62,7 +67,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
       download <name|path|id> [dest] Download a file to local machine
       rm <name|path|id>         Delete a file
       mv <old|path|id> <new>    Rename a file
-      cite <name|path|id> [--pages] --read-method METHOD  Declare page citations
+      cite <name|path|id> [...] [--pages] --read-method METHOD  Declare page citations (one or more files)
 
     Search:
       search <query> [options]  Combined search (vector + full-text)
@@ -89,7 +94,10 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --chat-id / -c <id>            Associated chat ID
         --message-id / -m <id>         Associated message ID
         --timeout <seconds>            Max wait time, also sets when the
-                                       request expires (default: 7200)
+                                       request expires unless --expires-in
+                                       is given (default: 7200)
+        --expires-in <seconds>         Decouple server-side expiry from
+                                       --timeout (defaults to --timeout)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
         --metadata key=value           Metadata (repeatable)
         --no-visible                   Skip the UN-19815 visibility workaround
@@ -97,7 +105,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --placeholder-text <text>      Text on the placeholder thinking step
         --cleanup collapse|delete      How to tear down the placeholder
       elicit create <message> [opts] Fire-and-forget create
-        --mode FORM|URL                Display mode (required)
+        --mode FORM|URL                Display mode (default: FORM)
         --tool-name / -t <name>        Tool label (required)
         --schema <json>                JSON schema (FORM mode)
         --url <url>                    External URL (URL mode)
@@ -214,10 +222,12 @@ class UniqueShell(cmd.Cmd):
     def do_ls(self, arg: str) -> None:
         """List folders and files in a directory.
 
-        Usage: ls [target]
+        Usage: ls [target] [--limit N] [--skip N] [--all]
 
         Without arguments, lists the current directory. With an argument,
         lists the specified folder (by name, path, or scope ID).
+        Shows 50 folders and 50 files by default; when a folder holds more,
+        the output says so and prints the command for the rest.
 
         Output columns: TYPE  NAME  ID  SIZE  UPDATED
 
@@ -230,18 +240,62 @@ class UniqueShell(cmd.Cmd):
           /> ls /Reports/Q1
           /> ls scope_abc123
         """
-        target = arg.strip() or None
-        self._print(cmd_ls(self.state, target))
+        try:
+            parts = shlex.split(arg)
+        except ValueError as e:
+            self._print(f"ls: {e}")
+            return
+        target: str | None = None
+        skip = 0
+        limit = LS_DEFAULT_LIMIT
+        all_items = False
+        # Accept --limit=20 / --skip=50 like the one-shot CLI does.
+        expanded: list[str] = []
+        for part in parts:
+            name, sep, value = part.partition("=")
+            if sep and name in ("--limit", "--skip"):
+                expanded.extend([name, value])
+            else:
+                expanded.append(part)
+        it = iter(expanded)
+        for part in it:
+            if part in ("--all", "-a"):
+                all_items = True
+            elif part in ("--limit", "-l", "--skip"):
+                value = next(it, None)
+                try:
+                    number = int(value) if value is not None else None
+                except ValueError:
+                    number = None
+                if number is None:
+                    self._print(f"ls: {part} needs a whole number")
+                    return
+                if part == "--skip":
+                    skip = number
+                else:
+                    limit = number
+            elif part.startswith("-") and len(part) > 1:
+                self._print(f"ls: unknown option {part}")
+                return
+            elif target is None:
+                target = part
+            else:
+                self._print("ls: expected at most one target")
+                return
+        self._print(
+            cmd_ls(self.state, target, skip=skip, limit=limit, all_items=all_items)
+        )
 
     # -- Folder operations --
 
     def do_mkdir(self, arg: str) -> None:
-        """Create a new folder under the current directory.
+        """Create a folder by relative name or absolute path.
 
         Usage: mkdir <name>
 
-        Creates a child folder with the given name. Nested paths are
-        supported (e.g., "A/B/C" creates the full hierarchy).
+        A relative name is created under the current directory. An absolute
+        path (starting with /) is created from the root, including under
+        /home-<userId>. Nested paths create the full hierarchy.
 
         Examples:
           /Reports> mkdir Q2
@@ -249,6 +303,9 @@ class UniqueShell(cmd.Cmd):
 
           /Reports> mkdir "2025/Q1"
           Created: /Reports/2025/Q1 (scope_xyz999)
+
+          /> mkdir /home-user_1/second-brain/clients/X
+          Created: /home-user_1/second-brain/clients/X (scope_home1)
         """
         name = arg.strip()
         if not name:
@@ -441,27 +498,28 @@ class UniqueShell(cmd.Cmd):
         self._print(cmd_download(self.state, name_or_id, local_dest))
 
     def do_cite(self, arg: str) -> None:
-        """Declare page citations for a file.
+        """Declare page citations for one or more files.
 
-        Usage: cite <name|path|content_id> [--pages RANGE] --read-method METHOD
+        Usage: cite <name|path|content_id> [...] [--pages RANGE] --read-method METHOD
 
         --read-method is mandatory (one of: text, vision, indexed). --pages is
-        optional; omit it to cite the whole file.
+        optional; omit it to cite the whole file. With several files, --pages
+        and --read-method apply to each; a file that fails does not stop the
+        others.
 
         Examples:
           /Reports> cite report.pdf --pages 3,5,7 --read-method text
           /Reports> cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
           /Reports> cite cont_abc123 --pages 1-4 --read-method indexed
           /Reports> cite notes.docx --read-method text
+          /Reports> cite a.xlsx b.xlsx c.csv --read-method text
         """
         from unique_sdk.cli.commands.cite_file import (
             READ_METHODS,
             cmd_cite_file,
         )
 
-        usage = (
-            "Usage: cite <name|path|content_id> [--pages RANGE] --read-method METHOD"
-        )
+        usage = "Usage: cite <name|path|content_id> [...] [--pages RANGE] --read-method METHOD"
         parts = shlex.split(arg)
         if not parts:
             self._print(usage)
@@ -498,7 +556,8 @@ class UniqueShell(cmd.Cmd):
                 f"cite: --read-method is required (one of: {', '.join(READ_METHODS)})"
             )
             return
-        self._print(cmd_cite_file(self.state, positional[0], pages, read_method))
+        for name_or_id in positional:
+            self._print(cmd_cite_file(self.state, name_or_id, pages, read_method))
 
     def _parse_int(self, raw: str, flag: str) -> tuple[int | None, bool]:
         """Parse an int option value, returning (value, ok). Prints on failure."""
@@ -811,12 +870,15 @@ class UniqueShell(cmd.Cmd):
           --tool-name / -t <name>      Tool label shown in the UI
           --schema <json>              JSON schema for form fields
           --url <url>                  External URL (create with --mode URL)
-          --mode FORM|URL              Display mode (create only, required)
+          --mode FORM|URL              Display mode (create only, default: FORM)
           --chat-id / -c <id>          Associated chat ID
           --message-id / -m <id>       Associated message ID
-          --expires-in <seconds>       Auto-expire the request (create only)
+          --expires-in <seconds>       Auto-expire the request. For ask, this
+                                       decouples expiry from --timeout
+                                       (defaults to --timeout when omitted)
           --timeout <seconds>          (ask / wait) max wait time, default 7200;
                                        for ask this also sets when it expires
+                                       unless --expires-in is given
           --poll-interval <seconds>    (ask / wait) poll frequency, default 2
           --external-id <id>           External identifier (create only)
           --metadata key=value         Metadata (repeatable)
@@ -999,13 +1061,6 @@ class UniqueShell(cmd.Cmd):
         if not message:
             self._print("Usage: elicit ask <message> [options]")
             return
-        if opts["expires_in_seconds"] is not None:
-            self._print(
-                "No such option: --expires-in for 'elicit ask'. Use --timeout "
-                "(it also sets when the request expires). For expiry decoupled "
-                "from a local wait, use 'elicit create --expires-in'."
-            )
-            return
 
         ask_kwargs: dict[str, Any] = {
             "message": message,
@@ -1014,6 +1069,7 @@ class UniqueShell(cmd.Cmd):
             "chat_id": opts["chat_id"],
             "message_id": opts["message_id"],
             "timeout": opts["timeout"],
+            "expires_in_seconds": opts["expires_in_seconds"],
             "poll_interval": opts["poll_interval"],
             "metadata": opts["metadata"] or None,
             "visible": opts["visible"],
@@ -1033,18 +1089,15 @@ class UniqueShell(cmd.Cmd):
         message = opts["message"]
         if not message:
             self._print(
-                "Usage: elicit create <message> --mode FORM|URL --tool-name <name> [options]"
+                "Usage: elicit create <message> [--mode FORM|URL] --tool-name <name> [options]"
             )
-            return
-        if not opts["mode"]:
-            self._print("Error: --mode is required (FORM or URL).")
             return
         if not opts["tool_name"]:
             self._print("Error: --tool-name / -t is required.")
             return
 
         create_kwargs: dict[str, Any] = {
-            "mode": opts["mode"],
+            "mode": opts["mode"] or "FORM",
             "message": message,
             "tool_name": opts["tool_name"],
             "schema": opts["schema"],
@@ -1112,13 +1165,17 @@ class UniqueShell(cmd.Cmd):
           --cron / -c <expr>      Cron expression (required)
           --assistant / -a <id>   Assistant ID (required)
           --prompt / -p <text>    Prompt text (required)
+          --timezone / -tz <tz>   IANA timezone (required)
+          --name / -n <text>      Short label shown in the UI (optional)
           --chat-id <id>          Chat to continue (optional)
           --disabled              Create in disabled state
 
         Update options:
           --cron / -c <expr>      Updated cron expression
+          --timezone / -tz <tz>   IANA timezone (required with --cron)
           --assistant / -a <id>   Updated assistant ID
           --prompt / -p <text>    Updated prompt
+          --name / -n <text>      Updated label ('none' to clear)
           --chat-id <id>          Updated chat ID ('none' to clear)
           --enable                Enable the task
           --disable               Disable the task
@@ -1126,7 +1183,7 @@ class UniqueShell(cmd.Cmd):
         Examples:
           /> schedule list
           /> schedule get clx3ghi4f0003mnopqr345678
-          /> schedule create -c "0 9 * * 1-5" -a clx1abc -p "Daily report"
+          /> schedule create -c "0 9 * * 1-5" -tz Europe/Zurich -a clx1abc -p "Daily report" -n "Daily report"
           /> schedule update clx3ghi4f --disable
           /> schedule delete clx3ghi4f0003mnopqr345678
         """
@@ -1176,6 +1233,8 @@ class UniqueShell(cmd.Cmd):
         cron: str | None = None
         assistant_id: str | None = None
         prompt: str | None = None
+        timezone: str | None = None
+        name: str | None = None
         chat_id: str | None = None
         disabled = False
 
@@ -1190,6 +1249,12 @@ class UniqueShell(cmd.Cmd):
             elif parts[i] in ("--prompt", "-p") and i + 1 < len(parts):
                 prompt = parts[i + 1]
                 i += 2
+            elif parts[i] in ("--timezone", "-tz") and i + 1 < len(parts):
+                timezone = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--name", "-n") and i + 1 < len(parts):
+                name = parts[i + 1]
+                i += 2
             elif parts[i] == "--chat-id" and i + 1 < len(parts):
                 chat_id = parts[i + 1]
                 i += 2
@@ -1200,10 +1265,10 @@ class UniqueShell(cmd.Cmd):
                 self._print(f"Unknown option: {parts[i]}")
                 return
 
-        if not cron or not assistant_id or not prompt:
+        if not cron or not assistant_id or not prompt or not timezone:
             self._print(
                 "Usage: schedule create --cron <expr> --assistant <id> --prompt <text> "
-                "[--chat-id <id>] [--disabled]"
+                "--timezone <tz> [--name <text>] [--chat-id <id>] [--disabled]"
             )
             return
 
@@ -1213,6 +1278,8 @@ class UniqueShell(cmd.Cmd):
                 cron=cron,
                 assistant_id=assistant_id,
                 prompt=prompt,
+                timezone=timezone,
+                name=name,
                 chat_id=chat_id,
                 enabled=not disabled,
             )
@@ -1223,7 +1290,9 @@ class UniqueShell(cmd.Cmd):
         cron: str | None = None
         assistant_id: str | None = None
         prompt: str | None = None
+        name: str | None = None
         chat_id: str | None = None
+        timezone: str | None = None
         enable = False
         disable = False
 
@@ -1237,6 +1306,12 @@ class UniqueShell(cmd.Cmd):
                 i += 2
             elif parts[i] in ("--prompt", "-p") and i + 1 < len(parts):
                 prompt = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--timezone", "-tz") and i + 1 < len(parts):
+                timezone = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--name", "-n") and i + 1 < len(parts):
+                name = "" if parts[i + 1].lower() == "none" else parts[i + 1]
                 i += 2
             elif parts[i] == "--chat-id" and i + 1 < len(parts):
                 chat_id = "" if parts[i + 1].lower() == "none" else parts[i + 1]
@@ -1268,7 +1343,9 @@ class UniqueShell(cmd.Cmd):
                 cron=cron,
                 assistant_id=assistant_id,
                 prompt=prompt,
+                name=name,
                 chat_id=chat_id,
+                timezone=timezone,
                 enabled=enabled,
             )
         )

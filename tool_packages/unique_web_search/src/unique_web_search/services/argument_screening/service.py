@@ -9,8 +9,8 @@ import json
 import logging
 from time import time
 
-from jinja2 import Template
 from pydantic import Field, PrivateAttr
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.utils.structured_output.schema import StructuredOutputModel
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
@@ -62,6 +62,10 @@ class ArgumentScreeningService:
         self._language_model = language_model
         self._config = config
 
+    @property
+    def enabled(self) -> bool:
+        return self._config.enabled
+
     async def __call__(
         self, arguments: dict, message_log_callback: WebSearchMessageLogger
     ) -> ArgumentScreeningResult:
@@ -95,7 +99,7 @@ class ArgumentScreeningService:
         _LOGGER.info("Running argument screening agent...")
 
         serialized_args = json.dumps(arguments, indent=2, default=str)
-        rendered_guidelines = Template(
+        rendered_guidelines = sandboxed_template(
             DEFAULT_GUIDELINES_WITH_KEYWORDS_TEMPLATE
         ).render(
             guidelines=self._config.guidelines,
@@ -104,7 +108,7 @@ class ArgumentScreeningService:
             ),
         )
 
-        user_prompt = Template(self._config.user_prompt_template).render(
+        user_prompt = sandboxed_template(self._config.user_prompt_template).render(
             arguments=serialized_args,
             guidelines=rendered_guidelines,
         )
@@ -116,6 +120,7 @@ class ArgumentScreeningService:
                 system_message=self._config.system_prompt,
                 user_message=user_prompt,
                 response_model=ArgumentScreeningResult,
+                invocation_source="web_search.argument_screening",
             )
         except StructuredLlmUnparseableResponseError as e:
             raise ArgumentScreeningUnparseableResponseException(
@@ -136,6 +141,6 @@ class ArgumentScreeningService:
         )
 
     def build_rejection_response(self, result: ArgumentScreeningResult) -> str:
-        return Template(self._config.rejection_response_template).render(
+        return sandboxed_template(self._config.rejection_response_template).render(
             reason=result.reason
         )

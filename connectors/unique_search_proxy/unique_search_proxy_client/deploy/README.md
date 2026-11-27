@@ -150,7 +150,13 @@ and rendered into `_generated.tpl` (only when `networkPolicy.enabled`):
   time and emits `toFQDNs: matchName: <host>` on the URL's port (443/`http`→80/explicit).
 - **domain wildcard** (e.g. Jina, `EgressDomainWildcard("api_domain")`) → emits
   `toFQDNs: matchPattern: "*.<domain>"`, covering its multiple derived subdomains.
+- **proxy host** (`httpClient`, `EgressProxyHost`) → when `proxyHost` and `proxyPort` are both set, emits
+  `toCIDR` `/32` for an IPv4 host or `toFQDNs: matchName` otherwise. The render fails on an invalid host or port.
 - **`egress=None`** (e.g. agent providers reaching Azure/GCP) → no rule generated.
+
+Ports 443 and 80 to the internet are not generated. They are the `worldHttp` baseline rule in
+`values.yaml` (`networkPolicy.baseline.egress.worldHttp`). Disabling it requires a proxy host and
+port (`templates/guards.yaml`).
 
 ---
 

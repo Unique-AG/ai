@@ -12,6 +12,7 @@ from unique_search_proxy_core.errors import (
     ForbiddenTargetError,
     ProxyError,
     RateLimitedError,
+    ResponseTooLargeError,
     UpstreamError,
     UpstreamTimeoutError,
     ValidationProxyError,
@@ -28,6 +29,7 @@ _CODE_TO_EXCEPTION: dict[str, type[ProxyError]] = {
     ProxyErrorCode.ENGINE_NOT_CONFIGURED.value: EngineNotConfiguredError,
     ProxyErrorCode.UPSTREAM_TIMEOUT.value: UpstreamTimeoutError,
     ProxyErrorCode.EMPTY_SEARCH_RESULTS.value: EmptySearchResultsError,
+    ProxyErrorCode.RESPONSE_TOO_LARGE.value: ResponseTooLargeError,
 }
 
 

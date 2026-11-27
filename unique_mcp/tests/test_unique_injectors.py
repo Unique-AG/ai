@@ -26,6 +26,7 @@ from unique_mcp.unique_injectors import (
     get_request_meta,
     get_unique_service_factory,
     get_unique_settings,
+    get_unique_settings_async,
     get_unique_userinfo,
     get_zitadel_settings,
 )
@@ -162,13 +163,15 @@ def test_get_unique_settings__uses_jwt_claims__when_meta_absent(
 
 
 @pytest.mark.ai
-def test_get_unique_settings__meta_wins_over_jwt(
+def test_get_unique_settings__jwt_wins_over_meta(
     base_settings: UniqueSettings,
 ) -> None:
     """
-    Purpose: Meta is checked before JWT; meta identity must win when both exist.
-    Why this matters: Matches documented priority for trusted internal overrides.
-    Setup summary: Both meta and JWT helpers return auth; expect meta values.
+    Purpose: JWT identity must win when both a bearer token and `_meta` are present.
+    Why this matters: `_meta` is caller-supplied and not bound to the bearer token.
+    If it outranked the JWT, any client able to set `tools/call._meta` could assert
+    an arbitrary user_id/company_id and read another tenant's data.
+    Setup summary: Both meta and JWT helpers return auth; expect the JWT values.
     """
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
@@ -186,6 +189,63 @@ def test_get_unique_settings__meta_wins_over_jwt(
                 company_id=SecretStr("jwt-c"),
             ),
         ),
+    ):
+        s = get_unique_settings()
+    assert s.authcontext.get_confidential_user_id() == "jwt-u"
+    assert s.authcontext.get_confidential_company_id() == "jwt-c"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__ignores_meta_auth__when_access_token_present(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: `_meta` identity is ignored outright on an authenticated request, even
+    when the JWT yields no auth context.
+    Why this matters: a token holder whose JWT lacks the company claim must not be
+    able to fall through to attacker-controlled `_meta` and pick any tenant.
+    Setup summary: access token present, JWT resolution returns None, meta carries
+    identity — expect the env/base auth, not the meta values.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(
+            f"{_MOD}.get_request_meta",
+            return_value={
+                MetaKeys.USER_ID: "meta-u",
+                MetaKeys.COMPANY_ID: "meta-c",
+            },
+        ),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(f"{_MOD}.get_access_token", return_value=object()),
+    ):
+        s = get_unique_settings()
+    assert s.authcontext.get_confidential_user_id() != "meta-u"
+    assert s.authcontext.get_confidential_company_id() != "meta-c"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__uses_meta_auth__when_no_access_token(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: `_meta` identity is still honoured for unauthenticated, platform-internal
+    calls — the case it exists for.
+    Why this matters: tightening the authenticated path must not break Unique AI
+    injecting identity via `_meta` when no OIDC token is involved.
+    Setup summary: no access token, no JWT auth, meta carries identity.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(
+            f"{_MOD}.get_request_meta",
+            return_value={
+                MetaKeys.USER_ID: "meta-u",
+                MetaKeys.COMPANY_ID: "meta-c",
+            },
+        ),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(f"{_MOD}.get_access_token", return_value=None),
     ):
         s = get_unique_settings()
     assert s.authcontext.get_confidential_user_id() == "meta-u"
@@ -209,6 +269,60 @@ def test_get_unique_settings__falls_back_to_env__when_no_meta_no_jwt(
         s = get_unique_settings()
     assert s.authcontext.get_confidential_user_id() == "dummy_user"
     assert s.authcontext.get_confidential_company_id() == "dummy_company"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__uses_userinfo__before_env(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Async resolver prefers Zitadel userinfo over UNIQUE_AUTH_* env.
+    Why this matters: Logged-in users must not search as the service account.
+    Setup summary: No meta/JWT; userinfo returns IDs; expect those IDs.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(
+            f"{_MOD}._userinfo_to_auth_context",
+            new=AsyncMock(
+                return_value=AuthContext(
+                    user_id=SecretStr("ui-user"),
+                    company_id=SecretStr("ui-company"),
+                )
+            ),
+        ),
+    ):
+        s = await get_unique_settings_async()
+    assert s.authcontext.get_confidential_user_id() == "ui-user"
+    assert s.authcontext.get_confidential_company_id() == "ui-company"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__raises__when_token_but_no_identity(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: exercise the defensive guard directly (mocking
+    _userinfo_to_auth_context to return None), since with the real
+    implementation a token present always makes it either succeed or raise
+    first — this exact call path is not reachable via real traffic today.
+    Why this matters: if a future _userinfo_to_auth_context swallows lookup
+    failures instead of raising, this guard must still refuse env fallback.
+    Setup summary: get_access_token returns a token; all auth helpers return None.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(f"{_MOD}._userinfo_to_auth_context", new=AsyncMock(return_value=None)),
+        patch(f"{_MOD}.get_access_token", return_value=MagicMock()),
+        pytest.raises(ValueError, match="Refusing UNIQUE_AUTH_"),
+    ):
+        await get_unique_settings_async()
 
 
 @pytest.mark.ai
@@ -501,3 +615,97 @@ def test_get_unique_service_factory__builds_factory_with_resolved_settings(
     mock_get_settings.assert_called_once()
     mock_factory_cls.assert_called_once_with(settings=base_settings)
     assert result is mock_instance
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__uses_meta__when_no_access_token(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Async resolver honors _meta identity on unauthenticated requests.
+    Why this matters: Unique AI passes identity via _meta when no OIDC token is
+    involved; tightening the authenticated path must not break that.
+    Setup summary: no access token, meta carries canonical user/company keys.
+    """
+    meta = {MetaKeys.USER_ID: "meta-user", MetaKeys.COMPANY_ID: "meta-company"}
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=meta),
+        patch(f"{_MOD}.get_access_token", return_value=None),
+    ):
+        s = await get_unique_settings_async()
+    assert s.authcontext.get_confidential_user_id() == "meta-user"
+    assert s.authcontext.get_confidential_company_id() == "meta-company"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__ignores_meta__when_access_token_present(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: `_meta` identity is ignored on an authenticated request, even when
+    neither JWT claims nor userinfo resolve.
+    Why this matters: `_meta` is unbound to the bearer token, so honouring it for
+    a token holder would let any client assert an arbitrary tenant. The resolver
+    must raise rather than fall through to `_meta` or to UNIQUE_AUTH_*.
+    Setup summary: token present, JWT and userinfo both yield nothing, meta
+    carries identity — expect a refusal.
+    """
+    meta = {MetaKeys.USER_ID: "meta-user", MetaKeys.COMPANY_ID: "meta-company"}
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=meta),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(f"{_MOD}._userinfo_to_auth_context", return_value=None),
+        patch(f"{_MOD}.get_access_token", return_value=object()),
+        pytest.raises(ValueError, match="Refusing UNIQUE_AUTH_"),
+    ):
+        await get_unique_settings_async()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__uses_jwt__before_userinfo(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Async resolver uses JWT claims before calling userinfo.
+    Why this matters: avoids an extra Zitadel round-trip for complete tokens.
+    Setup summary: no meta; JWT auth context present; expect its ids.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
+        patch(
+            f"{_MOD}._fastmcp_access_token_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("jwt-user"),
+                company_id=SecretStr("jwt-company"),
+            ),
+        ),
+    ):
+        s = await get_unique_settings_async()
+    assert s.authcontext.get_confidential_user_id() == "jwt-user"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__falls_back_to_env__without_session(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Without any OAuth session, env-based settings are returned as-is.
+    Why this matters: local unauthenticated development must keep working.
+    Setup summary: no meta/JWT/userinfo/token; expect the base settings object.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(f"{_MOD}._userinfo_to_auth_context", new=AsyncMock(return_value=None)),
+        patch(f"{_MOD}.get_access_token", return_value=None),
+    ):
+        s = await get_unique_settings_async()
+    assert s is base_settings

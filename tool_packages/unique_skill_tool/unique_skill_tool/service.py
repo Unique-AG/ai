@@ -139,7 +139,11 @@ class SkillTool(Tool[SkillToolConfig]):
         if not skills or not self.config.tool_system_reminder_for_user_message:
             return ""
 
-        listing = format_skill_listing(skills=skills, config=self.config)
+        listing = format_skill_listing(
+            skills=skills,
+            context_window_tokens=self.config.language_model_max_input_tokens,
+            config=self.config,
+        )
         return (
             SandboxedEnvironment()
             .from_string(self.config.tool_system_reminder_for_user_message)

@@ -3,7 +3,9 @@ from abc import ABC, abstractmethod
 from time import time
 from typing import Generic, TypeVar
 
+import httpx
 from pydantic import BaseModel
+from unique_search_proxy_core.errors import RateLimitedError, UpstreamTimeoutError
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
@@ -12,7 +14,13 @@ from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
 
-from unique_web_search.metrics import llm_duration, llm_errors
+from unique_web_search.invocation_stats import collector
+from unique_web_search.metrics import (
+    crawl_duration,
+    crawl_errors,
+    llm_duration,
+    llm_errors,
+)
 from unique_web_search.schema import (
     StepDebugInfo,
     WebPageChunk,
@@ -27,6 +35,15 @@ from unique_web_search.services.search_engine.schema import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Only failures that may pass on their own fall back to snippets. Config and
+# contract errors must keep failing visibly.
+_TRANSIENT_CRAWL_ERRORS = (
+    httpx.TimeoutException,
+    httpx.NetworkError,
+    UpstreamTimeoutError,
+    RateLimitedError,
+)
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -70,7 +87,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         self._notify_message = ""
 
         async def notify_callback() -> None:
-            _LOGGER.debug(f"{self.notify_name}: {self.notify_message}")
+            _LOGGER.debug(f"Progress update: {self.notify_name}")
             if self.tool_progress_reporter:
                 await self.tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
@@ -111,6 +128,32 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
     @abstractmethod
     async def run(self) -> list[ContentChunk]:
         raise NotImplementedError("Subclasses must implement this method.")
+
+    async def _crawl_search_result_pages(
+        self, web_search_results: list[WebSearchResult]
+    ) -> list[str]:
+        """Crawl the pages behind search results, one content string per result.
+
+        If the crawl times out, cannot reach the proxy or is rate limited, each
+        result keeps its current content so its title and snippet still reach
+        the model. Other errors propagate.
+        """
+        crawler = self.crawler_service.config.crawler.value
+        try:
+            with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
+                return await self.crawler_service.crawl(
+                    [result.url for result in web_search_results]
+                )
+        except _TRANSIENT_CRAWL_ERRORS as exc:
+            # Exception messages can carry URLs.
+            _LOGGER.warning(
+                "Company %s crawl failed, keeping search snippets crawler=%s pages=%d error_type=%s",
+                self.company_id,
+                crawler,
+                len(web_search_results),
+                type(exc).__name__,
+            )
+            return [result.content for result in web_search_results]
 
     async def _content_processing(
         self, objective: str, web_search_results: list[WebSearchResult]
@@ -159,6 +202,16 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
                 input_text=objective,
                 chunks=content,
                 config=self.chunk_relevancy_sort_config,
+            )
+            # The relevancy sorter makes one LLM call per chunk and attaches the
+            # usage to each ChunkRelevancy.relevancy.invocation_stats; merge it
+            # into the active WebSearch stats scope so it isn't dropped from
+            # token analytics (Internal Search does the same after its sort).
+            collector.record_invocation_stats(
+                invocation
+                for relevancy in sorted_chunks.relevancies
+                if relevancy.relevancy is not None
+                for invocation in relevancy.relevancy.invocation_stats
             )
             _LOGGER.info(f"Sorting chunks message: {sorted_chunks.user_message}")
             return sorted_chunks.content_chunks

@@ -132,6 +132,37 @@ class TestGoogleSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_search__appends_page_description_to_curated_snippet__when_pagemap_has_one(
+        self, google_env: None
+    ) -> None:
+        """
+        Purpose: The curated snippet carries the page's og:description; raw is unchanged.
+        Why this matters: Callers only read curated results, so the description must
+            reach them there to help when the page itself can't be crawled.
+        Setup summary: Mock Google page with one pagemap item and one plain item;
+            assert the first snippet gains the description and the second is untouched.
+        """
+        payload = _google_items_payload()
+        payload["items"][0]["pagemap"] = {
+            "metatags": [{"og:description": "Example page &amp; its description."}]
+        }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            raw, curated = await GoogleSearchService(http_client=client).search(
+                _google_request(fetch_size=5),
+            )
+
+        assert curated.results[0].snippet == (
+            "An example snippet\nExample page & its description."
+        )
+        assert curated.results[1].snippet == "Second result"
+        assert raw.pages[0]["items"][0]["snippet"] == "An example snippet"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_pagination_fetches_multiple_pages(self, google_env: None) -> None:
         pages: list[int] = []
 
@@ -434,15 +465,17 @@ class TestGoogleSearchEndpoint:
 
         pool_transport = httpx.MockTransport(handler)
 
-        from unique_search_proxy_client.web.core.client.service import HttpClientPool
+        from unique_search_proxy_client.web.core.client.service import (
+            HttpClientRegistry,
+        )
 
-        async def mock_create_pool() -> HttpClientPool:
+        async def mock_create_registry() -> HttpClientRegistry:
             client = httpx.AsyncClient(transport=pool_transport)
-            return HttpClientPool(client=client)
+            return HttpClientRegistry.fixed(client)
 
         monkeypatch.setattr(
-            "unique_search_proxy_client.web.app.create_http_client_pool",
-            mock_create_pool,
+            "unique_search_proxy_client.web.app.create_http_client_registry",
+            mock_create_registry,
         )
         with TestClient(create_app()) as client:
             resp = client.post(
@@ -500,18 +533,57 @@ class TestGoogleSearchEndpoint:
 
         pool_transport = httpx.MockTransport(handler)
 
-        from unique_search_proxy_client.web.core.client.service import HttpClientPool
+        from unique_search_proxy_client.web.core.client.service import (
+            HttpClientRegistry,
+        )
 
-        async def mock_create_pool() -> HttpClientPool:
+        async def mock_create_registry() -> HttpClientRegistry:
             client = httpx.AsyncClient(transport=pool_transport)
-            return HttpClientPool(client=client)
+            return HttpClientRegistry.fixed(client)
 
         monkeypatch.setattr(
-            "unique_search_proxy_client.web.app.create_http_client_pool",
-            mock_create_pool,
+            "unique_search_proxy_client.web.app.create_http_client_registry",
+            mock_create_registry,
         )
         with TestClient(create_app()) as client:
             resp = client.post("/v1/search", json=_search_body())
 
         assert resp.status_code == 200
         assert len(resp.json()["curated"]) == 2
+
+
+@pytest.mark.ai
+def test_search__clamps_timeout__when_above_server_ceiling(
+    google_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify a search timeout above the server ceiling is lowered.
+    Why this matters: Callers must not hold a worker longer than allowed.
+    Setup summary: Ceiling 1s, request timeout 600s, engine sleeping 2s;
+        assert 504 reporting the 1s ceiling.
+    """
+    import asyncio
+
+    import unique_search_proxy_client.web.api.v1.search as search_module
+
+    monkeypatch.setattr(
+        search_module,
+        "request_limits_settings",
+        search_module.request_limits_settings.model_copy(
+            update={"max_timeout_seconds": 1},
+        ),
+    )
+
+    async def slow_search(
+        self: GoogleSearchService,
+        call: GoogleSearchRequest,
+    ) -> tuple[Any, list]:
+        await asyncio.sleep(2)
+        return {}, []
+
+    monkeypatch.setattr(GoogleSearchService, "search", slow_search)
+    resp = google_client.post("/v1/search", json={**_search_body(), "timeout": 600})
+
+    assert resp.status_code == 504
+    assert "after 1s" in resp.json()["error"]["message"]

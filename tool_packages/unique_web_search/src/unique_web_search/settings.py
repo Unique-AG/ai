@@ -77,6 +77,7 @@ class Base(BaseSettings):
     custom_web_search_api_additional_query_params: str | None = None
     custom_web_search_api_additional_body_params: str | None = None
     custom_web_search_api_client_config: str | None = None
+    custom_web_search_api_trusted_private_hosts: list[str] = []
 
     # Proxy settings
     ## Shared settings
@@ -93,6 +94,12 @@ class Base(BaseSettings):
     proxy_username: str | None = None
     proxy_password: str | None = None
 
+    ## Username source for per-user corporate proxies
+    proxy_username_source: Literal["settings", "user_metadata"] = "settings"
+    proxy_username_metadata_field: str = "userName"
+    per_user_proxy_company_ids: list[str] = []
+    http_client_cache_size: int = 128
+
     ## For SSL/TLS authentication
     proxy_ssl_cert_path: str | None = None
     proxy_ssl_key_path: str | None = None
@@ -108,7 +115,6 @@ class Base(BaseSettings):
 
     # Azure AI Project settings
     azure_ai_bing_agent_model: str = "gpt-4o-deployment"
-    azure_ai_assistant_id: str | None = None
     azure_ai_project_endpoint: str | None = None
     azure_ai_bing_resource_connection_string: str | None = None
 

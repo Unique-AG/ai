@@ -12,6 +12,7 @@ from unique_toolkit.chat.functions import (
     create_message_tools_async,
     filter_valid_messages,
     get_full_history,
+    get_full_history_async,
     get_message_tools,
     get_message_tools_async,
     get_selection_from_history,
@@ -428,6 +429,55 @@ async def test_list_messages_async(mock_sdk):
         user_id="user123", company_id="company123", chatId="chat123"
     )
     assert result == mock_messages
+
+
+@pytest.mark.asyncio
+async def test_list_messages_async_exclude_gpt_request(mock_sdk):
+    async def async_return():
+        return {"data": []}
+
+    mock_sdk.Message.list_async.return_value = async_return()
+
+    await list_messages_async(
+        "user123", "company123", "chat123", exclude_gpt_request=True
+    )
+
+    mock_sdk.Message.list_async.assert_called_once_with(
+        user_id="user123",
+        company_id="company123",
+        chatId="chat123",
+        excludeGptRequest=True,
+    )
+
+
+def test_get_full_history_excludes_gpt_request(mock_sdk):
+    mock_sdk.Message.list.return_value = {"data": []}
+
+    get_full_history("user123", "company123", "chat123")
+
+    mock_sdk.Message.list.assert_called_once_with(
+        user_id="user123",
+        company_id="company123",
+        chatId="chat123",
+        excludeGptRequest=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_full_history_async_excludes_gpt_request(mock_sdk):
+    async def async_return():
+        return {"data": []}
+
+    mock_sdk.Message.list_async.return_value = async_return()
+
+    await get_full_history_async("user123", "company123", "chat123")
+
+    mock_sdk.Message.list_async.assert_called_once_with(
+        user_id="user123",
+        company_id="company123",
+        chatId="chat123",
+        excludeGptRequest=True,
+    )
 
 
 def test_filter_valid_messages():

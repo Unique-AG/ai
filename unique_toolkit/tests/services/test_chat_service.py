@@ -256,3 +256,79 @@ class TestAssistantMessageIdRetargeting:
 
         assert svc._assistant_message_id == "segment-2"
         assert svc._cancellation_watcher.assistant_message_id == "segment-2"
+
+
+class TestFilterImagesAndDocuments:
+    @pytest.mark.ai
+    def test_filter_images_and_documents__classifies_email_uploads_as_documents(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify chat uploads are split into images and documents without
+        an extension allowlist.
+        Why this matters: The platform stores types outside the old MIME catalog.
+        Dropping them here made the orchestrator report that no file was attached.
+        Setup summary: Run the static filter over a mixed content list and
+        compare the resulting keys.
+        """
+        from unique_toolkit.content.schemas import Content
+
+        contents = [
+            Content(id="cont_pdf", key="report.pdf"),
+            Content(id="cont_docx", key="contract.docx"),
+            Content(id="cont_txt", key="notes.txt"),
+            Content(id="cont_msg", key="mail.msg"),
+            Content(id="cont_eml", key="mail.eml"),
+            Content(id="cont_webm", key="clip.webm"),
+            Content(id="cont_png", key="photo.png"),
+            Content(id="cont_exe", key="run.exe"),
+        ]
+
+        images, documents = ChatService._filter_images_and_documents(contents)
+
+        assert [c.key for c in documents] == [
+            "report.pdf",
+            "contract.docx",
+            "notes.txt",
+            "mail.msg",
+            "mail.eml",
+            "clip.webm",
+            "run.exe",
+        ]
+        assert [c.key for c in images] == ["photo.png"]
+
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.services.chat_service.search_contents_async",
+        new_callable=AsyncMock,
+    )
+    @pytest.mark.asyncio
+    async def test_download_chat_images_and_documents_async__keeps_msg_upload(
+        self,
+        mock_search_contents_async: AsyncMock,
+        context: UniqueContext,
+    ) -> None:
+        """
+        Purpose: Verify the async chat-upload discovery path surfaces an
+        ingested `.msg` as an uploaded document.
+        Why this matters: UN-24575 — this is the exact call UniqueAI's builder
+        uses to decide whether UploadedSearch is registered/forced.
+        Setup summary: Stub the content search to return one `.msg`; assert it
+        comes back in the documents list and not in images.
+        """
+        from unique_toolkit.content.schemas import Content
+
+        msg_content = Content(
+            id="cont_msg",
+            key="mail.msg",
+            mime_type="application/vnd.ms-outlook",
+            applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+        )
+        mock_search_contents_async.return_value = [msg_content]
+        svc = ChatService.from_context(context)
+
+        images, documents = await svc.download_chat_images_and_documents_async()
+
+        assert documents == [msg_content]
+        assert images == []
+        assert documents[0].is_ingested()

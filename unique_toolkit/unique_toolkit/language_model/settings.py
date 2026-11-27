@@ -24,6 +24,7 @@ class ModelFamily(StrEnum):
     QWEN = "qwen"
     MISTRAL = "mistral"
     ZAI = "zai"
+    META = "meta"
     UNKNOWN = "unknown"
 
 

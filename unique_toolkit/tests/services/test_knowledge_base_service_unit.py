@@ -32,6 +32,7 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentInfo,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
     DeleteContentResponse,
     FolderInfo,
@@ -411,6 +412,8 @@ class TestKnowledgeBaseServiceSearchContentChunks:
             metadata_filter=build_folder_id_in_clause(["scope1", "scope2"]),
             content_ids=None,
             score_threshold=None,
+            merge_strategy=None,
+            include_scores=None,
         )
 
     @pytest.mark.ai
@@ -555,6 +558,34 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         call_kwargs = mock_search.call_args[1]
         assert call_kwargs["reranker_config"] == reranker_config
         assert call_kwargs["metadata_filter"] == build_folder_id_in_clause(["scope1"])
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
+    def test_search_content_chunks__forwards_merge_strategy_and_include_scores(
+        self,
+        mock_search: Mock,
+        base_kb_service: KnowledgeBaseService,
+        mock_content_chunk: ContentChunk,
+    ) -> None:
+        """
+        Purpose: Verify merge_strategy and include_scores reach the content search call.
+        Why this matters: KnowledgeBaseService is the supported search entry point.
+        Setup summary: Call search with RRF and include_scores, assert both are forwarded.
+        """
+        mock_search.return_value = [mock_content_chunk]
+
+        base_kb_service.search_content_chunks(
+            search_string="test",
+            search_type=ContentSearchType.COMBINED,
+            limit=10,
+            metadata_filter={"key": "value"},
+            merge_strategy=ContentSearchMergeStrategy.RRF,
+            include_scores=True,
+        )
+
+        call_kwargs = mock_search.call_args[1]
+        assert call_kwargs["merge_strategy"] == ContentSearchMergeStrategy.RRF
+        assert call_kwargs["include_scores"] is True
 
     @pytest.mark.ai
     @pytest.mark.asyncio

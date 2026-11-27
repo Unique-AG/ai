@@ -11,25 +11,31 @@ from unique_toolkit.elicitation import (
 )
 
 _DEFAULT_TOOL_DESCRIPTION = """
-Ask the user a question through a structured form and block until they answer. Use whenever you need information, a decision, or confirmation before continuing correctly: clarifying questions, confirmation before destructive or irreversible work, missing parameters, or choosing among plausible options. Do not ask the user in normal chat text while this tool is available—call AskUser, wait for the result, then continue. If unsure which interpretation, scope, or value applies, call AskUser instead of guessing. Destructive actions must include an explicit confirmation field. Form and chat anchoring are handled for you; the call blocks until the user responds, declines, cancels, or times out.
+Ask the user a question through a structured form and block until they answer. Use whenever you need information, a decision, or confirmation before continuing correctly: clarifying questions, confirmation before destructive or irreversible work, missing parameters, or choosing among plausible options. Do not ask the user in normal chat text while this tool is available—call AskUser, wait for the result, then continue. If unsure which interpretation, scope, or value applies, call AskUser instead of guessing. The form's Confirm/Decline buttons are the user's consent: for destructive actions state the consequence in `message` and proceed only when the user confirms; use an empty-properties schema when there is nothing else to ask. Form and chat anchoring are handled for you; the call blocks until the user responds, declines, cancels, or times out.
 """.strip()
 
 _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = """
 - If your next message would ask the user for information, a decision, or confirmation, call AskUser instead of writing the question in chat.
 - If more than one reasonable reading of the request exists, call AskUser before acting—do not silently pick a default.
-- Destructive or irreversible actions require an explicit confirmation field (e.g. boolean `confirm`) in `response_schema`.
+- Destructive or irreversible actions need the user's confirmation: state the consequence in `message` and proceed only on an accepted result. The Confirm button is the consent on any form, so never model it as a boolean `confirm` field; if there is nothing else to ask, use `response_schema` `{"type":"object","properties":{}}`.
 """.strip()
 
 _DEFAULT_MESSAGE_DESCRIPTION = "The question or prompt shown to the user"
 
 _DEFAULT_RESPONSE_SCHEMA_DESCRIPTION = """
-JSON Schema object (root type "object") for the form shown to the user; you construct it. Single string property for free-text; boolean for a confirmation; string + enum for one choice (dropdown); array with items.enum for choose-many. Mark needed fields required and add short property descriptions (shown as help text). Prefer one small form over many calls.
+JSON Schema object (root type "object") for the form shown to the user; you construct it. The Confirm/Decline buttons are the user's consent on any form, so a confirmation needs no field of its own: empty properties for a plain yes/no; single string property for free-text; string + enum for one choice (dropdown); array with items.enum for choose-many; boolean only for a genuine data field where unchecked (false) is a valid answer. Mark needed fields required and add short property descriptions (shown as help text). A required boolean means "must be answered", not "must be ticked": the user can submit it unchecked. Give every boolean a title, it is the checkbox label. Prefer one small form over many calls.
 Examples:
+    - confirm: {"type":"object","properties":{}};
     - free-text: {"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"]};
-    - confirm: {"type":"object","properties":{"confirm":{"type":"boolean"}},"required":["confirm"]};
     - choice: {"type":"object","properties":{"region":{"type":"string","enum":["EU","US"]}},"required":["region"]};
-    - multi: {"type":"object","properties":{"topics":{"type":"array","items":{"type":"string","enum":["a","b"]}}}}.
+    - multi: {"type":"object","properties":{"topics":{"type":"array","items":{"type":"string","enum":["a","b"]}}}};
+    - yes/no data: {"type":"object","properties":{"include_appendix":{"type":"boolean","title":"Include appendix"}}}.
 """.strip()
+
+_DEFAULT_ACCEPTED_MESSAGE = (
+    "The user confirmed the request. The form had no fields, so there is no "
+    "response content. Proceed with the confirmed action."
+)
 
 _TIMEOUT_SECONDS_MIN = 1
 _TIMOUT_SECONDS_MAX = 3600
@@ -79,6 +85,19 @@ class AskUserToolConfig(BaseToolConfig):
         default=_DEFAULT_RESPONSE_SCHEMA_DESCRIPTION,
         description="Description of the `response_schema` parameter shown to the model.",
         title="`response_schema` tool input field description",
+    )
+
+    accepted_message: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=2),
+    ] = Field(
+        default=_DEFAULT_ACCEPTED_MESSAGE,
+        description=(
+            "Message returned to the model when the user accepts a form without "
+            "fields (empty-properties confirmation schema). Forms with fields "
+            "return the submitted values as JSON instead."
+        ),
+        title="Accepted response (empty form)",
     )
 
     declined_message: Annotated[

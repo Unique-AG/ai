@@ -4,25 +4,27 @@ from datetime import datetime, timezone
 from logging import Logger
 from typing import Any, cast, overload
 
-import jinja2
 from typing_extensions import deprecated
 from unique_skill_tool.service import SkillTool
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
+from unique_toolkit.agentic.chat_title import ChatTitleGenerator
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     AnalyticsLanguageModel,
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
-from unique_toolkit.agentic.history_manager.utils import (
-    get_selected_uploaded_content_ids,
+from unique_toolkit.agentic.history_manager.context_overflow import (
+    ContextOverflowGuard,
+    is_context_window_exceeded_error,
 )
+from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
     SupportsInvocationStats,
 )
+from unique_toolkit.agentic.loop_runner.base import _LoopIterationRunnerKwargs
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -72,6 +74,32 @@ from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.settings import env_settings
 from unique_orchestrator.utils import resolve_other_options
 
+# Holds back message completion when the answer finishes before the title.
+_CHAT_TITLE_WAIT_SECONDS = 15
+
+
+def _load_invocation_stats_from_debug_info(
+    debug_info: dict[str, Any],
+    logger: Logger,
+) -> list[LanguageModelInvocationStats]:
+    """Deserialize previously persisted invocation stats, ignoring malformed entries."""
+    raw_invocations = debug_info.get("llm_invocations")
+    if not isinstance(raw_invocations, list):
+        return []
+
+    invocations: list[LanguageModelInvocationStats] = []
+    for raw_invocation in raw_invocations:
+        try:
+            invocations.append(
+                LanguageModelInvocationStats.model_validate(raw_invocation)
+            )
+        except Exception:
+            logger.warning(
+                "Ignoring malformed persisted LLM invocation stats",
+                exc_info=True,
+            )
+    return invocations
+
 
 class UniqueAI:
     start_text = ""
@@ -99,6 +127,8 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        selected_uploaded_content_ids: frozenset[str] | None = None,
+        chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -124,6 +154,8 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        selected_uploaded_content_ids: frozenset[str] | None = None,
+        chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None: ...
 
     def __init__(
@@ -148,6 +180,8 @@ class UniqueAI:
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
         user_memory_text: str = "",
+        selected_uploaded_content_ids: frozenset[str] | None = None,
+        chat_title_generator: ChatTitleGenerator | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -169,6 +203,7 @@ class UniqueAI:
 
         self._evaluation_manager = evaluation_manager
         self._postprocessor_manager = postprocessor_manager
+        self._chat_title_generator = chat_title_generator
         self._latest_assistant_id: str = event.payload.assistant_message.id
         self._mcp_servers = mcp_servers
         self._streaming_handler = streaming_handler
@@ -179,7 +214,6 @@ class UniqueAI:
                 agent_file_registry if agent_file_registry is not None else []
             )
             file_cfg = self._config.agent.experimental.open_file_tool_config
-            selected_ids = get_selected_uploaded_content_ids(event)
             self._open_file_runtime = OpenFileToolRuntime(
                 logger=logger,
                 config=OpenFileToolRuntimeConfig(
@@ -190,9 +224,7 @@ class UniqueAI:
                         self._config.agent.experimental.responses_api_config.use_responses_api
                         or self._config.agent.experimental.use_responses_api
                     ),
-                    selected_content_ids=(
-                        frozenset(selected_ids) if selected_ids is not None else None
-                    ),
+                    selected_content_ids=selected_uploaded_content_ids,
                 ),
                 content_service=content_service,
                 tool_manager=tool_manager,
@@ -213,6 +245,7 @@ class UniqueAI:
         # True/False when it ran and did/didn't update the stored memory profile.
         self._context_memory_updated: bool | None = None
         self._invocation_stats: list[LanguageModelInvocationStats] = []
+        self._invocation_stats_finalized = False
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -220,6 +253,31 @@ class UniqueAI:
         await self._chat_service.modify_assistant_message_async(
             set_completed_at=True,
         )
+
+    def _start_chat_title_generation(self) -> asyncio.Task[str | None] | None:
+        if self._chat_title_generator is None:
+            return None
+        user_message = self._event.payload.user_message
+        return asyncio.create_task(
+            self._chat_title_generator.run(
+                user_message.original_text or user_message.text
+            )
+        )
+
+    async def _finish_chat_title_generation(
+        self, task: asyncio.Task[str | None] | None
+    ) -> None:
+        if task is None or self._chat_title_generator is None:
+            return
+        if self._chat_service.cancellation.is_cancelled:
+            task.cancel()
+            return
+        try:
+            await asyncio.wait_for(task, timeout=_CHAT_TITLE_WAIT_SECONDS)
+        except TimeoutError:
+            self._logger.warning("Chat title generation timed out.")
+            return
+        self._invocation_stats.extend(self._chat_title_generator.invocation_stats)
 
     # @track(name="loop_agent_run")  # Group traces together
     async def run(self):
@@ -229,13 +287,6 @@ class UniqueAI:
         """
         self._logger.info("Start LoopAgent...")
 
-        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-            self._event.company_id
-        ):
-            await self._chat_service.modify_assistant_message_async(
-                content="Starting agentic loop..."  # TODO: this must be more informative
-            )
-
         self._execution_times = []
         self._loop_debug_params = []
         # Reset per-run artifact analytics too: a later run that exits without
@@ -243,7 +294,17 @@ class UniqueAI:
         # cancellation) must not report the previous run's artifacts.
         self._generated_files_info = None
         self._context_memory_updated = None
-        self._invocation_stats = []
+        # Pending pre-run usage (e.g. the user-memory load-time condense call)
+        # must be captured unconditionally, before it's known whether this
+        # turn will even reach postprocessors -- otherwise a turn that exits
+        # early (cancellation, empty response, control-taking tool) drops it.
+        self._invocation_stats = (
+            self._postprocessor_manager.take_pending_invocation_stats()
+        )
+        self._invocation_stats_finalized = False
+        self._debug_info_manager.add("llm_invocations_complete", False)
+        invocations_persisted = False
+        persisted_invocations_merged = False
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
@@ -256,6 +317,7 @@ class UniqueAI:
         sub = self._chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
         )
+        chat_title_task = self._start_chat_title_generation()
         try:
             max_iterations = self._config.effective_max_loop_iterations
             for i in range(max_iterations):
@@ -359,8 +421,23 @@ class UniqueAI:
                 },
             )
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
+            await self._finish_chat_title_generation(chat_title_task)
             skills_debug_info = self._get_activated_skills_debug_info()
             self._debug_info_manager.add("skills", skills_debug_info)
+            tool_names = {
+                tool["name"] for tool in self._debug_info_manager.get()["tools"]
+            }
+            existing_debug_info: dict[str, Any] = {}
+            if "DeepResearch" in tool_names:
+                existing_debug_info = await self._chat_service.get_debug_info_async()
+                self._invocation_stats = [
+                    *_load_invocation_stats_from_debug_info(
+                        existing_debug_info,
+                        self._logger,
+                    ),
+                    *self._invocation_stats,
+                ]
+                persisted_invocations_merged = True
             self._debug_info_manager.add(
                 "llm_invocations",
                 [
@@ -380,9 +457,6 @@ class UniqueAI:
                 str(tool.name): tool.display_name() or str(tool.name)
                 for tool in self._tool_manager.available_tools
             }
-            tool_names = [
-                tool["name"] for tool in self._debug_info_manager.get()["tools"]
-            ]
 
             total_time_to_answer_ms: int | None = None
             if not self._chat_service.cancellation.is_cancelled:
@@ -415,16 +489,94 @@ class UniqueAI:
                 total_time_to_answer_ms=total_time_to_answer_ms,
                 artifacts=self._generated_files_info,
                 context_memory_updated=self._context_memory_updated,
+                invocations=self._invocation_stats,
             )
 
-            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
-            if "DeepResearch" not in tool_names:
+            # DeepResearch always takes control (see `takes_control()`), so a run
+            # that invokes it exits before `_handle_no_tool_calls` and never sets
+            # `_invocation_stats_finalized` -- gating on that flag would make this
+            # branch unreachable. Its completion signal is instead the message
+            # execution callback that runs the actual research (`message_execution_id`
+            # set), which is when its merged invocation stats are truly final.
+            llm_invocations_complete = (
+                self._event.payload.message_execution_id is not None
+                if "DeepResearch" in tool_names
+                else self._invocation_stats_finalized
+            )
+            self._debug_info_manager.add(
+                "llm_invocations_complete",
+                llm_invocations_complete,
+            )
+            run_debug_info = self._debug_info_manager.get()
+            if "DeepResearch" in tool_names:
                 debug_info = {
-                    **await self._chat_service.get_debug_info_async(),
-                    **self._debug_info_manager.get(),
+                    **existing_debug_info,
+                    "llm_invocations": run_debug_info["llm_invocations"],
+                    "llm_invocations_complete": llm_invocations_complete,
+                    "analytics": run_debug_info["analytics"],
                 }
-                await self._chat_service.update_debug_info_async(debug_info=debug_info)
+            else:
+                existing_debug_info = await self._chat_service.get_debug_info_async()
+                debug_info = {**existing_debug_info, **run_debug_info}
+            await self._chat_service.update_debug_info_async(debug_info=debug_info)
+            invocations_persisted = True
         finally:
+            if chat_title_task is not None and not chat_title_task.done():
+                chat_title_task.cancel()
+            if not invocations_persisted:
+                if isinstance(self._loop_iteration_runner, SupportsInvocationStats):
+                    self._invocation_stats.extend(
+                        self._loop_iteration_runner.get_invocation_stats()
+                    )
+                self._debug_info_manager.add(
+                    "llm_invocations",
+                    [
+                        invocation.model_dump(by_alias=True)
+                        for invocation in self._invocation_stats
+                    ],
+                )
+                self._debug_info_manager.add("llm_invocations_complete", False)
+                try:
+                    existing_debug_info = (
+                        await self._chat_service.get_debug_info_async()
+                    )
+                    partial_debug_info = self._debug_info_manager.get()
+                    is_deep_research = any(
+                        tool.get("name") == "DeepResearch"
+                        for tool in partial_debug_info.get("tools", [])
+                    )
+                    if is_deep_research:
+                        if persisted_invocations_merged:
+                            merged_invocations = partial_debug_info["llm_invocations"]
+                        else:
+                            previous_invocations = (
+                                _load_invocation_stats_from_debug_info(
+                                    existing_debug_info,
+                                    self._logger,
+                                )
+                            )
+                            merged_invocations = [
+                                *[
+                                    invocation.model_dump(by_alias=True)
+                                    for invocation in previous_invocations
+                                ],
+                                *partial_debug_info["llm_invocations"],
+                            ]
+                        debug_info = {
+                            **existing_debug_info,
+                            "llm_invocations": merged_invocations,
+                            "llm_invocations_complete": False,
+                        }
+                    else:
+                        debug_info = {**existing_debug_info, **partial_debug_info}
+                    await self._chat_service.update_debug_info_async(
+                        debug_info=debug_info
+                    )
+                except Exception:
+                    self._logger.warning(
+                        "Failed to persist partial LLM invocation usage",
+                        exc_info=True,
+                    )
             sub.cancel()
 
     @staticmethod
@@ -521,7 +673,7 @@ class UniqueAI:
         )
         self._record_loop_debug_params(other_options)
 
-        kwargs: dict = dict(
+        kwargs: _LoopIterationRunnerKwargs = dict(
             messages=messages,
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
@@ -535,10 +687,36 @@ class UniqueAI:
             other_options=other_options,
         )
 
+        overflow_guard = ContextOverflowGuard(
+            logger=self._logger,
+            history_manager=self._history_manager,
+            token_counter=self._chat_service,
+            model=self._config.space.language_model,
+        )
+
+        async def _recompose() -> None:
+            await self._recompose_messages(kwargs)
+
+        await overflow_guard.preflight_token_budget(kwargs, _recompose)
+
+        try:
+            return await self._run_loop_iteration(kwargs)
+        except Exception as exc:
+            if not is_context_window_exceeded_error(exc):
+                raise
+            return await overflow_guard.retry_after_overflow(
+                exc,
+                recompose=_recompose,
+                run_iteration=lambda: self._run_loop_iteration(kwargs),
+            )
+
+    async def _run_loop_iteration(
+        self, kwargs: _LoopIterationRunnerKwargs
+    ) -> LanguageModelStreamResponse:
         # Experimental Feature UN-17905
         if self._config.agent.experimental.open_file_tool_config.enabled:
             try:
-                return await self._loop_iteration_runner(**kwargs)
+                return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
             except Exception as exc:
                 if not self._open_file_runtime.should_retry_without_files(exc):
                     raise
@@ -548,13 +726,19 @@ class UniqueAI:
                 )
                 self._file_fallback_occurred = True
                 kwargs["messages"] = self._open_file_runtime.prepare_retry_messages(
-                    messages=messages
+                    messages=kwargs["messages"]
                 )
                 kwargs["tools"] = self._tool_manager.get_tool_definitions()  # type: ignore (as above)
                 kwargs["tool_choices"] = self._tool_manager.get_forced_tools()  # type: ignore (as above)
-                return await self._loop_iteration_runner(**kwargs)
+                return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
 
-        return await self._loop_iteration_runner(**kwargs)
+        return await self._loop_iteration_runner(**kwargs)  # type: ignore[arg-type]
+
+    async def _recompose_messages(self, kwargs: _LoopIterationRunnerKwargs) -> None:
+        kwargs["messages"] = await self._compose_message_plan_execution()
+        kwargs["content_chunks"] = (
+            self._history_manager.get_content_chunks_for_backend()
+        )
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
@@ -611,7 +795,7 @@ class UniqueAI:
         return messages
 
     async def _render_user_prompt(self) -> str:
-        user_message_template = jinja2.Template(
+        user_message_template = sandboxed_template(
             self._config.agent.prompt_config.user_message_prompt_template
         )
 
@@ -667,7 +851,7 @@ class UniqueAI:
             self._history_manager.get_tool_calls(), ["subagent"]
         )
 
-        system_prompt_template = jinja2.Template(
+        system_prompt_template = sandboxed_template(
             self._config.agent.prompt_config.system_prompt_template
         )
 
@@ -801,6 +985,7 @@ class UniqueAI:
                 name_str, 0
             )
         self._invocation_stats.extend(self._evaluation_manager.get_invocation_stats())
+        self._invocation_stats_finalized = True
 
         if evaluation_results.success and not all(
             result.is_positive for result in evaluation_results.unpack()

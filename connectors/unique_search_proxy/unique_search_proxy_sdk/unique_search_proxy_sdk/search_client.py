@@ -6,6 +6,9 @@ from typing import Any
 
 from unique_search_proxy_core.search_engines.brave.schema import BraveSearchRequest
 from unique_search_proxy_core.search_engines.config_types import parse_search_request
+from unique_search_proxy_core.search_engines.custom_api.schema import (
+    CustomApiSearchRequest,
+)
 from unique_search_proxy_core.search_engines.google.schema import GoogleSearchRequest
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexitySearchRequest,
@@ -17,12 +20,13 @@ from unique_search_proxy_sdk._generated.models.search_response import SearchResp
 from unique_search_proxy_sdk._transport import OpenapiTransport
 from unique_search_proxy_sdk._typed_endpoints import (
     BraveSearchEndpoint,
+    CustomApiSearchEndpoint,
     GoogleSearchEndpoint,
     PerplexitySearchEndpoint,
 )
 from unique_search_proxy_sdk.converters import to_sdk_search_request
 
-_SEARCH_PROVIDERS = frozenset({"google", "brave", "perplexity"})
+_SEARCH_PROVIDERS = frozenset({"google", "brave", "perplexity", "custom_api"})
 
 
 class SearchClient:
@@ -31,6 +35,7 @@ class SearchClient:
     google: GoogleSearchEndpoint
     brave: BraveSearchEndpoint
     perplexity: PerplexitySearchEndpoint
+    custom_api: CustomApiSearchEndpoint
 
     def __init__(self, transport: OpenapiTransport) -> None:
         self._transport = transport
@@ -58,6 +63,16 @@ class SearchClient:
             async_post_endpoint(
                 transport,
                 PerplexitySearchRequest,
+                parse=parse_search_request,
+                to_sdk=to_sdk_search_request,
+                post=search_v1_search_post.asyncio_detailed,
+                response_type=SearchResponse,
+            ),
+        )
+        self.custom_api = CustomApiSearchEndpoint(
+            async_post_endpoint(
+                transport,
+                CustomApiSearchRequest,
                 parse=parse_search_request,
                 to_sdk=to_sdk_search_request,
                 post=search_v1_search_post.asyncio_detailed,

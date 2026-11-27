@@ -242,10 +242,6 @@ class TestPlanOrExecuteLoopDebugParams:
 
 class TestRunLoopDebugParams:
     def _build_run_ua(self, monkeypatch):
-        mock_feature_flags = MagicMock()
-        monkeypatch.setattr(
-            "unique_orchestrator.unique_ai.feature_flags", mock_feature_flags
-        )
         monkeypatch.setattr(
             "unique_orchestrator.unique_ai.resolve_other_options",
             lambda *_args, **_kwargs: {"reasoning_effort": "high"},

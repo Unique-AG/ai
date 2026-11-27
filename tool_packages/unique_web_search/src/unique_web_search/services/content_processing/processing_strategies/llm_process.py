@@ -13,6 +13,7 @@ from unique_toolkit.language_model import (
 )
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.invocation_stats import collector
 from unique_web_search.services.content_processing.processing_strategies.base import (
     ProcessingStrategyKwargs,
     WebSearchResult,
@@ -245,12 +246,12 @@ class LLMProcess:
 
         if not self._config.should_run(self._encoder, page.content):
             _LOGGER.warning(
-                f"Content is already short enough, skipping LLM processing for page {page.url}"
+                "Content is already short enough, skipping LLM processing for page"
             )
             return page
 
         _LOGGER.info(
-            f"Processing page {page.url} with LLM processor "
+            "Processing page with LLM processor "
             f"(sanitize={self._config.privacy_filter.sanitize}, mode={self._config.privacy_filter.sanitize_mode})"
         )
 
@@ -315,6 +316,11 @@ class LLMProcess:
             model_name=self._config.language_model.name,
             structured_output_model=LLMProcessorResponse,
             structured_output_enforce_schema=True,
+        )
+        collector.record_language_model_response(
+            model_name=self._config.language_model.name,
+            response=response,
+            source="web_search.content_processing.llm_process",
         )
 
         if response.choices[0].message.parsed is None:

@@ -11,6 +11,8 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_content_info
+from unique_sdk.cli.metadata_filter import direct_children_filter
+from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
@@ -36,6 +38,9 @@ _SUPPORTED_UPLOAD_MIME_TYPES = {
     ".html": "text/html",
     ".md": "text/markdown",
 }
+
+# Bounds so one name resolve can never page through the whole knowledge base.
+_MAX_RESOLVE_MATCH_CANDIDATES = 100
 
 
 def _normalize_unique_file_path(cwd: str, path: str) -> str:
@@ -78,6 +83,7 @@ def _resolve_content_id(
         return name_or_id, name_or_id
 
     lookup_name = name_or_id
+    folder_path = state.cwd
     scope_id = state.scope_id
     if "/" in name_or_id:
         unique_path = _normalize_unique_file_path(state.cwd, name_or_id)
@@ -123,16 +129,10 @@ def _resolve_content_id(
         if not scope_id:
             raise ValueError(f"folder not found: {folder_path}")
     elif scope_id is None:
-        # A bare file name with no folder context resolves via an *unparented*
-        # Content.get_infos scan across the whole knowledge base.
+        # Resolving a bare name at the root would page the whole knowledge base.
         if state.workspace_metadata_filter is not None:
-            # With a per-message filter active, a whole-KB filename scan would
-            # discover documents outside the task scope before the per-id gate
-            # runs — and the deny-vs-not-found distinction is an existence/title
-            # oracle across the task boundary. That is broader than the
-            # ls/read-at-root gating intent, so require a bounded context
-            # instead. The cont_ fast-path, an explicit in-scope path, or a
-            # ``cd`` into an in-scope folder all still work. See UN-21780.
+            # With a per-message filter active that is also a cross-scope
+            # existence/title oracle. See UN-21780.
             raise ValueError(
                 f"permission denied: {name_or_id} can't be resolved by name at "
                 f"the knowledge-base root while a task scope is active "
@@ -140,51 +140,159 @@ def _resolve_content_id(
                 "by content id, or 'cd' into an in-scope folder."
             )
         if not state.is_within_workspace():
-            # No per-message filter: defer to the static scopeIds boundary.
             raise ValueError("permission denied (outside workspace scope)")
+        raise ValueError(
+            f"{name_or_id} can't be resolved by name at the knowledge-base "
+            "root. Use 'unique-cli search', pass a content id (cont_...), "
+            "or 'cd' into a folder first."
+        )
 
-    params: dict[str, Any] = {}
-    if scope_id:
-        params["parentId"] = scope_id
+    return _resolve_content_id_in_folder(
+        state=state,
+        name_or_id=name_or_id,
+        lookup_name=lookup_name,
+        folder_path=folder_path,
+        scope_id=scope_id,
+        allow_chat_files=allow_chat_files,
+    )
 
-    take = 100
-    skip = 0
-    while True:
-        result = unique_sdk.Content.get_infos(
+
+def _resolve_content_id_in_folder(
+    *,
+    state: ShellState,
+    name_or_id: str,
+    lookup_name: str,
+    folder_path: str,
+    scope_id: str,
+    allow_chat_files: bool,
+) -> tuple[str, str]:
+    """Resolve ``lookup_name`` inside one folder without paging the whole KB."""
+    match = _pick_match(
+        hits=_hits_by_file_path(
+            state=state,
+            folder_path=folder_path,
+            lookup_name=lookup_name,
+            scope_id=scope_id,
+        ),
+        lookup_name=lookup_name,
+    )
+    if match is None:
+        hits = _hits_by_search(state=state, lookup_name=lookup_name, scope_id=scope_id)
+        match = _pick_match(hits=hits, lookup_name=lookup_name)
+    if match is None:
+        raise ValueError(f"File not found: {name_or_id}")
+
+    resolved_id, display_name = match
+    # Gate the *resolved* id too: resolving by file name or path must not
+    # bypass the per-message metadata-filter scope that the cont_ fast-path
+    # above enforces, and must honour the same read-only chat-file
+    # exemption (so rm/mv by name can't reach an out-of-scope attachment
+    # either). See UN-21780.
+    if not state.is_content_within_workspace(
+        resolved_id, allow_chat_files=allow_chat_files
+    ):
+        raise ValueError(
+            f"permission denied: {name_or_id} is outside your "
+            f"task scope ({state.scope_denial_hint()}). Use "
+            "'unique-cli search' or 'ls' within that scope "
+            "instead."
+        )
+    return resolved_id, display_name
+
+
+def _hits_by_file_path(
+    *, state: ShellState, folder_path: str, lookup_name: str, scope_id: str
+) -> Sequence[Any]:
+    # One indexed lookup that returns no chunks and also finds files whose
+    # ingestion failed.
+    try:
+        result = unique_sdk.Content.get_info(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
-            skip=skip,
-            take=take,
-            **params,
+            filePath=f"{folder_path.rstrip('/')}/{lookup_name}",
         )
-        content_infos = result.get("contentInfos", [])
-        if not content_infos:
-            break
+    except unique_sdk.UniqueError:
+        return []
+    # A server that ignores filePath returns unrelated content.
+    return [
+        info
+        for info in result.get("contentInfo", [])
+        if info.get("ownerId") == scope_id
+    ]
 
-        for info in content_infos:
-            title = info.get("title") or ""
-            key = info.get("key") or ""
-            if lookup_name in {title, key}:
-                resolved_id = info["id"]
-                # Gate the *resolved* id too: resolving by file name or path
-                # must not bypass the per-message metadata-filter scope that
-                # the cont_ fast-path above enforces, and must honour the same
-                # read-only chat-file exemption (so rm/mv by name can't reach
-                # an out-of-scope attachment either). See UN-21780.
-                if not state.is_content_within_workspace(
-                    resolved_id, allow_chat_files=allow_chat_files
-                ):
-                    raise ValueError(
-                        f"permission denied: {name_or_id} is outside your "
-                        f"task scope ({state.scope_denial_hint()}). Use "
-                        "'unique-cli search' or 'ls' within that scope "
-                        "instead."
-                    )
-                return resolved_id, title or key
 
-        skip += len(content_infos)
+def _hits_by_search(
+    *, state: ShellState, lookup_name: str, scope_id: str
+) -> Sequence[Any]:
+    try:
+        hits = unique_sdk.Content.search(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            where={
+                "AND": [
+                    {"ownerId": {"equals": scope_id}},
+                    {
+                        "OR": [
+                            {"title": {"equals": lookup_name}},
+                            {"key": {"equals": lookup_name}},
+                        ]
+                    },
+                ]
+            },
+            includeFailedContent=True,
+        )
+    except unique_sdk.UniqueError:
+        return _resolve_content_id_via_infos_fallback(
+            state=state,
+            lookup_name=lookup_name,
+            scope_id=scope_id,
+        )
+    return hits
 
-    raise ValueError(f"File not found: {name_or_id}")
+
+def _pick_match(*, hits: Sequence[Any], lookup_name: str) -> tuple[str, str] | None:
+    for content in hits[:_MAX_RESOLVE_MATCH_CANDIDATES]:
+        info = _as_content_fields(content)
+        resolved_id = info.get("id")
+        if not isinstance(resolved_id, str) or not resolved_id:
+            continue
+        title = info.get("title") or ""
+        key = info.get("key") or ""
+        if lookup_name in {title, key}:
+            return resolved_id, title or key
+    return None
+
+
+def _as_content_fields(content: Any) -> Mapping[str, Any]:
+    if isinstance(content, Mapping):
+        return content
+    return {
+        "id": getattr(content, "id", None),
+        "title": getattr(content, "title", None),
+        "key": getattr(content, "key", None),
+    }
+
+
+def _resolve_content_id_via_infos_fallback(
+    *,
+    state: ShellState,
+    lookup_name: str,
+    scope_id: str,
+) -> list[Mapping[str, Any]]:
+    """Folder-scoped get_infos fallback, filtered by name so one page suffices."""
+    name_filter = {
+        "or": [
+            {"path": ["title"], "operator": "equals", "value": lookup_name},
+            {"path": ["key"], "operator": "equals", "value": lookup_name},
+        ]
+    }
+    result = unique_sdk.Content.get_infos(
+        user_id=state.config.user_id,
+        company_id=state.config.company_id,
+        metadataFilter={"and": [direct_children_filter(scope_id), name_filter]},
+        take=_MAX_RESOLVE_MATCH_CANDIDATES,
+    )
+    return list(result.get("contentInfos", []))
 
 
 def _detect_upload_mime_type(path: Path) -> str:
@@ -280,6 +388,18 @@ def _resolve_upload_destination(
         resolved_id = info.get("id")
         if not resolved_id:
             raise ValueError(f"folder not found: {folder_path}")
+        try:
+            actual = canonical_folder_path(
+                state.config.user_id,
+                state.config.company_id,
+                resolved_id,
+            )
+        except (ValueError, unique_sdk.UniqueError) as e:
+            raise ValueError(f"refused to upload to {folder_path}: {e}") from e
+        if not same_folder_path(actual, folder_path):
+            raise ValueError(
+                f"refused to upload to {folder_path}: resolved to {actual}"
+            )
         return resolved_id, display_name
 
     scope_id = state.scope_id
@@ -350,7 +470,12 @@ def cmd_upload(
             versioning_enabled=True,
         )
 
-        content_id = result.id if hasattr(result, "id") else "?"
+        content_id = getattr(result, "id", None)
+        if not content_id:
+            return (
+                f"upload: refused to upload {display_name} to {scope_id}: "
+                "no content id returned"
+            )
         folder_path = unique_sdk.Folder.get_folder_path(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
@@ -358,7 +483,7 @@ def cmd_upload(
         ).get("folderPath", scope_id)
         return f"Uploaded: {display_name} ({content_id}) to {folder_path}"
 
-    except (ValueError, unique_sdk.UniqueError, OSError) as e:
+    except (ValueError, unique_sdk.UniqueError, OSError, RuntimeError) as e:
         return f"upload: {e}"
 
 
@@ -490,6 +615,15 @@ def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
         return f"Renamed: {display_name} -> {result.get('title', new_name)}\n{format_content_info(result)}"
     except (ValueError, unique_sdk.UniqueError) as e:
         return f"mv: {e}"
+
+
+def is_upload_error_output(output: str) -> bool:
+    """Return True when *output* is a ``cmd_upload`` error.
+
+    Success text is ``Uploaded: ...``. Local misses, missing destinations,
+    and API failures all start with ``upload:`` and must exit non-zero.
+    """
+    return output.startswith("upload:")
 
 
 def is_permission_denied_output(output: str) -> bool:

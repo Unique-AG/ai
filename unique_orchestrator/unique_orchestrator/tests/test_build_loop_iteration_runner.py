@@ -16,10 +16,12 @@ from unique_toolkit.agentic.loop_runner import (
     MistralLoopIterationRunner,
     PlanningConfig,
     PlanningMiddleware,
+    PromptForcedToolLoopIterationRunner,
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
     ResponsesPlanningMiddleware,
 )
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
 from unique_orchestrator._builders.loop_iteration_runner import (
     build_loop_iteration_runner,
@@ -43,6 +45,7 @@ class TestGetModelFamily:
     def testget_model_family__returns_none__for_other_models(self) -> None:
         assert get_model_family("gpt-4o") is None
         assert get_model_family("claude-3") is None
+        assert get_model_family("litellm:anthropic-claude-opus-5-5") is None
 
 
 class TestBuildResponsesLoopIterationRunner:
@@ -518,7 +521,7 @@ class TestBuildLoopIterationRunnerModelFamilyIntegration:
         self,
     ) -> None:
         config: UniqueAIConfig = UniqueAIConfig()
-        config.space.language_model = "gpt-4o"  # type: ignore[assignment]
+        config.space.language_model = LanguageModelInfo(name="gpt-4o")
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
@@ -532,7 +535,7 @@ class TestBuildLoopIterationRunnerModelFamilyIntegration:
         self,
     ) -> None:
         config: UniqueAIConfig = UniqueAIConfig()
-        config.space.language_model = "mistral-large"  # type: ignore[assignment]
+        config.space.language_model = LanguageModelInfo(name="mistral-large")
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
@@ -546,7 +549,7 @@ class TestBuildLoopIterationRunnerModelFamilyIntegration:
         self,
     ) -> None:
         config: UniqueAIConfig = UniqueAIConfig()
-        config.space.language_model = "litellm/qwen3"  # type: ignore[assignment]
+        config.space.language_model = LanguageModelInfo(name="litellm/qwen3")
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
@@ -554,3 +557,68 @@ class TestBuildLoopIterationRunnerModelFamilyIntegration:
             llm_service=MagicMock(),
         )
         assert isinstance(runner, QwenLoopIterationRunner)
+
+    @pytest.mark.ai
+    def test_build_loop_iteration_runner__returns_prompt_forced_tool_runner__for_opus_55(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify Opus 5.5 model info builds the prompt-forced-tool runner.
+        Why this matters: Forced tool calls on that model must not send a named choice.
+        Setup summary: Use the Opus 5.5 LanguageModelInfo and build the runner.
+        """
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.space.language_model = LanguageModelInfo.from_name(
+            LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5_5
+        )
+        assert config.space.language_model.supports_forced_tool_choice is False
+        runner = build_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            chat_service=MagicMock(),
+            llm_service=MagicMock(),
+        )
+        assert isinstance(runner, PromptForcedToolLoopIterationRunner)
+        assert runner._config.max_loop_iterations == config.agent.max_loop_iterations
+
+    @pytest.mark.ai
+    def test_build_loop_iteration_runner__returns_basic_runner__for_opus_5(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify Opus 5 keeps the basic runner with a named tool_choice.
+        Why this matters: Only models flagged in LanguageModelInfo lose forced tools.
+        Setup summary: Use the Opus 5 LanguageModelInfo and build the runner.
+        """
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.space.language_model = LanguageModelInfo.from_name(
+            LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5
+        )
+        runner = build_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            chat_service=MagicMock(),
+            llm_service=MagicMock(),
+        )
+        assert type(runner) is BasicLoopIterationRunner
+
+    @pytest.mark.ai
+    def test_build_loop_iteration_runner__prefers_prompt_forced_tool__over_family_runner(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify the forced-tool flag wins over the Mistral family runner.
+        Why this matters: Mistral sends tool_choice any, which such a model rejects.
+        Setup summary: Flag a Mistral-named model info and build the runner.
+        """
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.space.language_model = LanguageModelInfo(
+            name="mistral-large", supports_forced_tool_choice=False
+        )
+        runner = build_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            chat_service=MagicMock(),
+            llm_service=MagicMock(),
+        )
+        assert isinstance(runner, PromptForcedToolLoopIterationRunner)

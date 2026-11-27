@@ -1,0 +1,7 @@
+component: SDK
+kind: Fixed
+body: The `unique-cli-mcp` skill now says `[mcpsourceN]` numbers are chat-wide. A number from an earlier turn still resolves, and re-fetching the same item in a later turn can assign a new number. The skill no longer says earlier-turn numbers are stale. It also teaches title-and-link markers (`[mcpsourceN;title;URL]`) and citing what action tools created.
+time: 2026-11-11T18:00:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29474

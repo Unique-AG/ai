@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.schema import ProxyErrorCode
+from unique_search_proxy_core.usage import UsageRecord
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.url_safety.gate import UrlSafetyGateResult
@@ -42,15 +43,15 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, Any, None]:
 
     pool_transport = httpx.MockTransport(handler)
 
-    from unique_search_proxy_client.web.core.client.service import HttpClientPool
+    from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 
-    async def mock_create_pool() -> HttpClientPool:
+    async def mock_create_registry() -> HttpClientRegistry:
         http_client = httpx.AsyncClient(transport=pool_transport)
-        return HttpClientPool(client=http_client)
+        return HttpClientRegistry.fixed(http_client)
 
     monkeypatch.setattr(
-        "unique_search_proxy_client.web.app.create_http_client_pool",
-        mock_create_pool,
+        "unique_search_proxy_client.web.app.create_http_client_registry",
+        mock_create_registry,
     )
 
     with TestClient(create_app()) as test_client:
@@ -107,6 +108,31 @@ def test_crawl_url_safety__mixed_batch_preserves_order(
 
 
 @pytest.mark.ai
+def test_crawl_url_safety__usage_units_count_only_allowed_urls(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    records: list[UsageRecord] = []
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.usage.record_usage",
+        records.append,
+    )
+
+    client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["http://127.0.0.1:8080", "https://example.com/article"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    [record] = records
+    assert (record.units, record.status) == (1, "success")
+
+
+@pytest.mark.ai
 def test_crawl_url_safety__pins_basic_fetch_to_resolved_ip(
     client: TestClient,
 ) -> None:
@@ -134,13 +160,23 @@ def test_crawl_url_safety__gate_respects_request_timeout(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def slow_gate(_urls: list[str]) -> UrlSafetyGateResult:
+    async def slow_gate(
+        _urls: list[str],
+        *,
+        redirect_http_client: object | None = None,
+        deadline: float | None = None,
+    ) -> UrlSafetyGateResult:
+        del redirect_http_client, deadline
         await asyncio.sleep(2)
         return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
 
     monkeypatch.setattr(
         "unique_search_proxy_client.web.api.v1.crawl.apply_url_safety_gate",
         slow_gate,
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.api.v1.crawl._SAFETY_NET_GRACE_SECONDS",
+        0.5,
     )
 
     response = client.post(
@@ -159,7 +195,7 @@ def test_crawl_url_safety__gate_respects_request_timeout(
 
 
 @pytest.mark.ai
-def test_crawl_url_safety__disabled_bypasses_gate(
+def test_crawl_url_safety__disabled_checks_bypass_gate(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -168,7 +204,9 @@ def test_crawl_url_safety__disabled_bypasses_gate(
     monkeypatch.setattr(
         service_module,
         "url_safety_settings",
-        service_module.url_safety_settings.model_copy(update={"enabled": False}),
+        service_module.url_safety_settings.model_copy(
+            update={"enabled": False},
+        ),
     )
 
     response = client.post(

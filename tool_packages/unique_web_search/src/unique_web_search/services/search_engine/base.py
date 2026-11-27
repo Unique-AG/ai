@@ -8,26 +8,37 @@ from pydantic import BaseModel
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.config_types import ENGINE_NAME_TO_CONFIG
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
-from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
-from unique_search_proxy_core.search_engines.base import (
-    BaseSearchEngineConfig,
-    SearchEngineType,
+from unique_search_proxy_core.param_policy.exposable_config import (
+    ExposableParamsConfig,
 )
+from unique_search_proxy_core.param_policy.exposable_param import (
+    resolve_exposable_value,
+)
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+from unique_search_proxy_core.search_engines.base import SearchEngineType
 
+from unique_web_search import activity_record
+from unique_web_search.services.httpx_logging import hide_httpx_request_logs
 from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
     search_proxy_client_enabled,
 )
 from unique_web_search.services.proxy.mappers import (
     agent_answer_text,
+    agent_citations,
     map_agent_answer,
     map_search_response,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
+from unique_web_search.settings import env_settings
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from unique_search_proxy_core.schema import AnswerSpanCitation
+
     from unique_web_search.services.search_engine.utils.grounding.response_parsing import (
         ResponseParser,
     )
@@ -42,8 +53,7 @@ class LocalSearchEngineType(StrEnum):
     CUSTOM_API = "custom_api"
 
 
-# Engine ids that the search proxy can serve. Every other engine
-# (e.g. ``LocalSearchEngineType``) is routed to the local legacy implementation.
+# Engine ids that the search proxy can serve.
 ProxyEngineType = SearchEngineType | AgentEngineType
 
 # Fields present on agent-engine configs that are not accepted as proxy call kwargs.
@@ -66,11 +76,10 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     provide the direct ``_legacy_search`` implementation.
 
     ``search`` uses the proxy whenever it is enabled and the engine is supported by
-    it, otherwise it reroutes to the local legacy implementation. Engines that the
-    proxy cannot serve (e.g. custom APIs) always fall back to ``_legacy_search``.
+    it, otherwise it reroutes to the local legacy implementation.
     """
 
-    # Set by agent engines (Bing/VertexAI) and consumed by the agent proxy path.
+    # Set by agent engines that use the default ``_parse_agent_answer``.
     response_parsers: list[ResponseParser]
 
     def __init__(
@@ -88,6 +97,19 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         return False
 
     @property
+    def endpoint(self) -> str | None:
+        """Direct (non-proxy) host this engine calls, when known without an SDK."""
+        return None
+
+    async def _proxy_routing_enabled(self) -> bool:
+        """Whether this engine may use Search Proxy for the current request."""
+        return True
+
+    @property
+    def _standard_proxy_client_timeout(self) -> float:
+        return _STANDARD_PROXY_TIMEOUT
+
+    @property
     def _proxy_engine(self) -> ProxyEngineType | None:
         """The proxy engine id for this config, or ``None`` if not proxy-supported."""
         engine = getattr(self.config, "engine", None)
@@ -101,10 +123,28 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         params: ExposedParams | None = None,
     ) -> list[WebSearchResult]:
         """Search the web for the given query using the search engine."""
-        proxy_engine = self._proxy_engine
-        if search_proxy_client_enabled and proxy_engine is not None:
-            return await self._proxy_search(query, params, proxy_engine)
-        return await self._legacy_search(query=query, params=params)
+        with hide_httpx_request_logs():
+            proxy_engine = (
+                self._proxy_engine
+                if search_proxy_client_enabled
+                and self._proxy_engine is not None
+                and await self._proxy_routing_enabled()
+                else None
+            )
+            via_proxy = proxy_engine is not None
+            endpoint = (
+                env_settings.search_proxy_base_url if via_proxy else self.endpoint
+            )
+            with activity_record.search_request(
+                query,
+                params=params,
+                via_search_proxy=via_proxy,
+                endpoint=endpoint,
+                destination=self.endpoint if via_proxy else None,
+            ):
+                if proxy_engine is not None:
+                    return await self._proxy_search(query, params, proxy_engine)
+                return await self._legacy_search(query=query, params=params)
 
     async def _proxy_search(
         self,
@@ -124,9 +164,9 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         engine: SearchEngineType,
     ) -> list[WebSearchResult]:
         """Merge deployment config with per-call params and dispatch via the proxy SDK."""
-        if not isinstance(self.config, BaseSearchEngineConfig):
+        if not isinstance(self.config, ExposableParamsConfig):
             raise TypeError(
-                f"Standard proxy search requires BaseSearchEngineConfig, "
+                f"Standard proxy search requires ExposableParamsConfig, "
                 f"got {type(self.config).__name__}"
             )
         overrides = (
@@ -137,7 +177,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         invocation.pop("engine", None)
         invocation.pop("query", None)
         async with open_search_proxy_client(
-            timeout=_STANDARD_PROXY_TIMEOUT,
+            timeout=self._standard_proxy_client_timeout,
             context=self._request_context,
         ) as client:
             response = await client.search.search(
@@ -145,6 +185,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 engine=engine.value,
                 **invocation,
             )
+        activity_record.note_response_received()
         results = map_search_response(response)
         return await self._postprocess_results(results)
 
@@ -155,8 +196,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         engine: AgentEngineType,
     ) -> list[WebSearchResult]:
         """Dispatch a grounded agent search via the proxy SDK and parse the answer."""
-        del params  # Agent engines do not expose LLM knobs today.
-        invocation = self._agent_proxy_invocation(engine)
+        invocation = self._agent_proxy_invocation(engine, params)
         async with open_search_proxy_client(
             timeout=float(self.config.timeout),
             context=self._request_context,
@@ -166,14 +206,35 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 engine=engine.value,
                 **invocation,
             )
-        results = await map_agent_answer(
+        activity_record.note_response_received()
+        results = await self._parse_agent_answer(
             agent_answer_text(response),
-            self.response_parsers,
+            agent_citations(response),
         )
         return await self._postprocess_results(results)
 
-    def _agent_proxy_invocation(self, engine: AgentEngineType) -> dict[str, Any]:
-        """Collect the config fields accepted by the agent proxy call for ``engine``."""
+    async def _parse_agent_answer(
+        self,
+        answer: str,
+        citations: Sequence[AnswerSpanCitation],
+    ) -> list[WebSearchResult]:
+        """Turn an agent answer into results.
+
+        Parses only the answer text. Engines whose provider cites its sources
+        alongside the answer override this, as Bing does.
+        """
+        return await map_agent_answer(answer, self.response_parsers)
+
+    def _agent_proxy_invocation(
+        self,
+        engine: AgentEngineType,
+        params: ExposedParams | None,
+    ) -> dict[str, Any]:
+        """Collect the config fields accepted by the agent proxy call for ``engine``.
+
+        Exposable knobs contribute their admin ``value``; per-call ``params``
+        chosen by the LLM win over the deployment defaults.
+        """
         core_config_cls = ENGINE_NAME_TO_CONFIG[engine.value]
         invocation: dict[str, Any] = {}
         for field_name in core_config_cls.model_fields:
@@ -181,12 +242,13 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
                 continue
             if not hasattr(self.config, field_name):
                 continue
-            value = getattr(self.config, field_name)
-            # Empty values fall through to the SDK/server defaults (e.g. an unset
-            # ``agent_id`` triggers server-side auto-provisioning).
-            if value == "":
+            value = resolve_exposable_value(getattr(self.config, field_name))
+            # Empty values fall through to the SDK/server defaults.
+            if value is None or value == "":
                 continue
             invocation[field_name] = value
+        if params is not None:
+            invocation.update(params.model_dump(exclude_none=True))
         return invocation
 
     async def _postprocess_results(

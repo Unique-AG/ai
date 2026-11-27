@@ -46,12 +46,14 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentInfo,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
     DeleteContentResponse,
     FolderInfo,
     PaginatedContentInfos,
 )
 from unique_toolkit.content.smart_rules import Operator, Statement
+from unique_toolkit.log_redaction import redact_filename
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueContext
@@ -159,6 +161,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ) -> list[ContentChunk]: ...
 
     @overload
@@ -173,6 +177,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ) -> list[ContentChunk]: ...
 
     def search_content_chunks(
@@ -187,6 +193,8 @@ class KnowledgeBaseService:
         metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -202,6 +210,8 @@ class KnowledgeBaseService:
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
+            merge_strategy (ContentSearchMergeStrategy | None, optional): How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+            include_scores (bool | None, optional): When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -240,6 +250,8 @@ class KnowledgeBaseService:
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
                 score_threshold=score_threshold,
+                merge_strategy=merge_strategy,
+                include_scores=include_scores,
             )
             return searches
         except Exception as e:
@@ -257,6 +269,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ) -> list[ContentChunk]: ...
 
     @overload
@@ -271,6 +285,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ) -> list[ContentChunk]: ...
 
     async def search_content_chunks_async(
@@ -285,6 +301,8 @@ class KnowledgeBaseService:
         metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -300,6 +318,8 @@ class KnowledgeBaseService:
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
+            merge_strategy (ContentSearchMergeStrategy | None, optional): How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+            include_scores (bool | None, optional): When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type. Defaults to None.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -337,6 +357,8 @@ class KnowledgeBaseService:
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
                 score_threshold=score_threshold,
+                merge_strategy=merge_strategy,
+                include_scores=include_scores,
             )
             return searches
         except Exception as e:
@@ -641,7 +663,9 @@ class KnowledgeBaseService:
 
             if mime_type is None:
                 _LOGGER.warning(
-                    f"No mime type found for file {local_file_path.name}, skipping"
+                    "No mime type found for %s in folder %s, skipping",
+                    redact_filename(local_file_path.name),
+                    scope_id,
                 )
                 continue
 
@@ -655,7 +679,9 @@ class KnowledgeBaseService:
 
                 if local_file_path.name in _existing_file_names:
                     _LOGGER.warning(
-                        f"File {local_file_path.name} already exists in folder {scope_id}, skipping"
+                        "File %s already exists in folder %s, skipping",
+                        redact_filename(local_file_path.name),
+                        scope_id,
                     )
                     continue
 
@@ -843,8 +869,8 @@ class KnowledgeBaseService:
             folder_info = await self.get_folder_info_async(scope_id=scope_id)
             return folder_info.name
         except Exception as e:
-            _LOGGER.warning(
-                f"Could not resolve folder for scope_id {scope_id}", exc_info=e
+            _LOGGER.debug(
+                "Could not resolve folder for scope_id %s", scope_id, exc_info=e
             )
             return None
 

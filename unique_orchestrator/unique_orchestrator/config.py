@@ -2,7 +2,13 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
@@ -12,9 +18,15 @@ from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import (
     UploadedSearchConfig,
 )
+from unique_skill_tool.service import SkillTool
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit._common.utils.jinja.sandbox import (
+    TemplateError,
+    validate_sandboxed_template,
+)
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -62,6 +74,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
+from unique_toolkit.log_redaction import redact_text
 from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
@@ -104,6 +117,23 @@ class SwitchableLanguageModelConfig(BaseToolConfig):
             "Optional per-model temperature override applied when chat users "
             "select this model. Bounds mirror agent.experimental.temperature so "
             "the value validates when copied on model choice."
+        ),
+    )
+    additional_llm_options: dict[str, Any] | None = Field(
+        default=None,
+        # Explicit aliases skip `to_camel`; keep the schema camelCase while also
+        # accepting the node key `additionalLLMOptions` (LLM uppercase).
+        validation_alias=AliasChoices(
+            "additionalLlmOptions",
+            "additionalLLMOptions",
+            "additional_llm_options",
+        ),
+        serialization_alias="additionalLlmOptions",
+        description=(
+            "Optional per-model provider-specific request options (e.g. "
+            "`reasoning_effort`) shallow-merged into "
+            "agent.experimental.additional_llm_options when chat users select "
+            "this model. Per-model keys win over the space-level options."
         ),
     )
 
@@ -182,6 +212,7 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
                 InternalSearchTool.name,
                 WebSearchTool.name,
                 RetrieveSearchScopeTool.name,
+                SkillTool.name,
             ):
                 tool.configuration.language_model_max_input_tokens = (  # type: ignore
                     info.data["language_model"].token_limits.token_limit_input
@@ -251,8 +282,47 @@ class LoopConfiguration(BaseToolConfig):
     model_specific: ModelSpecificConfig = ModelSpecificConfig()
 
 
+class ContradictionCheckConfig(BaseToolConfig):
+    """Space setting for Conduct's contradiction check."""
+
+    enabled: bool = Field(
+        default=True,
+        description=(
+            "Run the check on answers from this space. By default it uses the "
+            "space model."
+        ),
+    )
+    language_model: Annotated[
+        LanguageModelName | None,
+        RJSFMetaTag(
+            {
+                "ui:field": "nullableActive",
+                "ui:fieldReplacesAnyOrOneOf": True,
+                "ui:options": {
+                    "activeLabel": "Use a different model",
+                    "activeValue": LanguageModelName.AZURE_GPT_51_2025_1113.value,
+                },
+            }
+        ),
+    ] = Field(
+        default=None,
+        title="Model",
+        description=(
+            "The model that judges the answer. When unset, the space's "
+            "chat model is used."
+        ),
+    )
+
+
 class EvaluationConfig(BaseToolConfig):
     hallucination_config: HallucinationConfig = HallucinationConfig()
+    contradiction_check_config: ContradictionCheckConfig = Field(
+        default_factory=ContradictionCheckConfig,
+        title="Hallucination check",
+        description=(
+            "Checks cited search answers for statements that contradict a source."
+        ),
+    )
 
 
 # ------------------------------------------------------------
@@ -261,6 +331,8 @@ class EvaluationConfig(BaseToolConfig):
 
 
 class UniqueAIPromptConfig(BaseToolConfig):
+    model_config = get_configuration_dict(hide_input_in_errors=True)
+
     system_prompt_template: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(rows=25),
@@ -286,6 +358,17 @@ class UniqueAIPromptConfig(BaseToolConfig):
         title="User Metadata",
         description="User metadata fields to be ingested in the system prompt.",
     )
+
+    @field_validator("system_prompt_template", "user_message_prompt_template")
+    @classmethod
+    def validate_prompt_template(cls, value: str) -> str:
+        try:
+            return validate_sandboxed_template(value)
+        except TemplateError as exc:
+            redacted = redact_text(value, label="prompt")
+            raise ValueError(
+                f"Invalid prompt template {redacted} ({type(exc).__name__})."
+            ) from None
 
 
 class UniqueAIServices(BaseToolConfig):
@@ -359,7 +442,7 @@ class HistoryConfig(BaseToolConfig):
     )
 
     serialize_uploaded_files_in_user_message: bool = Field(
-        default=False,
+        default=True,
         description="Include an indication of each uploaded file in the user message.",
     )
 
@@ -495,7 +578,41 @@ class UniqueAIAgentConfig(BaseToolConfig):
     experimental: ExperimentalConfig = ExperimentalConfig()
 
 
+# GPT frontier models (GPT-5.5 and newer) that must be served via the Responses API.
+# TEMP FIX, see `UniqueAIConfig.enable_responses_api_for_gpt_frontier_models`.
+GPT_FRONTIER_MODELS: frozenset[LanguageModelName] = frozenset(
+    {
+        LanguageModelName.AZURE_GPT_55_2026_0424,
+        LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+        LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+        LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+        LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+        LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+        LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
+        LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
+        LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+        LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
+        LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+        LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+        LanguageModelName.LITELLM_OPENAI_GPT_55,
+        LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
+        LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+        LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+        LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
+        LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+        LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+        LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+        LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+    }
+)
+
+
 class UniqueAIConfig(BaseToolConfig):
+    model_config = get_configuration_dict(hide_input_in_errors=True)
+
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
     agent: UniqueAIAgentConfig = UniqueAIAgentConfig()
@@ -556,27 +673,16 @@ class UniqueAIConfig(BaseToolConfig):
         return self
 
     @model_validator(mode="after")
-    def enable_responses_api_for_gpt_55_and_gpt_56_models(self) -> "UniqueAIConfig":
-        """Auto-enable the Responses API for GPT-5.5 and GPT-5.6 models.
+    def enable_responses_api_for_gpt_frontier_models(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API for GPT frontier models (GPT-5.5 and newer).
 
-        TEMP FIX: GPT-5.5 and GPT-5.6 reject requests that combine `tools` with
+        TEMP FIX: these models reject requests that combine `tools` with
         `reasoning_effort` on /v1/chat/completions and demand /v1/responses.
         Forcing the Responses API here avoids the OpenAI 400 error until the
         runner can pick the right transport based on model capabilities.
         Tracked in Jira: UN-20123.
         """
-        if self.space.language_model.name in {
-            LanguageModelName.AZURE_GPT_55_2026_0424,
-            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
-            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
-            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
-            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
-            LanguageModelName.LITELLM_OPENAI_GPT_55,
-            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
-            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
-        }:
+        if self.space.language_model.name in GPT_FRONTIER_MODELS:
             self.agent.experimental.responses_api_config.use_responses_api = True
         return self
 

@@ -269,15 +269,60 @@ def test_middleware__emits_python_prefixed_metric_names() -> None:
     Purpose: Verify MetricsMiddleware emits metrics with the python_ prefix.
     Why this matters: Grafana dashboards are built on python_http_* names; the old
     unprefixed names must not appear so cross-service naming is consistent.
-    Setup summary: Inspect the module-level metric objects for their fully-qualified name.
+    Setup summary: Construct a middleware (the duration histogram is created lazily),
+    then inspect the metric objects for their fully-qualified name.
     """
-    assert (
-        middleware_module._http_request_duration_seconds._name
-        == "python_http_request_duration_seconds"
-    )
+    middleware = MetricsMiddleware(_simple_app)
+
+    assert middleware._duration._name == "python_http_request_duration_seconds"
     # prometheus_client strips the _total suffix from Counter._name (it appends it at render time)
     assert middleware_module._http_requests_total._name == "python_http_requests"
     assert (
         middleware_module._http_requests_in_progress._name
         == "python_http_requests_in_progress"
     )
+
+
+# ---------------------------------------------------------------------------
+# Duration histogram buckets
+# ---------------------------------------------------------------------------
+
+
+def _finite_bounds(histogram) -> tuple[float, ...]:
+    return tuple(b for b in histogram._upper_bounds if b != float("inf"))
+
+
+@pytest.mark.ai
+def test_middleware__applies_custom_duration_buckets__on_first_construction() -> None:
+    """
+    Purpose: Verify duration_buckets sets the latency histogram buckets when the
+    histogram is created (first middleware construction in the process).
+    Why this matters: prometheus defaults top out at a 10s finite bucket, pinning
+    histogram_quantile p95/p99 at 10s for services with slower endpoints.
+    Setup summary: Reset the lazy singleton, construct with a 120s ceiling, assert
+    the finite upper bounds match; restore prior state afterwards.
+    """
+    from unique_toolkit.monitoring.registry import REGISTRY
+
+    buckets = (0.5, 1.0, 5.0, 30.0, 120.0)
+    previous = middleware_module._http_request_duration_seconds
+    if previous is not None:
+        REGISTRY.unregister(previous)
+    middleware_module._http_request_duration_seconds = None
+
+    try:
+        middleware = MetricsMiddleware(_simple_app, duration_buckets=buckets)
+
+        assert _finite_bounds(middleware._duration) == buckets
+
+        # The histogram is a per-process singleton: later constructions reuse it,
+        # so their duration_buckets are ignored.
+        second = MetricsMiddleware(_simple_app, duration_buckets=(1.0, 2.0))
+        assert second._duration is middleware._duration
+    finally:
+        created = middleware_module._http_request_duration_seconds
+        if created is not None:
+            REGISTRY.unregister(created)
+        middleware_module._http_request_duration_seconds = previous
+        if previous is not None:
+            REGISTRY.register(previous)

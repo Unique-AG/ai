@@ -1,5 +1,102 @@
 # Changelog
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.46.0...uqadm-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **uqadm:** add --no-access and access/MCP portability flags ([#2805](https://github.com/Unique-AG/ai/issues/2805)) ([610258d](https://github.com/Unique-AG/ai/commit/610258debd764fdef57c4e0560a5f5a1e2349092))
+* **uqadm:** kb sync --skip-ingestion and a kb rm -r that empties the tree ([#2819](https://github.com/Unique-AG/ai/issues/2819)) ([c822430](https://github.com/Unique-AG/ai/commit/c822430566ccba3724a55224be164da9299657ca))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.44.0...uqadm-v2026.46.0) (2026-11-06)
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.42.0...uqadm-v2026.44.0) (2026-10-23)
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.40.0...uqadm-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.38.0...uqadm-v2026.40.0) (2026-09-24)
+
+
+### Bug Fixes
+
+* **uqadm:** keep switchable models on export then upsert [UN-25884] ([#2448](https://github.com/Unique-AG/ai/issues/2448)) ([084c8a7](https://github.com/Unique-AG/ai/commit/084c8a7a85e6d2309f6e6f7168f52352768c1cec))
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.36.0...uqadm-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **uqadm:** add kb ingestion get and model replacement [UN-24141] ([#2281](https://github.com/Unique-AG/ai/issues/2281)) ([a1c62a3](https://github.com/Unique-AG/ai/commit/a1c62a3e63bce5851ad51305ded99d74568dcd55))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.34.0...uqadm-v2026.36.0) (2026-08-31)
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.32.0...uqadm-v2026.34.0) (2026-08-14)
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.30.0...uqadm-v2026.32.0) (2026-07-31)
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.28.0...uqadm-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **uqadm:** enable platform versioning on kb sync by default ([#2022](https://github.com/Unique-AG/ai/issues/2022)) ([3bba34b](https://github.com/Unique-AG/ai/commit/3bba34bdb9d137e70735abff32cdd0cfa09b9eef))
+* **uqadm:** Support SubAgent Settings in `uqadm space ...` commands ([#2092](https://github.com/Unique-AG/ai/issues/2092)) ([9e81bdc](https://github.com/Unique-AG/ai/commit/9e81bdc6839f2613cabd8abd56813410b705138d))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.26.0...uqadm-v2026.28.0) (2026-07-03)
 
 

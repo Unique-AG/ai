@@ -1,0 +1,21 @@
+{
+  "languageModel": "AZURE_GPT_4o_2024_1120",
+  "tools": [
+    {
+      "name": "jira_search",
+      "isEnabled": true,
+      "configuration": {
+        "mcpTool": true,
+        "mcpServerId": "<atlassian-mcp-server-id>"
+      }
+    },
+    {
+      "name": "search_repositories",
+      "isEnabled": true,
+      "configuration": {
+        "mcpTool": true,
+        "mcpServerId": "<github-mcp-server-id>"
+      }
+    }
+  ]
+}

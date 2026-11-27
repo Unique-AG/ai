@@ -5,6 +5,234 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.46.0...unique-sdk-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **cli:** accept several queries in one knowledge base search call [UN-28777] ([#2764](https://github.com/Unique-AG/ai/issues/2764)) ([45e6977](https://github.com/Unique-AG/ai/commit/45e6977520a741746b72cf4ac93c93abffd34625))
+* **cli:** delete one agentic table row by id [UN-28733] ([#2799](https://github.com/Unique-AG/ai/issues/2799)) ([5a3632e](https://github.com/Unique-AG/ai/commit/5a3632e3cd66be7e34b4282942e52b6788887be2))
+* **sdk:** add the ProjectMemory resource [UN-29194] ([#2831](https://github.com/Unique-AG/ai/issues/2831)) ([8d7e135](https://github.com/Unique-AG/ai/commit/8d7e135d5241f32fe475c5e9194fdbcc64b52930))
+* **sdk:** record documents unique-cli read returns [UN-29512] ([#2768](https://github.com/Unique-AG/ai/issues/2768)) ([bf3f81c](https://github.com/Unique-AG/ai/commit/bf3f81c8d0f6f2854de035b939d2671872a7f23f))
+
+
+### Bug Fixes
+
+* **cli:** describe uploaded-search per message, not per task [UN-26588] ([#2744](https://github.com/Unique-AG/ai/issues/2744)) ([2b41e90](https://github.com/Unique-AG/ai/commit/2b41e90e3e984a186dab2205d112f5980760b78d))
+* **cli:** show results when a search call has several queries [UN-29738] ([#2789](https://github.com/Unique-AG/ai/issues/2789)) ([1d1bd2e](https://github.com/Unique-AG/ai/commit/1d1bd2edaf5cb780a1bedc5ffa2566b2754de349))
+* **sdk:** say MCP citation numbers are chat-wide in the unique-cli-mcp skill [UN-29474] ([#2751](https://github.com/Unique-AG/ai/issues/2751)) ([33f90b4](https://github.com/Unique-AG/ai/commit/33f90b469798fdf8bcf8b58ce9e6c3b7cc48969f))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.44.0...unique-sdk-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **sdk, toolkit, orchestrator:** generate a short title for new chats ([#2651](https://github.com/Unique-AG/ai/issues/2651)) ([b157977](https://github.com/Unique-AG/ai/commit/b1579770d3390c1ec145fa1f56c978a52ee8623a))
+* **sdk:** let unique-cli cite take several files in one call [UN-27925] ([#2666](https://github.com/Unique-AG/ai/issues/2666)) ([c19f2fe](https://github.com/Unique-AG/ai/commit/c19f2fe464ae90dac40808af88ad57f9d3053eb1))
+
+
+### Bug Fixes
+
+* **cli:** honor excluded knowledge-base folders [UN-28458] ([#2662](https://github.com/Unique-AG/ai/issues/2662)) ([8624a5a](https://github.com/Unique-AG/ai/commit/8624a5a8cd821ea1d3b8406b3cd739552180a6cb))
+* **cli:** keep ls, cd and search --folder inside the scopeIds allow-list [UN-28458] ([#2694](https://github.com/Unique-AG/ai/issues/2694)) ([7d3c2f5](https://github.com/Unique-AG/ai/commit/7d3c2f5c8c885dd9d7034907a7c7f08b9346fe2b))
+* **cli:** make outbound text editable in the elicitation skill [UN-27939] ([#2655](https://github.com/Unique-AG/ai/issues/2655)) ([b730af9](https://github.com/Unique-AG/ai/commit/b730af9b3baca3a23aea7af3573d53f9de9e673d))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.42.0...unique-sdk-v2026.44.0) (2026-10-23)
+
+
+### Features
+
+* **cli:** accept several queries in one web-search call [UN-27454] ([#2572](https://github.com/Unique-AG/ai/issues/2572)) ([88ecd6a](https://github.com/Unique-AG/ai/commit/88ecd6a355c630d716a8ab53a3d68af1948fb905))
+* **sdk, toolkit:** raise LanguageModelCallError from the LLM error contract ([#2603](https://github.com/Unique-AG/ai/issues/2603)) ([f61ca2d](https://github.com/Unique-AG/ai/commit/f61ca2d94cd76978a00b81c6024ecea5736b41b2))
+* **sdk:** add optional `excludeGptRequest` to `Message.list` and ([dd38954](https://github.com/Unique-AG/ai/commit/dd38954fce2063d7c243cb94223450cc8b49575f))
+* **sdk:** add timezone to scheduled tasks and CLI [UN-26399] ([#2593](https://github.com/Unique-AG/ai/issues/2593)) ([db1d570](https://github.com/Unique-AG/ai/commit/db1d570f5a2506d85457a61b7c98986cd9c9795b))
+* **sdk:** create Conduct spaces and attach MCP servers [UN-27208] ([#2547](https://github.com/Unique-AG/ai/issues/2547)) ([426c594](https://github.com/Unique-AG/ai/commit/426c5944c5d4f0799a81dadb1c0c705d83a180e6))
+* **search:** add merge strategy and score options ([#2565](https://github.com/Unique-AG/ai/issues/2565)) ([5d71779](https://github.com/Unique-AG/ai/commit/5d71779b93aced9e08fed0a6222980c49b94fd16))
+* **unique_sdk:** Briefing GET/DELETE and upsert title (UN-21011) ([#1719](https://github.com/Unique-AG/ai/issues/1719)) ([c47e303](https://github.com/Unique-AG/ai/commit/c47e3036d547dfb4505053a5bb0b76c09c307757))
+
+
+### Bug Fixes
+
+* **cli:** bound filename resolve to stop whole-KB scans [UN-26945] ([#2561](https://github.com/Unique-AG/ai/issues/2561)) ([42df03e](https://github.com/Unique-AG/ai/commit/42df03ec3ec0cf86e6cf7aecceb2abf561187f36))
+* **cli:** exit 1 when unique-cli mcp fails [UN-27061] ([#2558](https://github.com/Unique-AG/ai/issues/2558)) ([b578bc7](https://github.com/Unique-AG/ai/commit/b578bc75eca45de781a7fc710475dc94f01a60e3))
+* **cli:** exit non-zero when mkdir, upload, or ls fails [UN-26713] ([#2553](https://github.com/Unique-AG/ai/issues/2553)) ([dbab9f3](https://github.com/Unique-AG/ai/commit/dbab9f34ae4f055750edcde0f94979d547b44379))
+* **cli:** list folder files without company-wide content read [UN-26552] ([#2596](https://github.com/Unique-AG/ai/issues/2596)) ([34299cc](https://github.com/Unique-AG/ai/commit/34299ccff4a6e982d84eba10339e1af595b7f01c))
+* **cli:** resolve absolute mkdir paths [UN-26812] ([#2542](https://github.com/Unique-AG/ai/issues/2542)) ([8b225bf](https://github.com/Unique-AG/ai/commit/8b225bfcc011d52f5734e13a45b37a2efd06523b))
+* **orchestrator:** prevent parallel tool context overflow [UN-27401] ([#2575](https://github.com/Unique-AG/ai/issues/2575)) ([95ec9ec](https://github.com/Unique-AG/ai/commit/95ec9ec8bc94033dea7e04c045fac6783327750f))
+* **sdk:** make unique-cli ls pageable and flag truncated output ([#2609](https://github.com/Unique-AG/ai/issues/2609)) ([99bb57a](https://github.com/Unique-AG/ai/commit/99bb57a4732c3ca5f87c35a66102a0953d7fa72d))
+* **toolkit:** skip stored gptRequest when loading chat history [UN-27512] ([#2602](https://github.com/Unique-AG/ai/issues/2602)) ([dd38954](https://github.com/Unique-AG/ai/commit/dd38954fce2063d7c243cb94223450cc8b49575f))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.40.0...unique-sdk-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **agentic_table:** support overwriting Answer Library rows in place [UN-26688] ([#2515](https://github.com/Unique-AG/ai/issues/2515)) ([6cf8f9c](https://github.com/Unique-AG/ai/commit/6cf8f9c8a7584a37a77e4bbc626570dd59b03d1c))
+* **cli:** add agentic-table set-cell ([#2507](https://github.com/Unique-AG/ai/issues/2507)) ([678905f](https://github.com/Unique-AG/ai/commit/678905fa0e3d9f090e493d6f0376daab12eb0ef1))
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Bug Fixes
+
+* **cli:** keep knowledge base commands out of skill folders [UN-25784] ([#2504](https://github.com/Unique-AG/ai/issues/2504)) ([49cbaf6](https://github.com/Unique-AG/ai/commit/49cbaf6bb7ab6020b7606c09acf966c8b441fab3))
+* **cli:** revert keep knowledge base commands out of skill folders [UN-25784] ([#2533](https://github.com/Unique-AG/ai/issues/2533)) ([df0cd77](https://github.com/Unique-AG/ai/commit/df0cd778c909f6a43a40ce280104341c1504fe09))
+* **sdk:** record MCP tool replies whole for the grounding judge [UN-26481] ([#2486](https://github.com/Unique-AG/ai/issues/2486)) ([0d73b6d](https://github.com/Unique-AG/ai/commit/0d73b6d504906653d7e84f72bd1865160ed8bbe6))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.38.0...unique-sdk-v2026.40.0) (2026-09-24)
+
+
+### Features
+
+* **agentic_table:** support emitLibrarySheetVerifiedEvent on bulk row status updates [UN-26243] ([#2474](https://github.com/Unique-AG/ai/issues/2474)) ([25f90d7](https://github.com/Unique-AG/ai/commit/25f90d7fded0dd33028cca206e22e705fef6c332))
+* **sdk:** add context memory resource ([#2453](https://github.com/Unique-AG/ai/issues/2453)) ([3cab893](https://github.com/Unique-AG/ai/commit/3cab8936a9ba8bf4eed76ba43c2ea87fcefb3323))
+* **sdk:** Have scheduled task skill set name and use L for last day of the month [UN-26193] ([#2464](https://github.com/Unique-AG/ai/issues/2464)) ([ef94971](https://github.com/Unique-AG/ai/commit/ef9497114bfe1602631572694de94e1e8ff9db43))
+* **toolkit:** add system-interrupted turn marker and CANCELLED log status [UN-24137] ([#2455](https://github.com/Unique-AG/ai/issues/2455)) ([45ed838](https://github.com/Unique-AG/ai/commit/45ed83849b5cdcff50565da4ce7e783e43690294))
+* **unique_sdk:** add Space.update_chat to rename a chat [UN-25189] ([#2465](https://github.com/Unique-AG/ai/issues/2465)) ([f8b016d](https://github.com/Unique-AG/ai/commit/f8b016d96f7ce0cbfc3e5070334d7a26fa865cf9))
+
+
+### Bug Fixes
+
+* **cli:** anchor citation manifests to the workspace root [UN-25672] ([#2451](https://github.com/Unique-AG/ai/issues/2451)) ([412fa81](https://github.com/Unique-AG/ai/commit/412fa81343039c44b2108b4e59d7aaf8d87cb8c3))
+* **sdk:** cite each MCP item and keep its link ([#2473](https://github.com/Unique-AG/ai/issues/2473)) ([40b9c65](https://github.com/Unique-AG/ai/commit/40b9c653b7106806a0cfa639a3124b17a100eef6))
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.36.0...unique-sdk-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **sdk:** add chat ID to ingestion state updates ([#2396](https://github.com/Unique-AG/ai/issues/2396)) ([de19225](https://github.com/Unique-AG/ai/commit/de1922545dff3158e3614e2b0a06acbffc90a570))
+* **toolkit:** add optional userAbortedAt on magic table sheet [UN-25482] ([#2404](https://github.com/Unique-AG/ai/issues/2404)) ([5eb2ddc](https://github.com/Unique-AG/ai/commit/5eb2ddc0921abe2984f0746a95ed6dc6a867e498))
+
+
+### Bug Fixes
+
+* **sdk:** exit non-zero on schedule CLI API errors ([#2408](https://github.com/Unique-AG/ai/issues/2408)) ([959b207](https://github.com/Unique-AG/ai/commit/959b207698f388d4167b89ea89b36538ccaa4496))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.34.0...unique-sdk-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **sdk:** add languageModel parameter support to Space.create_message ([#2343](https://github.com/Unique-AG/ai/issues/2343)) ([3e1fab2](https://github.com/Unique-AG/ai/commit/3e1fab2fb57769eae7853fd96cd43e6bebdca57c))
+* **toolkit:** add bulk library-sheet-row verified metadata [UN-24872] ([#2342](https://github.com/Unique-AG/ai/issues/2342)) ([ec43a7b](https://github.com/Unique-AG/ai/commit/ec43a7b067f0546f768633db88aa263b4c0d30f0))
+* **toolkit:** add magic-table bulk rerun-rows event schema [UN-24275] ([#2340](https://github.com/Unique-AG/ai/issues/2340)) ([16e8838](https://github.com/Unique-AG/ai/commit/16e88389bc58ea122fda5a86bd09961d6664173f))
+
+
+### Bug Fixes
+
+* **cli:** resolve preboot chat-id placeholders via turn-identity file ([#2360](https://github.com/Unique-AG/ai/issues/2360)) ([e42e3cc](https://github.com/Unique-AG/ai/commit/e42e3cc56a69d390c4dbf48533e1ad14d0aab131))
+* **sdk:** stream blob downloads to disk instead of buffering in RAM ([#2344](https://github.com/Unique-AG/ai/issues/2344)) ([a8df392](https://github.com/Unique-AG/ai/commit/a8df39258e8213f90032f591b75b001c791ddd9f))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.32.0...unique-sdk-v2026.34.0) (2026-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** `AgenticTable.get_sheet_data` no longer accepts `scopeToAssignedRows`; `AgenticTableService.get_sheet` no longer accepts `scope_to_assigned_rows`. Default behavior was already unscoped at the client; gateway-side scoping remains automatic.
+
+### Features
+
+* **agentic-table:** add row-metadata write to SDK and toolkit ([#2245](https://github.com/Unique-AG/ai/issues/2245)) ([eafb152](https://github.com/Unique-AG/ai/commit/eafb152c222ed3648d137707cdc1154f77c61734))
+* **sdk:** align Space.create_message params with OpenAPI ([#2257](https://github.com/Unique-AG/ai/issues/2257)) ([01b0039](https://github.com/Unique-AG/ai/commit/01b003971c586a661d6171e7c266dc56886ff28e))
+* **sdk:** type the full folder ingestion config [UN-24141] ([#2256](https://github.com/Unique-AG/ai/issues/2256)) ([8026114](https://github.com/Unique-AG/ai/commit/8026114e6ca69606606c909b651c09eb29b65d46))
+
+
+### Bug Fixes
+
+* **sdk:** bound and validate direct-to-blob transfers in file_io [UN-23833] ([#2228](https://github.com/Unique-AG/ai/issues/2228)) ([1cb0f42](https://github.com/Unique-AG/ai/commit/1cb0f42da7725d89c249601383096f073cccd9ff))
+* **toolkit:** attribute secondary LLM usage [UN-20749] ([#2235](https://github.com/Unique-AG/ai/issues/2235)) ([e807508](https://github.com/Unique-AG/ai/commit/e80750874d6379b67ffefdb28e7857a923209ad1))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+* **sdk:** remove unused scopeToAssignedRows from sheet reads ([#2241](https://github.com/Unique-AG/ai/issues/2241)) ([08f1fb2](https://github.com/Unique-AG/ai/commit/08f1fb2ef2d55e12728bb829a4bd5b0112b18403))
+
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.30.0...unique-sdk-v2026.32.0) (2026-07-31)
+
+
+### Features
+
+* **cli:** agentic-table read commands (get-sheet, get-cell, cell-history) [UN-22199] ([#2101](https://github.com/Unique-AG/ai/issues/2101)) ([7ac1bc2](https://github.com/Unique-AG/ai/commit/7ac1bc268417e892ba0bd4e0e2dd5d9f6e8db274))
+* **cli:** agentic-table rerun-row for re-answering a single row [UN-22201] ([#2173](https://github.com/Unique-AG/ai/issues/2173)) ([2199613](https://github.com/Unique-AG/ai/commit/2199613af689e7dbed5fa822b7e273fa15146430))
+* **cli:** agentic-table write commands (create-sheet, import, export) [UN-22200] ([#2168](https://github.com/Unique-AG/ai/issues/2168)) ([6aeae9e](https://github.com/Unique-AG/ai/commit/6aeae9ee55d4107746fcf2203a0715b191698ab2))
+* **sdk:** harden elicit ask for supervised waits ([#2171](https://github.com/Unique-AG/ai/issues/2171)) ([5efb3e4](https://github.com/Unique-AG/ai/commit/5efb3e4d6e93bb0894a99acf44d3f84db35e9e38))
+* **sdk:** thread chatId through web-search CLI/SDK to activate node-chat Web Search toggle guard ([#2135](https://github.com/Unique-AG/ai/issues/2135)) ([583c75b](https://github.com/Unique-AG/ai/commit/583c75ba582089e94c469472a32758095bc55b92))
+* Token count analytics ([#2112](https://github.com/Unique-AG/ai/issues/2112)) ([f475dc4](https://github.com/Unique-AG/ai/commit/f475dc4606dd723e0fecfcdd09ace2f9c329e960))
+
+
+### Bug Fixes
+
+* **ai-modules:** improve elicitation skill ([#2145](https://github.com/Unique-AG/ai/issues/2145)) ([599371f](https://github.com/Unique-AG/ai/commit/599371f1d0fb25cdb32234b6b6b336ecb4e44cc2))
+* **cli:** choose cite --read-method by modality read, not page location [UN-23250] ([#2147](https://github.com/Unique-AG/ai/issues/2147)) ([aea070e](https://github.com/Unique-AG/ai/commit/aea070e1df7b0faa9321130e1e61c5f8aa853be9))
+* **sdk:** elicit-wait PENDING timeout message must instruct polling again [UN-23181] ([#2113](https://github.com/Unique-AG/ai/issues/2113)) ([848de2d](https://github.com/Unique-AG/ai/commit/848de2d482d0807dd400848a43d311914b0cf688))
+* **unique_sdk:** chat-monotonic MCP source numbering and richer citation sources [UN-23199] ([#2131](https://github.com/Unique-AG/ai/issues/2131)) ([81a770d](https://github.com/Unique-AG/ai/commit/81a770d47bc73602fb9449ef3285e47c06daba9f))
+* **unique_sdk:** keep crawl-error payloads out of the web-refs manifest [UN-23356] ([#2150](https://github.com/Unique-AG/ai/issues/2150)) ([ea220ff](https://github.com/Unique-AG/ai/commit/ea220ffcb4737ca835bfa618d1f7b890ff2ca2b0))
+* **unique_sdk:** UN-23307 redact request payload debug logs by default ([#2143](https://github.com/Unique-AG/ai/issues/2143)) ([30e5886](https://github.com/Unique-AG/ai/commit/30e5886493c223f823b4e9f81bd81b59fcc21a52))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.28.0...unique-sdk-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **agentic-table:** SDK + toolkit wrappers for the public sheet lifecycle (UBP CLI, R1) ([#2052](https://github.com/Unique-AG/ai/issues/2052)) ([6762d3e](https://github.com/Unique-AG/ai/commit/6762d3ec9a87624986e98487640742dba01d2b2a))
+* **cli:** split uploaded-search into its own gated skill [UN-21780] ([#1995](https://github.com/Unique-AG/ai/issues/1995)) ([a08b7ee](https://github.com/Unique-AG/ai/commit/a08b7ee11749e582f86241c54f19a6061708feef))
+* **mcp:** config-driven reference mapping for MCP list-result citations ([#1994](https://github.com/Unique-AG/ai/issues/1994)) ([e05cb21](https://github.com/Unique-AG/ai/commit/e05cb21f8497b4755e114bfaa84ff1f51b1df0d3))
+* **sdk:** record per-item text in MCP refs manifest for citation grounding [UN-22762] ([#2034](https://github.com/Unique-AG/ai/issues/2034)) ([3ee8af2](https://github.com/Unique-AG/ai/commit/3ee8af26bd061fe0cb41c217836712552cb9d2ef))
+* **unique_toolkit:** expose per-invocation LLM usage with model identity [UN-20907] (1/3) ([#2051](https://github.com/Unique-AG/ai/issues/2051)) ([9d2d89a](https://github.com/Unique-AG/ai/commit/9d2d89a379e2dcda3833d6fe5eaf4c488a50079b))
+
+
+### Bug Fixes
+
+* **cli:** resolve message ID from per-turn identity file [UN-22947] ([#2058](https://github.com/Unique-AG/ai/issues/2058)) ([633a66c](https://github.com/Unique-AG/ai/commit/633a66cac81fb9c528e271fa9bd9f758735dab46))
+* **sdk:** send explicit scopeIds null for unscoped CLI search [UN-22753] ([#2030](https://github.com/Unique-AG/ai/issues/2030)) ([6768162](https://github.com/Unique-AG/ai/commit/6768162fbb276110569d588f6db34a3e39b0f733))
+* **unique_toolkit:** add OVERLAPS/NOT_OVERLAPS UniqueQL operators ([#2028](https://github.com/Unique-AG/ai/issues/2028)) ([bfc33db](https://github.com/Unique-AG/ai/commit/bfc33dbdc8a1d913c1d23c5fe31f15f9fc3bbe29))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.26.0...unique-sdk-v2026.28.0) (2026-07-03)
 
 

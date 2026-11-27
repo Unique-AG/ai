@@ -1,3 +1,6 @@
+from unique_web_search.services.search_engine.utils.grounding.bing.citation_parsing import (
+    BingCitationParser,
+)
 from unique_web_search.services.search_engine.utils.grounding.bing.client import (
     credentials_are_valid,
     get_credentials,
@@ -8,6 +11,7 @@ from unique_web_search.services.search_engine.utils.grounding.bing.runner import
 )
 
 __all__ = [
+    "BingCitationParser",
     "credentials_are_valid",
     "get_credentials",
     "get_project_client",

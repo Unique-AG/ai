@@ -1,6 +1,7 @@
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from logging import Logger
 
 import unique_sdk
@@ -19,9 +20,33 @@ from unique_toolkit.language_model import (
     TypeDecoder,
     TypeEncoder,
 )
-from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
+    ModelCapabilities,
+)
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
+from unique_toolkit.monitoring import metric_scope
 
 from unique_user_memory.config import UserMemoryConfig
+from unique_user_memory.metrics import (
+    condense_trigger,
+    llm_duration,
+    llm_errors,
+    load_duration,
+    model_label,
+    observe_memory_length,
+    observe_unlabeled,
+    record_condense,
+    record_consolidation,
+    record_error,
+    record_gate,
+    record_load,
+    record_scrub,
+    record_storage,
+    storage_duration,
+)
 from unique_user_memory.user_memory_prompts import (
     SECTION_HEADINGS,
     condensation_system_prompt,
@@ -31,11 +56,18 @@ from unique_user_memory.user_memory_prompts import (
     empty_profile,
     memory_gate_system_prompt,
     memory_gate_user_prompt,
+    scrub_system_prompt,
+    scrub_user_prompt,
 )
 
 MEMORY_FILENAME = "memory.md"
 MIME_TYPE = "text/markdown"
 _LLM_OUTPUT_HEADROOM_TOKENS = 200
+# Mirrors node-ingestion's scope.utils USER_HOME_SCOPE_PREFIX (UN-24823): the
+# shared, company-writable `/user-memory` root was retired in favour of a
+# per-user root-level home folder. See conduct/runner/user_memory.py in the
+# monorepo for the reference implementation this mirrors (UN-24896).
+USER_HOME_FOLDER_PREFIX = "home-"
 
 
 async def noop_update_callback() -> None:
@@ -50,18 +82,73 @@ async def noop_update_callback() -> None:
 # The gate only ever replies with the single word UPDATE or NOOP; a tiny
 # output budget keeps the common (NOOP) path cheap and fast.
 _GATE_MAX_TOKENS = 4
+# Reasoning models spend `max_completion_tokens` on internal reasoning before
+# emitting the answer; a 4-token budget truncates the reply to empty and the
+# gate silently degrades to always-UPDATE. Give them enough room to reason and
+# still emit the single-word answer.
+_GATE_MAX_TOKENS_REASONING = 64
 # When condensing an oversized profile, aim below the hard cap so the LLM
 # output leaves headroom and the hard-cut safety net rarely has to fire.
 _CONDENSE_TARGET_RATIO = 0.9
 _TRUNCATION_MARKER = "\n\n<!-- truncated to fit memory budget -->"
 _DEFAULT_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
+_TURN_COUNT_RE = re.compile(r"^turn_count:\s*(\d+)\s*$", re.MULTILINE)
+_LEGACY_PROFILE_TITLE_RE = re.compile(r"^# User Memory[ \t]*(?:\n+|$)")
+_H2_HEADING_RE = re.compile(r"^## (.+?)[ \t]*$", re.MULTILINE)
+
+
+def profile_body(content: str) -> str:
+    """Return the profile without its YAML frontmatter.
+
+    The frontmatter is bookkeeping for the consolidation pass (turn count,
+    schema version, timestamps); consumers that show the profile to a model --
+    consolidation prompts and the orchestrator system prompt -- only want the
+    Markdown body.
+    """
+    return _FRONTMATTER_RE.sub("", content, count=1).strip()
+
+
+def _turn_count(content: str) -> int:
+    frontmatter_match = _FRONTMATTER_RE.match(content)
+    if frontmatter_match is None:
+        return 0
+    match = _TURN_COUNT_RE.search(frontmatter_match.group(0))
+    return int(match.group(1)) if match else 0
+
+
+def _assemble_profile(*, body: str, user_id: str, turn_count: int) -> str:
+    """Prefix an LLM-generated body with trusted application metadata."""
+    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return (
+        "---\n"
+        f"user_id: {user_id}\n"
+        "schema_version: 1\n"
+        f"last_updated: {timestamp}\n"
+        f"turn_count: {turn_count}\n"
+        "---\n\n"
+        f"{body.strip()}\n"
+    )
+
+
+def _restore_frontmatter(original: str, body: str) -> str:
+    match = _FRONTMATTER_RE.match(original)
+    if match is None:
+        return body
+    return f"{match.group(0).rstrip()}\n\n{body.strip()}\n"
 
 
 @dataclass(frozen=True)
 class UserMemoryState:
     scope_id: str
     text: str
+    load_invocation_stats: tuple[LanguageModelInvocationStats, ...] = ()
+
+
+def _gate_max_tokens(*, language_model: LanguageModelInfo) -> int:
+    if ModelCapabilities.REASONING in language_model.capabilities:
+        return _GATE_MAX_TOKENS_REASONING
+    return _GATE_MAX_TOKENS
 
 
 def _get_model_tokenizer(
@@ -146,6 +233,8 @@ async def condense_user_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
+    invocation_source: str = "user_memory_condense",
 ) -> str | None:
     """Ask the LLM to rewrite an oversized profile into a shorter one.
 
@@ -154,12 +243,14 @@ async def condense_user_memory(
     condensed profile, or ``None`` when the call fails or the output does
     not look like a profile (the caller then falls back to a hard cut).
     """
-    current_tokens = count_tokens(content=content, language_model=language_model)
+    body = profile_body(content)
+    current_tokens = count_tokens(content=body, language_model=language_model)
     target_tokens = max(1, int(max_tokens * _CONDENSE_TARGET_RATIO))
 
     try:
         llm_service = LanguageModelService(event)
     except Exception as exc:
+        record_error("condense", exc)
         logger.warning(
             "[user-memory] cannot construct LanguageModelService for condense: [%s] %s",
             type(exc).__name__,
@@ -177,18 +268,25 @@ async def condense_user_memory(
                 )
             ),
             LanguageModelUserMessage(
-                content=condensation_user_prompt(_sanitize_for_xml_context(content))
+                content=condensation_user_prompt(_sanitize_for_xml_context(body))
             ),
         ]
     )
 
     try:
-        response = await llm_service.complete_async(
-            messages=messages,
-            model_name=language_model.name,
-            other_options={"max_tokens": max_tokens + _LLM_OUTPUT_HEADROOM_TOKENS},
-        )
+        with metric_scope(
+            llm_duration,
+            llm_errors,
+            purpose="condense",
+            model=model_label(language_model.name),
+        ):
+            response = await llm_service.complete_async(
+                messages=messages,
+                model_name=language_model.name,
+                other_options={"max_tokens": max_tokens + _LLM_OUTPUT_HEADROOM_TOKENS},
+            )
     except Exception as exc:
+        record_error("condense", exc)
         logger.warning(
             "[user-memory] condense LLM call failed (model=%s): [%s] %s",
             language_model.name,
@@ -196,6 +294,15 @@ async def condense_user_memory(
             exc,
         )
         return None
+
+    if invocation_stats is not None and response.usage is not None:
+        invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(
+                language_model.name,
+                response.usage,
+                source=invocation_source,
+            )
+        )
 
     try:
         raw = response.choices[0].message.content or ""
@@ -214,7 +321,7 @@ async def condense_user_memory(
         )
         return None
 
-    candidate = _strip_code_fences(raw).strip()
+    candidate = _without_legacy_profile_title(profile_body(_strip_code_fences(raw)))
     if not _is_well_formed_profile(candidate):
         logger.warning(
             "[user-memory] condense output did not look like a profile (%d chars)",
@@ -232,6 +339,8 @@ async def fit_user_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
+    invocation_source: str = "user_memory_condense",
 ) -> str:
     """Ensure ``content`` fits ``max_tokens``, condensing before cutting.
 
@@ -257,12 +366,17 @@ async def fit_user_memory(
         language_model=language_model,
         event=event,
         logger=logger,
+        invocation_stats=invocation_stats,
+        invocation_source=invocation_source,
     )
+    trigger = condense_trigger(invocation_source)
     if condensed is not None:
+        condensed = _restore_frontmatter(content, condensed)
         condensed_tokens = count_tokens(
             content=condensed, language_model=language_model
         )
         if condensed_tokens <= max_tokens:
+            record_condense(trigger, "llm_ok")
             logger.info(
                 "[user-memory] memory condensed from %d to %d tokens (cap=%d)",
                 current_tokens,
@@ -277,6 +391,9 @@ async def fit_user_memory(
             max_tokens,
         )
         content = condensed
+        record_condense(trigger, "hard_cut")
+    else:
+        record_condense(trigger, "llm_failed_then_hard_cut")
 
     result = enforce_token_cap(
         content=content,
@@ -299,38 +416,183 @@ async def load_user_memory(
     language_model: LanguageModelInfo,
     logger: Logger,
 ) -> UserMemoryState | None:
-    user_id = event.user_id
-    company_id = event.company_id
-    if not user_id or not company_id:
-        logger.warning("[user-memory] empty user_id/company_id - skipping memory load")
-        return None
+    with observe_unlabeled(load_duration):
+        user_id = event.user_id
+        company_id = event.company_id
+        if not user_id or not company_id:
+            record_load("skipped_no_ids")
+            logger.warning(
+                "[user-memory] empty user_id/company_id - skipping memory load"
+            )
+            return None
 
-    scope_id = await ensure_user_memory_folder(
-        user_id=user_id,
-        company_id=company_id,
-        root_folder=config.root_folder,
-        logger=logger,
-    )
-    if scope_id is None:
-        logger.info("[user-memory] folder ensure failed - running without memory")
-        return None
+        scope_id = await ensure_user_memory_folder(
+            user_id=user_id,
+            company_id=company_id,
+            root_folder=config.root_folder,
+            logger=logger,
+        )
+        if scope_id is None:
+            record_load("folder_failed")
+            logger.info("[user-memory] folder ensure failed - running without memory")
+            return None
 
-    text = await download_user_memory(
-        scope_id=scope_id,
-        user_id=user_id,
-        company_id=company_id,
-        logger=logger,
-    )
-    return UserMemoryState(
-        scope_id=scope_id,
-        text=await fit_user_memory(
+        text = await download_user_memory(
+            scope_id=scope_id,
+            user_id=user_id,
+            company_id=company_id,
+            logger=logger,
+        )
+        invocation_stats: list[LanguageModelInvocationStats] = []
+        fitted = await fit_user_memory(
             content=text,
             max_tokens=config.max_tokens,
             language_model=language_model,
             event=event,
             logger=logger,
-        ),
-    )
+            invocation_stats=invocation_stats,
+            invocation_source="user_memory_load_condense",
+        )
+        record_load("empty" if not fitted.strip() else "success")
+        observe_memory_length(
+            phase="load",
+            content=fitted,
+            tokens=count_tokens(content=fitted, language_model=language_model),
+        )
+        return UserMemoryState(
+            scope_id=scope_id,
+            text=fitted,
+            load_invocation_stats=tuple(invocation_stats),
+        )
+
+
+def _home_memory_folder_path(*, user_id: str, root_folder: str) -> str:
+    """Canonical memory location post-UN-24823: `/home-<userId>/<root_folder>`."""
+    return f"/{USER_HOME_FOLDER_PREFIX}{user_id}/{root_folder.strip('/')}"
+
+
+def _legacy_memory_folder_path(*, user_id: str, root_folder: str) -> str:
+    """Pre-UN-24823 location (`/<root_folder>/<userId>`), read during rollout."""
+    return f"/{root_folder.strip('/')}/{user_id}"
+
+
+def _is_folder_not_found(exc: Exception) -> bool:
+    """True only for a genuine 404 from the folder-info endpoint."""
+    status = getattr(exc, "http_status", None)
+    code = getattr(exc, "code", None)
+    return status == 404 or code == 404 or code == "404"
+
+
+async def _resolve_existing_memory_folder(
+    *,
+    user_id: str,
+    company_id: str,
+    root_folder: str,
+    logger: Logger,
+) -> tuple[str | None, bool]:
+    """Look up the user's memory folder: canonical home first, legacy second.
+
+    Mirrors conduct/runner/user_memory.py::_resolve_existing_memory_folder in
+    the monorepo (UN-24896/UN-24823). Returns ``(scope_id, lookup_failed)``:
+    a resolved folder always wins; when neither location resolves,
+    ``lookup_failed`` distinguishes a verified absence (both lookups 404 -
+    safe to provision the home) from an unverified one (some other error -
+    the caller must not provision, or it risks creating an empty home that
+    orphans a real, still-legacy ``memory.md``).
+    """
+    lookup_failed = False
+    for folder_path in (
+        _home_memory_folder_path(user_id=user_id, root_folder=root_folder),
+        _legacy_memory_folder_path(user_id=user_id, root_folder=root_folder),
+    ):
+        try:
+            with metric_scope(storage_duration, op="folder_lookup"):
+                info = await unique_sdk.Folder.get_info_async(
+                    user_id=user_id,
+                    company_id=company_id,
+                    folderPath=folder_path,
+                )
+        except Exception as exc:
+            if _is_folder_not_found(exc):
+                record_storage("folder_lookup", "not_found")
+                continue
+            record_error("folder_lookup", exc)
+            record_storage("folder_lookup", "error")
+            logger.warning(
+                "[user-memory] memory folder lookup failed for %s: [%s] %s",
+                folder_path,
+                type(exc).__name__,
+                exc,
+            )
+            lookup_failed = True
+            continue
+        # A missing id (e.g. a 200 with an empty body) falls through to the
+        # next location the same way a 404 does.
+        scope_id = (info or {}).get("id")
+        if scope_id:
+            record_storage("folder_lookup", "success")
+            logger.debug(
+                "[user-memory] resolved existing memory folder %s", folder_path
+            )
+            return scope_id, False
+        record_storage("folder_lookup", "not_found")
+
+    if lookup_failed:
+        logger.warning(
+            "[user-memory] no memory folder resolved and at least one lookup "
+            "failed - running without memory instead of provisioning"
+        )
+    return None, lookup_failed
+
+
+async def _create_home_memory_folder(
+    *,
+    user_id: str,
+    company_id: str,
+    root_folder: str,
+    logger: Logger,
+) -> str | None:
+    """Provision `/home-<userId>/<root_folder>` with one idempotent call.
+
+    node-ingestion creates the caller's root-level home with an exclusive
+    owner ACL and repairs the ACL to owner-only on every pass (UN-24823).
+    There is no shared parent folder, so - unlike the retired shared-root
+    model - no separate access grant is needed here.
+    """
+    folder_path = _home_memory_folder_path(user_id=user_id, root_folder=root_folder)
+    try:
+        with metric_scope(storage_duration, op="folder_create"):
+            created = await unique_sdk.Folder.create_paths_async(
+                user_id=user_id,
+                company_id=company_id,
+                paths=[folder_path],
+                inheritAccess=False,
+            )
+    except Exception as exc:
+        record_error("folder_create", exc)
+        record_storage("folder_create", "error")
+        logger.warning(
+            "[user-memory] failed to ensure memory folder %s: [%s] %s",
+            folder_path,
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    created_folders = (created or {}).get("createdFolders", []) or []
+    # create_paths returns every newly-created segment, parent first (e.g. the
+    # home folder itself, then the memory subfolder if both were missing) -
+    # the leaf we actually want is always the last entry, never the first.
+    scope_id = created_folders[-1].get("id") if created_folders else None
+    if not scope_id:
+        record_storage("folder_create", "error")
+        logger.warning(
+            "[user-memory] create_paths returned no folder id for %s",
+            folder_path,
+        )
+        return None
+    record_storage("folder_create", "success")
+    return scope_id
 
 
 async def ensure_user_memory_folder(
@@ -340,125 +602,29 @@ async def ensure_user_memory_folder(
     root_folder: str,
     logger: Logger,
 ) -> str | None:
-    root_scope_id = await _resolve_root_folder(
+    """Resolve the user's memory folder, creating the home if needed (UN-24823).
+
+    Read-before-provision, mirroring node-chat/conduct: an existing folder
+    (canonical home, falling back to the legacy shared-root leaf for
+    not-yet-migrated users) always wins, and the home is only provisioned
+    when both locations are genuinely absent.
+    """
+    scope_id, lookup_failed = await _resolve_existing_memory_folder(
         user_id=user_id,
         company_id=company_id,
         root_folder=root_folder,
         logger=logger,
     )
-    if root_scope_id is None:
+    if scope_id is not None:
+        return scope_id
+    if lookup_failed:
         return None
-
-    user_folder_path = f"/{root_folder.strip('/')}/{user_id}"
-    scope_id: str | None = None
-    try:
-        info = await unique_sdk.Folder.get_info_async(
-            user_id=user_id,
-            company_id=company_id,
-            folderPath=user_folder_path,
-        )
-        return info.get("id")
-    except Exception:
-        logger.warning("[user-memory] user memory folder not found - creating new one")
-
-    try:
-        created = await unique_sdk.Folder.create_paths_async(
-            user_id=user_id,
-            company_id=company_id,
-            parentScopeId=root_scope_id,
-            relativePaths=[user_id],
-            inheritAccess=False,
-        )
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to create user folder %s: [%s] %s",
-            user_folder_path,
-            type(exc).__name__,
-            exc,
-        )
-        return None
-
-    created_folders = (created or {}).get("createdFolders", []) or []
-    if len(created_folders) > 1:
-        logger.warning(
-            "[user-memory] create_paths returned %d folders for %s, "
-            "expected exactly 1; using the first one",
-            len(created_folders),
-            user_folder_path,
-        )
-    scope_id = created_folders[0].get("id") if created_folders else None
-    if not scope_id:
-        logger.warning(
-            "[user-memory] create_paths returned no folder id for %s",
-            user_folder_path,
-        )
-        return None
-
-    try:
-        await unique_sdk.Folder.add_access_async(
-            user_id=user_id,
-            company_id=company_id,
-            scopeId=scope_id,
-            scopeAccesses=[
-                {
-                    "entityId": user_id,
-                    "type": "READ",
-                    "entityType": "USER",
-                },
-                {
-                    "entityId": user_id,
-                    "type": "WRITE",
-                    "entityType": "USER",
-                },
-            ],
-            applyToSubScopes=True,
-        )
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to grant read/write access on scope %s "
-            "for user %s: [%s] %s",
-            scope_id,
-            user_id,
-            type(exc).__name__,
-            exc,
-        )
-        return None
-
-    return scope_id
-
-
-async def _resolve_root_folder(
-    *,
-    user_id: str,
-    company_id: str,
-    root_folder: str,
-    logger: Logger,
-) -> str | None:
-    root_path = f"/{root_folder.strip('/')}"
-    try:
-        root_info = await unique_sdk.Folder.get_info_async(
-            user_id=user_id,
-            company_id=company_id,
-            folderPath=root_path,
-        )
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to resolve pre-provisioned root folder %s: [%s] %s",
-            root_path,
-            type(exc).__name__,
-            exc,
-        )
-        return None
-
-    root_scope_id = root_info.get("id")
-    if not root_scope_id:
-        logger.warning(
-            "[user-memory] root folder lookup returned no id for %s",
-            root_path,
-        )
-        return None
-
-    return root_scope_id
+    return await _create_home_memory_folder(
+        user_id=user_id,
+        company_id=company_id,
+        root_folder=root_folder,
+        logger=logger,
+    )
 
 
 async def download_user_memory(
@@ -468,58 +634,65 @@ async def download_user_memory(
     company_id: str,
     logger: Logger,
 ) -> str:
-    try:
-        contents = await search_contents_async(
-            user_id=user_id,
-            company_id=company_id,
-            chat_id=None,
-            where={"ownerId": {"equals": scope_id}},
-        )
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to list contents in scope %s: [%s] %s",
-            scope_id,
-            type(exc).__name__,
-            exc,
-        )
-        return ""
+    with metric_scope(storage_duration, op="download"):
+        try:
+            contents = await search_contents_async(
+                user_id=user_id,
+                company_id=company_id,
+                chat_id=None,
+                where={"ownerId": {"equals": scope_id}},
+            )
+        except Exception as exc:
+            record_error("download", exc)
+            record_storage("download", "error")
+            logger.warning(
+                "[user-memory] failed to list contents in scope %s: [%s] %s",
+                scope_id,
+                type(exc).__name__,
+                exc,
+            )
+            return ""
 
-    memory_content = next(
-        (content for content in contents if (content.key or "") == MEMORY_FILENAME),
-        None,
-    )
-    if memory_content is None:
-        logger.debug(
-            "[user-memory] no %s in scope %s - first turn for this user",
-            MEMORY_FILENAME,
-            scope_id,
+        memory_content = next(
+            (content for content in contents if (content.key or "") == MEMORY_FILENAME),
+            None,
         )
-        return ""
+        if memory_content is None:
+            record_storage("download", "not_found")
+            logger.debug(
+                "[user-memory] no %s in scope %s - first turn for this user",
+                MEMORY_FILENAME,
+                scope_id,
+            )
+            return ""
 
-    try:
-        content_bytes = await download_content_to_bytes_async(
-            user_id=user_id,
-            company_id=company_id,
-            content_id=memory_content.id,
-            chat_id=None,
-        )
-        text = content_bytes.decode("utf-8", errors="replace")
-        logger.info(
-            "[user-memory] downloaded %s (%d bytes) from scope %s",
-            MEMORY_FILENAME,
-            len(content_bytes),
-            scope_id,
-        )
-        return text
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to download %s from scope %s: [%s] %s",
-            MEMORY_FILENAME,
-            scope_id,
-            type(exc).__name__,
-            exc,
-        )
-        return ""
+        try:
+            content_bytes = await download_content_to_bytes_async(
+                user_id=user_id,
+                company_id=company_id,
+                content_id=memory_content.id,
+                chat_id=None,
+            )
+            text = content_bytes.decode("utf-8", errors="replace")
+            record_storage("download", "success")
+            logger.info(
+                "[user-memory] downloaded %s (%d bytes) from scope %s",
+                MEMORY_FILENAME,
+                len(content_bytes),
+                scope_id,
+            )
+            return text
+        except Exception as exc:
+            record_error("download", exc)
+            record_storage("download", "error")
+            logger.warning(
+                "[user-memory] failed to download %s from scope %s: [%s] %s",
+                MEMORY_FILENAME,
+                scope_id,
+                type(exc).__name__,
+                exc,
+            )
+            return ""
 
 
 async def upload_user_memory(
@@ -531,6 +704,7 @@ async def upload_user_memory(
     logger: Logger,
 ) -> bool:
     if not content.strip():
+        record_storage("upload", "refused_empty")
         logger.warning(
             "[user-memory] refusing to upload empty memory file to scope %s",
             scope_id,
@@ -538,18 +712,20 @@ async def upload_user_memory(
         return False
 
     try:
-        await upload_content_from_bytes_async(
-            user_id=user_id,
-            company_id=company_id,
-            content=content.encode("utf-8"),
-            content_name=MEMORY_FILENAME,
-            mime_type=MIME_TYPE,
-            scope_id=scope_id,
-            ingestion_config={
-                "uniqueIngestionMode": "SKIP_INGESTION",
-                "hideInChat": True,
-            },
-        )
+        with metric_scope(storage_duration, op="upload"):
+            await upload_content_from_bytes_async(
+                user_id=user_id,
+                company_id=company_id,
+                content=content.encode("utf-8"),
+                content_name=MEMORY_FILENAME,
+                mime_type=MIME_TYPE,
+                scope_id=scope_id,
+                ingestion_config={
+                    "uniqueIngestionMode": "SKIP_INGESTION",
+                    "hideInChat": True,
+                },
+            )
+        record_storage("upload", "success")
         logger.info(
             "[user-memory] uploaded %s (%d bytes) to scope %s",
             MEMORY_FILENAME,
@@ -558,6 +734,8 @@ async def upload_user_memory(
         )
         return True
     except Exception as exc:
+        record_error("upload", exc)
+        record_storage("upload", "error")
         logger.error(
             "[user-memory] upload failed for scope %s: [%s] %s",
             scope_id,
@@ -577,6 +755,7 @@ async def should_consolidate_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> bool:
     """Cheaply decide whether the turn warrants a full memory rewrite.
 
@@ -589,6 +768,8 @@ async def should_consolidate_memory(
     try:
         llm_service = LanguageModelService(event)
     except Exception as exc:
+        record_error("gate", exc)
+        record_gate("fail_open")
         logger.warning(
             "[user-memory] cannot construct LanguageModelService for gate: [%s] %s",
             type(exc).__name__,
@@ -613,12 +794,22 @@ async def should_consolidate_memory(
     )
 
     try:
-        response = await llm_service.complete_async(
-            messages=messages,
-            model_name=language_model.name,
-            other_options={"max_tokens": _GATE_MAX_TOKENS},
-        )
+        with metric_scope(
+            llm_duration,
+            llm_errors,
+            purpose="gate",
+            model=model_label(language_model.name),
+        ):
+            response = await llm_service.complete_async(
+                messages=messages,
+                model_name=language_model.name,
+                other_options={
+                    "max_tokens": _gate_max_tokens(language_model=language_model)
+                },
+            )
     except Exception as exc:
+        record_error("gate", exc)
+        record_gate("fail_open")
         logger.warning(
             "[user-memory] gate LLM call failed (model=%s): [%s] %s",
             language_model.name,
@@ -627,9 +818,20 @@ async def should_consolidate_memory(
         )
         return True
 
+    if invocation_stats is not None and response.usage is not None:
+        invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(
+                language_model.name,
+                response.usage,
+                source="user_memory_gate",
+            )
+        )
+
     try:
         raw = response.choices[0].message.content or ""
     except Exception as exc:
+        record_error("gate", exc)
+        record_gate("fail_open")
         logger.warning(
             "[user-memory] could not extract content from gate response: [%s] %s",
             type(exc).__name__,
@@ -638,6 +840,7 @@ async def should_consolidate_memory(
         return True
 
     if not isinstance(raw, str):
+        record_gate("fail_open")
         logger.warning(
             "[user-memory] gate returned non-string content (%s)",
             type(raw).__name__,
@@ -646,9 +849,11 @@ async def should_consolidate_memory(
 
     decision = raw.strip().upper()
     if decision.startswith("NOOP"):
+        record_gate("noop")
         logger.info("[user-memory] gate decided NOOP - skipping consolidation")
         return False
 
+    record_gate("update")
     logger.info("[user-memory] gate decided UPDATE - consolidating")
     return True
 
@@ -665,6 +870,7 @@ async def consolidate_user_memory(
     logger: Logger,
     on_update_start: Callable[[], Awaitable[None]] = noop_update_callback,
     on_update_end: Callable[[], Awaitable[None]] = noop_update_callback,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> str:
     """Consolidate the latest turn into the user's memory profile.
 
@@ -702,6 +908,7 @@ async def consolidate_user_memory(
         language_model=language_model,
         event=event,
         logger=logger,
+        invocation_stats=invocation_stats,
     ):
         return safe_current
 
@@ -716,9 +923,121 @@ async def consolidate_user_memory(
             language_model=language_model,
             event=event,
             logger=logger,
+            invocation_stats=invocation_stats,
         )
     finally:
         await on_update_end()
+
+
+async def scrub_user_memory(
+    *,
+    body: str,
+    config: UserMemoryConfig,
+    language_model: LanguageModelInfo,
+    event: ChatEvent,
+    logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
+) -> str | None:
+    """Enforce the CID/PII policy on a candidate profile body (UN-24886).
+
+    Runs after every consolidation rewrite and before the profile is
+    assembled for upload. Returns the body unchanged when the model
+    answers ``CLEAN``, the cleaned body when bullets were removed or
+    de-identified, and ``None`` when the scrub cannot vouch for the
+    candidate (LLM error, malformed output). The caller MUST treat
+    ``None`` as fail-closed and keep the existing memory.
+    """
+    try:
+        llm_service = LanguageModelService(event)
+    except Exception as exc:
+        record_error("scrub", exc)
+        record_scrub("veto")
+        logger.warning(
+            "[user-memory] cannot construct LanguageModelService for scrub: [%s] %s",
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    messages = LanguageModelMessages(
+        [
+            LanguageModelSystemMessage(content=scrub_system_prompt()),
+            LanguageModelUserMessage(
+                content=scrub_user_prompt(_sanitize_for_xml_context(body))
+            ),
+        ]
+    )
+
+    try:
+        with metric_scope(
+            llm_duration,
+            llm_errors,
+            purpose="scrub",
+            model=model_label(language_model.name),
+        ):
+            response = await llm_service.complete_async(
+                messages=messages,
+                model_name=language_model.name,
+                other_options={
+                    "max_tokens": config.max_tokens + _LLM_OUTPUT_HEADROOM_TOKENS
+                },
+            )
+    except Exception as exc:
+        record_error("scrub", exc)
+        record_scrub("veto")
+        logger.warning(
+            "[user-memory] scrub LLM call failed (model=%s): [%s] %s",
+            language_model.name,
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    if invocation_stats is not None and response.usage is not None:
+        invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(
+                language_model.name,
+                response.usage,
+                source="user_memory_scrub",
+            )
+        )
+
+    try:
+        raw = response.choices[0].message.content or ""
+    except Exception as exc:
+        record_error("scrub", exc)
+        record_scrub("veto")
+        logger.warning(
+            "[user-memory] could not extract content from scrub response: [%s] %s",
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    if not isinstance(raw, str):
+        record_scrub("veto")
+        logger.warning(
+            "[user-memory] scrub returned non-string content (%s)",
+            type(raw).__name__,
+        )
+        return None
+
+    if raw.strip().upper() == "CLEAN":
+        record_scrub("clean")
+        return body
+
+    cleaned = _without_legacy_profile_title(profile_body(_strip_code_fences(raw)))
+    if not _is_well_formed_profile(cleaned):
+        record_scrub("veto")
+        logger.warning(
+            "[user-memory] scrub output did not look like a profile (%d chars)",
+            len(cleaned),
+        )
+        return None
+
+    record_scrub("cleaned")
+    logger.info("[user-memory] scrub removed or de-identified profile content")
+    return cleaned
 
 
 async def _rewrite_user_memory(
@@ -731,6 +1050,7 @@ async def _rewrite_user_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> str:
     if not safe_current.strip():
         safe_current = empty_profile(user_id)
@@ -738,6 +1058,8 @@ async def _rewrite_user_memory(
     try:
         llm_service = LanguageModelService(event)
     except Exception as exc:
+        record_error("consolidation", exc)
+        record_consolidation("llm_error")
         logger.error(
             "[user-memory] cannot construct LanguageModelService: [%s] %s",
             type(exc).__name__,
@@ -752,8 +1074,7 @@ async def _rewrite_user_memory(
             ),
             LanguageModelUserMessage(
                 content=consolidation_user_prompt(
-                    user_id=user_id,
-                    existing_memory=safe_current,
+                    existing_memory=profile_body(safe_current),
                     user_message=_sanitize_for_xml_context(user_message or ""),
                     assistant_message=_sanitize_for_xml_context(
                         assistant_message or ""
@@ -764,14 +1085,22 @@ async def _rewrite_user_memory(
     )
 
     try:
-        response = await llm_service.complete_async(
-            messages=messages,
-            model_name=language_model.name,
-            other_options={
-                "max_tokens": config.max_tokens + _LLM_OUTPUT_HEADROOM_TOKENS,
-            },
-        )
+        with metric_scope(
+            llm_duration,
+            llm_errors,
+            purpose="consolidation",
+            model=model_label(language_model.name),
+        ):
+            response = await llm_service.complete_async(
+                messages=messages,
+                model_name=language_model.name,
+                other_options={
+                    "max_tokens": config.max_tokens + _LLM_OUTPUT_HEADROOM_TOKENS,
+                },
+            )
     except Exception as exc:
+        record_error("consolidation", exc)
+        record_consolidation("llm_error")
         logger.warning(
             "[user-memory] consolidation LLM call failed (model=%s): [%s] %s",
             language_model.name,
@@ -780,9 +1109,20 @@ async def _rewrite_user_memory(
         )
         return safe_current
 
+    if invocation_stats is not None and response.usage is not None:
+        invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(
+                language_model.name,
+                response.usage,
+                source="user_memory_consolidation",
+            )
+        )
+
     try:
         raw = response.choices[0].message.content or ""
     except Exception as exc:
+        record_error("consolidation", exc)
+        record_consolidation("llm_error")
         logger.warning(
             "[user-memory] could not extract content from LLM response: [%s] %s",
             type(exc).__name__,
@@ -791,6 +1131,7 @@ async def _rewrite_user_memory(
         return safe_current
 
     if not isinstance(raw, str):
+        record_consolidation("llm_error")
         logger.warning(
             "[user-memory] LLM returned non-string content (%s)",
             type(raw).__name__,
@@ -798,32 +1139,63 @@ async def _rewrite_user_memory(
         return safe_current
 
     if raw.strip().upper() == "NOOP":
+        record_consolidation("noop")
         logger.info("[user-memory] consolidation NOOP - keeping existing memory")
         return safe_current
 
-    candidate = _strip_code_fences(raw).strip()
-    if not _is_well_formed_profile(candidate):
+    candidate_body = _without_legacy_profile_title(
+        profile_body(_strip_code_fences(raw))
+    )
+    if not _is_well_formed_profile(candidate_body):
+        record_consolidation("malformed")
         logger.warning(
             "[user-memory] LLM output did not look like a profile (%d chars)",
-            len(candidate),
+            len(candidate_body),
         )
         return safe_current
 
+    scrubbed_body = await scrub_user_memory(
+        body=candidate_body,
+        config=config,
+        language_model=language_model,
+        event=event,
+        logger=logger,
+        invocation_stats=invocation_stats,
+    )
+    if scrubbed_body is None:
+        record_consolidation("scrub_veto")
+        logger.warning(
+            "[user-memory] scrub could not validate the rewritten profile - "
+            "keeping existing memory"
+        )
+        return safe_current
+    candidate_body = scrubbed_body
+
+    if safe_current and candidate_body == profile_body(safe_current):
+        record_consolidation("unchanged_after_scrub")
+        logger.debug("[user-memory] memory body unchanged - skipping update")
+        return safe_current
+
+    candidate = _assemble_profile(
+        body=candidate_body,
+        user_id=user_id,
+        turn_count=_turn_count(safe_current) + 1,
+    )
     capped = await fit_user_memory(
         content=candidate,
         max_tokens=config.max_tokens,
         language_model=language_model,
         event=event,
         logger=logger,
+        invocation_stats=invocation_stats,
+        invocation_source="user_memory_post_consolidation_condense",
     )
-    if (
-        safe_current
-        and _FRONTMATTER_RE.sub("", capped).strip()
-        == _FRONTMATTER_RE.sub("", safe_current).strip()
-    ):
-        logger.debug("[user-memory] memory body unchanged - skipping update")
-        return safe_current
-
+    record_consolidation("rewritten")
+    observe_memory_length(
+        phase="write",
+        content=capped,
+        tokens=count_tokens(content=capped, language_model=language_model),
+    )
     logger.info(
         "[user-memory] consolidation produced %d tokens (cap=%d)",
         count_tokens(content=capped, language_model=language_model),
@@ -839,9 +1211,14 @@ def _sanitize_for_xml_context(text: str) -> str:
 def _is_well_formed_profile(content: str) -> bool:
     if not content or len(content.strip()) < 20:
         return False
-    if _FRONTMATTER_RE.match(content):
-        return True
-    return "## Identity" in content or "# User Memory" in content
+    body = _without_legacy_profile_title(content.strip())
+    headings = tuple(_H2_HEADING_RE.findall(body))
+    return body.startswith("## Identity") and headings == SECTION_HEADINGS
+
+
+def _without_legacy_profile_title(content: str) -> str:
+    """Remove the former document title while preserving the H2 profile body."""
+    return _LEGACY_PROFILE_TITLE_RE.sub("", content.strip(), count=1).lstrip()
 
 
 def _strip_code_fences(text: str) -> str:

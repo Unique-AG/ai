@@ -42,6 +42,11 @@ unique-cli ls /Reports/Q1
 # List by scope ID
 unique-cli ls scope_abc123
 
+# Large folder: ls shows 50 folders and 50 files by default. When it prints
+# "showing files 1-50 of N", run the "more:" command it gives you
+unique-cli ls /Reports/Q1 --skip 50      # next page
+unique-cli ls /Reports/Q1 --all          # up to 1000 folders and 1000 files
+
 # Create a folder
 unique-cli mkdir Q2
 
@@ -78,6 +83,8 @@ unique-cli cite report.pdf --pages 3,5,7 --read-method text
 unique-cli cite cont_abc123 --pages 1-4 --read-method vision
 # Non-paginated files (Excel, CSV, txt): omit --pages to cite the whole file
 unique-cli cite data.xlsx --read-method text
+# Several files in one call (--pages and --read-method apply to each)
+unique-cli cite a.xlsx b.xlsx c.csv --read-method text
 
 # Delete a file
 unique-cli rm report.pdf
@@ -98,6 +105,10 @@ unique-cli mv report.pdf "Annual Report 2025.pdf"
 | `/` | `/` | Root |
 | Content ID | `cont_abc123` | File directly by ID |
 | File path | `/Reports/Q1/report.pdf` | File in a folder |
+
+A bare file name such as `report.pdf` resolves in the current folder. At the
+root (`/`) a bare file name is an error: pass a full path, a content ID, or `cd`
+into the folder first.
 
 ## Upload Destination Resolution
 
@@ -213,10 +224,18 @@ answer, declare citations. `cite` works on **any** file type, not just PDFs.
 unique-cli cite report.pdf --pages 3,5 --read-method text
 unique-cli cite cont_abc123 --pages 1-4 --read-method vision
 unique-cli cite data.xlsx --read-method text          # non-paginated: omit --pages
+unique-cli cite a.xlsx b.xlsx c.csv --read-method text # several files, one call
 ```
 
 This registers `[filesourceN]` markers. Use them inline in your answer.
 The platform converts `[filesourceN]` into footnotes and clickable reference chips.
+
+**Cite several files in ONE call.** Each `unique-cli cite` process takes seconds to
+start, so pass every file with the same `--read-method` (and the same `--pages`, if
+any) to a single call. A file that fails does not stop the others, and the command
+exits non-zero when any file failed — read stderr for the failing file. You may chain
+the call at the end of your last file-reading command (`... && unique-cli cite ...`)
+instead of spending a separate tool call on it.
 
 **Which page number to cite.** `cite` expects **physical page positions** (1-based) — the same positions ingestion assigns and that `unique-cli read` prints as `[p.N]` / `[p.N-M]` prefixes. NEVER cite a printed page number from a header/footer; those often differ from the physical position.
 
@@ -235,24 +254,29 @@ If you obtained the content some other way (you `download`ed the raw bytes and p
 CSV, `.txt`, HTML, images) have no pages — always omit `--pages`** and cite the
 whole file.
 
-**Choosing `--read-method`** (declare the *representation* of the source you actually read):
+**Choosing `--read-method`** (declare the *representation* you actually read the
+cited value from). Pick it by the **modality you read** — NOT by how you *located*
+the page. Locating a page with `unique-cli read` does **not** force `indexed`: if you
+then rendered that page and read a chart/figure with vision, the method is `vision`.
 
 - `text` → you used **extracted text** (`pdftotext`, PyMuPDF / `fitz` `page.get_text()`, MarkItDown, or any text extraction).
-- `vision` → you read a **rendered image** of the page/slide (e.g. `get_pixmap()`) with your vision capability.
-- `indexed` → you relied on **`unique-cli read`** output (the platform's indexed chunks).
+- `vision` → you read a **rendered image** of the page/slide (e.g. `get_pixmap()`) with your vision capability — including when you located the page via `unique-cli read` but then rendered it to read a chart, figure, table, or scanned page.
+- `indexed` → you used the **text returned by `unique-cli read`** (the platform's indexed chunks) as your answer source.
 
 | Value | When to use |
 |-------|-------------|
-| `text` | You read the page/document as extracted text and used that text. |
-| `vision` | You rendered the page to an image and read it with your vision capability. |
-| `indexed` | You read the content via `unique-cli read` (indexed chunks). |
+| `text` | You extracted the page/document text yourself and used that text. |
+| `vision` | You read a rendered image of the page with your vision capability — even if you located the page via `unique-cli read`. |
+| `indexed` | You used the text returned by `unique-cli read` (indexed chunks) as your source. |
 
-**Verify page numbers before citing — unless you already have them from `unique-cli read`.**
-If you cited straight from `unique-cli read` output (`--read-method indexed`), its
-`[p.N]` / `[p.N-M]` markers are already physical positions — skip the checks below
-and cite them directly. Otherwise — you read the raw bytes yourself
-(`--read-method text`/`vision`) — pick the row matching the file you read and
-verify the cited content really is where you claim before calling `cite`:
+**Verify page numbers before citing — unless you located them via `unique-cli read`.**
+This is about the *page number* only, and is **independent of `--read-method`**. If you
+located the page with `unique-cli read`, its `[p.N]` / `[p.N-M]` markers are already
+physical positions — trust them and skip the checks below, even if you then rendered the
+page and read it with vision (in that case still cite `--read-method vision`). Only when
+you obtained the page some other way — you `download`ed the raw bytes and parsed them
+yourself, or `read` returned no `[p.N]` markers — pick the row matching the file you read
+and verify the cited content really is where you claim before calling `cite`:
 
 - **PDF** — `pdfinfo file.pdf | grep Pages` for the total physical page count, then
   for **each** page run `pdftotext -f N -l N file.pdf -` and confirm the content is
@@ -265,11 +289,13 @@ verify the cited content really is where you claim before calling `cite`:
 - **Non-paginated (XLSX/CSV/TXT/HTML/images)** — there are no pages. Do **NOT**
   pass `--pages`; cite the whole file and verify the content exists in it.
 
-Then determine `--read-method`: report the representation you actually read. In a
-fallback chain (e.g. text extraction returned nothing → render + read visually),
-report `text` if you used extracted text or `vision` if you read a rendered image.
-Only after verifying, call `unique-cli cite` with the verified page numbers (if any)
-and `--read-method`.
+Then determine `--read-method` by the **modality you actually read** — independent of
+how you located the page. In a fallback chain (e.g. text extraction returned nothing →
+render + read visually), report `text` if you used extracted text or `vision` if you read
+a rendered image. If you located the page via `unique-cli read` but read the cited value
+off a rendered image (a chart, figure, table, or scanned page), report `vision`, not
+`indexed`. Only after confirming the page numbers, call `unique-cli cite` with the
+verified page numbers (if any) and `--read-method`.
 
 - **One method per `cite` call.** If different pages were read with different methods, issue separate `cite` calls — one per method.
 - Numbers are **per-turn only**; do not reuse from prior turns.

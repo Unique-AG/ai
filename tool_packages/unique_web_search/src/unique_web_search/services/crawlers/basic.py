@@ -18,7 +18,7 @@ from unique_search_proxy_core.crawlers.basic.schema import (
 )
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
-from unique_web_search.services.client.proxy_config import async_client
+from unique_web_search.services.client.http_client import client_for
 from unique_web_search.services.crawlers.base import BaseCrawler
 from unique_web_search.services.crawlers.registry import register_crawler
 from unique_web_search.services.crawlers.url_safety import (
@@ -32,6 +32,8 @@ from unique_web_search.services.proxy.mappers import map_crawl_response
 _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_URL_BLOCKED_PATTERNS = [r".*\.pdf$"]
+# Only the search proxy can read PDFs; the direct crawl would pass their bytes on as text.
+_PROXY_ONLY_MIMES = {CONTENT_TYPE_TOGGLE_TO_MIME["pdf"]}
 
 
 class BasicConfig(CoreBasicConfig):
@@ -77,7 +79,7 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
             exclude_none=True,
         )
         async with open_search_proxy_client(
-            timeout=float(self.config.timeout),
+            timeout=self._proxy_client_timeout,
             context=self._request_context,
         ) as client:
             response = await client.crawl.crawl(
@@ -89,29 +91,29 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
 
     @override
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
-        async with async_client(timeout=Timeout(self.config.timeout)) as client:
-            tasks = [self._crawl_url_with_client(client, target) for target in targets]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        client = await client_for(self._request_context)
+        tasks = [self._crawl_url_with_client(client, target) for target in targets]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            validation_errors = [
-                result
-                for result in results
-                if isinstance(result, CrawlTargetValidationError)
-            ]
-            if validation_errors:
-                raise validation_errors[0]
+        validation_errors = [
+            result
+            for result in results
+            if isinstance(result, CrawlTargetValidationError)
+        ]
+        if validation_errors:
+            raise validation_errors[0]
 
-            markdowns: list[str] = []
-            for result in results:
-                if isinstance(result, BaseException):
-                    markdowns.append(
-                        f"Unexpected error occurred while crawling the URL: {result}"
-                    )
+        markdowns: list[str] = []
+        for result in results:
+            if isinstance(result, BaseException):
+                markdowns.append(
+                    f"Unexpected error occurred while crawling the URL: {result}"
+                )
 
-                else:
-                    markdowns.append(result)
+            else:
+                markdowns.append(result)
 
-            return markdowns
+        return markdowns
 
     async def _crawl_url_with_client(
         self, client: AsyncClient, target: ResolvedCrawlTarget
@@ -132,6 +134,7 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
             target.request_url,
             headers=request_headers,
             extensions=request_extensions or None,
+            timeout=Timeout(self.config.timeout),
         )
 
         _ = response.raise_for_status()
@@ -160,7 +163,7 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
             for field_name, mime in CONTENT_TYPE_TOGGLE_TO_MIME.items()
             if getattr(self.config.content_types, field_name)
         }
-        return content_type not in allowed_mimes
+        return content_type not in allowed_mimes - _PROXY_ONLY_MIMES
 
 
 def _markdownify_html_with_timeout(content: str, timeout: float) -> str:

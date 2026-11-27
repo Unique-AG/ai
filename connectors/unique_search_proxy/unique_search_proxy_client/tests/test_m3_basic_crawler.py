@@ -1,14 +1,20 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+import gzip
+import logging
+from collections.abc import AsyncIterator, Callable
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.config_types import parse_crawl_request
 from unique_search_proxy_core.schema import ProxyErrorCode
-from unique_search_proxy_core.url_safety import ResolvedCrawlTarget
+from unique_search_proxy_core.url_safety import (
+    ResolvedCrawlTarget,
+    bypass_crawl_target,
+)
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.crawlers.basic.service import (
@@ -34,7 +40,10 @@ def _is_example_com_request(request: httpx.Request) -> bool:
 
 
 @pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+def client(
+    monkeypatch: pytest.MonkeyPatch,
+    make_pdf: Callable[[list[str]], bytes],
+) -> TestClient:
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
         host_header = request.headers.get("host", "")
@@ -43,7 +52,13 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         if "file.pdf" in url:
             return httpx.Response(
                 200,
-                text="%PDF-1.4",
+                content=b"%PDF-1.4\n%fake",
+                headers={"content-type": "application/pdf"},
+            )
+        if "real.pdf" in url:
+            return httpx.Response(
+                200,
+                content=make_pdf(["Rating calendar 2026"]),
                 headers={"content-type": "application/pdf"},
             )
         if "blocked.example" in host_header or "blocked.example" in url:
@@ -62,15 +77,15 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
     pool_transport = httpx.MockTransport(handler)
 
-    from unique_search_proxy_client.web.core.client.service import HttpClientPool
+    from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 
-    async def mock_create_pool() -> HttpClientPool:
+    async def mock_create_registry() -> HttpClientRegistry:
         http_client = httpx.AsyncClient(transport=pool_transport)
-        return HttpClientPool(client=http_client)
+        return HttpClientRegistry.fixed(http_client)
 
     monkeypatch.setattr(
-        "unique_search_proxy_client.web.app.create_http_client_pool",
-        mock_create_pool,
+        "unique_search_proxy_client.web.app.create_http_client_registry",
+        mock_create_registry,
     )
     with TestClient(create_app()) as test_client:
         yield test_client
@@ -117,19 +132,40 @@ def test_basic_crawler_service_implements_pinned_egress_protocol() -> None:
     assert isinstance(crawler, PinnedEgressCrawler)
 
 
+def _recording_client(
+    handler: Callable[[httpx.Request], httpx.Response],
+) -> tuple[httpx.AsyncClient, list[httpx.Request]]:
+    requests: list[httpx.Request] = []
+
+    def record(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return handler(request)
+
+    return httpx.AsyncClient(transport=httpx.MockTransport(record)), requests
+
+
+def _pinned_target(url: str, hostname: str) -> AllowedCrawlTarget:
+    return AllowedCrawlTarget(
+        display_url=url,
+        resolved=ResolvedCrawlTarget(
+            normalized_url=url,
+            hostname=hostname,
+            resolved_ip="93.184.216.34",
+            used_dns_resolution=True,
+        ),
+    )
+
+
 @pytest.mark.ai
 @pytest.mark.asyncio
 async def test_crawl_pinned__fetches_resolved_ip_with_host_and_sni() -> None:
-    html = "<html><body><p>Hello</p></body></html>"
-    response = httpx.Response(
-        200,
-        text=html,
-        headers={"content-type": "text/html; charset=utf-8"},
-        request=httpx.Request("GET", "https://93.184.216.34/docs?q=1"),
+    http_client, requests = _recording_client(
+        lambda _: httpx.Response(
+            200,
+            text="<html><body><p>Hello</p></body></html>",
+            headers={"content-type": "text/html; charset=utf-8"},
+        ),
     )
-    http_client = AsyncMock(spec=httpx.AsyncClient)
-    http_client.get.return_value = response
-
     request = parse_crawl_request(
         {
             "urls": ["https://example.com/docs?q=1"],
@@ -138,32 +174,235 @@ async def test_crawl_pinned__fetches_resolved_ip_with_host_and_sni() -> None:
             "contentTypes": {"html": True},
         },
     )
-    allowed_targets = [
-        AllowedCrawlTarget(
-            display_url="https://example.com/docs?q=1",
-            resolved=ResolvedCrawlTarget(
-                normalized_url="https://example.com/docs?q=1",
-                hostname="example.com",
-                resolved_ip="93.184.216.34",
-                used_dns_resolution=True,
-            ),
-        ),
-    ]
 
-    crawler = BasicCrawlerService(http_client=http_client)
-    results = await crawler.crawl_pinned(request, allowed_targets)
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        results = await crawler.crawl_pinned(
+            request,
+            [_pinned_target("https://example.com/docs?q=1", "example.com")],
+        )
 
     assert len(results) == 1
     assert results[0].error is None
     assert results[0].url == "https://example.com/docs?q=1"
-    http_client.get.assert_called_once()
-    assert http_client.get.call_args.args[0] == "https://93.184.216.34/docs?q=1"
-    call_headers = http_client.get.call_args.kwargs["headers"]
-    assert call_headers["Host"] == "example.com"
-    assert call_headers["User-Agent"]
-    assert (
-        http_client.get.call_args.kwargs["extensions"]["sni_hostname"] == "example.com"
+    assert len(requests) == 1
+    assert str(requests[0].url) == "https://93.184.216.34/docs?q=1"
+    assert requests[0].headers["Host"] == "example.com"
+    assert requests[0].headers["User-Agent"]
+    assert requests[0].headers["Accept-Encoding"] == "gzip, deflate"
+    assert requests[0].extensions["sni_hostname"] == "example.com"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__blocks_private_redirect_from_real_get() -> None:
+    http_client, requests = _recording_client(
+        lambda _: httpx.Response(302, headers={"Location": "http://127.0.0.1/admin"}),
     )
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        results = await crawler.crawl_pinned(
+            request,
+            [_pinned_target("https://example.com/start", "example.com")],
+        )
+
+    assert len(results) == 1
+    assert results[0].error is not None
+    assert results[0].error.code == ProxyErrorCode.FORBIDDEN_TARGET.value
+    assert len(requests) == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__isolates_malformed_redirect_to_affected_url() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["Host"] == "malformed.example":
+            return httpx.Response(302, headers={"Location": "http://[::1"})
+        return httpx.Response(
+            200,
+            text="valid content",
+            headers={"content-type": "text/plain"},
+        )
+
+    http_client, _ = _recording_client(handler)
+    request = parse_crawl_request(
+        {
+            "urls": [
+                "https://malformed.example/start",
+                "https://valid.example/start",
+            ],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        results = await crawler.crawl_pinned(
+            request,
+            [
+                _pinned_target("https://malformed.example/start", "malformed.example"),
+                _pinned_target("https://valid.example/start", "valid.example"),
+            ],
+        )
+
+    malformed_result, valid_result = results
+    assert malformed_result.error is not None
+    assert malformed_result.error.code == ProxyErrorCode.UPSTREAM_ERROR.value
+    assert valid_result.error is None
+    assert valid_result.raw == "valid content"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__delegates_private_redirect_to_trusted_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "url_safety_settings",
+        service_module.url_safety_settings.model_copy(update={"enabled": False}),
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/start":
+            return httpx.Response(
+                302,
+                headers={"Location": "http://127.0.0.1/internal"},
+            )
+        return httpx.Response(
+            200,
+            text="internal content",
+            headers={"content-type": "text/plain"},
+        )
+
+    http_client, requests = _recording_client(handler)
+    request = parse_crawl_request(
+        {
+            "urls": ["https://public.example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+    allowed_targets = [
+        AllowedCrawlTarget(
+            display_url="https://public.example.com/start",
+            resolved=bypass_crawl_target("https://public.example.com/start"),
+        ),
+    ]
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        results = await crawler.crawl_pinned(request, allowed_targets)
+
+    assert len(results) == 1
+    assert results[0].error is None
+    assert results[0].raw == "internal content"
+    assert len(requests) == 2
+    assert str(requests[1].url) == "http://127.0.0.1/internal"
+    assert "sni_hostname" not in requests[1].extensions
+    assert requests[1].headers["Host"] == "127.0.0.1"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error", "expected_code"),
+    [
+        (httpx.ReadTimeout("timed out"), ProxyErrorCode.UPSTREAM_TIMEOUT.value),
+        (httpx.ConnectError("refused"), ProxyErrorCode.UPSTREAM_ERROR.value),
+    ],
+)
+async def test_crawl_pinned__maps_transport_errors_to_upstream_errors(
+    error: httpx.HTTPError,
+    expected_code: str,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.setattr(
+        logging.getLogger("unique_search_proxy_client"), "propagate", True
+    )
+
+    def raise_error(_request: httpx.Request) -> httpx.Response:
+        raise error
+
+    http_client, _ = _recording_client(raise_error)
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        results = await crawler.crawl_pinned(
+            request,
+            [_pinned_target("https://example.com/start", "example.com")],
+        )
+
+    assert results[0].error is not None
+    assert results[0].error.code == expected_code
+    assert "Basic crawl" in caplog.text
+    assert "example.com" not in caplog.text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__reports_processing_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        logging.getLogger("unique_search_proxy_client"), "propagate", True
+    )
+
+    async def time_out(*_args: object, **_kwargs: object) -> str:
+        raise service_module.ContentProcessingTimeoutError("too slow")
+
+    monkeypatch.setattr(service_module, "process_content", time_out)
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            200,
+            text=_HTML_PAGE,
+            headers={"content-type": "text/html"},
+        ),
+    )
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/start"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        results = await crawler.crawl_pinned(
+            request,
+            [_pinned_target("https://example.com/start", "example.com")],
+        )
+
+    assert results[0].error is not None
+    assert results[0].error.code == ProxyErrorCode.UPSTREAM_TIMEOUT.value
+    assert results[0].raw == _HTML_PAGE
+    assert "Basic crawl processing timed out" in caplog.text
+    assert "example.com" not in caplog.text
 
 
 @pytest.mark.ai
@@ -190,12 +429,42 @@ def test_crawl_endpoint_returns_per_url_results(client: TestClient) -> None:
     failure = next(r for r in body["results"] if "blocked.example" in r["url"])
     assert failure["error"] is not None
     assert failure["error"]["code"] == ProxyErrorCode.UPSTREAM_ERROR.value
+    assert failure["error"]["statusCode"] == 403
     assert failure["contentType"] == "text/plain"
     assert failure["raw"] == "forbidden"
 
 
 @pytest.mark.ai
+def test_crawl_records_per_url_outcome_metrics(client: TestClient) -> None:
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/a", "https://blocked.example/x"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"html": True},
+        },
+    )
+    assert resp.status_code == 200
+
+    metrics = client.get("/metrics").text
+    assert (
+        'unique_search_proxy_crawl_url_outcomes_total{crawler="Basic",'
+        'error_code="",http_status="",outcome="success"}' in metrics
+    )
+    assert (
+        'unique_search_proxy_crawl_url_outcomes_total{crawler="Basic",'
+        f'error_code="{ProxyErrorCode.UPSTREAM_ERROR.value}",'
+        'http_status="403",outcome="error"}' in metrics
+    )
+
+
+@pytest.mark.ai
 def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
+    """
+    Purpose: Verify disabled PDF processing returns content-type without raw bytes.
+    Why this matters: Untrusted PDF bodies must not be echoed in crawl results.
+    Setup summary: Crawl a PDF URL with default pdf=false and assert raw/content null.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -207,7 +476,7 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
     result = resp.json()["results"][0]
     assert result["error"] is None
     assert result["contentType"] == "application/pdf"
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
 
 
@@ -266,6 +535,11 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
 
 @pytest.mark.ai
 def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
+    """
+    Purpose: Verify pdf=false skips extraction and omits raw PDF bytes.
+    Why this matters: Default deny must not process or retain PDF content.
+    Setup summary: Crawl with default toggles and assert a clean unprocessed result.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -276,12 +550,19 @@ def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
     assert resp.status_code == 200
     result = resp.json()["results"][0]
     assert result["error"] is None
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
     assert result["content"] is None
 
 
 @pytest.mark.ai
-def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
+def test_crawl_pdf_allowed_uses_default_pypdf_extractor(
+    client: TestClient,
+) -> None:
+    """
+    Purpose: Verify enabling PDF uses the default pypdf adapter without a license gate.
+    Why this matters: Spaces should extract text-layer PDFs out of the box.
+    Setup summary: Allow pdf and crawl a minimal PDF; accept empty or unsupported.
+    """
     resp = client.post(
         "/v1/crawl",
         json={
@@ -292,6 +573,594 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
-    assert result["error"] is not None
-    assert "PDF processing" in result["error"]["message"]
-    assert result["raw"] == "%PDF-1.4"
+    assert result["raw"] is None
+    # Minimal synthetic PDF may be empty/unsupported; it must not require licensing.
+    if result["error"] is not None:
+        assert result["error"]["code"] in {
+            ProxyErrorCode.PDF_UNSUPPORTED.value,
+            ProxyErrorCode.UPSTREAM_ERROR.value,
+        }
+    else:
+        assert result["content"] is not None
+
+
+@pytest.mark.ai
+def test_crawl_pdf_allowed_extracts_with_fake_adapter(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the crawl path returns Markdown when a fake extractor is wired.
+    Why this matters: End-to-end PDF processing must work once an adapter is selected.
+    Setup summary: Monkeypatch get_pdf_processor with FakePdfExtractor and crawl a PDF.
+    """
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
+        FakePdfExtractor,
+        InProcessExtractionRunner,
+        PdfProcessor,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+        ExtractionOutcome,
+        ExtractionResult,
+        PageChunk,
+    )
+
+    extractor = FakePdfExtractor(
+        result=ExtractionResult(
+            outcome=ExtractionOutcome.EXTRACTED,
+            chunks=(PageChunk(page_number=1, text="Rating calendar"),),
+            total_page_count=1,
+            adapter_name="fake",
+        )
+    )
+    processor = PdfProcessor(
+        extractor=extractor,
+        runner=InProcessExtractionRunner(extractor),
+    )
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring.get_pdf_processor",
+        lambda: processor,
+    )
+
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/file.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
+    assert result["error"] is None
+    assert result["content"] == "Rating calendar"
+    assert result["raw"] is None
+
+
+@pytest.mark.ai
+def test_crawl_pdf_allowed_returns_text_of_real_pdf(client: TestClient) -> None:
+    """
+    Purpose: Verify an enabled, parseable PDF comes back as its text end to end.
+    Why this matters: This is the feature: answer questions from PDF content.
+    Setup summary: Crawl a generated one-page PDF through the default pypdf child process.
+    """
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/real.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True},
+        },
+    )
+    assert resp.status_code == 200
+    result = resp.json()["results"][0]
+    assert result["error"] is None
+    assert result["content"] == "Rating calendar 2026"
+    assert result["raw"] is None
+
+
+@pytest.mark.ai
+def test_crawl_unreadable_pdf_fails_only_its_own_url(client: TestClient) -> None:
+    """
+    Purpose: Verify an unreadable PDF fails its URL while the rest of the crawl succeeds.
+    Why this matters: One bad PDF must not cost the model the other sources.
+    Setup summary: Crawl an unparseable PDF, a real PDF and an HTML page in one request.
+    """
+    resp = client.post(
+        "/v1/crawl",
+        json={
+            "urls": [
+                "https://example.com/file.pdf",
+                "https://example.com/real.pdf",
+                "https://example.com/article",
+            ],
+            "crawler": CrawlerType.BASIC.value,
+            "contentTypes": {"pdf": True, "html": True},
+        },
+    )
+    assert resp.status_code == 200
+    broken, real, html = resp.json()["results"]
+    assert broken["error"]["code"] == ProxyErrorCode.PDF_UNSUPPORTED.value
+    assert broken["error"]["message"] == (
+        "PDF could not be parsed. Retrying will not help."
+    )
+    assert broken["content"] is None
+    assert real["content"] == "Rating calendar 2026"
+    assert html["error"] is None
+    assert "Hello" in html["content"]
+
+
+def _cap_crawler_bodies(monkeypatch: pytest.MonkeyPatch, *, max_kib: int) -> None:
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "http_client_settings",
+        service_module.http_client_settings.model_copy(
+            update={"max_response_kib": max_kib},
+        ),
+    )
+
+
+def _plain_crawl_request(*urls: str) -> BaseModel:
+    return parse_crawl_request(
+        {
+            "urls": list(urls),
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+        },
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__maps_oversized_body_to_per_url_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify one oversized URL fails alone with RESPONSE_TOO_LARGE.
+    Why this matters: A single huge page must not fail the whole batch.
+    Setup summary: 1 KiB cap; one 4 KiB body and one small body; assert the
+        large URL errors and the small one succeeds.
+    """
+    _cap_crawler_bodies(monkeypatch, max_kib=1)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["Host"] == "big.example":
+            return httpx.Response(200, text="x" * 4096)
+        return httpx.Response(200, text="small")
+
+    http_client, _ = _recording_client(handler)
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        big_result, small_result = await crawler.crawl_pinned(
+            _plain_crawl_request(
+                "https://big.example/page", "https://small.example/page"
+            ),
+            [
+                _pinned_target("https://big.example/page", "big.example"),
+                _pinned_target("https://small.example/page", "small.example"),
+            ],
+        )
+
+    assert big_result.error is not None
+    assert big_result.error.code == ProxyErrorCode.RESPONSE_TOO_LARGE.value
+    assert big_result.raw is None
+    assert small_result.error is None
+    assert small_result.raw == "small"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("pdf_enabled", "expected_code"),
+    [
+        (False, ProxyErrorCode.RESPONSE_TOO_LARGE),
+        (True, ProxyErrorCode.PDF_LIMIT_EXCEEDED),
+    ],
+)
+async def test_crawl_pinned__oversized_pdf_code__depends_on_pdf_content_type(
+    monkeypatch: pytest.MonkeyPatch,
+    pdf_enabled: bool,
+    expected_code: ProxyErrorCode,
+) -> None:
+    """
+    Purpose: Verify an oversized PDF keeps RESPONSE_TOO_LARGE unless PDF is enabled.
+    Why this matters: Spaces that keep PDF off must see the same errors as before.
+    Setup summary: 1 KiB cap and a 4 KiB PDF; assert the code with PDF off and on.
+    """
+    _cap_crawler_bodies(monkeypatch, max_kib=1)
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            200,
+            content=b"%PDF-1.4\n" + b"x" * 4096,
+            headers={"content-type": "application/pdf"},
+        ),
+    )
+    request = parse_crawl_request(
+        {
+            "urls": ["https://big.example/file.pdf"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"pdf": pdf_enabled},
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        (result,) = await crawler.crawl_pinned(
+            request,
+            [_pinned_target("https://big.example/file.pdf", "big.example")],
+        )
+
+    assert result.error is not None
+    assert result.error.code == expected_code.value
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__pdf_extraction__releases_fetch_slot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify a PDF waiting for extraction does not hold the crawl's fetch slot.
+    Why this matters: Queued PDFs would otherwise stall the other URLs of the crawl.
+    Setup summary: One fetch slot; the PDF's extraction waits until the HTML URL
+        after it has been fetched, which only happens if the slot was released.
+    """
+    import asyncio
+
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf import (
+        FakePdfExtractor,
+        PdfProcessor,
+    )
+    from unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.types import (
+        ExtractionLimits,
+        ExtractionOutcome,
+        ExtractionResult,
+        PageChunk,
+    )
+
+    html_fetched = asyncio.Event()
+
+    class WaitForHtmlRunner:
+        async def run(self, path: object, limits: ExtractionLimits) -> ExtractionResult:
+            await html_fetched.wait()
+            return ExtractionResult(
+                outcome=ExtractionOutcome.EXTRACTED,
+                chunks=(PageChunk(page_number=1, text="PDF text"),),
+                total_page_count=1,
+                adapter_name="fake",
+            )
+
+    processor = PdfProcessor(extractor=FakePdfExtractor(), runner=WaitForHtmlRunner())
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.crawlers.basic.processing.processors.pdf.wiring.get_pdf_processor",
+        lambda: processor,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["Host"] == "pdf.example":
+            return httpx.Response(
+                200,
+                content=b"%PDF-1.4\n%fake",
+                headers={"content-type": "application/pdf"},
+            )
+        html_fetched.set()
+        return httpx.Response(200, text="html")
+
+    http_client, _ = _recording_client(handler)
+    request = parse_crawl_request(
+        {
+            "urls": ["https://pdf.example/file.pdf", "https://html.example/"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 2,
+            "maxConcurrentRequests": 1,
+            "contentTypes": {"pdf": True},
+        },
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        pdf_result, html_result = await crawler.crawl_pinned(
+            request,
+            [
+                _pinned_target("https://pdf.example/file.pdf", "pdf.example"),
+                _pinned_target("https://html.example/", "html.example"),
+            ],
+            deadline=asyncio.get_running_loop().time() + 2,
+        )
+
+    assert pdf_result.error is None
+    assert pdf_result.content == "PDF text"
+    assert html_result.error is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__stops_gzip_bomb_at_decoded_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify a gzip bomb is stopped by the decoded-size limit.
+    Why this matters: The compressed body is tiny, so only the decoded size
+        reveals the memory it would consume.
+    Setup summary: 64 KiB cap; 4 MiB of zeros gzipped; assert
+        RESPONSE_TOO_LARGE for the URL.
+    """
+    _cap_crawler_bodies(monkeypatch, max_kib=64)
+    bomb = gzip.compress(b"\0" * (4 * 1024 * 1024))
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            200, headers={"content-encoding": "gzip"}, content=bomb
+        ),
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        (result,) = await crawler.crawl_pinned(
+            _plain_crawl_request("https://bomb.example/page"),
+            [_pinned_target("https://bomb.example/page", "bomb.example")],
+        )
+
+    assert result.error is not None
+    assert result.error.code == ProxyErrorCode.RESPONSE_TOO_LARGE.value
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__rejects_unrequested_content_encoding() -> None:
+    """
+    Purpose: Verify encodings other than gzip/deflate are rejected unread.
+    Why this matters: brotli and zstd allow far larger decompression ratios.
+    Setup summary: Response with content-encoding br; assert a per-URL error
+        naming the encoding.
+    """
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            200, headers={"content-encoding": "br"}, content=b"\x00\x01"
+        ),
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        (result,) = await crawler.crawl_pinned(
+            _plain_crawl_request("https://br.example/page"),
+            [_pinned_target("https://br.example/page", "br.example")],
+        )
+
+    assert result.error is not None
+    assert result.error.code == ProxyErrorCode.UPSTREAM_ERROR.value
+    assert "br" in result.error.message
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "content_encoding",
+    ["gzip, gzip", "deflate, gzip", "gzip, identity, deflate"],
+)
+async def test_crawl_pinned__rejects_stacked_compression__only_for_affected_url(
+    content_encoding: str,
+) -> None:
+    """
+    Purpose: Verify responses with more than one compressing layer are rejected.
+    Why this matters: httpx decodes all layers in one step, so a second layer
+        inflates past the decoded-size limit before it can be checked.
+    Setup summary: One URL streams a body with a stacked content-encoding,
+        another a plain body; assert only the stacked URL errors, its body is
+        never read, and the other still succeeds.
+    """
+    stacked_body_read: list[bool] = []
+
+    async def stacked_body() -> AsyncIterator[bytes]:
+        stacked_body_read.append(True)
+        yield gzip.compress(gzip.compress(b"\0" * 1024))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers["Host"] == "stacked.example":
+            return httpx.Response(
+                200,
+                headers={"content-encoding": content_encoding},
+                content=stacked_body(),
+            )
+        return httpx.Response(200, text="plain")
+
+    http_client, _ = _recording_client(handler)
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        stacked_result, plain_result = await crawler.crawl_pinned(
+            _plain_crawl_request(
+                "https://stacked.example/page", "https://plain.example/page"
+            ),
+            [
+                _pinned_target("https://stacked.example/page", "stacked.example"),
+                _pinned_target("https://plain.example/page", "plain.example"),
+            ],
+        )
+
+    assert stacked_result.error is not None
+    assert stacked_result.error.code == ProxyErrorCode.UPSTREAM_ERROR.value
+    assert "Unsupported content encoding" in stacked_result.error.message
+    assert stacked_result.raw is None
+    assert stacked_body_read == []
+    assert plain_result.error is None
+    assert plain_result.raw == "plain"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__decodes_gzip_body__when_under_limit() -> None:
+    """
+    Purpose: Verify normal gzip pages are decoded and returned as text.
+    Why this matters: Most sites compress; the cap must not break them.
+    Setup summary: Gzipped HTML within the default cap; assert decoded raw.
+    """
+    http_client, _ = _recording_client(
+        lambda _: httpx.Response(
+            200,
+            headers={
+                "content-encoding": "gzip",
+                "content-type": "text/html; charset=utf-8",
+            },
+            content=gzip.compress("<p>Grüezi</p>".encode()),
+        ),
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        (result,) = await crawler.crawl_pinned(
+            _plain_crawl_request("https://gzip.example/page"),
+            [_pinned_target("https://gzip.example/page", "gzip.example")],
+        )
+
+    assert result.error is None
+    assert result.raw == "<p>Grüezi</p>"
+
+
+def _set_crawl_budget(monkeypatch: pytest.MonkeyPatch, *, max_kib: int) -> None:
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "request_limits_settings",
+        service_module.request_limits_settings.model_copy(
+            update={"max_crawl_response_kib": max_kib},
+        ),
+    )
+
+
+def _sequential_crawl_request(*urls: str) -> BaseModel:
+    return parse_crawl_request(
+        {
+            "urls": list(urls),
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "maxConcurrentRequests": 1,
+        },
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__fails_url_that_overruns_crawl_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify the URL that overruns the crawl budget fails on its own.
+    Why this matters: The budget bounds one request's total retained bodies.
+    Setup summary: 1 KiB budget, sequential fetches of 800, 800 and 100 byte
+        bodies; assert the second fails and the third still fits once the
+        failed body's bytes are released.
+    """
+    _set_crawl_budget(monkeypatch, max_kib=1)
+    sizes = {"a.example": 800, "b.example": 800, "c.example": 100}
+    http_client, _ = _recording_client(
+        lambda request: httpx.Response(200, text="x" * sizes[request.headers["Host"]]),
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        first, second, third = await crawler.crawl_pinned(
+            _sequential_crawl_request(
+                "https://a.example/", "https://b.example/", "https://c.example/"
+            ),
+            [
+                _pinned_target("https://a.example/", "a.example"),
+                _pinned_target("https://b.example/", "b.example"),
+                _pinned_target("https://c.example/", "c.example"),
+            ],
+        )
+
+    assert first.error is None
+    assert second.error is not None
+    assert second.error.code == ProxyErrorCode.RESPONSE_TOO_LARGE.value
+    assert third.error is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__skips_fetch__when_crawl_budget_exhausted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify URLs are not fetched once the crawl budget is used up.
+    Why this matters: Avoids network work whose result would be discarded.
+    Setup summary: 1 KiB budget, first body exactly 1 KiB; assert the second
+        URL errors with RESPONSE_TOO_LARGE and was never requested.
+    """
+    _set_crawl_budget(monkeypatch, max_kib=1)
+    http_client, requests = _recording_client(
+        lambda _: httpx.Response(200, text="x" * 1024),
+    )
+
+    async with http_client:
+        crawler = BasicCrawlerService(http_client=http_client)
+        first, second = await crawler.crawl_pinned(
+            _sequential_crawl_request("https://a.example/", "https://b.example/"),
+            [
+                _pinned_target("https://a.example/", "a.example"),
+                _pinned_target("https://b.example/", "b.example"),
+            ],
+        )
+
+    assert first.error is None
+    assert second.error is not None
+    assert second.error.code == ProxyErrorCode.RESPONSE_TOO_LARGE.value
+    assert len(requests) == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__clamps_fetch_concurrency__when_above_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify maxConcurrentRequests cannot exceed the server ceiling.
+    Why this matters: Concurrent fetches multiply in-flight sockets and bytes.
+    Setup summary: Ceiling 2, request 10 concurrent over 6 URLs with a
+        handler that yields; assert at most 2 fetches were in flight.
+    """
+    import asyncio
+
+    import unique_search_proxy_client.web.core.crawlers.basic.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "request_limits_settings",
+        service_module.request_limits_settings.model_copy(
+            update={"max_concurrent_fetches": 2},
+        ),
+    )
+    in_flight = 0
+    peak = 0
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal in_flight, peak
+        in_flight += 1
+        peak = max(peak, in_flight)
+        await asyncio.sleep(0.01)
+        in_flight -= 1
+        return httpx.Response(200, text="ok")
+
+    urls = [f"https://{name}.example/" for name in "abcdef"]
+    request = parse_crawl_request(
+        {
+            "urls": urls,
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "maxConcurrentRequests": 10,
+        },
+    )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        crawler = BasicCrawlerService(http_client=client)
+        results = await crawler.crawl_pinned(
+            request,
+            [_pinned_target(url, url.split("/")[2]) for url in urls],
+        )
+
+    assert all(result.error is None for result in results)
+    assert peak == 2

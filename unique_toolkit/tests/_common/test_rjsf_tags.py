@@ -3,7 +3,7 @@ Tests for the RJSF tags module.
 """
 
 from enum import StrEnum
-from typing import Annotated, Generic, Literal, TypeVar, Union
+from typing import Annotated, ClassVar, Generic, Literal, TypeVar, Union
 
 import pytest
 from humps import camelize
@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic.rjsf_tags import (
     _NONE_TYPES,
     CustomWidgetName,
+    DynamicRJSFTag,
     RJSFMetaTag,
     _collect_metatags,
     _is_metadata_key,
@@ -804,6 +805,25 @@ class TestUISchemaForModel:
             "ui:order": ["name", "age"],
         }
         assert schema == expected
+
+    def test_model_with_dynamic_rjsf_tag(self):
+        """Dynamic tags re-evaluate when ui_schema_for_model runs."""
+
+        class DynamicModel(BaseModel):
+            locked: Annotated[
+                bool,
+                DynamicRJSFTag(
+                    lambda: RJSFMetaTag({"ui:disabled": DynamicModel.enforced})
+                ),
+            ] = False
+
+            enforced: ClassVar[bool] = False
+
+        DynamicModel.enforced = False
+        assert ui_schema_for_model(DynamicModel)["locked"]["ui:disabled"] is False
+
+        DynamicModel.enforced = True
+        assert ui_schema_for_model(DynamicModel)["locked"]["ui:disabled"] is True
 
     def test_model_with_nested_model(self):
         """Test ui_schema_for_model with nested models."""

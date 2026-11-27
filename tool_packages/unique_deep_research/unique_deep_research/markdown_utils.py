@@ -378,6 +378,7 @@ async def export_report_to_docx(
         mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         skip_ingestion=True,
         hide_in_chat=True,
+        metadata={"assistantGenerated": True},
     )
 
     next_reference_number = max(reference_dict, default=0) + 1

@@ -9,12 +9,13 @@ from typing import Any, List
 import timeout_decorator
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
-from httpx import AsyncClient
+from httpx import AsyncClient, HTTPStatusError
 from langchain_core.messages import ToolCall
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import Tool, tool
 from markdownify import markdownify
 from pydantic import BaseModel, Field
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogEvent,
@@ -163,7 +164,9 @@ async def web_search(query: str, config: RunnableConfig) -> str:
     ].tools.web_tools_config.show_full_page_result
 
     search_engine_service = get_search_engine_service(
-        engine_config, configurable["language_model_service"]
+        engine_config,
+        configurable["language_model_service"],
+        request_context=configurable.get("request_context", LOCAL_REQUEST_CONTEXT),
     )
 
     # Perform the search
@@ -233,7 +236,7 @@ async def web_fetch(
 
     # Crawl the URL
     if not success:
-        _LOGGER.info(f"Unable to fetch content from: {url}")
+        _LOGGER.info("Unable to fetch content in web_fetch")
         return f"Unable to fetch content from URL: {url}"
 
     # Register citation and get metadata
@@ -552,7 +555,9 @@ async def crawl_url(client: AsyncClient, url: str) -> tuple[str, str | None, boo
         response = await client.get(url, headers=headers)
         response.raise_for_status()
     except Exception as e:
-        _LOGGER.warning(f"Failed to crawl URL: {str(e)}")
+        # httpx error messages include the URL, so log only the type and status.
+        status = e.response.status_code if isinstance(e, HTTPStatusError) else None
+        _LOGGER.warning(f"Failed to crawl URL: {type(e).__name__} (status {status})")
         return "Unable to crawl URL in web_fetch", None, False
 
     content_type = response.headers.get("content-type", "").lower().split(";")[0]

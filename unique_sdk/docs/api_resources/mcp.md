@@ -42,6 +42,33 @@ Use `unique_sdk.MCP` when you want to trigger one tool call from an assistant co
 !!! tip "Async variant"
     Use `unique_sdk.MCP.call_tool_async(...)` for async workflows.
 
+??? example "`unique_sdk.MCP.list_servers` - List MCP servers that can be attached to a space"
+
+    List the company's MCP servers (connectors) with the tools the company has enabled. Use the ids and tool names in the `mcpServers` field of `Space.create_space` and `Space.update_space`. Never returns server URLs or credentials.
+
+    Requires a role that may configure spaces.
+
+    **Parameters:**
+
+    - `user_id` (str, required) - User identifier
+    - `company_id` (str, required) - Company identifier
+
+    **Returns:**
+
+    Returns a [`McpServersResponse`](#mcpserversresponse) object.
+
+    **Example:**
+
+    ```python
+    servers = unique_sdk.MCP.list_servers(user_id=user_id, company_id=company_id)
+
+    for server in servers["mcpServers"]:
+        print(server["id"], server["name"], [tool["name"] for tool in server["tools"]])
+    ```
+
+!!! tip "Async variant"
+    Use `unique_sdk.MCP.list_servers_async(...)` for async workflows.
+
 ## Input Types
 
 #### CallToolParams {#calltoolparams}
@@ -71,6 +98,23 @@ Use `unique_sdk.MCP` when you want to trigger one tool call from an assistant co
     - `name` (str | None) - Optional tool name echoed by server
 
     **Returned by:** `MCP.call_tool()`, `MCP.call_tool_async()`
+
+#### McpServersResponse {#mcpserversresponse}
+
+??? note "The `McpServersResponse` object lists the company's MCP servers"
+
+    **Fields:**
+
+    - `mcpServers` (list[McpServerDto]) - Servers sorted by name:
+        - `id` (str) - MCP server ID
+        - `name` (str) - MCP server name
+        - `description` (str | None) - MCP server description
+        - `requiresOAuth` (bool) - Whether each user has to sign in before the server's tools run
+        - `isSpaceRestricted` (bool) - Whether the server may only be attached to the spaces in `allowedSpaceIds`
+        - `allowedSpaceIds` (list[str]) - Space IDs the server may be attached to. Empty when unrestricted.
+        - `tools` (list[McpServerToolDto]) - Tools the company has enabled, each with `name` (str) and `description` (str | None)
+
+    **Returned by:** `MCP.list_servers()`, `MCP.list_servers_async()`
 
 #### CallToolContentDto {#calltoolcontentdto}
 

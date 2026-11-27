@@ -37,12 +37,38 @@ gh api repos/Unique-AG/ai/dependabot/alerts/<NUMBER> --jq '.security_vulnerabili
 gh api repos/Unique-AG/ai/dependabot/alerts/<NUMBER> -X PATCH -f state=dismissed -f dismissed_reason=fix_started
 ```
 
+## Trivy image alerts
+
+Image scan results (`[Security] Trivy Image Scan`) land in code scanning with `tool.name` Trivy. The category tells the source: `trivy-image/<package>` is a fresh build of `main`, `trivy-image-release/<package>` is a published release.
+
+### List open image alerts
+
+```bash
+gh api --paginate "repos/Unique-AG/ai/code-scanning/alerts?state=open&per_page=100&tool_name=Trivy" \
+  | jq -s 'add | .[] | "\(.number) \(.rule.security_severity_level) \(.rule.id) \(.most_recent_instance.category) \(.most_recent_instance.location.path)"'
+```
+
+The path shows what to fix: `app/.venv/lib/python3.12/site-packages/<pkg>-<version>.dist-info/METADATA` is a Python dependency, and a path that is only the image name (`unique-ag/ai/search-proxy`) is a Debian package.
+
+### Read one alert (package, installed and fixed version)
+
+```bash
+gh api repos/Unique-AG/ai/code-scanning/alerts/<NUMBER> --jq '.most_recent_instance.message.text'
+```
+
+### Re-scan after the fix merged
+
+```bash
+gh workflow run "[Security] Trivy Image Scan" --ref main            # build main
+gh workflow run "[Security] Trivy Image Scan" --ref main -f source=release   # latest published release
+```
+
 ## CodeQL
 
 ### List open findings (all pages)
 
 ```bash
-gh api --paginate "repos/Unique-AG/ai/code-scanning/alerts?state=open&per_page=100" \
+gh api --paginate "repos/Unique-AG/ai/code-scanning/alerts?state=open&per_page=100&tool_name=CodeQL" \
   | jq -s 'add | .[] | "\(.number) \(.rule.severity) \(.rule.id) — \(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)"'
 ```
 

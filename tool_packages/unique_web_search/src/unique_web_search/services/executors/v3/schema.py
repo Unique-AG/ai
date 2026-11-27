@@ -15,6 +15,7 @@ _LLM_TOOL_MODEL_CONFIG = ConfigDict(
     alias_generator=to_camel,
     populate_by_name=True,
     extra="forbid",
+    hide_input_in_errors=True,
 )
 
 

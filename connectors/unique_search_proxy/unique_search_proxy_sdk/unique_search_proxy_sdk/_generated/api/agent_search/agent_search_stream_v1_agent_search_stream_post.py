@@ -8,14 +8,33 @@ from ...client import AuthenticatedClient, Client
 from ...models.bing_agent_search_request import BingAgentSearchRequest
 from ...models.http_validation_error import HTTPValidationError
 from ...models.vertex_ai_agent_search_request import VertexAiAgentSearchRequest
-from ...types import Response
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     *,
     body: BingAgentSearchRequest | VertexAiAgentSearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
+    x_unique_message_id: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
+    if not isinstance(x_unique_company_id, Unset):
+        headers["x-unique-company-id"] = x_unique_company_id
+
+    if not isinstance(x_unique_user_id, Unset):
+        headers["x-unique-user-id"] = x_unique_user_id
+
+    if not isinstance(x_unique_chat_id, Unset):
+        headers["x-unique-chat-id"] = x_unique_chat_id
+
+    if not isinstance(x_unique_entry_point, Unset):
+        headers["x-unique-entry-point"] = x_unique_entry_point
+
+    if not isinstance(x_unique_message_id, Unset):
+        headers["x-unique-message-id"] = x_unique_message_id
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -66,10 +85,21 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: BingAgentSearchRequest | VertexAiAgentSearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
+    x_unique_message_id: None | str | Unset = UNSET,
 ) -> Response[Any | HTTPValidationError]:
     """Stream an agent-based grounded search (SSE)
 
     Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_entry_point (str | Unset): Service where the search entered the platform.
+            Default: 'unknown'.
+        x_unique_message_id (None | str | Unset): Message identifier, reserved for analytics.
         body (BingAgentSearchRequest | VertexAiAgentSearchRequest):
 
     Raises:
@@ -82,6 +112,11 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         body=body,
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
+        x_unique_entry_point=x_unique_entry_point,
+        x_unique_message_id=x_unique_message_id,
     )
 
     response = client.get_httpx_client().request(
@@ -95,10 +130,21 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     body: BingAgentSearchRequest | VertexAiAgentSearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
+    x_unique_message_id: None | str | Unset = UNSET,
 ) -> Any | HTTPValidationError | None:
     """Stream an agent-based grounded search (SSE)
 
     Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_entry_point (str | Unset): Service where the search entered the platform.
+            Default: 'unknown'.
+        x_unique_message_id (None | str | Unset): Message identifier, reserved for analytics.
         body (BingAgentSearchRequest | VertexAiAgentSearchRequest):
 
     Raises:
@@ -112,6 +158,11 @@ def sync(
     return sync_detailed(
         client=client,
         body=body,
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
+        x_unique_entry_point=x_unique_entry_point,
+        x_unique_message_id=x_unique_message_id,
     ).parsed
 
 
@@ -119,10 +170,21 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     body: BingAgentSearchRequest | VertexAiAgentSearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
+    x_unique_message_id: None | str | Unset = UNSET,
 ) -> Response[Any | HTTPValidationError]:
     """Stream an agent-based grounded search (SSE)
 
     Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_entry_point (str | Unset): Service where the search entered the platform.
+            Default: 'unknown'.
+        x_unique_message_id (None | str | Unset): Message identifier, reserved for analytics.
         body (BingAgentSearchRequest | VertexAiAgentSearchRequest):
 
     Raises:
@@ -135,6 +197,11 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         body=body,
+        x_unique_company_id=x_unique_company_id,
+        x_unique_user_id=x_unique_user_id,
+        x_unique_chat_id=x_unique_chat_id,
+        x_unique_entry_point=x_unique_entry_point,
+        x_unique_message_id=x_unique_message_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -146,10 +213,21 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     body: BingAgentSearchRequest | VertexAiAgentSearchRequest,
+    x_unique_company_id: str | Unset = "local",
+    x_unique_user_id: str | Unset = "local",
+    x_unique_chat_id: str | Unset = "local",
+    x_unique_entry_point: str | Unset = "unknown",
+    x_unique_message_id: None | str | Unset = UNSET,
 ) -> Any | HTTPValidationError | None:
     """Stream an agent-based grounded search (SSE)
 
     Args:
+        x_unique_company_id (str | Unset): Tenant company identifier. Default: 'local'.
+        x_unique_user_id (str | Unset): Tenant user identifier. Default: 'local'.
+        x_unique_chat_id (str | Unset): Tenant chat or session identifier. Default: 'local'.
+        x_unique_entry_point (str | Unset): Service where the search entered the platform.
+            Default: 'unknown'.
+        x_unique_message_id (None | str | Unset): Message identifier, reserved for analytics.
         body (BingAgentSearchRequest | VertexAiAgentSearchRequest):
 
     Raises:
@@ -164,5 +242,10 @@ async def asyncio(
         await asyncio_detailed(
             client=client,
             body=body,
+            x_unique_company_id=x_unique_company_id,
+            x_unique_user_id=x_unique_user_id,
+            x_unique_chat_id=x_unique_chat_id,
+            x_unique_entry_point=x_unique_entry_point,
+            x_unique_message_id=x_unique_message_id,
         )
     ).parsed

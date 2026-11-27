@@ -28,17 +28,17 @@ async def sdk_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[UniqueSearchProxyClient]:
     from unique_search_proxy_client.web.app import create_app
-    from unique_search_proxy_client.web.core.client.service import HttpClientPool
+    from unique_search_proxy_client.web.core.client.service import HttpClientRegistry
 
-    async def mock_create_pool() -> HttpClientPool:
+    async def mock_create_registry() -> HttpClientRegistry:
         http_client = httpx.AsyncClient(
             transport=httpx.MockTransport(lambda _: httpx.Response(404)),
         )
-        return HttpClientPool(client=http_client)
+        return HttpClientRegistry.fixed(http_client)
 
     monkeypatch.setattr(
-        "unique_search_proxy_client.web.app.create_http_client_pool",
-        mock_create_pool,
+        "unique_search_proxy_client.web.app.create_http_client_registry",
+        mock_create_registry,
     )
     app = create_app()
     async with app.router.lifespan_context(app):
@@ -302,7 +302,12 @@ class TestProviderRegistry:
         from unique_search_proxy_sdk._transport import OpenapiTransport
 
         client = SearchClient(OpenapiTransport("http://test"))
-        assert set(SEARCH_ENGINE_NAME_TO_CONFIG) == {"google", "brave", "perplexity"}
+        assert set(SEARCH_ENGINE_NAME_TO_CONFIG) == {
+            "google",
+            "brave",
+            "perplexity",
+            "custom_api",
+        }
         for engine in SEARCH_ENGINE_NAME_TO_CONFIG:
             assert hasattr(client, engine)
 
@@ -364,3 +369,56 @@ class TestRequestContextHeaders:
         assert headers[COMPANY_ID_HEADER] == "company-1"
         assert headers[USER_ID_HEADER] == "user-1"
         assert headers[CHAT_ID_HEADER] == "chat-1"
+
+    @pytest.mark.ai
+    async def test_v1_post_forwards_non_local_context(self) -> None:
+        """The generated helpers default context headers to ``"local"`` and attach
+        them per request; in httpx request headers win over client defaults, so the
+        facade must forward the transport's context on every ``/v1`` POST.
+        """
+        from unique_search_proxy_core.context import (
+            CHAT_ID_HEADER,
+            COMPANY_ID_HEADER,
+            ENTRY_POINT_HEADER,
+            USER_ID_HEADER,
+            EntryPoint,
+            RequestContext,
+        )
+
+        from unique_search_proxy_sdk._transport import OpenapiTransport
+        from unique_search_proxy_sdk.search_client import SearchClient
+
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured.update(request.headers)
+            return httpx.Response(
+                200,
+                json={"engine": "google", "query": "q", "raw": {}, "curated": []},
+            )
+
+        context = RequestContext(
+            company_id="company-1",
+            user_id="user-1",
+            chat_id="chat-1",
+            entry_point=EntryPoint.CHAT_TOOL,
+        )
+        http = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            base_url="http://test",
+        )
+        try:
+            transport = OpenapiTransport(
+                "http://test",
+                http_client=http,
+                context=context,
+            )
+            client = SearchClient(transport)
+            await client.google(query="unique ag")
+        finally:
+            await http.aclose()
+
+        assert captured[COMPANY_ID_HEADER] == "company-1"
+        assert captured[USER_ID_HEADER] == "user-1"
+        assert captured[CHAT_ID_HEADER] == "chat-1"
+        assert captured[ENTRY_POINT_HEADER] == "chat_tool"

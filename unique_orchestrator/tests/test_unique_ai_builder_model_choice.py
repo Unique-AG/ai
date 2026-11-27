@@ -6,6 +6,8 @@ import pytest
 from pydantic import ValidationError
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
+from unique_skill_tool.config import SkillToolConfig
+from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -30,7 +32,11 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
-from unique_orchestrator.config import UniqueAIConfig, UniqueAISpaceConfig
+from unique_orchestrator.config import (
+    SwitchableLanguageModelConfig,
+    UniqueAIConfig,
+    UniqueAISpaceConfig,
+)
 from unique_orchestrator.unique_ai_builder import (
     _apply_model_choice_override,
     _record_language_model_debug_info,
@@ -256,6 +262,142 @@ def test_model_choice_keeps_experimental_temperature_when_switchable_has_none() 
 
     assert config.space.language_model == selected_model
     assert config.agent.experimental.temperature == 0.5
+
+
+@pytest.mark.ai
+def test_model_choice_applies_switchable_additional_llm_options_when_defined() -> None:
+    """
+    Purpose: Verify per-model additional_llm_options from switchable_language_models is applied.
+    Why this matters: Admins attach provider options (e.g. reasoning_effort) to a selectable model.
+    Setup summary: Configure an allowlisted model with the node `additionalLLMOptions` key;
+    assert the experimental options are populated via the camelCase alias.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                    "additionalLLMOptions": {"reasoning_effort": "high"},
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model == selected_model
+    assert config.agent.experimental.additional_llm_options == {
+        "reasoning_effort": "high"
+    }
+
+
+@pytest.mark.ai
+def test_model_choice_merges_switchable_additional_llm_options_over_experimental() -> (
+    None
+):
+    """
+    Purpose: Verify per-model options shallow-merge over space-level options, per-model winning.
+    Why this matters: Space-level options must survive except where the chosen model overrides.
+    Setup summary: Space-level sets two keys; the model overrides one; assert the merged result.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                    "additionalLLMOptions": {"reasoning_effort": "high"},
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={
+            "experimental": {
+                "additional_llm_options": {
+                    "reasoning_effort": "low",
+                    "top_p": 0.9,
+                }
+            }
+        },
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.agent.experimental.additional_llm_options == {
+        "reasoning_effort": "high",
+        "top_p": 0.9,
+    }
+
+
+@pytest.mark.ai
+def test_model_choice_keeps_experimental_additional_llm_options_when_switchable_has_none() -> (
+    None
+):
+    """
+    Purpose: Verify space-level options remain when the chosen model has no override.
+    Why this matters: Fallback must preserve existing spaces without per-model options.
+    Setup summary: Allowlisted model without options; assert experimental options unchanged.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={"experimental": {"additional_llm_options": {"reasoning_effort": "low"}}},
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model == selected_model
+    assert config.agent.experimental.additional_llm_options == {
+        "reasoning_effort": "low"
+    }
+
+
+@pytest.mark.ai
+def test_switchable_additional_llm_options_schema_is_camel_case() -> None:
+    """
+    Purpose: Lock the JSON-schema key for additional_llm_options to camelCase.
+    Why this matters: An explicit alias skips the to_camel generator, so the
+    schema (and generated TS types) must not regress to snake_case.
+    Setup summary: Read the validation-mode schema and assert the property name.
+    """
+    props = SwitchableLanguageModelConfig.model_json_schema(mode="validation")[
+        "properties"
+    ]
+    assert "additionalLlmOptions" in props
+    assert "additional_llm_options" not in props
 
 
 @pytest.mark.ai
@@ -512,6 +654,10 @@ def test_model_choice_refreshes_search_tool_token_limits() -> None:
                     name=WebSearchTool.name,
                     configuration=WebSearchConfig(),
                 ),
+                ToolBuildConfig(
+                    name=SkillTool.name,
+                    configuration=SkillToolConfig(),
+                ),
             ],
         ),
         agent={
@@ -535,12 +681,14 @@ def test_model_choice_refreshes_search_tool_token_limits() -> None:
             InternalSearchTool.name,
             WebSearchTool.name,
             RetrieveSearchScopeTool.name,
+            SkillTool.name,
         }
     }
     assert token_limits_by_tool_name == {
         InternalSearchTool.name: 4_000,
         WebSearchTool.name: 4_000,
         RetrieveSearchScopeTool.name: 4_000,
+        SkillTool.name: 4_000,
     }
 
 

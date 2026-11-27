@@ -1,15 +1,23 @@
 import asyncio
-from typing import override
+from collections.abc import Sequence
+from typing import Any, override
 
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
+from unique_search_proxy_core.agent_engines.bing.grounding import (
+    BingGroundingConfiguration,
+)
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
+from unique_search_proxy_core.agent_engines.bing.settings import resolve_market
 from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
-from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
-from unique_toolkit._common.validators import LMI, get_LMI_default_field
-from unique_toolkit.language_model import LanguageModelService
+from unique_search_proxy_core.schema import AnswerSpanCitation
 
+from unique_web_search.metrics import (
+    grounding_dropped_citations,
+    grounding_dropped_lines,
+    grounding_parse_failures,
+)
 from unique_web_search.services.proxy.bridge import (
     search_proxy_client_enabled,
 )
@@ -18,32 +26,16 @@ from unique_web_search.services.search_engine.registry import register_search_en
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.services.search_engine.utils.grounding import (
-    JsonConversionStrategy,
-    LLMParserStrategy,
-)
 from unique_web_search.services.search_engine.utils.grounding.bing import (
+    BingCitationParser,
     create_and_process_run,
     credentials_are_valid,
     get_credentials,
     get_project_client,
 )
-from unique_web_search.settings import env_settings
 
 
 class BingSearchConfig(BingAgentConfig):
-    agent_id: str = Field(
-        default=env_settings.azure_ai_assistant_id or "",
-        description="The ID of the agent to use for the search. **This parameter is temporary and will be auto-provisioned in future versions.**",
-    )
-    endpoint: str = Field(
-        default=env_settings.azure_ai_project_endpoint or "",
-        description="The endpoint to use for the search. **This parameter is not required to be set. It's loaded automatically from auto-provisioned resource**",
-    )
-    language_model: LMI = get_LMI_default_field(
-        DEFAULT_LANGUAGE_MODEL,
-        description="The language model to use in as a fallback parser if the agent response is not a valid JSON.",
-    )
     requires_scraping: bool = Field(
         default=False,
         description="Whether the search engine requires scraping.",
@@ -56,26 +48,17 @@ class BingSearchConfig(BingAgentConfig):
     config_cls=BingSearchConfig,
     mode=SearchEngineMode.AGENT,
     config_display_name="Grounding with Bing",
-    needs_language_model=True,
 )
 class BingSearch(SearchEngine[BingSearchConfig]):
     def __init__(
         self,
         config: BingSearchConfig,
-        language_model_service: LanguageModelService,
         *,
         request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
     ):
         super().__init__(config, request_context=request_context)
         self.credentials = get_credentials()
-
-        self.response_parsers = [
-            JsonConversionStrategy(),
-            LLMParserStrategy(
-                config.language_model,
-                language_model_service,
-            ),
-        ]
+        self.citation_response_parser = BingCitationParser()
 
     @property
     def is_configured(self) -> bool:
@@ -91,22 +74,63 @@ class BingSearch(SearchEngine[BingSearchConfig]):
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
+    def _grounding_configuration(self) -> BingGroundingConfiguration:
+        """The Bing tool knobs this space has fixed, with the market resolved."""
+        return BingGroundingConfiguration(
+            fetch_size=self.config.fetch_size,
+            market=resolve_market(self.config.market),
+            freshness=self.config.freshness,
+        )
+
+    @override
+    def _agent_proxy_invocation(
+        self,
+        engine: AgentEngineType,
+        params: ExposedParams | None,
+    ) -> dict[str, Any]:
+        """Resolve the market here too, so the env default works on either service."""
+        invocation = super()._agent_proxy_invocation(engine, params)
+        market = resolve_market(invocation.get("market"))
+        if market is not None:
+            invocation["market"] = market
+        return invocation
+
     @override
     async def _legacy_search(
         self,
         query: str,
         params: ExposedParams | None,
     ) -> list[WebSearchResult]:
-        del params
-        agent_client = get_project_client(self.credentials, self.config.endpoint)
+        agent_client = get_project_client(self.credentials)
 
-        search_results = await create_and_process_run(
-            agent_client,
-            agent_id=self.config.agent_id,
-            query=query,
-            fetch_size=self.config.fetch_size,
-            response_parsers_strategies=self.response_parsers,
-            generation_instructions=self.config.generation_instructions,
-        )
+        async with agent_client:
+            answer, citations = await create_and_process_run(
+                agent_client,
+                query=query,
+                grounding=self._grounding_configuration(),
+                generation_instructions=self.config.generation_instructions,
+            )
 
-        return search_results
+        return await self._parse_agent_answer(answer, citations)
+
+    @override
+    async def _parse_agent_answer(
+        self,
+        answer: str,
+        citations: Sequence[AnswerSpanCitation],
+    ) -> list[WebSearchResult]:
+        parsed = await self.citation_response_parser(answer, citations)
+        engine = self.config.engine.value
+        for reason, count in parsed.dropped_citations.items():
+            grounding_dropped_citations.labels(engine=engine, reason=reason.value).inc(
+                count
+            )
+        for reason, count in parsed.dropped_lines.items():
+            grounding_dropped_lines.labels(engine=engine, reason=reason.value).inc(
+                count
+            )
+        if parsed.failure is not None:
+            grounding_parse_failures.labels(
+                engine=engine, reason=parsed.failure.value
+            ).inc()
+        return parsed.results

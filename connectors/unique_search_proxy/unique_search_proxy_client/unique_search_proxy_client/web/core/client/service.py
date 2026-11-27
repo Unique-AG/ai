@@ -1,156 +1,59 @@
+"""Application-owned HTTP client registry around unique_search_proxy_core."""
+
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING
 
-import httpx
 from httpx import AsyncClient
+from unique_search_proxy_core.http_client import (
+    DirectRoute,
+    EgressRoute,
+    HttpClientRegistry,
+    ProxiedRoute,
+    resolver_from_settings,
+)
+from unique_search_proxy_core.http_client import (
+    async_client_factory as _async_client_factory,
+)
+from unique_search_proxy_core.http_client import (
+    build_async_client as _build_async_client,
+)
+from unique_search_proxy_core.http_client import (
+    build_route as _build_route,
+)
+from unique_search_proxy_core.http_client.credentials import ProxyCredentials
 
+from unique_search_proxy_client.web.core.client.credentials import (
+    resolver_from_settings as client_resolver_from_settings,
+)
 from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
-    ProxyAuthMode,
-    ProxyConfig,
     http_client_settings,
-)
-from unique_search_proxy_client.web.settings.secret_str import (
-    read_secret,
-    read_secret_headers,
 )
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
-
-_LOGGER = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class HttpClientPool:
-    """Shared httpx client used by engines and crawlers."""
-
-    client: AsyncClient
-
-    async def aclose(self) -> None:
-        await self.client.aclose()
 
 
 def _settings() -> HttpClientSettings:
     return http_client_settings
 
 
-def _get_proxy_host_and_port(settings: HttpClientSettings) -> tuple[str, int]:
-    proxy_host = settings.proxy_host
-    proxy_port = settings.proxy_port
-    if proxy_host is None or proxy_port is None:
-        raise ValueError("Proxy host and port are required")
-    return proxy_host, proxy_port
-
-
-def _build_proxy_url_with_username_password(settings: HttpClientSettings) -> str:
-    proxy_host, proxy_port = _get_proxy_host_and_port(settings)
-    proxy_username = settings.proxy_username
-    proxy_password = settings.proxy_password
-    if proxy_username is None or proxy_password is None:
-        raise ValueError("Proxy username and password are required")
-    return (
-        f"{settings.proxy_protocol}://"
-        f"{read_secret(proxy_username)}:{read_secret(proxy_password)}"
-        f"@{proxy_host}:{proxy_port}"
-    )
-
-
-def _build_proxy_url_with_tls(settings: HttpClientSettings) -> str:
-    proxy_host, proxy_port = _get_proxy_host_and_port(settings)
-    return f"{settings.proxy_protocol}://{proxy_host}:{proxy_port}"
-
-
-def _get_cert_args(settings: HttpClientSettings) -> tuple[str, str] | str:
-    proxy_ssl_cert_path = settings.proxy_ssl_cert_path
-    if proxy_ssl_cert_path is None:
-        raise ValueError("Proxy SSL cert path is required")
-
-    proxy_ssl_key_path = settings.proxy_ssl_key_path
-    if proxy_ssl_key_path is None:
-        _LOGGER.warning(
-            "Proxy SSL key path is not set. Assuming cert path includes key path"
-        )
-        return proxy_ssl_cert_path
-    return proxy_ssl_cert_path, proxy_ssl_key_path
-
-
-def _get_none_proxy_kwargs(settings: HttpClientSettings) -> ProxyConfig:
-    _LOGGER.info("Proxy auth mode: none. Using no proxy")
-    return ProxyConfig(
-        proxy=None,
-        headers=None,
-        verify=True,
-        trust_env=True,
-        cert=None,
-    )
-
-
-def _get_username_password_proxy_kwargs(settings: HttpClientSettings) -> ProxyConfig:
-    proxy_url = _build_proxy_url_with_username_password(settings)
-    _LOGGER.info(
-        "Proxy auth mode: username_password. Using proxy with username and password"
-    )
-    return ProxyConfig(
-        proxy=proxy_url,
-        headers=read_secret_headers(settings.proxy_headers) or None,
-        verify=settings.proxy_ssl_ca_bundle_path or True,
-    )
-
-
-def _get_ssl_tls_proxy_kwargs(settings: HttpClientSettings) -> ProxyConfig:
-    proxy_url = _build_proxy_url_with_tls(settings)
-    cert_args = _get_cert_args(settings)
-    _LOGGER.info("Proxy auth mode: ssl_tls. Using proxy with SSL/TLS")
-    return ProxyConfig(
-        proxy=proxy_url,
-        cert=cert_args,
-        headers=read_secret_headers(settings.proxy_headers) or None,
-        verify=settings.proxy_ssl_ca_bundle_path or True,
-    )
-
-
-def build_proxy_config(
-    settings: HttpClientSettings | None = None,
-) -> ProxyConfig:
-    client_settings = settings or _settings()
-    auth_mode: ProxyAuthMode = client_settings.proxy_auth_mode
-    match auth_mode:
-        case "none":
-            return _get_none_proxy_kwargs(client_settings)
-        case "username_password":
-            return _get_username_password_proxy_kwargs(client_settings)
-        case "ssl_tls":
-            return _get_ssl_tls_proxy_kwargs(client_settings)
-        case _:
-            raise ValueError(f"Invalid proxy auth mode: {auth_mode}")
+def build_route(
+    settings: HttpClientSettings,
+    credentials: ProxyCredentials,
+) -> EgressRoute:
+    return _build_route(settings, credentials)
 
 
 def build_async_client(
+    settings: HttpClientSettings,
+    credentials: ProxyCredentials,
     *,
-    settings: HttpClientSettings | None = None,
-    timeout: float | None = None,
+    timeout: float,
 ) -> AsyncClient:
-    client_settings = settings or _settings()
-    proxy_kwargs = build_proxy_config(client_settings)
-    effective_timeout = timeout or client_settings.pool_timeout_seconds
-    limits = httpx.Limits(
-        max_connections=client_settings.max_connections,
-        max_keepalive_connections=client_settings.max_keepalive_connections,
-    )
-    return AsyncClient(
-        proxy=proxy_kwargs.proxy,
-        headers=proxy_kwargs.headers,
-        verify=proxy_kwargs.verify,
-        trust_env=proxy_kwargs.trust_env,
-        cert=proxy_kwargs.cert,
-        timeout=effective_timeout,
-        limits=limits,
-    )
+    return _build_async_client(settings, credentials, timeout=timeout)
 
 
 def async_client_factory(
@@ -158,29 +61,44 @@ def async_client_factory(
     settings: HttpClientSettings | None = None,
     timeout: float | None = None,
 ) -> partial[AsyncClient]:
-    """Factory for short-lived clients with the shared proxy configuration."""
+    return _async_client_factory(settings or _settings(), timeout=timeout)
 
-    client_settings = settings or _settings()
-    proxy_kwargs = build_proxy_config(client_settings)
-    effective_timeout = timeout or client_settings.pool_timeout_seconds
-    return partial(
-        AsyncClient,
-        proxy=proxy_kwargs.proxy,
-        headers=proxy_kwargs.headers,
-        verify=proxy_kwargs.verify,
-        trust_env=proxy_kwargs.trust_env,
-        cert=proxy_kwargs.cert,
-        timeout=effective_timeout,
+
+async def create_http_client_registry() -> HttpClientRegistry:
+    """Create the application-owned HTTP client registry."""
+    settings = _settings()
+    return HttpClientRegistry(
+        settings=settings,
+        resolver=client_resolver_from_settings(settings),
     )
 
 
-async def create_http_client_pool() -> HttpClientPool:
-    client = build_async_client()
-    return HttpClientPool(client=client)
+def get_http_client_registry(app: FastAPI) -> HttpClientRegistry:
+    """Return the initialized application-owned HTTP client registry."""
+    registry = getattr(app.state, "http_client_registry", None)
+    if registry is None:
+        raise RuntimeError("HTTP client registry is not initialized")
+    return registry
 
 
-def get_http_client_pool(app: FastAPI) -> HttpClientPool:
-    pool = getattr(app.state, "http_client_pool", None)
-    if pool is None:
-        raise RuntimeError("HTTP client pool is not initialized")
-    return pool
+# Compatibility aliases for fixtures and callers still named around the pool.
+HttpClientPool = HttpClientRegistry
+create_http_client_pool = create_http_client_registry
+get_http_client_pool = get_http_client_registry
+
+
+__all__ = [
+    "DirectRoute",
+    "EgressRoute",
+    "HttpClientPool",
+    "HttpClientRegistry",
+    "ProxiedRoute",
+    "async_client_factory",
+    "build_async_client",
+    "build_route",
+    "create_http_client_pool",
+    "create_http_client_registry",
+    "get_http_client_pool",
+    "get_http_client_registry",
+    "resolver_from_settings",
+]

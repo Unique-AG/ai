@@ -150,3 +150,75 @@ class TestGoogleSearch:
             "gl": "de",
             "dateRestrict": "m1",
         }
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("extra_fields", "expected_snippet"),
+        [
+            pytest.param(
+                {
+                    "pagemap": {
+                        "metatags": [
+                            {
+                                "og:description": "Head of Research at Example AG &amp; author.\n\nZurich"
+                            }
+                        ]
+                    }
+                },
+                "Short excerpt ...\nHead of Research at Example AG & author. Zurich",
+                id="og-description-appended",
+            ),
+            pytest.param(
+                {
+                    "pagemap": {
+                        "metatags": [
+                            {"twitter:description": "Twitter-only description."}
+                        ]
+                    }
+                },
+                "Short excerpt ...\nTwitter-only description.",
+                id="twitter-fallback",
+            ),
+            pytest.param(
+                {"pagemap": {"metatags": [{"og:description": "None."}]}},
+                "Short excerpt ...",
+                id="placeholder",
+            ),
+            pytest.param({}, "Short excerpt ...", id="no-pagemap"),
+            pytest.param({"pagemap": None}, "Short excerpt ...", id="pagemap-null"),
+            pytest.param(
+                {"pagemap": {"metatags": []}}, "Short excerpt ...", id="metatags-empty"
+            ),
+            pytest.param(
+                {"pagemap": {"metatags": ["text"]}},
+                "Short excerpt ...",
+                id="metatags-entry-not-dict",
+            ),
+        ],
+    )
+    def test_extract_urls__adds_page_description_to_snippet__like_search_proxy(
+        self, extra_fields, expected_snippet
+    ):
+        """
+        Purpose: The legacy (direct Google) path builds the same snippet as the proxy:
+            snippet, then the page's own description unless it adds nothing.
+        Why this matters: Tenants without proxy routing should get the same search
+            text as proxy tenants, especially for pages that can't be crawled.
+        Setup summary: Mock Google response with one item per case; assert the snippet.
+        """
+        item = {
+            "link": "https://example.com/a",
+            "title": "Example",
+            "snippet": "Short excerpt ...",
+            **extra_fields,
+        }
+        response = Mock()
+        response.json.return_value = {"items": [item]}
+
+        results = GoogleSearch(GoogleConfig())._extract_urls(response)
+
+        assert results == [
+            WebSearchResult(
+                url="https://example.com/a", title="Example", snippet=expected_snippet
+            )
+        ]

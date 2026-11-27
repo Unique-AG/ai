@@ -9,7 +9,7 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+    - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
       id: filter
       with:
         predicate-quantifier: 'every'
@@ -23,6 +23,8 @@ runs:
           sdk:
             - 'unique_sdk/**'
             - '!unique_sdk/**/*.md'
+          sdk_skills:
+            - 'unique_sdk/unique_sdk/**/skills/**'
           mcp:
             - 'unique_mcp/**'
             - '!unique_mcp/**/*.md'
@@ -32,6 +34,8 @@ runs:
           web_search:
             - 'tool_packages/unique_web_search/**'
             - '!tool_packages/unique_web_search/**/*.md'
+          web_search_skills:
+            - 'tool_packages/unique_web_search/src/**/skills/**'
           swot:
             - 'tool_packages/unique_swot/**'
             - '!tool_packages/unique_swot/**/*.md'
@@ -75,4 +79,13 @@ runs:
       shell: bash
       run: |
         CHANGES_JSON='${{ toJson(steps.filter.outputs) }}'
-        echo "changes=$(echo "$CHANGES_JSON" | jq -c .)" >> $GITHUB_OUTPUT
+        MERGED=$(jq -c '
+          reduce (keys[] | select(endswith("_skills"))) as $helper (.;
+            ($helper | rtrimstr("_skills")) as $pkg
+            | (if .[$helper] == "true" then .[$pkg] = "true" else . end)
+            | del(.[$helper])
+          )
+          | del(.changes)
+        ' <<<"$CHANGES_JSON")
+        echo "changes=$MERGED" >> $GITHUB_OUTPUT
+        echo "$MERGED" | jq .

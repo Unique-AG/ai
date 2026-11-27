@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Collection
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
@@ -11,14 +12,24 @@ from unique_search_proxy_core.url_safety.models import (
     ResolvedCrawlTarget,
 )
 from unique_search_proxy_core.url_safety.netloc import extract_hostname
-from unique_search_proxy_core.url_safety.policy import validate_target_cheap
+from unique_search_proxy_core.url_safety.policy import (
+    is_trusted_private_host,
+    validate_target_cheap,
+)
 
 
-async def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
+async def resolve_crawl_target(
+    url: str,
+    *,
+    trusted_private_hosts: Collection[str] = (),
+) -> ResolvedCrawlTarget:
     """Validate and resolve a single URL, performing DNS exactly once."""
     normalized_url = url.strip()
 
-    validation_error = validate_target_cheap(normalized_url)
+    validation_error = validate_target_cheap(
+        normalized_url,
+        trusted_private_hosts=trusted_private_hosts,
+    )
     if validation_error is not None:
         category, reason = validation_error
         raise CrawlTargetValidationError(
@@ -50,7 +61,11 @@ async def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
         target_ip = ip_address(normalized_host)
     except ValueError:
         resolved_addresses, validation_error = await dns.resolve_and_validate_host(
-            normalized_host
+            normalized_host,
+            allow_trusted_private=is_trusted_private_host(
+                normalized_host,
+                trusted_private_hosts,
+            ),
         )
         if validation_error is not None:
             category, reason = validation_error

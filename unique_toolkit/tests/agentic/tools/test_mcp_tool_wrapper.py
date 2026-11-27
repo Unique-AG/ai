@@ -18,11 +18,9 @@ import pytest
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ProgressState,
-    ToolProgressReporter,
-)
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
+from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -770,6 +768,9 @@ class TestMCPToolWrapperRun:
             assert "Here is the chart" in response.content
             assert "unique://content/content_abc123" in response.content
             assert "Include the image(s)" in response.content
+            assert mock_upload.call_args.kwargs["metadata"] == {
+                "assistantGenerated": True
+            }
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -809,7 +810,7 @@ class TestMCPToolWrapperRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__notifies_progress_reporter__when_new_ui_disabled_AI(
+    async def test_run__does_not_notify_progress_reporter__AI(
         self,
         mock_mcp_server: McpServer,
         mock_mcp_tool: McpTool,
@@ -817,73 +818,9 @@ class TestMCPToolWrapperRun:
         mock_chat_event: ChatEvent,
     ) -> None:
         """
-        Purpose: Verify progress reporter is notified during execution when new UI is disabled.
-        Why this matters: Progress reporting provides user feedback in legacy UI.
-        Setup summary: Create wrapper with mock reporter (with new UI disabled), execute tool, verify notifications.
-        """
-        # Arrange
-        mock_progress_reporter = Mock(spec=ToolProgressReporter)
-        mock_progress_reporter.notify_from_tool_call = AsyncMock()
-
-        wrapper = MCPToolWrapper(
-            mcp_server=mock_mcp_server,
-            mcp_tool=mock_mcp_tool,
-            config=mock_mcp_tool_config,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
-        )
-
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="test_mcp_tool",
-            arguments={"query": "test"},
-        )
-
-        # Mock feature flags to return False (new UI disabled)
-        mock_feature_flags = Mock()
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
-            return_value=False,
-        )
-
-        with (
-            patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
-            patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
-            ),
-            patch.object(wrapper, "_create_or_update_message_log"),
-        ):
-            mock_sdk_call.return_value = {"result": "ok"}
-
-            # Act
-            await wrapper.run(tool_call)
-
-            # Assert
-            assert mock_progress_reporter.notify_from_tool_call.call_count == 2
-
-            # Check RUNNING notification
-            first_call = mock_progress_reporter.notify_from_tool_call.call_args_list[0]
-            assert first_call.kwargs["state"] == ProgressState.RUNNING
-            assert "Executing MCP tool" in first_call.kwargs["message"]
-
-            # Check FINISHED notification
-            second_call = mock_progress_reporter.notify_from_tool_call.call_args_list[1]
-            assert second_call.kwargs["state"] == ProgressState.FINISHED
-            assert "completed" in second_call.kwargs["message"]
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_run__skips_progress_notifications__when_new_ui_enabled_AI(
-        self,
-        mock_mcp_server: McpServer,
-        mock_mcp_tool: McpTool,
-        mock_mcp_tool_config: MCPToolConfig,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify progress reporter is NOT notified when new UI is enabled.
-        Why this matters: New UI has different progress tracking mechanism.
-        Setup summary: Create wrapper with mock reporter (with new UI enabled), execute tool, verify no notifications.
+        Purpose: Verify progress reporter is never notified during execution.
+        Why this matters: Progress is reported via the message log now, not tool_progress_reporter.
+        Setup summary: Create wrapper with mock reporter, execute tool, verify no notifications.
         """
         # Arrange
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
@@ -905,10 +842,6 @@ class TestMCPToolWrapperRun:
 
         with (
             patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
-            patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
-            ),
             patch.object(wrapper, "_create_or_update_message_log"),
         ):
             mock_sdk_call.return_value = {"result": "ok"}
@@ -920,12 +853,12 @@ class TestMCPToolWrapperRun:
             assert response.error_message == ""
             assert response.name == "test_mcp_tool"
 
-            # But progress reporter should NOT be called (new UI is enabled)
+            # But progress reporter should NOT be called
             assert mock_progress_reporter.notify_from_tool_call.call_count == 0
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__skips_progress_notifications_on_error__when_new_ui_enabled_AI(
+    async def test_run__does_not_notify_progress_reporter_on_error__AI(
         self,
         mock_mcp_server: McpServer,
         mock_mcp_tool: McpTool,
@@ -933,9 +866,9 @@ class TestMCPToolWrapperRun:
         mock_chat_event: ChatEvent,
     ) -> None:
         """
-        Purpose: Verify progress reporter is NOT notified on failure when new UI is enabled.
-        Why this matters: New UI has different error tracking mechanism.
-        Setup summary: Create wrapper with reporter (with new UI enabled), cause failure, verify no notifications.
+        Purpose: Verify progress reporter is never notified on failure.
+        Why this matters: Error states must not resurrect the old progress-reporting path.
+        Setup summary: Create wrapper with reporter, cause failure, verify no notifications.
         """
         # Arrange
         mock_progress_reporter = Mock(spec=ToolProgressReporter)
@@ -955,18 +888,8 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        # Mock feature flags to return True (new UI enabled)
-        mock_feature_flags = Mock()
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
-            return_value=True,
-        )
-
         with (
             patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
-            patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
-            ),
             patch.object(wrapper, "_create_or_update_message_log"),
         ):
             mock_sdk_call.side_effect = Exception("Test error")
@@ -977,123 +900,8 @@ class TestMCPToolWrapperRun:
             # Assert - error should still be captured in response
             assert response.error_message == "Test error"
 
-            # But progress reporter should NOT be called (new UI is enabled)
+            # But progress reporter should NOT be called
             assert mock_progress_reporter.notify_from_tool_call.call_count == 0
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_run__notifies_progress_reporter_on_error__when_new_ui_disabled_AI(
-        self,
-        mock_mcp_server: McpServer,
-        mock_mcp_tool: McpTool,
-        mock_mcp_tool_config: MCPToolConfig,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify progress reporter is notified on failure when new UI is disabled.
-        Why this matters: Users need feedback even when tools fail in legacy UI.
-        Setup summary: Create wrapper with reporter (with new UI disabled), cause failure, verify notification.
-        """
-        # Arrange
-        mock_progress_reporter = Mock(spec=ToolProgressReporter)
-        mock_progress_reporter.notify_from_tool_call = AsyncMock()
-
-        wrapper = MCPToolWrapper(
-            mcp_server=mock_mcp_server,
-            mcp_tool=mock_mcp_tool,
-            config=mock_mcp_tool_config,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
-        )
-
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="test_mcp_tool",
-            arguments={"query": "test"},
-        )
-
-        # Mock feature flags to return False (new UI disabled)
-        mock_feature_flags = Mock()
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
-            return_value=False,
-        )
-
-        with (
-            patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
-            patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
-            ),
-            patch.object(wrapper, "_create_or_update_message_log"),
-        ):
-            mock_sdk_call.side_effect = Exception("Test error")
-
-            # Act
-            await wrapper.run(tool_call)
-
-            # Assert
-            assert mock_progress_reporter.notify_from_tool_call.call_count == 2
-
-            # Check FAILED notification
-            second_call = mock_progress_reporter.notify_from_tool_call.call_args_list[1]
-            assert second_call.kwargs["state"] == ProgressState.FAILED
-            assert "failed" in second_call.kwargs["message"]
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_run__checks_feature_flag_with_company_id__AI(
-        self,
-        mock_mcp_server: McpServer,
-        mock_mcp_tool: McpTool,
-        mock_mcp_tool_config: MCPToolConfig,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify feature flag is checked with the correct company_id from the event during run.
-        Why this matters: Feature flags are company-specific.
-        Setup summary: Create wrapper, run tool, verify feature flag is called with correct company_id.
-        """
-        # Arrange
-        mock_progress_reporter = Mock(spec=ToolProgressReporter)
-        mock_progress_reporter.notify_from_tool_call = AsyncMock()
-
-        wrapper = MCPToolWrapper(
-            mcp_server=mock_mcp_server,
-            mcp_tool=mock_mcp_tool,
-            config=mock_mcp_tool_config,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
-        )
-
-        tool_call = LanguageModelFunction(
-            id="call_123",
-            name="test_mcp_tool",
-            arguments={"query": "test"},
-        )
-
-        # Mock feature flags to track calls
-        mock_feature_flags = Mock()
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
-            return_value=False,
-        )
-
-        with (
-            patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
-            patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
-            ),
-            patch.object(wrapper, "_create_or_update_message_log"),
-        ):
-            mock_sdk_call.return_value = {"result": "ok"}
-
-            # Act
-            await wrapper.run(tool_call)
-
-            # Assert - feature flag should be called with the company_id from the event
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.assert_called_with(
-                "company_456"
-            )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -1281,3 +1089,381 @@ class TestMCPToolWrapperEdgeCases:
             mock_sdk_call.assert_called_once()
             called_args = mock_sdk_call.call_args[1]["arguments"]
             assert called_args == complex_args
+
+
+def _structured_text_item(
+    *,
+    content_id: str,
+    chunk_id: str,
+    text: str,
+    sequence_number: int,
+    name: str = "Doc.pdf",
+) -> dict:
+    reference = {
+        "id": content_id,
+        "messageId": "",
+        "name": f"{name} : {sequence_number}",
+        "sequenceNumber": sequence_number,
+        "source": "node-ingestion-chunks",
+        "sourceId": f"{content_id}_{chunk_id}",
+        "description": None,
+        "url": f"unique://content/{content_id}",
+        "originalIndex": [],
+    }
+    return {
+        "type": "text",
+        "text": f"[{name}](https://example.unique.app/knowledge-upload/scope_x?file={content_id})\n\n{text}",
+        "_meta": {
+            "id": content_id,
+            "text": text,
+            "order": 0,
+            "chunk_id": chunk_id,
+            "key": name,
+            "title": name,
+            "start_page": sequence_number,
+            "end_page": sequence_number,
+            "unique.app/reference": reference,
+        },
+    }
+
+
+class TestMCPToolWrapperStructuredReferences:
+    """Consume unique.app/reference like Internal Search content_chunks."""
+
+    @pytest.mark.ai
+    def test_extract_structured_references__keeps_order_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        result = {
+            "content": [
+                _structured_text_item(
+                    content_id="cont_aaaaaaaaaaaaaaaaaaaaaaaa",
+                    chunk_id="chunk_aaaaaaaaaaaaaaaaaaaaaaa",
+                    text="first passage",
+                    sequence_number=1,
+                    name="A.pdf",
+                ),
+                _structured_text_item(
+                    content_id="cont_bbbbbbbbbbbbbbbbbbbbbbbb",
+                    chunk_id="chunk_bbbbbbbbbbbbbbbbbbbbbbb",
+                    text="second passage",
+                    sequence_number=2,
+                    name="B.pdf",
+                ),
+                {
+                    "type": "text",
+                    "text": "How to cite: paste markdown links. Do not write [sourceN].",
+                },
+            ]
+        }
+
+        chunks, refs = mcp_tool_wrapper._extract_structured_references(result)
+
+        assert [c.text for c in chunks] == ["first passage", "second passage"]
+        assert [r.sequence_number for r in refs] == [1, 2]
+        assert refs[0].source == "node-ingestion-chunks"
+        assert refs[0].url == "unique://content/cont_aaaaaaaaaaaaaaaaaaaaaaaa"
+        assert refs[0].source_id.startswith("cont_")
+
+    @pytest.mark.ai
+    def test_extract_structured_references__ignores_invalid_and_missing_meta_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        result = {
+            "content": [
+                {"type": "text", "text": "plain text without meta"},
+                {
+                    "type": "text",
+                    "text": "bad ref",
+                    "_meta": {
+                        "id": "cont_cccccccccccccccccccccccc",
+                        "text": "bad ref",
+                        "order": 0,
+                        "unique.app/reference": {"name": "incomplete"},
+                    },
+                },
+            ]
+        }
+
+        chunks, refs = mcp_tool_wrapper._extract_structured_references(result)
+
+        assert chunks == []
+        assert refs == []
+        content, _images = mcp_tool_wrapper._process_mcp_result(result)
+        assert "plain text without meta" in content
+        assert "bad ref" in content
+
+    @pytest.mark.ai
+    def test_extract_structured_references__real_kb_mcp_payload_shape_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        """Regression test against an actual kb-mcp ``search`` response shape
+        (captured live, text trimmed for brevity), not just the synthetic
+        helper above. Covers a paginated PDF chunk, a plain-text doc with
+        the ``start_page=-1``/``end_page=-1`` non-paginated convention, and a
+        Confluence result whose reference ``url`` is a plain ``https://``
+        link rather than ``unique://content/...`` — the wrapper must not
+        assume a fixed URL scheme.
+        """
+        result = {
+            "_meta": None,
+            "isError": False,
+            "structuredContent": None,
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        "[Audit_Report_AlpenSys_FY2023.pdf : 1]"
+                        "(unique://content/cont_ioi3voailf7hr011zcp6b7eh) (page 1)\n\n"
+                        "placeholder"
+                    ),
+                    "annotations": None,
+                    "_meta": {
+                        "id": "cont_ioi3voailf7hr011zcp6b7eh",
+                        "text": "placeholder",
+                        "order": 0,
+                        "key": "Audit_Report_AlpenSys_FY2023.pdf : 1",
+                        "chunk_id": "chunk_qmur39xl2y9uyr7e9hs7v7m2",
+                        "url": None,
+                        "title": "Audit_Report_AlpenSys_FY2023.pdf : 1",
+                        "start_page": 1,
+                        "end_page": 1,
+                        "object": "search.search",
+                        "unique.app/reference": {
+                            "id": "cont_ioi3voailf7hr011zcp6b7eh",
+                            "messageId": "",
+                            "name": "Audit_Report_AlpenSys_FY2023.pdf : 1",
+                            "sequenceNumber": 1,
+                            "source": "node-ingestion-chunks",
+                            "sourceId": (
+                                "cont_ioi3voailf7hr011zcp6b7eh_"
+                                "chunk_qmur39xl2y9uyr7e9hs7v7m2"
+                            ),
+                            "description": None,
+                            "url": "unique://content/cont_ioi3voailf7hr011zcp6b7eh",
+                            "originalIndex": [],
+                        },
+                    },
+                },
+                {
+                    "type": "text",
+                    "text": (
+                        "[Wire_Transfer_Conf_WT20241021.txt]"
+                        "(unique://content/cont_cxy0us1zu1jmpxo6vtss3fez)\n\nplaceholder"
+                    ),
+                    "annotations": None,
+                    "_meta": {
+                        "id": "cont_cxy0us1zu1jmpxo6vtss3fez",
+                        "text": "placeholder",
+                        "order": 0,
+                        "key": "Wire_Transfer_Conf_WT20241021.txt",
+                        "chunk_id": "chunk_e1fzffy8yu2yr2dqazyadc2d",
+                        "url": None,
+                        "title": "Wire_Transfer_Conf_WT20241021.txt",
+                        "start_page": -1,
+                        "end_page": -1,
+                        "object": "search.search",
+                        "unique.app/reference": {
+                            "id": "cont_cxy0us1zu1jmpxo6vtss3fez",
+                            "messageId": "",
+                            "name": "Wire_Transfer_Conf_WT20241021.txt",
+                            "sequenceNumber": 56,
+                            "source": "node-ingestion-chunks",
+                            "sourceId": (
+                                "cont_cxy0us1zu1jmpxo6vtss3fez_"
+                                "chunk_e1fzffy8yu2yr2dqazyadc2d"
+                            ),
+                            "description": None,
+                            "url": "unique://content/cont_cxy0us1zu1jmpxo6vtss3fez",
+                            "originalIndex": [],
+                        },
+                    },
+                },
+                {
+                    "type": "text",
+                    "text": (
+                        "[SZKB - Gondola]"
+                        "(https://unique-ch.atlassian.net/wiki/spaces/CS/pages/"
+                        "644153553/SZKB+-+Gondola)\n\nplaceholder"
+                    ),
+                    "annotations": None,
+                    "_meta": {
+                        "id": "cont_fzy4j9863g7szld966dyp563",
+                        "text": "placeholder",
+                        "order": 0,
+                        "key": "https://unique-ch.atlassian.net/644153553",
+                        "chunk_id": "chunk_grw6qkxhvgvifkui1o3cox87",
+                        "url": (
+                            "https://unique-ch.atlassian.net/wiki/spaces/CS/pages/"
+                            "644153553/SZKB+-+Gondola"
+                        ),
+                        "title": "SZKB - Gondola",
+                        "start_page": -1,
+                        "end_page": -1,
+                        "object": "search.search",
+                        "unique.app/reference": {
+                            "id": "cont_fzy4j9863g7szld966dyp563",
+                            "messageId": "",
+                            "name": "SZKB - Gondola",
+                            "sequenceNumber": 106,
+                            "source": "node-ingestion-chunks",
+                            "sourceId": (
+                                "cont_fzy4j9863g7szld966dyp563_"
+                                "chunk_grw6qkxhvgvifkui1o3cox87"
+                            ),
+                            "description": None,
+                            "url": (
+                                "https://unique-ch.atlassian.net/wiki/spaces/CS/pages/"
+                                "644153553/SZKB+-+Gondola"
+                            ),
+                            "originalIndex": [],
+                        },
+                    },
+                },
+                {
+                    # The tool's trailing citation-instruction footer: real
+                    # text content but no `_meta` at all — must be skipped,
+                    # not raise.
+                    "type": "text",
+                    "text": (
+                        "How to cite: paste the exact [<document name>](<url>) "
+                        "markdown links from the result headers inline after "
+                        "each claim. Do not write [sourceN] or other bracket "
+                        "placeholders. End with a Sources list using those "
+                        "same markdown links."
+                    ),
+                    "annotations": None,
+                    "_meta": None,
+                },
+            ],
+        }
+
+        chunks, refs = mcp_tool_wrapper._extract_structured_references(result)
+
+        assert len(chunks) == 3
+        assert len(refs) == 3
+
+        # Paginated PDF chunk.
+        assert chunks[0].start_page == 1
+        assert chunks[0].end_page == 1
+        assert refs[0].url == "unique://content/cont_ioi3voailf7hr011zcp6b7eh"
+
+        # Non-paginated plain-text doc uses the -1/-1 convention, not None/0.
+        assert chunks[1].start_page == -1
+        assert chunks[1].end_page == -1
+        assert refs[1].sequence_number == 56
+
+        # Confluence reference keeps its own https:// URL — the wrapper must
+        # not rewrite it to a unique://content/... scheme.
+        assert refs[2].url == (
+            "https://unique-ch.atlassian.net/wiki/spaces/CS/pages/644153553/SZKB+-+Gondola"
+        )
+        assert refs[2].source == "node-ingestion-chunks"
+
+        # The trailing citation-instruction footer (no `_meta`) contributed
+        # nothing and did not raise.
+        assert all(r.name != "" for r in refs)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__routes_structured_refs_through_content_chunks_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        tool_call = LanguageModelFunction(
+            id="call_ref",
+            name="test_mcp_tool",
+            arguments={"query": "policy"},
+        )
+        mcp_result = {
+            "content": [
+                _structured_text_item(
+                    content_id="cont_dddddddddddddddddddddddd",
+                    chunk_id="chunk_ddddddddddddddddddddddd",
+                    text="policy body",
+                    sequence_number=1,
+                ),
+                {
+                    "type": "text",
+                    "text": "How to cite: paste the exact markdown links.",
+                },
+            ]
+        }
+
+        with (
+            patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log") as mock_log,
+        ):
+            mock_sdk_call.return_value = mcp_result
+            response = await mcp_tool_wrapper.run(tool_call)
+
+        assert response.content == ""
+        assert response.content_chunks is not None
+        assert len(response.content_chunks) == 1
+        assert response.content_chunks[0].text == "policy body"
+        assert "knowledge-upload" not in response.content
+
+        completed = [
+            c
+            for c in mock_log.call_args_list
+            if c.kwargs.get("status") == MessageLogStatus.COMPLETED
+        ]
+        assert len(completed) == 1
+        refs = completed[0].kwargs["references"]
+        assert len(refs) == 1
+        assert refs[0].source_id.startswith("cont_")
+        assert refs[0].url == "unique://content/cont_dddddddddddddddddddddddd"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__keeps_images_alongside_structured_refs_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        """A result carrying both a structured text chunk and an image item
+        must not drop the image just because content_chunks took over the
+        text — content_str is suppressed, image_data_urls must not be.
+        """
+        tool_call = LanguageModelFunction(
+            id="call_img",
+            name="test_mcp_tool",
+            arguments={"query": "chart"},
+        )
+        mcp_result = {
+            "content": [
+                _structured_text_item(
+                    content_id="cont_eeeeeeeeeeeeeeeeeeeeeeee",
+                    chunk_id="chunk_eeeeeeeeeeeeeeeeeeeeeee",
+                    text="policy body",
+                    sequence_number=1,
+                ),
+                {
+                    "type": "image",
+                    "data": "iVBORw0KGgo=",
+                    "mimeType": "image/png",
+                },
+            ]
+        }
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.upload_content_from_bytes"
+            ) as mock_upload,
+            patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
+            mock_sdk_call.return_value = mcp_result
+            mock_content = Mock()
+            mock_content.id = "content_abc123"
+            mock_upload.return_value = mock_content
+
+            response = await mcp_tool_wrapper.run(tool_call)
+
+        assert response.content == ""
+        assert response.content_chunks is not None
+        assert len(response.content_chunks) == 1
+        assert response.image_data_urls
+        assert response.image_data_urls[0].startswith("data:image/png;base64,")

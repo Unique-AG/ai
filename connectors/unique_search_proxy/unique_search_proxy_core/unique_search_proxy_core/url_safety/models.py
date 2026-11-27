@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 from urllib.parse import urlsplit
 
 from unique_search_proxy_core.url_safety.netloc import (
@@ -60,7 +61,9 @@ class UrlSafetyOutcome:
     blocked: BlockedCrawlTarget | None = None
 
 
-class CrawlTargetValidationError(ValueError):
+class UrlSafetyValidationError(ValueError):
+    target_label: ClassVar[str] = "URL"
+
     def __init__(self, blocked_targets: list[BlockedCrawlTarget]) -> None:
         self.blocked_targets: list[BlockedCrawlTarget] = blocked_targets
 
@@ -68,7 +71,17 @@ class CrawlTargetValidationError(ValueError):
             f"{target.display_target} ({target.reason})"
             for target in self.blocked_targets
         )
-        super().__init__(f"Blocked crawl target(s) due to URL safety policy: {details}")
+        super().__init__(
+            f"Blocked {self.target_label} target(s) due to URL safety policy: {details}"
+        )
+
+
+class CrawlTargetValidationError(UrlSafetyValidationError):
+    target_label = "crawl"
+
+
+class CustomApiTargetValidationError(UrlSafetyValidationError):
+    target_label = "Custom API"
 
 
 def bypass_crawl_target(url: str) -> ResolvedCrawlTarget:

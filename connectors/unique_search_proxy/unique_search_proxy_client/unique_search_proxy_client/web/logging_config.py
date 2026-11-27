@@ -15,15 +15,18 @@ _APP_LOGGER_NAMES = (
     "unique_search_proxy_core",
 )
 
+_USAGE_LOGGER_NAME = "unique_search_proxy_core.usage"
+
 _CONTEXT_LOG_FORMAT = (
     "%(levelprefix)s "
     "company=%(company_id)s user=%(user_id)s chat=%(chat_id)s "
-    "%(message)s"
+    "entry=%(entry_point)s caller=%(caller)s %(message)s"
 )
 
 _ACCESS_CONTEXT_LOG_FORMAT = (
     "%(levelprefix)s "
     "company=%(company_id)s user=%(user_id)s chat=%(chat_id)s "
+    "entry=%(entry_point)s caller=%(caller)s "
     '%(client_addr)s - "%(request_line)s" %(status_code)s'
 )
 
@@ -50,6 +53,18 @@ def build_logging_config(log_level: str | None = None) -> dict[str, Any]:
             "level": level_name,
             "propagate": False,
         }
+    # The usage line is JSON for Loki ``| json``: no prefix, never filtered by level.
+    config["formatters"]["usage"] = {"format": "%(message)s"}
+    config["handlers"]["usage"] = {
+        "class": "logging.StreamHandler",
+        "formatter": "usage",
+        "stream": "ext://sys.stderr",
+    }
+    config["loggers"][_USAGE_LOGGER_NAME] = {
+        "handlers": ["usage"],
+        "level": "INFO",
+        "propagate": False,
+    }
     config["loggers"]["uvicorn"]["level"] = level_name
     config["loggers"]["uvicorn.error"]["level"] = level_name
     config["loggers"]["uvicorn.access"]["level"] = level_name

@@ -20,6 +20,7 @@ from unique_sdk.cli.state import ShellState
 
 _OUTPUT_MANIFEST = Path(".unique") / "mcp-output.jsonl"
 _REFS_MANIFEST = Path(".unique") / "mcp-refs.jsonl"
+_REFS_SEED = Path(".unique") / "mcp-refs-seed.json"
 
 
 class _FakeMCPResponse:
@@ -103,24 +104,24 @@ def test_cmd_mcp_writes_output_manifest(tmp_path: Path) -> None:
     assert entries[0]["text"] == "ACME revenue: 1M"
 
 
-def test_cmd_mcp_truncates_large_output(tmp_path: Path) -> None:
-    big = "x" * (mcp_cmd._MCP_OUTPUT_TEXT_CHAR_LIMIT + 500)
+def test_cmd_mcp_records_large_output_whole(tmp_path: Path) -> None:
+    big = "x" * 5_000_000
     _run("mcp__kb__search", _FakeMCPResponse(), formatted=big)
     text = _lines(tmp_path, _OUTPUT_MANIFEST)[0]["text"]
-    assert len(text) == mcp_cmd._MCP_OUTPUT_TEXT_CHAR_LIMIT
+    assert text == big
 
 
 # ── Refs manifest / citations (UN-21285) ─────────────────────────────────────
 #
-# One source per retrieved item — a *title* describing what was retrieved (no
-# URL). Titles come from (in order) a per-tool ``reference_mapping``, then
-# resource_link names, then a JSON-title heuristic over text blocks — the
-# heuristic tolerates a non-JSON preamble and unwraps a container key
-# (``{"issues": [...]}``) so each record becomes its own reference; falls back
-# to a title-less tool chip when the result has no recognizable title.
+# One source per retrieved item. Titles come from (in order) a per-tool
+# ``reference_mapping``, then resource_link names, then a JSON-title heuristic
+# over text blocks. The heuristic tolerates a non-JSON preamble and unwraps a
+# container key (``{"issues": [...]}``) so each record becomes its own
+# reference. An http(s) field on that record is stored as ``url``. A result
+# with no recognizable title is still recorded and labelled with the tool name.
 
 
-def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
+def test_resource_link_item_has_title_and_url(tmp_path: Path) -> None:
     response = _FakeMCPResponse(
         content=[
             {
@@ -143,14 +144,15 @@ def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
             "snippet": "Why retrieval fails",
             "details": None,
             "text": "Why retrieval fails",
+            "url": "https://kb.example.com/doc/9",
         }
     ]
     assert "[mcpsource1] RAG Retrieval Baseline" in out
     assert "https://" not in out  # no URL leaked into the Sources block or body
 
 
-def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
-    # Atlassian-style: a JSON record in a text block → title only.
+def test_json_in_text_yields_title_and_url(tmp_path: Path) -> None:
+    # Atlassian-style: a JSON record in a text block yields a title and its link.
     body = json.dumps(
         {"title": "RAG Retrieval Baseline", "webUrl": "https://confluence/x/2295"}
     )
@@ -159,7 +161,7 @@ def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
 
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert refs[0]["title"] == "RAG Retrieval Baseline"
-    assert "url" not in refs[0]
+    assert refs[0]["url"] == "https://confluence/x/2295"
 
 
 def test_json_in_text_unwraps_wrapped_array_into_items(tmp_path: Path) -> None:
@@ -179,6 +181,344 @@ def test_json_in_text_unwraps_wrapped_array_into_items(tmp_path: Path) -> None:
 
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert {r["title"]: r["sourceNumber"] for r in refs} == {"UN-1": 1, "UN-2": 2}
+
+
+def test_json_in_text_unwraps_list_under_unlisted_key(tmp_path: Path) -> None:
+    # SharePoint file search: records under "files", which is no known
+    # container key, still become one reference each with their own link.
+    body = json.dumps(
+        {
+            "files": [
+                {
+                    "name": "Q3 Report.docx",
+                    "web_url": "https://contoso.sharepoint.com/a",
+                },
+                {"name": "Budget.xlsx", "web_url": "https://contoso.sharepoint.com/b"},
+            ],
+            "sites": [{"web_url": "https://contoso.sharepoint.com", "match_count": 2}],
+            "next_offset": None,
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_search_files", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r["url"]) for r in refs] == [
+        ("Q3 Report.docx", "https://contoso.sharepoint.com/a"),
+        ("Budget.xlsx", "https://contoso.sharepoint.com/b"),
+    ]
+
+
+def test_json_in_text_skips_untitled_list_before_titled_one(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "facets": [{"site": "https://contoso.sharepoint.com", "count": 1}],
+            "drives": [
+                {"name": "Documents", "web_url": "https://contoso.sharepoint.com/d"}
+            ],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_list_drives", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r["url"]) for r in refs] == [
+        ("Documents", "https://contoso.sharepoint.com/d")
+    ]
+
+
+def test_json_in_text_titled_record_not_split_by_unlisted_key(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "title": "Retrieval Design Doc",
+            "comments": [{"title": "Looks good"}, {"title": "One nit"}],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__getConfluencePage", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Retrieval Design Doc"]
+
+
+def test_json_in_text_untitled_lists_stay_one_tool_chip(tmp_path: Path) -> None:
+    body = json.dumps({"counts": [{"site": "a", "count": 1}]})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_search_files", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+
+
+def test_json_in_text_cites_every_titled_list(tmp_path: Path) -> None:
+    # OneNote sections: both lists hold citable records, so neither is dropped.
+    body = json.dumps(
+        {
+            "parent_uri": "onenote:///notebooks/n1",
+            "sections": [
+                {"name": "Minutes", "web_url": "https://contoso.sharepoint.com/s1"}
+            ],
+            "section_groups": [
+                {"name": "Archive", "web_url": "https://contoso.sharepoint.com/g1"}
+            ],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__onenote_list_sections", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r.get("url")) for r in refs] == [
+        ("Minutes", "https://contoso.sharepoint.com/s1"),
+        ("Archive", "https://contoso.sharepoint.com/g1"),
+    ]
+
+
+def test_json_in_text_titled_list_skips_record_without_link(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "sections": [
+                {"name": "Minutes", "web_url": "https://contoso.sharepoint.com/s1"}
+            ],
+            "section_groups": [{"name": "Archive", "uri": "onenote:///groups/g1"}],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__onenote_list_sections", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r.get("url")) for r in refs] == [
+        ("Minutes", "https://contoso.sharepoint.com/s1")
+    ]
+
+
+def test_json_in_text_titled_list_without_links_is_one_untitled_source(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps({"categories": [{"display_name": "Red"}, {"name": "Blue"}]})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__outlook_list_categories", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r.get("url")) for r in refs] == [(None, None)]
+
+
+def test_json_in_text_display_name_record_without_link_is_not_titled(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps({"display_name": "Alex Doe", "mail": "alex@example.com"})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__get_me", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == [None]
+
+
+def test_json_in_text_same_title_records_with_own_links_stay_apart(
+    tmp_path: Path,
+) -> None:
+    # Every instance of a recurring event carries the series subject.
+    body = json.dumps(
+        {
+            "events": [
+                {"subject": "Standup", "web_link": f"https://outlook.office.com/{n}"}
+                for n in ("E1", "E2", "E3")
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__outlook_list_event_instances", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["sourceNumber"], r["title"], r["url"]) for r in refs] == [
+        (1, "Standup", "https://outlook.office.com/E1"),
+        (2, "Standup", "https://outlook.office.com/E2"),
+        (3, "Standup", "https://outlook.office.com/E3"),
+    ]
+
+
+def test_json_in_text_finds_titled_list_inside_untitled_wrappers(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps(
+        {
+            "data": {
+                "search": {
+                    "hits_total": 1,
+                    "pages": [{"title": "Runbook", "url": "https://wiki/runbook"}],
+                }
+            }
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__wiki__search", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Runbook"]
+
+
+def test_json_in_text_does_not_split_titled_child_record(tmp_path: Path) -> None:
+    # The meeting is one record: its attendees are not separate sources.
+    body = json.dumps(
+        {
+            "success": True,
+            "meeting": {
+                "subject": "Weekly sync",
+                "attendees": [{"name": "Alex Doe"}, {"name": "Sam Roe"}],
+            },
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__teams__read_meeting", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+
+
+def test_json_in_text_does_not_split_linked_untitled_record(tmp_path: Path) -> None:
+    # A Teams chat message has no subject but its own link: it is one record,
+    # not a wrapper of its attachments.
+    body = json.dumps(
+        {
+            "subject": None,
+            "body": {"content": "Q3 revenue is 4.2M"},
+            "web_url": "https://teams.microsoft.com/l/message/m1",
+            "attachments": [
+                {"name": "Q3.pptx", "contentUrl": "https://contoso.sharepoint.com/q3"}
+            ],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__teams_read_message", response, formatted=body)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+    assert refs[0]["text"] == body
+
+
+def test_json_in_text_does_not_split_linked_untitled_child_record(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps(
+        {
+            "message": {
+                "web_url": "https://teams.microsoft.com/l/message/m1",
+                "mentions": [{"name": "Alex Doe"}],
+            }
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__teams_read_message", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+
+
+def test_json_in_text_display_name_keeps_data_list_in_one_record(
+    tmp_path: Path,
+) -> None:
+    # As with ``title``, a ``display_name`` marks the object as one record, so
+    # its ``data`` list is part of it rather than separate sources.
+    body = json.dumps(
+        {
+            "display_name": "Finance",
+            "web_url": "https://contoso.sharepoint.com/finance",
+            "data": [{"title": "Q1"}, {"title": "Q2"}],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_get_list", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Finance"]
+
+
+def test_json_in_text_titles_record_by_snake_case_display_name(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps(
+        {
+            "sites": [
+                {
+                    "display_name": "Finance",
+                    "web_url": "https://contoso.sharepoint.com/sites/Finance",
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__sharepoint_search_sites", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [(r["title"], r["url"]) for r in refs] == [
+        ("Finance", "https://contoso.sharepoint.com/sites/Finance")
+    ]
+
+
+def test_json_in_text_prefers_web_link_over_earlier_join_url(tmp_path: Path) -> None:
+    body = json.dumps(
+        {
+            "events": [
+                {
+                    "subject": "Weekly sync",
+                    "joinUrl": "https://teams.microsoft.com/l/meetup-join/abc",
+                    "webLink": "https://outlook.office365.com/owa/?itemid=E1",
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__outlook__search_calendar_events", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["url"] for r in refs] == ["https://outlook.office365.com/owa/?itemid=E1"]
+
+
+def test_json_in_text_empty_web_link_leaves_record_unlinked(tmp_path: Path) -> None:
+    # The mailbox could not be resolved, so the server sent no Outlook link.
+    # The internal content URL beside it must not become the record's link.
+    body = json.dumps(
+        {
+            "results": [
+                {
+                    "title": "Budget Q3.eml",
+                    "outlookWebLink": "",
+                    "uniqueContentUrl": "https://ingestion.example.com/read/cont_1",
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__outlook__search_emails", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Budget Q3.eml"]
+    assert "url" not in refs[0]
+
+
+def test_json_in_text_null_web_link_does_not_fall_back_to_join_url(
+    tmp_path: Path,
+) -> None:
+    body = json.dumps(
+        {
+            "items": [
+                {
+                    "subject": "Private appointment",
+                    "join_url": "https://teams.microsoft.com/l/meetup-join/xyz",
+                    "web_link": None,
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__office__outlook_list_events", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Private appointment"]
+    assert "url" not in refs[0]
 
 
 def test_json_in_text_tolerates_non_json_preamble(tmp_path: Path) -> None:
@@ -454,9 +794,68 @@ def test_resource_link_text_is_none_when_no_description(tmp_path: Path) -> None:
     assert refs[0]["text"] is None
 
 
-def test_ref_text_truncated_to_writer_cap(tmp_path: Path) -> None:
+def test_cmd_mcp_stops_a_runaway_output_at_the_guard(tmp_path: Path) -> None:
+    big = "x" * (mcp_cmd._MCP_TEXT_GUARD_CHARS + 10)
+    _run("mcp__kb__search", _FakeMCPResponse(), formatted=big)
+    text = _lines(tmp_path, _OUTPUT_MANIFEST)[0]["text"]
+    assert len(text) == mcp_cmd._MCP_TEXT_GUARD_CHARS
+
+
+def test_cmd_mcp_stops_output_at_the_turn_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 250)
+    for _ in range(4):
+        _run("mcp__kb__search", _FakeMCPResponse(), formatted="ü" * 60)
+    rows = _lines(tmp_path, _OUTPUT_MANIFEST)
+    assert rows[0]["text"] == "ü" * 60
+    assert len(rows[-1]["text"]) < 60
+
+
+def test_citation_text_past_the_turn_budget_keeps_the_chip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 100)
     unique_dir = tmp_path / ".unique"
-    doc = "# Big Doc\n" + "x" * (mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT + 500)
+    for number in range(1, 4):
+        doc = f"# Doc {number}\n" + "x" * 60
+        record_mcp_citations(
+            _FakeMCPResponse(content=[{"type": "text", "text": doc}]),
+            tool_name="read_doc",
+            server_name="docs",
+            unique_dir=unique_dir,
+            formatted_text=doc,
+            reference_mapping={"titleFromText": True},
+        )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert [ref["title"] for ref in refs] == ["Doc 1", "Doc 2", "Doc 3"]
+    assert refs[0]["text"] == "# Doc 1\n" + "x" * 60
+    assert 0 < len(refs[1]["text"]) < 68
+    assert refs[2]["text"] is None
+
+
+def test_a_budget_cut_title_less_item_keeps_its_number(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(mcp_cmd, "_MCP_TURN_TEXT_BUDGET_BYTES", 10)
+    unique_dir = tmp_path / ".unique"
+    body = "plain body " * 10
+    for _ in range(2):
+        record_mcp_citations(
+            _FakeMCPResponse(content=[{"type": "text", "text": body}]),
+            tool_name="search",
+            server_name="docs",
+            unique_dir=unique_dir,
+            formatted_text=body,
+        )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert len(refs) == 1
+    assert len(refs[0]["text"]) == 10
+
+
+def test_ref_text_is_recorded_whole(tmp_path: Path) -> None:
+    unique_dir = tmp_path / ".unique"
+    doc = "# Big Doc\n" + "x" * 5_000_000
     response = _FakeMCPResponse(content=[{"type": "text", "text": doc}])
     record_mcp_citations(
         response,
@@ -467,7 +866,25 @@ def test_ref_text_truncated_to_writer_cap(tmp_path: Path) -> None:
         reference_mapping={"titleFromText": True},
     )
     refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
-    assert len(refs[0]["text"]) == mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT
+    assert refs[0]["text"] == doc
+
+
+def test_large_search_output_is_recorded_whole(tmp_path: Path) -> None:
+    """A 123-email search result must keep every email for the judge (UN-26481)."""
+    unique_dir = tmp_path / ".unique"
+    output = "email body. " * 100_000
+    response = _FakeMCPResponse(content=[{"type": "text", "text": output}])
+    record_mcp_citations(
+        response,
+        tool_name="search_emails",
+        server_name="outlook",
+        unique_dir=unique_dir,
+        formatted_text=output,
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert refs[0]["text"] == output
+    outputs = _unique_lines(unique_dir, "mcp-output.jsonl")
+    assert outputs[0]["text"] == output
 
 
 def test_dedup_backfills_longer_text_from_later_call(tmp_path: Path) -> None:
@@ -529,8 +946,8 @@ def test_different_tools_same_title_get_distinct_numbers(tmp_path: Path) -> None
 
 
 def test_titleless_result_falls_back_to_tool_chip(tmp_path: Path) -> None:
-    # No resource blocks, no JSON title → one title-less chip (runner names it
-    # after the tool). No URL is recorded.
+    # No resource blocks and no JSON title: one untitled row, labelled with
+    # the tool name in the Sources block. No URL is recorded.
     response = _FakeMCPResponse(content=[{"type": "text", "text": "status: ok"}])
     _run("mcp__crm__update", response)
 
@@ -733,6 +1150,7 @@ def test_record_mcp_citations_writes_both_manifests_under_unique_dir(
             "snippet": "Why retrieval fails",
             "details": None,
             "text": "Why retrieval fails",
+            "url": "https://kb.example.com/doc/9",
         }
     ]
     assert output == [
@@ -810,6 +1228,154 @@ def test_record_mcp_citations_concurrent_monotonic_numbers(
     # collisions despite concurrent writers (the per-turn flock serializes them).
     assert numbers == list(range(1, n + 1))
     assert len(_unique_lines(unique_dir, "mcp-output.jsonl")) == n
+
+
+# ── Chat-monotonic source numbering / seed file (UN-23199) ───────────────────
+#
+# The SI runner wipes ``mcp-refs.jsonl`` between turns, so manifest-derived
+# numbering would restart at 1 each turn. A persistent sibling seed file
+# (``mcp-refs-seed.json``) records the highest source number ever assigned in
+# the chat so numbering stays monotonic across the runner's per-turn reset.
+
+
+def test_seed_continues_numbering_after_manifest_wiped(tmp_path: Path) -> None:
+    # Turn 1: two items → sources 1, 2. The seed file records the max.
+    r1 = _FakeMCPResponse(
+        content=[
+            {"type": "resource_link", "uri": "https://e/a", "name": "Doc A"},
+            {"type": "resource_link", "uri": "https://e/b", "name": "Doc B"},
+        ]
+    )
+    _run("mcp__kb__search", r1)
+    first_max = max(r["sourceNumber"] for r in _lines(tmp_path, _REFS_MANIFEST))
+    assert first_max == 2
+
+    # Seed file exists with the contract body; manifest is wiped (runner reset).
+    seed_path = tmp_path / _REFS_SEED
+    assert seed_path.is_file()
+    assert json.loads(seed_path.read_text(encoding="utf-8")) == {"maxSourceNumber": 2}
+    (tmp_path / _REFS_MANIFEST).unlink()
+
+    # Turn 2: a fresh item must continue above the prior max, not restart at 1.
+    r2 = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/c", "name": "Doc C"}]
+    )
+    _run("mcp__kb__search", r2)
+    refs2 = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["sourceNumber"] for r in refs2] == [first_max + 1]
+    assert refs2[0]["title"] == "Doc C"
+    assert json.loads(seed_path.read_text(encoding="utf-8")) == {"maxSourceNumber": 3}
+
+
+def test_absent_seed_reproduces_pre_seed_numbering(tmp_path: Path) -> None:
+    # No seed file → seed 0 → numbering identical to today's behavior (starts 1).
+    response = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", response)
+    assert _lines(tmp_path, _REFS_MANIFEST)[0]["sourceNumber"] == 1
+
+
+def test_write_seed_refuses_symlinked_temp_path(tmp_path: Path) -> None:
+    # Bugbot security regression: the seed write must not follow a symlink
+    # pre-planted at the predictable temp path, so it cannot be redirected to
+    # overwrite a file outside the refs directory.
+    unique_dir = tmp_path / ".unique"
+    unique_dir.mkdir()
+    seed_path = unique_dir / "mcp-refs-seed.json"
+    outside = tmp_path / "outside.txt"
+    outside.write_text("SECRET", encoding="utf-8")
+    (unique_dir / "mcp-refs-seed.json.tmp").symlink_to(outside)
+
+    # Best-effort: the O_NOFOLLOW open fails and is swallowed (no raise).
+    mcp_cmd._write_mcp_refs_seed(seed_path, 5)
+
+    # The symlink target outside the refs dir is untouched, and no seed landed.
+    assert outside.read_text(encoding="utf-8") == "SECRET"
+    assert not seed_path.exists()
+
+
+def test_write_seed_without_o_nofollow_attr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Bugbot regression: O_NOFOLLOW is POSIX-only. On a platform lacking it the
+    # write must still succeed (getattr → 0), not raise AttributeError that would
+    # bubble out of _annotate_mcp_results_for_citations and blank the Sources
+    # block.
+    monkeypatch.delattr(mcp_cmd.os, "O_NOFOLLOW", raising=False)
+    seed_path = tmp_path / ".unique" / "mcp-refs-seed.json"
+
+    mcp_cmd._write_mcp_refs_seed(seed_path, 4)
+
+    assert json.loads(seed_path.read_text(encoding="utf-8")) == {"maxSourceNumber": 4}
+
+
+# ── Sources block names the tool (UN-23199) ──────────────────────────────────
+
+
+def test_sources_block_includes_tool_name(tmp_path: Path) -> None:
+    response = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    out = _run("mcp__kb__fetch", response)
+    assert "[mcpsource1] Doc A — mcp__kb__fetch" in out
+
+
+def test_sources_block_titleless_uses_tool_name(tmp_path: Path) -> None:
+    response = _FakeMCPResponse(content=[{"type": "text", "text": "status: ok"}])
+    out = _run("mcp__crm__update", response)
+    assert "[mcpsource1] mcp__crm__update" in out
+
+
+# ── Title-less dedup by content hash (UN-23199) ──────────────────────────────
+
+
+def test_titleless_distinct_text_gets_distinct_numbers(tmp_path: Path) -> None:
+    # Two title-less fetches through one tool returning different bodies must not
+    # collapse onto one source number (content-hash in the dedup key).
+    _run(
+        "mcp__crm__update",
+        _FakeMCPResponse(content=[{"type": "text", "text": "a"}]),
+        formatted="alpha result",
+    )
+    _run(
+        "mcp__crm__update",
+        _FakeMCPResponse(content=[{"type": "text", "text": "b"}]),
+        formatted="beta result",
+    )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 2
+    assert {r["sourceNumber"] for r in refs} == {1, 2}
+
+
+def test_titleless_identical_text_still_merges(tmp_path: Path) -> None:
+    # Identical title-less bodies through one tool still merge onto one source.
+    for _ in range(2):
+        _run(
+            "mcp__crm__update",
+            _FakeMCPResponse(content=[{"type": "text", "text": "same"}]),
+            formatted="identical",
+        )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["sourceNumber"] == 1
+
+
+def test_titleless_oversized_identical_text_merges_across_calls(
+    tmp_path: Path,
+) -> None:
+    # The second call rebuilds the key from the manifest entry, so an
+    # oversized identical title-less body must merge onto one source.
+    big = "x" * 5_000_000
+    for _ in range(2):
+        _run(
+            "mcp__crm__update",
+            _FakeMCPResponse(content=[{"type": "text", "text": "plain"}]),
+            formatted=big,
+        )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["sourceNumber"] == 1
 
 
 # ── reference_mapping override (per-tool list destructuring) ──────────────────
@@ -1035,3 +1601,111 @@ def test_reference_mapping_empty_structured_content_still_titles_from_text(
     )
     refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
     assert [r["title"] for r in refs] == ["Quarterly Planning Notes"]
+
+
+# ── Atlassian connection results (``{"issues": {"nodes": [...]}}``) ─────────────
+
+# Trimmed from real Atlassian MCP results. The wrapper's own ``webUrl`` is the
+# search page; each node carries the record's browser link.
+_ATLASSIAN_JIRA_SEARCH = {
+    "issues": {
+        "nodes": [
+            {
+                "id": "80934",
+                "self": "https://api.atlassian.com/ex/jira/c1/rest/api/3/issue/80934",
+                "key": "UN-26075",
+                "fields": {"summary": "Group the debug panel tabs"},
+                "webUrl": "https://unique-ch.atlassian.net/browse/UN-26075",
+            }
+        ],
+        "webUrl": "https://unique-ch.atlassian.net/issues?jql=key%20%3D%20UN-26075",
+        "pageInfo": {"hasNextPage": False, "endCursor": None},
+    },
+    "context": {"cloudId": "c1"},
+}
+
+_ATLASSIAN_CONFLUENCE_SEARCH = {
+    "content": {
+        "totalCount": 2,
+        "nodes": [
+            {
+                "id": "1",
+                "type": "page",
+                "title": "Conduct Speedup",
+                "_links": {"webui": "/spaces/sdv2/pages/1/Conduct+Speedup"},
+                "webUrl": "https://unique-ch.atlassian.net/wiki/spaces/sdv2/pages/1",
+            },
+            {
+                "id": "2",
+                "type": "page",
+                "title": "Conduct Speed",
+                "_links": {"webui": "/spaces/sdv2/pages/2/Conduct+Speed"},
+                "webUrl": "https://unique-ch.atlassian.net/wiki/spaces/sdv2/pages/2",
+            },
+        ],
+        "webUrl": "https://unique-ch.atlassian.net/wiki/search?cql=title",
+    },
+    "context": {},
+}
+
+
+def _record_rows(
+    tmp_path: Path,
+    tool: str,
+    payload: dict,
+    reference_mapping: dict | None = None,
+) -> list[tuple[str | None, str | None]]:
+    unique_dir = tmp_path / ".unique"
+    body = json.dumps(payload)
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    record_mcp_citations(
+        response,
+        tool_name=tool,
+        server_name="atlassian",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping=reference_mapping,
+    )
+    return [
+        (row["title"], row.get("url"))
+        for row in _unique_lines(unique_dir, "mcp-refs.jsonl")
+    ]
+
+
+def test_atlassian_jira_search_cites_each_issue_with_its_browser_link(
+    tmp_path: Path,
+) -> None:
+    assert _record_rows(
+        tmp_path, "searchJiraIssuesUsingJql", _ATLASSIAN_JIRA_SEARCH
+    ) == [("UN-26075", "https://unique-ch.atlassian.net/browse/UN-26075")]
+
+
+def test_atlassian_jira_default_mapping_reads_the_connection_nodes(
+    tmp_path: Path,
+) -> None:
+    # node-chat's default mapping for this tool still points at ``issues``.
+    assert _record_rows(
+        tmp_path,
+        "searchJiraIssuesUsingJql",
+        _ATLASSIAN_JIRA_SEARCH,
+        reference_mapping={
+            "listPath": "issues",
+            "titleTemplate": "{key} — {fields.summary}",
+        },
+    ) == [
+        (
+            "UN-26075 — Group the debug panel tabs",
+            "https://unique-ch.atlassian.net/browse/UN-26075",
+        )
+    ]
+
+
+def test_atlassian_confluence_search_cites_each_page_with_its_browser_link(
+    tmp_path: Path,
+) -> None:
+    assert _record_rows(
+        tmp_path, "searchConfluenceUsingCql", _ATLASSIAN_CONFLUENCE_SEARCH
+    ) == [
+        ("Conduct Speedup", "https://unique-ch.atlassian.net/wiki/spaces/sdv2/pages/1"),
+        ("Conduct Speed", "https://unique-ch.atlassian.net/wiki/spaces/sdv2/pages/2"),
+    ]

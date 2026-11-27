@@ -5,6 +5,182 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.46.0...unique-orchestrator-v2026.48.0) (2026-11-20)
+
+
+### Features
+
+* **orchestrator:** let build_unique_ai take evaluation factories ([#2780](https://github.com/Unique-AG/ai/issues/2780)) ([9bb60f5](https://github.com/Unique-AG/ai/commit/9bb60f5ac1b76e5b07a6179813f3daaf91d1c5ce))
+* **toolkit:** add gpt-6.2-sol and gpt-6.2-astra model info [UN-29888] ([#2803](https://github.com/Unique-AG/ai/issues/2803)) ([6908eaf](https://github.com/Unique-AG/ai/commit/6908eaf99f6853f40482b2be1adf6d046adb6a84))
+
+
+### Bug Fixes
+
+* **orchestrator:** route GPT-6.1 Terra through the Responses API [UN-28622] ([#2713](https://github.com/Unique-AG/ai/issues/2713)) ([4cc5da4](https://github.com/Unique-AG/ai/commit/4cc5da4bfe901e7edaf6a0dbc0f4eb47af5885ee))
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.44.0...unique-orchestrator-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **sdk, toolkit, orchestrator:** generate a short title for new chats ([#2651](https://github.com/Unique-AG/ai/issues/2651)) ([b157977](https://github.com/Unique-AG/ai/commit/b1579770d3390c1ec145fa1f56c978a52ee8623a))
+
+
+### Bug Fixes
+
+* **orchestrator:** validate prompt templates on config load ([#2667](https://github.com/Unique-AG/ai/issues/2667)) ([94033c6](https://github.com/Unique-AG/ai/commit/94033c6e68fc30030b551becbd055589a08dc2b8))
+* **toolkit:** render configurable prompt templates in a jinja sandbox ([#2658](https://github.com/Unique-AG/ai/issues/2658)) ([87c67c7](https://github.com/Unique-AG/ai/commit/87c67c74384077953e88447a113614be7f701633))
+* **toolkit:** show stored uploads outside the MIME catalog [UN-28414] ([#2652](https://github.com/Unique-AG/ai/issues/2652)) ([343c508](https://github.com/Unique-AG/ai/commit/343c5087c0d24c6161099e447e69797d6dc8190b))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.42.0...unique-orchestrator-v2026.44.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* **orchestrator:** prevent parallel tool context overflow [UN-27401] ([#2575](https://github.com/Unique-AG/ai/issues/2575)) ([95ec9ec](https://github.com/Unique-AG/ai/commit/95ec9ec8bc94033dea7e04c045fac6783327750f))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.40.0...unique-orchestrator-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **orchestrator:** improvement - list every chat upload with ingestion status and if searchable [UN-25228] ([#2526](https://github.com/Unique-AG/ai/issues/2526)) ([a25f47a](https://github.com/Unique-AG/ai/commit/a25f47afcf4cef78c3fd18066e60dfecd3154fe1))
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([7d4e315](https://github.com/Unique-AG/ai/commit/7d4e315423ff1d12759dd07f096095f93d74570e))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.38.0...unique-orchestrator-v2026.40.0) (2026-09-24)
+
+
+### Features
+
+* **code-interpreter:** turn fence feature flag into config ([#2457](https://github.com/Unique-AG/ai/issues/2457)) ([2de750d](https://github.com/Unique-AG/ai/commit/2de750ddab97a44be3945a1eb26288793b4860ab))
+* **code-interpreter:** turn HTML fence feature flag into config [UN-17927] ([#2459](https://github.com/Unique-AG/ai/issues/2459)) ([e2d1ec1](https://github.com/Unique-AG/ai/commit/e2d1ec15a7cc9774b2c99dd7af67183fa2a63aee))
+* **toolkit:** add gpt-6-luna and gpt-6-sol model info ([#2477](https://github.com/Unique-AG/ai/issues/2477)) ([d6daaa0](https://github.com/Unique-AG/ai/commit/d6daaa00f4ff472928e7546862e21b985e2ade0d))
+
+
+### Bug Fixes
+
+* **orchestrator:** stop forcing tool_choice on Opus 5.5 ([#2487](https://github.com/Unique-AG/ai/issues/2487)) ([d788578](https://github.com/Unique-AG/ai/commit/d7885789a99e1ad1026e4809c91a0908d963aa8f))
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.36.0...unique-orchestrator-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **toolkit:** add GPT-6 Astra model info [UN-25480] ([#2420](https://github.com/Unique-AG/ai/issues/2420)) ([b69c19f](https://github.com/Unique-AG/ai/commit/b69c19fdebd6d3219fbaf155ca183461f26e9b9f))
+
+
+### Bug Fixes
+
+* **toolkit:** recognise .msg/.eml chat uploads as documents ([#2386](https://github.com/Unique-AG/ai/issues/2386)) ([b256fcd](https://github.com/Unique-AG/ai/commit/b256fcdd4d719afa0ae6a162206016290d42389b))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.34.0...unique-orchestrator-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **orchestrator:** forward x-assistant-message-id on hand-built completion headers [UN-24452] ([#2287](https://github.com/Unique-AG/ai/issues/2287)) ([c42d577](https://github.com/Unique-AG/ai/commit/c42d5774a6542c283a56f111c792c55a0c021b16))
+* **unique_orchestrator:** Enable uploaded files serialization in us… ([#2319](https://github.com/Unique-AG/ai/issues/2319)) ([340ce1b](https://github.com/Unique-AG/ai/commit/340ce1b92e27a7d298081df01b75a30f1da3d56c))
+
+
+### Bug Fixes
+
+* **orchestrator:** emit additionalLLMOptions schema key as camelCase ([#2278](https://github.com/Unique-AG/ai/issues/2278)) ([1d682cc](https://github.com/Unique-AG/ai/commit/1d682cc7e47b0c7591a48ce324f54fdd31505408))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.32.0...unique-orchestrator-v2026.34.0) (2026-08-14)
+
+
+### Features
+
+* **orchestrator:** apply per-model additionalLLMOptions on model choice ([#2269](https://github.com/Unique-AG/ai/issues/2269)) ([3c092d8](https://github.com/Unique-AG/ai/commit/3c092d8d096287f75facba4faea8dfeeb28b9e0c))
+
+
+### Bug Fixes
+
+* **unique_orchestrator:** await get_selected_uploaded_content_ids before constructing UniqueAI ([#2218](https://github.com/Unique-AG/ai/issues/2218)) ([6610196](https://github.com/Unique-AG/ai/commit/66101969175296b50251f02f6b6155f15b6493df))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.30.0...unique-orchestrator-v2026.32.0) (2026-07-31)
+
+
+### Features
+
+* Pricing analytics ([#2146](https://github.com/Unique-AG/ai/issues/2146)) ([57cb3fc](https://github.com/Unique-AG/ai/commit/57cb3fc9ac5e0e09fe30ccf0e03fd694cde4122c))
+* Token count analytics ([#2112](https://github.com/Unique-AG/ai/issues/2112)) ([f475dc4](https://github.com/Unique-AG/ai/commit/f475dc4606dd723e0fecfcdd09ace2f9c329e960))
+
+
+### Bug Fixes
+
+* user memory message logs ([#2160](https://github.com/Unique-AG/ai/issues/2160)) ([d8fb962](https://github.com/Unique-AG/ai/commit/d8fb962d4068103cbfb6d8b94f6be627fe73e7f0))
+* **user-memory:** prompt improvement ([#2165](https://github.com/Unique-AG/ai/issues/2165)) ([c17a914](https://github.com/Unique-AG/ai/commit/c17a9148a864fe271d1036d75d146d52e3a96e6b))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.28.0...unique-orchestrator-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **orchestrator:** apply per-model temperature on model choice ([#2091](https://github.com/Unique-AG/ai/issues/2091)) ([3a13a89](https://github.com/Unique-AG/ai/commit/3a13a89fe8be2467950f7483337aaf720752e7ec))
+* **unique_orchestrator:** Expose Python streaming as experimental flag ([#1990](https://github.com/Unique-AG/ai/issues/1990)) ([a2f796e](https://github.com/Unique-AG/ai/commit/a2f796e001c1f587553e672fea925cf202fe67eb))
+* **unique_orchestrator:** expose token usage on Space orchestration messages [UN-20907] ([#2078](https://github.com/Unique-AG/ai/issues/2078)) ([7e286db](https://github.com/Unique-AG/ai/commit/7e286db6f962710e732829f0e073687ee5aab60e))
+* **unique_toolkit:** add analytics debug-info snapshot [UN-22110] ([#2055](https://github.com/Unique-AG/ai/issues/2055)) ([fbcbe72](https://github.com/Unique-AG/ai/commit/fbcbe72eef4bf0e697b4eb7acaed73bb7f055deb))
+* **unique_toolkit:** add artifact output size analytics ([#2102](https://github.com/Unique-AG/ai/issues/2102)) ([a778134](https://github.com/Unique-AG/ai/commit/a7781340641854c7c36479d6390244be12a4f3d0)), closes [#2076](https://github.com/Unique-AG/ai/issues/2076)
+* **unique_toolkit:** populate artifact analytics fields [UN-22110] ([#2076](https://github.com/Unique-AG/ai/issues/2076)) ([fa31ec8](https://github.com/Unique-AG/ai/commit/fa31ec84d5ce8604fd4e48f4685ce7f129ff8c51))
+* **unique_toolkit:** Reenable file content serialization ([#2048](https://github.com/Unique-AG/ai/issues/2048)) ([256fbda](https://github.com/Unique-AG/ai/commit/256fbdacd2c9545e6a4950eb0451d67c23a3c22b))
+* **unique_toolkit:** Support lazy code interpreter loading ([#1997](https://github.com/Unique-AG/ai/issues/1997)) ([fb72d4c](https://github.com/Unique-AG/ai/commit/fb72d4c7afe88be9c0b7740b22818bab80c20acd))
+* **unique-orchestrator:** adding analytics parameters to debug info ([#2063](https://github.com/Unique-AG/ai/issues/2063)) ([e42d6ce](https://github.com/Unique-AG/ai/commit/e42d6ce15e164cf4729794997c564462743d4cb5))
+* **unique-toolkit:** force responses api for gpt 56 ([#2065](https://github.com/Unique-AG/ai/issues/2065)) ([f022cfe](https://github.com/Unique-AG/ai/commit/f022cfe4b6fa30ea61df604ef4aaba5e561521ce))
+* update logging and config of context memory ([#2098](https://github.com/Unique-AG/ai/issues/2098)) ([a38625e](https://github.com/Unique-AG/ai/commit/a38625efe25891a82e04ea6477113f43d94eaa62))
+* update user memory logic ([#2087](https://github.com/Unique-AG/ai/issues/2087)) ([0e8b7df](https://github.com/Unique-AG/ai/commit/0e8b7df00a4169104d273374b147c1664f9fbff7))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.26.0...unique-orchestrator-v2026.28.0) (2026-07-03)
 
 

@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -213,3 +214,31 @@ async def test_get_follow_up_question_suggestion_error_handling(
     # Assert
     assert isinstance(result, str)
     assert result == ""  # Should return empty string on error
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_structured_output", [True, False])
+async def test_get_follow_up_question_suggestion__forwards_additional_llm_options(
+    config, language_model_service, use_structured_output: bool
+):
+    config.additional_llm_options = {"reasoning_effort": "none"}
+    questions = {"questions": [{"category": "clarification", "question": "a?"}]}
+    message = MagicMock(parsed=questions, content=json.dumps(questions))
+    language_model_service.complete_async = AsyncMock(
+        return_value=MagicMock(choices=[MagicMock(message=message)])
+    )
+
+    with patch.object(
+        FollowUpQuestionsConfig,
+        "use_structured_output",
+        new_callable=lambda: property(lambda self: use_structured_output),
+    ):
+        await FollowUpQuestionService(config=config).get_follow_up_question_suggestion(
+            language="en",
+            language_model_service=language_model_service,
+            history=[],
+        )
+
+    call_args = language_model_service.complete_async.call_args.kwargs
+    assert call_args["other_options"] == {"reasoning_effort": "none"}

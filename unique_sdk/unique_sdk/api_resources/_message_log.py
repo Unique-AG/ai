@@ -19,7 +19,7 @@ class MessageLog(APIResource["MessageLog"]):
 
     RESOURCE_URL = "/message-log"
 
-    StatusLiteral = Literal["RUNNING", "COMPLETED", "FAILED"]
+    StatusLiteral = Literal["RUNNING", "COMPLETED", "FAILED", "CANCELLED"]
 
     class Reference(TypedDict):
         name: str

@@ -30,7 +30,7 @@ from unique_toolkit._internal.streaming.pattern_replacer import (
 )
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.language_model.constants import DEFAULT_COMPLETE_TEMPERATURE
-from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageOptions,
     LanguageModelMessages,
@@ -39,6 +39,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from .._async_bridge import run_async_from_sync
+from .._model_params import prepare_responses_model_params
 from ..events import (
     ActivityProgress,
     StreamEnded,
@@ -512,8 +513,16 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             )
 
         converted_messages = input_messages(messages)
-
         converted_tools = _convert_tools(tools)
+
+        other_options = prepare_responses_model_params(
+            model_name,
+            temperature,
+            reasoning,
+            other_options,
+            converted_tools,
+        )
+
         create_kwargs: dict[str, Any] = {}
         if converted_tools:
             create_kwargs["tools"] = converted_tools
@@ -533,16 +542,13 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             create_kwargs["tool_choice"] = tool_choice
         if top_p is not None:
             create_kwargs["top_p"] = top_p
-        if reasoning is not None:
-            create_kwargs["reasoning"] = reasoning
-        if other_options:
-            for k, v in other_options.items():
-                create_kwargs.setdefault(k, v)
+        for k, v in other_options.items():
+            create_kwargs.setdefault(k, v)
+        LanguageModelInfo.from_name(model_name).drop_unsupported_options(create_kwargs)
         gpt_request: dict[str, Any] = {
             "model": model,
             "input": converted_messages,
             "stream": True,
-            "temperature": temperature,
             **create_kwargs,
         }
 
@@ -580,7 +586,6 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                     model=model,
                     input=converted_messages,
                     stream=True,
-                    temperature=temperature,
                     **create_kwargs,
                 )
                 async with stream:

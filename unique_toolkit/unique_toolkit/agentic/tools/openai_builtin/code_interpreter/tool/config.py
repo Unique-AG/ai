@@ -49,7 +49,21 @@ which file failed and why, using the reason given below:
 {% endif %}
 """.strip()
 
-_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_BASE = """
+# Shared by both default prompts. Assumes the hosted container ships reportlab,
+# matplotlib's DejaVu fonts and pdfplumber (checked on one live container, 2026-11);
+# if an image drops one, the model's PDF code fails rather than this config.
+_PDF_FILE_RULES = """
+PDF files: CRITICAL rules when you write a new text document as a PDF (report, summary, letter); text MUST wrap and stay on the page:
+- Build it with reportlab Platypus: `SimpleDocTemplate(path, pagesize=A4)` with `Paragraph`, `Spacer`, `Table` and `ListFlowable`, so every line wraps inside the page margins. Create a new `story` list in the same code cell as `doc.build(story)`: `build` empties the list, so a reused one gives a PDF with 0 pages.
+- NEVER write its running text with `canvas.drawString`, canvas text objects or `Preformatted`: they do not wrap, so long lines run off the page and are cut off. (Canvas is fine for charts and for stamping, annotating or filling an existing PDF.)
+- Turn Markdown into real formatting: headings into heading styles, `**x**` into `<b>x</b>`, links into `<a href="url">text</a>`, bullets into `ListFlowable(items, bulletType="bullet", start="•")` (`start="bullet"` prints the word "bullet"). Do it in one helper that runs `xml.sax.saxutils.escape` on the plain text first and only then adds the tags (for an `href`, `escape(url, {'"': "&quot;"})`), and pass every paragraph, list item, table cell and URL through it. Never type tags or `&` into a string passed straight to `Paragraph`: an unescaped `&` prints a stray `;` and an unescaped `<` breaks the paragraph.
+- Tables: every cell, headers included, is a `Paragraph` in your TrueType body style, never a plain string (a plain string does not wrap and runs into the next column and off the page). `colWidths` sum to `doc.width - 12` (the frame's padding); with 6 or more columns use an 8 pt cell font.
+- For Latin, Greek and Cyrillic text use a TrueType font, as built-in Helvetica draws many accented, Greek and Cyrillic letters as black boxes: register `DejaVuSans.ttf` and `DejaVuSans-Bold.ttf` from `Path(matplotlib.get_data_path()) / "fonts" / "ttf"` and call `registerFontFamily` so `<b>` works.
+- Before referencing the PDF, check it in code: open it with `pdfplumber` and assert it has at least one page and some words, and every word's `x1` is at most `page.width` (a page with only a chart or image is fine). Do not wrap these asserts in `try`/`except`; if one fails, fix the build and save it again.
+"""
+
+_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_BASE = (
+    """
 Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
 
 Instructions:
@@ -73,7 +87,9 @@ Always use a line break between the title and the markdown!
 - YOU MUST use the syntax above to display images, otherwise the image will not be displayed in the chat.
 - Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
 - You MUST always use this syntax, otherwise the files will not be displayed in the chat.
-
+"""
+    + _PDF_FILE_RULES
+    + """
 # Displaying Dataframes/Tables:
 - Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
 
@@ -91,14 +107,15 @@ Handling User Queries:
 - If a tool step fails, you must recover as much as possible.
 - After exhausting all possible solutions without success, inform the user of what was tried and request clarification/help.
 """
+)
 
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
     _TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_BASE + _TOOL_DESCRIPTION_FILES_SUFFIX
 ).strip()
 
-# Used when the code-execution fence feature flag (UN-17972) is enabled.
-# The frontend derives the artifact title from the filename itself, so the
-# LLM no longer needs to produce a markdown heading before the sandbox link.
+# Default system prompt. The frontend derives the artifact title from the
+# filename itself, so the LLM does not need to produce a markdown heading
+# before the sandbox link.
 #
 # UN-19711 / Horizon follow-up: The HTML rules in the fence prompt reduce iframe height
 # collapse when chat auto-measures the embedded document. Remaining gaps belong in the
@@ -107,7 +124,8 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
 # UN-19880: kaleido is not installed in the Azure OpenAI code interpreter environment,
 # so plotly's fig.write_image() always fails. The "Visualization library choice" section
 # steers the model to use matplotlib for PNG outputs and plotly only for HTML artifacts.
-_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE_BASE = """
+_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE_BASE = (
+    """
 Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
 
 Instructions:
@@ -115,7 +133,7 @@ Instructions:
 Uploaded and generated files:
 - All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
 - All files generated through code MUST be saved in the `/mnt/data` folder.
-- CRITICAL: When generating any plot or visualization as a PNG, use **matplotlib** and call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
+- CRITICAL: When generating any plot, chart or other data visualization as a PNG, use **matplotlib** and call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
 
 CRUCIAL Instructions for displaying images and files in the chat:
 - Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
@@ -134,9 +152,16 @@ IMPORTANT: ALWAYS place a blank line before AND after each file reference link s
 - You MUST always use this syntax, otherwise the files will not be displayed in the chat.
 
 Visualization library choice — CRITICAL:
-- For static image outputs (PNG): ALWAYS use **matplotlib**. NEVER use plotly to produce a PNG — `fig.write_image()` requires the `kaleido` package which is NOT installed in this environment and will always raise an error.
+- For static charts and plots (PNG): ALWAYS use **matplotlib**. NEVER use plotly to produce a PNG — `fig.write_image()` requires the `kaleido` package which is NOT installed in this environment and will always raise an error.
+- For static page, poster, card or mockup images made of text blocks and boxes (not data charts): use **PIL** (`ImageDraw`) or **matplotlib** and follow "Page and layout images" below.
 - For interactive visualizations (HTML): ALWAYS use **plotly**. Save with `fig.write_html(path, full_html=True, include_plotlyjs="cdn", default_height="600px")`. Do NOT use matplotlib for HTML artifacts.
 - If a user explicitly asks for a plotly chart as an image, produce an equivalent **matplotlib** PNG and briefly explain that static plotly export is not supported here.
+
+Page and layout images — CRITICAL (text MUST NOT overlap or overflow):
+- Applies to images built from text blocks, boxes and cards (pages, posters, slides, mockups), not data charts.
+- NEVER hardcode positions or sizes by eye. Place elements top to bottom with a running `y` cursor and advance it by each element's MEASURED height plus padding. Size boxes and cards from their measured content.
+- Measure text before placing it (PIL: `draw.textbbox((0, 0), text, font=font)`; matplotlib: `text.get_window_extent(fig.canvas.get_renderer())`) and wrap it to its container's width with `textwrap.wrap`. In a row of cards, give each card `(available_width - gaps) / n` width.
+- Before saving, assert in code that no two text bounding boxes intersect and that each lies inside its container.
 
 HTML files — CRITICAL rules:
 - NEVER write raw HTML markup directly in your text response. HTML content MUST only ever appear as a saved `.html` file in `/mnt/data/`.
@@ -155,14 +180,16 @@ HTML files — CRITICAL rules:
   - Apply clean, readable typography: prefer system fonts (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`) and sufficient contrast (WCAG AA minimum).
   - Use semantic HTML elements (`<table>` for tabular data, `<button>` for actions, `<h1>`–`<h6>` for headings, `alt` attributes on `<img>` tags). Avoid using `<div>` for everything.
   - Do NOT use `window.parent`, `window.top`, or any attempt to access the parent frame.
-
+"""
+    + _PDF_FILE_RULES
+    + """
 
 # Displaying Dataframes/Tables:
 - Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
 
 Handling User Queries:
 - Whenever the user query requires using the python tool, you must always think first about the steps required.
-- CRITICAL: If any step generates a plot or visualization as a PNG, use **matplotlib** — that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
+- CRITICAL: If any step generates a plot, chart or other data visualization as a PNG, use **matplotlib** — that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
 - CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
   - Self-check before writing any sandbox link: look back at the code blocks you executed in this response. Is there a block that explicitly saves this exact filename to `/mnt/data/`? If not, execute the code first — then reference the file.
 - CRITICAL: The sandbox has NO internet access. NEVER use `requests`, `httpx`, `urllib`, or any other HTTP library to fetch data from the web — these calls will always fail. If the user's query requires live web data (e.g. market prices, news, APIs), you MUST retrieve it using the web search tool first and then pass the result into the code interpreter.
@@ -176,6 +203,7 @@ Handling User Queries:
 - If a tool step fails, you must recover as much as possible.
 - After exhausting all possible solutions without success, inform the user of what was tried and request clarification/help.
 """
+)
 
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE = (
     _TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE_BASE + _TOOL_DESCRIPTION_FILES_SUFFIX

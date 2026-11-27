@@ -97,6 +97,7 @@ classDiagram
     MagicTableBasePayload <|-- MagicTableSheetCreatedPayload
     MagicTableBasePayload <|-- MagicTableLibrarySheetRowVerifiedPayload
     MagicTableBasePayload <|-- MagicTableRerunRowPayload
+    MagicTableBasePayload <|-- MagicTableRerunRowsPayload
 ```
 
 ### Chat
@@ -130,4 +131,5 @@ The Agentic Table interface triggers the following events:
 | `unique.magic-table.library-sheet-row.verified` | Triggered when a row in a "Library" sheet is verified | `MagicTableEvent` | `MagicTableLibrarySheetRowVerifiedPayload` |
 | `unique.magic-table.sheet-created` | Triggered when a new sheet is created | `MagicTableEvent` | `MagicTableSheetCreatedPayload` |
 | `unique.magic-table.rerun-row` | Triggered when a row is re-run (e.g. after its sources change) | `MagicTableEvent` | `MagicTableRerunRowPayload` |
+| `unique.magic-table.rerun-rows` | Triggered when a selection of rows is re-run; one event carries all of them and the sheet is locked once for the whole batch | `MagicTableEvent` | `MagicTableRerunRowsPayload` |
 

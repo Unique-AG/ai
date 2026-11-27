@@ -83,15 +83,11 @@ Code:
 The orchestrator runs a bounded, iterative loop that plans, executes, and streams results while coordinating tools, references, evaluations, and post-processing. Here’s a clearer, fuller picture of what happens in each phase.
 
 ## Initialization and kickoff
-- Fresh session check: Before the loop begins, the agent asks the HistoryManager whether there are any “loop messages” already present. If this is a fresh interaction (no loop messages), it proactively updates the frontend with a short status message like “Starting agentic loop…”. This gives users immediate feedback that the system is alive and preparing to work.
-- Context setup: Internally, the agent also sets bookkeeping values such as the current iteration index and any existing “start_text” used for progressive streaming (this may be used to guide how text appears or is removed from later outputs).
+- Context setup: The agent sets bookkeeping values such as the current iteration index and any existing “start_text” used for progressive streaming (this may be used to guide how text appears or is removed from later outputs).
 
 ```mermaid
 flowchart LR
-    A[Start: Initialize Orchestrator] --> B{Fresh Session?}
-    B -- Yes --> B1[Update Frontend: Starting agentic loop...]
-    B -- No --> C[Enter Main Loop]
-    B1 --> C
+    A[Start: Initialize Orchestrator] --> C[Enter Main Loop]
     C --> E[Continue to Planning Phase]
 ```
 ## Iterative planning and execution
@@ -244,11 +240,6 @@ Code:
         processes tool calls if any are returned.
         """
         self._logger.info("Start LoopAgent...")
-
-        if self._history_manager.has_no_loop_messages():  # TODO: why do we even need to check its always no loop messages on this when its called.
-            self._chat_service.modify_assistant_message(
-                  content="Starting agentic loop..."  # TODO: this must be more informative
-            )
 
         ## Loop iteration
         for i in range(self._config.agent.max_loop_iterations):

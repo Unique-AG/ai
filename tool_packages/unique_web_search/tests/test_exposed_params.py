@@ -23,6 +23,7 @@ from unique_web_search.services.executors.v3.schema import (
     SearchPayload,
     WebSearchV3ToolParameters,
 )
+from unique_web_search.services.search_engine.bing import BingSearchConfig
 
 
 class _StubExecutor(BaseWebSearchExecutor[Any]):
@@ -149,6 +150,34 @@ class TestV3FlatExposedParams:
         hint = WebSearchV3ToolParameters.schema_hint(exposed)
         assert "dateRestrict" in hint
         assert "date_restrict" not in hint
+
+
+class TestAgentEngineExposedParams:
+    @pytest.mark.ai
+    def test_bing_knobs_never_reach_the_llm_tool_schema(self) -> None:
+        """
+        Purpose: Verify Bing's grounding knobs stay out of the LLM tool schema.
+        Why this matters: They are fixed admin choices that apply to every search
+            in the space. Offering them per call let the LLM override the market
+            an admin had pinned, and each distinct value it invented minted its
+            own Foundry agent version.
+        Setup summary: Configure both knobs, build the V3 tool model, inspect props.
+        """
+        config = BingSearchConfig(market="en-US", freshness="Week")
+
+        exposed = config.exposed_params_model()
+        tool_model = WebSearchV3ToolParameters.with_exposed_params(exposed)
+        payload_props = tool_model.model_json_schema()["$defs"]["SearchPayload"][
+            "properties"
+        ]
+
+        assert exposed is None
+        assert "market" not in payload_props
+        assert "freshness" not in payload_props
+
+    @pytest.mark.ai
+    def test_tool_schema_unchanged_when_nothing_configured(self) -> None:
+        assert BingSearchConfig().exposed_params_model() is None
 
 
 class TestExtractSearchParams:

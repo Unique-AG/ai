@@ -1,6 +1,6 @@
 [project]
 name = "unique-swot"
-version = "2026.28.0"
+version = "2026.48.0"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -14,8 +14,8 @@ dependencies = [
     "typing-extensions>=4.9.0,<5",
     "jinja2>=3.1.0,<4",
     "tqdm>=4.66.0,<5",
-    "unique-toolkit>=2026.28.0",
-    "unique-quartr>=2026.28.0",
+    "unique-toolkit>=2026.48.0",
+    "unique-quartr>=2026.48.0",
 ]
 
 [build-system]
@@ -26,7 +26,7 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 constraint-dependencies = ["lxml>=6.1.0"]
 
 [tool.uv.exclude-newer-package]
@@ -80,7 +80,7 @@ include = ["unique_swot"]
 exclude = ["**/tests/**", "**/test_*.py"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 extend-select = ["I"]

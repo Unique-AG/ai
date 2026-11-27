@@ -1,7 +1,9 @@
 import asyncio
 import logging
 import time
-from typing import Any, cast
+from collections.abc import Collection
+from datetime import datetime
+from typing import Any, NamedTuple, cast
 
 from typing_extensions import deprecated
 from unique_sdk import (
@@ -16,7 +18,10 @@ from unique_sdk import (
     SelectionMethod,
 )
 from unique_sdk import AgenticTableCell as SDKAgenticTableCell
-from unique_sdk.api_resources._agentic_table import ActivityStatus
+from unique_sdk.api_resources._agentic_table import (
+    ActivityStatus,
+    MagicTableMetadataEntry,
+)
 
 from .schemas import (
     CreatedMagicTableSheet,
@@ -26,6 +31,7 @@ from .schemas import (
     MagicTableCell,
     MagicTableSheet,
     RowMetadataEntry,
+    RowMetadataEntryInput,
     SheetMetadataEntryInput,
 )
 
@@ -47,6 +53,56 @@ def _sheet_batch_cells_include_row_metadata_from_api(
     first = cells[0]
     rm = first.get("rowMetadata")
     return "rowMetadata" in first and isinstance(rm, list)
+
+
+def _artifact_timestamp(value: str) -> datetime:
+    """Parse an artifact ISO-8601 timestamp (e.g. ``2026-07-31T16:26:36.344Z``)."""
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+class _ArtifactBaseline(NamedTuple):
+    """What a sheet's artifacts of one type looked like just before an export of
+    that type was triggered.
+
+    ``ids`` are the records of the type that already existed; ``latest`` is
+    their newest ``updated_at``. Two signals because either can carry the
+    result: a finished report normally arrives as a new record (the trigger's
+    nameless IN_PROGRESS marker and the named report are separate rows), but a
+    re-export can also refresh an existing record in place.
+
+    Kept per artifact type so that triggering one type does not fence out an
+    already-completed export of another type.
+
+    Mirrors the ``_ArtifactBaseline`` used by the SDK CLI's export wait.
+    """
+
+    ids: frozenset[str]
+    latest: datetime | None
+
+
+def _snapshot_artifacts(
+    artifacts: list[MagicTableArtifact],
+    artifact_types: list[MagicTableArtifactType],
+) -> dict[MagicTableArtifactType, _ArtifactBaseline]:
+    baselines: dict[MagicTableArtifactType, _ArtifactBaseline] = {}
+    for artifact_type in artifact_types:
+        records = [a for a in artifacts if a.artifact_type == artifact_type]
+        timestamps = [_artifact_timestamp(a.updated_at) for a in records]
+        baselines[artifact_type] = _ArtifactBaseline(
+            ids=frozenset(a.id for a in records),
+            latest=max(timestamps) if timestamps else None,
+        )
+    return baselines
+
+
+def _is_fresh(artifact: MagicTableArtifact, baseline: _ArtifactBaseline) -> bool:
+    """Whether *artifact* came out of a generation triggered after *baseline*."""
+    if artifact.id not in baseline.ids:
+        return True
+    return (
+        baseline.latest is not None
+        and _artifact_timestamp(artifact.updated_at) > baseline.latest
+    )
 
 
 class LockedAgenticTableError(Exception):
@@ -88,6 +144,9 @@ class AgenticTableService:
         self.table_id = table_id
         self.logger = logger
         self.created_sheet: CreatedMagicTableSheet | None = None
+        # Per-type snapshots taken by generate_artifacts so wait_for_artifacts can
+        # tell a new export apart from records left by earlier generations.
+        self._artifact_baselines: dict[MagicTableArtifactType, _ArtifactBaseline] = {}
 
     @classmethod
     async def create_sheet(
@@ -194,7 +253,11 @@ class AgenticTableService:
         return MagicTableCell.model_validate(cell_data)
 
     async def set_multiple_cells(
-        self, cells: list[MagicTableCell], batch_size: int = 4000
+        self,
+        cells: list[MagicTableCell],
+        batch_size: int = 4000,
+        *,
+        overwrite_library_rows: bool | None = None,
     ):
         """
         Sets the values of multiple cells in the Agentic Table.
@@ -202,6 +265,14 @@ class AgenticTableService:
         Args:
             cells (list[MagicTableCell]): The cells to set sorted by row and column.
             batch_size (int): Number of cells to set in a single request.
+            overwrite_library_rows (bool | None): When set, forwarded as
+                ``overwriteLibraryRows``. ``True`` lets updates to existing cells on
+                library-sheet rows go through instead of being dropped; the server
+                only honors it on library sheets, for rows where the caller can read
+                every sheet named in the row's ``sourceSheetId`` metadata. Locked rows still
+                need unlocking first (``update_row_verification_status`` with
+                ``locked=False``). ``None`` omits the field; servers that predate
+                it reject it with a 400.
         """
         for i in range(0, len(cells), batch_size):
             batch = cells[i : i + batch_size]
@@ -217,6 +288,7 @@ class AgenticTableService:
                     )
                     for cell in batch
                 ],
+                overwriteLibraryRows=overwrite_library_rows,
             )
 
     async def set_activity(
@@ -385,7 +457,7 @@ class AgenticTableService:
         include_log_history: bool = False,
         include_cell_meta_data: bool = False,
         include_row_metadata: bool = False,
-        scope_to_assigned_rows: bool = False,
+        row_orders: list[int] | None = None,
     ) -> MagicTableSheet:
         """
         Gets the sheet data from the Agentic Table paginated by batch_size.
@@ -397,11 +469,19 @@ class AgenticTableService:
             include_log_history (bool): Whether to include the log history.
             include_cell_meta_data (bool): Whether to include the cell metadata (renderer, selection, agreement status).
             include_row_metadata (bool): Whether to include the row metadata (key value pairs).
-            scope_to_assigned_rows (bool): When true, scope row count and cell batches to rows
-                assigned to the current user (Can Answer role).
+            row_orders (list[int] | None): Sparse, 1-based content row indices to
+                fetch, using the same numbering as get_cell and rerun events. Row 0
+                is the header; non-positive values are discarded. An empty list
+                returns a header-only sheet. This cannot be combined with a
+                non-default start_row or with end_row.
         Returns:
             MagicTableSheet: The sheet data.
         """
+        if batch_size <= 0:
+            raise ValueError("Batch size must be greater than zero")
+        if row_orders is not None and (start_row != 0 or end_row is not None):
+            raise ValueError("row_orders cannot be combined with start_row or end_row")
+
         # Find the total number of rows
         sheet_info = await AgenticTable.get_sheet_data(
             user_id=self._user_id,
@@ -411,53 +491,83 @@ class AgenticTableService:
             includeCells=False,
             includeLogHistory=False,
             includeCellMetaData=False,
-            scopeToAssignedRows=scope_to_assigned_rows,
         )
         total_rows = sheet_info.get("magicTableRowCount")
         if total_rows is None:
             raise RuntimeError(
                 "Expected magicTableRowCount in sheet response when includeRowCount=True"
             )
-        if end_row is None or end_row > total_rows:
-            end_row = total_rows
-        if start_row > end_row:
-            raise Exception("Start row is greater than end row")
-        if start_row < 0 or end_row < 0:
-            raise Exception("Start row or end row is negative")
 
         # Get the cells
         cells = []
-        for row in range(start_row, end_row, batch_size):
-            end_row_batch = min(row + batch_size, end_row)
+        batch_params: list[AgenticTable.GetSheetData] = []
+        if row_orders is not None:
+            normalized_row_orders = list(
+                dict.fromkeys(row_order for row_order in row_orders if row_order > 0)
+            )
+            for offset in range(0, len(normalized_row_orders), batch_size):
+                batch_params.append(
+                    {
+                        "tableId": self.table_id,
+                        "rowOrders": normalized_row_orders[
+                            offset : offset + batch_size
+                        ],
+                    }
+                )
+        else:
+            if end_row is None or end_row > total_rows:
+                end_row = total_rows
+            if start_row > end_row:
+                raise Exception("Start row is greater than end row")
+            if start_row < 0 or end_row < 0:
+                raise Exception("Start row or end row is negative")
+            for row in range(start_row, end_row, batch_size):
+                batch_params.append(
+                    {
+                        "tableId": self.table_id,
+                        "startRow": row,
+                        "endRow": min(row + batch_size, end_row) - 1,
+                    }
+                )
+
+        for request_params in batch_params:
+            request_params.update(
+                {
+                    "includeCells": True,
+                    "includeLogHistory": include_log_history,
+                    "includeRowCount": False,
+                    "includeCellMetaData": include_cell_meta_data,
+                }
+            )
             if include_row_metadata:
-                sheet_partial = await AgenticTable.get_sheet_data(
-                    user_id=self._user_id,
-                    company_id=self._company_id,
-                    tableId=self.table_id,
-                    includeCells=True,
-                    includeLogHistory=include_log_history,
-                    includeRowCount=False,
-                    includeCellMetaData=include_cell_meta_data,  # renderer, selection, agreement status
-                    startRow=row,
-                    endRow=end_row_batch - 1,
-                    includeRowMetadata=True,
-                    scopeToAssignedRows=scope_to_assigned_rows,
-                )
-            else:
-                sheet_partial = await AgenticTable.get_sheet_data(
-                    user_id=self._user_id,
-                    company_id=self._company_id,
-                    tableId=self.table_id,
-                    includeCells=True,
-                    includeLogHistory=include_log_history,
-                    includeRowCount=False,
-                    includeCellMetaData=include_cell_meta_data,  # renderer, selection, agreement status
-                    startRow=row,
-                    endRow=end_row_batch - 1,
-                    scopeToAssignedRows=scope_to_assigned_rows,
-                )
+                request_params["includeRowMetadata"] = True
+            sheet_partial = await AgenticTable.get_sheet_data(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                **request_params,
+            )
             if "magicTableCells" in sheet_partial:
                 batch_cells = sheet_partial["magicTableCells"]
+                requested_row_orders = request_params.get("rowOrders")
+                if requested_row_orders is not None:
+                    requested = set(requested_row_orders)
+                    returned = {cell["rowOrder"] for cell in batch_cells}
+                    unexpected = returned - requested
+                    missing = requested - returned
+                    if unexpected or missing:
+                        self.logger.warning(
+                            "Sparse magic-table sheet response did not match the "
+                            "requested rows; filtering response. requested=%s "
+                            "unexpected=%s missing=%s",
+                            sorted(requested),
+                            sorted(unexpected),
+                            sorted(missing),
+                        )
+                    batch_cells = [
+                        cell
+                        for cell in batch_cells
+                        if cell.get("rowOrder") in requested
+                    ]
                 if (
                     include_row_metadata
                     and not _sheet_batch_cells_include_row_metadata_from_api(
@@ -557,6 +667,8 @@ class AgenticTableService:
         row_orders: list[int],
         status: RowVerificationStatus,
         locked: bool | None = None,
+        *,
+        emit_library_sheet_verified_event: bool | None = None,
     ):
         """Update the verification status of multiple rows at once.
 
@@ -564,24 +676,27 @@ class AgenticTableService:
             row_orders: The row indexes to update.
             status: The verification status to set (``NEEDS_REVIEW``, etc.; matches public API).
             locked: When set, forwarded as ``locked`` on ``POST .../rows/bulk-update-status``.
+            emit_library_sheet_verified_event: When set, forwarded as
+                ``emitLibrarySheetVerifiedEvent``. ``False`` marks the rows without
+                starting a ``LIBRARY_SHEET_ROW_VERIFIED`` run on library sheets; use it
+                when the caller has already ingested the rows. ``None`` omits the field
+                and keeps the server default (``True``). Servers that predate the field
+                reject it with a 400, so only set it against a backend that supports it.
         """
-        if locked is None:
-            await AgenticTable.bulk_update_status(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                rowOrders=row_orders,
-                status=status,
-            )
-        else:
-            await AgenticTable.bulk_update_status(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                rowOrders=row_orders,
-                status=status,
-                locked=locked,
-            )
+        params: AgenticTable.BulkUpdateStatus = {
+            "tableId": self.table_id,
+            "rowOrders": row_orders,
+            "status": status,
+        }
+        if locked is not None:
+            params["locked"] = locked
+        if emit_library_sheet_verified_event is not None:
+            params["emitLibrarySheetVerifiedEvent"] = emit_library_sheet_verified_event
+        await AgenticTable.bulk_update_status(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            **params,
+        )
 
     async def import_questions_and_sources(
         self,
@@ -634,9 +749,17 @@ class AgenticTableService:
         (or poll ``list_artifacts``) to detect completion, then download the artifact's
         ``content_id`` via the Content API.
 
+        Snapshots the sheet's artifacts of the requested types before
+        triggering, so a following ``wait_for_artifacts`` on this instance can
+        tell the new export apart from records left over from earlier
+        generations. Only the requested types' snapshots are replaced; a
+        baseline armed by an earlier trigger for another type is kept, so its
+        completed export stays recognisable.
+
         Raises:
             Exception: If the API reports a non-success status.
         """
+        baselines = _snapshot_artifacts(await self.list_artifacts(), artifact_types)
         result = await AgenticTable.generate_artifact(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -647,6 +770,34 @@ class AgenticTableService:
             raise Exception(
                 result.get("message") or "Failed to trigger artifact generation"
             )
+        self._artifact_baselines.update(baselines)
+
+    async def rerun_row(self, row_order: int) -> None:
+        """Re-run the agent for a single row (`POST .../row/{rowOrder}/rerun`).
+
+        The only way to re-answer part of a sheet: ``import_questions_and_sources``
+        is delta-based and will not re-answer a row that already exists.
+
+        Asynchronous, like the whole-sheet run: this triggers it and returns.
+        Follow with ``wait_for_run`` to block until the sheet leaves PROCESSING.
+
+        Args:
+            row_order: Row position in the sheet's own numbering, where row 0 is
+                the header — so answerable rows start at 1, and row 0 is
+                rejected. Same numbering as ``get_cell``.
+
+        Raises:
+            Exception: If the API reports a non-success status, which includes a
+                locked or final row and a sheet that is already PROCESSING.
+        """
+        result = await AgenticTable.rerun_row(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            rowOrder=row_order,
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to trigger row rerun")
 
     async def list_artifacts(self) -> list[MagicTableArtifact]:
         """List export artifacts of the sheet (`GET .../artifacts`)."""
@@ -680,6 +831,190 @@ class AgenticTableService:
         )
         if not result.get("status"):
             raise Exception(result.get("message") or "Failed to create sheet metadata")
+
+    async def create_row_metadata(
+        self,
+        row: int,
+        entries: list[RowMetadataEntryInput],
+        row_id: str | None = None,
+    ) -> None:
+        """Create key/value row metadata for a single row, addressed by row order.
+
+        Row metadata is the per-row key/value store surfaced by the agentic
+        table's row-metadata UI and forwarded onto knowledge-base content at
+        add-to-library time. The backend endpoint addresses rows by their id, not
+        their order, so unless ``row_id`` is given the id is resolved from column
+        ``0`` of the row first (mirrors ``get_row_metadata`` read helpers).
+
+        NOTE: not to be confused with ``set_cell_metadata`` (selection /
+        agreement status) or ``create_sheet_metadata`` (sheet-level metadata).
+
+        Args:
+            row (int): The row index (row order).
+            entries (list[RowMetadataEntryInput]): Key/value entries to create.
+                Empty is a no-op.
+            row_id (str | None): The backend row id, when the caller already has
+                it. Callers writing many rows should read the range once (cells
+                carry ``rowId``) and pass it, rather than paying a ``get_cell``
+                round trip per row.
+
+        Raises:
+            ValueError: If the row id cannot be resolved from the row.
+            Exception: If the API reports a non-success status.
+        """
+        if not entries:
+            return
+        if row_id is None:
+            cell = await self.get_cell(row, 0, include_row_metadata=False)
+            row_id = cell.row_id
+        if not row_id:
+            raise ValueError(
+                f"Cannot write row metadata: row {row} has no resolvable row id "
+                f"on table {self.table_id}."
+            )
+        result = await AgenticTable.create_row_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            rowId=row_id,
+            entries=[
+                MagicTableMetadataEntry(
+                    key=entry.key,
+                    value=entry.value,
+                    exactFilter=entry.exact_filter,
+                )
+                for entry in entries
+            ],
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to create row metadata")
+
+    async def update_row_metadata(
+        self,
+        metadata_id: str,
+        entry: RowMetadataEntryInput,
+    ) -> None:
+        """Update a single row metadata entry, addressed by its id.
+
+        Args:
+            metadata_id (str): The ``id`` of the row metadata entry to update.
+            entry (RowMetadataEntryInput): The new key, value and filter flag.
+
+        Raises:
+            Exception: If the API reports a non-success status.
+        """
+        result = await AgenticTable.update_row_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            metadataId=metadata_id,
+            key=entry.key,
+            value=entry.value,
+            exactFilter=entry.exact_filter,
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to update row metadata")
+
+    async def delete_row_metadata(self, metadata_id: str) -> None:
+        """Delete a single row metadata entry, addressed by its id.
+
+        Raises:
+            Exception: If the API reports a non-success status.
+        """
+        result = await AgenticTable.delete_row_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            metadataId=metadata_id,
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to delete row metadata")
+
+    async def set_row_metadata_by_key(
+        self,
+        row: int,
+        entries: list[RowMetadataEntryInput],
+        row_id: str | None = None,
+        existing: list[RowMetadataEntry] | None = None,
+        managed_keys: Collection[str] | None = None,
+    ) -> None:
+        """Merge row metadata by key, and optionally remove keys the caller owns.
+
+        For each entry: a key the row lacks is created; a key the row holds with
+        a different value or filter flag is updated in place; a key that already
+        matches is left alone. If the row holds the key more than once, one entry
+        is kept and the others are deleted, so the key ends up with exactly the
+        given value.
+
+        Keys not in ``entries`` are only removed when listed in ``managed_keys``.
+        This is not a full replace: rows also carry metadata the caller does not
+        own (e.g. the ``sourceSheetId`` stamp that library overwrites are checked
+        against), which must survive.
+
+        Args:
+            row (int): The row index (row order).
+            entries (list[RowMetadataEntryInput]): Key/value entries to set. Keys
+                must be unique.
+            row_id (str | None): The backend row id, used when creating keys.
+            existing (list[RowMetadataEntry] | None): The row's current metadata,
+                when the caller already read it (e.g. ``get_sheet`` with
+                ``include_row_metadata=True``). When ``None``, the row's metadata
+                and id are read with ``get_cell``.
+            managed_keys (Collection[str] | None): Keys the caller owns. Every
+                entry key must be in it. Any of these keys missing from
+                ``entries`` is deleted from the row, duplicates included. ``None``
+                deletes nothing beyond duplicates of keys in ``entries``.
+
+        Raises:
+            ValueError: If ``entries`` repeats a key, an entry key is not in
+                ``managed_keys``, or a key must be created and the row id cannot
+                be resolved.
+            Exception: If the API reports a non-success status.
+        """
+        keys = [entry.key for entry in entries]
+        if len(set(keys)) != len(keys):
+            raise ValueError(f"Duplicate row metadata keys in {keys}")
+        if managed_keys is not None:
+            unmanaged = sorted(set(keys) - set(managed_keys))
+            if unmanaged:
+                raise ValueError(f"Row metadata keys {unmanaged} not in managed_keys")
+        if not entries and not managed_keys:
+            return
+        if existing is None:
+            cell = await self.get_cell(row, 0, include_row_metadata=True)
+            existing = cell.row_metadata
+            row_id = row_id or cell.row_id
+
+        existing_by_key: dict[str, list[RowMetadataEntry]] = {}
+        for current in existing:
+            existing_by_key.setdefault(current.key, []).append(current)
+
+        to_create: list[RowMetadataEntryInput] = []
+        for entry in entries:
+            matches = existing_by_key.get(entry.key)
+            if not matches:
+                to_create.append(entry)
+                continue
+            keep = next(
+                (
+                    m
+                    for m in matches
+                    if m.value == entry.value and m.exact_filter == entry.exact_filter
+                ),
+                None,
+            )
+            if keep is None:
+                keep = matches[0]
+                await self.update_row_metadata(keep.id, entry)
+            for duplicate in matches:
+                if duplicate.id != keep.id:
+                    await self.delete_row_metadata(duplicate.id)
+
+        for key in set(managed_keys or ()) - set(keys):
+            for stale in existing_by_key.get(key, []):
+                await self.delete_row_metadata(stale.id)
+
+        await self.create_row_metadata(row, to_create, row_id=row_id)
 
     async def delete_sheet_metadata(self, metadata_id: str) -> None:
         """Delete a sheet metadata entry by its id.
@@ -771,15 +1106,26 @@ class AgenticTableService:
     ) -> list[MagicTableArtifact]:
         """Wait until artifacts of the given types are DONE, by polling ``list_artifacts``.
 
-        Artifact records are upserted per type: triggering an export flips the record
-        of that type to IN_PROGRESS and back to DONE when the file is ready. A
-        terminal state is accepted only after IN_PROGRESS has been observed for
-        that artifact type, so a result left over from an earlier generation is
-        not mistaken for the newly triggered one.
+        A sheet can hold several records of the same type: the export trigger
+        records a nameless IN_PROGRESS marker that is not always the record the
+        worker completes, so a stale IN_PROGRESS row can sit next to the DONE
+        result, and reports from earlier generations remain listed. Two fences
+        keep the wait from mistaking leftovers for the new export:
 
-        Because the API exposes only the current artifact state, a complete
-        IN_PROGRESS-to-terminal transition between two polls cannot be observed.
-        Keep ``poll_interval`` shorter than the expected minimum generation time.
+        - For a type that ``generate_artifacts`` was called for on this
+          instance, only records that are *fresh* relative to that trigger's
+          snapshot count: a record id that did not exist before, or an
+          ``updated_at`` newer than the snapshot. This also accepts exports
+          that finish before the first poll.
+        - For a type without a snapshot (export triggered elsewhere), a
+          terminal state is accepted only after IN_PROGRESS has been observed
+          for that type, and the newest record (by ``updated_at``) decides the
+          state. This cannot distinguish a result of an earlier generation
+          whose trigger marker is still IN_PROGRESS — prefer triggering and
+          waiting on the same service instance.
+
+        Because the API exposes only the current artifact state, keep
+        ``poll_interval`` shorter than the expected minimum generation time.
 
         Args:
             artifact_types: The artifact types to wait for (as passed to ``generate_artifacts``).
@@ -794,22 +1140,41 @@ class AgenticTableService:
             AgenticTableRunTimeoutError: Not all artifacts were DONE within ``timeout``.
         """
         wanted = set(artifact_types)
+        baselines = {
+            artifact_type: baseline
+            for artifact_type, baseline in self._artifact_baselines.items()
+            if artifact_type in wanted
+        }
         started: set[MagicTableArtifactType] = set()
         deadline = time.monotonic() + timeout
         while True:
             artifacts = await self.list_artifacts()
-            current = {
-                a.artifact_type: a for a in artifacts if a.artifact_type in wanted
+            relevant = [a for a in artifacts if a.artifact_type in wanted]
+            candidates: list[MagicTableArtifact] = []
+            for artifact in relevant:
+                baseline = baselines.get(artifact.artifact_type)
+                if baseline is None:
+                    candidates.append(artifact)
+                    if artifact.artifact_state == MagicTableArtifactState.IN_PROGRESS:
+                        started.add(artifact.artifact_type)
+                elif _is_fresh(artifact, baseline):
+                    candidates.append(artifact)
+            gate = started | {
+                a.artifact_type for a in candidates if a.artifact_type in baselines
             }
-            started.update(
-                artifact_type
-                for artifact_type, artifact in current.items()
-                if artifact.artifact_state == MagicTableArtifactState.IN_PROGRESS
-            )
+            # Newest record per type decides the state; older duplicates (e.g. the
+            # stale nameless IN_PROGRESS row from the export trigger) are ignored.
+            current: dict[MagicTableArtifactType, MagicTableArtifact] = {}
+            for artifact in candidates:
+                newest = current.get(artifact.artifact_type)
+                if newest is None or _artifact_timestamp(
+                    artifact.updated_at
+                ) > _artifact_timestamp(newest.updated_at):
+                    current[artifact.artifact_type] = artifact
             failed = [
                 artifact
                 for artifact_type, artifact in current.items()
-                if artifact_type in started
+                if artifact_type in gate
                 and artifact.artifact_state == MagicTableArtifactState.ERROR
             ]
             if failed:
@@ -820,7 +1185,7 @@ class AgenticTableService:
             done = {
                 artifact_type: artifact
                 for artifact_type, artifact in current.items()
-                if artifact_type in started
+                if artifact_type in gate
                 and artifact.artifact_state == MagicTableArtifactState.DONE
             }
             if wanted <= set(done.keys()):

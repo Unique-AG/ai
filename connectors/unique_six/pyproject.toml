@@ -1,6 +1,6 @@
 [project]
 name = "unique_six"
-version = "2026.28.0"
+version = "2026.48.0"
 description = "Unique Six API client"
 authors = [
     { name = "Ahmed Jellouli", email = "ahmed.jellouli.ext@unique.ch" },
@@ -11,8 +11,8 @@ license = { text = "Proprietary" }
 requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.12.4",
-    "python-dotenv>=1.0.1",
-    "unique-toolkit>=2026.28.0",
+    "python-dotenv>=1.2.4",
+    "unique-toolkit>=2026.48.0",
     "cryptography>=46.0.5",
     "pyopenssl>=25.0.0",
     "requests>=2.32.0",
@@ -25,14 +25,14 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.7.19,<0.8"]
+requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = ""
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 constraint-dependencies = ["lxml>=6.1.0", "pillow>=12.2.0"]
 
 [tool.uv.exclude-newer-package]
@@ -42,7 +42,7 @@ constraint-dependencies = ["lxml>=6.1.0", "pillow>=12.2.0"]
 unique-toolkit = { workspace = true }
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 extend-select = ["I"]

@@ -2,6 +2,7 @@ from functools import partial
 from logging import Logger
 
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
+from unique_toolkit._common.utils.files import is_image_content
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -36,17 +37,50 @@ def serialize_uploaded_file_for_history(
     uploaded_search_available: bool,
     code_interpreter_available: bool,
 ) -> str | None:
-    """Serialize user-uploaded file metadata for model history."""
+    """Serialize user-uploaded file metadata for model history.
+
+    Every upload is listed, including images and files that were not (or not
+    yet, or unsuccessfully) ingested. "Not ingested" only means the file cannot
+    be searched with UploadedSearchTool; the raw file is still available to the
+    code execution container when that tool is active. Failed uploads are
+    neither attached nor copied into the code execution container.
+    """
     if load_code_execution_metadata(content) is not None:
         return None
 
-    lines = [f"User uploaded file: {content.key} ({content.id})"]
-    if (
-        uploaded_search_available
-        and content.is_ingested(default_if_unknown=True)
-        and not content.is_expired()
-    ):
+    is_image = is_image_content(content.key)
+    kind = "image" if is_image else "file"
+    lines = [f"User uploaded {kind}: {content.key} ({content.id})"]
+
+    if content.is_expired():
+        lines.append(
+            "- Expired due to company retention policy; content can no longer be accessed"
+        )
+        return "\n".join(lines)
+
+    not_searchable = (
+        "; not searchable using UploadedSearchTool" if uploaded_search_available else ""
+    )
+    if content.has_ingestion_failed():
+        lines.append(f"- Ingestion failed ({content.ingestion_state}){not_searchable}")
+        return "\n".join(lines)
+
+    if is_image:
+        lines.append("- Attached to this message as an image")
+    elif content.is_ingestion_in_progress():
+        not_yet_searchable = (
+            "; not yet searchable using UploadedSearchTool"
+            if uploaded_search_available
+            else ""
+        )
+        lines.append(f"- Ingestion still in progress{not_yet_searchable}")
+    elif not content.is_ingested(default_if_unknown=True):
+        lines.append(f"- Not ingested{not_searchable}")
+    elif uploaded_search_available:
         lines.append("- Searchable using UploadedSearchTool")
+
+    # The container path is only known after upload (it may carry a prefix),
+    # so it is not guessed here; the code execution tool prompt lists it.
     if code_interpreter_available:
         lines.append("- Available for processing in the code execution container")
     return "\n".join(lines)

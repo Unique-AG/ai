@@ -17,6 +17,7 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentInfo,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
     DeleteContentResponse,
     FolderInfo,
@@ -45,6 +46,8 @@ def search_content_chunks(
     metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
+    merge_strategy: ContentSearchMergeStrategy | None = None,
+    include_scores: bool | None = None,
 ) -> list[ContentChunk]:
     """
     Performs a synchronous search for content chunks in the knowledge base.
@@ -60,6 +63,8 @@ def search_content_chunks(
         metadata_filter (dict | None): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
         content_ids (list[str] | None): The content IDs to search. Defaults to None.
         score_threshold (float | None): The minimum score threshold for results. Defaults to 0.
+        merge_strategy (ContentSearchMergeStrategy | None): How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+        include_scores (bool | None): When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type. Defaults to None.
     Returns:
         list[ContentChunk]: The search results.
     """
@@ -86,6 +91,8 @@ def search_content_chunks(
             metaDataFilter=metadata_filter,
             contentIds=content_ids,
             scoreThreshold=score_threshold,
+            mergeStrategy=merge_strategy.value if merge_strategy else None,
+            includeScores=include_scores,
         )
         return map_to_content_chunks(searches)
     except Exception as e:
@@ -107,6 +114,8 @@ async def search_content_chunks_async(
     metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
+    merge_strategy: ContentSearchMergeStrategy | None = None,
+    include_scores: bool | None = None,
 ):
     """
     Performs an asynchronous search for content chunks in the knowledge base.
@@ -136,6 +145,8 @@ async def search_content_chunks_async(
             metaDataFilter=metadata_filter,
             contentIds=content_ids,
             scoreThreshold=score_threshold,
+            mergeStrategy=merge_strategy.value if merge_strategy else None,
+            includeScores=include_scores,
         )
         return map_to_content_chunks(searches)
     except Exception as e:
@@ -695,7 +706,11 @@ def request_content_by_id(
 
 
 async def request_content_by_id_async(
-    user_id: str, company_id: str, content_id: str, chat_id: str | None
+    user_id: str,
+    company_id: str,
+    content_id: str,
+    chat_id: str | None,
+    timeout: float | None = None,
 ) -> httpx.Response:
     """
     Sends an async request to download content.
@@ -705,6 +720,7 @@ async def request_content_by_id_async(
         company_id (str): The company ID.
         content_id (str): The ID of the content to download.
         chat_id (str): The ID of the chat from which to download the content. Defaults to None to download from knowledge base.
+        timeout (float | None): Seconds to wait for the response. Defaults to None, which keeps the httpx default.
 
     Returns:
         httpx.Response: The response object containing the downloaded content.
@@ -724,7 +740,8 @@ async def request_content_by_id_async(
     }
     headers: dict[str, str] = {k: v for k, v in raw_headers.items() if v is not None}
 
-    async with httpx.AsyncClient() as client:
+    client_options: dict[str, Any] = {} if timeout is None else {"timeout": timeout}
+    async with httpx.AsyncClient(**client_options) as client:
         return await client.get(url, headers=headers)
 
 
@@ -824,6 +841,7 @@ async def download_content_to_bytes_async(
     company_id: str,
     content_id: str,
     chat_id: str | None,
+    timeout: float | None = None,
 ) -> bytes:
     """
     Asynchronously downloads content to memory.
@@ -833,13 +851,14 @@ async def download_content_to_bytes_async(
         company_id (str): The company ID.
         content_id (str): The ID of the content to download.
         chat_id (str | None): The chat ID, or None to download from the knowledge base.
+        timeout (float | None): Seconds to wait for the response. Defaults to None, which keeps the httpx default.
 
     raises:
         httpx.HTTPStatusError: If the download fails.
     """
     logger.info(f"Downloading content with content_id: {content_id}")
     response = await request_content_by_id_async(
-        user_id, company_id, content_id, chat_id
+        user_id, company_id, content_id, chat_id, timeout
     )
 
     if not response.is_success:
@@ -971,6 +990,40 @@ async def get_folder_info_async(
     )
 
     return FolderInfo.model_validate(await info, by_alias=True, by_name=True)
+
+
+def get_folder_path(user_id: str, company_id: str, *, scope_id: str) -> str:
+    """Return the named folder path for ``scope_id`` (e.g. ``/Company/Reports``).
+
+    Args:
+        user_id (str): Confidential user id of the caller.
+        company_id (str): Confidential company id of the caller.
+        scope_id (str): Folder scope id to resolve.
+
+    Returns:
+        str: Absolute folder path as returned by ``GET /folder/{id}/path``.
+    """
+    info = unique_sdk.Folder.get_folder_path(
+        user_id=user_id, company_id=company_id, scope_id=scope_id
+    )
+    return info["folderPath"]
+
+
+async def get_folder_path_async(user_id: str, company_id: str, *, scope_id: str) -> str:
+    """Async variant of :func:`get_folder_path`.
+
+    Args:
+        user_id (str): Confidential user id of the caller.
+        company_id (str): Confidential company id of the caller.
+        scope_id (str): Folder scope id to resolve.
+
+    Returns:
+        str: Absolute folder path as returned by ``GET /folder/{id}/path``.
+    """
+    info = await unique_sdk.Folder.get_folder_path_async(
+        user_id=user_id, company_id=company_id, scope_id=scope_id
+    )
+    return info["folderPath"]
 
 
 def update_content(

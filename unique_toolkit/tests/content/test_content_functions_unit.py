@@ -21,6 +21,7 @@ from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
 )
 
@@ -354,6 +355,51 @@ def test_search_with_metadata_filter(mock_sdk, sample_content_chunk_data):
     assert call_kwargs["metaDataFilter"] == metadata_filter
 
 
+def test_search_forwards_merge_strategy_and_include_scores(
+    mock_sdk, sample_content_chunk_data
+):
+    # Setup
+    mock_sdk.Search.create.return_value = [sample_content_chunk_data]
+
+    # Execute
+    result = search_content_chunks(
+        user_id="user123",
+        company_id="company123",
+        chat_id="chat123",
+        search_string="test query",
+        search_type=ContentSearchType.COMBINED,
+        limit=10,
+        merge_strategy=ContentSearchMergeStrategy.RRF,
+        include_scores=True,
+    )
+
+    # Assert
+    call_kwargs = mock_sdk.Search.create.call_args[1]
+    assert call_kwargs["mergeStrategy"] == "RRF"
+    assert call_kwargs["includeScores"] is True
+    assert result[0].score == 0.95
+
+
+def test_search_without_merge_strategy_sends_none(mock_sdk, sample_content_chunk_data):
+    # Setup
+    mock_sdk.Search.create.return_value = [sample_content_chunk_data]
+
+    # Execute
+    search_content_chunks(
+        user_id="user123",
+        company_id="company123",
+        chat_id="chat123",
+        search_string="test query",
+        search_type=ContentSearchType.VECTOR,
+        limit=10,
+    )
+
+    # Assert
+    call_kwargs = mock_sdk.Search.create.call_args[1]
+    assert call_kwargs["mergeStrategy"] is None
+    assert call_kwargs["includeScores"] is None
+
+
 def test_upload_content_error_handling(mock_sdk, tmp_path):
     # Setup
     test_file = tmp_path / "test.txt"
@@ -580,6 +626,74 @@ async def test_request_content_by_id_async__returns_response__with_valid_params(
         headers = call_args[1]["headers"]
         assert headers["x-user-id"] == "user123"
         assert headers["x-company-id"] == "company123"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("timeout", "expected_client_options"),
+    [(None, {}), (20.0, {"timeout": 20.0})],
+)
+async def test_request_content_by_id_async__passes_timeout_to_the_client__only_when_set(
+    mock_sdk,
+    timeout: float | None,
+    expected_client_options: dict[str, float],
+) -> None:
+    """
+    Purpose: Verify the optional timeout reaches httpx and the default stays untouched.
+    Why this matters: Callers that download many files need a longer wait than the httpx default.
+    Setup summary: Mock httpx.AsyncClient, call with and without timeout, assert constructor args.
+    """
+    with patch("unique_toolkit.content.functions.httpx.AsyncClient") as mock_client_cls:
+        # Arrange
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.get.return_value = Mock(status_code=200)
+        mock_client_cls.return_value = mock_client
+
+        # Act
+        await request_content_by_id_async(
+            user_id="user123",
+            company_id="company123",
+            content_id="content123",
+            chat_id=None,
+            timeout=timeout,
+        )
+
+        # Assert
+        mock_client_cls.assert_called_once_with(**expected_client_options)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_content_to_bytes_async__forwards_timeout_to_the_request(
+    mock_sdk,
+) -> None:
+    """
+    Purpose: Verify the download passes its timeout on to the request.
+    Why this matters: Without it the caller's timeout would be ignored silently.
+    Setup summary: Mock request_content_by_id_async, call download with a timeout, assert it arrives.
+    """
+    # Arrange
+    mock_response = Mock(is_success=True, content=b"test content")
+
+    with patch(
+        "unique_toolkit.content.functions.request_content_by_id_async",
+        new=AsyncMock(return_value=mock_response),
+    ) as mock_request:
+        # Act
+        await download_content_to_bytes_async(
+            user_id="user123",
+            company_id="company123",
+            content_id="content123",
+            chat_id="chat123",
+            timeout=20.0,
+        )
+
+        # Assert
+        mock_request.assert_awaited_once_with(
+            "user123", "company123", "content123", "chat123", 20.0
+        )
 
 
 @pytest.mark.ai
@@ -826,3 +940,43 @@ def test_download_content_to_file_by_id_utf8_filename(mock_get, tmp_path):
     assert result.exists()
     assert result.name == "ИКТ УРЕЂАЈИ.pptx"
     assert result.read_bytes() == b"file bytes"
+
+
+@pytest.mark.ai
+def test_get_folder_path__returns_path_string(mock_sdk: Mock) -> None:
+    """
+    Purpose: Verify get_folder_path unwraps the SDK FolderPathResponse.
+    Why this matters: Content-tree resolution depends on this string.
+    Setup summary: Mock SDK returns folderPath; assert the string is returned.
+    """
+    from unique_toolkit.content.functions import get_folder_path
+
+    mock_sdk.Folder.get_folder_path.return_value = {"folderPath": "/Docs/Q1"}
+
+    result = get_folder_path(user_id="user123", company_id="company123", scope_id="s1")
+
+    assert result == "/Docs/Q1"
+    mock_sdk.Folder.get_folder_path.assert_called_once_with(
+        user_id="user123", company_id="company123", scope_id="s1"
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_folder_path_async__returns_path_string(mock_sdk: Mock) -> None:
+    """
+    Purpose: Verify the async folder-path wrapper unwraps folderPath.
+    Why this matters: The content tree uses the async variant on the hot path.
+    Setup summary: Mock get_folder_path_async; assert the string is returned.
+    """
+    from unique_toolkit.content.functions import get_folder_path_async
+
+    mock_sdk.Folder.get_folder_path_async = AsyncMock(
+        return_value={"folderPath": "/Docs/Q1"}
+    )
+
+    result = await get_folder_path_async(
+        user_id="user123", company_id="company123", scope_id="s1"
+    )
+
+    assert result == "/Docs/Q1"

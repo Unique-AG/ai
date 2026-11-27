@@ -2,12 +2,16 @@ import json
 from typing import Any
 from urllib.parse import quote as encodeURIComponent
 
-from jinja2 import Template
 from unique_toolkit._common.utils.jinja.helpers import get_parent_dir, load_template
+from unique_toolkit._common.utils.jinja.sandbox import sandboxed_template
 from unique_toolkit._common.utils.jinja.schema import Jinja2PromptParams
 from unique_toolkit.language_model import LanguageModelMessage
 
-from unique_follow_up_questions.schema import FollowUpQuestion, FollowUpQuestionsOutput
+from unique_follow_up_questions.schema import (
+    FollowUpQuestion,
+    FollowUpQuestionsOutput,
+    LanguageDetectionOutput,
+)
 
 PARENT_DIR = get_parent_dir(__file__)
 
@@ -17,7 +21,18 @@ FOLLOW_UP_QUESTION_SYSTEM_PROMPT_TEMPLATE = load_template(
 
 FOLLOW_UP_QUESTION_USER_PROMPT_TEMPLATE = load_template(PARENT_DIR, "user_prompt.j2")
 
+LANGUAGE_DETECTION_PROMPT_TEMPLATE = load_template(
+    PARENT_DIR, "language_detection_prompt.j2"
+)
+
 SUGGESTION_FORMAT_TEMPLATE = load_template(PARENT_DIR, "suggestions_format.j2")
+
+
+class LanguageDetectionPromptParams(Jinja2PromptParams):
+    user_message: str
+    output_schema: str = json.dumps(
+        LanguageDetectionOutput.model_json_schema(), indent=2
+    )
 
 
 class FollowUpQuestionSystemPromptParams(Jinja2PromptParams):
@@ -55,4 +70,4 @@ class FollowUpQuestionResponseParams(Jinja2PromptParams):
     def render_template(self, template: str) -> str:
         params = self.custom_model_dump()
 
-        return Template(template, lstrip_blocks=True).render(**params)
+        return sandboxed_template(template, lstrip_blocks=True).render(**params)

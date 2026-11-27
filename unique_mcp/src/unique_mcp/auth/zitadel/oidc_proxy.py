@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from fastmcp.server.auth.oidc_proxy import OIDCProxy
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from unique_mcp.auth.zitadel.scopes import ZITADEL_DEFAULT_MCP_SCOPES
@@ -10,6 +11,10 @@ from unique_mcp.util.find_env_file import find_env_file
 
 if TYPE_CHECKING:
     from key_value.aio.protocols import AsyncKeyValue
+
+
+def _unwrap_secret(value: SecretStr | None) -> str | None:
+    return value.get_secret_value() if isinstance(value, SecretStr) else value
 
 
 class ZitadelOIDCProxySettings(BaseSettings):
@@ -21,7 +26,8 @@ class ZitadelOIDCProxySettings(BaseSettings):
 
     base_url: str
     client_id: str
-    client_secret: str
+    client_secret: SecretStr | None = None
+    jwt_signing_key: SecretStr | None = None
 
     @property
     def config_url(self) -> str:
@@ -31,28 +37,38 @@ class ZitadelOIDCProxySettings(BaseSettings):
 
 def create_zitadel_oidc_proxy(
     *,
+    client_storage: AsyncKeyValue,
     mcp_server_base_url: str = "http://localhost:8003",
     zitadel_oidc_proxy_settings: ZitadelOIDCProxySettings | None = None,
-    client_storage: AsyncKeyValue | None = None,
     **kwargs: Any,
 ) -> OIDCProxy:
     """Create a Zitadel OIDC proxy instance.
 
     Args:
+        client_storage: OAuth client/token state. Required — FastMCP's default is
+            a per-pod on-disk store, which drops every session on restart and
+            breaks across replicas. See "Production storage" in
+            ``unique_mcp/docs/zitadel/README.md``; ``MemoryStore()`` for local dev.
         mcp_server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
         zitadel_oidc_proxy_settings: Optional settings instance. If not provided,
             a new instance will be created from environment variables.
-        client_storage: Storage backend for OAuth state.
         **kwargs: Forwarded directly to ``OIDCProxy``. Unless ``extra_authorize_params``
             already sets ``scope``, the default Zitadel/MCP scope list is injected so
             Zitadel never receives an empty scope on the authorize request.
-            Do NOT use ``required_scopes`` for this: Zitadel access tokens often omit
-            several requested scopes from the JWT, which would cause the JWT verifier
-            to reject every token (invalid_token loop).
+            Keep ``required_scopes`` to identity scopes only — Zitadel drops custom
+            ``mcp:*`` scopes, and FastMCP rejects any that are missing
+            (``invalid_token``, or ``insufficient_scope`` under ``verify_id_token``).
 
     Returns:
         Configured OIDCProxy instance
     """
+    # No default blocks omission, not an explicit None.
+    if client_storage is None:
+        raise ValueError(
+            "client_storage must not be None; pass an AsyncKeyValue backend "
+            "(e.g. MemoryStore() for local single-process dev)."
+        )
+
     settings = zitadel_oidc_proxy_settings or ZitadelOIDCProxySettings()  # type: ignore[call-arg]
 
     extra_authorize_params: dict[str, str] = dict(
@@ -61,13 +77,33 @@ def create_zitadel_oidc_proxy(
     if "scope" not in extra_authorize_params:
         extra_authorize_params["scope"] = " ".join(ZITADEL_DEFAULT_MCP_SCOPES)
 
-    return OIDCProxy(
+    # Advertised for DCR and /authorize only — see required_scopes in the docstring.
+    valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
+
+    # Empty string (e.g. an unset env var resolving to "") must count as no
+    # secret, not as a real client_secret_post credential.
+    client_secret = _unwrap_secret(settings.client_secret) or None
+    token_endpoint_auth_method = kwargs.pop(
+        "token_endpoint_auth_method",
+        "none" if client_secret is None else "client_secret_post",
+    )
+    jwt_signing_key = _unwrap_secret(
+        kwargs.pop("jwt_signing_key", settings.jwt_signing_key)
+    )
+
+    proxy = OIDCProxy(
         config_url=settings.config_url,
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=client_secret,
         base_url=mcp_server_base_url,
-        token_endpoint_auth_method="client_secret_post",
+        token_endpoint_auth_method=token_endpoint_auth_method,
         client_storage=client_storage,
         extra_authorize_params=extra_authorize_params,
+        jwt_signing_key=jwt_signing_key,
         **kwargs,
     )
+    # OIDCProxy does not forward ``valid_scopes`` to OAuthProxy; set them after init
+    # so metadata ``scopes_supported`` and DCR accept openid/profile/mcp:* scopes.
+    if valid_scopes:
+        proxy.update_default_scopes(list(valid_scopes))
+    return proxy

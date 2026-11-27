@@ -16,9 +16,16 @@ from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.language_model.errors import (
+    _reraise_as_language_model_call_error,
+)
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
+    ModelCapabilities,
+)
+from unique_toolkit.language_model.provider_token_count import (
+    build_provider_token_count_payload,
 )
 from unique_toolkit.language_model.reference import (
     add_references_to_message,
@@ -32,6 +39,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelTool,
     LanguageModelToolDescription,
 )
+from unique_toolkit.language_model.settings import ModelFamily
 
 from .constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
@@ -39,6 +47,21 @@ from .constants import (
 )
 
 logger = logging.getLogger(f"toolkit.language_model.{__name__}")
+
+
+def _completion_headers(
+    chat_id: str | None,
+    assistant_id: str | None,
+    assistant_message_id: str | None = None,
+) -> dict[str, str] | None:
+    headers: dict[str, str] = {}
+    if chat_id:
+        headers["x-chat-id"] = chat_id
+    if assistant_id:
+        headers["x-assistant-id"] = assistant_id
+    if assistant_message_id:
+        headers["x-assistant-message-id"] = assistant_message_id
+    return headers or None
 
 
 def complete(
@@ -52,6 +75,9 @@ def complete(
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
     user_id: str | None = None,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> LanguageModelResponse:
     """Call the completion endpoint synchronously without streaming the response.
 
@@ -87,18 +113,30 @@ def complete(
         )
 
     try:
-        response = unique_sdk.ChatCompletion.create(
-            company_id=company_id,
-            user_id=user_id,
-            model=model,  # pyright: ignore[reportArgumentType]
-            messages=messages_dict,  # pyright: ignore[reportArgumentType]
-            timeout=timeout,
-            options=options,
-        )
+        headers = _completion_headers(chat_id, assistant_id, assistant_message_id)
+        if headers is None:
+            response = unique_sdk.ChatCompletion.create(
+                company_id=company_id,
+                user_id=user_id,
+                model=model,  # pyright: ignore[reportArgumentType]
+                messages=messages_dict,  # pyright: ignore[reportArgumentType]
+                timeout=timeout,
+                options=options,
+            )
+        else:
+            response = unique_sdk.ChatCompletion.create(
+                company_id=company_id,
+                user_id=user_id,
+                headers=headers,
+                model=model,  # pyright: ignore[reportArgumentType]
+                messages=messages_dict,  # pyright: ignore[reportArgumentType]
+                timeout=timeout,
+                options=options,
+            )
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.error(f"Error completing: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 async def complete_async(
@@ -112,6 +150,9 @@ async def complete_async(
     other_options: dict[str, Any] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> LanguageModelResponse:
     """Call the completion endpoint asynchronously without streaming the response.
 
@@ -135,8 +176,8 @@ async def complete_async(
 
     Raises:
     ------
-        Exception: If an error occurs during the request, an exception is raised
-        and logged.
+        LanguageModelCallError: The API returned the LLM error contract.
+        Exception: Any other request failure is logged and re-raised.
 
     """
     if not user_id:
@@ -156,18 +197,30 @@ async def complete_async(
     )
 
     try:
-        response = await unique_sdk.ChatCompletion.create_async(
-            company_id=company_id,
-            user_id=user_id,
-            model=model,  # pyright: ignore[reportArgumentType]
-            messages=messages_dict,  # pyright: ignore[reportArgumentType]
-            timeout=timeout,
-            options=options,
-        )
+        headers = _completion_headers(chat_id, assistant_id, assistant_message_id)
+        if headers is None:
+            response = await unique_sdk.ChatCompletion.create_async(
+                company_id=company_id,
+                user_id=user_id,
+                model=model,  # pyright: ignore[reportArgumentType]
+                messages=messages_dict,  # pyright: ignore[reportArgumentType]
+                timeout=timeout,
+                options=options,
+            )
+        else:
+            response = await unique_sdk.ChatCompletion.create_async(
+                company_id=company_id,
+                user_id=user_id,
+                headers=headers,
+                model=model,  # pyright: ignore[reportArgumentType]
+                messages=messages_dict,  # pyright: ignore[reportArgumentType]
+                timeout=timeout,
+                options=options,
+            )
         return LanguageModelResponse(**response)
     except Exception as e:
         logger.exception(f"Error completing: {e}")
-        raise e
+        _reraise_as_language_model_call_error(e)
 
 
 def _add_tools_to_options(
@@ -348,6 +401,29 @@ def _prepare_other_options(
     return options
 
 
+def _translate_max_tokens_option(
+    options: dict[str, Any],
+    model_info: LanguageModelInfo,
+) -> dict[str, Any]:
+    """Rename `max_tokens` to `max_completion_tokens` for OpenAI reasoning models.
+
+    OpenAI reasoning models (GPT-5, o-series) reject the deprecated `max_tokens`
+    parameter on the Chat Completions API. A caller-supplied
+    `max_completion_tokens` always wins; `max_tokens` is dropped in that case.
+    """
+    if "max_tokens" not in options:
+        return options
+    if model_info.family != ModelFamily.OPENAI:
+        return options
+    if ModelCapabilities.REASONING not in model_info.capabilities:
+        return options
+
+    max_tokens = options.pop("max_tokens")
+    if "max_completion_tokens" not in options:
+        options["max_completion_tokens"] = max_tokens
+    return options
+
+
 def _prepare_all_completions_params_util(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
@@ -413,6 +489,11 @@ def _prepare_all_completions_params_util(
             options["reasoning_effort"] = resolved_effort
         elif reasoning_effort is not None:
             options.pop("reasoning_effort", None)
+        options = _translate_max_tokens_option(options, model_info)
+
+    (model_info or LanguageModelInfo.from_name(model_name)).drop_unsupported_options(
+        options
+    )
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
@@ -434,6 +515,9 @@ def complete_with_references(
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict[str, Any] | None = None,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
 
@@ -446,6 +530,9 @@ def complete_with_references(
         timeout=timeout,
         tools=tools,
         other_options=other_options,
+        chat_id=chat_id,
+        assistant_id=assistant_id,
+        assistant_message_id=assistant_message_id,
     )
 
     return _create_language_model_stream_response_with_references(
@@ -467,6 +554,9 @@ async def complete_with_references_async(
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     other_options: dict[str, Any] | None = None,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
+    assistant_message_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     # Use toolkit language model functions for chat completion
     response = await complete_async(
@@ -478,6 +568,9 @@ async def complete_with_references_async(
         timeout=timeout,
         tools=tools,
         other_options=other_options,
+        chat_id=chat_id,
+        assistant_id=assistant_id,
+        assistant_message_id=assistant_message_id,
     )
 
     return _create_language_model_stream_response_with_references(
@@ -599,6 +692,7 @@ async def stream_complete_with_references_openai(
         stream_kwargs["tool_choice"] = tool_choice
     if tools_:
         stream_kwargs["tools"] = tools_
+    LanguageModelInfo.from_name(model_name_).drop_unsupported_options(stream_kwargs)
 
     full_text: str = start_text or ""
     tool_calls_fragments: dict[int, dict[str, Any]] = {}
@@ -665,3 +759,35 @@ async def stream_complete_with_references_openai(
     except Exception as e:
         logger.error("Error streaming completion (model=%s): %s", model_name_, e)
         raise
+
+
+async def count_tokens_with_provider_async(
+    *,
+    company_id: str,
+    user_id: str,
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+    model_name: LanguageModelName | str,
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    other_options: dict[str, Any] | None = None,
+) -> int:
+    """Count the completion payload with LiteLLM's provider-backed counter."""
+    options, model, messages_dict, _ = _prepare_all_completions_params_util(
+        messages=messages,
+        model_name=model_name,
+        temperature=temperature,
+        tools=tools,
+        other_options=other_options,
+    )
+    raw_tools = options.get("tools")
+    payload = build_provider_token_count_payload(
+        model=model,
+        messages=messages_dict,
+        tools=raw_tools if isinstance(raw_tools, list) else None,
+    )
+    response = await unique_sdk.Integrated.count_tokens_async(
+        user_id=user_id,
+        company_id=company_id,
+        **payload,
+    )
+    return response["input_tokens"]

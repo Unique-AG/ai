@@ -9,6 +9,7 @@ import random
 import re
 import sys
 import time
+from collections.abc import Mapping
 from functools import wraps
 from typing import (
     Any,
@@ -19,6 +20,7 @@ from typing import (
     cast,
     overload,
 )
+from urllib.parse import urlsplit, urlunsplit
 
 from typing_extensions import TYPE_CHECKING
 
@@ -33,6 +35,8 @@ UNIQUE_LOG = os.environ.get("UNIQUE_LOG")
 
 logger: logging.Logger = logging.getLogger("unique")
 
+_REDACTED = "<redacted>"
+
 
 def _console_log_level():
     if unique_sdk.log in ["debug", "info"]:
@@ -40,6 +44,74 @@ def _console_log_level():
     if UNIQUE_LOG in ["debug", "info"]:
         return UNIQUE_LOG
     return None
+
+
+def _insecure_log_payloads_enabled() -> bool:
+    return os.environ.get("INSECURE_UNIQUE_SDK_LOG_PAYLOADS") == "true"
+
+
+def _payload_byte_size(value: Any) -> int:
+    if value is None:
+        return 0
+    if isinstance(value, (bytes, bytearray)):
+        return len(value)
+    if isinstance(value, str):
+        return len(value.encode("utf-8"))
+    return len(str(value).encode("utf-8"))
+
+
+def _headers_for_log(headers: Mapping[str, str] | None) -> dict[str, str] | str | None:
+    """Return headers for debug logs; Authorization is always redacted."""
+    if not _insecure_log_payloads_enabled():
+        return _REDACTED
+    if headers is None:
+        return None
+    try:
+        sanitized = dict(headers)
+    except (TypeError, ValueError):
+        return _REDACTED
+    for key in list(sanitized):
+        if str(key).lower() == "authorization":
+            sanitized[key] = _REDACTED
+    return sanitized
+
+
+def _body_for_log(body: Any) -> Any:
+    if _insecure_log_payloads_enabled():
+        return body
+    return _REDACTED
+
+
+def url_for_log(url: str) -> str:
+    """Drops the query string and fragment unless payload logging is on."""
+    if _insecure_log_payloads_enabled():
+        return url
+    scheme, netloc, path, _query, _fragment = urlsplit(url)
+    return urlunsplit((scheme, netloc, path, "", ""))
+
+
+# A URL or path, then a query string up to whitespace, a quote or "#".
+_URL_QUERY_RE = re.compile(r"((?:[A-Za-z][A-Za-z0-9+.-]*://|/)[^\s?#'\"]*)\?[^\s'\"#]*")
+
+
+def strip_url_queries(text: str) -> str:
+    """Removes URL query strings from exception text unless payload logging is on.
+
+    HTTP libraries such as ``requests`` quote the request URL in their errors.
+    """
+    if _insecure_log_payloads_enabled():
+        return text
+    return _URL_QUERY_RE.sub(r"\1", text)
+
+
+def redacted_error_message(message: Any) -> Any:
+    """Redacts a server error message for logs; the exception keeps the original.
+
+    The public API echoes request input, such as folder paths, in messages.
+    """
+    if message is None or _insecure_log_payloads_enabled():
+        return message
+    return _REDACTED
 
 
 def log_debug(message, **params):
@@ -54,6 +126,65 @@ def log_info(message, **params):
     if _console_log_level() in ["debug", "info"]:
         print(msg, file=sys.stderr)
     logger.info(msg)
+
+
+def log_request_details(
+    *,
+    data: Any,
+    headers: Mapping[str, str] | None,
+    api_version: str | None,
+    message: str = "Request details",
+) -> None:
+    if _insecure_log_payloads_enabled():
+        log_debug(
+            message,
+            data=data,
+            headers=_headers_for_log(headers),
+            api_version=api_version,
+        )
+        return
+    log_debug(
+        message,
+        data=_REDACTED,
+        headers=_REDACTED,
+        api_version=api_version,
+        payload_bytes=_payload_byte_size(data),
+    )
+
+
+def log_response_body(*, body: Any) -> None:
+    if _insecure_log_payloads_enabled():
+        log_debug("Unique response body", body=body)
+        return
+    log_debug(
+        "Unique response body",
+        body=_body_for_log(body),
+        payload_bytes=_payload_byte_size(body),
+    )
+
+
+def redacted_body_for_error_message(body: Any) -> Any:
+    """Body representation safe to embed in exception *messages*.
+
+    Exception messages surface at ERROR (retry logs, tracebacks) regardless
+    of LOG_LEVEL, so the raw body must not be embedded unless the insecure
+    opt-in is set. The full body stays available programmatically on the
+    exception's ``http_body`` attribute.
+    """
+    if _insecure_log_payloads_enabled():
+        return body
+    return f"<redacted {_payload_byte_size(body)} bytes>"
+
+
+def redacted_error_params(params: Any) -> Any:
+    """Error ``params`` for the INFO-level 'Unique error received' log.
+
+    API validation errors commonly echo submitted values in ``params``, so
+    they are redacted unless the insecure opt-in is set.
+    """
+    if params is None or _insecure_log_payloads_enabled():
+        return params
+    return _REDACTED
 
 
 def logfmt(props):
@@ -235,6 +366,35 @@ class class_method_variant(object):
         return _wrapper
 
 
+def _should_retry_error(
+    error: UniqueError,
+    error_messages: list[str],
+    should_retry_5xx: bool,
+) -> bool:
+    status = error.http_status
+    if status is not None and 400 <= status < 500:
+        return False
+    if isinstance(error.params, Mapping) and error.params.get("retryable") is False:
+        return False
+    if should_retry_5xx and status is not None and 500 <= status < 600:
+        return True
+    return any(err_msg.lower() in str(error).lower() for err_msg in error_messages)
+
+
+def _log_retry(error: UniqueError, attempt: int, max_retries: int) -> None:
+    # str(error) can carry upstream provider text via original_error.
+    params = error.params if isinstance(error.params, Mapping) else {}
+    logger.warning(
+        "Retrying Unique API call, attempt %d of %d: "
+        "code=%s http_status=%s correlation_id=%s",
+        attempt + 1,
+        max_retries,
+        error.code,
+        error.http_status,
+        params.get("correlationId"),
+    )
+
+
 def retry_on_error(
     error_messages: list[str],
     max_retries: int = 3,
@@ -243,6 +403,13 @@ def retry_on_error(
     error_class=APIError,
     should_retry_5xx=False,
 ):
+    """Retry ``APIError`` and ``APIConnectionError``.
+
+    4xx responses and errors with ``params.retryable`` false are not retried.
+    After the last attempt ``error_class`` is raised with the last error as
+    its ``__cause__``.
+    """
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         async def async_wrapper(*args, **kwargs) -> Any:
@@ -252,25 +419,16 @@ def retry_on_error(
                     return await func(*args, **kwargs)
                 except (APIError, APIConnectionError) as e:
                     e = cast(UniqueError, e)
-                    logger.error(f"Retrying because of {e}")
-                    should_retry = any(
-                        err_msg.lower() in str(e).lower() for err_msg in error_messages
-                    )
-                    # Add 5xx check if `should_retry_5xx` is True
-                    has_valid_status = (
-                        hasattr(e, "http_status") and e.http_status is not None
-                    )
-                    if should_retry_5xx and has_valid_status:
-                        should_retry = should_retry or (
-                            500 <= int(cast(int, e.http_status)) < 600
-                        )
-
-                    if not should_retry:
-                        raise e  # Raise the error if no retry condition is met
+                    if not _should_retry_error(e, error_messages, should_retry_5xx):
+                        raise
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise error_class(f"Failed after {max_retries} attempts: {e}")
+                        raise error_class(
+                            f"Failed after {max_retries} attempts: {e}"
+                        ) from e
+
+                    _log_retry(e, attempts, max_retries)
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))
@@ -284,25 +442,16 @@ def retry_on_error(
                     return func(*args, **kwargs)
                 except (APIError, APIConnectionError) as e:
                     e = cast(UniqueError, e)
-                    logger.error(f"Retrying because of {e}")
-                    should_retry = any(
-                        err_msg.lower() in str(e).lower() for err_msg in error_messages
-                    )
-                    # Add 5xx check if `should_retry_5xx` is True
-                    has_valid_status = (
-                        hasattr(e, "http_status") and e.http_status is not None
-                    )
-                    if should_retry_5xx and has_valid_status:
-                        should_retry = should_retry or (
-                            500 <= int(cast(int, e.http_status)) < 600
-                        )
-
-                    if not should_retry:
-                        raise e  # Raise the error if no retry condition is met
+                    if not _should_retry_error(e, error_messages, should_retry_5xx):
+                        raise
 
                     attempts += 1
                     if attempts >= max_retries:
-                        raise error_class(f"Failed after {max_retries} attempts: {e}")
+                        raise error_class(
+                            f"Failed after {max_retries} attempts: {e}"
+                        ) from e
+
+                    _log_retry(e, attempts, max_retries)
 
                     # Calculate exponential backoff with some randomness (jitter)
                     delay = initial_delay * (backoff_factor ** (attempts - 1))

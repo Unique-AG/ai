@@ -1,0 +1,23 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+## Network access
+
+search-proxy has no caller authentication. It is internal-only: do not add an Ingress, Gateway route or any other route to it. The Cilium network policy is the only control on who can reach it, so it is on by default.
+
+- Ingress is limited to Prometheus (namespace `system`) and assistants-core, which every caller goes through. assistants-core is expected in the `chat` namespace. Where it runs elsewhere, set `internalServices.dependents.assistantsCore.namespace`. Add further callers as extra `internalServices.dependents` entries. The base chart also admits return traffic from the internet on ephemeral ports (32768-60999); nothing listens there.
+- Egress is limited to DNS, the FQDNs of the enabled providers, the corporate proxy host and port when `httpClient.connection.proxyHost` and `proxyPort` are set (an in-cluster proxy is not covered), and ports 443 and 80 to the internet for crawling (the `networkPolicy.baseline.egress.worldHttp` rule). `urlSafety` rejects internal crawl targets.
+- Link-local addresses (`169.254.0.0/16`, the cloud metadata service) are denied through `networkPolicy.egressDeny`. Helm replaces lists, so an overlay that sets its own `egressDeny` must repeat this entry.
+- Strict proxy mode is only for tenants that must send all traffic through a corporate proxy. Set `networkPolicy.baseline.egress.worldHttp.enabled: false`, which requires the proxy host and port. This removes the open internet rule only: enabled providers keep their FQDN rules. Bing and the Azure workload identity login then need their Entra login hosts, and Vertex AI its GCP hosts, added as FQDN rules in the overlay.
+- `networkPolicy.enabled: false` fails the render unless `networkPolicy.allowDisabled: true` is also set. Set that only when another control restricts who can reach search-proxy.
+- Cilium is required. On a cluster without the Cilium CRDs the install fails. That is intended (fail-closed). `flavor: kubernetes` is not supported by this chart.
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}

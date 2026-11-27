@@ -1,3 +1,5 @@
+# Apply FASTMCP_* process defaults before any submodule imports fastmcp.
+from unique_mcp import _bootstrap as _bootstrap  # noqa: F401
 from unique_mcp.meta import (
     CONFIG_META_KEY,
     CONFIG_SCHEMA_META_KEY,
@@ -15,6 +17,7 @@ from unique_mcp.unique_injectors import (
     get_request_meta,
     get_unique_service_factory,
     get_unique_settings,
+    get_unique_settings_async,
     get_unique_userinfo,
 )
 
@@ -32,6 +35,7 @@ __all__ = [
     "get_tool_config",
     "get_unique_service_factory",
     "get_unique_settings",
+    "get_unique_settings_async",
     "get_unique_userinfo",
     "merge_tool_meta",
 ]

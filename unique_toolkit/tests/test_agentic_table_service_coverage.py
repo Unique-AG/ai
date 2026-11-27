@@ -188,3 +188,64 @@ async def test_update_row_verification_status_with_locked() -> None:
         )
 
     assert bulk.await_args.kwargs.get("locked") is True
+    assert "emitLibrarySheetVerifiedEvent" not in bulk.await_args.kwargs
+
+
+@pytest.mark.asyncio
+async def test_update_row_verification_status_omits_emit_flag_by_default() -> None:
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.bulk_update_status",
+        new_callable=AsyncMock,
+    ) as bulk:
+        await svc.update_row_verification_status(
+            [0],
+            RowVerificationStatus.VERIFIED,
+        )
+
+    assert bulk.await_args.kwargs == {
+        "user_id": "user-1",
+        "company_id": "company-1",
+        "tableId": "table-1",
+        "rowOrders": [0],
+        "status": RowVerificationStatus.VERIFIED,
+    }
+
+
+@pytest.mark.parametrize("emit", [False, True])
+@pytest.mark.asyncio
+async def test_update_row_verification_status_forwards_emit_flag(emit: bool) -> None:
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.bulk_update_status",
+        new_callable=AsyncMock,
+    ) as bulk:
+        await svc.update_row_verification_status(
+            [0, 1],
+            RowVerificationStatus.VERIFIED,
+            emit_library_sheet_verified_event=emit,
+        )
+
+    kwargs = bulk.await_args.kwargs
+    assert kwargs["emitLibrarySheetVerifiedEvent"] is emit
+    assert "locked" not in kwargs
+
+
+@pytest.mark.asyncio
+async def test_update_row_verification_status_with_locked_and_emit_flag() -> None:
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.bulk_update_status",
+        new_callable=AsyncMock,
+    ) as bulk:
+        await svc.update_row_verification_status(
+            [3],
+            RowVerificationStatus.VERIFIED,
+            locked=True,
+            emit_library_sheet_verified_event=False,
+        )
+
+    kwargs = bulk.await_args.kwargs
+    assert kwargs["locked"] is True
+    assert kwargs["emitLibrarySheetVerifiedEvent"] is False
+    assert kwargs["rowOrders"] == [3]

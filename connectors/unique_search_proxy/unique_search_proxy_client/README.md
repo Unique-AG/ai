@@ -88,13 +88,32 @@ Built-in providers register in `register_builtin_providers()` during `create_app
 | `GET /ready` | Readiness (httpx pool + registered providers) |
 | `GET /v1/configuration/providers` | Registered search engine, agent engine, and crawler ids |
 | `POST /v1/search` | Standard search (flat body: `engine`, `query`, provider params, `timeout`) |
-| `POST /v1/agent-search` | Grounded agent search — opaque `answer` + `raw` |
+| `POST /v1/agent-search` | Grounded agent search — opaque `answer` + provider `citations` + `raw` |
 | `POST /v1/agent-search/stream` | Same, streamed as SSE (`delta` + `done`) |
 | `POST /v1/crawl` | Crawl URLs (flat body: `crawler`, `urls`, `timeout`, …) |
 | `GET /metrics` | Prometheus (when enabled) |
-| `/docs` | Swagger UI with preset examples |
+| `/docs` | Swagger UI with preset examples (only when `EXPOSE_DOCS=true`) |
 
 OpenAPI spec: `openapi.json` (input for [SDK codegen](../unique_search_proxy_sdk/README.md)).
+
+### 4.1 Request context and usage
+
+`/v1/*` routes read these headers into a request context that prefixes every log line:
+
+| Header | Required | Use |
+|--------|----------|-----|
+| `x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id` | Yes (`REQUIRE_CONTEXT_HEADERS`, default `true`) | Tenant identity |
+| `x-unique-entry-point` | No, defaults to `unknown` | Where the request entered the platform (`chat_tool`, `public_api`, `conduct`, ...) |
+| `x-unique-message-id` | No | Reserved for analytics; recorded in the usage line only |
+| `x-service-id` | No, defaults to `unknown` | Calling service; logged as `caller=`, never enforced |
+
+A request whose company or user id is not numeric (`local`, blank, junk) is unattributed: it logs a warning and increments `unique_search_proxy_unattributed_requests_total{entry_point}`. Set `REJECT_UNATTRIBUTED_REQUESTS=true` to return 400 instead. `/v1/configuration/*` skips this check.
+
+`/v1/search`, `/v1/agent-search` (sync and stream) and `/v1/crawl` write one JSON usage line per request (`event="web_search_usage"`) and increment `unique_search_proxy_requests_total{company_id, entry_point, endpoint, provider, status}`. `company_id` is `unattributed` unless both ids are numeric. The line holds no query text or URLs.
+
+`units` is 1 per search or agent search. For a crawl it is the number of URLs that passed URL safety, so 0 when nothing reached the provider. Failed and timed-out requests keep their units, so filter on `status` when counting billable work. Search records also carry `fetch_size`, the number of results requested: Google and Brave page through results (10 and 20 per call), so one search unit can be several provider calls.
+
+The usage line goes through its own logger (`unique_search_proxy_core.usage`) with a bare message format, fixed at INFO, so Loki `| json` can parse it regardless of `LOG_LEVEL`. Nothing verifies these headers: any in-cluster caller can set them.
 
 ---
 
@@ -144,9 +163,28 @@ Response includes **curated** normalised results and opaque **raw** provider pay
 }
 ```
 
+For Google, `snippet` is Google's snippet followed, on its own line, by the page's own description from `pagemap.metatags` (`og:description`, else `twitter:description`), unless that is a placeholder such as `null`. For Brave, it is the description followed by the extra snippets, one per line.
+
+Customized API endpoints must return a JSON object with a `results` array:
+
+```json
+{
+  "results": [
+    {
+      "url": "https://example.com",
+      "title": "Example",
+      "snippet": "Result summary",
+      "content": "Optional full content"
+    }
+  ]
+}
+```
+
+Each result requires `url`, `title`, and `snippet`; `content` is optional.
+
 ### 5.3 Agent search (`POST /v1/agent-search`)
 
-Thin egress — proxy returns opaque agent text; callers own parsing and citation extraction:
+Thin egress — proxy returns opaque agent text and the citations the provider attached to it (Bing: Foundry `url_citation` annotations, with offsets into the answer); callers own parsing:
 
 ```json
 {
@@ -159,6 +197,8 @@ Thin egress — proxy returns opaque agent text; callers own parsing and citatio
 ```
 
 Streaming (`/v1/agent-search/stream`) emits SSE `{ "type": "delta", "text": "..." }` chunks and a terminal `{ "type": "done", "response": { … } }`.
+
+**Bing auto-provisioned agents:** the proxy creates Foundry agents named `unique-grounding-with-bing-<hash>` (hash of model, fetch size, and instructions) on first miss. Set `BING_AGENT_CLEANUP_ON_START=true` to delete those prefix-matched agents on process start (best-effort; failures and multi-worker/replica races are logged and never block boot; create-on-miss recovers transient misses).
 
 ### 5.4 Crawl (`POST /v1/crawl`)
 
@@ -173,6 +213,10 @@ Per-URL outcomes — one URL failing does not fail the batch:
 ```
 
 Crawler discriminators: `Basic`, `Tavily`, `Jina`, `Firecrawl`.
+
+**Timeout:** with `Basic`, URLs still loading just before `timeout` come back as per-URL `UPSTREAM_TIMEOUT` results next to the finished pages. A busy worker can send the response up to 5 s after `timeout`, so set your HTTP client timeout at least 5 s above it. The other crawlers fail the whole batch with a `504` at `timeout`.
+
+**PDFs:** with `contentTypes.pdf` on (off by default), `Basic` returns a PDF's text in `content`; `raw` is always null for PDFs. The default pypdf extractor runs in `SubprocessExtractionRunner`: a short-lived child process that starts with an empty environment, has memory and CPU limits, and is killed at its time limit or the request deadline. Each worker reads `PDF_MAX_CONCURRENT_EXTRACTIONS` PDFs at a time (default 1); the rest wait. PDFs longer than `PDF_MAX_PDF_PAGES` or `PDF_MAX_EXTRACTED_CHARS` come back truncated, led by a note saying so. A PDF that can't be read fails its own URL (`PDF_UNSUPPORTED`, `UPSTREAM_ERROR`, or `UPSTREAM_TIMEOUT`). Extractors are adapters behind `PdfExtractor` in `processing/processors/pdf/adapters/`, selected with `PDF_EXTRACTOR`.
 
 ### 5.5 Errors
 
@@ -204,13 +248,30 @@ Settings use pydantic-settings with per-provider env vars. Copy `.env.example` t
 | Tavily | `TAVILY_` | `TAVILY_API_KEY` |
 | Jina | `JINA_` | `JINA_API_KEY`, `JINA_DEPLOYMENT` |
 | Firecrawl | `FIRECRAWL_` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_VERSION` |
-| Bing agent | `BING_AGENT_` | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING` |
+| Bing agent | `BING_AGENT_` | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING`, optional `BING_AGENT_CLEANUP_ON_START`, `BING_AGENT_DEFAULT_MARKET` |
 | VertexAI agent | `VERTEXAI_AGENT_` | `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (optional) |
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
+| Request context | (none) | `REQUIRE_CONTEXT_HEADERS`, `REJECT_UNATTRIBUTED_REQUESTS` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
+| URL safety | `URL_SAFETY_` | `URL_SAFETY_ENABLED` |
+| PDF processing | `PDF_` | `PDF_EXTRACTOR`, `PDF_MAX_PDF_PAGES`, `PDF_EXTRACTION_TIMEOUT_SECONDS` |
 | Container | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL` |
 
+`URL_SAFETY_ENABLED` defaults to `true` when unset. Setting it to `false`
+disables application-level SSRF checks and is accepted only when every request
+uses a configured authenticated corporate proxy; incompatible direct or partial
+proxy routing fails during startup. The application cannot verify that the
+proxy implements equivalent URL-safety controls, so this state is highlighted
+in the Prometheus metric and Grafana dashboard.
+
+`CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS` is a JSON array of exact
+operator-approved Customized API hostnames or IPs that may use RFC 1918 or IPv6
+unique-local addresses. It does not apply to crawler targets, permit localhost
+or cloud metadata targets, or configure network routing or private DNS.
+
 With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct metric aggregation.
+
+**Sizing.** By default a pod runs 2 workers (`WORKERS`), and each worker runs up to 4 crawls at once (`REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS`), so 8 per pod. The Helm chart requests 1 CPU and 2 GiB of memory with a 4 GiB limit, and the image sets `MALLOC_ARENA_MAX=2`. Each worker is a separate Python process with its own memory, so add replicas rather than workers for more capacity. Run at least 2 replicas in production. When PDFs are enabled, each PDF being read adds a subprocess of typically about 150 MiB, capped at `PDF_MAX_EXTRACTION_MEMORY_MB` (512 MiB), so the default adds at most about 1 GiB per pod.
 
 ---
 
@@ -250,7 +311,7 @@ uv run python scripts/generate_sdk.py
 ## 8. Dev testing
 
 1. Start the server and configure `.env` (`.env.example` sets `REQUIRE_CONTEXT_HEADERS=false` for local use; production keeps enforcement enabled).
-2. **Swagger** — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset. Context headers default to `local` in the UI.
+2. **Swagger** (if `EXPOSE_DOCS=true`) — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset. Context headers default to `local` in the UI.
 3. **CLI** — same presets from the terminal (`scripts/try_presets.py` sends the same local context headers):
 
 ```bash

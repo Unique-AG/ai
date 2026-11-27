@@ -6,16 +6,18 @@ Create, list, retrieve, update, and delete cron-based scheduled tasks that trigg
 
 Each scheduled task defines:
 
-- A **cron expression** (5-field, UTC) controlling when the task fires
+- A **cron expression** (5-field) controlling when the task fires
+- An optional **timezone** (IANA) the cron is evaluated in (omit for UTC)
 - An **assistant** to execute on each trigger
 - A **prompt** sent to the assistant
+- An optional **name**, a short label shown in the UI (the prompt is displayed when it is absent)
 - An optional **chat ID** to continue an existing conversation (omit for a new chat each run)
 - An **enabled** flag to pause/resume execution
 
-The platform evaluates all enabled tasks every minute and triggers execution for those whose cron expression matches the current time.
+The platform evaluates all enabled tasks every minute and triggers execution for those whose cron expression matches the current time in the task's timezone.
 
-!!! note "All times are UTC"
-    Cron expressions are evaluated in UTC. Convert local times before creating or updating schedules.
+!!! tip "Timezone"
+    Pass an IANA `timezone` (e.g. `Europe/Zurich`) and write the cron in that local wall-clock time. The platform keeps the local run time across daylight saving changes. Omitting `timezone` keeps UTC behaviour for backward compatibility.
 
 ## Methods
 
@@ -30,6 +32,8 @@ The platform evaluates all enabled tasks every minute and triggers execution for
     - `cronExpression` (str, required) - 5-field cron expression (e.g. `"0 9 * * 1-5"`)
     - `assistantId` (str, required) - ID of the assistant to execute (starts with `assistant_`)
     - `prompt` (str, required) - Prompt text sent to the assistant on each trigger
+    - `timezone` (str, optional) - IANA timezone the cron runs in (e.g. `"Europe/Zurich"`). Omit for UTC.
+    - `name` (str, optional) - Short label shown in the UI, at most 128 characters. Falls back to the prompt when omitted.
     - `chatId` (str, optional) - Chat ID to continue (starts with `chat_`). Omit for a new chat each run.
     - `enabled` (bool, optional) - Whether the task is active. Defaults to `True`.
 
@@ -44,8 +48,10 @@ The platform evaluates all enabled tasks every minute and triggers execution for
         user_id="user_123",
         company_id="company_456",
         cronExpression="0 9 * * 1-5",
+        timezone="Europe/Zurich",
         assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
         prompt="Generate the daily sales report",
+        name="Daily sales report",
     )
     print(f"Created task: {task.id}")
     ```
@@ -57,6 +63,7 @@ The platform evaluates all enabled tasks every minute and triggers execution for
         user_id="user_123",
         company_id="company_456",
         cronExpression="0 9 * * 1-5",
+        timezone="Europe/Zurich",
         assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
         chatId="chat_b7ze6mpv0edy324yhjj1d92t",
         prompt="Append today's numbers to the running report",
@@ -70,6 +77,7 @@ The platform evaluates all enabled tasks every minute and triggers execution for
         user_id="user_123",
         company_id="company_456",
         cronExpression="*/15 * * * *",
+        timezone="Europe/Zurich",
         assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
         prompt="Check for new support tickets",
         enabled=False,
@@ -123,7 +131,9 @@ The platform evaluates all enabled tasks every minute and triggers execution for
         company_id="company_456",
         id="task_abc123",
     )
+    print(f"Name: {task.name or task.prompt}")
     print(f"Cron: {task.cronExpression}")
+    print(f"Timezone: {task.timezone or 'UTC'}")
     print(f"Assistant: {task.assistantName} ({task.assistantId})")
     print(f"Prompt: {task.prompt}")
     print(f"Enabled: {task.enabled}")
@@ -139,8 +149,10 @@ The platform evaluates all enabled tasks every minute and triggers execution for
     - `company_id` (str, required) - Company identifier
     - `id` (str, required) - The scheduled task identifier
     - `cronExpression` (str, optional) - Updated cron expression
+    - `timezone` (str | None, optional) - Updated IANA timezone. Pass `None` to switch back to UTC.
     - `assistantId` (str, optional) - Updated assistant ID
     - `prompt` (str, optional) - Updated prompt text
+    - `name` (str | None, optional) - Updated label. Pass `None` to clear it and fall back to the prompt.
     - `chatId` (str | None, optional) - Updated chat ID. Pass `None` to clear (new chat each run).
     - `enabled` (bool, optional) - Enable or disable the task
 
@@ -167,6 +179,7 @@ The platform evaluates all enabled tasks every minute and triggers execution for
         company_id="company_456",
         id="task_abc123",
         cronExpression="0 */2 * * *",
+        timezone="Europe/Zurich",
         prompt="Check inbox every 2 hours",
     )
     ```
@@ -223,6 +236,7 @@ task = await unique_sdk.ScheduledTask.create_async(
     user_id="user_123",
     company_id="company_456",
     cronExpression="0 9 * * 1-5",
+    timezone="Europe/Zurich",
     assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
     prompt="Generate daily report",
 )
@@ -238,7 +252,9 @@ task = await unique_sdk.ScheduledTask.create_async(
 
     - `id` (str) - Unique task identifier
     - `object` (str) - Object type (`"scheduled_task"`)
-    - `cronExpression` (str) - 5-field cron expression (UTC)
+    - `name` (str | None) - The task's own label, or `None` when it falls back to the prompt. Distinct from `assistantName` below.
+    - `cronExpression` (str) - 5-field cron expression
+    - `timezone` (str | None) - IANA timezone the cron is evaluated in, or `None` for UTC
     - `assistantId` (str) - ID of the assistant to execute
     - `assistantName` (str | None) - Display name of the assistant
     - `chatId` (str | None) - Chat ID to continue, or `None` for new chat each run
@@ -252,7 +268,7 @@ task = await unique_sdk.ScheduledTask.create_async(
 
 ## Cron Expression Reference
 
-Cron expressions use 5 fields (UTC):
+Cron expressions use 5 fields and are evaluated in the task's timezone:
 
 ```
 ┌───────────── minute (0–59)
@@ -267,10 +283,10 @@ Cron expressions use 5 fields (UTC):
 | Expression | Schedule |
 |------------|----------|
 | `*/15 * * * *` | Every 15 minutes |
-| `0 9 * * 1-5` | Weekdays at 09:00 UTC |
-| `0 0 * * *` | Daily at midnight UTC |
-| `0 8 1 * *` | 1st of every month at 08:00 UTC |
-| `30 17 * * 5` | Every Friday at 17:30 UTC |
+| `0 9 * * 1-5` | Weekdays at 09:00 local |
+| `0 0 * * *` | Daily at midnight local |
+| `0 8 1 * *` | 1st of every month at 08:00 local |
+| `30 17 * * 5` | Every Friday at 17:30 local |
 
 ## Related Resources
 

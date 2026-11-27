@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -9,7 +10,8 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 )
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
-from unique_toolkit.content.schemas import Content
+from unique_toolkit.content.schemas import Content, ContentChunk
+from unique_toolkit.services.chat_service import ChatService
 from unique_user_memory.user_memory import UserMemoryState
 
 from unique_orchestrator._builders.history_manager import (
@@ -24,6 +26,8 @@ from unique_orchestrator.unique_ai_builder import (
     _CommonComponents,
     _configure_uploaded_search_tool,
 )
+
+_DEFAULT_MEMORY_STATE = object()
 
 
 def _make_common_components(uploaded_documents):
@@ -46,6 +50,7 @@ def _make_common_components(uploaded_documents):
         a2a_manager=MagicMock(),
         mcp_servers=[],
         user_memory_text="",
+        chat_title_generator=None,
     )
 
 
@@ -55,6 +60,7 @@ def _make_event(tool_choices):
     event.company_id = "company_1"
     event.payload.assistant_id = "assistant_1"
     event.payload.chat_id = "chat_1"
+    event.payload.assistant_message.id = "assistant_message_1"
     event.payload.tool_choices = tool_choices
     event.payload.mcp_servers = []
     return event
@@ -62,14 +68,19 @@ def _make_event(tool_choices):
 
 def _patch_build_common_user_memory(
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[MagicMock, AsyncMock]:
+    *,
+    memory_state: UserMemoryState | None | object = _DEFAULT_MEMORY_STATE,
+    chat_contents: list[Content] | None = None,
+) -> tuple[MagicMock, AsyncMock, MagicMock]:
     event = _make_event(tool_choices=[])
     event.payload.additional_parameters = None
     event.payload.mcp_servers = []
 
     chat_service = MagicMock()
+    # Run the real toolkit image/document classification over the supplied
+    # contents so the test covers the actual upload-discovery filter.
     chat_service.download_chat_images_and_documents_async = AsyncMock(
-        return_value=([], [])
+        return_value=ChatService._filter_images_and_documents(chat_contents or [])
     )
     content_service = MagicMock()
 
@@ -109,21 +120,35 @@ def _patch_build_common_user_memory(
         "unique_orchestrator.unique_ai_builder.MessageStepLogger",
         MagicMock(return_value=MagicMock()),
     )
-    memory_state = UserMemoryState(scope_id="scope_1", text="remembered")
+    memory_message_step_logger = MagicMock()
+    memory_message_step_logger.log_loading_start = AsyncMock()
+    memory_message_step_logger.log_loading_complete = AsyncMock()
+    memory_message_step_logger.log_loading_failed = AsyncMock()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UserMemoryMessageLogger",
+        MagicMock(return_value=memory_message_step_logger),
+    )
+    if memory_state is _DEFAULT_MEMORY_STATE:
+        memory_state = UserMemoryState(
+            scope_id="scope_1",
+            text="remembered",
+        )
     load_user_memory = AsyncMock(return_value=memory_state)
     monkeypatch.setattr(
         "unique_orchestrator.unique_ai_builder.load_user_memory",
         load_user_memory,
     )
 
-    return event, load_user_memory
+    return event, load_user_memory, memory_message_step_logger
 
 
 @pytest.mark.asyncio
 async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
+    )
 
     config = UniqueAIConfig()
 
@@ -134,6 +159,7 @@ async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
     )
 
     load_user_memory.assert_not_awaited()
+    memory_message_step_logger.log_loading_start.assert_not_awaited()
     assert common_components.user_memory_text == ""
     postprocessor_names = [
         postprocessor.name
@@ -148,7 +174,9 @@ async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
 async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
+    )
 
     config = UniqueAIConfig(space={"allowUserMemory": True})
     common_components = await _build_common(
@@ -158,6 +186,10 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     )
 
     load_user_memory.assert_awaited_once()
+    memory_message_step_logger.log_loading_start.assert_awaited_once()
+    memory_message_step_logger.log_loading_complete.assert_awaited_once_with(
+        with_settings_entry=True
+    )
     assert common_components.user_memory_text == "remembered"
     postprocessor_names = [
         postprocessor.name
@@ -166,6 +198,137 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
         )
     ]
     assert "UserMemoryPostprocessor" in postprocessor_names
+
+
+@pytest.mark.asyncio
+async def test_build_common_load_steps_skip_settings_entry_when_memory_load_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: When load_user_memory returns None, complete the loading Step
+    without the context-memory settings entry.
+    Why this matters: A soft-failed / missing memory load should not surface a
+    Settings entry as if memory were available.
+    Setup summary: Patch load to return None; assert complete(with_settings_entry=False)
+    and that failed is not used.
+    """
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(
+            monkeypatch,
+            memory_state=None,
+        )
+    )
+
+    config = UniqueAIConfig(space={"allowUserMemory": True})
+    await _build_common(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+    )
+
+    load_user_memory.assert_awaited_once()
+    memory_message_step_logger.log_loading_start.assert_awaited_once()
+    memory_message_step_logger.log_loading_complete.assert_awaited_once_with(
+        with_settings_entry=False
+    )
+    memory_message_step_logger.log_loading_failed.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_build_common_closes_loading_step_when_memory_load_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: When load_user_memory raises after log_loading_start, the loading
+    Step is marked FAILED and the turn continues without memory.
+    Why this matters: Otherwise the chat Steps UI leaves "Loading context
+    memory" stuck in RUNNING for that turn.
+    Setup summary: Patch load to raise; assert failed is awaited, complete is
+    not, and UserMemoryPostprocessor is not registered.
+    """
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
+    )
+    load_user_memory.side_effect = RuntimeError("memory store unavailable")
+    logger = MagicMock()
+
+    config = UniqueAIConfig(space={"allowUserMemory": True})
+    common_components = await _build_common(
+        event=event,
+        logger=logger,
+        config=config,
+    )
+
+    load_user_memory.assert_awaited_once()
+    memory_message_step_logger.log_loading_start.assert_awaited_once()
+    memory_message_step_logger.log_loading_failed.assert_awaited_once()
+    memory_message_step_logger.log_loading_complete.assert_not_awaited()
+    assert common_components.user_memory_text == ""
+    postprocessor_names = [
+        postprocessor.name
+        for postprocessor in common_components.postprocessor_manager.get_postprocessors(
+            "ignored"
+        )
+    ]
+    assert "UserMemoryPostprocessor" not in postprocessor_names
+    logger.warning.assert_any_call(
+        "[user-memory] load raised - running without memory: [%s] %s",
+        "RuntimeError",
+        load_user_memory.side_effect,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "filename,mime_type",
+    [
+        ("mail.msg", "application/vnd.ms-outlook"),
+        ("mail.eml", "message/rfc822"),
+    ],
+)
+async def test_build_common_ingested_email_upload_activates_uploaded_search(
+    monkeypatch: pytest.MonkeyPatch,
+    filename: str,
+    mime_type: str,
+) -> None:
+    """
+    Purpose: Verify an ingested Outlook `.msg` / `.eml` chat upload survives
+    upload discovery and causes UploadedSearch to be registered and forced.
+    Why this matters: UN-24575 — the toolkit's file-type allowlist dropped
+    email uploads before `_configure_uploaded_search_tool` ran, so the model
+    was told no document was attached even though ingestion had FINISHED.
+    Setup summary: Feed one ingested email Content through the real toolkit
+    filter inside `_build_common`, then run the uploaded-search configuration.
+    """
+    email_upload = Content(
+        id="cont_email",
+        key=filename,
+        mime_type=mime_type,
+        applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+    )
+    event, _, _ = _patch_build_common_user_memory(
+        monkeypatch, chat_contents=[email_upload]
+    )
+
+    common_components = await _build_common(
+        event=event,
+        logger=MagicMock(),
+        config=UniqueAIConfig(),
+    )
+
+    assert common_components.uploaded_documents == [email_upload]
+    assert common_components.uploaded_images == []
+
+    should_force = _configure_uploaded_search_tool(
+        event=event,
+        logger=MagicMock(),
+        common_components=common_components,
+        config=UploadedSearchToolConfig(force=True),
+    )
+
+    tool_names = [t.name for t in common_components.tool_manager_config.tools]
+    assert UploadedSearchTool.name in tool_names
+    assert should_force is True
 
 
 class TestSerializeUploadedFileForHistory:
@@ -184,7 +347,20 @@ class TestSerializeUploadedFileForHistory:
             "- Available for processing in the code execution container"
         )
 
-    def test_omits_search_for_non_ingested_file(self) -> None:
+    def test_ingested_file_without_tools_has_only_header(self) -> None:
+        content = Content(id="cont_1", key="report.pdf")
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=False,
+            code_interpreter_available=False,
+        )
+
+        assert result == "User uploaded file: report.pdf (cont_1)"
+
+    def test_non_ingested_file_is_not_searchable_but_usable_in_code_execution(
+        self,
+    ) -> None:
         content = Content(
             id="cont_1",
             key="report.pdf",
@@ -194,10 +370,194 @@ class TestSerializeUploadedFileForHistory:
         result = serialize_uploaded_file_for_history(
             content,
             uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Not ingested; not searchable using UploadedSearchTool\n"
+            "- Available for processing in the code execution container"
+        )
+
+    def test_non_ingested_file_without_uploaded_search_omits_tool_name(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_INGESTION"},
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=False,
             code_interpreter_available=False,
         )
 
-        assert result == "User uploaded file: report.pdf (cont_1)"
+        assert result == "User uploaded file: report.pdf (cont_1)\n- Not ingested"
+
+    def test_skipped_excel_ingestion_points_to_code_execution(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="numbers.xlsx",
+            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: numbers.xlsx (cont_1)\n"
+            "- Not ingested; not searchable using UploadedSearchTool\n"
+            "- Available for processing in the code execution container"
+        )
+
+    def test_failed_ingestion_reports_state_without_code_execution(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            ingestion_state="FAILED_PARSING",
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Ingestion failed (FAILED_PARSING); not searchable using UploadedSearchTool"
+        )
+
+    def test_failed_image_is_not_described_as_attached(self) -> None:
+        content = Content(
+            id="cont_img",
+            key="chart.png",
+            ingestion_state="FAILED_MALWARE_FOUND",
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=False,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded image: chart.png (cont_img)\n"
+            "- Ingestion failed (FAILED_MALWARE_FOUND)"
+        )
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "INGESTION_EMBEDDING",
+            "EXTRACTING_METADATA",
+            "RE_INGESTING",
+        ],
+    )
+    def test_ingestion_in_progress(self, state: str) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            ingestion_state=state,
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=False,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Ingestion still in progress; not yet searchable using UploadedSearchTool"
+        )
+
+    @pytest.mark.parametrize("state", ["FINISHED", "CHECKING_INTEGRITY"])
+    def test_finished_ingestion_is_searchable(self, state: str) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            ingestion_state=state,
+            chunks=[ContentChunk(text="page")],
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=False,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Searchable using UploadedSearchTool"
+        )
+
+    @pytest.mark.ai
+    def test_finished_upload_without_chunks_is_not_searchable(self) -> None:
+        """
+        Purpose: A FINISHED upload with no chunks is described as not searchable.
+        Why this matters: The platform writes FINISHED both after chunking and
+        when ingestion is skipped. Zero chunks means there is nothing to search.
+        Setup summary: Serialize a FINISHED content with no chunks, with
+        UploadedSearch available.
+        """
+        content = Content(
+            id="cont_1",
+            key="clip.webm",
+            ingestion_state="FINISHED",
+            chunks=[],
+            applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: clip.webm (cont_1)\n"
+            "- Not ingested; not searchable using UploadedSearchTool\n"
+            "- Available for processing in the code execution container"
+        )
+
+    def test_image_is_described_as_attached(self) -> None:
+        content = Content(id="cont_img", key="chart.png")
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded image: chart.png (cont_img)\n"
+            "- Attached to this message as an image\n"
+            "- Available for processing in the code execution container"
+        )
+
+    def test_expired_file_only_reports_expiry(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            expired_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Expired due to company retention policy; "
+            "content can no longer be accessed"
+        )
 
     def test_excludes_code_interpreter_generated_file(self) -> None:
         content = Content(
@@ -258,6 +618,122 @@ def test_configure_file_payload_registers_open_file_tool() -> None:
     registered_tool = tool_manager.add_tool.call_args.args[0]
     assert isinstance(registered_tool, OpenFileTool)
     assert registry == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_responses_forwards_attribution_headers_to_openai_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify the Responses client carries per-message cost attribution.
+    Why this matters: These headers are built by hand here, bypassing the
+    toolkit's ``_completion_headers``, so they can silently drift from it.
+    Setup summary: Build the Responses orchestrator and inspect the client copy.
+    """
+    event = _make_event(tool_choices=[])
+    common_components = _make_common_components([])
+
+    fake_client = MagicMock()
+    fake_client.copy.return_value = fake_client
+
+    _FakeResponsesApiToolManager.instances.clear()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.get_async_openai_client",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.OpenAIBuiltInToolManager.build_manager",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesApiToolManager",
+        _FakeResponsesApiToolManager,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.build_loop_iteration_runner",
+        lambda **kwargs: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueAI",
+        lambda **kwargs: kwargs,
+    )
+
+    await _build_responses(
+        event=event,
+        logger=MagicMock(),
+        config=UniqueAIConfig(),
+        common_components=common_components,
+        debug_info_manager=MagicMock(),
+    )
+
+    headers = fake_client.copy.call_args.kwargs["default_headers"]
+    assert headers["x-chat-id"] == "chat_1"
+    assert headers["x-assistant-id"] == "assistant_1"
+    assert headers["x-assistant-message-id"] == "assistant_message_1"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_responses_forwards_attribution_headers_to_python_streaming(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify the experimental python-streaming path carries attribution.
+    Why this matters: This second hand-built header dict sits behind a feature
+    flag, so it is the easiest of the two to leave behind when headers change.
+    Setup summary: Enable the flag and inspect the ResponsesCompleteWithReferences kwargs.
+    """
+    event = _make_event(tool_choices=[])
+    common_components = _make_common_components([])
+
+    config = UniqueAIConfig()
+    config.agent.experimental.use_experimental_python_streaming = True
+
+    fake_client = MagicMock()
+    fake_client.copy.return_value = fake_client
+    fake_responses_complete = MagicMock(return_value=MagicMock())
+
+    _FakeResponsesApiToolManager.instances.clear()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.get_async_openai_client",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.OpenAIBuiltInToolManager.build_manager",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesApiToolManager",
+        _FakeResponsesApiToolManager,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.build_loop_iteration_runner",
+        lambda **kwargs: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueAI",
+        lambda **kwargs: kwargs,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueSettings.from_chat_event",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesCompleteWithReferences",
+        fake_responses_complete,
+    )
+
+    await _build_responses(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+        common_components=common_components,
+        debug_info_manager=MagicMock(),
+    )
+
+    headers = fake_responses_complete.call_args.kwargs["additional_headers"]
+    assert headers["x-chat-id"] == "chat_1"
+    assert headers["x-assistant-id"] == "assistant_1"
+    assert headers["x-assistant-message-id"] == "assistant_message_1"
 
 
 @pytest.mark.asyncio
@@ -528,6 +1004,23 @@ class TestConfigureUploadedSearchToolIngestionFilter:
         common = self._run([doc])
         tool_names = [t.name for t in common.tool_manager_config.tools]
         assert UploadedSearchTool.name in tool_names
+
+    @pytest.mark.ai
+    def test_finished_with_no_chunks_is_excluded(self):
+        """
+        Purpose: A FINISHED upload with no chunks does not enable UploadedSearch.
+        Why this matters: FINISHED with zero chunks means ingestion was skipped.
+        Listing it as searchable tells the model it can search a file with no
+        chunks.
+        Setup summary: One FINISHED document with INGESTION mode and no chunks.
+        Assert UploadedSearch is not registered.
+        """
+        doc = self._make_doc({"uniqueIngestionMode": "INGESTION"})
+        doc.ingestion_state = "FINISHED"
+        doc.chunks = []
+        common = self._run([doc])
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name not in tool_names
 
     def test_skip_ingestion_mode_is_excluded(self):
         doc = self._make_doc({"uniqueIngestionMode": "SKIP_INGESTION"})

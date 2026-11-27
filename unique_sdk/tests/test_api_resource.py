@@ -121,6 +121,32 @@ def test_static_request_success(mock_api_requestor):
     # Mocked response should be passed to the convert_to_unique_object function
 
 
+@pytest.mark.ai
+def test_static_request_forwards_supplied_headers(mock_api_requestor) -> None:
+    """Purpose: Verify static resources pass supplied headers to the requestor.
+    Why this matters: Resource-specific HTTP metadata must reach the transport.
+    Setup summary: Make a sync request with headers and inspect requestor arguments.
+    """
+    headers = {"x-chat-id": "chat_1"}
+    mock_api_requestor.return_value.request.return_value = {}
+
+    MessageResource._static_request(
+        "post",
+        "/messages",
+        "user_1",
+        "company_1",
+        {"text": "hello"},
+        headers,
+    )
+
+    mock_api_requestor.return_value.request.assert_called_once_with(
+        "post",
+        "/messages",
+        {"text": "hello"},
+        headers,
+    )
+
+
 @pytest.mark.asyncio
 async def test_static_request_async_success(mock_api_requestor):
     # Mock APIRequestor's async request method
@@ -141,6 +167,35 @@ async def test_static_request_async_success(mock_api_requestor):
     # Mocked response should be passed to the convert_to_unique_object function
 
 
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_static_request_async_forwards_supplied_headers(
+    mock_api_requestor,
+) -> None:
+    """Purpose: Verify async static resources pass supplied headers to requestor.
+    Why this matters: Async HTTP metadata must reach the same transport path.
+    Setup summary: Make an async request with headers and inspect request arguments.
+    """
+    headers = {"x-assistant-id": "assistant_1"}
+    mock_api_requestor.return_value.request_async = AsyncMock(return_value={})
+
+    await MessageResource._static_request_async(
+        "post",
+        "/messages",
+        "user_1",
+        "company_1",
+        {"text": "hello"},
+        headers,
+    )
+
+    mock_api_requestor.return_value.request_async.assert_awaited_once_with(
+        "post",
+        "/messages",
+        {"text": "hello"},
+        headers,
+    )
+
+
 @pytest.mark.asyncio
 @patch("asyncio.sleep", return_value=None)
 async def test_static_request_async_retry_on_specific_error(
@@ -149,7 +204,7 @@ async def test_static_request_async_retry_on_specific_error(
     mock_api_requestor.return_value.request_async.side_effect = APIError(
         "There was a problem proxying the request"
     )
-    with pytest.raises(APIError, match="Failed after 3 attempts"):
+    with pytest.raises(APIError, match="There was a problem proxying the request"):
         await MessageResource._static_request_async(
             "get", "/messages", "user_1", "company_1"
         )
@@ -167,7 +222,7 @@ async def test_static_request_async_retry_on_specific_error_second(
     mock_api_requestor.return_value.request_async.side_effect = APIError(
         "Upstream service reached a hard timeout"
     )
-    with pytest.raises(APIError, match="Failed after 3 attempts"):
+    with pytest.raises(APIError, match="Upstream service reached a hard timeout"):
         await MessageResource._static_request_async(
             "get", "/messages", "user_1", "company_1"
         )
@@ -196,7 +251,7 @@ def test_static_request_sync_retry_on_specific_error(mock_sleep, mock_api_reques
     mock_api_requestor.return_value.request.side_effect = APIError(
         "There was a problem proxying the request"
     )
-    with pytest.raises(APIError, match="Failed after 3 attempts"):
+    with pytest.raises(APIError, match="There was a problem proxying the request"):
         MessageResource._static_request("get", "/messages", "user_1", "company_1")
     assert (
         mock_api_requestor.return_value.request.call_count == 3
@@ -211,7 +266,7 @@ def test_static_request_sync_retry_on_specific_error_second(
     mock_api_requestor.return_value.request.side_effect = APIError(
         "Upstream service reached a hard timeout"
     )
-    with pytest.raises(APIError, match="Failed after 3 attempts"):
+    with pytest.raises(APIError, match="Upstream service reached a hard timeout"):
         MessageResource._static_request("get", "/messages", "user_1", "company_1")
     assert (
         mock_api_requestor.return_value.request.call_count == 3

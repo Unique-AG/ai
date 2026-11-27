@@ -2,14 +2,16 @@
 
 Persistent per-user memory for Unique AI agents.
 
-`unique_user_memory` stores a compact Markdown profile for each user and updates it after every agent turn. The profile is loaded before the next turn so the assistant can remember stable user context such as communication preferences, work context, expertise, recent topics, and open follow-ups.
+`unique_user_memory` stores a compact Markdown profile for each user and updates it after every agent turn. The profile is loaded before the next turn so the assistant can remember stable user context such as communication preferences, work context, expertise, recent topics, and concrete future tasks.
 
 ## What It Does
 
 The package provides:
 
 - `UserMemoryConfig` - Pydantic configuration for the consolidation model, profile token budget, and memory folder.
-- `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget. The `language_model` argument is used to tokenize `memory.md` when capping it, so it must be the same effective model the postprocessor uses for consolidation (see Integration below).
+- `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget. The `language_model` argument is used to tokenize `memory.md` when capping it, so it must be the same effective model the postprocessor uses for consolidation (see Integration below). Returns a `UserMemoryState` with the profile text and scope id.
+- `profile_body(...)` - strips the YAML frontmatter and returns only the Markdown body. Use it whenever the profile is shown to a model; the frontmatter is bookkeeping for consolidation.
+- `UserMemoryMessageLogger` - emits chat Steps (MessageLogs) for load and update, including typed `UserMemory` detail entries the chat frontend renders as a badge that opens Settings → Context Memory. Frontends that do not know the entry type render nothing, so the entries are safe to emit in any deploy order.
 - `UserMemoryPostprocessor` - runs after the assistant response, consolidates the latest turn into the profile, and uploads the updated `memory.md`.
 
 The memory file is intentionally small and structured. It is rewritten as a full Markdown profile rather than appended to as an event log.
@@ -17,21 +19,59 @@ The memory file is intentionally small and structured. It is rewritten as a full
 ## Lifecycle
 
 1. The orchestrator enables memory when `space.allow_user_memory` is true.
-2. `load_user_memory(...)` resolves the pre-provisioned root folder, ensures a private child folder for the current user, and downloads `/user-memory/<user_id>/memory.md` if it exists.
-3. The loaded memory text is passed into the agent context for the current turn.
-4. `UserMemoryPostprocessor` runs after the assistant response.
-5. The package asks the configured language model to either return `NOOP` or a complete rewritten profile.
-6. If the profile changed, `memory.md` is uploaded back to the user's folder with ingestion skipped and the content hidden from chat.
+2. The orchestrator emits a **Loading context memory** Step, then `load_user_memory(...)` resolves the user's private memory folder — canonical `/home-<user_id>/<root_folder>`, falling back to the legacy `/<root_folder>/<user_id>` leaf for not-yet-migrated users, provisioning the home folder if neither exists — and downloads `memory.md` from it if present.
+3. When load returns a `UserMemoryState`, that Step is completed with a **Context memory** detail entry (`type: UserMemory`) that the chat frontend renders as a badge opening Settings → Context Memory. A successful `None` return (soft skip) completes the Step without the entry; a raised exception marks the Step failed.
+4. If memory was loaded, `profile_body(...)` of its text is passed into the agent context for the current turn — the prompt only gets the Markdown body, while the postprocessor keeps the full file because it needs the frontmatter to carry `turn_count` forward.
+5. `UserMemoryPostprocessor` runs after the assistant response.
+6. The package asks the configured language model to either return `NOOP` or a complete rewritten profile.
+7. If a rewrite runs, an **Updating your memory** Step is shown while consolidating (no settings entry yet).
+8. Every rewrite passes through a mandatory CID/PII scrub call (see Content Policy below) before it is assembled for upload. When the scrub cannot vouch for the rewrite, the existing memory is kept unchanged.
+9. If the profile changed and `memory.md` uploads successfully (ingestion skipped, content hidden from chat), that Step is completed with a **Review your context memory** detail entry (same settings badge). On NOOP or failed upload the Step completes without the entry.
+
+## Content Policy — the current user's CID/PII only (UN-24886)
+
+The profile belongs to exactly one person: the signed-in user. It may contain
+personal data (PII) of that user only. It must never contain
+client-identifying data (CID) or PII of any other person or private entity —
+not other users, not clients, not prospects, not counterparties. Facts about
+the user's own work that involve a client are stored only in a fully
+de-identified form ("runs quarterly portfolio reviews", never "reviews the
+portfolio of J. Muster"). Credentials, payment data, health records, and
+government IDs are never stored for anyone, including the user.
+
+The policy text lives once, in `_CID_POLICY` in `user_memory_prompts.py`, and
+is embedded in every write-path stage so the rules cannot drift:
+
+| Stage | Role of the policy |
+| --- | --- |
+| Gate (`memory_gate_system_prompt`) | Turns whose only new facts are third-party CID/PII lean `NOOP` and never reach the rewrite. |
+| Consolidation (`consolidation_system_prompt`) | The rewrite itself must not extract forbidden content. |
+| Condensation (`condensation_system_prompt`) | Oversized (including legacy) profiles must drop violating bullets on every shrink, progressively cleaning old data. |
+| Scrub (`scrub_system_prompt` / `scrub_user_memory`) | Mandatory final gate on every consolidation rewrite. Answers `CLEAN`, returns a cleaned body, or vetoes the write. Fails closed: on any error the existing memory is kept and the unvalidated candidate is discarded. |
+
+Storage-level isolation (per-user home folder with exclusive owner ACL, see
+Storage Model) already prevents cross-user *access*; this policy governs
+cross-user and cross-client *content*.
+
+Note for follow-up client-memory work: this package is user memory only. A
+future client memory is a separate artefact with its own scoping and must not
+be built by loosening this policy — client-related durable knowledge is
+intentionally rejected here rather than stored under the user's profile.
 
 ## Storage Model
 
-Memory is stored in Unique content as Markdown:
+Memory is stored in Unique content as Markdown, under each user's own
+root-level home folder (UN-24823):
 
 ```text
-/<root_folder>/<user_id>/memory.md
+/home-<user_id>/<root_folder>/memory.md
 ```
 
-By default, `root_folder` is `user-memory`. The root folder must already exist. The package creates the per-user child folder when needed.
+By default, `root_folder` is `user-memory`. There is no shared root folder —
+each user's home is created by node-ingestion (or, if missing, by this
+package) with an exclusive owner ACL, so memory is never company-writable
+(UN-24764). Users whose memory has not yet been migrated to their home
+folder are still read from the legacy location, `/<root_folder>/<user_id>/memory.md`.
 
 ## Profile Format
 
@@ -59,14 +99,16 @@ _(empty)_
 ## Skills & Expertise
 _(empty)_
 
-## Recent Topics
+## Follow-ups
 _(empty)_
 
-## Open Questions / Follow-ups
+## Recent Topics
 _(empty)_
 ```
 
 The consolidation prompt preserves the schema, keeps bullets short, and returns `NOOP` when a turn has no durable user facts.
+
+Each fact lives in exactly one section. **Recent Topics** is a dated log reserved for discussion topics whose substance is not already captured as a fact elsewhere in the profile. **Follow-ups** only holds tasks the user explicitly committed to or asked to be reminded about — never the assistant's own offers or open questions — and entries are removed once completed or stale.
 
 ## Configuration
 
@@ -86,7 +128,28 @@ config = UserMemoryConfig(
 | `use_orchestrator_language_model` | `True` | When true, consolidation and load-time token capping use the model the orchestrator passes in and `language_model` is ignored. Set to `False` to use the configured `language_model` for both. |
 | `language_model` | `DEFAULT_GPT_4o` | Model used to consolidate the latest turn and to tokenize `memory.md` at load time when `use_orchestrator_language_model` is `False`. |
 | `max_tokens` | `2000` | Maximum profile size. Must be between 500 and 8000 tokens. |
-| `root_folder` | `user-memory` | Root KB folder that contains per-user memory folders. |
+| `root_folder` | `user-memory` | Subfolder name under each user's home folder (`/home-<user_id>/<root_folder>`) that holds the memory profile; also read as a legacy fallback at `/<root_folder>/<user_id>`. |
+
+## Observability
+
+The package registers Prometheus metrics on the shared `unique_toolkit.monitoring` registry (namespace `unique_user_memory`). They appear on whatever host already scrapes `GET /metrics` (assistants-core). Labels are closed enums — no company or user ids. LLM series include the model name so latency can be split per deployed model.
+
+QA dashboard: [User Memory](https://qa-grafana.alpine-bowfin.ts.net/d/unique-user-memory) (`unique-user-memory`). The dashboard is provisioned by the [assistants-core Helm chart](https://github.com/Unique-AG/monorepo/tree/master/python/assistants/bundles/core/deploy/helm-chart/files/grafana/dashboards).
+
+| Metric | Labels | What it answers |
+| --- | --- | --- |
+| `load_duration_seconds` / `load_total` | `outcome`: `success`, `empty`, `folder_failed`, `skipped_no_ids` | Is load slow? How often do we run without memory? |
+| `postprocessor_duration_seconds` / `postprocessor_total` | `outcome`: `updated`, `noop`, `upload_failed`, `skipped_no_ids`, `error` | Did this turn persist a new profile? |
+| `errors_total` | `stage`, `error_type` | Infra failures by stage (`folder_lookup`, `folder_create`, `download`, `upload`, `gate`, `consolidation`, `scrub`, `condense`, `postprocessor`). |
+| `llm_duration_seconds` / `llm_errors_total` | `purpose`: `gate`, `consolidation`, `scrub`, `condense`; `model`: the configured model name | Which LLM call is the latency or error hog, and how does that differ by model? |
+| `gate_decisions_total` | `decision`: `update`, `noop`, `fail_open` | Is the gate saving consolidations? Is fail-open spiking? |
+| `scrub_decisions_total` | `decision`: `clean`, `cleaned`, `veto` | CID/PII pass health. |
+| `consolidation_results_total` | `result`: `rewritten`, `noop`, `malformed`, `llm_error`, `scrub_veto`, `unchanged_after_scrub` | Why a rewrite did not persist. |
+| `storage_duration_seconds` / `storage_total` | `op`: `folder_lookup`, `folder_create`, `download`, `upload`; `outcome`: `success`, `error`, `not_found`, `refused_empty` | Is the content store the bottleneck? |
+| `memory_length_tokens` / `memory_length_chars` | `phase`: `load`, `write` | How large are profiles in tokens and characters versus `max_tokens`? |
+| `condense_total` | `trigger`: `load`, `post_consolidation`, `condense`; `result`: `llm_ok`, `hard_cut`, `llm_failed_then_hard_cut` | How often the budget shrink path fires. |
+
+Token usage for billing still flows through `LanguageModelInvocationStats`, not these series.
 
 ## Integration
 
@@ -95,7 +158,9 @@ Typical orchestration code loads memory before the agent loop and registers the 
 `load_user_memory` and `UserMemoryPostprocessor` must be given the **same** effective language model: the postprocessor consolidates memory with either the orchestrator model or the configured one depending on `use_orchestrator_language_model`, and load-time token capping must use that same model so the loaded baseline is tokenized the way consolidation expects. Resolve the effective model once and pass it to both:
 
 ```python
-from unique_user_memory.user_memory import load_user_memory
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
+from unique_user_memory.user_memory import load_user_memory, profile_body
+from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 user_memory_config = config.agent.services.user_memory_config
@@ -108,15 +173,39 @@ memory_language_model = (
     else user_memory_config.language_model
 )
 
-user_memory_state = await load_user_memory(
-    event=event,
-    config=user_memory_config,
-    language_model=memory_language_model,
+message_step_logger = MessageStepLogger(chat_service)
+memory_message_step_logger = UserMemoryMessageLogger(
+    message_step_logger,
     logger=logger,
 )
+await memory_message_step_logger.log_loading_start()
+user_memory_state = None
+load_succeeded = False
+try:
+    user_memory_state = await load_user_memory(
+        event=event,
+        config=user_memory_config,
+        language_model=memory_language_model,
+        logger=logger,
+    )
+    load_succeeded = True
+except Exception as exc:
+    logger.warning(
+        "[user-memory] load raised - running without memory: [%s] %s",
+        type(exc).__name__,
+        exc,
+    )
+finally:
+    # Always close the RUNNING step — otherwise the chat Steps UI stays stuck
+    # on "Loading context memory" for that turn when load raises.
+    if not load_succeeded:
+        await memory_message_step_logger.log_loading_failed()
 
-if user_memory_state is not None:
-    user_memory_text = user_memory_state.text
+if load_succeeded and user_memory_state is not None:
+    await memory_message_step_logger.log_loading_complete(with_settings_entry=True)
+    # The postprocessor keeps the full file (it needs the frontmatter to
+    # carry turn_count forward); the prompt only gets the Markdown body.
+    user_memory_text = profile_body(user_memory_state.text)
     postprocessor_manager.add_postprocessor(
         UserMemoryPostprocessor(
             config=user_memory_config,
@@ -124,8 +213,11 @@ if user_memory_state is not None:
             event=event,
             state=user_memory_state,
             logger=logger,
+            message_step_logger=memory_message_step_logger,
         )
     )
+elif load_succeeded:
+    await memory_message_step_logger.log_loading_complete(with_settings_entry=False)
 ```
 
 Note that `UserMemoryPostprocessor` re-derives the effective model internally from `use_orchestrator_language_model`, so passing `memory_language_model` (rather than the raw orchestrator model) keeps its behavior identical while ensuring `load_user_memory` caps with the matching tokenizer.

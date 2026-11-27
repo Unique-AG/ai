@@ -6,7 +6,9 @@ import pytest
 from azure.core.pipeline.transport import AsyncioRequestsTransport
 
 from unique_web_search.services.search_engine.utils.grounding.bing.client import (
+    aclose_private_endpoint_http_client,
     credentials_are_valid,
+    get_openai_client,
     get_project_client,
 )
 
@@ -89,9 +91,9 @@ class TestGetProjectClient:
         self, mock_env: MagicMock
     ) -> None:
         """
-        Purpose: Verify env endpoint takes precedence over the parameter endpoint.
-        Why this matters: Environment-level config must override per-call values.
-        Setup summary: Set both env and param endpoints; assert env endpoint is used.
+        Purpose: Verify the project client uses the env-configured endpoint.
+        Why this matters: Endpoint is env-only after config overrides were removed.
+        Setup summary: Set env endpoint; assert AIProjectClient receives it.
         """
         # Arrange
         mock_env.azure_ai_project_endpoint = "https://env-endpoint.azure.com"
@@ -100,7 +102,7 @@ class TestGetProjectClient:
 
         # Act
         with patch(f"{_CLIENT_MODULE}.AIProjectClient") as mock_client_cls:
-            get_project_client(mock_credentials, "https://param-endpoint.azure.com")
+            get_project_client(mock_credentials)
 
         # Assert
         call_kwargs = mock_client_cls.call_args[1]
@@ -108,36 +110,13 @@ class TestGetProjectClient:
 
     @pytest.mark.ai
     @patch(f"{_CLIENT_MODULE}.env_settings")
-    def test_get_client__env_endpoint_none__uses_param_endpoint(
+    def test_get_client__env_endpoint_none__raises_value_error(
         self, mock_env: MagicMock
     ) -> None:
         """
-        Purpose: Verify param endpoint is used when env endpoint is not set.
-        Why this matters: Enables per-config endpoint specification as fallback.
-        Setup summary: Set env endpoint to None, provide param endpoint; assert param used.
-        """
-        # Arrange
-        mock_env.azure_ai_project_endpoint = None
-        mock_env.use_unique_private_endpoint_transport = False
-        mock_credentials = MagicMock()
-
-        # Act
-        with patch(f"{_CLIENT_MODULE}.AIProjectClient") as mock_client_cls:
-            get_project_client(mock_credentials, "https://param-endpoint.azure.com")
-
-        # Assert
-        call_kwargs = mock_client_cls.call_args[1]
-        assert call_kwargs["endpoint"] == "https://param-endpoint.azure.com"
-
-    @pytest.mark.ai
-    @patch(f"{_CLIENT_MODULE}.env_settings")
-    def test_get_client__no_endpoint_at_all__raises_value_error(
-        self, mock_env: MagicMock
-    ) -> None:
-        """
-        Purpose: Verify ValueError when neither env nor param endpoint is set.
+        Purpose: Verify ValueError when the env endpoint is not set.
         Why this matters: Clear error prevents silent misconfiguration.
-        Setup summary: Set env endpoint to None and param to empty; assert ValueError.
+        Setup summary: Set env endpoint to None; assert ValueError.
         """
         # Arrange
         mock_env.azure_ai_project_endpoint = None
@@ -145,7 +124,7 @@ class TestGetProjectClient:
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
-            get_project_client(mock_credentials, "")
+            get_project_client(mock_credentials)
         assert "not set" in str(exc_info.value)
 
     @pytest.mark.ai
@@ -165,7 +144,7 @@ class TestGetProjectClient:
 
         # Act
         with patch(f"{_CLIENT_MODULE}.AIProjectClient") as mock_client_cls:
-            get_project_client(mock_credentials, "")
+            get_project_client(mock_credentials)
 
         # Assert
         call_kwargs = mock_client_cls.call_args[1]
@@ -190,11 +169,65 @@ class TestGetProjectClient:
 
         # Act
         with patch(f"{_CLIENT_MODULE}.AIProjectClient") as mock_client_cls:
-            get_project_client(mock_credentials, "")
+            get_project_client(mock_credentials)
 
         # Assert
         call_kwargs = mock_client_cls.call_args[1]
         assert "transport" not in call_kwargs
+
+
+# ---------------------------------------------------------------------------
+# get_openai_client / private-endpoint httpx reuse tests
+# ---------------------------------------------------------------------------
+
+
+class TestGetOpenaiClient:
+    """Tests for OpenAI client factory and shared private-endpoint httpx client."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch(f"{_CLIENT_MODULE}.env_settings")
+    async def test_get_openai_client__private_transport__reuses_httpx_client(
+        self, mock_env: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify private-endpoint path reuses one shared httpx.AsyncClient.
+        Why this matters: Creating a new httpx client per request leaks sockets.
+        Setup summary: Call get_openai_client twice; assert same http_client passed.
+        """
+        mock_env.use_unique_private_endpoint_transport = True
+        await aclose_private_endpoint_http_client()
+        project_client = MagicMock()
+        project_client.get_openai_client = MagicMock(return_value=MagicMock())
+
+        get_openai_client(project_client)
+        get_openai_client(project_client)
+
+        first = project_client.get_openai_client.call_args_list[0].kwargs["http_client"]
+        second = project_client.get_openai_client.call_args_list[1].kwargs[
+            "http_client"
+        ]
+        assert first is second
+        assert not first.is_closed
+        await aclose_private_endpoint_http_client()
+
+    @pytest.mark.ai
+    @patch(f"{_CLIENT_MODULE}.env_settings")
+    def test_get_openai_client__no_private_transport__no_http_client_kwarg(
+        self, mock_env: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify default path does not inject a custom httpx client.
+        Why this matters: OpenAI SDK should own its default transport when PE is off.
+        Setup summary: Disable private transport; assert get_openai_client called bare.
+        """
+        mock_env.use_unique_private_endpoint_transport = False
+        project_client = MagicMock()
+        project_client.get_openai_client = MagicMock(return_value=MagicMock())
+
+        get_openai_client(project_client)
+
+        project_client.get_openai_client.assert_called_once_with()
 
 
 if __name__ == "__main__":

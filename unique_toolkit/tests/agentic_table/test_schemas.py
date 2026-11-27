@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+
+import pytest
 from unique_sdk.api_resources._agentic_table import MagicTableAction
 
 from unique_toolkit.agentic_table.schemas import (
@@ -5,9 +8,17 @@ from unique_toolkit.agentic_table.schemas import (
     ArtifactType,
     BaseMetadata,
     DDMetadata,
+    LibrarySheetRowVerifiedMetadata,
+    LibrarySheetRowVerifiedRow,
+    MagicTableEvent,
+    MagicTableEventTypes,
     MagicTableGenerateArtifactPayload,
+    MagicTableLibrarySheetRowVerifiedPayload,
     MagicTableRerunRowPayload,
+    MagicTableRerunRowsPayload,
+    MagicTableSheet,
     RerunRowMetadata,
+    RerunRowsMetadata,
     SheetType,
 )
 
@@ -433,3 +444,433 @@ class TestMagicTableRerunRowPayload:
     def test_rerun_row_action_enum_value(self):
         """Test that RERUN_ROW action is correctly recognized."""
         assert MagicTableAction.RERUN_ROW == "RerunRow"
+
+
+class TestLibrarySheetRowVerifiedMetadata:
+    def test_legacy_payload_without_row_id_still_parses(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate({"rowOrder": 3})
+
+        assert metadata.row_order == 3
+        assert metadata.row_id is None
+        assert metadata.rows == []
+        assert metadata.verified_rows == [
+            LibrarySheetRowVerifiedRow(row_order=3, row_id=None)
+        ]
+
+    def test_optional_row_id_and_rows_default_when_omitted(self):
+        metadata = LibrarySheetRowVerifiedMetadata(row_order=3)
+
+        assert metadata.row_order == 3
+        assert metadata.row_id is None
+        assert metadata.rows == []
+
+    def test_bulk_rows_parse_from_camel_case(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate(
+            {
+                "rowOrder": 3,
+                "rowId": "row-3",
+                "rows": [
+                    {"rowOrder": 3, "rowId": "row-3"},
+                    {"rowOrder": 8, "rowId": "row-8"},
+                    {"rowOrder": 9},
+                ],
+            }
+        )
+
+        assert metadata.rows == [
+            LibrarySheetRowVerifiedRow(row_order=3, row_id="row-3"),
+            LibrarySheetRowVerifiedRow(row_order=8, row_id="row-8"),
+            LibrarySheetRowVerifiedRow(row_order=9, row_id=None),
+        ]
+        assert metadata.verified_rows is metadata.rows
+
+    def test_bulk_first_row_order_must_match_scalar(self):
+        with pytest.raises(
+            ValueError,
+            match=r"rows\[0\]\.row_order must match row_order",
+        ):
+            LibrarySheetRowVerifiedMetadata.model_validate(
+                {
+                    "rowOrder": 3,
+                    "rows": [{"rowOrder": 8, "rowId": "row-8"}],
+                }
+            )
+
+    def test_bulk_first_row_id_must_match_scalar_when_both_are_present(self):
+        with pytest.raises(
+            ValueError,
+            match=r"rows\[0\]\.row_id must match row_id",
+        ):
+            LibrarySheetRowVerifiedMetadata.model_validate(
+                {
+                    "rowOrder": 3,
+                    "rowId": "row-3",
+                    "rows": [{"rowOrder": 3, "rowId": "different-row"}],
+                }
+            )
+
+    def test_null_rows_normalize_to_empty(self):
+        metadata = LibrarySheetRowVerifiedMetadata.model_validate(
+            {"rowOrder": 3, "rowId": "row-3", "rows": None}
+        )
+
+        assert metadata.row_id == "row-3"
+        assert metadata.rows == []
+
+
+class TestMagicTableLibrarySheetRowVerifiedPayload:
+    def test_bulk_verified_payload_parses_from_wire_format(self):
+        payload = MagicTableLibrarySheetRowVerifiedPayload.model_validate(
+            {
+                "name": "rfp_agent",
+                "sheetName": "Library",
+                "action": "LibrarySheetRowVerified",
+                "chatId": "chat-1",
+                "assistantId": "assistant-1",
+                "tableId": "table-1",
+                "metadata": {
+                    "rowOrder": 3,
+                    "rowId": "row-3",
+                    "rows": [
+                        {"rowOrder": 3, "rowId": "row-3"},
+                        {"rowOrder": 8, "rowId": "row-8"},
+                    ],
+                },
+            }
+        )
+
+        assert payload.action == MagicTableAction.LIBRARY_SHEET_ROW_VERIFIED
+        assert payload.metadata.row_order == 3
+        assert payload.metadata.row_id == "row-3"
+        assert [row.row_order for row in payload.metadata.rows] == [3, 8]
+
+    def test_legacy_payload_without_row_id_still_parses(self):
+        payload = MagicTableLibrarySheetRowVerifiedPayload.model_validate(
+            {
+                "name": "rfp_agent",
+                "sheetName": "Library",
+                "action": "LibrarySheetRowVerified",
+                "chatId": "chat-1",
+                "assistantId": "assistant-1",
+                "tableId": "table-1",
+                "metadata": {"rowOrder": 3},
+            }
+        )
+
+        assert payload.metadata.row_order == 3
+        assert payload.metadata.row_id is None
+        assert payload.metadata.rows == []
+
+
+class TestRerunRowsMetadata:
+    """Test suite for RerunRowsMetadata model (bulk re-run of a row selection)."""
+
+    def test_rerun_rows_metadata_creation(self):
+        """Test RerunRowsMetadata creation with required fields."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1", "file-2"],
+            row_orders=[3, 5, 8],
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.source_file_ids == ["file-1", "file-2"]
+        assert metadata.row_orders == [3, 5, 8]
+        assert metadata.sheet_type == SheetType.DEFAULT
+        assert metadata.context == ""  # Default value
+
+    def test_rerun_rows_metadata_preserves_selection_order(self):
+        """Selection order is part of the contract: rows run in the order sent."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[9, 2, 7],
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.row_orders == [9, 2, 7]
+
+    def test_rerun_rows_metadata_dedupes_and_drops_non_positive_rows(self):
+        """Duplicates and non-positive rows (header row 0 / negatives) are dropped."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[4, 4, 0, -1, 4, 2],
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.row_orders == [4, 2]
+
+    def test_rerun_rows_metadata_accepts_empty_selection(self):
+        """An empty selection parses; the agent fails the run and releases the lock."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[],
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.row_orders == []
+
+    def test_rerun_rows_metadata_omitted_lists_default_to_empty(self):
+        """Missing sourceFileIds / rowOrders still parse so the agent can fail and unlock."""
+        metadata = RerunRowsMetadata(sheet_type=SheetType.DEFAULT)
+        assert metadata.source_file_ids == []
+        assert metadata.row_orders == []
+
+    def test_rerun_rows_metadata_null_lists_normalized(self):
+        """Null sourceFileIds / rowOrders become empty lists, same as omitted."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=None,
+            row_orders=None,
+            sheet_type=SheetType.DEFAULT,
+        )
+        assert metadata.source_file_ids == []
+        assert metadata.row_orders == []
+
+    def test_rerun_rows_metadata_context_none_normalized(self):
+        """Test that None context is normalized to empty string."""
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[1],
+            sheet_type=SheetType.DEFAULT,
+            context=None,
+        )
+        assert metadata.context == ""
+
+    def test_rerun_rows_metadata_with_additional_sheet_information(self):
+        """Test RerunRowsMetadata with inherited additional_sheet_information."""
+        additional_info = {"clientId": "123", "category": "DDQ"}
+        metadata = RerunRowsMetadata(
+            source_file_ids=["file-1"],
+            row_orders=[1, 2],
+            sheet_type=SheetType.DEFAULT,
+            additional_sheet_information=additional_info,
+        )
+        assert metadata.additional_sheet_information == additional_info
+
+    def test_rerun_rows_metadata_deserialization_from_json(self):
+        """Test RerunRowsMetadata deserialization from JSON with camelCase."""
+        json_data = """{
+            "sourceFileIds": ["file-abc", "file-xyz"],
+            "rowOrders": [7, 11],
+            "sheetType": "DEFAULT",
+            "context": "Rerun for correction"
+        }"""
+        metadata = RerunRowsMetadata.model_validate_json(json_data)
+        assert metadata.source_file_ids == ["file-abc", "file-xyz"]
+        assert metadata.row_orders == [7, 11]
+        assert metadata.sheet_type == SheetType.DEFAULT
+        assert metadata.context == "Rerun for correction"
+
+    def test_rerun_rows_metadata_json_drops_duplicates_and_non_positive(self):
+        """Wire camelCase lists are normalized the same way as constructor input."""
+        json_data = """{
+            "sourceFileIds": null,
+            "rowOrders": [4, 0, 4, -1, 2]
+        }"""
+        metadata = RerunRowsMetadata.model_validate_json(json_data)
+        assert metadata.source_file_ids == []
+        assert metadata.row_orders == [4, 2]
+
+
+class TestMagicTableRerunRowsPayload:
+    """Test suite for MagicTableRerunRowsPayload - the bulk sibling of
+    MagicTableRerunRowPayload, dispatched by the same action discriminator."""
+
+    def test_rerun_rows_payload_creation(self):
+        """Test MagicTableRerunRowsPayload creation."""
+        payload = MagicTableRerunRowsPayload(
+            name="rfp_agent",
+            sheet_name="Test Sheet",
+            action=MagicTableAction.RERUN_ROWS,
+            chat_id="chat-123",
+            assistant_id="asst-123",
+            table_id="table-123",
+            metadata=RerunRowsMetadata(
+                source_file_ids=["file-1", "file-2"],
+                row_orders=[5, 6],
+                sheet_type=SheetType.DEFAULT,
+                context="Rerun context",
+            ),
+        )
+        assert payload.name == "rfp_agent"
+        assert payload.action == MagicTableAction.RERUN_ROWS
+        assert payload.metadata.source_file_ids == ["file-1", "file-2"]
+        assert payload.metadata.row_orders == [5, 6]
+        assert payload.metadata.context == "Rerun context"
+
+    def test_rerun_rows_payload_serialization(self):
+        """Test payload serialization maintains structure."""
+        payload = MagicTableRerunRowsPayload(
+            name="rfp_agent",
+            sheet_name="Test Sheet",
+            action=MagicTableAction.RERUN_ROWS,
+            chat_id="chat-123",
+            assistant_id="asst-123",
+            table_id="table-123",
+            metadata=RerunRowsMetadata(
+                source_file_ids=["file-1"],
+                row_orders=[1, 2, 3],
+                sheet_type=SheetType.DEFAULT,
+            ),
+        )
+        serialized = payload.model_dump()
+        assert serialized["action"] == "RerunRows"
+        assert serialized["metadata"]["source_file_ids"] == ["file-1"]
+        assert serialized["metadata"]["row_orders"] == [1, 2, 3]
+
+    def test_rerun_rows_payload_deserialization_omits_optional_lists(self):
+        """User-triggered bulk rerun may omit sourceFileIds and send null rowOrders."""
+        json_data = """{
+            "name": "rfp_agent",
+            "sheetName": "Test Sheet",
+            "action": "RerunRows",
+            "chatId": "chat-456",
+            "assistantId": "asst-456",
+            "tableId": "table-456",
+            "metadata": {
+                "rowOrders": null,
+                "sheetType": "DEFAULT"
+            }
+        }"""
+        payload = MagicTableRerunRowsPayload.model_validate_json(json_data)
+        assert payload.metadata.source_file_ids == []
+        assert payload.metadata.row_orders == []
+
+    def test_rerun_rows_payload_deserialization_from_json(self):
+        """Test payload deserialization from JSON (simulating API request)."""
+        json_data = """{
+            "name": "rfp_agent",
+            "sheetName": "Test Sheet",
+            "action": "RerunRows",
+            "chatId": "chat-456",
+            "assistantId": "asst-456",
+            "tableId": "table-456",
+            "metadata": {
+                "sourceFileIds": ["file-a", "file-b"],
+                "rowOrders": [10, 12],
+                "sheetType": "DEFAULT",
+                "context": "Retry with new sources"
+            }
+        }"""
+        payload = MagicTableRerunRowsPayload.model_validate_json(json_data)
+        assert payload.name == "rfp_agent"
+        assert payload.action == MagicTableAction.RERUN_ROWS
+        assert payload.chat_id == "chat-456"
+        assert payload.metadata.source_file_ids == ["file-a", "file-b"]
+        assert payload.metadata.row_orders == [10, 12]
+        assert payload.metadata.context == "Retry with new sources"
+
+    def test_rerun_rows_action_enum_value(self):
+        """Test that RERUN_ROWS action is correctly recognized."""
+        assert MagicTableAction.RERUN_ROWS == "RerunRows"
+
+
+class TestRerunEventDiscrimination:
+    """The two rerun actions must route to distinct payload models, so that adding
+    the bulk variant cannot silently swallow a single-row event or vice versa."""
+
+    def _event_json(self, *, event: str, action: str, metadata: str) -> str:
+        return f"""{{
+            "id": "evt-1",
+            "event": "{event}",
+            "userId": "user-1",
+            "companyId": "company-1",
+            "payload": {{
+                "name": "rfp_agent",
+                "sheetName": "Test Sheet",
+                "action": "{action}",
+                "chatId": "chat-1",
+                "assistantId": "asst-1",
+                "tableId": "table-1",
+                "metadata": {metadata}
+            }}
+        }}"""
+
+    def test_rerun_rows_event_resolves_to_bulk_payload(self):
+        """A rerun-rows event parses into MagicTableRerunRowsPayload."""
+        event = MagicTableEvent.model_validate_json(
+            self._event_json(
+                event=MagicTableEventTypes.RERUN_ROWS,
+                action=MagicTableAction.RERUN_ROWS,
+                metadata='{"sourceFileIds": ["file-1"], "rowOrders": [2, 4]}',
+            )
+        )
+        assert event.event == MagicTableEventTypes.RERUN_ROWS
+        assert isinstance(event.payload, MagicTableRerunRowsPayload)
+        assert event.payload.metadata.row_orders == [2, 4]
+
+    def test_rerun_rows_event_parses_when_metadata_lists_are_omitted(self):
+        """A user-triggered bulk rerun with no source or row lists still parses."""
+        event = MagicTableEvent.model_validate_json(
+            self._event_json(
+                event=MagicTableEventTypes.RERUN_ROWS,
+                action=MagicTableAction.RERUN_ROWS,
+                metadata="{}",
+            )
+        )
+        assert isinstance(event.payload, MagicTableRerunRowsPayload)
+        assert event.payload.metadata.source_file_ids == []
+        assert event.payload.metadata.row_orders == []
+
+    def test_rerun_row_event_still_resolves_to_single_row_payload(self):
+        """The existing single-row event is unaffected by the new union member."""
+        event = MagicTableEvent.model_validate_json(
+            self._event_json(
+                event=MagicTableEventTypes.RERUN_ROW,
+                action=MagicTableAction.RERUN_ROW,
+                metadata='{"sourceFileIds": ["file-1"], "rowOrder": 2}',
+            )
+        )
+        assert isinstance(event.payload, MagicTableRerunRowPayload)
+        assert event.payload.metadata.row_order == 2
+
+    def test_rerun_rows_event_type_wire_value(self):
+        """Test that the bulk event name matches the platform contract."""
+        assert MagicTableEventTypes.RERUN_ROWS == "unique.magic-table.rerun-rows"
+
+
+def _minimal_sheet_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "sheetId": "sheet_123",
+        "name": "Test sheet",
+        "state": "IDLE",
+        "createdBy": "user_123",
+        "companyId": "company_123",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+    }
+    payload.update(overrides)
+    return payload
+
+
+class TestMagicTableSheetUserAbortedAt:
+    """Parse optional ``userAbortedAt`` from the public GET sheet payload (UN-25482)."""
+
+    @pytest.mark.ai
+    def test_magic_table_sheet__omits_user_aborted_at__when_payload_lacks_field(self):
+        """
+        Purpose: Sheets without userAbortedAt still validate.
+        Why this matters: Older backends and in-progress runs omit the field; requiring it would break existing agents.
+        Setup summary: Validate a legacy GET sheet payload and assert user_aborted_at is None.
+        """
+        sheet = MagicTableSheet.model_validate(_minimal_sheet_payload())
+        assert sheet.user_aborted_at is None
+
+    @pytest.mark.ai
+    def test_magic_table_sheet__keeps_user_aborted_at_none__when_payload_sends_null(
+        self,
+    ):
+        """
+        Purpose: Explicit null userAbortedAt maps to None.
+        Why this matters: Public GET sheet returns null when the run was not stopped; the agent must treat that as not aborted.
+        Setup summary: Validate a payload with userAbortedAt null and assert user_aborted_at is None.
+        """
+        sheet = MagicTableSheet.model_validate(
+            _minimal_sheet_payload(userAbortedAt=None)
+        )
+        assert sheet.user_aborted_at is None
+
+    @pytest.mark.ai
+    def test_magic_table_sheet__parses_user_aborted_at__from_iso_timestamp(self):
+        """
+        Purpose: A stop timestamp on the public sheet payload is available to the agent.
+        Why this matters: After stopMagicTableRefresh the sheet is IDLE, so the agent must poll userAbortedAt rather than STOPPED_BY_USER.
+        Setup summary: Validate a payload with an ISO userAbortedAt and assert the parsed UTC datetime.
+        """
+        sheet = MagicTableSheet.model_validate(
+            _minimal_sheet_payload(userAbortedAt="2026-09-07T12:00:00.000Z")
+        )
+        assert sheet.user_aborted_at == datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)

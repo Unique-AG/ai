@@ -9,6 +9,8 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import (
@@ -17,6 +19,19 @@ from unique_internal_search.service import (
     InternalSearchService,
     InternalSearchTool,
 )
+
+
+def _build_content_chunks(prefix: str, count: int) -> list[ContentChunk]:
+    """Build `count` distinct chunks, each from its own content, for `prefix`."""
+    return [
+        ContentChunk(
+            id=f"cont_{prefix}_{i}",
+            chunk_id=f"chunk_{prefix}_{i}",
+            text=f"{prefix} chunk {i}",
+            order=i,
+        )
+        for i in range(count)
+    ]
 
 
 class TestInternalSearchService:
@@ -921,7 +936,7 @@ class TestInternalSearchService:
         limit is lower than the configured limit.
         Why this matters: Observability — operators need to see when and how the limit was capped.
         Setup summary: Set language_model_max_input_tokens=50000, percentage=0.5 → max_tokens=25000,
-        token_based_limit = int(25000 // 500 * 1.3) = 65, config.limit=1000 → capped to 65.
+        token_based_limit = int(25000 // 500 * 1.3) = 65, config.limit=200 → capped to 65.
         """
         # Arrange
         base_internal_search_config.language_model_max_input_tokens = 50000
@@ -941,7 +956,9 @@ class TestInternalSearchService:
         # Assert
         assert result == 65
         mock_logger.info.assert_called_once_with(
-            f"Search limit capped from {original_limit} to 65 (token budget)"
+            "Search limit capped from %s to %s (token budget)",
+            original_limit,
+            65,
         )
 
     @pytest.mark.ai
@@ -977,7 +994,7 @@ class TestInternalSearchService:
         # Assert — min(50, 104) = 50
         assert result == 50
         mock_logger.info.assert_called_once_with(
-            "Search limit: 50 (within token budget)"
+            "Search limit: %s (within token budget)", 50
         )
 
     @pytest.mark.ai
@@ -1320,7 +1337,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_is_chat_only__returns_true__when_tool_call_chat_only_is_true(
+    async def test_is_chat_only__ignores_tool_call_chat_only__when_config_disables_it(
         self,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
@@ -1329,9 +1346,9 @@ class TestInternalSearchTool:
         mock_chunk_relevancy_sorter: Any,
     ) -> None:
         """
-        Purpose: Verify is_chat_only returns True when tool_call.arguments.chat_only is True.
-        Why this matters: Allows tool call to override configuration and force chat-only mode.
-        Setup summary: Create tool with chat_only=False, call is_chat_only with tool_call containing chat_only=True.
+        Purpose: Verify is_chat_only ignores tool_call.arguments.chat_only.
+        Why this matters: chat_only is not a declared tool argument; chat-only mode drops the space filter (UN-28688).
+        Setup summary: Create tool with chat_only=False, call is_chat_only with tool_call containing chat_only=True, assert False.
         """
         # Arrange
         base_internal_search_config.chat_only = False
@@ -1364,112 +1381,6 @@ class TestInternalSearchTool:
 
             tool_call = Mock()
             tool_call.arguments = {"chat_only": True}
-
-            # Act
-            result = await tool.is_chat_only(tool_call=tool_call)
-
-            # Assert
-            assert result is True
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_is_chat_only__returns_false__when_tool_call_chat_only_is_false(
-        self,
-        base_internal_search_config: InternalSearchConfig,
-        mock_chat_event: Any,
-        mock_logger: Any,
-        mock_content_service: ContentService,
-        mock_chunk_relevancy_sorter: Any,
-    ) -> None:
-        """
-        Purpose: Verify is_chat_only returns False when tool_call.arguments.chat_only is False.
-        Why this matters: Ensures tool call can explicitly disable chat-only mode.
-        Setup summary: Create tool, call is_chat_only with tool_call containing chat_only=False.
-        """
-        # Arrange
-        base_internal_search_config.chat_only = False
-        base_internal_search_config.scope_to_chat_on_upload = False
-
-        with (
-            patch(
-                "unique_internal_search.service.ContentService"
-            ) as mock_content_service_class,
-            patch(
-                "unique_internal_search.service.ChunkRelevancySorter"
-            ) as mock_sorter_class,
-        ):
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
-            mock_content_service.search_contents_async = AsyncMock(return_value=[])
-
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
-                setattr(self, "logger", mock_logger)
-                setattr(self, "_message_step_logger", None)
-
-            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-                tool = InternalSearchTool(
-                    configuration=base_internal_search_config,
-                    event=mock_chat_event,
-                )
-                setattr(tool, "_event", mock_chat_event)
-
-            tool_call = Mock()
-            tool_call.arguments = {"chat_only": False}
-
-            # Act
-            result = await tool.is_chat_only(tool_call=tool_call)
-
-            # Assert
-            assert result is False
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_is_chat_only__returns_false__when_tool_call_arguments_not_dict(
-        self,
-        base_internal_search_config: InternalSearchConfig,
-        mock_chat_event: Any,
-        mock_logger: Any,
-        mock_content_service: ContentService,
-        mock_chunk_relevancy_sorter: Any,
-    ) -> None:
-        """
-        Purpose: Verify is_chat_only handles non-dict tool_call.arguments gracefully.
-        Why this matters: Ensures robust handling of malformed tool call arguments.
-        Setup summary: Create tool, call is_chat_only with tool_call.arguments as non-dict.
-        """
-        # Arrange
-        base_internal_search_config.chat_only = False
-        base_internal_search_config.scope_to_chat_on_upload = False
-
-        with (
-            patch(
-                "unique_internal_search.service.ContentService"
-            ) as mock_content_service_class,
-            patch(
-                "unique_internal_search.service.ChunkRelevancySorter"
-            ) as mock_sorter_class,
-        ):
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
-            mock_content_service.search_contents_async = AsyncMock(return_value=[])
-
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
-                setattr(self, "logger", mock_logger)
-                setattr(self, "_message_step_logger", None)
-
-            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-                tool = InternalSearchTool(
-                    configuration=base_internal_search_config,
-                    event=mock_chat_event,
-                )
-                setattr(tool, "_event", mock_chat_event)
-
-            tool_call = Mock()
-            tool_call.arguments = "not a dict"
 
             # Act
             result = await tool.is_chat_only(tool_call=tool_call)
@@ -1646,7 +1557,6 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
             mock_feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 setattr(self, "_event", event)
@@ -1974,6 +1884,76 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__preserves_invocation_stats__when_run_raises(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify run() attaches already-collected invocation stats to its
+            own error response when _run() raises.
+        Why this matters: _run() has no top-level try/except of its own, so any
+            error after self.search() (which may already have spent relevancy-
+            sorting tokens) used to escape straight to SafeTaskExecutor, which
+            builds a fresh, stats-less error response one level up -- silently
+            dropping tokens already spent before the failure.
+        Setup summary: Mock _run() to record token usage into the active scope
+            then raise, and assert run()'s own error response still carries it.
+        """
+        from unique_internal_search.invocation_stats import collector
+
+        with (
+            patch(
+                "unique_internal_search.service.ContentService"
+            ) as mock_content_service_class,
+            patch(
+                "unique_internal_search.service.ChunkRelevancySorter"
+            ) as mock_sorter_class,
+        ):
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service._metadata_filter = None
+            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_sorter_class.from_event.return_value = Mock()
+
+            def setup_tool(self, configuration, event, *args, **kwargs):
+                setattr(self, "_event", event)
+                setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
+
+            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+                tool = InternalSearchTool(
+                    configuration=base_internal_search_config,
+                    event=mock_chat_event,
+                )
+
+            async def _run_records_usage_then_fails(*_args, **_kwargs):
+                collector.record_invocation_stats(
+                    [
+                        LanguageModelInvocationStats.from_usage(
+                            model_name="gpt-4",
+                            token_usage=LanguageModelTokenUsage(total_tokens=9),
+                            source="internal_search.relevancy",
+                        )
+                    ]
+                )
+                raise Exception("boom after relevancy sort")
+
+            tool._run = AsyncMock(side_effect=_run_records_usage_then_fails)
+
+            tool_call = Mock()
+            tool_call.id = "tool_call_123"
+
+            # Act
+            result = await tool.run(tool_call)
+
+            # Assert
+            assert result.error_message == "boom after relevancy sort"
+            assert len(result.invocation_stats) == 1
+            assert result.invocation_stats[0].source == "internal_search.relevancy"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__returns_error_response__when_search_string_missing(
         self,
         base_internal_search_config: InternalSearchConfig,
@@ -2091,7 +2071,6 @@ class TestInternalSearchTool:
             assert len(result.content_chunks) == 2
             assert result.id == "tool_call_123"
             mock_content_service.search_content_chunks_async.assert_called_once()
-            mock_tool_progress_reporter.notify_from_tool_call.assert_called()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2227,7 +2206,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__notifies_finished__when_search_completes(
+    async def test_run__does_not_notify_progress_reporter__when_search_completes(
         self,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
@@ -2237,9 +2216,9 @@ class TestInternalSearchTool:
         mock_tool_progress_reporter: Any,
     ) -> None:
         """
-        Purpose: Verify run notifies progress reporter with FINISHED state when search completes.
-        Why this matters: Ensures users receive completion notifications for search operations.
-        Setup summary: Mock dependencies, call run, verify FINISHED notification sent with correct message.
+        Purpose: Verify run never notifies the legacy progress reporter when the search completes.
+        Why this matters: Progress is reported via the message log now, not tool_progress_reporter.
+        Setup summary: Mock dependencies, call run, verify no notification was sent.
         """
         # Arrange
         with (
@@ -2284,24 +2263,16 @@ class TestInternalSearchTool:
                 )
 
                 # Act
-                await tool.run(mock_language_model_function)
+                result = await tool.run(mock_language_model_function)
 
-            # Assert
-            # Check that FINISHED notification was called
-            assert mock_tool_progress_reporter.notify_from_tool_call.call_count > 1
-            # Verify at least one call has FINISHED state
-            calls_with_finished = [
-                call
-                for call in mock_tool_progress_reporter.notify_from_tool_call.call_args_list
-                if len(call[1]) > 0
-                and ("state" in str(call[1]) or "FINISHED" in str(call))
-            ]
-            assert len(calls_with_finished) >= 1
+            # Assert - the search really ran to completion ...
+            mock_content_service.search_content_chunks_async.assert_called_once()
+            assert result.name == "InternalSearch"
+            assert result.content_chunks is not None
+            assert len(result.content_chunks) == 2
 
-            # The run method should call notify_from_tool_call multiple times, including with FINISHED
-            # Since we can't easily check the exact state value due to ProgressState enum,
-            # verify that multiple calls were made (at least one should be FINISHED)
-            assert mock_tool_progress_reporter.notify_from_tool_call.call_count >= 2
+            # ... and still nothing went to the legacy progress reporter
+            mock_tool_progress_reporter.notify_from_tool_call.assert_not_called()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2426,6 +2397,96 @@ class TestInternalSearchTool:
         assert mock_content_service.search_content_chunks_async.call_count == 3
         # Verify results are returned (deduplication may reduce final count)
         assert len(result) >= 0
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__truncates_chunks_to_limit__when_total_exceeds_limit(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify `limit` caps the number of chunks across all search strings together.
+        Why this matters: Without a total cap, N search strings return up to N * limit chunks.
+        Setup summary: limit=5, three search strings each returning 4 unique chunks (12 total),
+        expect 5 chunks back and a truncation log line.
+        """
+        # Arrange
+        base_internal_search_config.enable_multiple_search_strings_execution = True
+        base_internal_search_config.limit = 5
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        async def mock_search(*args, **kwargs) -> list[ContentChunk]:
+            query = kwargs["search_string"]
+            return _build_content_chunks(prefix=query, count=4)
+
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            side_effect=mock_search
+        )
+
+        # Act
+        result = await service.search(["query1", "query2", "query3"])
+
+        # Assert
+        assert len(result) == 5
+        mock_logger.info.assert_any_call(
+            "Truncating %s chunks to the configured total limit of %s", 12, 5
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__returns_all_chunks__when_total_below_limit(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify no truncation happens when the total chunk count stays under `limit`.
+        Why this matters: The total cap must be an upper bound only, never drop valid results.
+        Setup summary: limit=50, two search strings each returning 3 unique chunks (6 total),
+        expect all 6 chunks back and no truncation log line.
+        """
+        # Arrange
+        base_internal_search_config.enable_multiple_search_strings_execution = True
+        base_internal_search_config.limit = 50
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        async def mock_search(*args, **kwargs) -> list[ContentChunk]:
+            query = kwargs["search_string"]
+            return _build_content_chunks(prefix=query, count=3)
+
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            side_effect=mock_search
+        )
+
+        # Act
+        result = await service.search(["query1", "query2"])
+
+        # Assert
+        assert len(result) == 6
+        logged_messages = [call[0][0] for call in mock_logger.info.call_args_list]
+        assert (
+            "Truncating %s chunks to the configured total limit of %s"
+            not in logged_messages
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio

@@ -68,11 +68,18 @@ class Message(APIResource["Message"]):
             Literal["PROCESS", "PREFACE", "ELICITATION", "ANSWER"] | None
         ]
 
+    class MarkTurnSystemInterruptedParams(RequestOptions):
+        chatId: str
+
+    class StopParams(RequestOptions):
+        chatId: str
+
     class DeleteParams(RequestOptions):
         chatId: str
 
     class ListParams(RequestOptions):
         chatId: str
+        excludeGptRequest: NotRequired[bool]
 
     class RetrieveParams(RequestOptions):
         chatId: str
@@ -278,6 +285,102 @@ class Message(APIResource["Message"]):
                 company_id,
                 params,
             ),
+        )
+
+    @classmethod
+    def mark_turn_system_interrupted(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["Message.MarkTurnSystemInterruptedParams"],
+    ) -> "Message":
+        """
+        Marks the turn anchored on the given USER message as system-interrupted.
+
+        Persists ``turnInterruptionReason = SYSTEM_INTERRUPTED`` on the USER
+        message via a dedicated service-authenticated endpoint. The endpoint is
+        idempotent and never overwrites a user-initiated stop (``userAbortedAt``
+        wins if both race). The reason is fixed server-side semantics and is
+        intentionally not parameterizable.
+        """
+        url = "%s/%s/turn-interruption" % (cls.class_url(), quote_plus(id))
+        return cast(
+            "Message",
+            cls._static_request(
+                "post",
+                url,
+                user_id,
+                company_id,
+                {**params, "reason": "SYSTEM_INTERRUPTED"},
+            ),
+        )
+
+    @classmethod
+    async def mark_turn_system_interrupted_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["Message.MarkTurnSystemInterruptedParams"],
+    ) -> "Message":
+        """
+        Marks the turn anchored on the given USER message as system-interrupted.
+
+        Persists ``turnInterruptionReason = SYSTEM_INTERRUPTED`` on the USER
+        message via a dedicated service-authenticated endpoint. The endpoint is
+        idempotent and never overwrites a user-initiated stop (``userAbortedAt``
+        wins if both race). The reason is fixed server-side semantics and is
+        intentionally not parameterizable.
+        """
+        url = "%s/%s/turn-interruption" % (cls.class_url(), quote_plus(id))
+        return cast(
+            "Message",
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                {**params, "reason": "SYSTEM_INTERRUPTED"},
+            ),
+        )
+
+    @classmethod
+    def stop(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["Message.StopParams"],
+    ) -> "Message":
+        """
+        Stops the running assistant turn that the given message belongs to.
+
+        ``id`` may be the USER message that started the turn or one of its replies.
+        """
+        url = "%s/%s/stop" % (cls.class_url(), quote_plus(id))
+        return cast(
+            "Message",
+            cls._static_request("post", url, user_id, company_id, params),
+        )
+
+    @classmethod
+    async def stop_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+        **params: Unpack["Message.StopParams"],
+    ) -> "Message":
+        """
+        Stops the running assistant turn that the given message belongs to.
+
+        ``id`` may be the USER message that started the turn or one of its replies.
+        """
+        url = "%s/%s/stop" % (cls.class_url(), quote_plus(id))
+        return cast(
+            "Message",
+            await cls._static_request_async("post", url, user_id, company_id, params),
         )
 
     @classmethod

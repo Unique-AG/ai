@@ -1,6 +1,6 @@
 """Read command: retrieve all indexed text chunks for a known content ID.
 
-Calls ``Content.search(where={"id": {"equals": cont_id}})`` — a direct
+Calls ``Content.search(where={"id": {"equals": cont_id}})``, a direct
 Postgres lookup that returns every indexed chunk for the document in one
 request, no vector search involved.
 
@@ -11,16 +11,38 @@ For discovery or query-based retrieval use ``unique-cli search`` instead.
 Pass ``from_page``/``to_page`` to read only part of a long document by page
 range; chunks are filtered client-side on the ``startPage``/``endPage`` the
 platform already returns, so no ingestion changes are required.
+
+Each successful read appends one row to the per-turn manifest
+``<workspace>/.unique/read-refs.jsonl``. The Conduct runner reads it to
+show the generated-file check the documents the agent actually read::
+
+    {"contentId": "cont_...", "title": "clients.md", "fromPage": null,
+     "toPage": null, "chunkIds": ["chunk_...", ...]}
+
+``chunkIds`` lists only the chunks whose text reached the output, in
+output order, so a ``--max-chars`` cut is recorded as such. A read that
+returns no chunk text writes no row.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import unique_sdk
+from unique_sdk.cli.commands._citation_manifest import (
+    UnsafeRefsLogPathError,
+    _append_turn_refs_manifest_entry,
+    _locked_turn_refs_manifest,
+)
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 READ_ERROR_PREFIX = "read:"
+
+_READ_REFS_LOG_RELATIVE_PATH = Path(".unique") / "read-refs.jsonl"
+_READ_REFS_LOCK_FILENAME = "read-refs.lock"
+_BLOCK_SEPARATOR = "\n\n"
 
 
 def _chunk_in_page_range(
@@ -66,6 +88,7 @@ def cmd_read(
     from_page: int | None = None,
     to_page: int | None = None,
     max_chars: int | None = None,
+    refs_log_path: Path | None = None,
 ) -> str:
     """Return indexed text chunks for *cont_id* as plain text.
 
@@ -75,6 +98,8 @@ def cmd_read(
         from_page: First page to include (inclusive). ``None`` = open start.
         to_page: Last page to include (inclusive). ``None`` = open end.
         max_chars: Truncate the returned text to at most this many characters.
+        refs_log_path: Override the per-turn read manifest path, for tests.
+            Defaults to ``<workspace>/.unique/read-refs.jsonl``.
 
     Returns:
         A formatted string of chunks, or an error message prefixed with
@@ -141,38 +166,80 @@ def cmd_read(
                 "different range — read without a page range to see all text."
             )
 
-    lines: list[str] = [
-        f"Content: {title} ({cont_id}) — {len(sorted_chunks)} chunk(s)\n"
-    ]
+    header = f"Content: {title} ({cont_id}) — {len(sorted_chunks)} chunk(s)\n"
+    blocks: list[tuple[str, str, str]] = []
     for chunk in sorted_chunks:
         text = (chunk.get("text") or "").strip()
         if not text:
             continue
-        start = chunk.get("startPage")
-        end = chunk.get("endPage")
-        if start is not None or end is not None:
-            page_start = start if start is not None else end
-            page_end = end if end is not None else start
-            if page_start is not None and page_end is not None:
-                page_ref = (
-                    f"[p.{page_start}]"
-                    if page_start == page_end
-                    else f"[p.{page_start}-{page_end}]"
-                )
-                lines.append(f"{page_ref} {text}")
-            else:
-                lines.append(text)
-        else:
-            lines.append(text)
+        blocks.append((str(chunk.get("id") or ""), _render_chunk(chunk, text), text))
 
-    output = "\n\n".join(lines)
+    output = _BLOCK_SEPARATOR.join([header, *(block for _, block, _ in blocks)])
     if max_chars is not None and len(output) > max_chars:
         if from_page is not None or to_page is not None:
             hint = "narrow the page range or raise --max-chars to see more"
         else:
             hint = "use a page range (--page/--from-page/--to-page) or raise --max-chars to see more"
         output = f"{output[:max_chars]}\n... [truncated at {max_chars} chars; {hint}]"
+
+    shown_chunk_ids = _shown_chunk_ids(header, blocks, max_chars)
+    if shown_chunk_ids:
+        try:
+            _record_read(
+                refs_log_path or workspace_manifest_path(_READ_REFS_LOG_RELATIVE_PATH),
+                {
+                    "contentId": cont_id,
+                    "title": str(title),
+                    "fromPage": from_page,
+                    "toPage": to_page,
+                    "chunkIds": shown_chunk_ids,
+                },
+            )
+        except UnsafeRefsLogPathError as exc:
+            return f"{READ_ERROR_PREFIX} {exc}"
     return output
+
+
+def _render_chunk(chunk: dict[str, Any], text: str) -> str:
+    """Prefix *text* with the chunk's ``[p.N]`` / ``[p.N-M]`` page label."""
+    start = chunk.get("startPage")
+    end = chunk.get("endPage")
+    page_start = start if start is not None else end
+    page_end = end if end is not None else start
+    if page_start is None or page_end is None:
+        return text
+    page_ref = (
+        f"[p.{page_start}]"
+        if page_start == page_end
+        else f"[p.{page_start}-{page_end}]"
+    )
+    return f"{page_ref} {text}"
+
+
+def _shown_chunk_ids(
+    header: str,
+    blocks: list[tuple[str, str, str]],
+    max_chars: int | None,
+) -> list[str]:
+    """Ids of the chunks whose text, not just its page label, starts before the cut."""
+    shown: list[str] = []
+    offset = len(header) + len(_BLOCK_SEPARATOR)
+    for chunk_id, block, text in blocks:
+        text_start = offset + len(block) - len(text)
+        if max_chars is not None and text_start >= max_chars:
+            break
+        if chunk_id:
+            shown.append(chunk_id)
+        offset += len(block) + len(_BLOCK_SEPARATOR)
+    return shown
+
+
+def _record_read(refs_log_path: Path, row: dict[str, Any]) -> None:
+    """Append one read row under the manifest lock."""
+    with _locked_turn_refs_manifest(
+        refs_log_path, lock_filename=_READ_REFS_LOCK_FILENAME
+    ):
+        _append_turn_refs_manifest_entry(refs_log_path, row)
 
 
 def is_error_output(output: str) -> bool:

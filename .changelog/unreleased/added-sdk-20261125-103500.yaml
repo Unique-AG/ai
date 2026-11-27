@@ -1,0 +1,7 @@
+component: SDK
+kind: Added
+body: '`ShellState` accepts `workspace_dir` and reads `.unique-search.json` from that directory. Uploaded files, MCP tool config, and chat-file ids still follow the process workspace root.'
+time: 2026-11-25T10:35:00+01:00
+custom:
+  Audience: developer
+  Ticket: UN-29661

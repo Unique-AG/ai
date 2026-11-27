@@ -218,25 +218,78 @@ class TestConfigPassthrough:
         assert postprocessor._config is custom_code_display_config
 
     @pytest.mark.ai
-    def test_show_executed_code_postprocessor_receives_company_id(self):
-        """ShowExecutedCodePostprocessor must receive company_id for fence FF checks (UN-17972)."""
+    def test_show_executed_code_postprocessor_receives_fence_config(self):
+        """The enable_code_execution_fence config value must be threaded through.
+
+        The field lives on the code-display config. When fences are disabled
+        there, the legacy executed-code display must become active (given the
+        enable=True default), and the files postprocessor must keep fences off.
+        """
+        from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+            ShowExecutedCodePostprocessorConfig,
+        )
+
+        ci_config = CodeInterpreterExtendedConfig(
+            executed_code_display_config=ShowExecutedCodePostprocessorConfig(
+                enable_code_execution_fence=False
+            )
+        )
         mgr = _make_postprocessor_manager()
 
         _register_code_interpreter_postprocessors(
-            tools=[_make_code_interpreter_tool()],
+            tools=[_make_code_interpreter_tool(config=ci_config)],
             postprocessor_manager=mgr,
             client=MagicMock(),
             content_service=MagicMock(),
             user_id="u1",
-            company_id="company-fence",
+            company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
         )
 
-        postprocessor: ShowExecutedCodePostprocessor = (
+        show_code_pp: ShowExecutedCodePostprocessor = (
             mgr.add_postprocessor.call_args_list[0][0][0]
         )
-        assert postprocessor._company_id == "company-fence"
+        display_files_pp: DisplayCodeInterpreterFilesPostProcessor = (
+            mgr.add_postprocessor.call_args_list[1][0][0]
+        )
+        # Fence off → legacy code display is active; files postprocessor keeps fences off.
+        assert show_code_pp._is_enabled is True
+        assert display_files_pp._fence_enabled is False
+
+    @pytest.mark.ai
+    def test_display_files_postprocessor_receives_html_fence_config(self):
+        """The enable_html_with_fence config value must be threaded through.
+
+        The field lives on the code-display config, but only the files
+        postprocessor reads it (UN-17927).
+        """
+        from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+            ShowExecutedCodePostprocessorConfig,
+        )
+
+        ci_config = CodeInterpreterExtendedConfig(
+            executed_code_display_config=ShowExecutedCodePostprocessorConfig(
+                enable_html_with_fence=False
+            )
+        )
+        mgr = _make_postprocessor_manager()
+
+        _register_code_interpreter_postprocessors(
+            tools=[_make_code_interpreter_tool(config=ci_config)],
+            postprocessor_manager=mgr,
+            client=MagicMock(),
+            content_service=MagicMock(),
+            user_id="u1",
+            company_id="c1",
+            chat_id="ch1",
+            chat_service=MagicMock(),
+        )
+
+        display_files_pp: DisplayCodeInterpreterFilesPostProcessor = (
+            mgr.add_postprocessor.call_args_list[1][0][0]
+        )
+        assert display_files_pp._html_fence_enabled is False
 
     @pytest.mark.ai
     def test_display_files_postprocessor_receives_client_and_company_id(self):
@@ -261,9 +314,11 @@ class TestConfigPassthrough:
             mgr.add_postprocessor.call_args_list[1][0][0]
         )
         assert pp._client is client
-        assert pp._company_id == "company-99"
         # All three IDs were passed, so short-term memory manager is initialised
         assert pp._short_term_memory_manager is not None
+        # The postprocessor does not keep the company_id; it only scopes the memory.
+        memory_service = pp._short_term_memory_manager._short_term_memory_service
+        assert memory_service.company_id == "company-99"
 
 
 # ---------------------------------------------------------------------------

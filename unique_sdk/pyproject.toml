@@ -1,6 +1,6 @@
 [project]
 name = "unique_sdk"
-version = "2026.28.0"
+version = "2026.48.0"
 description = ""
 readme = "README.md"
 license = { text = "MIT" }
@@ -40,10 +40,12 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
-exclude-newer = "2 weeks"
+exclude-newer = "3 days"
 
 [dependency-groups]
-dev = []
+dev = [
+    "python-dotenv>=1.2.4",
+]
 
 [tool.deptry]
 known_first_party = ["unique_sdk"]
@@ -60,7 +62,8 @@ extend-select = ["I"]
 
 [tool.basedpyright]
 typeCheckingMode = "recommended"
-include = ["unique_sdk"]
+include = ["unique_sdk", "examples/basics"]
+extraPaths = ["examples/basics"]
 exclude = ["build", "**/__pycache__", "**/tests/**", "**/test_*.py"]
 allowedUntypedLibraries = ["openai.types.responses", "openai.types.shared_params"]
 # Suppress rules that require full annotation coverage of legacy internals —
@@ -82,7 +85,9 @@ reportUnusedParameter = "none"
 reportImportCycles = "none"
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --import-mode=importlib"
+# Exclude live API integration tests from the default suite (CI / poe test).
+# Run them explicitly with: uv run poe test-integration
+addopts = "--strict-markers --import-mode=importlib -m 'not integration'"
 asyncio_mode = "auto"
 markers = [
     "ai: AI-authored or AI-generated tests",
@@ -102,6 +107,7 @@ lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."
 test = "pytest"
+test-integration = "pytest tests/integration -m integration"
 typecheck = "basedpyright"
 depcheck = "deptry ."
 coverage = "pytest --cov=unique_sdk --cov-report=term-missing"

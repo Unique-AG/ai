@@ -69,13 +69,14 @@ def crawl_upstream_error(
     raw: Any | None = None,
     content_type: str | None = "text/markdown",
     code: str = ProxyErrorCode.UPSTREAM_ERROR.value,
+    status_code: int | None = None,
 ) -> CrawlUrlResult:
     """Build a per-URL crawl failure with optional upstream response attached."""
     return CrawlUrlResult(
         url=url,
         content=None,
         content_type=content_type,
-        error=PerUrlError(code=code, message=message),
+        error=PerUrlError(code=code, message=message, status_code=status_code),
         raw=raw,
     )
 
@@ -86,6 +87,16 @@ def crawl_forbidden_target(url: str, message: str) -> CrawlUrlResult:
         url,
         message,
         code=ProxyErrorCode.FORBIDDEN_TARGET.value,
+        content_type=None,
+    )
+
+
+def crawl_deadline_missed(url: str, message: str) -> CrawlUrlResult:
+    """Build a per-URL crawl failure for a URL that missed the request deadline."""
+    return crawl_upstream_error(
+        url,
+        message,
+        code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
         content_type=None,
     )
 

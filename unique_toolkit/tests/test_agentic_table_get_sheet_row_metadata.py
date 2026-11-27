@@ -1,6 +1,7 @@
 """Tests for ``AgenticTableService.get_sheet`` row metadata (UN-19885, SDK PR #1467)."""
 
-from unittest.mock import AsyncMock, patch
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -175,20 +176,47 @@ async def test_get_sheet_does_not_forward_include_row_metadata_when_disabled() -
 
 
 @pytest.mark.asyncio
-async def test_get_sheet_forwards_scope_to_assigned_rows_on_count_and_batch() -> None:
-    header = _minimal_sheet_header()
-    batch = {
-        **_minimal_sheet_header(),
-        "magicTableCells": [_cell(0, 0)],
-    }
+async def test_get_sheet_forwards_sparse_row_orders_without_range() -> None:
+    header = _minimal_sheet_header(row_count=10)
 
-    async def fake_get_sheet_data(
-        *_args: object,
-        **kwargs: object,
-    ) -> dict:
+    async def fake_get_sheet_data(*_args: object, **kwargs: object) -> dict:
         if kwargs.get("includeCells") is False:
             return header
-        return batch
+        row_orders = kwargs["rowOrders"]
+        assert isinstance(row_orders, list)
+        return {
+            **header,
+            "magicTableCells": [_cell(row, 0) for row in row_orders],
+        }
+
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        side_effect=fake_get_sheet_data,
+    ) as gsm:
+        sheet = await svc.get_sheet(row_orders=[1, 3, 7])
+
+    batch_kwargs = [
+        call.kwargs
+        for call in gsm.await_args_list
+        if call.kwargs.get("includeCells") is True
+    ]
+    assert len(batch_kwargs) == 1
+    assert batch_kwargs[0]["rowOrders"] == [1, 3, 7]
+    assert "startRow" not in batch_kwargs[0]
+    assert "endRow" not in batch_kwargs[0]
+    assert [cell.row_order for cell in sheet.magic_table_cells] == [1, 3, 7]
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_batches_and_deduplicates_sparse_row_orders() -> None:
+    header = _minimal_sheet_header(row_count=250)
+
+    async def fake_get_sheet_data(*_args: object, **kwargs: object) -> dict:
+        if kwargs.get("includeCells") is False:
+            return header
+        return {**header, "magicTableCells": []}
 
     svc = AgenticTableService("user-1", "company-1", "table-1")
     with patch(
@@ -197,18 +225,103 @@ async def test_get_sheet_forwards_scope_to_assigned_rows_on_count_and_batch() ->
         side_effect=fake_get_sheet_data,
     ) as gsm:
         await svc.get_sheet(
-            start_row=0,
-            end_row=1,
-            scope_to_assigned_rows=True,
+            row_orders=[-1, 0, *range(1, 151), 3],
+            batch_size=100,
         )
 
-    count_kwargs = [
-        c.kwargs for c in gsm.await_args_list if c.kwargs.get("includeRowCount")
+    batches = [
+        call.kwargs["rowOrders"]
+        for call in gsm.await_args_list
+        if call.kwargs.get("includeCells") is True
     ]
-    batch_kwargs = [
-        c.kwargs for c in gsm.await_args_list if c.kwargs.get("includeCells")
-    ]
-    assert len(count_kwargs) == 1
-    assert count_kwargs[0].get("scopeToAssignedRows") is True
-    assert len(batch_kwargs) == 1
-    assert batch_kwargs[0].get("scopeToAssignedRows") is True
+    assert batches == [list(range(1, 101)), list(range(101, 151))]
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_empty_row_orders_returns_header_only_sheet() -> None:
+    header = _minimal_sheet_header(row_count=10)
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        return_value=header,
+    ) as gsm:
+        sheet = await svc.get_sheet(row_orders=[])
+
+    gsm.assert_awaited_once()
+    assert gsm.await_args.kwargs["includeCells"] is False
+    assert sheet.magic_table_cells == []
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_filters_and_logs_unexpected_sparse_rows() -> None:
+    header = _minimal_sheet_header(row_count=10)
+
+    async def fake_get_sheet_data(*_args: object, **kwargs: object) -> dict:
+        if kwargs.get("includeCells") is False:
+            return header
+        return {
+            **header,
+            "magicTableCells": [_cell(0, 0), _cell(5, 0), _cell(6, 0)],
+        }
+
+    logger = Mock()
+    svc = AgenticTableService(
+        "user-1",
+        "company-1",
+        "table-1",
+        logger=logger,
+    )
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        side_effect=fake_get_sheet_data,
+    ):
+        sheet = await svc.get_sheet(row_orders=[5, 7])
+
+    assert [cell.row_order for cell in sheet.magic_table_cells] == [5]
+    logger.warning.assert_called_once()
+    warning_args = logger.warning.call_args.args
+    assert warning_args[1:] == ([5, 7], [0, 6], [7])
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_rejects_sparse_rows_mixed_with_range() -> None:
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+    ) as gsm:
+        with pytest.raises(
+            ValueError,
+            match="row_orders cannot be combined with start_row or end_row",
+        ):
+            await svc.get_sheet(start_row=1, row_orders=[1, 3])
+
+    gsm.assert_not_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_sheet__exposes_user_aborted_at__when_api_returns_timestamp() -> None:
+    """
+    Purpose: get_sheet surfaces userAbortedAt from the public GET sheet payload.
+    Why this matters: After a user stop the sheet state is IDLE; the agent polls this field to exit the refresh.
+    Setup summary: Mock get_sheet_data with userAbortedAt set and assert MagicTableSheet.user_aborted_at is populated.
+    """
+    header = {
+        **_minimal_sheet_header(row_count=0),
+        "userAbortedAt": "2026-09-07T12:00:00.000Z",
+    }
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        return_value=header,
+    ):
+        sheet = await svc.get_sheet(row_orders=[])
+
+    assert sheet.user_aborted_at == datetime(2026, 9, 7, 12, 0, tzinfo=timezone.utc)

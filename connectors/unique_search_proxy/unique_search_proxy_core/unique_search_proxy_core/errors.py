@@ -70,6 +70,7 @@ class ForbiddenTargetError(ProxyError):
 class RateLimitedError(ProxyError):
     code = ProxyErrorCode.RATE_LIMITED
     status_code = 429
+    retryable = True
 
     def __init__(
         self,
@@ -78,7 +79,7 @@ class RateLimitedError(ProxyError):
         retry_after_seconds: int | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(message, retryable=True, **kwargs)
+        super().__init__(message, **kwargs)
         self.retry_after_seconds = retry_after_seconds
 
 
@@ -132,3 +133,15 @@ class EmptySearchResultsError(ProxyError):
     code = ProxyErrorCode.EMPTY_SEARCH_RESULTS
     status_code = 404
     retryable = False
+
+
+class ResponseTooLargeError(ProxyError):
+    """An upstream response body exceeded the configured byte limit."""
+
+    code = ProxyErrorCode.RESPONSE_TOO_LARGE
+    status_code = 502
+    retryable = False
+
+    @classmethod
+    def for_limit(cls, max_bytes: int) -> ResponseTooLargeError:
+        return cls(f"Upstream response exceeded the {max_bytes} byte limit")

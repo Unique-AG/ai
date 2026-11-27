@@ -6,10 +6,12 @@ from typing import (
     TypedDict,
     cast,
 )
+from urllib.parse import quote
 
 from typing_extensions import Unpack
 
 from unique_sdk._api_resource import APIResource
+from unique_sdk._error import InvalidRequestError
 from unique_sdk._request_options import RequestOptions
 
 
@@ -49,7 +51,13 @@ class CellRendererTypes(StrEnum):
 
 
 class MagicTableAction(StrEnum):
-    """Workflow action strings for `POST /magic-table/{tableId}/activity` (matches `MagicTableAgenticWorkflowAction`)."""
+    """Workflow action strings for `POST /magic-table/{tableId}/activity` (matches `MagicTableAgenticWorkflowAction`).
+
+    Also used as the webhook payload ``action`` discriminator. Adding a member is
+    additive: existing events and activity calls are unchanged until a caller
+    sends the new value. ``RERUN_ROWS`` is webhook-only until the backend
+    workflow-action enum includes it; do not pass it to ``set_activity`` yet.
+    """
 
     DELETE_ROW = "DeleteRow"
     DELETE_COLUMN = "DeleteColumn"
@@ -63,6 +71,7 @@ class MagicTableAction(StrEnum):
     SHEET_CREATED = "SheetCreated"
     GENERATE_OVERVIEW = "GenerateOverview"
     RERUN_ROW = "RerunRow"
+    RERUN_ROWS = "RerunRows"
 
 
 class ActivityStatus(StrEnum):
@@ -137,6 +146,7 @@ class _AgenticTableCellRequired(TypedDict):
 
 class AgenticTableCell(_AgenticTableCellRequired, total=False):
     sheetId: str
+    rowId: str
     rowLocked: bool
     logEntries: list[LogEntry] | None
     metaData: AgenticTableCellMetaData
@@ -155,8 +165,14 @@ class MagicTableActivityResponse(TypedDict):
 
 
 class MagicTableActionResult(TypedDict, total=False):
-    """Generic `{status, message?}` response from lifecycle mutations (import, generate-artifact, sheet metadata writes)."""
+    """Action response from a magic-table lifecycle mutation.
 
+    ``object`` is ``magic-table-action``. ``id`` is the sheet the action was
+    performed on. ``message`` is set when the API sent one.
+    """
+
+    object: Literal["magic-table-action"]
+    id: str
     status: bool
     message: str | None
 
@@ -216,6 +232,7 @@ class AgenticTableSheet(_AgenticTableSheetRequired, total=False):
     magicTableRowCount: int
     magicTableCells: list[AgenticTableCell]
     magicTableSheetMetadata: list[MagicTableMetadataEntry]
+    userAbortedAt: str | None
 
 
 class AgenticTable(APIResource["AgenticTable"]):
@@ -276,9 +293,9 @@ class AgenticTable(APIResource["AgenticTable"]):
         includeCellMetaData: NotRequired[bool]
         includeSheetMetadata: NotRequired[bool]
         includeRowMetadata: NotRequired[bool]
-        scopeToAssignedRows: NotRequired[bool]
         startRow: NotRequired[int]
         endRow: NotRequired[int]
+        rowOrders: NotRequired[list[int]]
 
     class SetCellMetadata(RequestOptions):
         tableId: str
@@ -293,6 +310,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         rowOrders: list[int]
         status: RowVerificationStatus
         locked: NotRequired[bool]
+        emitLibrarySheetVerifiedEvent: NotRequired[bool]
 
     class CreateSheet(RequestOptions):
         """Body for `POST /magic-table` (create a new sheet in a space)."""
@@ -326,6 +344,30 @@ class AgenticTable(APIResource["AgenticTable"]):
 
         tableId: str
         entries: list[MagicTableMetadataEntry]
+
+    class CreateRowMetadata(RequestOptions):
+        """Body for `POST /magic-table/{tableId}/row/{rowId}/metadata` (create row metadata entries).
+
+        The row is addressed by its ``MagicTableRow`` id (not row order); resolve
+        the id from a cell first (``get_cell`` returns it as ``rowId``).
+        """
+
+        tableId: str
+        rowId: str
+        entries: list[MagicTableMetadataEntry]
+
+    class UpdateRowMetadata(RequestOptions):
+        """Body for `POST /magic-table/{tableId}/row/metadata/{metadataId}` (update one row metadata entry).
+
+        The entry is addressed by its own id (``id`` on a ``rowMetadata`` entry),
+        not by row or key.
+        """
+
+        tableId: str
+        metadataId: str
+        key: str
+        value: str
+        exactFilter: NotRequired[bool]
 
     @classmethod
     async def set_cell(
@@ -484,10 +526,19 @@ class AgenticTable(APIResource["AgenticTable"]):
         company_id: str,
         tableId: str,
         cells: list[AgenticTableCell],
+        overwriteLibraryRows: bool | None = None,
     ) -> ColumnMetadataUpdateStatus:
+        """Upsert cells (`POST /magic-table/{tableId}/cells/bulk-upsert`).
+
+        ``overwriteLibraryRows=True`` asks the server to apply updates to existing
+        cells on library-sheet rows, which it otherwise drops for assistant
+        writes. The server only honors it on library sheets, for rows where the
+        caller can read every sheet named in the row's ``sourceSheetId`` metadata.
+        ``None`` omits the field; servers that predate it reject it with a 400.
+        """
         url = f"/magic-table/{tableId}/cells/bulk-upsert"
         try:
-            params_api = {
+            params_api: dict[str, Any] = {
                 "cells": [
                     {
                         "rowOrder": cell["rowOrder"],
@@ -499,6 +550,8 @@ class AgenticTable(APIResource["AgenticTable"]):
             }
         except Exception as e:
             raise ValueError(f"Invalid data or missing required fields: {e}")
+        if overwriteLibraryRows is not None:
+            params_api["overwriteLibraryRows"] = overwriteLibraryRows
         return cast(
             "ColumnMetadataUpdateStatus",
             await cls._static_request_async(
@@ -601,6 +654,38 @@ class AgenticTable(APIResource["AgenticTable"]):
         )
 
     @classmethod
+    async def rerun_row(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        rowOrder: int,
+    ) -> MagicTableActionResult:
+        """Re-run the agent for a single row (`POST /magic-table/{tableId}/row/{rowOrder}/rerun`).
+
+        The only way to re-answer part of a sheet: importing questions is
+        delta-based, so it will not re-answer a row that already exists.
+
+        Asynchronous, like the whole-sheet run — the sheet enters ``PROCESSING``
+        and this returns once the trigger is accepted.
+
+        ``rowOrder`` is the sheet's own row numbering, the same one ``get_cell``
+        takes: row 0 is the header, so answerable rows start at 1 and row 0 is
+        rejected by the API.
+        """
+        url = f"/magic-table/{tableId}/row/{rowOrder}/rerun"
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                {},
+            ),
+        )
+
+    @classmethod
     async def list_artifacts(
         cls,
         user_id: str,
@@ -642,6 +727,126 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+            ),
+        )
+
+    @classmethod
+    async def create_row_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.CreateRowMetadata"],
+    ) -> MagicTableActionResult:
+        """Bulk-create row metadata entries (`POST /magic-table/{tableId}/row/{rowId}/metadata`)."""
+        url = f"/magic-table/{params['tableId']}/row/{params['rowId']}/metadata"
+        params.pop("tableId")
+        params.pop("rowId")
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def update_row_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AgenticTable.UpdateRowMetadata"],
+    ) -> MagicTableActionResult:
+        """Update one row metadata entry (`POST /magic-table/{tableId}/row/metadata/{metadataId}`)."""
+        url = f"/magic-table/{params['tableId']}/row/metadata/{params['metadataId']}"
+        params.pop("tableId")
+        params.pop("metadataId")
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "post",
+                url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def delete_row(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        rowId: str,
+    ) -> MagicTableActionResult:
+        """Permanently delete one content row by id.
+
+        Calls ``DELETE /magic-table/{tableId}/row/{rowId}``. ``rowId`` is the
+        id on a cell from ``get_sheet_data(..., includeCells=True)`` or
+        ``get_cell``, not the row order.
+        The header row, a locked row, and a row in a final review status are
+        rejected. A caller who is not a member of the sheet is rejected. A
+        row on a completed sheet can be deleted; the sheet status is then
+        recomputed. A missing sheet or row is not found.
+
+        Args:
+            user_id (str): Caller user id.
+            company_id (str): Caller company id.
+            tableId (str): Agentic Table sheet id.
+            rowId (str): Row id (``mt_row_...``), not the row order.
+
+        Returns:
+            MagicTableActionResult: ``object`` is ``magic-table-action``,
+            ``id`` is the sheet id, ``status`` says whether the delete was
+            accepted, and ``message`` is optional.
+
+        Raises:
+            InvalidRequestError: When ``rowId`` is ``.`` or ``..``. Those
+                segments are resolved by the HTTP client and would not address
+                the row.
+            UniqueError: On HTTP failure, including 400 for a rejected row and
+                404 when the sheet or row does not exist.
+        """
+        # Quote both segments. A raw slash in rowId would select
+        # DELETE /magic-table/{tableId}/row/metadata/{metadataId}.
+        # "." and ".." are not encoded by quote, and the HTTP client resolves
+        # them, so "." becomes DELETE .../row and ".." becomes DELETE .../{tableId}.
+        if rowId in {".", ".."}:
+            raise InvalidRequestError(
+                "rowId must be a row id, not '.' or '..'",
+                "rowId",
+            )
+        url = f"/magic-table/{quote(tableId, safe='')}/row/{quote(rowId, safe='')}"
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "delete",
+                url,
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def delete_row_metadata(
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        metadataId: str,
+    ) -> MagicTableActionResult:
+        """Delete one row metadata entry (`DELETE /magic-table/{tableId}/row/metadata/{metadataId}`)."""
+        url = f"/magic-table/{tableId}/row/metadata/{metadataId}"
+        return cast(
+            MagicTableActionResult,
+            await cls._static_request_async(
+                "delete",
+                url,
+                user_id,
+                company_id,
             ),
         )
 

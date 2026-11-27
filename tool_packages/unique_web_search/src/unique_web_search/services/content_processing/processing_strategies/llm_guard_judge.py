@@ -6,6 +6,7 @@ from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.invocation_stats import collector
 from unique_web_search.services.content_processing.processing_strategies.base import (
     ProcessingStrategyKwargs,
     WebSearchResult,
@@ -156,13 +157,9 @@ class LLMGuardJudge:
             needs_sanitization, _ = await self.judge_only(**kwargs)
             page = kwargs["page"]
             if not needs_sanitization:
-                _LOGGER.info(
-                    f"Page {page.url} does not require sanitization — keeping as-is"
-                )
+                _LOGGER.info("Page does not require sanitization — keeping as-is")
                 return page
-            _LOGGER.info(
-                f"Page {page.url} flagged — replacing content with flag message"
-            )
+            _LOGGER.info("Page flagged — replacing content with flag message")
             return page.model_copy(
                 update={
                     "content": "",
@@ -177,13 +174,9 @@ class LLMGuardJudge:
         if mode == SanitizeMode.JUDGE_THEN_SANITIZE:
             needs_sanitization, _ = await self.judge_only(**kwargs)
             if not needs_sanitization:
-                _LOGGER.info(
-                    f"Page {kwargs['page'].url} does not require sanitization — keeping as-is"
-                )
+                _LOGGER.info("Page does not require sanitization — keeping as-is")
                 return kwargs["page"]
-            _LOGGER.info(
-                f"Page {kwargs['page'].url} flagged — running full sanitize call"
-            )
+            _LOGGER.info("Page flagged — running full sanitize call")
             return await self.sanitize_page(**kwargs)
 
         raise ValueError(f"Unknown sanitize_mode: {mode}")
@@ -237,9 +230,7 @@ class LLMGuardJudge:
 
         parsed = await self._complete(JudgeResponse, system_prompt, user_prompt)
 
-        _LOGGER.info(
-            f"Judge result for {page.url}: needs_sanitization={parsed.needs_sanitization}"
-        )
+        _LOGGER.info(f"Judge result: needs_sanitization={parsed.needs_sanitization}")
 
         return parsed.needs_sanitization, page
 
@@ -271,9 +262,7 @@ class LLMGuardJudge:
             JudgeAndSanitizeResponse, system_prompt, user_prompt
         )
 
-        _LOGGER.info(
-            f"Judge result for {page.url}: needs_sanitization={parsed.needs_sanitization}"
-        )
+        _LOGGER.info(f"Judge result: needs_sanitization={parsed.needs_sanitization}")
 
         if parsed.needs_sanitization:
             page = parsed.apply_to_page(page, self._config.privacy_filter.flag_message)
@@ -308,6 +297,18 @@ class LLMGuardJudge:
             model_name=self._config.language_model.name,
             structured_output_model=response_model,
             structured_output_enforce_schema=True,
+        )
+        source_by_response_model = {
+            LLMGuardResponse: "web_search.content_processing.guard_sanitize",
+            JudgeResponse: "web_search.content_processing.guard_judge",
+            JudgeAndSanitizeResponse: (
+                "web_search.content_processing.guard_judge_and_sanitize"
+            ),
+        }
+        collector.record_language_model_response(
+            model_name=self._config.language_model.name,
+            response=response,
+            source=source_by_response_model[response_model],
         )
 
         if response.choices[0].message.parsed is None:

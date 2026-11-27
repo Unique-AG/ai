@@ -158,8 +158,17 @@ class AskUserTool(Tool[AskUserToolConfig]):
 
         _LOGGER.info("User responded to elicitation request")
 
+        # Decide on the schema, not the payload: a form with optional fields left
+        # blank also comes back empty, and that is an answer ("{}"), not consent.
+        if not params.response_schema.get("properties"):
+            return ToolCallResponse(
+                id=tool_call.id,
+                name=self.name,
+                content=self.config.accepted_message,
+            )
+
         return ToolCallResponse(
             id=tool_call.id,
             name=self.name,
-            content=json.dumps(elicitation.response_content, ensure_ascii=False),
+            content=json.dumps(elicitation.response_content or {}, ensure_ascii=False),
         )

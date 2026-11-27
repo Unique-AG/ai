@@ -9,6 +9,23 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.agentic_table import (
+    cmd_cell_history,
+    cmd_get_cell,
+    cmd_get_sheet,
+    cmd_list_exports,
+)
+from unique_sdk.cli.commands.agentic_table import (
+    is_error_output as _is_agentic_table_error_output,
+)
+from unique_sdk.cli.commands.agentic_table_write import (
+    cmd_create_sheet,
+    cmd_delete_row,
+    cmd_export,
+    cmd_import,
+    cmd_rerun_row,
+    cmd_set_cell,
+)
 from unique_sdk.cli.commands.browser import (
     cmd_browser_action,
     cmd_browser_control,
@@ -21,11 +38,6 @@ from unique_sdk.cli.commands.browser import (
 from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.cite_file import (
     is_error_output as _is_cite_error_output,
-)
-from unique_sdk.cli.commands.dynamic_frontend import (
-    cmd_dynamic_frontend_delete,
-    cmd_dynamic_frontend_deploy,
-    cmd_dynamic_frontend_list,
 )
 from unique_sdk.cli.commands.elicitation import (
     DEFAULT_WAIT_TIMEOUT_SECONDS,
@@ -47,22 +59,45 @@ from unique_sdk.cli.commands.files import (
 from unique_sdk.cli.commands.files import (
     is_permission_denied_output as _is_permission_denied_output,
 )
+from unique_sdk.cli.commands.files import (
+    is_upload_error_output as _is_upload_error_output,
+)
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.folders import (
+    is_mkdir_error_output as _is_mkdir_error_output,
+)
 from unique_sdk.cli.commands.mcp import cmd_mcp
-from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.mcp import (
+    is_error_output as _is_mcp_error_output,
+)
+from unique_sdk.cli.commands.navigation import (
+    LS_DEFAULT_LIMIT,
+    LS_MAX_LIMIT,
+    cmd_cd,
+    cmd_ls,
+    cmd_pwd,
+)
+from unique_sdk.cli.commands.navigation import (
+    is_ls_error_output as _is_ls_error_output,
+)
 from unique_sdk.cli.commands.read import cmd_read
 from unique_sdk.cli.commands.read import (
     is_error_output as _is_read_error_output,
 )
 from unique_sdk.cli.commands.scheduled_tasks import (
+    SCHEDULE_ERROR_PREFIX,
     cmd_schedule_create,
     cmd_schedule_delete,
     cmd_schedule_get,
     cmd_schedule_list,
     cmd_schedule_update,
 )
+from unique_sdk.cli.commands.scheduled_tasks import (
+    is_error_output as _is_schedule_error_output,
+)
 from unique_sdk.cli.commands.search import (
     cmd_search,
+    cmd_search_many,
     cmd_uploaded_search,
 )
 from unique_sdk.cli.commands.search import (
@@ -76,19 +111,24 @@ from unique_sdk.cli.commands.subagent import (
     is_error_output as _is_subagent_error_output,
 )
 from unique_sdk.cli.commands.web_search import (
+    QUERY_REVIEW_WAIT_TIMEOUT_SECONDS,
     cmd_web_crawl,
     cmd_web_search,
+    cmd_web_search_many,
+    cmd_web_search_resume,
 )
 from unique_sdk.cli.commands.web_search import (
     is_error_output as _is_web_search_error_output,
 )
 from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
 from unique_sdk.cli.config import load_config
-from unique_sdk.cli.identity import TurnIdentityError, resolve_message_id
+from unique_sdk.cli.identity import (
+    TurnIdentityError,
+    resolve_chat_id,
+    resolve_message_id,
+)
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
-
-_DYNAMIC_FRONTEND_ERROR_PREFIX = "dynamic-frontend "
 
 
 def _resolve_cli_message_id(
@@ -110,6 +150,33 @@ def _resolve_cli_message_id(
         click.echo(
             "Error: message id is required. Pass --message-id, or set "
             "UNIQUE_TURN_IDENTITY_FILE / UNIQUE_MESSAGE_ID.",
+            err=True,
+        )
+        ctx.exit(2)
+    return resolved
+
+
+def _resolve_cli_chat_id(
+    ctx: click.Context,
+    explicit: str | None,
+    *,
+    required: bool = False,
+) -> str | None:
+    """Resolve chat id for Click commands; exit on turn-identity errors.
+
+    Preboot-placeholder ids (``chat_preboot*``) are re-resolved through the
+    turn-identity file so adopted preboot clients never send a chat id the
+    platform will reject as nonexistent.
+    """
+    try:
+        resolved = resolve_chat_id(explicit)
+    except TurnIdentityError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        ctx.exit(2)
+    if required and not resolved:
+        click.echo(
+            "Error: chat id is required. Pass --chat-id, or set "
+            "UNIQUE_TURN_IDENTITY_FILE / UNIQUE_CHAT_ID.",
             err=True,
         )
         ctx.exit(2)
@@ -165,8 +232,8 @@ Examples:
   unique-cli subagent Legal "Review" Invoke a connected space/subagent
   unique-cli web-search search "x"  Search the web via the public API
   unique-cli web-search crawl URL   Crawl a URL via the public API
-  unique-cli dynamic-frontend list  List manageable Dynamic Frontend spaces
   unique-cli browser get-dom        Read the user's live Chrome tab (a11y tree)
+  unique-cli agentic-table get-sheet mt_abc123  Show a magic-table sheet summary
 """
 
 
@@ -252,13 +319,44 @@ def cd(ctx: click.Context, target: str) -> None:
 
 @main.command()
 @click.argument("target", required=False, default=None)
+@click.option(
+    "--limit",
+    "-l",
+    type=int,
+    default=LS_DEFAULT_LIMIT,
+    show_default=True,
+    help=f"Max folders and max files to show (1-{LS_MAX_LIMIT}).",
+)
+@click.option(
+    "--skip",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Skip this many folders and files first (for paging).",
+)
+@click.option(
+    "--all",
+    "-a",
+    "all_items",
+    is_flag=True,
+    help=f"Show up to {LS_MAX_LIMIT} folders and {LS_MAX_LIMIT} files.",
+)
 @click.pass_context
-def ls(ctx: click.Context, target: str | None) -> None:
+def ls(
+    ctx: click.Context,
+    target: str | None,
+    limit: int,
+    skip: int,
+    all_items: bool,
+) -> None:
     """List folders and files in a directory.
 
     \b
     Without TARGET, lists the current directory. With TARGET, lists
     the specified folder (by name, absolute path, or scope ID).
+    Shows 50 folders and 50 files by default. When a folder holds more,
+    the output says "showing ... of N" and prints the command for the
+    rest: use --skip to page, --limit to show more, or --all.
 
     \b
     Output columns: TYPE  NAME  ID  SIZE  UPDATED
@@ -270,28 +368,34 @@ def ls(ctx: click.Context, target: str | None) -> None:
       unique-cli ls              List root folders
       unique-cli ls /Reports     List a specific path
       unique-cli ls scope_abc    List by scope ID
+      unique-cli ls /Reports --skip 50    Next page of a large folder
+      unique-cli ls /Reports --all        Up to 1000 folders and files
     """
-    output = cmd_ls(LazyState.get(ctx), target)
-    emit(output)
+    output = cmd_ls(
+        LazyState.get(ctx), target, skip=skip, limit=limit, all_items=all_items
+    )
+    emit(output, is_error=_is_ls_error_output)
 
 
 @main.command()
 @click.argument("name")
 @click.pass_context
 def mkdir(ctx: click.Context, name: str) -> None:
-    """Create a new folder under the current directory.
+    """Create a folder by relative name or absolute path.
 
     \b
-    NAME is the folder name to create. Nested paths are supported
-    (e.g., "A/B/C" creates the full hierarchy).
+    A relative NAME is created under the current directory. An absolute
+    path (starting with /) is created from the root, including under
+    /home-<userId>. Nested paths create the full hierarchy.
 
     \b
     Examples:
       unique-cli mkdir Q2
       unique-cli mkdir "2025/Q1"
+      unique-cli mkdir /home-user_1/second-brain/clients/X
     """
     output = cmd_mkdir(LazyState.get(ctx), name)
-    emit(output)
+    emit(output, is_error=_is_mkdir_error_output)
 
 
 @main.command()
@@ -371,7 +475,7 @@ def upload(ctx: click.Context, local_path: str, destination: str | None) -> None
       unique-cli upload ./report.pdf /Archive/2025/
     """
     output = cmd_upload(LazyState.get(ctx), local_path, destination)
-    emit(output)
+    emit(output, is_error=_is_upload_error_output)
 
 
 @main.command()
@@ -445,7 +549,7 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
 
 
 @main.command(name="cite")
-@click.argument("name_or_id")
+@click.argument("names_or_ids", nargs=-1, required=True)
 @click.option(
     "--pages",
     "-p",
@@ -469,19 +573,22 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
 @click.pass_context
 def cite(
     ctx: click.Context,
-    name_or_id: str,
+    names_or_ids: tuple[str, ...],
     pages: str | None,
     read_method: str,
 ) -> None:
-    """Declare page citations for a file.
+    """Declare page citations for one or more files.
 
     \b
     Registers [filesourceN] markers for pages you referenced in your answer.
     Does NOT read or extract the file — use your own tools for that.
-    NAME_OR_ID can be a file path, current-directory file name, or content ID.
+    Each NAME_OR_ID can be a file path, current-directory file name, or
+    content ID. Pass several to cite them in one call.
     --read-method is mandatory: it records how you read the page(s).
     --pages is optional; omit it to cite the whole file (e.g. non-paginated
-    formats).
+    formats). With several files, --pages and --read-method apply to each.
+    A file that fails does not stop the others; the exit code is non-zero
+    when any file failed.
 
     \b
     Examples:
@@ -489,9 +596,19 @@ def cite(
       unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
       unique-cli cite cont_abc123 --pages 1-4 --read-method indexed
       unique-cli cite notes.docx --read-method text
+      unique-cli cite a.xlsx b.xlsx c.csv --read-method text
     """
-    output = cmd_cite_file(LazyState.get(ctx), name_or_id, pages, read_method)
-    emit(output, is_error=_is_cite_error_output)
+    state = LazyState.get(ctx)
+    any_failed = False
+    for name_or_id in names_or_ids:
+        output = cmd_cite_file(state, name_or_id, pages, read_method)
+        if _is_cite_error_output(output):
+            any_failed = True
+            click.echo(output, err=True)
+        else:
+            click.echo(output)
+    if any_failed:
+        raise SystemExit(1)
 
 
 @main.command(name="read")
@@ -572,101 +689,6 @@ def read_cmd(
     emit(output, is_error=_is_read_error_output)
 
 
-@main.group(name="dynamic-frontend")
-def dynamic_frontend() -> None:
-    """Deploy, list, and delete Dynamic Frontend spaces."""
-
-
-@dynamic_frontend.command(name="deploy")
-@click.option(
-    "--file",
-    "file_path",
-    default=None,
-    type=click.Path(exists=True),
-    help="Path to an upload-ready Dynamic Frontend ZIP bundle.",
-)
-@click.option(
-    "--content-id",
-    default=None,
-    help="Existing Knowledge Base content id for the ZIP bundle.",
-)
-@click.option(
-    "--name",
-    default=None,
-    help="Space display name. Required when creating; optional rename when updating.",
-)
-@click.option(
-    "--space-id", default=None, help="Existing Dynamic Frontend space id to update."
-)
-@click.option(
-    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
-)
-@click.pass_context
-def dynamic_frontend_deploy(
-    ctx: click.Context,
-    file_path: str | None,
-    content_id: str | None,
-    name: str | None,
-    space_id: str | None,
-    output_json: bool,
-) -> None:
-    """Create or update a Dynamic Frontend space.
-
-    \b
-    Examples:
-      unique-cli dynamic-frontend deploy --file ./app.zip --name "Revenue Dashboard"
-      unique-cli dynamic-frontend deploy --content-id content_123 --name "Revenue Dashboard"
-      unique-cli dynamic-frontend deploy --space-id assistant_123 --file ./app.zip
-    """
-    output = cmd_dynamic_frontend_deploy(
-        LazyState.get(ctx),
-        file=file_path,
-        content_id=content_id,
-        name=name,
-        space_id=space_id,
-        output_json=output_json,
-    )
-    click.echo(output)
-    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
-        ctx.exit(1)
-
-
-@dynamic_frontend.command(name="list")
-@click.option(
-    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
-)
-@click.pass_context
-def dynamic_frontend_list(ctx: click.Context, output_json: bool) -> None:
-    """List Dynamic Frontend spaces the current user can manage."""
-    output = cmd_dynamic_frontend_list(LazyState.get(ctx), output_json=output_json)
-    click.echo(output)
-    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
-        ctx.exit(1)
-
-
-@dynamic_frontend.command(name="delete")
-@click.argument("space_id")
-@click.option(
-    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
-)
-@click.pass_context
-def dynamic_frontend_delete(
-    ctx: click.Context, space_id: str, output_json: bool
-) -> None:
-    """Delete a deployed Dynamic Frontend space by its space id.
-
-    \b
-    Example:
-      unique-cli dynamic-frontend delete assistant_123
-    """
-    output = cmd_dynamic_frontend_delete(
-        LazyState.get(ctx), space_id, output_json=output_json
-    )
-    click.echo(output)
-    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
-        ctx.exit(1)
-
-
 @main.command()
 @click.argument("name_or_id")
 @click.pass_context
@@ -711,6 +733,13 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 @main.command()
 @click.argument("query")
 @click.option(
+    "--query",
+    "-q",
+    "extra_queries",
+    multiple=True,
+    help="Another query to run in the same call. Repeat for more, up to 8 in total.",
+)
+@click.option(
     "--folder",
     "-f",
     default=None,
@@ -737,6 +766,7 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 def search(
     ctx: click.Context,
     query: str,
+    extra_queries: tuple[str, ...],
     folder: str | None,
     metadata: tuple[str, ...],
     limit: int,
@@ -744,8 +774,16 @@ def search(
     """Search the knowledge base using combined (vector + full-text) search.
 
     \b
-    QUERY is the search text. Results are ranked by relevance using
-    both semantic similarity and keyword matching.
+    QUERY is the search text; quote it when it has several words. Results
+    are ranked by relevance using both semantic similarity and keyword
+    matching.
+
+    \b
+    Pass further queries with -q in ONE call instead of one call per
+    query: up to 8 per call, 4 run at the same time. Each query gets its
+    own block of results; --folder, --metadata and --limit apply to every
+    query. A chunk found by several queries is shown once, and the output
+    stops at about 100,000 tokens, best results of every query first.
 
     \b
     Without an active task scope, searches within the current directory
@@ -758,6 +796,7 @@ def search(
     \b
     Examples:
       unique-cli search "revenue growth"
+      unique-cli search "revenue growth" -q "operating margin" -q "headcount"
       unique-cli search "earnings" --folder /Reports/Q1 --limit 50
       unique-cli search "compliance" -f scope_abc123
       unique-cli search "audit" -m department=Legal -m year=2025
@@ -773,9 +812,18 @@ def search(
             k, v = kv.split("=", 1)
             parsed_metadata.append((k, v))
 
-    output = cmd_search(
-        state, query, folder=folder, metadata=parsed_metadata, limit=limit
-    )
+    if not extra_queries:
+        output = cmd_search(
+            state, query, folder=folder, metadata=parsed_metadata, limit=limit
+        )
+    else:
+        output = cmd_search_many(
+            state,
+            [query, *extra_queries],
+            folder=folder,
+            metadata=parsed_metadata,
+            limit=limit,
+        )
     click.echo(output)
     if _is_search_error_output(output):
         ctx.exit(1)
@@ -796,15 +844,14 @@ def uploaded_search(
     query: str,
     limit: int,
 ) -> None:
-    """Search the documents uploaded for this task (not the knowledge base).
+    """Search the documents attached to the current message (not the knowledge base).
 
     \b
-    QUERY is the search text. This searches only the files attached to this
-    row/task (e.g. an Agentic Table row's uploaded documents), which are NOT
-    part of the knowledge-base folder scope and therefore never appear in
-    `unique-cli search`. Results are ranked the same way and cite as
-    `[sourceN]`, with numbering continuous across `search` and
-    `uploaded-search` within a turn.
+    QUERY is the search text. This searches only the documents this message
+    selects (files the user uploaded to this chat, or an Agentic Table row's
+    documents), which knowledge-base search never returns. Results cite as
+    `[sourceN]`, numbered continuously with knowledge-base search results
+    within a turn.
 
     \b
     Examples:
@@ -823,8 +870,12 @@ def uploaded_search(
 @click.option(
     "--chat-id",
     "-c",
-    required=True,
-    help="Chat ID for the MCP tool call context.",
+    default=None,
+    help=(
+        "Chat ID for the MCP tool call context. Defaults to the current "
+        "turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_CHAT_ID."
+    ),
 )
 @click.option(
     "--message-id",
@@ -854,7 +905,7 @@ def uploaded_search(
 def mcp(
     ctx: click.Context,
     payload: str | None,
-    chat_id: str,
+    chat_id: str | None,
     message_id: str | None,
     file_path: str | None,
     use_stdin: bool,
@@ -867,9 +918,9 @@ def mcp(
 
     \b
     The JSON is forwarded 1:1 to the MCP call-tool API. Chat ID and
-    message ID are provided as separate flags to identify the
-    conversation context. When --message-id is omitted, the CLI resolves
-    it from $UNIQUE_TURN_IDENTITY_FILE (preferred) or $UNIQUE_MESSAGE_ID.
+    message ID identify the conversation context. When --message-id or
+    --chat-id is omitted, the CLI resolves it from
+    $UNIQUE_TURN_IDENTITY_FILE (preferred) or the matching env var.
 
     \b
     Input sources (exactly one required):
@@ -887,15 +938,17 @@ def mcp(
       cat payload.json | unique-cli mcp -c chat_123 -m msg_456 --stdin
     """
     resolved_message_id = _resolve_cli_message_id(ctx, message_id, required=True)
-    click.echo(
+    resolved_chat_id = _resolve_cli_chat_id(ctx, chat_id, required=True)
+    emit(
         cmd_mcp(
             LazyState.get(ctx),
-            chat_id=chat_id,
+            chat_id=resolved_chat_id or "",
             message_id=resolved_message_id or "",
             payload=payload,
             file=file_path,
             stdin=use_stdin,
-        )
+        ),
+        is_error=_is_mcp_error_output,
     )
 
 
@@ -913,8 +966,11 @@ def mcp(
     "--chat-id",
     "parent_chat_id",
     default=None,
-    envvar="UNIQUE_CHAT_ID",
-    help="Parent chat ID for message correlation.",
+    help=(
+        "Parent chat ID for message correlation. Defaults to the current "
+        "turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_CHAT_ID."
+    ),
 )
 @click.option(
     "--message-id",
@@ -968,12 +1024,13 @@ def subagent(
       unique-cli subagent Finance "Summarize Q4 revenue" --reset-chat
     """
     resolved_message_id = _resolve_cli_message_id(ctx, parent_message_id)
+    resolved_chat_id = _resolve_cli_chat_id(ctx, parent_chat_id)
     output = cmd_subagent(
         LazyState.get(ctx),
         tool_name=tool_name,
         message=message,
         config_path=config_path,
-        parent_chat_id=parent_chat_id,
+        parent_chat_id=resolved_chat_id,
         parent_message_id=resolved_message_id,
         parent_assistant_id=parent_assistant_id,
         reset_chat=reset_chat,
@@ -1020,7 +1077,10 @@ def schedule_list(ctx: click.Context) -> None:
     Examples:
       unique-cli schedule list
     """
-    click.echo(cmd_schedule_list(LazyState.get(ctx)))
+    output = cmd_schedule_list(LazyState.get(ctx))
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 @schedule.command(name="get")
@@ -1036,7 +1096,10 @@ def schedule_get(ctx: click.Context, task_id: str) -> None:
     Examples:
       unique-cli schedule get clx3ghi4f0003mnopqr345678
     """
-    click.echo(cmd_schedule_get(LazyState.get(ctx), task_id))
+    output = cmd_schedule_get(LazyState.get(ctx), task_id)
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 @schedule.command(name="create")
@@ -1060,6 +1123,18 @@ def schedule_get(ctx: click.Context, task_id: str) -> None:
     help="Prompt text sent to the assistant on each trigger.",
 )
 @click.option(
+    "--timezone",
+    "-tz",
+    required=True,
+    help="IANA timezone the cron runs in, e.g. Europe/Zurich. Use UTC for UTC.",
+)
+@click.option(
+    "--name",
+    "-n",
+    default=None,
+    help="Short label for the task, shown in the UI. Falls back to the prompt if omitted.",
+)
+@click.option(
     "--chat-id",
     default=None,
     help="Optional chat ID to continue. If omitted, a new chat is created each run.",
@@ -1076,6 +1151,8 @@ def schedule_create(
     cron: str,
     assistant_id: str,
     prompt: str,
+    timezone: str,
+    name: str | None,
     chat_id: str | None,
     disabled: bool,
 ) -> None:
@@ -1084,7 +1161,7 @@ def schedule_create(
     \b
     Defines a cron schedule, an assistant, and a prompt. The task
     will execute the assistant with the given prompt on every cron
-    match.
+    match. The cron is evaluated in --timezone.
 
     \b
     Cron expression format (5 fields):
@@ -1094,22 +1171,27 @@ def schedule_create(
     Examples:
       unique-cli schedule create \\
         --cron "0 9 * * 1-5" \\
+        --timezone Europe/Zurich \\
         --assistant clx1abc2d0001abcdef123456 \\
-        --prompt "Generate the daily sales report"
+        --prompt "Generate the daily sales report" \\
+        --name "Daily sales report"
 
       unique-cli schedule create \\
-        -c "*/15 * * * *" -a clx1abc -p "Check inbox" --disabled
+        -c "*/15 * * * *" -tz Europe/Zurich -a clx1abc -p "Check inbox" --disabled
     """
-    click.echo(
-        cmd_schedule_create(
-            LazyState.get(ctx),
-            cron=cron,
-            assistant_id=assistant_id,
-            prompt=prompt,
-            chat_id=chat_id,
-            enabled=not disabled,
-        )
+    output = cmd_schedule_create(
+        LazyState.get(ctx),
+        cron=cron,
+        assistant_id=assistant_id,
+        prompt=prompt,
+        timezone=timezone,
+        name=name,
+        chat_id=chat_id,
+        enabled=not disabled,
     )
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 @schedule.command(name="update")
@@ -1119,7 +1201,14 @@ def schedule_create(
     "--assistant", "-a", "assistant_id", default=None, help="Updated assistant ID."
 )
 @click.option("--prompt", "-p", default=None, help="Updated prompt text.")
+@click.option("--name", "-n", default=None, help="Updated label (use 'none' to clear).")
 @click.option("--chat-id", default=None, help="Updated chat ID (use 'none' to clear).")
+@click.option(
+    "--timezone",
+    "-tz",
+    default=None,
+    help="IANA timezone the cron runs in (required with --cron).",
+)
 @click.option("--enable", is_flag=True, default=False, help="Enable the task.")
 @click.option("--disable", is_flag=True, default=False, help="Disable the task.")
 @click.pass_context
@@ -1129,7 +1218,9 @@ def schedule_update(
     cron: str | None,
     assistant_id: str | None,
     prompt: str | None,
+    name: str | None,
     chat_id: str | None,
+    timezone: str | None,
     enable: bool,
     disable: bool,
 ) -> None:
@@ -1138,17 +1229,21 @@ def schedule_update(
     \b
     TASK_ID is the scheduled task identifier. Only the fields you
     provide will be changed; everything else stays the same.
+    --timezone is required whenever --cron is given.
 
     \b
     Examples:
-      unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5"
+      unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5" --timezone Europe/Zurich
       unique-cli schedule update clx3ghi4f --disable
       unique-cli schedule update clx3ghi4f --enable --prompt "New prompt"
       unique-cli schedule update clx3ghi4f --chat-id none
+      unique-cli schedule update clx3ghi4f --name "Monthly summary"
     """
     if enable and disable:
-        click.echo("schedule: cannot use --enable and --disable together")
-        return
+        click.echo(
+            f"{SCHEDULE_ERROR_PREFIX} cannot use --enable and --disable together"
+        )
+        ctx.exit(1)
 
     enabled: bool | None = None
     if enable:
@@ -1160,17 +1255,24 @@ def schedule_update(
     if chat_id and chat_id.lower() == "none":
         resolved_chat_id = ""
 
-    click.echo(
-        cmd_schedule_update(
-            LazyState.get(ctx),
-            task_id,
-            cron=cron,
-            assistant_id=assistant_id,
-            prompt=prompt,
-            chat_id=resolved_chat_id,
-            enabled=enabled,
-        )
+    resolved_name = name
+    if name and name.lower() == "none":
+        resolved_name = ""
+
+    output = cmd_schedule_update(
+        LazyState.get(ctx),
+        task_id,
+        cron=cron,
+        assistant_id=assistant_id,
+        prompt=prompt,
+        name=resolved_name,
+        chat_id=resolved_chat_id,
+        timezone=timezone,
+        enabled=enabled,
     )
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 @schedule.command(name="delete")
@@ -1187,7 +1289,10 @@ def schedule_delete(ctx: click.Context, task_id: str) -> None:
     Examples:
       unique-cli schedule delete clx3ghi4f0003mnopqr345678
     """
-    click.echo(cmd_schedule_delete(LazyState.get(ctx), task_id))
+    output = cmd_schedule_delete(LazyState.get(ctx), task_id)
+    click.echo(output)
+    if _is_schedule_error_output(output):
+        ctx.exit(1)
 
 
 # -- Elicitations ----------------------------------------------------------
@@ -1231,7 +1336,15 @@ def elicit() -> None:
         '"answer" string field when omitted.'
     ),
 )
-@click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
+@click.option(
+    "--chat-id",
+    "-c",
+    default=None,
+    help=(
+        "Associated chat ID. Defaults to the current turn identity file "
+        "($UNIQUE_TURN_IDENTITY_FILE), then $UNIQUE_CHAT_ID."
+    ),
+)
 @click.option(
     "--message-id",
     "-m",
@@ -1247,9 +1360,24 @@ def elicit() -> None:
     default=DEFAULT_WAIT_TIMEOUT_SECONDS,
     show_default=True,
     help=(
-        "Max seconds to block waiting for the user's response. This also "
-        "sets when the elicitation expires, so the request expires exactly "
-        "when we stop waiting and the chat UI can offer a way to continue."
+        "Max seconds to block waiting for the user's response. Without "
+        "--expires-in, this also sets when the elicitation expires, so the "
+        "request expires exactly when we stop waiting and the chat UI can "
+        "offer a way to continue."
+    ),
+)
+@click.option(
+    "--expires-in",
+    "expires_in_seconds",
+    type=int,
+    default=None,
+    help=(
+        "Seconds before the platform expires the request, decoupled from "
+        "--timeout (the local wait budget). Use this when this process's "
+        "wait budget is shorter than how long a human should realistically "
+        "get to answer (e.g. a harness with its own foreground timeout) -- "
+        "otherwise the request expires under the user before they can "
+        "answer. Defaults to --timeout, exactly matching prior behavior."
     ),
 )
 @click.option(
@@ -1310,6 +1438,7 @@ def elicit_ask(
     chat_id: str | None,
     message_id: str | None,
     timeout: int,
+    expires_in_seconds: int | None,
     poll_interval: float,
     metadata: tuple[str, ...],
     visible: bool = True,
@@ -1322,7 +1451,9 @@ def elicit_ask(
     \b
     Creates a FORM elicitation in the Unique UI with the given MESSAGE
     and blocks until the user responds, the elicitation is declined /
-    cancelled / expired, or --timeout is reached.
+    cancelled / expired, or --timeout is reached. Immediately after
+    creation, before polling starts, a single line is written to stderr:
+    "UNIQUE_ELICITATION_CREATED id=<id> expires_at=<iso8601>".
 
     \b
     Examples:
@@ -1330,6 +1461,8 @@ def elicit_ask(
       unique-cli elicit ask "Confirm deletion of /Archive" --timeout 60
       unique-cli elicit ask "Pick a region" \\
         --schema '{"type":"object","properties":{"region":{"type":"string","enum":["EU","US","APAC"]}},"required":["region"]}'
+      unique-cli elicit ask "Long-running approval" \\
+        --expires-in 7200 --timeout 300
     """
     parsed_metadata: list[tuple[str, str]] = []
     for kv in metadata:
@@ -1343,9 +1476,10 @@ def elicit_ask(
         "message": message,
         "tool_name": tool_name,
         "schema": schema,
-        "chat_id": chat_id,
+        "chat_id": _resolve_cli_chat_id(ctx, chat_id),
         "message_id": _resolve_cli_message_id(ctx, message_id),
         "timeout": timeout,
+        "expires_in_seconds": expires_in_seconds,
         "poll_interval": poll_interval,
         "metadata": parsed_metadata or None,
         "visible": visible,
@@ -1363,7 +1497,8 @@ def elicit_ask(
 @click.option(
     "--mode",
     type=click.Choice(["FORM", "URL"], case_sensitive=False),
-    required=True,
+    default="FORM",
+    show_default=True,
     help="Elicitation display mode.",
 )
 @click.option(
@@ -1378,7 +1513,15 @@ def elicit_ask(
     help="JSON schema (required for --mode FORM).",
 )
 @click.option("--url", default=None, help="External URL (required for --mode URL).")
-@click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
+@click.option(
+    "--chat-id",
+    "-c",
+    default=None,
+    help=(
+        "Associated chat ID. Defaults to the current turn identity file "
+        "($UNIQUE_TURN_IDENTITY_FILE), then $UNIQUE_CHAT_ID."
+    ),
+)
 @click.option(
     "--message-id",
     "-m",
@@ -1491,7 +1634,7 @@ def elicit_create(
         "tool_name": tool_name,
         "schema": schema,
         "url": url,
-        "chat_id": chat_id,
+        "chat_id": _resolve_cli_chat_id(ctx, chat_id),
         "message_id": _resolve_cli_message_id(ctx, message_id),
         "expires_in_seconds": expires_in_seconds,
         "external_elicitation_id": external_elicitation_id,
@@ -2057,6 +2200,11 @@ def web_search_group(ctx: click.Context, config_path: str | None) -> None:
     Subcommands:
       search    Run a web search and print URLs + snippets
       crawl     Crawl a list of URLs and print their content
+
+    \b
+    Query review:
+      A space can require the user to approve search queries before they
+      are sent. See `web-search search --help`.
     """
     if config_path is not None:
         ctx.meta[_WEB_SEARCH_GROUP_CONFIG_KEY] = config_path
@@ -2078,7 +2226,8 @@ def _emit_web_search(ctx: click.Context, output: str) -> None:
         ctx.exit(1)
 
 
-_SEARCH_HELP = """\
+_SEARCH_HELP = (
+    """\
 Run a web search via /web-search-api/search.
 
 \b
@@ -2086,15 +2235,31 @@ Examples:
   unique-cli web-search search "quarterly earnings 2026"
   unique-cli web-search search "AI regulation" -n 10
   unique-cli web-search search "python tutorial" --json
+  unique-cli web-search search "git history" "redis history" "docker history"
   unique-cli web-search search "sustainability" --include-content --json
   unique-cli web-search search "tax reform" \\
     --engine-config '{"searchEngineName":"Google","fetchSize":3}'
   unique-cli web-search --config ./ws.json search "EU AI act"
+  unique-cli web-search search --review-id rev_123
 """
+    + f"""
+\b
+Query review:
+  When the chat's space requires query review, this command asks the user
+  to approve the queries and does not search until they do. If the output
+  says the review is pending, run `unique-cli elicit wait <review-id>
+  --timeout {QUERY_REVIEW_WAIT_TIMEOUT_SECONDS}`, then
+  `unique-cli web-search search --chat-id <chat-id> --review-id <review-id>`.
+  Repeat the options of the first call (--json, --include-content, -n) and
+  pass no queries with --review-id; different wording needs a new search
+  without --review-id.
+  If the user declines, tell them the search did not run.
+"""
+)
 
 
 @web_search_group.command("search", help=_SEARCH_HELP)
-@click.argument("query")
+@click.argument("queries", nargs=-1, required=False)
 @click.option(
     "--fetch-size",
     "-n",
@@ -2133,31 +2298,99 @@ Examples:
     "--json",
     "output_json",
     is_flag=True,
-    help="Output results as JSON (suitable for piping into web-search crawl --stdin).",
+    help="Output results as JSON (suitable for piping into web-search crawl --stdin). A pending query review is the object {status, reviewId, chatId}.",
+)
+@click.option(
+    "--chat-id",
+    "chat_id",
+    default=None,
+    help=(
+        "Chat id this call is made on behalf of. Defaults to the current "
+        "turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_CHAT_ID (auto-set in Conduct sandboxes). When set, the "
+        "space's Web Search toggle is enforced server-side and the call is "
+        "rejected if Web Search is disabled for that space."
+    ),
+)
+@click.option(
+    "--review-id",
+    "review_id",
+    default=None,
+    help=(
+        "Id of a query review the user already answered. With no "
+        "positional queries, the approved queries are read from the "
+        "review. Do not pass other queries with it. After a pending "
+        "review, run elicit wait, then search again with this option."
+    ),
 )
 @click.pass_context
 def web_search_search_cmd(
     ctx: click.Context,
-    query: str,
+    queries: tuple[str, ...],
     fetch_size: int | None,
     include_content: bool,
     engine_config_raw: str | None,
     crawler_config_raw: str | None,
     config_path: str | None,
     output_json: bool,
+    chat_id: str | None,
+    review_id: str | None,
 ) -> None:
     """Search the web via the Unique public API."""
+    if not queries and not (review_id and review_id.strip()):
+        raise click.UsageError(
+            "Missing argument QUERIES. Pass one or more queries, or "
+            "--review-id to search queries the user already approved."
+        )
     resolved_config = _resolve_web_search_config_path(ctx, config_path)
-    output = cmd_web_search(
-        LazyState.get(ctx),
-        query,
-        fetch_size=fetch_size,
-        include_content=include_content,
-        engine_config_raw=engine_config_raw,
-        crawler_config_raw=crawler_config_raw,
-        output_json=output_json,
-        config_path=resolved_config,
+    resolved_chat_id = _resolve_cli_chat_id(ctx, chat_id)
+    # No chat id means no review, so leave the search call unchanged.
+    # The message id only goes on a new review request, never on a resume.
+    resolved_message_id = (
+        _resolve_cli_message_id(ctx, None)
+        if resolved_chat_id and not (review_id and review_id.strip())
+        else None
     )
+    if not queries:
+        output = cmd_web_search_resume(
+            LazyState.get(ctx),
+            review_id or "",
+            resolved_chat_id,
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+        )
+    elif len(queries) == 1:
+        output = cmd_web_search(
+            LazyState.get(ctx),
+            queries[0],
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+            chat_id=resolved_chat_id,
+            message_id=resolved_message_id,
+            review_id=review_id,
+        )
+    else:
+        output = cmd_web_search_many(
+            LazyState.get(ctx),
+            list(queries),
+            fetch_size=fetch_size,
+            include_content=include_content,
+            engine_config_raw=engine_config_raw,
+            crawler_config_raw=crawler_config_raw,
+            output_json=output_json,
+            config_path=resolved_config,
+            chat_id=resolved_chat_id,
+            message_id=resolved_message_id,
+            review_id=review_id,
+        )
     _emit_web_search(ctx, output)
 
 
@@ -2212,6 +2445,18 @@ Examples:
     is_flag=True,
     help="Output results as JSON.",
 )
+@click.option(
+    "--chat-id",
+    "chat_id",
+    default=None,
+    help=(
+        "Chat id this call is made on behalf of. Defaults to the current "
+        "turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_CHAT_ID (auto-set in Conduct sandboxes). When set, the "
+        "space's Web Search toggle is enforced server-side and the call is "
+        "rejected if Web Search is disabled for that space."
+    ),
+)
 @click.pass_context
 def web_search_crawl_cmd(
     ctx: click.Context,
@@ -2221,6 +2466,7 @@ def web_search_crawl_cmd(
     crawler_config_raw: str | None,
     config_path: str | None,
     output_json: bool,
+    chat_id: str | None,
 ) -> None:
     """Crawl URLs via the Unique public API."""
     url_list: list[str] = list(urls)
@@ -2238,5 +2484,645 @@ def web_search_crawl_cmd(
         crawler_config_raw=crawler_config_raw,
         output_json=output_json,
         config_path=resolved_config,
+        chat_id=_resolve_cli_chat_id(ctx, chat_id),
     )
     _emit_web_search(ctx, output)
+
+
+# -- Agentic Table ---------------------------------------------------------
+
+
+_AGENTIC_TABLE_HELP = """\
+Work with Agentic Table (magic table) sheets over the public magic-table API.
+
+\b
+Reads (get-sheet / get-cell / cell-history / list-exports) are Tier 0: no
+confirmation, no side effects. Writes (create-sheet / import / rerun-row /
+delete-row / set-cell / export) build and run a sheet — the full loop of
+create, populate, run, and export — plus re-answering a single row, deleting
+one content row, or writing one cell's text.
+Every call is scoped to the current user/company; sheet-role access (Owner / Can
+manage / Can edit) is enforced server-side and a denial is reported as
+`agentic-table: permission denied`.
+
+\b
+Read subcommands:
+  get-sheet      Show a sheet summary (state, row count, metadata, cells)
+  get-cell       Show a single cell by row/column order
+  cell-history   Show a single cell's log/edit history
+  list-exports   List a sheet's export artifacts (reports, question exports)
+
+\b
+Write subcommands:
+  create-sheet   Create a new sheet in a space
+  import         Import questions/sources (adding questions triggers the run)
+  rerun-row      Re-run the agent for a single row (import cannot redo a row)
+  delete-row     Permanently delete one content row by its row id
+  set-cell       Write text into one cell by row/column order (no run)
+  export         Generate export artifacts (report / question export)
+
+\b
+Examples:
+  unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
+  unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ"
+  unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src --wait
+  unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "Fee is 2%."
+  unique-cli agentic-table export mt_abc123 --type FULL_REPORT --wait
+"""
+
+
+@main.group("agentic-table", help=_AGENTIC_TABLE_HELP)
+def agentic_table() -> None:
+    pass
+
+
+@agentic_table.command(name="get-sheet")
+@click.argument("table_id")
+@click.option(
+    "--cells",
+    "include_cells",
+    is_flag=True,
+    default=False,
+    help="Include cell values in the output.",
+)
+@click.option(
+    "--metadata",
+    "include_metadata",
+    is_flag=True,
+    default=False,
+    help="Include sheet-level metadata entries.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_get_sheet(
+    ctx: click.Context,
+    table_id: str,
+    include_cells: bool,
+    include_metadata: bool,
+    output_json: bool,
+) -> None:
+    """Show a magic-table sheet summary.
+
+    \b
+    TABLE_ID is the magic-table sheet id. By default only the summary
+    (name, state, row count) is shown; add --metadata for sheet metadata
+    and --cells to include cell values.
+
+    \b
+    Examples:
+      unique-cli agentic-table get-sheet mt_abc123
+      unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
+    """
+    emit(
+        cmd_get_sheet(
+            LazyState.get(ctx),
+            table_id,
+            include_cells=include_cells,
+            include_metadata=include_metadata,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="get-cell")
+@click.argument("table_id")
+@click.option(
+    "--row", "row_order", type=int, required=True, help="Row order (0-based)."
+)
+@click.option(
+    "--col", "column_order", type=int, required=True, help="Column order (0-based)."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_get_cell(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    column_order: int,
+    output_json: bool,
+) -> None:
+    """Show a single cell by row/column order.
+
+    \b
+    Examples:
+      unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
+      unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2 --json
+    """
+    emit(
+        cmd_get_cell(
+            LazyState.get(ctx),
+            table_id,
+            row_order=row_order,
+            column_order=column_order,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="cell-history")
+@click.argument("table_id")
+@click.option(
+    "--row", "row_order", type=int, required=True, help="Row order (0-based)."
+)
+@click.option(
+    "--col", "column_order", type=int, required=True, help="Column order (0-based)."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_cell_history(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    column_order: int,
+    output_json: bool,
+) -> None:
+    """Show a single cell's log/edit history.
+
+    \b
+    Lists the cell's log entries (actor, timestamp, source message id, and
+    the logged text) as recorded by prior edits.
+
+    \b
+    Examples:
+      unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2
+      unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2 --json
+    """
+    emit(
+        cmd_cell_history(
+            LazyState.get(ctx),
+            table_id,
+            row_order=row_order,
+            column_order=column_order,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="list-exports")
+@click.argument("table_id")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_list_exports(
+    ctx: click.Context,
+    table_id: str,
+    output_json: bool,
+) -> None:
+    """List a sheet's export artifacts.
+
+    \b
+    Shows generated exports (full report, question export, agentic report)
+    with their state and, once ready, the content id to download.
+
+    \b
+    Examples:
+      unique-cli agentic-table list-exports mt_abc123
+      unique-cli agentic-table list-exports mt_abc123 --json
+    """
+    emit(
+        cmd_list_exports(
+            LazyState.get(ctx),
+            table_id,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="create-sheet")
+@click.argument("assistant_id")
+@click.option("--name", "name", default=None, help="Sheet name.")
+@click.option(
+    "--due-at",
+    "due_at",
+    default=None,
+    help="Due date (ISO-8601, e.g. 2026-12-31T00:00:00Z).",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_create_sheet(
+    ctx: click.Context,
+    assistant_id: str,
+    name: str | None,
+    due_at: str | None,
+    output_json: bool,
+) -> None:
+    """Create a new sheet in a space.
+
+    \b
+    ASSISTANT_ID is the space the sheet is created in; you must have write
+    access to it. The printed ID is the table id for import/export/reads.
+
+    \b
+    Examples:
+      unique-cli agentic-table create-sheet asst_123 --name "Vendor DDQ"
+    """
+    emit(
+        cmd_create_sheet(
+            LazyState.get(ctx),
+            assistant_id,
+            name=name,
+            due_at=due_at,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="import")
+@click.argument("table_id")
+@click.option(
+    "--question-file-id",
+    "question_file_ids",
+    multiple=True,
+    help="Content id of a questionnaire file (repeatable).",
+)
+@click.option(
+    "--question-text",
+    "question_texts",
+    multiple=True,
+    help="A question to add directly (repeatable).",
+)
+@click.option(
+    "--source-file-id",
+    "source_file_ids",
+    multiple=True,
+    help="Content id of a source/knowledge file (repeatable).",
+)
+@click.option(
+    "--context", "context", default=None, help="Free-text context for the run."
+)
+@click.option(
+    "--wait",
+    "wait",
+    is_flag=True,
+    default=False,
+    help="Wait for the triggered run to finish before returning.",
+)
+@click.option(
+    "--timeout",
+    "timeout",
+    type=click.FloatRange(min=0),
+    default=600.0,
+    show_default=True,
+    help="Max seconds to wait when --wait is set.",
+)
+@click.option(
+    "--start-timeout",
+    "start_timeout",
+    type=click.FloatRange(min=0),
+    default=120.0,
+    show_default=True,
+    help=(
+        "Max seconds to wait for the run to be picked up before treating it as "
+        "never started. Raise it when the worker queue is slow."
+    ),
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_import(
+    ctx: click.Context,
+    table_id: str,
+    question_file_ids: tuple[str, ...],
+    question_texts: tuple[str, ...],
+    source_file_ids: tuple[str, ...],
+    context: str | None,
+    wait: bool,
+    timeout: float,
+    start_timeout: float,
+    output_json: bool,
+) -> None:
+    """Import questions and sources into a sheet.
+
+    \b
+    Adding new questions triggers the agent run; adding only sources does not.
+    Ids/texts already on the sheet are skipped. With --wait, blocks until the
+    run finishes so you can chain an export.
+
+    \b
+    Examples:
+      unique-cli agentic-table import mt_abc123 --question-file-id c_q --source-file-id c_src
+      unique-cli agentic-table import mt_abc123 --question-text "What is the fee?" --wait
+    """
+    emit(
+        cmd_import(
+            LazyState.get(ctx),
+            table_id,
+            question_file_ids=list(question_file_ids),
+            question_texts=list(question_texts),
+            source_file_ids=list(source_file_ids),
+            context=context,
+            wait=wait,
+            timeout=timeout,
+            start_timeout=start_timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="rerun-row")
+@click.argument("table_id")
+# Rejected locally rather than by the endpoint: a rerun is an audited write, so
+# a row number that cannot refer to an answerable row would otherwise cost a
+# round trip and leave an audit entry for input the client could see was wrong.
+@click.argument("row_order", type=click.IntRange(min=1))
+@click.option(
+    "--wait",
+    "wait",
+    is_flag=True,
+    default=False,
+    help="Wait for the triggered rerun to finish before returning.",
+)
+@click.option(
+    "--timeout",
+    "timeout",
+    type=click.FloatRange(min=0),
+    default=600.0,
+    show_default=True,
+    help="Max seconds to wait when --wait is set.",
+)
+@click.option(
+    "--start-timeout",
+    "start_timeout",
+    type=click.FloatRange(min=0),
+    default=120.0,
+    show_default=True,
+    help=(
+        "Max seconds to wait for the rerun to be picked up before treating it "
+        "as never started. Raise it when the worker queue is slow."
+    ),
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_rerun_row(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    wait: bool,
+    timeout: float,
+    start_timeout: float,
+    output_json: bool,
+) -> None:
+    """Re-run the agent for a single row.
+
+    \b
+    Use this to redo one answer: import is delta-based and skips questions the
+    sheet already has, so it cannot re-answer an existing row. ROW_ORDER is the
+    same number get-cell --row takes: row 0 is the header, so answerable rows
+    start at 1. A locked or final row is rejected; so is a rerun while the sheet
+    is already processing, which clears once the current run finishes.
+
+    \b
+    Examples:
+      unique-cli agentic-table rerun-row mt_abc123 4
+      unique-cli agentic-table rerun-row mt_abc123 4 --wait
+    """
+    emit(
+        cmd_rerun_row(
+            LazyState.get(ctx),
+            table_id,
+            row_order,
+            wait=wait,
+            timeout=timeout,
+            start_timeout=start_timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="delete-row")
+@click.argument("table_id")
+@click.argument("row_id")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_delete_row(
+    ctx: click.Context,
+    table_id: str,
+    row_id: str,
+    output_json: bool,
+) -> None:
+    """Permanently delete one content row by its row id.
+
+    \b
+    ROW_ID is the rowId on a cell (mt_row_...), not the row order get-cell
+    --row prints. Read it with get-cell --json or get-sheet --cells --json.
+    The header row, a locked row, and a row in a final review status are
+    rejected. A caller who is not a member of the sheet is rejected. A row on
+    a completed sheet can be deleted; the sheet status is then recomputed.
+    One call deletes one row, the same way the sheet UI does.
+
+    \b
+    Examples:
+      unique-cli agentic-table delete-row mt_abc123 mt_row_e4d94icb5mtj99rmu2efhyel
+    """
+    emit(
+        cmd_delete_row(
+            LazyState.get(ctx),
+            table_id,
+            row_id,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="set-cell")
+@click.argument("table_id")
+@click.option(
+    "--row",
+    "row_order",
+    type=click.IntRange(min=0),
+    required=True,
+    help="Row order (0-based; 0 is the header).",
+)
+@click.option(
+    "--col",
+    "column_order",
+    type=click.IntRange(min=0),
+    required=True,
+    help="Column order (0-based).",
+)
+@click.option(
+    "--text",
+    "text",
+    default=None,
+    help="Cell text (exactly one of --text, --file, --stdin).",
+)
+@click.option(
+    "--file",
+    "file",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Read cell text from a UTF-8 file.",
+)
+@click.option(
+    "--stdin",
+    "stdin",
+    is_flag=True,
+    default=False,
+    help="Read cell text from stdin.",
+)
+@click.option(
+    "--log-file",
+    "log_file",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="JSON array of log entries (text, actorType, createdAt).",
+)
+@click.option(
+    "--log-json",
+    "log_json",
+    default=None,
+    help="Inline JSON array of log entries (text, actorType, createdAt).",
+)
+@click.option(
+    "--allow-create",
+    "allow_create",
+    is_flag=True,
+    default=False,
+    help="Allow creating the next row or column (not a gap).",
+)
+@click.option(
+    "--force",
+    "force",
+    is_flag=True,
+    default=False,
+    help="Write even while the sheet is PROCESSING.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_set_cell(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    column_order: int,
+    text: str | None,
+    file: str | None,
+    stdin: bool,
+    log_file: str | None,
+    log_json: str | None,
+    allow_create: bool,
+    force: bool,
+    output_json: bool,
+) -> None:
+    """Write text into one cell by row and column order.
+
+    \b
+    This is not a run. Pass the cell value you already have; the API returns
+    the updated cell immediately. --row/--col are 0-based like get-cell; row 0
+    is the header and is allowed. A missing row or column is refused unless
+    --allow-create, which adds only the next index. A PROCESSING sheet is
+    refused unless --force. Use
+    rerun-row to have the table agent regenerate an answer from sources.
+
+    \b
+    Provide exactly one of --text, --file, or --stdin. Long or multi-line
+    answers belong in a file or stdin. Optional --log-file / --log-json is a
+    JSON array of {text, actorType, createdAt} with actorType TOOL or ASSISTANT.
+
+    \b
+    Examples:
+      unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --text "Fee is 2%."
+      unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --file ./answer.md
+      unique-cli agentic-table set-cell mt_abc123 --row 1 --col 2 --stdin < answer.md
+    """
+    emit(
+        cmd_set_cell(
+            LazyState.get(ctx),
+            table_id,
+            row_order=row_order,
+            column_order=column_order,
+            text=text,
+            file=file,
+            stdin=stdin,
+            log_file=log_file,
+            log_json=log_json,
+            allow_create=allow_create,
+            force=force,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="export")
+@click.argument("table_id")
+@click.option(
+    "--type",
+    "artifact_types",
+    multiple=True,
+    required=True,
+    type=click.Choice(["FULL_REPORT", "QUESTIONS", "AGENTIC_REPORT"]),
+    help="Artifact type to generate (repeatable).",
+)
+@click.option(
+    "--wait",
+    "wait",
+    is_flag=True,
+    default=False,
+    help="Wait for the requested artifacts to be ready, then list them.",
+)
+@click.option(
+    "--timeout",
+    "timeout",
+    type=click.FloatRange(min=0),
+    default=600.0,
+    show_default=True,
+    help="Max seconds to wait when --wait is set.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_export(
+    ctx: click.Context,
+    table_id: str,
+    artifact_types: tuple[str, ...],
+    wait: bool,
+    timeout: float,
+    output_json: bool,
+) -> None:
+    """Generate export artifacts for a sheet.
+
+    \b
+    Generation is asynchronous. With --wait, blocks until each requested type
+    is DONE and prints the artifact table with the content id to download.
+
+    \b
+    Examples:
+      unique-cli agentic-table export mt_abc123 --type FULL_REPORT
+      unique-cli agentic-table export mt_abc123 --type FULL_REPORT --type QUESTIONS --wait
+    """
+    emit(
+        cmd_export(
+            LazyState.get(ctx),
+            table_id,
+            artifact_types=list(artifact_types),
+            wait=wait,
+            timeout=timeout,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )

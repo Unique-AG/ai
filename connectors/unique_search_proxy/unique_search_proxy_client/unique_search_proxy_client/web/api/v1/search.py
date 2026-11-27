@@ -22,7 +22,8 @@ from unique_search_proxy_core.search_engines.config_types import SearchRequest
 from unique_search_proxy_client.web.api.v1.openapi_examples import (
     SEARCH_OPENAPI_EXAMPLES,
 )
-from unique_search_proxy_client.web.core.client import get_http_client_pool
+from unique_search_proxy_client.web.context import get_request_context
+from unique_search_proxy_client.web.core.client import get_http_client_registry
 from unique_search_proxy_client.web.core.search_engines import (
     get_search_engine_service,
 )
@@ -30,6 +31,10 @@ from unique_search_proxy_client.web.monitoring.metrics import (
     record_search_error,
     record_search_success,
 )
+from unique_search_proxy_client.web.settings.request_limits import (
+    request_limits_settings,
+)
+from unique_search_proxy_client.web.usage import record_request_usage
 
 router = APIRouter(tags=["search"])
 _LOGGER = logging.getLogger(__name__)
@@ -62,18 +67,21 @@ async def search(
 ) -> SearchResponse:
     engine = body.engine
     engine_id = engine.value if hasattr(engine, "value") else str(engine)
-    timeout = body.timeout
+    timeout = min(body.timeout, request_limits_settings.max_timeout_seconds)
     started = time.perf_counter()
+    succeeded = False
     _LOGGER.info("search start engine=%s timeout=%ss", engine_id, timeout)
 
     try:
-        pool = get_http_client_pool(request.app)
+        registry = get_http_client_registry(request.app)
+        client = await registry.client_for(get_request_context())
         engine = get_search_engine_service(
             SearchEngineType(engine_id) if isinstance(engine, str) else engine,
-            http_client=pool.client,
+            http_client=client,
         )
         async with asyncio.timeout(timeout):
             raw, curated = await engine.search(body)
+        succeeded = True
     except TimeoutError as exc:
         record_search_error(
             engine_id,
@@ -93,6 +101,11 @@ async def search(
             engine_id=engine_id,
         ) from exc
     except ProxyError as exc:
+        record_search_error(
+            engine_id,
+            exc.code.value if hasattr(exc.code, "value") else str(exc.code),
+            time.perf_counter() - started,
+        )
         _LOGGER.warning(
             "search failed engine=%s code=%s duration=%.0fms",
             engine_id,
@@ -112,6 +125,16 @@ async def search(
             (time.perf_counter() - started) * 1000,
         )
         raise
+    finally:
+        record_request_usage(
+            "search",
+            engine_id,
+            # TODO(UN-24394): count provider pages fetched if billing needs exact call counts.
+            units=1,
+            fetch_size=body.fetch_size,
+            succeeded=succeeded,
+            started=started,
+        )
 
     duration = time.perf_counter() - started
     record_search_success(engine_id, duration)

@@ -1,10 +1,10 @@
 ---
 name: model-deployment
-description: Deploy a new LLM model via LiteLLM (GitOps) and/or Azure (Terraform + node backend), add it to the ai toolkit, and verify end-to-end. Use when rolling out a model to any environment, adding a model to the toolkit, troubleshooting "model not available" errors, or finding pricing/token limits/model ids for any provider.
+description: Deploy a new LLM model via LiteLLM (GitOps) and/or Azure (Terraform + node backend), add it to the ai toolkit, create the required pull requests, and verify end-to-end. Use when rolling out a model to any environment, adding a model to the toolkit, troubleshooting "model not available" errors, or finding pricing/token limits/model ids for any provider.
 license: MIT
 compatibility: claude cursor opencode
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
   languages: all
   audience: developers operators
   workflow: operations
@@ -18,7 +18,7 @@ This skill guides the full lifecycle of deploying a new LLM model across the Uni
 - **monorepo** — LiteLLM proxy config (GitOps), node-chat backend (Azure track), Terraform
 - **ai repo** — toolkit language model registry (`LanguageModelInfo`)
 
-**Cardinal rule:** never guess token limits, capabilities, pricing, or provider strings. Always cite the source (model card URL, LiteLLM registry, Jira ticket, or PR). If no authoritative source exists, ask the user.
+**Cardinal rule:** never guess token limits, capabilities, pricing, provider strings, or Azure `sku_capacity`. Always cite the source (model card URL, LiteLLM registry, live Azure quota, Jira ticket, or PR). If no authoritative source exists, ask the user.
 
 ## When to use this skill
 
@@ -86,7 +86,7 @@ Edit `monorepo/gitops-resources/argocd/clusters/<cluster>/<env>/value-overlays/l
 
 - **Branch:** `feat/litellm-<model-name>`
 - **Commit:** `feat(litellm): add <model_name> model to <envs>`
-- PR body: env overlays changed, model names, source links, verification steps.
+- Commit, push, and create the PR after validation. Include the env overlays changed, model names, source links, and verification steps in the PR body.
 
 ### A4) After merge — sync + restart
 
@@ -106,7 +106,9 @@ Edit `monorepo/gitops-resources/argocd/clusters/<cluster>/<env>/value-overlays/l
 
 Check [Azure AI Foundry](https://ai.azure.com/) first — the Deployments page lists all active model deployments with name, version, capacity, rate limits, and retirement dates.
 
-Confirm: Azure OpenAI account, model name + version, deployment names, capacity, API version.
+Confirm: Azure OpenAI account, model name + version, deployment names, API version.
+
+**Capacity is per subscription, region, and SKU.** Do not copy one `sku_capacity` onto every tenant. A platform request (for example Global Standard 15000 and Data Zone Standard 5000) is only the ceiling you ask for. The value written in `oai-models.yaml` is the minimum of that request and the live quota for that tenant. See [AZURE-NODE-CHAT.md](references/AZURE-NODE-CHAT.md#azure-quota-sku_capacity).
 
 ### B2) Terraform changes
 
@@ -156,10 +158,11 @@ Add `LanguageModelName` enum entry and `LanguageModelInfo.from_name()` case. See
 
 **Critical:** for `default_options`, use the string `"none"` — never Python `None`. See [LESSONS-LEARNED.md](references/LESSONS-LEARNED.md).
 
-### C3) Release
+### C3) PR + release
 
 - **Branch:** `feat/toolkit-<model-slug>`
 - **Commit:** `feat(toolkit): add <model_name> model info`
+- Commit, push, and create the PR after validation. Include the exact model identifier, cited model specifications, and tests run in the PR body.
 - Merge with a conventional commit (`feat(toolkit): add <model_name> model info`). release-please updates `unique_toolkit` version and `CHANGELOG.md` on the standing Release PR — do not edit those files in the feature PR.
 
 For early exposure before the toolkit release, use the `LANGUAGE_MODEL_INFOS` env override — see [TOOLKIT-REGISTRY.md](references/TOOLKIT-REGISTRY.md).
@@ -174,8 +177,23 @@ For early exposure before the toolkit release, use the `LANGUAGE_MODEL_INFOS` en
 
 ---
 
+## Pull request completion
+
+When implementing a model deployment, finish each repository's code changes by:
+
+1. Running the relevant formatter, linter, and targeted tests.
+2. Committing with the track's conventional commit message.
+3. Pushing the branch and creating a non-draft PR.
+4. Linking the Jira ticket and authoritative model sources in the PR body.
+5. Returning every created PR URL to the user.
+
+Create separate PRs for separate repositories. A direct request to run this skill and implement the deployment authorizes creating the required PRs; stop before PR creation only when the user asks for local changes, a draft, or a plan.
+
+---
+
 ## Final checklist (every track)
 
+- [ ] Required PRs created and URLs returned
 - [ ] Correct environment(s) targeted and rollout order followed (qa → uat → prod)
 - [ ] Config synced in ArgoCD where applicable
 - [ ] Correct **Deployment** rolled (not HPA)

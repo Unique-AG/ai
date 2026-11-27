@@ -75,12 +75,26 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
             )
         )
 
-        results = await asyncio.gather(
-            *[self._search_single_query(query=q) for q in search_queries],
-            return_exceptions=True,
+        # TaskGroup awaits cancelled children so httpcore can release the connection.
+        results: list[SearchStringResult | BaseException | None] = [None] * len(
+            search_queries
         )
 
-        found = self._collect_results(results, search_queries)
+        async def _run(i: int, query: str) -> None:
+            try:
+                results[i] = await self._search_single_query(query=query)
+            except Exception as exc:
+                # not BaseException: CancelledError must reach the group
+                results[i] = exc
+
+        async with asyncio.TaskGroup() as tg:
+            for i, query in enumerate(search_queries):
+                tg.create_task(_run(i, query))
+
+        found = self._collect_results(
+            [r for r in results if r is not None],
+            search_queries,
+        )
         return await self._finalize_run(
             search_queries,
             found,

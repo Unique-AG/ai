@@ -1,11 +1,39 @@
+from enum import StrEnum
 from typing import Any
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing_extensions import deprecated
 
 from unique_toolkit._common.config_checker import register_config
 
 
+class FeatureFlagNames(StrEnum):
+    """Flag name constants used by unique_toolkit's own agentic features.
+
+    Values match both the env-var fallback names (``FeatureFlags`` below) and
+    the configuration-backend registry keys used by
+    ``unique_toolkit.experimental.resources.feature_flags.FeatureFlagClient``.
+    """
+
+    enable_selected_uploaded_files_un_18215 = (
+        "FEATURE_FLAG_ENABLE_SELECTED_UPLOADED_FILES_UN_18215"
+    )
+    enable_mcp_metadata_fallback_un_19145 = (
+        "FEATURE_FLAG_ENABLE_MCP_METADATA_FALLBACK_UN_19145"
+    )
+    enable_html_rendering_un_15131 = "FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131"
+    enable_web_search_argument_screening_un_18741 = (
+        "FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741"
+    )
+    search_proxy_enable_custom_api_un_26736 = (
+        "FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736"
+    )
+
+
+@deprecated(
+    "Use unique_toolkit.experimental.resources.feature_flags.is_flag_enabled instead"
+)
 class FeatureFlag:
     """A feature flag that can be enabled globally or for specific company IDs.
 
@@ -45,25 +73,33 @@ class FeatureFlag:
         return f"FeatureFlag({self.value})"
 
 
+@deprecated(
+    "Use unique_toolkit.experimental.resources.feature_flags.is_flag_enabled instead"
+)
 @register_config()
 class FeatureFlags(BaseSettings):
     """Feature flags loaded from environment variables.
 
     Environment variables are automatically loaded based on field names.
-    For example, `enable_new_answers_ui_un_14411` will be loaded from
-    `FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411` (with the env_prefix).
+    For example, `enable_html_rendering_un_15131` will be loaded from
+    `FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131` (with the env_prefix).
 
     Usage:
         >>> flags = FeatureFlags()
         >>> # Check if feature is enabled for a company
-        >>> flags.enable_new_answers_ui_un_14411.is_enabled("company123")
+        >>> flags.enable_html_rendering_un_15131.is_enabled("company123")
         >>> # Check global enablement
         >>> bool(flags.enable_elicitation_un_15809)
     """
 
     enable_new_answers_ui_un_14411: FeatureFlag = Field(
         default=FeatureFlag([]),
-        description="Enable new answers UI (UN-14411)",
+        description=(
+            "Retired (UN-24507): the new answers UI is always on now, no code "
+            "reads this field. Kept only so removing it doesn't trip the "
+            "config-checker's breaking-change gate on this settings model; "
+            "delete once that checker allows field removal."
+        ),
     )
 
     enable_html_rendering_un_15131: FeatureFlag = Field(
@@ -73,12 +109,24 @@ class FeatureFlags(BaseSettings):
 
     enable_code_execution_fence_un_17972: FeatureFlag = Field(
         default=FeatureFlag(False),
-        description="Emit codeExecution fences in message.text for code interpreter outputs (UN-17972). When disabled, inline file refs are kept as-is. Can be 'true' or comma-separated company IDs.",
+        description=(
+            "Retired: replaced by the `enable_code_execution_fence` config field "
+            "on ShowExecutedCodePostprocessorConfig (default true). "
+            "No code reads this field anymore. Kept only so removing it doesn't "
+            "trip the config-checker's breaking-change gate on this settings "
+            "model; delete once that checker allows field removal."
+        ),
     )
 
     enable_html_with_fence_un_17927: FeatureFlag = Field(
         default=FeatureFlag(False),
-        description="Render HTML code interpreter files as htmlWithSource fences instead of HtmlRendering blocks (UN-17927). Requires enable_code_execution_fence_un_17972 to also be enabled. Can be 'true' or comma-separated company IDs.",
+        description=(
+            "Retired: replaced by the `enable_html_with_fence` config field "
+            "on ShowExecutedCodePostprocessorConfig (default true). "
+            "No code reads this field anymore. Kept only so removing it doesn't "
+            "trip the config-checker's breaking-change gate on this settings "
+            "model; delete once that checker allows field removal."
+        ),
     )
 
     enable_web_search_argument_screening_un_18741: FeatureFlag = Field(
@@ -145,5 +193,7 @@ class FeatureFlags(BaseSettings):
         return FeatureFlag(False)
 
 
-# Initialize once at module load - import this where needed
+# Deprecated, unused elsewhere in this toolkit — kept only for external
+# backward compatibility. Use unique_toolkit.experimental.resources.feature_flags
+# .is_flag_enabled instead.
 feature_flags = FeatureFlags()

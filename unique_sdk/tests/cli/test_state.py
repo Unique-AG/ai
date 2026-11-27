@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -85,9 +86,11 @@ class TestShellState:
         result = s.cd("..")
         assert result == "/"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd_relative(self, mock_get_info) -> None:  # type: ignore[no-untyped-def]
+    def test_cd_relative(self, mock_get_info, mock_get_path) -> None:  # type: ignore[no-untyped-def]
         mock_get_info.return_value = {"id": "scope_reports"}
+        mock_get_path.return_value = {"folderPath": "/Reports"}
         s = ShellState(_config())
         result = s.cd("Reports")
         assert result == "/Reports"
@@ -98,9 +101,11 @@ class TestShellState:
             folderPath="/Reports",
         )
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd_absolute(self, mock_get_info) -> None:  # type: ignore[no-untyped-def]
+    def test_cd_absolute(self, mock_get_info, mock_get_path) -> None:  # type: ignore[no-untyped-def]
         mock_get_info.return_value = {"id": "scope_q1"}
+        mock_get_path.return_value = {"folderPath": "/Company/Reports/Q1"}
         s = ShellState(_config())
         result = s.cd("/Company/Reports/Q1")
         assert result == "/Company/Reports/Q1"
@@ -116,9 +121,11 @@ class TestShellState:
         assert result == "/Company/Reports"
         assert s.scope_id == "scope_abc"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd_parent(self, mock_get_info) -> None:  # type: ignore[no-untyped-def]
+    def test_cd_parent(self, mock_get_info, mock_get_path) -> None:  # type: ignore[no-untyped-def]
         mock_get_info.return_value = {"id": "scope_reports"}
+        mock_get_path.return_value = {"folderPath": "/Company/Reports"}
         s = ShellState(_config())
         s._path = "/Company/Reports/Q1"
         s._scope_id = "scope_q1"
@@ -181,77 +188,220 @@ class TestShellState:
 
 class TestWorkspaceScopes:
     def test_no_config_file_returns_empty(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+        monkeypatch.chdir(tmp_path)
+        s = ShellState(_config())
         assert s.workspace_scope_ids == []
         assert not s.workspace_restricted
 
     def test_loads_scope_ids_from_config(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".unique-search.json").write_text(
             json.dumps({"scopeIds": ["scope_abc", "scope_def"]})
         )
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+        s = ShellState(_config())
         assert s.workspace_scope_ids == ["scope_abc", "scope_def"]
         assert s.workspace_restricted
 
     def test_loads_metadata_filter_from_config(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         rule = {
             "path": ["folderIdPath"],
             "operator": "contains",
             "value": "uniquepathid://scope_fund_a",
         }
-        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+        (tmp_path / ".unique-search.json").write_text(
             json.dumps({"metaDataFilter": rule})
         )
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+        s = ShellState(_config())
         assert s.workspace_metadata_filter == rule
 
     def test_metadata_filter_none_when_absent(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".unique-search.json").write_text(
             json.dumps({"scopeIds": ["scope_abc"]})
         )
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+        s = ShellState(_config())
         assert s.workspace_metadata_filter is None
 
     def test_metadata_filter_ignored_when_not_dict(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        monkeypatch.chdir(tmp_path)
         for bad in ("not-a-dict", "[]", "{}"):
-            (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+            (tmp_path / ".unique-search.json").write_text(
                 json.dumps({"metaDataFilter": json.loads(bad)})
                 if bad != "not-a-dict"
                 else json.dumps({"metaDataFilter": bad})
             )
-            with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-                s = ShellState(_config())
+            s = ShellState(_config())
             assert s.workspace_metadata_filter is None, f"failed for: {bad}"
 
-    def test_invalid_json_returns_empty(self, tmp_path: pytest.TempPathFactory) -> None:
-        (tmp_path / ".unique-search.json").write_text("not json")  # type: ignore[union-attr]
-        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-            s = ShellState(_config())
+    def test_invalid_json_returns_empty(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".unique-search.json").write_text("not json")
+        s = ShellState(_config())
         assert s.workspace_scope_ids == []
 
     def test_non_dict_json_returns_empty(
-        self, tmp_path: pytest.TempPathFactory
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A JSON array or scalar must not crash via AttributeError."""
+        monkeypatch.chdir(tmp_path)
         for payload in ("[1, 2, 3]", '"hello"', "42", "null"):
-            (tmp_path / ".unique-search.json").write_text(payload)  # type: ignore[union-attr]
-            with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
-                s = ShellState(_config())
+            (tmp_path / ".unique-search.json").write_text(payload)
+            s = ShellState(_config())
             assert s.workspace_scope_ids == [], f"failed for payload: {payload}"
+
+    @pytest.mark.ai
+    def test_scope_file_survives_a_shell_cd(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: A bash cd does not drop the knowledge-base scope file.
+        Why this matters: Search with no scope file returns the whole knowledge base.
+        Setup summary: Scope file at UNIQUE_WORKSPACE_DIR; cwd is a different directory.
+        """
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        rule = {
+            "path": ["folderIdPath"],
+            "operator": "notContains",
+            "value": "scope_excluded",
+        }
+        (workspace / ".unique-search.json").write_text(
+            json.dumps({"metaDataFilter": rule})
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(workspace))
+        monkeypatch.chdir(elsewhere)
+        s = ShellState(_config())
+        assert s.workspace_metadata_filter == rule
+
+    @pytest.mark.ai
+    def test_cwd_scope_file_is_ignored_when_workspace_dir_is_set(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: The scope file is read from the workspace root only.
+        Why this matters: A file left in the shell directory must not replace the turn scope.
+        Setup summary: UNIQUE_WORKSPACE_DIR is empty; the scope file sits in cwd.
+        """
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        (tmp_path / ".unique-search.json").write_text(
+            json.dumps(
+                {
+                    "metaDataFilter": {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_cwd",
+                    }
+                }
+            )
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(workspace))
+        monkeypatch.chdir(tmp_path)
+        s = ShellState(_config())
+        assert s.workspace_metadata_filter is None
+
+    @pytest.mark.ai
+    def test_shell_state__search_scope__comes_from_workspace_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: An explicit directory supplies the search scope.
+        Why this matters: A shared process environment belongs to no single turn.
+        Setup summary: UNIQUE_WORKSPACE_DIR and workspace_dir hold different scope files.
+        """
+        env_root = tmp_path / "env"
+        turn_root = tmp_path / "turn"
+        env_root.mkdir()
+        turn_root.mkdir()
+        rule = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_turn",
+        }
+        (env_root / ".unique-search.json").write_text(
+            json.dumps(
+                {
+                    "scopeIds": ["scope_env"],
+                    "metaDataFilter": {
+                        "path": ["folderIdPath"],
+                        "operator": "equals",
+                        "value": "scope_env",
+                    },
+                }
+            )
+        )
+        (turn_root / ".unique-search.json").write_text(
+            json.dumps({"scopeIds": ["scope_turn"], "metaDataFilter": rule})
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(env_root))
+
+        state = ShellState(_config(), workspace_dir=turn_root)
+
+        assert state.workspace_scope_ids == ["scope_turn"]
+        assert state.workspace_metadata_filter == rule
+
+    @pytest.mark.ai
+    def test_shell_state__search_scope__missing_file_in_workspace_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: A workspace_dir with no scope file means no search scope.
+        Why this matters: The process environment must not fill that gap.
+        Setup summary: The env directory has a scope file; workspace_dir does not.
+        """
+        env_root = tmp_path / "env"
+        turn_root = tmp_path / "turn"
+        env_root.mkdir()
+        turn_root.mkdir()
+        (env_root / ".unique-search.json").write_text(
+            json.dumps({"scopeIds": ["scope_env"]})
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(env_root))
+
+        state = ShellState(_config(), workspace_dir=turn_root)
+
+        assert state.workspace_scope_ids == []
+        assert state.workspace_metadata_filter is None
+
+    @pytest.mark.ai
+    def test_shell_state__uploaded_scope__stays_on_process_workspace(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Purpose: workspace_dir does not retarget uploaded-search files.
+        Why this matters: Only the knowledge-base scope is per turn here.
+        Setup summary: Env and workspace_dir each have their own uploaded file.
+        """
+        env_root = tmp_path / "env"
+        turn_root = tmp_path / "turn"
+        env_root.mkdir()
+        turn_root.mkdir()
+        (env_root / ".unique-uploaded.json").write_text(
+            json.dumps({"chatId": "chat_env", "contentIds": ["cont_env"]})
+        )
+        (turn_root / ".unique-search.json").write_text(
+            json.dumps({"scopeIds": ["scope_turn"]})
+        )
+        (turn_root / ".unique-uploaded.json").write_text(
+            json.dumps({"chatId": "chat_turn", "contentIds": ["cont_turn"]})
+        )
+        monkeypatch.setenv("UNIQUE_WORKSPACE_DIR", str(env_root))
+
+        state = ShellState(_config(), workspace_dir=turn_root)
+
+        assert state.workspace_scope_ids == ["scope_turn"]
+        assert state.uploaded_search_chat_id == "chat_env"
+        assert state.uploaded_search_content_ids == ["cont_env"]
 
     def test_is_within_workspace_no_restriction(self) -> None:
         s = ShellState(_config())

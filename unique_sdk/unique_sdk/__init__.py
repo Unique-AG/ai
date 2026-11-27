@@ -15,6 +15,10 @@ api_verify_mode: bool = True
 default_http_client: "HTTPClient | None" = None
 ingestion_upload_api_url_internal: str | None = None
 
+# Timeout (seconds) for the direct-to-blob requests in utils/file_io.py,
+# which bypass _http_client. Defaults to match _http_client's own default.
+blob_transfer_timeout: float = 600
+
 # Set to either 'debug' or 'info', controls console logging
 log: Literal["debug", "info"] | None = None
 
@@ -30,6 +34,7 @@ from unique_sdk._error import APIConnectionError as APIConnectionError
 from unique_sdk._error import APIError as APIError
 from unique_sdk._error import AuthenticationError as AuthenticationError
 from unique_sdk._error import InvalidRequestError as InvalidRequestError
+from unique_sdk._error import RateLimitError as RateLimitError
 from unique_sdk._error import (
     SignatureVerificationError as SignatureVerificationError,
 )
@@ -77,12 +82,15 @@ from unique_sdk.api_resources._message import Message as Message
 from unique_sdk.api_resources._integrated import Integrated as Integrated
 from unique_sdk.api_resources._search import Search as Search
 from unique_sdk.api_resources._content import Content as Content
-from unique_sdk.api_resources._dynamic_frontend import (
-    DynamicFrontend as DynamicFrontend,
-)
 from unique_sdk.api_resources._search_string import SearchString as SearchString
 from unique_sdk.api_resources._short_term_memory import (
     ShortTermMemory as ShortTermMemory,
+)
+from unique_sdk.api_resources._context_memory import ContextMemory as ContextMemory
+from unique_sdk.api_resources._project_memory import ProjectMemory as ProjectMemory
+from unique_sdk.api_resources._project_chat import (
+    ProjectChat as ProjectChat,
+    ProjectChatChunk as ProjectChatChunk,
 )
 from unique_sdk.api_resources._folder import Folder as Folder
 from unique_sdk.api_resources._embedding import Embeddings as Embeddings
@@ -113,6 +121,7 @@ from unique_sdk.api_resources._briefing import Briefing as Briefing
 from unique_sdk.api_resources._web_search import (
     WebSearch as WebSearch,
     WebCrawl as WebCrawl,
+    WebSearchReview as WebSearchReview,
     WebSearchResultItem as WebSearchResultItem,
     WebCrawlResultItem as WebCrawlResultItem,
 )

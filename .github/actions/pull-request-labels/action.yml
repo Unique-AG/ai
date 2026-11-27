@@ -1,0 +1,30 @@
+name: Live pull request label check
+description: Fetch current pull request labels from the GitHub API and check for one label.
+
+inputs:
+  github_token:
+    description: Workflow token with pull-requests read permission
+    required: true
+  label:
+    description: Label name to check
+    required: true
+
+outputs:
+  has_label:
+    description: Whether the pull request currently has the requested label
+    value: ${{ steps.check.outputs.has_label }}
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch live pull request labels
+      id: check
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_API_URL: ${{ github.api_url }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        LABEL: ${{ inputs.label }}
+      run: node "${{ github.action_path }}/check-label.mjs"

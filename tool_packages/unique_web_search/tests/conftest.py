@@ -10,6 +10,7 @@ from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
+from unique_web_search.services.query_elicitation import QueryElicitationConfig
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
@@ -135,6 +136,7 @@ def mock_web_search_config_v1():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
+    config.query_elicitation_config = QueryElicitationConfig()
     config.experimental_features = _mock_experimental_features_with_arg_screening()
     config.web_search_active_mode = WebSearchMode.V1
     config.web_search_mode_config.mode = WebSearchMode.V1
@@ -167,6 +169,7 @@ def mock_web_search_config_v2():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
+    config.query_elicitation_config = QueryElicitationConfig()
     config.experimental_features = _mock_experimental_features_with_arg_screening()
     config.web_search_active_mode = WebSearchMode.V2
     config.web_search_mode_config.mode = WebSearchMode.V2
@@ -194,6 +197,7 @@ def mock_web_search_config_v3():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
+    config.query_elicitation_config = QueryElicitationConfig()
     config.experimental_features = _mock_experimental_features_with_arg_screening()
     config.web_search_active_mode = WebSearchMode.V3
     config.web_search_mode_config.mode = WebSearchMode.V3
@@ -358,8 +362,17 @@ def mock_executor_dependencies():
     mock_message_log_callback.log_queries = AsyncMock()
     mock_message_log_callback.log_web_search_results = AsyncMock()
 
+    from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
+        ChunkRelevancySorterResult,
+    )
+
     mock_chunk_relevancy_sorter = Mock()
-    mock_chunk_relevancy_sorter.run = AsyncMock(return_value=Mock(content_chunks=[]))
+    # Mirror the real sorter, which always returns a ChunkRelevancySorterResult
+    # with a real (possibly empty) `relevancies` list -- not a bare Mock -- so
+    # callers that read `relevancies`/`content_chunks` behave realistically.
+    mock_chunk_relevancy_sorter.run = AsyncMock(
+        return_value=ChunkRelevancySorterResult.from_chunks([])
+    )
 
     mock_chunk_relevancy_sort_config = Mock()
     mock_chunk_relevancy_sort_config.enabled = False

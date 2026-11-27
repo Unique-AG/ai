@@ -58,12 +58,20 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_52_2025_1211 = "AZURE_GPT_52_2025_1211"
     AZURE_GPT_52_CHAT_2025_1211 = "AZURE_GPT_52_CHAT_2025_1211"
     AZURE_GPT_54_2026_0305 = "AZURE_GPT_54_2026_0305"
+    AZURE_GPT_54_MINI_2026_0317 = "AZURE_GPT_54_MINI_2026_0317"
     AZURE_GPT_54_PRO_2026_0305 = "AZURE_GPT_54_PRO_2026_0305"
     AZURE_GPT_55_2026_0424 = "AZURE_GPT_55_2026_0424"
     AZURE_GPT_55_PRO_2026_0424 = "AZURE_GPT_55_PRO_2026_0424"
     AZURE_GPT_56_SOL_2026_0709 = "AZURE_GPT_56_SOL_2026_0709"
     AZURE_GPT_56_TERRA_2026_0709 = "AZURE_GPT_56_TERRA_2026_0709"
     AZURE_GPT_56_LUNA_2026_0709 = "AZURE_GPT_56_LUNA_2026_0709"
+    AZURE_GPT_6_ASTRA_2026_0903 = "AZURE_GPT_6_ASTRA_2026_0903"
+    AZURE_GPT_6_LUNA_2026_0922 = "AZURE_GPT_6_LUNA_2026_0922"
+    AZURE_GPT_6_SOL_2026_0922 = "AZURE_GPT_6_SOL_2026_0922"
+    AZURE_GPT_61_SOL_2026_0929 = "AZURE_GPT_61_SOL_2026_0929"
+    AZURE_GPT_61_TERRA_2026_1026 = "AZURE_GPT_61_TERRA_2026_1026"
+    AZURE_GPT_62_ASTRA_2026_1117 = "AZURE_GPT_62_ASTRA_2026_1117"
+    AZURE_GPT_62_SOL_2026_1117 = "AZURE_GPT_62_SOL_2026_1117"
     AZURE_GPT_4o_2024_0513 = "AZURE_GPT_4o_2024_0513"
     AZURE_GPT_4o_2024_0806 = "AZURE_GPT_4o_2024_0806"
     AZURE_GPT_4o_2024_1120 = "AZURE_GPT_4o_2024_1120"
@@ -83,16 +91,20 @@ class LanguageModelName(StrEnum):
         "litellm:anthropic-claude-3-7-sonnet-thinking"
     )
     ANTHROPIC_CLAUDE_HAIKU_4_5 = "litellm:anthropic-claude-haiku-4-5"
+    ANTHROPIC_CLAUDE_HAIKU_5_5 = "litellm:anthropic-claude-haiku-5-5"
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
     ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
     ANTHROPIC_CLAUDE_SONNET_5 = "litellm:anthropic-claude-sonnet-5"
+    ANTHROPIC_CLAUDE_SONNET_5_5 = "litellm:anthropic-claude-sonnet-5-5"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
     ANTHROPIC_CLAUDE_OPUS_4_6 = "litellm:anthropic-claude-opus-4-6"
     ANTHROPIC_CLAUDE_OPUS_4_7 = "litellm:anthropic-claude-opus-4-7"
     ANTHROPIC_CLAUDE_OPUS_4_8 = "litellm:anthropic-claude-opus-4-8"
+    ANTHROPIC_CLAUDE_OPUS_5 = "litellm:anthropic-claude-opus-5"
+    ANTHROPIC_CLAUDE_OPUS_5_5 = "litellm:anthropic-claude-opus-5-5"
     ANTHROPIC_CLAUDE_FABLE_5 = "litellm:anthropic-claude-fable-5"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
@@ -103,10 +115,18 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
     GEMINI_3_1_PRO_PREVIEW = "litellm:gemini-3-1-pro-preview"
+    GEMINI_3_6_FLASH = "litellm:gemini-3-6-flash"
+    GEMINI_3_8_FLASH = "litellm:gemini-3-8-flash"
     GEMINI_3_FLASH_PREVIEW = "litellm:gemini-3-flash-preview"
     GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
+    GEMINI_4_ARGON = "litellm:gemini-4-argon"
+    GEMINI_4_CARBON = "litellm:gemini-4-carbon"
+    GEMINI_4_HYDROGEN = "litellm:gemini-4-hydrogen"
     GROK_4_1_FAST_NON_REASONING = "litellm:grok-4-1-fast-non-reasoning"
     GROK_4_1_FAST_REASONING = "litellm:grok-4-1-fast-reasoning"
+    GROK_4_5 = "litellm:grok-4-5"
+    GROK_4_6 = "litellm:grok-4-6"
+    GROK_4_7 = "litellm:grok-4-7"
     LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
@@ -123,6 +143,13 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_56_SOL = "litellm:openai-gpt-5-6-sol"
     LITELLM_OPENAI_GPT_56_TERRA = "litellm:openai-gpt-5-6-terra"
     LITELLM_OPENAI_GPT_56_LUNA = "litellm:openai-gpt-5-6-luna"
+    LITELLM_OPENAI_GPT_6_ASTRA = "litellm:openai-gpt-6-astra"
+    LITELLM_OPENAI_GPT_6_LUNA = "litellm:openai-gpt-6-luna"
+    LITELLM_OPENAI_GPT_6_SOL = "litellm:openai-gpt-6-sol"
+    LITELLM_OPENAI_GPT_61_SOL = "litellm:openai-gpt-6.1-sol"
+    LITELLM_OPENAI_GPT_61_TERRA = "litellm:openai-gpt-6.1-terra"
+    LITELLM_OPENAI_GPT_62_ASTRA = "litellm:openai-gpt-6.2-astra"
+    LITELLM_OPENAI_GPT_62_SOL = "litellm:openai-gpt-6.2-sol"
     LITELLM_OPENAI_O1 = "litellm:openai-o1"
     LITELLM_OPENAI_O3 = "litellm:openai-o3"
     LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
@@ -134,17 +161,33 @@ class LanguageModelName(StrEnum):
     LITELLM_DEEPSEEK_R1 = "litellm:deepseek-r1"
     LITELLM_DEEPSEEK_V3 = "litellm:deepseek-v3-1"
     LITELLM_DEEPSEEK_V4_PRO = "litellm:deepseek-v4-pro"
+    LITELLM_DEEPSEEK_V4_1_FLASH = "litellm:deepseek-v4-1-flash"
     LITELLM_GLM_5_1 = "litellm:glm-5.1"
     LITELLM_GLM_5_2 = "litellm:glm-5.2"
+    LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH = "litellm:phoeniqs-deepseek-v4-flash"
+    LITELLM_PHOENIQS_GEMMA_4_31B = "litellm:phoeniqs-gemma-4-31b"
+    LITELLM_PHOENIQS_GLM_5_2 = "litellm:phoeniqs-glm-5.2"
+    LITELLM_PHOENIQS_GLM_5_3_FLASH = "litellm:phoeniqs-glm-5.3-flash"
+    LITELLM_PHOENIQS_LLAMA_4_MAVERICK = "litellm:phoeniqs-llama-4-maverick"
     LITELLM_KIMI_K2_6 = "litellm:kimi-k2.6"
+    LITELLM_KIMI_K3 = "litellm:kimi-k3"
+    LITELLM_KIMI_K3_1_PRO = "litellm:kimi-k3.1-pro"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
+    VERTEX_CLAUDE_HAIKU_5_5 = "litellm:vertex-claude-haiku-5-5"
     VERTEX_CLAUDE_SONNET_4_6 = "litellm:vertex-claude-sonnet-4-6"
     VERTEX_CLAUDE_SONNET_5 = "litellm:vertex-claude-sonnet-5"
+    VERTEX_CLAUDE_SONNET_5_5 = "litellm:vertex-claude-sonnet-5-5"
     VERTEX_CLAUDE_OPUS_4_6 = "litellm:vertex-claude-opus-4-6"
     VERTEX_CLAUDE_OPUS_4_7 = "litellm:vertex-claude-opus-4-7"
     VERTEX_CLAUDE_OPUS_4_8 = "litellm:vertex-claude-opus-4-8"
+    VERTEX_CLAUDE_OPUS_5 = "litellm:vertex-claude-opus-5"
+    VERTEX_CLAUDE_OPUS_5_5 = "litellm:vertex-claude-opus-5-5"
     VERTEX_CLAUDE_FABLE_5 = "litellm:vertex-claude-fable-5"
+    VERTEX_GEMINI_3_8_FLASH = "litellm:vertex-gemini-3-8-flash"
+    VERTEX_GEMINI_4_ARGON = "litellm:vertex-gemini-4-argon"
+    VERTEX_GEMINI_4_CARBON = "litellm:vertex-gemini-4-carbon"
+    VERTEX_GEMINI_4_HYDROGEN = "litellm:vertex-gemini-4-hydrogen"
 
 
 class EncoderName(StrEnum):
@@ -204,12 +247,20 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_52_2025_1211
             | LMN.AZURE_GPT_52_CHAT_2025_1211
             | LMN.AZURE_GPT_54_2026_0305
+            | LMN.AZURE_GPT_54_MINI_2026_0317
             | LMN.AZURE_GPT_54_PRO_2026_0305
             | LMN.AZURE_GPT_55_2026_0424
             | LMN.AZURE_GPT_55_PRO_2026_0424
             | LMN.AZURE_GPT_56_SOL_2026_0709
             | LMN.AZURE_GPT_56_TERRA_2026_0709
             | LMN.AZURE_GPT_56_LUNA_2026_0709
+            | LMN.AZURE_GPT_6_ASTRA_2026_0903
+            | LMN.AZURE_GPT_6_LUNA_2026_0922
+            | LMN.AZURE_GPT_6_SOL_2026_0922
+            | LMN.AZURE_GPT_61_SOL_2026_0929
+            | LMN.AZURE_GPT_61_TERRA_2026_1026
+            | LMN.AZURE_GPT_62_ASTRA_2026_1117
+            | LMN.AZURE_GPT_62_SOL_2026_1117
             | LMN.AZURE_MODEL_ROUTER_2025_1118
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
@@ -227,6 +278,13 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_GPT_56_SOL
             | LMN.LITELLM_OPENAI_GPT_56_TERRA
             | LMN.LITELLM_OPENAI_GPT_56_LUNA
+            | LMN.LITELLM_OPENAI_GPT_6_ASTRA
+            | LMN.LITELLM_OPENAI_GPT_6_LUNA
+            | LMN.LITELLM_OPENAI_GPT_6_SOL
+            | LMN.LITELLM_OPENAI_GPT_61_SOL
+            | LMN.LITELLM_OPENAI_GPT_61_TERRA
+            | LMN.LITELLM_OPENAI_GPT_62_ASTRA
+            | LMN.LITELLM_OPENAI_GPT_62_SOL
             | LMN.LITELLM_OPENAI_O1
             | LMN.LITELLM_OPENAI_O3
             | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
@@ -263,6 +321,17 @@ class ModelCapabilities(StrEnum):
     VISION = "vision"
 
 
+_SAMPLING_OPTION_KEYS = (
+    "temperature",
+    "top_p",
+    "topP",
+    "logprobs",
+    "top_logprobs",
+    "topLogprobs",
+)
+_LOGPROBS_INCLUDE = "message.output_text.logprobs"
+
+
 class TemperatureBounds(BaseModel):
     min_temperature: float
     max_temperature: float
@@ -292,6 +361,28 @@ def _load_custom_decoder(tokenizer_name: str) -> TypeDecoder:
     tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
     tokenizer = get_tokenizer_from_path(tokenizer_path)
     return tokenizer.decode
+
+
+_CLAUDE_CONTEXT_WINDOWS = {
+    "claude-3-7-sonnet": 200_000,
+    "claude-3-7-sonnet-thinking": 200_000,
+    "claude-haiku-4-5": 200_000,
+    "claude-opus-4": 200_000,
+    "claude-opus-4-1": 200_000,
+    "claude-opus-4-5": 200_000,
+    "claude-opus-4-6": 200_000,
+    "claude-sonnet-4": 200_000,
+    "claude-sonnet-4-5": 200_000,
+    "claude-sonnet-4-6": 200_000,
+    "claude-fable-5": 1_000_000,
+    "claude-haiku-5-5": 1_000_000,
+    "claude-opus-4-7": 1_000_000,
+    "claude-opus-4-8": 1_000_000,
+    "claude-opus-5": 1_000_000,
+    "claude-opus-5-5": 1_000_000,
+    "claude-sonnet-5": 1_000_000,
+    "claude-sonnet-5-5": 1_000_000,
+}
 
 
 class LanguageModelInfo(BaseModel):
@@ -345,7 +436,36 @@ class LanguageModelInfo(BaseModel):
 
     supported_reasoning_efforts: list[ReasoningEffort] | None = None
 
+    # False for models that return HTTP 400 when tool_choice is a named tool or
+    # "any". Only "auto" and "none" are accepted there.
+    supports_forced_tool_choice: bool = True
+
+    # False for models whose API rejects temperature, top_p, logprobs and
+    # top_logprobs (GPT-6.2). See ``drop_unsupported_options``.
+    supports_sampling_params: bool = True
+
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
+
+    def drop_unsupported_options(self, options: dict[str, Any]) -> None:
+        """Remove request options this model's API rejects, in place.
+
+        Works for Chat Completions and Responses options, in snake or camel case.
+
+        Args:
+            options (dict[str, Any]): Request options. Mutated in place.
+        """
+        if self.supports_sampling_params:
+            return
+        for key in _SAMPLING_OPTION_KEYS:
+            options.pop(key, None)
+        include = options.get("include")
+        if include is None:
+            return
+        kept = [item for item in include if item != _LOGPROBS_INCLUDE]
+        if kept:
+            options["include"] = kept
+        else:
+            del options["include"]
 
     def get_encoder(self) -> TypeEncoder:
         """Get an encode callable for this model's tokenizer."""
@@ -818,6 +938,12 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "none",
                     },
+                    # Do NOT add "xhigh": xhigh is Codex-only in the GPT-5.1
+                    # family. Verified on QA (switzerlandnorth, 2026-09-04):
+                    # the deployment accepts reasoning_effort=xhigh on the
+                    # wire but returns 0 reasoning tokens (vs ~2'200-2'400 at
+                    # "high"), i.e. it silently runs without reasoning.
+                    # See UN-25265.
                     supported_reasoning_efforts=["none", "low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_51_THINKING_2025_1113:
@@ -880,6 +1006,10 @@ class LanguageModelInfo(BaseModel):
                     },
                     supported_reasoning_efforts=["low", "medium", "high"],
                 )
+            # The GPT-5.1 Codex family supports reasoning_effort="xhigh"
+            # (unlike base GPT-5.1, see comment there / UN-25265). No Azure
+            # deployment of the Codex models exists yet (as of 2026-09), so
+            # the server side could not be verified end-to-end.
             case LanguageModelName.AZURE_GPT_51_CODEX_2025_1113:
                 return cls(
                     name=model_name,
@@ -907,7 +1037,13 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
-                    supported_reasoning_efforts=["none", "low", "medium", "high"],
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
                 )
             case LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113:
                 return cls(
@@ -936,7 +1072,13 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
-                    supported_reasoning_efforts=["none", "low", "medium", "high"],
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
                 )
             case LanguageModelName.AZURE_GPT_52_2025_1211:
                 return cls(
@@ -1024,6 +1166,42 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 9, 30),
                     published_at=date(2026, 3, 5),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "none",
+                    },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
+                )
+            case LanguageModelName.AZURE_GPT_54_MINI_2026_0317:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
+                    version="2026-03-17",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=272_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2025, 8, 31),
+                    published_at=date(2026, 3, 17),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=0.0, max_temperature=1.0
                     ),
@@ -1158,13 +1336,91 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
                     ),
-                    info_cutoff_at=date(2026, 6, 1),
+                    info_cutoff_at=date(2026, 2, 16),
                     published_at=date(2026, 7, 9),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=0.0, max_temperature=1.0
                     ),
                     default_options={
                         "reasoning_effort": "none",
+                    },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
+                )
+            case LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
+                    version="2026-09-03",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2026, 4, 30),
+                    published_at=date(2026, 9, 3),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "low",
+                    },
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
+                )
+            case (
+                LanguageModelName.AZURE_GPT_6_LUNA_2026_0922
+                | LanguageModelName.AZURE_GPT_6_SOL_2026_0922
+            ):
+                info_cutoff_at = {
+                    LanguageModelName.AZURE_GPT_6_LUNA_2026_0922: date(2026, 5, 18),
+                    LanguageModelName.AZURE_GPT_6_SOL_2026_0922: date(2026, 4, 20),
+                }[model_name]
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
+                    version="2026-09-22",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=info_cutoff_at,
+                    published_at=date(2026, 9, 22),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
                     },
                     supported_reasoning_efforts=[
                         "none",
@@ -1584,6 +1840,40 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 10, 1),
                     supported_reasoning_efforts=[],
                 )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_5_5
+                | LanguageModelName.VERTEX_CLAUDE_HAIKU_5_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-haiku-5-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        # 1M context / 128K max output. https://platform.claude.com/docs/en/models/haiku-5-5/overview
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
+                    ),
+                    info_cutoff_at=date(2026, 6, 1),
+                    published_at=date(2026, 10, 7),
+                    # Effort levels: https://platform.claude.com/docs/en/build-with-claude/effort
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4:
                 return cls(
                     name=model_name,
@@ -1648,7 +1938,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 2, 17),
-                    supported_reasoning_efforts=[],
+                    # Effort includes max. xhigh is not accepted.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high", "max"],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5
@@ -1667,15 +1959,59 @@ class LanguageModelInfo(BaseModel):
                     version="claude-sonnet-5",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
-                        token_limit_output=128_000,
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 7, 1),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5_5
+                | LanguageModelName.VERTEX_CLAUDE_SONNET_5_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-sonnet-5-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        # 1M context / 128K max output. https://platform.claude.com/docs/en/models/sonnet-5-5/overview
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
+                    ),
+                    info_cutoff_at=date(2026, 6, 1),
+                    published_at=date(2026, 9, 28),
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                    supports_forced_tool_choice=False,
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(
@@ -1738,7 +2074,10 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2025, 11, 13),
-                    supported_reasoning_efforts=[],
+                    # No default: a set effort enables thinking, which a forced
+                    # tool_choice rejects.
+                    # https://platform.claude.com/docs/en/build-with-claude/effort
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6
@@ -1762,7 +2101,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2026, 2, 5),
-                    supported_reasoning_efforts=[],
+                    # Effort includes max. xhigh is not accepted.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high", "max"],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7
@@ -1781,12 +2122,21 @@ class LanguageModelInfo(BaseModel):
                     version="claude-opus-4-7",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
-                        token_limit_output=128_000,
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 4, 16),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_8
@@ -1805,12 +2155,89 @@ class LanguageModelInfo(BaseModel):
                     version="claude-opus-4-8",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
-                        token_limit_output=128_000,
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 5, 28),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5
+                | LanguageModelName.VERTEX_CLAUDE_OPUS_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-opus-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
+                    ),
+                    info_cutoff_at=date(2026, 5, 1),
+                    published_at=date(2026, 7, 24),
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5_5
+                | LanguageModelName.VERTEX_CLAUDE_OPUS_5_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-opus-5-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        # 1M context / 128K max output. https://platform.claude.com/docs/en/about-claude/models/overview
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
+                    ),
+                    info_cutoff_at=date(2026, 6, 1),
+                    published_at=date(2026, 9, 22),
+                    # Effort includes xhigh and max. API default is medium.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                    supports_forced_tool_choice=False,
                 )
             case (
                 LanguageModelName.ANTHROPIC_CLAUDE_FABLE_5
@@ -1829,12 +2256,21 @@ class LanguageModelInfo(BaseModel):
                     version="claude-fable-5",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000,
-                        token_limit_output=128_000,
+                        # TODO: Remove the 1.3 adjustment once a proper Claude tokenizer is implemented. UN-24123
+                        token_limit_input=int(1_000_000 / 1.3),
+                        token_limit_output=int(128_000 / 1.3),
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 7, 1),
-                    supported_reasoning_efforts=[],
+                    # Effort includes xhigh and max.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:
                 return cls(
@@ -2023,7 +2459,63 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2026, 1, 19),
-                    supported_reasoning_efforts=[],
+                    # thinkingLevel is low, medium, or high.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
+                )
+            case LanguageModelName.GEMINI_3_6_FLASH:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-3-6-flash",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2026, 3, day=1),
+                    published_at=date(2026, 7, 21),
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
+                )
+            case (
+                LanguageModelName.GEMINI_3_8_FLASH
+                | LanguageModelName.VERTEX_GEMINI_3_8_FLASH
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-3-8-flash",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash
+                        token_limit_input=1_048_576,
+                        token_limit_output=65_536,
+                    ),
+                    # https://deepmind.google/models/model-cards/gemini-3-8-flash/
+                    info_cutoff_at=date(2026, 3, 1),
+                    # https://ai.google.dev/gemini-api/docs/changelog
+                    published_at=date(2026, 9, 2),
+                    # minimal is rejected; default thinking level is medium when unset.
+                    # https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.GEMINI_3_FLASH_PREVIEW:
                 return cls(
@@ -2044,7 +2536,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 12, 17),
-                    supported_reasoning_efforts=[],
+                    # thinkingLevel includes minimal. Default when unset is high.
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case LanguageModelName.GEMINI_3_PRO_PREVIEW:
                 return cls(
@@ -2065,7 +2559,98 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 11, 13),
-                    supported_reasoning_efforts=[],
+                    # thinkingLevel is low or high.
+                    default_options={"reasoning_effort": "low"},
+                    supported_reasoning_efforts=["low", "high"],
+                )
+            case (
+                LanguageModelName.GEMINI_4_ARGON
+                | LanguageModelName.VERTEX_GEMINI_4_ARGON
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-4-argon",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Unified 1,048,576 input/output context window; 65,536 single-request output cap.
+                        # https://ai.google.dev/gemini-api/docs/models/gemini-4-argon
+                        # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-argon
+                        token_limit_input=1_048_576,
+                        token_limit_output=65_536,
+                    ),
+                    info_cutoff_at=date(2026, 3, day=1),
+                    published_at=date(2026, 10, 13),
+                    # Supports thinking_level low, medium (default), and high.
+                    # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides/gemini-4-argon
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
+                )
+            case (
+                LanguageModelName.GEMINI_4_CARBON
+                | LanguageModelName.VERTEX_GEMINI_4_CARBON
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-4-carbon",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # No public model card yet. Limits follow Gemini 4 Argon.
+                        # https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-carbon/
+                        token_limit_input=1_048_576,
+                        token_limit_output=65_536,
+                    ),
+                    published_at=date(2026, 10, 28),
+                    # Gemini 4 thinking levels are low, medium (default), and high.
+                    # https://ai.google.dev/gemini-api/docs/generate-content/thinking
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
+                )
+            case (
+                LanguageModelName.GEMINI_4_HYDROGEN
+                | LanguageModelName.VERTEX_GEMINI_4_HYDROGEN
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemini-4-hydrogen",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Unified 1,048,576 context window; 65,536 single-request output cap.
+                        # https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-hydrogen
+                        token_limit_input=1_048_576,
+                        token_limit_output=65_536,
+                    ),
+                    published_at=date(2026, 11, 12),
+                    # Google also has xhigh, but LiteLLM can't send it via reasoning_effort yet.
+                    # https://docs.litellm.ai/blog/gemini-4-hydrogen
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.GROK_4_1_FAST_NON_REASONING:
                 return cls(
@@ -2111,6 +2696,86 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 11, day=4),
                     published_at=date(2025, 11, 19),
                     supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.GROK_4_5:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.XAI,
+                    version="grok-4-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 500_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(480_000 * 0.9),
+                        token_limit_output=int(480_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2026, 2, day=1),
+                    published_at=date(2026, 7, 16),
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high"],
+                )
+            case LanguageModelName.GROK_4_6:
+                # Specs from https://docs.x.ai/developers/grok-4-6
+                # Announcement date from https://x.ai/news/grok-4-6
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.XAI,
+                    version="grok-4-6",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 500_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(480_000 * 0.9),
+                        token_limit_output=int(480_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2026, 1, day=1),
+                    published_at=date(2026, 8, 12),
+                    supported_reasoning_efforts=["low", "medium", "high", "xhigh"],
+                    default_options={"reasoning_effort": "high"},
+                )
+            case LanguageModelName.GROK_4_7:
+                # Specs from https://docs.x.ai/developers/models/grok-4.7
+                # Knowledge cutoff from https://docs.x.ai/developers/models
+                # Published 2026-09-21: https://vercel.com/changelog/grok-4-7-now-available-and-40-off-on-ai-gateway-fx-eve
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.XAI,
+                    version="grok-4.7",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 500_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(480_000 * 0.9),
+                        token_limit_output=int(480_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2026, 5, day=1),
+                    published_at=date(2026, 9, day=21),
+                    supported_reasoning_efforts=["low", "medium", "high", "xhigh"],
+                    default_options={"reasoning_effort": "high"},
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5:
                 return cls(
@@ -2538,7 +3203,7 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=922_000, token_limit_output=128_000
                     ),
-                    info_cutoff_at=date(2026, 6, 1),
+                    info_cutoff_at=date(2026, 2, 16),
                     published_at=date(2026, 7, 9),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=0.0, max_temperature=1.0
@@ -2552,6 +3217,246 @@ class LanguageModelInfo(BaseModel):
                         "medium",
                         "high",
                         "xhigh",
+                    ],
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
+                    version="2026-09-03",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2026, 4, 30),
+                    published_at=date(2026, 9, 3),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "low",
+                    },
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
+                )
+            case (
+                LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA
+                | LanguageModelName.LITELLM_OPENAI_GPT_6_SOL
+            ):
+                info_cutoff_at = {
+                    LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA: date(2026, 5, 18),
+                    LanguageModelName.LITELLM_OPENAI_GPT_6_SOL: date(2026, 4, 20),
+                }[model_name]
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
+                    version="2026-09-22",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=info_cutoff_at,
+                    published_at=date(2026, 9, 22),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
+                )
+            case (
+                LanguageModelName.AZURE_GPT_61_SOL_2026_0929
+                | LanguageModelName.LITELLM_OPENAI_GPT_61_SOL
+            ):
+                # https://developers.openai.com/api/docs/models/gpt-6.1-sol
+                # Foundry GA 2026-09-29:
+                # https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-gpt-6-1-sol-in-microsoft-foundry-advanced-intelligence-optimized-for/4560811
+                # Context 1,050,000 with 128,000 max output → 922,000 max input.
+                # `none` is not a reasoning effort. `max` is documented.
+                provider = (
+                    LanguageModelProvider.AZURE
+                    if model_name is LanguageModelName.AZURE_GPT_61_SOL_2026_0929
+                    else LanguageModelProvider.LITELLM
+                )
+                return cls(
+                    name=model_name,
+                    provider=provider,
+                    family=ModelFamily.OPENAI,
+                    version="2026-09-29",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2026, 4, 30),
+                    published_at=date(2026, 9, 29),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                )
+            case (
+                LanguageModelName.AZURE_GPT_61_TERRA_2026_1026
+                | LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA
+            ):
+                # https://developers.openai.com/api/docs/models/gpt-6.1-terra
+                # Foundry GA 2026-10-26, version 2026-10-26:
+                # https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
+                # https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/gpt-6-1-terra-now-generally-available-in-microsoft-foundry-build-agents-that-see/4567769
+                # Context 1,050,000 with 128,000 max output → 922,000 max input.
+                # `none` and `max` are documented reasoning efforts.
+                provider = (
+                    LanguageModelProvider.AZURE
+                    if model_name is LanguageModelName.AZURE_GPT_61_TERRA_2026_1026
+                    else LanguageModelProvider.LITELLM
+                )
+                return cls(
+                    name=model_name,
+                    provider=provider,
+                    family=ModelFamily.OPENAI,
+                    version="2026-10-26",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2026, 6, 1),
+                    published_at=date(2026, 10, 26),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                    ],
+                )
+            case (
+                LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117
+                | LanguageModelName.AZURE_GPT_62_SOL_2026_1117
+                | LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA
+                | LanguageModelName.LITELLM_OPENAI_GPT_62_SOL
+            ):
+                # The API rejects `none`; the other efforts mirror GPT-6.1 Sol
+                # because OpenAI does not list them for GPT-6.2.
+                provider = (
+                    LanguageModelProvider.AZURE
+                    if model_name
+                    in (
+                        LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+                        LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+                    )
+                    else LanguageModelProvider.LITELLM
+                )
+                info_cutoff_at = (
+                    date(2026, 5, 18)
+                    if model_name
+                    in (
+                        LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+                        LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+                    )
+                    else date(2026, 6, 1)
+                )
+                return cls(
+                    name=model_name,
+                    provider=provider,
+                    family=ModelFamily.OPENAI,
+                    version="2026-11-17",
+                    supports_sampling_params=False,
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=info_cutoff_at,
+                    published_at=date(2026, 11, 17),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                    supported_reasoning_efforts=[
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
                     ],
                 )
             case LanguageModelName.LITELLM_OPENAI_O1:
@@ -2795,6 +3700,34 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=1_000_000, token_limit_output=384_000
                     ),
                     published_at=date(2026, 1, 1),
+                    # reasoning_effort is high or max.
+                    default_options={"reasoning_effort": "high"},
+                    supported_reasoning_efforts=["high", "max"],
+                )
+            case LanguageModelName.LITELLM_DEEPSEEK_V4_1_FLASH:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.DEEPSEEK,
+                    version="deepseek-v4-1-flash",
+                    encoder_name=EncoderName.DEEPSEEK,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    # 1M context and 384K max output. Alibaba Model Studio lists
+                    # max input 1_000_000 and max output 393_216; Together serves
+                    # maxTokens 384_000.
+                    # https://www.alibabacloud.com/help/en/model-studio/deepseek-v4-1-flash
+                    # https://pi.dev/models/together/deepseek-ai-deepseek-v4-1-flash
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000, token_limit_output=384_000
+                    ),
+                    # Together's route rejects reasoning_effort for this model;
+                    # it reasons by default.
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_GLM_5_1:
@@ -2835,6 +3768,111 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
                 )
+            # Phoeniqs publishes one combined context-window figure (max tokens per API call), not separate input/output limits, so token_limit_input==token_limit_output below — note the deprecated `LanguageModelTokenLimits.token_limit` sums these to 2x Phoeniqs' real per-call cap. https://documentation.phoeniqs.com/maas/active-models/
+            case LanguageModelName.LITELLM_PHOENIQS_DEEPSEEK_V4_FLASH:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.DEEPSEEK,
+                    version="deepseek-v4-flash-0731",
+                    encoder_name=EncoderName.DEEPSEEK,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000, token_limit_output=1_000_000
+                    ),
+                    published_at=date(2026, 7, 31),  # HF repo creation date
+                    # Phoeniqs accepts low, high, and max.
+                    default_options={"reasoning_effort": "low"},
+                    supported_reasoning_efforts=["low", "high", "max"],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_GEMMA_4_31B:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
+                    version="gemma-4-31b-it-fp8-block",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=131_072, token_limit_output=131_072
+                    ),
+                    published_at=date(2026, 4, 3),  # HF repo creation date
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_GLM_5_2:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ZAI,
+                    version="glm-5.2",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=131_072, token_limit_output=131_072
+                    ),
+                    published_at=date(
+                        2026, 6, 16
+                    ),  # HF repo creation date — unlike the
+                    # Together AI entry above, not an unsourced placeholder.
+                    # Phoeniqs accepts low and high.
+                    default_options={"reasoning_effort": "low"},
+                    supported_reasoning_efforts=["low", "high"],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_GLM_5_3_FLASH:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ZAI,
+                    version="glm-5.3-flash",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 1_000_000, we leave 100_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(900_000 * 0.9),
+                        token_limit_output=int(900_000 * 0.1),
+                    ),
+                    published_at=date(2026, 8, 25),  # HF repo creation date
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_PHOENIQS_LLAMA_4_MAVERICK:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.META,
+                    version="llama-4-maverick",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 1_048_576, we leave 100_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(948_576 * 0.9),
+                        token_limit_output=int(948_576 * 0.1),
+                    ),
+                    published_at=date(2025, 6, 12),  # HF repo creation date
+                    supported_reasoning_efforts=[],
+                )
             case LanguageModelName.LITELLM_KIMI_K2_6:
                 return cls(
                     name=model_name,
@@ -2853,6 +3891,56 @@ class LanguageModelInfo(BaseModel):
                     ),
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_KIMI_K3:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.KIMI,
+                    version="kimi-k3",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000,
+                        token_limit_output=128_000,
+                    ),
+                    published_at=date(2026, 7, 27),
+                    default_options={"reasoning_effort": "medium"},
+                    supported_reasoning_efforts=["low", "medium", "high", "max"],
+                )
+            case LanguageModelName.LITELLM_KIMI_K3_1_PRO:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.KIMI,
+                    version="kimi-k3.1-pro",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                    ],
+                    # Context window is 1,048,576. max_completion_tokens
+                    # defaults to 131,072 and can be raised up to that window.
+                    # https://platform.kimi.ai/docs/guide/kimi-k3-1-pro-quickstart
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576,
+                        token_limit_output=131_072,
+                    ),
+                    published_at=date(2026, 10, 23),
+                    # Thinking is always on. Accepted efforts are low, high,
+                    # and max; the API default is max.
+                    # https://platform.kimi.ai/docs/api/models-overview
+                    default_options={"reasoning_effort": "max"},
+                    supported_reasoning_efforts=["low", "high", "max"],
                 )
             case LanguageModelName.LITELLM_QWEN_3:
                 return cls(
@@ -2915,6 +4003,29 @@ class LanguageModelInfo(BaseModel):
             return self.name.value
         else:
             return self.name
+
+    @property
+    def provider_context_window(self) -> int:
+        """Return the raw provider input context window before local-tokenizer adjustments."""
+        if self.family == ModelFamily.ANTHROPIC:
+            known_window = _CLAUDE_CONTEXT_WINDOWS.get(self.version)
+            if known_window is None:
+                model_name = str(self.name)
+                known_window = next(
+                    (
+                        window
+                        for version, window in sorted(
+                            _CLAUDE_CONTEXT_WINDOWS.items(),
+                            key=lambda item: len(item[0]),
+                            reverse=True,
+                        )
+                        if version in model_name
+                    ),
+                    None,
+                )
+            if known_window is not None:
+                return known_window
+        return self.token_limits.token_limit_input
 
 
 @deprecated(

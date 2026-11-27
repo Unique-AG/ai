@@ -34,6 +34,7 @@ The following payload schemas correspond to the events listed above:
 
 ::: unique_toolkit.agentic_table.schemas.SheetCreatedMetadata
 ::: unique_toolkit.agentic_table.schemas.LibrarySheetRowVerifiedMetadata
+::: unique_toolkit.agentic_table.schemas.LibrarySheetRowVerifiedRow
 ::: unique_toolkit.agentic_table.schemas.ArtifactData
 ::: unique_toolkit.agentic_table.schemas.ArtifactType
 ::: unique_toolkit.agentic_table.schemas.MagicTableCell

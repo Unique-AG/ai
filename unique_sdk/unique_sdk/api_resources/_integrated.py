@@ -85,6 +85,15 @@ class Integrated(APIResource["Integrated"]):
         input: "str | ResponseInputParam"
         options: NotRequired["Integrated.CreateStreamResponsesOpenaiParams"]
 
+    class CountTokensParams(RequestOptions):
+        model: str
+        messages: list[dict[str, Any]]
+        tools: NotRequired[list[dict[str, Any]]]
+        system: NotRequired[str | list[dict[str, Any]]]
+
+    class CountTokensResult(TypedDict):
+        input_tokens: int
+
     class ToolCall(TypedDict):
         id: str
         name: str | None
@@ -150,6 +159,25 @@ class Integrated(APIResource["Integrated"]):
             await cls._static_request_async(
                 "post",
                 url,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def count_tokens_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Integrated.CountTokensParams"],
+    ) -> "Integrated.CountTokensResult":
+        """Count input tokens through LiteLLM's provider-backed counter."""
+        return cast(
+            "Integrated.CountTokensResult",
+            await cls._static_request_async(
+                "post",
+                "/anthropic-proxy/v1/messages/count_tokens",
                 user_id,
                 company_id,
                 params,

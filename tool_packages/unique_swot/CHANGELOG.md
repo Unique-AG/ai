@@ -5,6 +5,91 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.46.0...unique-swot-v2026.48.0) (2026-11-20)
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.44.0...unique-swot-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **toolkit:** mark assistant-generated chat uploads in content metadata [UN-28507] ([#2682](https://github.com/Unique-AG/ai/issues/2682)) ([b090262](https://github.com/Unique-AG/ai/commit/b0902628fae6350446645b3a8346d50084debf74))
+
+
+### Bug Fixes
+
+* **toolkit:** render configurable prompt templates in a jinja sandbox ([#2658](https://github.com/Unique-AG/ai/issues/2658)) ([87c67c7](https://github.com/Unique-AG/ai/commit/87c67c74384077953e88447a113614be7f701633))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.42.0...unique-swot-v2026.44.0) (2026-10-23)
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.40.0...unique-swot-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.38.0...unique-swot-v2026.40.0) (2026-09-24)
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.36.0...unique-swot-v2026.38.0) (2026-09-10)
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.34.0...unique-swot-v2026.36.0) (2026-08-31)
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.32.0...unique-swot-v2026.34.0) (2026-08-14)
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.30.0...unique-swot-v2026.32.0) (2026-07-31)
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.28.0...unique-swot-v2026.30.0) (2026-07-17)
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.26.0...unique-swot-v2026.28.0) (2026-07-03)
 
 

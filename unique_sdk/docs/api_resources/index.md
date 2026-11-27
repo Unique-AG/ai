@@ -10,6 +10,7 @@ This section contains documentation for all API resources available in the Uniqu
 - [Briefing API](briefing.md) - Assistant briefing upsert (PUT by assistant id)
 - [ChatCompletion API](chat_completion.md) - Chat completion functionality
 - [Content API](content.md) - Content management operations
+- [Context Memory API](context_memory.md) - Persistent user context memory management
 - [Embeddings API](embeddings.md) - Vector embeddings for semantic search
 - [Folder API](folder.md) - Folder management operations
 - [Group API](group.md) - User group management and configurations
@@ -19,6 +20,8 @@ This section contains documentation for all API resources available in the Uniqu
 - [Message Execution API](message_execution.md) - Message execution operations
 - [Message Log API](message_log.md) - Message logging and history
 - [MCP API](mcp.md) - Call MCP tools from assistants
+- [Project Chat API](project_chat.md) - Search and read the earlier chats of a user's project
+- [Project Memory API](project_memory.md) - Per-project memory of a user's project chats
 - [ScheduledTask API](scheduled_task.md) - Cron-based recurring task scheduling
 - [Search API](search.md) - Search functionality
 - [SearchString API](search_string.md) - String-based search operations

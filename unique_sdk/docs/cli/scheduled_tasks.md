@@ -21,8 +21,8 @@ unique-cli schedule list
 /> schedule list
 1 scheduled task(s):
 
-STATUS  CRON           ASSISTANT     PROMPT               ID          LAST RUN
-on      0 9 * * 1-5    Report Bot    Generate the daily…  task_abc    2026-04-01 09:00
+STATUS  NAME                CRON           TIMEZONE        ASSISTANT     PROMPT               ID          LAST RUN
+on      Daily sales report  0 9 * * 1-5    Europe/Zurich   Report Bot    Generate the daily…  task_abc    2026-04-01 09:00
 ```
 
 ---
@@ -51,7 +51,9 @@ unique-cli schedule get task_abc123
 
 ```
 ID:         task_abc123
+Name:       Daily sales report
 Cron:       0 9 * * 1-5
+Timezone:   Europe/Zurich
 Assistant:  Report Bot (assistant_cvj3fd7x8hpt1hfp0akqu1rq)
 Chat ID:    (new chat each run)
 Prompt:     Generate the daily sales report
@@ -70,16 +72,18 @@ Create a new scheduled task.
 **Synopsis:**
 
 ```
-schedule create --cron <expr> --assistant <id> --prompt <text> [--chat-id <id>] [--disabled]
+schedule create --cron <expr> --timezone <tz> --assistant <id> --prompt <text> [--name <text>] [--chat-id <id>] [--disabled]
 ```
 
 **Options:**
 
 | Option | Short | Required | Description |
 |--------|-------|----------|-------------|
-| `--cron` | `-c` | Yes | 5-field cron expression (UTC) |
+| `--cron` | `-c` | Yes | 5-field cron expression in the given timezone |
+| `--timezone` | `-tz` | Yes | IANA timezone the cron runs in (e.g. `Europe/Zurich`). Use `UTC` for UTC. |
 | `--assistant` | `-a` | Yes | Assistant ID to execute (starts with `assistant_`) |
 | `--prompt` | `-p` | Yes | Prompt text sent each run |
+| `--name` | `-n` | No | Short label shown in the UI, at most 128 characters. Falls back to the prompt when omitted. |
 | `--chat-id` | | No | Continue an existing chat (starts with `chat_`). Omit for a new chat each run. |
 | `--disabled` | | No | Create in a disabled state |
 
@@ -89,30 +93,35 @@ schedule create --cron <expr> --assistant <id> --prompt <text> [--chat-id <id>] 
 # Create a weekday report task
 unique-cli schedule create \
   --cron "0 9 * * 1-5" \
+  --timezone Europe/Zurich \
   --assistant assistant_cvj3fd7x8hpt1hfp0akqu1rq \
-  --prompt "Generate the daily sales report"
+  --prompt "Generate the daily sales report" \
+  --name "Daily sales report"
 
 # Continue an existing chat
 unique-cli schedule create \
   -c "0 9 * * 1-5" \
+  -tz Europe/Zurich \
   -a assistant_cvj3fd7x8hpt1hfp0akqu1rq \
   --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
   -p "Append today's numbers to the running report"
 
 # Create disabled
 unique-cli schedule create \
-  -c "*/15 * * * *" -a assistant_cvj3fd7x8hpt1hfp0akqu1rq \
+  -c "*/15 * * * *" -tz Europe/Zurich -a assistant_cvj3fd7x8hpt1hfp0akqu1rq \
   -p "Check for new tickets" --disabled
 ```
 
 **Interactive shell:**
 
 ```
-/> schedule create -c "0 9 * * 1-5" -a assistant_cvj3fd7x8hpt1hfp0akqu1rq -p "Daily report"
+/> schedule create -c "0 9 * * 1-5" -tz Europe/Zurich -a assistant_cvj3fd7x8hpt1hfp0akqu1rq -p "Daily report" -n "Daily report"
 Created scheduled task task_abc123
 
 ID:         task_abc123
+Name:       Daily sales report
 Cron:       0 9 * * 1-5
+Timezone:   Europe/Zurich
 ...
 ```
 
@@ -121,6 +130,7 @@ Cron:       0 9 * * 1-5
 ## schedule update
 
 Update an existing scheduled task. Only the fields you provide are changed.
+`--timezone` is required whenever `--cron` is given.
 
 **Synopsis:**
 
@@ -138,9 +148,11 @@ schedule update <task_id> [options]
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--cron` | `-c` | Updated cron expression |
+| `--cron` | `-c` | Updated cron expression (requires `--timezone`) |
+| `--timezone` | `-tz` | IANA timezone the cron runs in (required with `--cron`) |
 | `--assistant` | `-a` | Updated assistant ID (starts with `assistant_`) |
 | `--prompt` | `-p` | Updated prompt text |
+| `--name` | `-n` | Updated label. Use `none` to clear it and fall back to the prompt. |
 | `--chat-id` | | Updated chat ID (starts with `chat_`). Use `none` to clear. |
 | `--enable` | | Enable the task |
 | `--disable` | | Disable the task |
@@ -152,7 +164,7 @@ schedule update <task_id> [options]
 
 ```bash
 # Change the schedule
-unique-cli schedule update task_abc123 --cron "0 */2 * * *"
+unique-cli schedule update task_abc123 --cron "0 */2 * * *" --timezone Europe/Zurich
 
 # Disable a task
 unique-cli schedule update task_abc123 --disable
@@ -193,7 +205,7 @@ Deleted scheduled task task_abc123
 
 ## Cron Expression Reference
 
-Cron expressions use 5 fields and are evaluated in **UTC**:
+Cron expressions use 5 fields and are evaluated in the task's **timezone**:
 
 ```
 ┌───────────── minute (0–59)
@@ -208,14 +220,14 @@ Cron expressions use 5 fields and are evaluated in **UTC**:
 | Expression | Schedule |
 |------------|----------|
 | `*/15 * * * *` | Every 15 minutes |
-| `0 9 * * 1-5` | Weekdays at 09:00 UTC |
-| `0 0 * * *` | Daily at midnight UTC |
-| `0 8 1 * *` | 1st of every month at 08:00 UTC |
-| `30 17 * * 5` | Every Friday at 17:30 UTC |
+| `0 9 * * 1-5` | Weekdays at 09:00 local |
+| `0 0 * * *` | Daily at midnight local |
+| `0 8 1 * *` | 1st of every month at 08:00 local |
+| `30 17 * * 5` | Every Friday at 17:30 local |
 | `0 */2 * * *` | Every 2 hours |
 
 !!! tip "Timezone"
-    All cron expressions are in UTC. Convert your local time before creating schedules. For example, 9:00 AM Central European Summer Time (CEST, UTC+2) is `0 7 * * *` in UTC.
+    Pass `--timezone` with an IANA name (e.g. `Europe/Zurich`) and write the cron in that local wall-clock time. The platform keeps the local run time across daylight saving changes. Use `--timezone UTC` for an explicit UTC schedule.
 
 ## Related
 

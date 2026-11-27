@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from urllib.parse import urljoin
 
 import httpx
@@ -27,11 +28,47 @@ _REDIRECT_PROBE_USER_AGENT = (
 ValidateUrlFn = Callable[[str], Awaitable[tuple[str, str] | None]]
 
 
+def redirect_target_url(response: httpx.Response, current_url: str) -> str | None:
+    """Return the next absolute redirect URL, or ``None`` when not followable."""
+    if response.status_code not in _REDIRECT_STATUS_CODES:
+        return None
+
+    location = response.headers.get("location")
+    if not location:
+        return None
+
+    return urljoin(current_url, location)
+
+
+@asynccontextmanager
+async def _redirect_probe_client(
+    http_client: httpx.AsyncClient | None,
+    *,
+    timeout: float,
+) -> AsyncIterator[httpx.AsyncClient]:
+    """Yield the caller's client, or a short-lived one when none was supplied."""
+    if http_client is not None:
+        yield http_client
+        return
+    async with httpx.AsyncClient(
+        follow_redirects=False,
+        timeout=timeout,
+        headers={"User-Agent": _REDIRECT_PROBE_USER_AGENT},
+    ) as client:
+        yield client
+
+
 async def resolve_redirect_chain(
     url: str,
     validate_url: ValidateUrlFn,
+    *,
+    http_client: httpx.AsyncClient | None = None,
 ) -> str:
     """Follow HTTP 3xx redirects hop-by-hop, validating each destination.
+
+    Pass ``http_client`` to probe through a caller-owned client, so probes reach
+    the internet the same way the subsequent crawl will. The caller keeps
+    ownership and closes it.
 
     Returns the final validated URL.
     Raises CrawlTargetValidationError if any hop is blocked or redirect probing
@@ -39,11 +76,7 @@ async def resolve_redirect_chain(
     """
     current = url
     timeout = url_safety_settings.redirect_timeout_seconds
-    async with httpx.AsyncClient(
-        follow_redirects=False,
-        timeout=timeout,
-        headers={"User-Agent": _REDIRECT_PROBE_USER_AGENT},
-    ) as client:
+    async with _redirect_probe_client(http_client, timeout=timeout) as client:
         for _ in range(url_safety_settings.max_redirect_hops):
             error = await validate_url(current)
             if error is not None:
@@ -59,12 +92,16 @@ async def resolve_redirect_chain(
                 )
 
             try:
-                resp = await client.head(current)
+                resp = await client.head(
+                    current,
+                    follow_redirects=False,
+                    timeout=timeout,
+                    headers={"User-Agent": _REDIRECT_PROBE_USER_AGENT},
+                )
             except Exception as exc:
                 _LOGGER.debug(
-                    "Redirect resolution blocked at %s due to network error: %s",
-                    current,
-                    exc,
+                    "Redirect resolution blocked due to network error: %s",
+                    type(exc).__name__,
                 )
                 raise CrawlTargetValidationError(
                     [
@@ -79,14 +116,11 @@ async def resolve_redirect_chain(
                     ]
                 ) from exc
 
-            if resp.status_code not in _REDIRECT_STATUS_CODES:
+            redirect_url = redirect_target_url(resp, current)
+            if redirect_url is None:
                 break
 
-            location = resp.headers.get("location")
-            if not location:
-                break
-
-            current = urljoin(current, location)
+            current = redirect_url
 
     error = await validate_url(current)
     if error is not None:

@@ -1,14 +1,25 @@
 # search-proxy
 
-![Version: 2026.28.0](https://img.shields.io/badge/Version-2026.28.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.28.0](https://img.shields.io/badge/AppVersion-2026.28.0-informational?style=flat-square)
+![Version: 2026.48.0](https://img.shields.io/badge/Version-2026.48.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 2026.48.0](https://img.shields.io/badge/AppVersion-2026.48.0-informational?style=flat-square)
 
 Dedicated Helm chart for the Unique search proxy connector
+
+## Network access
+
+search-proxy has no caller authentication. It is internal-only: do not add an Ingress, Gateway route or any other route to it. The Cilium network policy is the only control on who can reach it, so it is on by default.
+
+- Ingress is limited to Prometheus (namespace `system`) and assistants-core, which every caller goes through. assistants-core is expected in the `chat` namespace. Where it runs elsewhere, set `internalServices.dependents.assistantsCore.namespace`. Add further callers as extra `internalServices.dependents` entries. The base chart also admits return traffic from the internet on ephemeral ports (32768-60999); nothing listens there.
+- Egress is limited to DNS, the FQDNs of the enabled providers, the corporate proxy host and port when `httpClient.connection.proxyHost` and `proxyPort` are set (an in-cluster proxy is not covered), and ports 443 and 80 to the internet for crawling (the `networkPolicy.baseline.egress.worldHttp` rule). `urlSafety` rejects internal crawl targets.
+- Link-local addresses (`169.254.0.0/16`, the cloud metadata service) are denied through `networkPolicy.egressDeny`. Helm replaces lists, so an overlay that sets its own `egressDeny` must repeat this entry.
+- Strict proxy mode is only for tenants that must send all traffic through a corporate proxy. Set `networkPolicy.baseline.egress.worldHttp.enabled: false`, which requires the proxy host and port. This removes the open internet rule only: enabled providers keep their FQDN rules. Bing and the Azure workload identity login then need their Entra login hosts, and Vertex AI its GCP hosts, added as FQDN rules in the overlay.
+- `networkPolicy.enabled: false` fails the render unless `networkPolicy.allowDisabled: true` is also set. Set that only when another control restricts who can reach search-proxy.
+- Cilium is required. On a cluster without the Cilium CRDs the install fails. That is intended (fail-closed). `flavor: kubernetes` is not supported by this chart.
 
 ## Requirements
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://ghcr.io/unique-ag/helm | base | 0.1.0-eeb8aa |
+| oci://ghcr.io/unique-ag/helm | base | 0.1.0-4c726f |
 
 ## Values
 
@@ -17,6 +28,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | autoscaling.enabled | bool | `false` |  |
 | bingAgent.connection.azureIdentityCredentialType | string | `"default"` |  |
 | bingAgent.connection.azureIdentityValidateTokenUrl | string | `"https://management.azure.com/.default"` |  |
+| bingAgent.connection.cleanupOnStart | bool | `false` |  |
 | bingAgent.connection.usePrivateEndpointTransport | bool | `false` |  |
 | bingAgent.enabled | bool | `false` |  |
 | braveSearch.connection.apiEndpoint | string | `"https://api.search.brave.com/res/v1/web/search"` |  |
@@ -25,32 +37,51 @@ Dedicated Helm chart for the Unique search proxy connector
 | deployment.revisionHistoryLimit | int | `3` |  |
 | env.LOG_LEVEL | string | `"info"` |  |
 | env.TIMEOUT | string | `"120"` |  |
-| env.WORKERS | string | `"4"` |  |
+| env.WORKERS | string | `"2"` |  |
 | firecrawl.connection.apiEndpoint | string | `"https://api.firecrawl.dev"` |  |
 | firecrawl.connection.apiVersion | string | `"v2"` |  |
 | firecrawl.enabled | bool | `false` |  |
 | fullnameOverride | string | `"search-proxy"` |  |
 | googleSearch.connection.apiEndpoint | string | `"https://www.googleapis.com/customsearch/v1"` |  |
 | googleSearch.enabled | bool | `false` |  |
+| grafana.dashboards.enabled | bool | `true` |  |
+| grafana.dashboards.replacements.%%PROMETHEUS_UID%% | string | `"prometheus"` |  |
+| httpClient.connection.perUserProxyCompanyIds | list | `[]` |  |
 | httpClient.connection.proxyAuthMode | string | `"none"` |  |
 | httpClient.connection.proxyProtocol | string | `"http"` |  |
+| httpClient.connection.proxyUsernameMetadataField | string | `"userName"` |  |
+| httpClient.connection.proxyUsernameSource | string | `"settings"` |  |
+| httpClient.tuning.httpClientCacheSize | int | `128` |  |
 | httpClient.tuning.maxConnections | int | `100` |  |
 | httpClient.tuning.maxKeepaliveConnections | int | `20` |  |
+| httpClient.tuning.maxResponseKib | int | `5120` |  |
 | httpClient.tuning.poolTimeoutSeconds | float | `30` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"unique-ag/ai/search-proxy"` |  |
-| image.tag | string | `"2026.28.0"` |  |
+| image.tag | string | `"2026.48.0"` |  |
 | image.useDigest | bool | `false` |  |
+| internalServices.dependents.assistantsCore.name | string | `"assistants-core"` |  |
+| internalServices.dependents.assistantsCore.namespace | string | `"chat"` |  |
 | jina.connection.apiDomain | string | `"jina.ai"` |  |
 | jina.connection.deployment | string | `"global"` |  |
 | jina.enabled | bool | `false` |  |
 | nameOverride | string | `"search-proxy"` |  |
+| networkPolicy.allowDisabled | bool | `false` | Set true only if another control restricts who can reach search-proxy. |
+| networkPolicy.baseline.egress.worldHttp | object | `{"toEntities":["world"],"toPorts":[{"ports":[{"port":"443","protocol":"TCP"},{"port":"80","protocol":"TCP"}]}]}` | Ports 443 and 80 to the internet for crawling. Set `enabled: false` only for corporate-proxy tenants (needs a proxy host and port). Enabled providers keep their FQDN rules; Bing, Vertex AI and the Azure workload identity login then need their own rules. |
+| networkPolicy.baseline.prometheus.namespace | string | `"system"` |  |
+| networkPolicy.egressDeny | list | `[{"toCIDR":["169.254.0.0/16"]}]` | Blocks link-local addresses (cloud metadata service, IMDS) even though world egress is allowed. Deny rules win over allow rules. |
 | networkPolicy.enableDefaultDeny.egress | bool | `true` |  |
 | networkPolicy.enableDefaultDeny.ingress | bool | `true` |  |
-| networkPolicy.enabled | bool | `false` |  |
+| networkPolicy.enabled | bool | `true` | Rendering fails when false unless `allowDisabled` is true. |
 | networkPolicy.flavor | string | `"cilium"` |  |
 | pdb.maxUnavailable | string | `"30%"` |  |
+| pdfProcessing.connection.extractionTimeoutSeconds | float | `10` |  |
+| pdfProcessing.connection.extractor | string | `"pypdf"` |  |
+| pdfProcessing.connection.maxConcurrentExtractions | int | `1` |  |
+| pdfProcessing.connection.maxExtractedChars | int | `100000` |  |
+| pdfProcessing.connection.maxExtractionMemoryMb | int | `512` |  |
+| pdfProcessing.connection.maxPdfPages | int | `100` |  |
 | perplexitySearch.connection.apiEndpoint | string | `"https://api.perplexity.ai/search"` |  |
 | perplexitySearch.enabled | bool | `false` |  |
 | podSecurityContext.runAsNonRoot | bool | `true` |  |
@@ -73,9 +104,17 @@ Dedicated Helm chart for the Unique search proxy connector
 | probes.startup.httpGet.port | string | `"http"` |  |
 | probes.startup.initialDelaySeconds | int | `10` |  |
 | probes.startup.periodSeconds | int | `10` |  |
-| resources.limits.memory | string | `"384Mi"` |  |
-| resources.requests.cpu | string | `"100m"` |  |
-| resources.requests.memory | string | `"256Mi"` |  |
+| replicaCount | int | `1` | Use at least 2 in production. |
+| requestLimits.crawl.maxConcurrentCrawls | int | `4` |  |
+| requestLimits.crawl.maxConcurrentFetches | int | `10` |  |
+| requestLimits.crawl.maxConcurrentUrlChecks | int | `3` |  |
+| requestLimits.crawl.maxCrawlResponseKib | int | `10240` |  |
+| requestLimits.crawl.maxUrlLength | int | `2048` |  |
+| requestLimits.crawl.maxUrlsPerCrawl | int | `100` |  |
+| requestLimits.timeouts.maxTimeoutSeconds | int | `120` |  |
+| resources.limits.memory | string | `"4Gi"` |  |
+| resources.requests.cpu | string | `"1"` |  |
+| resources.requests.memory | string | `"2Gi"` |  |
 | securityContext.allowPrivilegeEscalation | bool | `false` |  |
 | securityContext.capabilities.drop[0] | string | `"ALL"` |  |
 | securityContext.readOnlyRootFilesystem | bool | `true` |  |
@@ -90,6 +129,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | urlSafety.network.allowedSchemes[0] | string | `"http"` |  |
 | urlSafety.network.allowedSchemes[1] | string | `"https"` |  |
 | urlSafety.network.clusterLocalSuffix | string | `".cluster.local"` |  |
+| urlSafety.network.customApiTrustedPrivateHosts | list | `[]` |  |
 | urlSafety.network.localhostHosts[0] | string | `"localhost"` |  |
 | urlSafety.network.localhostHosts[1] | string | `"localhost.localdomain"` |  |
 | urlSafety.network.metadataHosts[0] | string | `"100.100.100.200"` |  |
@@ -99,7 +139,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | urlSafety.network.metadataHosts[4] | string | `"metadata.google.internal"` |  |
 | urlSafety.network.serviceSuffix | string | `".svc"` |  |
 | urlSafety.redirects.maxRedirectHops | int | `10` |  |
-| urlSafety.redirects.redirectTimeoutSeconds | float | `10` |  |
+| urlSafety.redirects.redirectTimeoutSeconds | float | `5` |  |
 | urlSafety.redirects.resolveRedirects | bool | `true` |  |
 | vertexaiAgent.connection.credentialType | string | `"workload_identity"` |  |
 | vertexaiAgent.connection.serviceAccountScopes[0] | string | `"https://www.googleapis.com/auth/cloud-platform"` |  |

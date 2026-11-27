@@ -205,7 +205,7 @@ def test_hallucination_config__has_default_regex_pattern__for_source_references(
     config: HallucinationConfig = HallucinationConfig()
 
     # Assert
-    assert config.reference_pattern == r"[\[<]?source(\d+)[>\]]?"
+    assert config.reference_pattern == r"[\[<]?source[\s_]?(\d+)[>\]]?"
 
 
 @pytest.mark.ai
@@ -481,7 +481,7 @@ def test_hallucination_metric_default_config__has_expected_default_settings__con
     # Act & Assert
     assert config.name == EvaluationMetricName.HALLUCINATION
     assert config.source_selection_mode == SourceSelectionMode.FROM_ORIGINAL_RESPONSE
-    assert config.reference_pattern == r"[\[<]?source(\d+)[>\]]?"
+    assert config.reference_pattern == r"[\[<]?source[\s_]?(\d+)[>\]]?"
 
 
 @pytest.mark.ai

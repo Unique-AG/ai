@@ -144,6 +144,61 @@ The three layers provide defense in depth:
 | `is_cancelled` | Between operations — lightweight flag check, no DB call |
 | `run_with_cancellation()` | Around long-running coroutines — automatic background polling |
 
+## User Stop vs. System Interruption
+
+A turn can end abnormally in two distinct ways, each with its own marker. They
+must not be conflated:
+
+| | User pressed Stop | System interruption |
+|---|---|---|
+| Trigger | User clicks "Stop" in the frontend | Timeout, truncation, terminal backend failure, equivalent unexpected endings |
+| Turn marker | `userAbortedAt` on the assistant message (set by the platform) | `turnInterruptionReason = SYSTEM_INTERRUPTED` on the originating USER message (set via `mark_turn_system_interrupted_async`) |
+| In-flight message log status | `MessageLogStatus.CANCELLED` | `MessageLogStatus.FAILED` |
+
+### Marking a System-Interrupted Turn
+
+When an agent run ends unexpectedly for system-side reasons, mark the turn so
+the frontend can render a dedicated interrupted state:
+
+```{.python #cancellation-mark-system-interrupted}
+try:
+    await self._run_agent_loop()
+except TerminalBackendError:
+    await chat_service.mark_turn_system_interrupted_async()
+    raise
+```
+
+The call targets the current chat context's originating USER message and goes
+through a dedicated service-authenticated endpoint — the marker is
+server/service-authored and cannot be set through the generic message
+modification APIs. The server guarantees:
+
+- **Idempotency:** repeat calls are no-ops and still succeed.
+- **User Stop wins:** if the user pressed Stop and a system interruption race,
+  `userAbortedAt` is never overwritten and the interruption reason is not
+  persisted.
+
+Do **not** call it for user-initiated cancellation (including
+cancellation detected by the `CancellationWatcher`) or for normal completion.
+
+### Closing In-Flight Steps After a User Stop
+
+When cancellation is detected while a thinking or tool step is still `RUNNING`,
+finalize its message log with `CANCELLED` rather than `COMPLETED` or `FAILED`:
+
+```{.python #cancellation-close-inflight-logs}
+from unique_toolkit.chat.schemas import MessageLogStatus
+
+if chat_service.cancellation.is_cancelled:
+    await chat_service.update_message_log_async(
+        message_log_id=log.message_log_id,
+        order=log.order,
+        status=MessageLogStatus.CANCELLED,
+    )
+```
+
+`FAILED` remains reserved for actual system-side failures of a step.
+
 ## API Reference
 
 ::: unique_toolkit.chat.cancellation.CancellationWatcher

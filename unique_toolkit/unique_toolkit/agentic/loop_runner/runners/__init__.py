@@ -6,6 +6,10 @@ from unique_toolkit.agentic.loop_runner.runners.basic import (
 from unique_toolkit.agentic.loop_runner.runners.mistral import (
     MistralLoopIterationRunner,
 )
+from unique_toolkit.agentic.loop_runner.runners.prompt_forced_tool import (
+    PROMPT_FORCED_TOOL_CALL_INSTRUCTION,
+    PromptForcedToolLoopIterationRunner,
+)
 from unique_toolkit.agentic.loop_runner.runners.qwen import (
     QWEN_FORCED_TOOL_CALL_INSTRUCTION,
     QWEN_LAST_ITERATION_INSTRUCTION,
@@ -18,6 +22,8 @@ __all__ = [
     "BasicLoopIterationRunner",
     "ResponsesBasicLoopIterationRunner",
     "MistralLoopIterationRunner",
+    "PROMPT_FORCED_TOOL_CALL_INSTRUCTION",
+    "PromptForcedToolLoopIterationRunner",
     "QwenLoopIterationRunner",
     "QWEN_FORCED_TOOL_CALL_INSTRUCTION",
     "QWEN_LAST_ITERATION_INSTRUCTION",

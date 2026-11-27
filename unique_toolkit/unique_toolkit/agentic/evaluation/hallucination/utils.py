@@ -5,6 +5,7 @@ from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
 from unique_toolkit.agentic.evaluation.exception import EvaluatorException
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
+    DEFAULT_REFERENCE_PATTERN,
     SourceSelectionMode,
     hallucination_required_input_fields,
 )
@@ -16,6 +17,9 @@ from unique_toolkit.agentic.evaluation.schemas import (
 )
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
+    normalize_citations_to_brackets,
+)
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.language_model.invocation_stats import (
@@ -31,12 +35,16 @@ from unique_toolkit.language_model.service import LanguageModelService
 
 _LOGGER = getLogger(__name__)
 
+_NORMALIZED_CITATION_PATTERN = re.compile(r"\[(\d+)\]")
+
 
 async def check_hallucination(
     company_id: str,
     user_id: str,
     input: EvaluationMetricInput,
     config: EvaluationMetricConfig,
+    chat_id: str | None = None,
+    assistant_id: str | None = None,
 ) -> EvaluationMetricResult:
     """
     Analyzes the level of hallucination in the generated output by comparing it with the provided input
@@ -77,7 +85,12 @@ async def check_hallucination(
     try:
         msgs = _get_msgs(input, config)
         result = await LanguageModelService.complete_async_util(
-            company_id=company_id, user_id=user_id, messages=msgs, model_name=model_name
+            company_id=company_id,
+            user_id=user_id,
+            messages=msgs,
+            model_name=model_name,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
         )
     except Exception as e:
         error_message = "Error occurred during hallucination metric analysis"
@@ -196,7 +209,8 @@ def _compose_msgs(
     )
     system_msg = LanguageModelSystemMessage(content=system_msg_content)
 
-    # Render user message
+    # Render user message. Pass history text only when history exists so the
+    # template can omit an empty conversation section.
     user_msg_content = render_template(
         user_template,
         input_text=input.input_text,
@@ -204,7 +218,7 @@ def _compose_msgs(
         if has_context
         else None,
         history_messages_text=input.get_joined_history_texts(tag_name="conversation")
-        if has_context
+        if has_context and input.history_messages
         else None,
         output_text=input.output_text,
     )
@@ -247,7 +261,7 @@ def context_text_from_stream_response(
     response: LanguageModelStreamResponse,
     selected_chunks: list[ContentChunk],
     source_selection_mode: SourceSelectionMode = SourceSelectionMode.FROM_ORIGINAL_RESPONSE,
-    reference_pattern: str = r"[\[<]?source(\d+)[>\]]?",
+    reference_pattern: str = DEFAULT_REFERENCE_PATTERN,
 ) -> list[str]:
     """Extract context text from stream response based on selected chunks.
 
@@ -353,12 +367,12 @@ def _from_original_response_source_selection_mode(
     selected_chunks: list[ContentChunk],
     reference_pattern: str,
 ) -> list[ContentChunk]:
-    """Extract referenced chunks from original text using regex pattern.
+    """Extract chunks cited in the original text, as normalised citations or via ``reference_pattern``.
 
     Args:
         original_text: The original response text containing source references.
         selected_chunks: List of content chunks to select from.
-        ref_pattern: Regex pattern for extracting source numbers.
+        reference_pattern: Regex pattern for extracting source numbers.
 
     Returns:
         List of referenced content chunks.
@@ -366,10 +380,21 @@ def _from_original_response_source_selection_mode(
     if original_text is None:
         raise ValueError("original_text is required for FROM_ORIGINAL_RESPONSE mode")
     _LOGGER.debug("Processing original text for source extraction")
-    source_number_matches = re.findall(reference_pattern, original_text)
+    normalized_text = normalize_citations_to_brackets(original_text)
+    source_number_matches = [
+        *_NORMALIZED_CITATION_PATTERN.findall(normalized_text),
+        *re.findall(reference_pattern, original_text),
+    ]
 
     # Remove duplicates and preserve order
     source_numbers = list(dict.fromkeys(int(num) for num in source_number_matches))
+
+    if not source_numbers and selected_chunks:
+        _LOGGER.warning(
+            f"No source citations found (pattern {reference_pattern!r}) although "
+            f"{len(selected_chunks)} chunks are available; the hallucination "
+            "check will run without references."
+        )
 
     # Add bounds checking
     max_index = len(selected_chunks) - 1

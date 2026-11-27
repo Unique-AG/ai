@@ -93,7 +93,7 @@ class PerplexitySearchService(SearchEngineService[PerplexitySearchRequest]):
         curated = WebSearchResults(results=self._extract_results(payload))
         if not curated.results:
             raise EmptySearchResultsError(
-                f"Perplexity search returned no results for query {request.query!r}",
+                "Perplexity search returned no results",
             )
 
         curated = curated.dedupe()

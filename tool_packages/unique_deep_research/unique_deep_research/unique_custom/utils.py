@@ -29,6 +29,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from ..config import UniqueEngine
+from ..invocation_stats import collector
 from .citation import GlobalCitationManager
 from .state import AgentState, ResearcherState, SupervisorState
 
@@ -352,10 +353,12 @@ async def execute_tool_safely(
 
         # Handle token limit errors specifically
         if is_token_error(e):
-            _LOGGER.warning(f"Token limit exceeded in tool {tool_name}: {str(e)}")
+            _LOGGER.warning(f"Token limit exceeded in tool {tool_name}")
             return f"Tool {tool_name} failed due to token limit: {str(e)}"
         else:
-            _LOGGER.exception(f"Error executing tool {tool_name}: {str(e)}")
+            # Tool errors can carry the search query or URL (e.g. argument
+            # validation errors echo the input), so log only the type.
+            _LOGGER.error(f"Error executing tool {tool_name}: {type(e).__name__}")
             return f"Error executing tool {tool_name}: {str(e)}"
 
 
@@ -533,6 +536,8 @@ async def ainvoke_with_token_handling(
     model: Runnable[List[BaseMessage], Any],
     messages: List[BaseMessage],
     model_info: LanguageModelInfo,
+    *,
+    source: str,
 ) -> Any:
     """
     Invoke model with proactive token filtering and retry logic with exponential backoff.
@@ -543,6 +548,7 @@ async def ainvoke_with_token_handling(
         model: The model to invoke
         messages: List of messages to send
         model_info: Model info for token limits
+        source: Stable identifier for the LLM call site
 
     Returns:
         Model response
@@ -556,7 +562,7 @@ async def ainvoke_with_token_handling(
 
     for attempt in range(max_retries + 1):
         try:
-            return await model.ainvoke(prepared_messages)
+            response = await model.ainvoke(prepared_messages)
         except Exception as e:
             _LOGGER.exception(f"Error invoking model: {e}")
             # Handle token errors by truncating history and retrying
@@ -581,3 +587,10 @@ async def ainvoke_with_token_handling(
                     f"Model invocation failed after {max_retries + 1} attempts: {str(e)}"
                 )
                 raise e
+        else:
+            collector.record_language_model_response(
+                model_name=model_info.name,
+                response=response,
+                source=source,
+            )
+            return response

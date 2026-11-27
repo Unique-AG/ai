@@ -7,7 +7,6 @@ Covers:
 - finally marks the log COMPLETED when the stream succeeds
 - finally marks the log FAILED when the stream raises after a rate-limit log was created
 - no log when the stream errors before any on_rate_limit_retry callback runs
-- Feature-flag guard: no log written when flag is off
 - Config guard: no log written when log_message_on_retry is False
 """
 
@@ -72,12 +71,6 @@ def _patch_stream(return_value=None, side_effect=None):
     return patch(f"{_MODULE}.stream_responses_with_references_async", mock), mock
 
 
-def _patch_feature_flag(enabled: bool):
-    ff = MagicMock()
-    ff.enable_new_answers_ui_un_14411.is_enabled.return_value = enabled
-    return patch(f"{_MODULE}.feature_flags", ff)
-
-
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -110,7 +103,6 @@ async def test_rate_limit_ux__creates_log_entry_on_first_retry(
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
         patch.object(chat_service, "create_message_log_async", create_mock),
         patch.object(chat_service, "update_message_log_async", update_mock),
-        _patch_feature_flag(True),
         patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
     ):
         cfg.log_message_on_retry = True
@@ -160,7 +152,6 @@ async def test_rate_limit_ux__initial_display_uses_round_not_int_for_jittered_wa
     with (
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
         patch.object(chat_service, "create_message_log_async", create_mock),
-        _patch_feature_flag(True),
         patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
     ):
         cfg.log_message_on_retry = True
@@ -210,7 +201,6 @@ async def test_rate_limit_ux__updates_existing_log_on_second_retry(
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
         patch.object(chat_service, "create_message_log_async", create_mock),
         patch.object(chat_service, "update_message_log_async", update_mock),
-        _patch_feature_flag(True),
         patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
     ):
         cfg.log_message_on_retry = True
@@ -269,7 +259,6 @@ async def test_rate_limit_ux__marks_log_completed_on_success(
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
         patch.object(chat_service, "create_message_log_async", create_mock),
         patch.object(chat_service, "update_message_log_async", update_mock),
-        _patch_feature_flag(True),
         patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
     ):
         cfg.log_message_on_retry = True
@@ -319,7 +308,6 @@ async def test_rate_limit_ux__no_log_when_stream_fails_before_rate_limit_callbac
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
         patch.object(chat_service, "create_message_log_async", create_mock),
         patch.object(chat_service, "update_message_log_async", update_mock),
-        _patch_feature_flag(True),
         patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
     ):
         cfg.log_message_on_retry = True
@@ -366,7 +354,6 @@ async def test_rate_limit_ux__marks_log_failed_when_stream_raises_after_callback
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
         patch.object(chat_service, "create_message_log_async", create_mock),
         patch.object(chat_service, "update_message_log_async", update_mock),
-        _patch_feature_flag(True),
         patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
     ):
         cfg.log_message_on_retry = True
@@ -395,47 +382,6 @@ async def test_rate_limit_ux__marks_log_failed_when_stream_raises_after_callback
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_rate_limit_ux__no_log_when_flag_disabled(
-    chat_service: ChatService,
-) -> None:
-    """
-    Purpose: Verify no message log is written when the feature flag is off.
-    Why this matters: Companies without the new UI must not receive unexpected log entries.
-    Setup summary: Flag off; trigger callback; assert create never called.
-    """
-    create_mock = AsyncMock()
-    stream_result = MagicMock()
-    captured_callback = None
-
-    async def fake_stream(**kwargs):
-        nonlocal captured_callback
-        captured_callback = kwargs.get("on_rate_limit_retry")
-        return stream_result
-
-    with (
-        patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
-        patch.object(chat_service, "create_message_log_async", create_mock),
-        _patch_feature_flag(False),
-        patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
-    ):
-        cfg.log_message_on_retry = True
-
-        task = asyncio.create_task(
-            chat_service.complete_responses_with_references_async(
-                model_name="gpt-4o",
-                messages="hello",
-            )
-        )
-        await asyncio.sleep(0)
-        assert captured_callback is not None
-        await captured_callback(1, 30.0)
-        await task
-
-    create_mock.assert_not_awaited()
-
-
-@pytest.mark.ai
-@pytest.mark.asyncio
 async def test_rate_limit_ux__no_log_when_config_disabled(
     chat_service: ChatService,
 ) -> None:
@@ -456,7 +402,6 @@ async def test_rate_limit_ux__no_log_when_config_disabled(
     with (
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
         patch.object(chat_service, "create_message_log_async", create_mock),
-        _patch_feature_flag(True),
         patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
     ):
         cfg.log_message_on_retry = False
@@ -495,7 +440,6 @@ async def test_rate_limit_ux__no_log_when_no_retry_triggered(
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
         patch.object(chat_service, "create_message_log_async", create_mock),
         patch.object(chat_service, "update_message_log_async", update_mock),
-        _patch_feature_flag(True),
         patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
     ):
         cfg.log_message_on_retry = True

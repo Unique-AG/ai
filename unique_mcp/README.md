@@ -10,26 +10,38 @@ MCP tools must call Unique APIs on behalf of the requesting user — every tool 
 
 The MCP server acts as an OAuth proxy: clients receive a FastMCP-issued JWT, which the server swaps server-side for the stored Zitadel token on every request. The Zitadel token _should_ contain `sub` and the company claim, but this depends on token configuration and can't be assumed.
 
-You wire a normal `FastMCP` instance with the Zitadel OAuth proxy (`create_zitadel_oauth_proxy`), then inject **`get_unique_settings`** (and optionally **`get_unique_userinfo`** / **`get_unique_service_factory`**) via `Depends()` into each tool. Those helpers resolve identity per request using a three-priority strategy:
+You wire a normal `FastMCP` instance with the Zitadel OAuth proxy (`create_zitadel_oauth_proxy`), then inject **`get_unique_settings`** / **`get_unique_settings_async`** (and optionally **`get_unique_userinfo`** / **`get_unique_service_factory`**) via `Depends()` into each tool.
+
+**`get_unique_settings` (sync)** — three-priority strategy:
 
 | Priority     | Source                          | Fields                                         | When it wins                                  |
 | ------------ | ------------------------------- | ---------------------------------------------- | --------------------------------------------- |
-| 1 (highest)  | `_meta` keys in the MCP request | `unique.app/user-id`, `unique.app/company-id`  | Trusted internal callers overriding identity  |
-| 2            | Zitadel JWT claims (server-side token swap) | `sub`, `urn:zitadel:iam:user:resourceowner:id` | Normal OAuth flow with fully-configured token |
-| 3 (fallback) | Environment-loaded settings     | `UniqueSettings.from_env_auto_with_sdk_init()` | No usable `_meta` or complete JWT claims      |
+| 1 (highest)  | Zitadel JWT claims (server-side token swap) | `sub`, `urn:zitadel:iam:user:resourceowner:id` | Normal OAuth flow with fully-configured token |
+| 2            | `_meta` keys in the MCP request | `unique.app/auth/user-id`, `unique.app/auth/company-id` | **Only when the request carries no access token** — trusted platform-internal callers |
+| 3 (fallback) | Environment-loaded settings     | `UniqueSettings.from_env_auto_with_sdk_init()` | No token and no usable `_meta`                |
 
-Both `user-id` and `company-id` must be present for priority 1 or 2 to apply. If JWT claims are incomplete, resolution falls through to env-based auth — `get_unique_settings` does **not** call Zitadel `/userinfo` automatically.
+Both `user-id` and `company-id` must be present for priority 1 or 2 to apply. The sync helper does **not** call Zitadel `/userinfo` — incomplete JWTs fall through to env `UNIQUE_AUTH_*`.
 
-**`get_unique_userinfo`** is a separate async helper: when a Bearer token is present, it performs `GET` on Zitadel’s userinfo endpoint and returns `UniqueUserInfo` (IDs + optional `email`). Use it when you need profile fields or an explicit userinfo round-trip; combine with `get_unique_settings` as needed.
+> **Why `_meta` ranks below the token:** `_meta` is caller-supplied and not bound to the bearer token. If it outranked the JWT, any client able to set `tools/call._meta` could assert an arbitrary `user_id`/`company_id` and read another tenant's data. It is therefore ignored entirely once an access token is present.
+
+**`get_unique_settings_async`** — same as above, but inserts Zitadel `/userinfo` **before** the env fallback. Prefer this in tools that must act as the **logged-in** user. If an access token is present but neither JWT nor userinfo yield both IDs, it **raises** instead of using the fixed service user.
+
+**`get_unique_userinfo`** is also available on its own when you need profile fields (e.g. email).
 
 ```mermaid
 flowchart TD
-    A([Tool call arrives]) --> B{_meta contains\nuser-id + company-id?}
-    B -- yes --> C[Use _meta identity]
-    B -- no --> D{Zitadel JWT has sub\n+ company claim?}
+    A([Tool call arrives]) --> D{Zitadel JWT has sub\n+ company claim?}
     D -- yes --> E[Use Zitadel JWT claims]
-    D -- no --> F[Use env-loaded UniqueSettings auth]
-    C & E --> G[Build UniqueSettings → tool executes]
+    D -- no --> H{Async resolver?\nget_unique_settings_async}
+    H -- yes --> I{Zitadel /userinfo\nyields sub + company?}
+    I -- yes --> J[Use userinfo identity]
+    I -- no --> K{Access token present?}
+    K -- yes --> L([Raise: refuse env fallback])
+    K -- no --> B{_meta contains\nuser-id + company-id?}
+    B -- yes --> C[Use _meta identity]
+    B -- no --> F[Use env-loaded UniqueSettings auth]
+    H -- no, sync --> K
+    C & E & J --> G[Build UniqueSettings → tool executes]
     F --> G
 ```
 
@@ -57,6 +69,7 @@ Construct the MCP server yourself: `ServerSettings` + `ZitadelOAuthProxySettings
 ```python
 from fastmcp import FastMCP
 from fastmcp.dependencies import Depends
+from key_value.aio.stores.memory import MemoryStore
 
 from unique_mcp import get_unique_settings, get_unique_service_factory, get_unique_userinfo
 from unique_mcp.auth.zitadel.oauth_proxy import (
@@ -70,6 +83,7 @@ server_settings = ServerSettings()
 zitadel_settings = ZitadelOAuthProxySettings()
 
 oauth_proxy = create_zitadel_oauth_proxy(
+    client_storage=MemoryStore(),  # swap for shared durable store in prod
     mcp_server_base_url=server_settings.base_url.encoded_string(),
     zitadel_oauth_proxy_settings=zitadel_settings,
 )
@@ -96,7 +110,8 @@ if __name__ == "__main__":
 
 | Name                         | Role                                                                 |
 | ---------------------------- | -------------------------------------------------------------------- |
-| `get_unique_settings`        | Sync dependency: returns `UniqueSettings` with per-request auth      |
+| `get_unique_settings`        | Sync dependency: JWT → `_meta` (no token only) → env auth             |
+| `get_unique_settings_async`  | Async: JWT → userinfo → `_meta` (no token only); refuses env when logged in |
 | `get_unique_service_factory` | Sync dependency: `UniqueServiceFactory` from resolved settings       |
 | `get_unique_userinfo`        | Async: Zitadel userinfo → `UniqueUserInfo` (requires access token)   |
 
@@ -137,11 +152,11 @@ sequenceDiagram
     MCP-->>Client: tool result
 ```
 
-### 2 — JWT without company claim (env fallback vs userinfo)
+### 2 — JWT without company claim (userinfo before env)
 
-If the Zitadel JWT carries `sub` but not the company claim, **`get_unique_settings`** does not apply JWT auth and falls back to **environment** identity from `UniqueSettings.from_env_auto_with_sdk_init()` (typical for local/dev with `UNIQUE_AUTH_*`).
+If the Zitadel JWT carries `sub` but not the company claim, **`get_unique_settings`** (sync) falls back to **environment** identity (`UNIQUE_AUTH_*`). That is wrong for multi-user servers.
 
-To obtain `sub` + company from Zitadel’s **userinfo** response explicitly, call **`await get_unique_userinfo(http_client)`** in the tool when you need that data (for example email or IDs from userinfo). Configure Zitadel so JWTs embed the resourceowner claim when possible — see [`docs/zitadel/README.md`](docs/zitadel/README.md) — to avoid relying on env or extra calls.
+Use **`await get_unique_settings_async()`** (or call **`get_unique_userinfo`**) so identity comes from Zitadel `/userinfo` instead. Configure Zitadel so JWTs embed the resourceowner claim when possible — see [`docs/zitadel/README.md`](docs/zitadel/README.md) — to avoid the extra userinfo round-trip.
 
 ```mermaid
 sequenceDiagram
@@ -151,19 +166,22 @@ sequenceDiagram
 
     Client->>MCP: tools/call + Authorization: Bearer <FastMCP JWT>
     MCP->>MCP: token swap → retrieve Zitadel JWT
-    Note over MCP: JWT incomplete for get_unique_settings → env auth
-    opt Tool calls get_unique_userinfo
-        MCP->>Zitadel: GET /oidc/v1/userinfo (Bearer Zitadel JWT)
+    Note over MCP: JWT incomplete for get_unique_settings (sync) → env auth
+    MCP->>Zitadel: get_unique_settings_async: GET /oidc/v1/userinfo (Bearer Zitadel JWT)
+    alt userinfo has sub + company
         Zitadel-->>MCP: sub, urn:zitadel:...:id, email, ...
+        Note over MCP: Use userinfo identity
+    else userinfo incomplete
+        Note over MCP: Raise — refuse env fallback for a logged-in request
     end
     MCP-->>Client: tool result
 ```
 
-### 3 — Trusted internal caller with `_meta` override
+### 3 — Platform-internal caller supplying identity via `_meta`
 
-An internal service calls the tool on behalf of a known user by passing identity directly in the MCP `_meta` field. This takes highest priority — but **only works if both `unique.app/user-id` and `unique.app/company-id` are present**. If either is missing, the provider falls through to JWT/env resolution, which will use env auth if the JWT is also incomplete.
+An internal service calls the tool on behalf of a known user by passing identity directly in the MCP `_meta` field. Both `unique.app/auth/user-id` and `unique.app/auth/company-id` must be present; if either is missing the provider falls through to env resolution.
 
-> **Security:** The server takes `_meta` values as-is without further validation. Only use this from callers you fully trust — never expose it to external users.
+> **Security:** `_meta` values are taken as-is, with no validation and no binding to the bearer token. They are therefore honoured **only when the request carries no access token**. Sending `_meta` identity alongside a Bearer token has no effect — the token wins, and on the async resolver an unresolvable token raises rather than falling back. Use `_meta` only from callers you fully trust, and never expose it to external users.
 
 ```json
 {
@@ -172,8 +190,8 @@ An internal service calls the tool on behalf of a known user by passing identity
     "name": "search",
     "arguments": { "query": "hello" },
     "_meta": {
-      "unique.app/user-id": "user-abc123",
-      "unique.app/company-id": "company-xyz456"
+      "unique.app/auth/user-id": "user-abc123",
+      "unique.app/auth/company-id": "company-xyz456"
     }
   }
 }
@@ -184,10 +202,10 @@ sequenceDiagram
     participant InternalSvc as Internal Service
     participant MCP as MCP Server
 
-    InternalSvc->>MCP: tools/call + Bearer <token> + _meta
-    MCP->>MCP: verify Bearer token (transport-level auth)
+    InternalSvc->>MCP: tools/call + _meta (no Authorization header)
+    MCP->>MCP: no access token → _meta identity is eligible
     alt _meta has both user-id + company-id
-        MCP->>MCP: build UniqueSettings from _meta (skip JWT/env for auth)
+        MCP->>MCP: build UniqueSettings from _meta
         MCP->>MCP: call Unique API with provided identity
         alt identity is valid
             MCP-->>InternalSvc: tool result
@@ -195,7 +213,7 @@ sequenceDiagram
             MCP-->>InternalSvc: error (API rejects identity)
         end
     else _meta incomplete or absent
-        MCP->>MCP: fall through to JWT claims / env
+        MCP->>MCP: fall through to env auth
         MCP-->>InternalSvc: result or misconfiguration
     end
 ```
@@ -233,4 +251,24 @@ See [`docs/zitadel/README.md`](docs/zitadel/README.md) for step-by-step instruct
 
 ```bash
 cd unique_mcp && uv run pytest tests/ -q
+```
+
+### Platform helpers (logging + metrics)
+
+On import, `unique_mcp` sets `FASTMCP_CHECK_FOR_UPDATES=off` (unless already set).
+Call `configure_tracing` from `unique-toolkit[otel]` when you want Tempo/OTLP export.
+
+```python
+from unique_toolkit.monitoring import configure_tracing
+from unique_mcp.logging import configure_logging
+from unique_mcp.monitoring import setup_ops
+
+configure_tracing(service_name="my-mcp")
+configure_logging()
+
+mcp = FastMCP("my-server")
+middleware = [...]
+middleware.append(setup_ops(mcp))
+
+mcp.run(transport="http", middleware=middleware)
 ```

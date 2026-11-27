@@ -21,6 +21,7 @@ from unique_sdk.cli.config import Config
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.endpoint import EndpointParseError, parse_source_endpoint
 from uqadm.core.env import config_for_slot
+from uqadm.space.migrate import strip_access_keys
 
 # Stripped in the default (non-strict) mode so diffs focus on meaningful config drift.
 _NORMALIZE_KEYS = frozenset(
@@ -161,8 +162,20 @@ def cmd_diff(
     strict: bool,
     output_format: str,
     cwd: Path | None,
+    ignore_access: bool = False,
 ) -> None:
-    """Load two spaces and compare canonical JSON with optional normalization."""
+    """Load two spaces and compare canonical JSON with optional normalization.
+
+    Args:
+        spec_a: Source endpoint spec (``slot:space_id`` or ``slot:URL``).
+        spec_b: Destination endpoint spec (same format).
+        strict: Compare raw payloads instead of stripping ephemeral keys.
+        output_format: ``unified`` or ``side-by-side``.
+        cwd: Optional directory for per-slot env files.
+        ignore_access: Remove the top-level ``assistantAccess`` and ``access``
+            keys from both payloads before comparing. Applies in strict mode
+            too; nothing else is filtered by this flag.
+    """
     fmt: DiffFormat = (
         "side-by-side" if output_format.lower() == "side-by-side" else "unified"
     )
@@ -204,6 +217,10 @@ def cmd_diff(
             )
         sys.exit(1)
 
+    if ignore_access:
+        a_raw = strip_access_keys(a_raw)
+        b_raw = strip_access_keys(b_raw)
+
     a_payload = a_raw if strict else _normalize_for_diff(a_raw, strict=False)
     b_payload = b_raw if strict else _normalize_for_diff(b_raw, strict=False)
 
@@ -214,13 +231,16 @@ def cmd_diff(
         return
 
     use_color = sys.stdout.isatty()
+    full_label = (
+        "full payloads, access entries excluded" if ignore_access else "full payloads"
+    )
 
     if fmt == "side-by-side":
         _print_side_by_side_json(a_payload, b_payload, spec_a, spec_b)
         typer.echo("", err=True)
         if strict:
             typer.echo(
-                "Tip: full payloads still differ. "
+                f"Tip: payloads still differ ({full_label}). "
                 "Use --format unified for a line/word-oriented diff.",
                 err=True,
             )
@@ -238,7 +258,7 @@ def cmd_diff(
     if use_color:
         console = _console_for_stdout(color=True)
         if strict:
-            console.print("[dim]Diff (full payloads)[/dim]")
+            console.print(f"[dim]Diff ({full_label})[/dim]")
         else:
             console.print(
                 "[dim]Diff (normalized JSON; use --strict for full payloads)[/dim]"

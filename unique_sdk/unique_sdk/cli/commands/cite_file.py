@@ -13,6 +13,7 @@ from unique_sdk.cli.commands._citation_manifest import (
 )
 from unique_sdk.cli.commands.files import _resolve_content_id
 from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
 
 CITE_ERROR_PREFIX = "cite:"
 
@@ -153,7 +154,7 @@ def _resolve_content_id_with_manifest(
             )
         return name_or_id, state.resolve_content_title(name_or_id)
 
-    manifest_path = Path.cwd() / _CHAT_FILES_MANIFEST
+    manifest_path = workspace_manifest_path(_CHAT_FILES_MANIFEST)
     if manifest_path.is_file():
         try:
             manifest: dict[str, str] = json.loads(
@@ -221,7 +222,7 @@ def cmd_cite_file(
     if not page_list:
         return f"{CITE_ERROR_PREFIX} invalid --pages value"
 
-    refs_log_path = Path.cwd() / _FILE_REFS_LOG_RELATIVE_PATH
+    refs_log_path = workspace_manifest_path(_FILE_REFS_LOG_RELATIVE_PATH)
 
     try:
         with _locked_turn_refs_manifest(

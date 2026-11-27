@@ -1,6 +1,7 @@
 """Tests for hallucination evaluation utils."""
 
 from typing import List, Optional
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -14,6 +15,7 @@ from unique_toolkit.agentic.evaluation.hallucination.utils import (
     _from_order_source_selection_mode,
     _from_original_response_source_selection_mode,
     _get_msgs,
+    check_hallucination,
     context_text_from_stream_response,
 )
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricInput
@@ -25,8 +27,11 @@ from unique_toolkit.language_model.infos import (
     ModelCapabilities,
 )
 from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelCompletionChoice,
     LanguageModelMessageRole,
     LanguageModelMessages,
+    LanguageModelResponse,
     LanguageModelStreamResponse,
 )
 
@@ -99,6 +104,49 @@ def evaluation_input() -> EvaluationMetricInput:
         context_texts=["Context 1", "Context 2"],
         output_text="Test output",
     )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_check_hallucination__forwards_attribution_ids(
+    monkeypatch: pytest.MonkeyPatch,
+    hallucination_config: HallucinationConfig,
+    evaluation_input: EvaluationMetricInput,
+) -> None:
+    """Purpose: Verify hallucination completion receives chat attribution IDs.
+    Why this matters: Secondary evaluator usage must link to the originating chat.
+    Setup summary: Mock the completion utility, run the check, and inspect its call.
+    """
+    complete_async_util = AsyncMock(
+        return_value=LanguageModelResponse(
+            choices=[
+                LanguageModelCompletionChoice(
+                    index=0,
+                    message=LanguageModelAssistantMessage(
+                        content='{"value": "low", "reason": "grounded"}'
+                    ),
+                    finish_reason="stop",
+                )
+            ]
+        )
+    )
+    monkeypatch.setattr(
+        "unique_toolkit.agentic.evaluation.hallucination.utils."
+        "LanguageModelService.complete_async_util",
+        complete_async_util,
+    )
+
+    await check_hallucination(
+        company_id="company_1",
+        user_id="user_1",
+        input=evaluation_input.model_copy(update={"history_messages": []}),
+        config=hallucination_config,
+        chat_id="chat_1",
+        assistant_id="assistant_1",
+    )
+
+    assert complete_async_util.await_args.kwargs["chat_id"] == "chat_1"
+    assert complete_async_util.await_args.kwargs["assistant_id"] == "assistant_1"
 
 
 @pytest.mark.ai
@@ -521,6 +569,124 @@ def test_from_original_response_source_selection_mode__returns_empty_list__when_
 
     # Assert
     assert len(result) == 0
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "original_text",
+    [
+        "Claim one [source 0] and claim two [source 2].",
+        "Claim one [source_0] and claim two [source_2].",
+        "Claim one [source0] and claim two <source 2>.",
+    ],
+)
+def test_from_original_response_source_selection_mode__matches_spaced_and_underscored_citations__with_default_pattern(
+    sample_chunks: List[ContentChunk],
+    original_text: str,
+) -> None:
+    """
+    Purpose: Verify the default pattern extracts citations written as [source N] or [source_N].
+    Why this matters: The chat backend resolves these forms into references, so the judge
+        must see the same chunks or it flags a sourced answer as high hallucination (UN-28753).
+    Setup summary: Default config pattern, text citing sources 0 and 2 in each form,
+        assert both chunks are returned in order.
+    """
+    # Arrange
+    pattern: str = HallucinationConfig().reference_pattern
+
+    # Act
+    result: List[ContentChunk] = _from_original_response_source_selection_mode(
+        original_text, sample_chunks, pattern
+    )
+
+    # Assert
+    assert result == [sample_chunks[0], sample_chunks[2]]
+
+
+@pytest.mark.ai
+def test_from_original_response_source_selection_mode__logs_warning__when_chunks_exist_but_none_cited(
+    sample_chunks: List[ContentChunk],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify a warning is logged when chunks are available but no citation matches.
+    Why this matters: An unmatched citation format silently sends the judge no references;
+        the warning makes that failure visible in logs.
+    Setup summary: Text with an unsupported citation form, assert empty result and warning.
+    """
+    # Arrange
+    original_text: str = "Claim [ref 1]."
+    pattern: str = HallucinationConfig().reference_pattern
+
+    # Act
+    with caplog.at_level("WARNING"):
+        result: List[ContentChunk] = _from_original_response_source_selection_mode(
+            original_text, sample_chunks, pattern
+        )
+
+    # Assert
+    assert result == []
+    assert "No source citations found" in caplog.text
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "original_text",
+    [
+        "Claim one [Source 0] and claim two [SOURCE 2].",
+        "Claim one [<source 0>] and claim two [<source2>].",
+        "Claim one [0] and claim two [2].",
+        "Claims [source: 0, 2].",
+        "Claims [0, 2].",
+        "Claim one [**0**] and claim two [**2**].",
+        'Claim one source_number="0" and claim two source_number="2".',
+        "Claim one source n°0 and claim two source n°2.",
+    ],
+)
+def test_from_original_response_source_selection_mode__matches_all_platform_normalized_citations(
+    sample_chunks: List[ContentChunk],
+    original_text: str,
+) -> None:
+    """
+    Purpose: Verify every citation format the chat backend turns into a reference is extracted.
+    Why this matters: Running the answer through BATCH_NORMALIZATION_PATTERNS keeps the judge's
+        context in line with the references shown in the UI (UN-28753).
+    Setup summary: Default config pattern, text citing sources 0 and 2 in each normalised form,
+        assert both chunks are returned in order.
+    """
+    # Arrange
+    pattern: str = HallucinationConfig().reference_pattern
+
+    # Act
+    result: List[ContentChunk] = _from_original_response_source_selection_mode(
+        original_text, sample_chunks, pattern
+    )
+
+    # Assert
+    assert result == [sample_chunks[0], sample_chunks[2]]
+
+
+@pytest.mark.ai
+def test_from_original_response_source_selection_mode__matches_legacy_pattern__on_spaced_citations(
+    sample_chunks: List[ContentChunk],
+) -> None:
+    """
+    Purpose: Verify configs that still carry the pre-UN-28753 pattern also see [source N] citations.
+    Why this matters: reference_pattern can be persisted in space configs; normalisation must fix
+        the mismatch without requiring a config migration.
+    Setup summary: Legacy pattern without separator support, spaced citations, assert both found.
+    """
+    # Arrange
+    original_text: str = "Claim one [source 0] and claim two [source 2]."
+    legacy_pattern: str = r"[\[<]?source(\d+)[>\]]?"
+
+    # Act
+    result: List[ContentChunk] = _from_original_response_source_selection_mode(
+        original_text, sample_chunks, legacy_pattern
+    )
+
+    # Assert
+    assert result == [sample_chunks[0], sample_chunks[2]]
 
 
 @pytest.mark.ai
@@ -1176,3 +1342,67 @@ def test_get_msgs__ignores_context_images__when_model_lacks_vision() -> None:
     # Assert
     assert result.root[0].content == no_context_result.root[0].content
     assert isinstance(result.root[1].content, str)
+
+
+@pytest.mark.unit
+def test_compose_msgs__omits_conversation_section__when_history_is_empty():
+    """A single-turn evaluation must not be shown an empty conversation.
+
+    The template guards the section with `{% if history_messages_text %}`,
+    and the getter returns a truthy placeholder when there is no history, so
+    the guard used to never fire: every caller evaluating one turn shipped a
+    `Conversation:` section whose body said there was no conversation, while
+    the system prompt announced one.
+    """
+    msgs = _compose_msgs(
+        EvaluationMetricInput(
+            input_text="What is the policy rate?",
+            context_texts=["The policy rate is 0.25%."],
+            history_messages=[],
+            output_text="0.25%.",
+        ),
+        HallucinationConfig(),
+        has_context=True,
+    )
+
+    user_content = msgs.root[-1].content
+    assert isinstance(user_content, str)
+    assert "Conversation:" not in user_content
+    assert "<No conversation texts provided>" not in user_content
+    # The references the model does have must still be there.
+    assert "The policy rate is 0.25%." in user_content
+
+
+@pytest.mark.unit
+def test_compose_msgs__keeps_conversation_section__when_history_is_present():
+    msgs = _compose_msgs(
+        EvaluationMetricInput(
+            input_text="And in March?",
+            context_texts=["The March rate was 0.50%."],
+            history_messages=[
+                ChatMessage(
+                    id="msg_1",
+                    chat_id="chat_1",
+                    previous_message_id=None,
+                    role=LanguageModelMessageRole.USER,
+                    text="What is the policy rate?",
+                ),
+                ChatMessage(
+                    id="msg_2",
+                    chat_id="chat_1",
+                    previous_message_id="msg_1",
+                    role=LanguageModelMessageRole.ASSISTANT,
+                    text="0.25%.",
+                ),
+            ],
+            output_text="0.50%.",
+        ),
+        HallucinationConfig(),
+        has_context=True,
+    )
+
+    user_content = msgs.root[-1].content
+    assert isinstance(user_content, str)
+    assert "Conversation:" in user_content
+    assert "What is the policy rate?" in user_content
+    assert "<No conversation texts provided>" not in user_content

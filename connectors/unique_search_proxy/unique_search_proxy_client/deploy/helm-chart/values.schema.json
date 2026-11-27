@@ -180,6 +180,38 @@
           "examples": [
             80
           ]
+        },
+        "extra": {
+          "type": "array",
+          "description": "Extra named container ports beyond http/metrics, e.g. for a caller that must be network-scoped (L3/L4) to a single route without L7 filtering. Pair with service.extraPorts to expose one on the Service.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "port"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Port name, referenced by service.extraPorts[].name as the Service targetPort. Must be a valid IANA_SVC_NAME (Kubernetes limit): lowercase alphanumeric and '-', at most 15 characters.",
+                "maxLength": 15,
+                "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+                "examples": [
+                  "protected"
+                ]
+              },
+              "port": {
+                "type": "integer",
+                "description": "Container port.",
+                "minimum": 1,
+                "maximum": 65535,
+                "examples": [
+                  8081
+                ]
+              }
+            }
+          }
         }
       }
     },
@@ -194,6 +226,38 @@
           "examples": [
             true
           ]
+        },
+        "extraPorts": {
+          "type": "array",
+          "description": "Extra named Service ports beyond http/metrics, targeting a matching ports.extra[].name container port by name.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "port"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Port name; must match a ports.extra[].name entry (used as the Service targetPort). Must be a valid IANA_SVC_NAME (Kubernetes limit): lowercase alphanumeric and '-', at most 15 characters.",
+                "maxLength": 15,
+                "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+                "examples": [
+                  "protected"
+                ]
+              },
+              "port": {
+                "type": "integer",
+                "description": "Service port.",
+                "minimum": 1,
+                "maximum": 65535,
+                "examples": [
+                  81
+                ]
+              }
+            }
+          }
         },
         "type": {
           "type": "string",
@@ -581,17 +645,63 @@
       "type": "object",
       "description": "Extra labels added to every pod"
     },
+    "responsibility": {
+      "type": "object",
+      "description": "Teams responsible for the workload, rendered as unique.app/application-owner and unique.app/operations-owner labels on all resources and pods. The operations owner also defaults the alert team label.",
+      "properties": {
+        "application": {
+          "type": "string",
+          "description": "Team that develops the application",
+          "examples": [
+            "team-a"
+          ]
+        },
+        "operations": {
+          "type": "string",
+          "description": "Team that operates the application. An explicit alert team wins; when unset or empty it falls back to the application owner.",
+          "examples": [
+            "team-b"
+          ]
+        }
+      }
+    },
     "podAnnotations": {
       "type": "object",
       "description": "Extra annotations added to every pod"
     },
     "podSecurityContext": {
       "type": "object",
-      "description": "Pod-level security context"
+      "description": "Pod-level security context. When unset, base renders runAsNonRoot: true, runAsUser: 1000, seccompProfile.type: RuntimeDefault.",
+      "properties": {
+        "runAsNonRoot": {
+          "type": "boolean",
+          "examples": [
+            true
+          ]
+        },
+        "runAsUser": {
+          "type": "integer",
+          "minimum": 0,
+          "examples": [
+            1000
+          ]
+        },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "examples": [
+                "RuntimeDefault"
+              ]
+            }
+          }
+        }
+      }
     },
     "securityContext": {
       "type": "object",
-      "description": "Container-level security context",
+      "description": "Container-level security context. When unset, base renders allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 1000, capabilities.drop: [ALL].",
       "properties": {
         "allowPrivilegeEscalation": {
           "type": "boolean",
@@ -718,8 +828,9 @@
         },
         "automountServiceAccountToken": {
           "type": "boolean",
+          "description": "When unset, base defaults to false on ServiceAccount and pod spec.",
           "examples": [
-            true
+            false
           ]
         }
       }
@@ -820,6 +931,35 @@
           "items": {
             "type": "object"
           }
+        },
+        "volumeMounts": {
+          "type": "array",
+          "description": "Volume mounts added only to the Deployment container (not to hook Jobs or CronJobs)",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "mountPath"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "mountPath": {
+                "type": "string"
+              },
+              "readOnly": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "description": "Volumes added only to the Deployment pod spec (not to hook Jobs or CronJobs)",
+          "items": {
+            "type": "object"
+          }
         }
       }
     },
@@ -905,7 +1045,77 @@
     },
     "hooks": {
       "type": "object",
-      "description": "Pre/post-install Helm hook jobs, keyed by hook name (e.g. migration, seed). Top-level boolean and object properties (e.g. enabled, image, resources) are also supported as shared defaults applied to all hook jobs."
+      "description": "Pre/post-install Helm hook jobs, keyed by hook name (e.g. migration, seed). Top-level boolean and object properties (e.g. enabled, image, resources) are also supported as shared defaults applied to all hook jobs.",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "volumeMounts": {
+                "type": "array",
+                "description": "Volume mounts added only to this hook Job container",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "mountPath"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "mountPath": {
+                      "type": "string"
+                    },
+                    "readOnly": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "volumes": {
+                "type": "array",
+                "description": "Volumes added only to this hook Job pod spec",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "argocd": {
+                "type": "object",
+                "description": "Argo CD sync options for this hook Job. When hook is set, Argo CD ignores this Job's helm.sh/hook annotations; other hook Jobs keep their Helm hook mapping.",
+                "additionalProperties": false,
+                "properties": {
+                  "hook": {
+                    "type": "string",
+                    "description": "Rendered as argocd.argoproj.io/hook",
+                    "enum": [
+                      "PreSync",
+                      "Sync",
+                      "PostSync",
+                      "SyncFail",
+                      "PostDelete",
+                      "Skip"
+                    ]
+                  },
+                  "syncWave": {
+                    "type": "integer",
+                    "description": "Rendered as argocd.argoproj.io/sync-wave"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
     },
     "cronJob": {
       "type": "object",
@@ -948,6 +1158,35 @@
         },
         "env": {
           "type": "object"
+        },
+        "volumeMounts": {
+          "type": "array",
+          "description": "Volume mounts added only to this CronJob container",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "mountPath"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "mountPath": {
+                "type": "string"
+              },
+              "readOnly": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "description": "Volumes added only to this CronJob pod spec",
+          "items": {
+            "type": "object"
+          }
         }
       }
     },
@@ -995,6 +1234,35 @@
           },
           "env": {
             "type": "object"
+          },
+          "volumeMounts": {
+            "type": "array",
+            "description": "Volume mounts added only to this named CronJob container",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "mountPath"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "mountPath": {
+                  "type": "string"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "volumes": {
+            "type": "array",
+            "description": "Volumes added only to this named CronJob pod spec",
+            "items": {
+              "type": "object"
+            }
           }
         }
       }
@@ -1003,7 +1271,38 @@
       "type": "object",
       "description": "Additional named CronJobs beyond the primary cronJob",
       "additionalProperties": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "volumeMounts": {
+            "type": "array",
+            "description": "Volume mounts added only to this named extra CronJob container",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "mountPath"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "mountPath": {
+                  "type": "string"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "volumes": {
+            "type": "array",
+            "description": "Volumes added only to this named extra CronJob pod spec",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
       }
     },
     "networkPolicy": {
@@ -1012,7 +1311,7 @@
       "properties": {
         "enabled": {
           "type": "boolean",
-          "default": false
+          "default": true
         },
         "flavor": {
           "type": "string",
@@ -1249,12 +1548,45 @@
                     "UDP",
                     "ANY"
                   ],
-                  "default": "TCP",
+                  "default": "ANY",
                   "description": "Protocol for the ephemeral port range."
                 }
               }
+            },
+            "egress": {
+              "type": "object",
+              "description": "Named baked-in egress rules. Each key is a rule name; set enabled: false to disable it individually.",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "ingress": {
+              "type": "object",
+              "description": "Named baked-in ingress rules. Each key is a rule name; set enabled: false to disable it individually.",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "additionalProperties": true
+              }
             }
           }
+        },
+        "allowDisabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow networkPolicy.enabled=false. Set only if another control restricts who can reach search-proxy."
         }
       }
     },
@@ -1275,6 +1607,42 @@
           "description": "Map of logical name to dependent descriptor. One entry per service that calls this chart.",
           "additionalProperties": {
             "$ref": "#/$defs/internalServiceDependent"
+          }
+        }
+      }
+    },
+    "backends": {
+      "type": "object",
+      "description": "Public gateway-fronted backend endpoints this webapp calls (e.g. via base.backends.url). Distinct from internalServices, which resolves in-cluster Service DNS names; backends resolves public hostnames.",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Default public hostname (no scheme) shared by endpoints that omit their own host, e.g. gateway.qa.unique.app."
+        },
+        "endpoints": {
+          "type": "object",
+          "description": "Map of logical endpoint name to descriptor. One entry per backend this webapp calls.",
+          "additionalProperties": {
+            "$ref": "#/$defs/backendEndpoint"
+          }
+        }
+      }
+    },
+    "frontends": {
+      "type": "object",
+      "description": "Public URLs of peer frontend web apps this webapp links to for cross-app navigation (e.g. via base.frontends.url). Distinct from backends, which resolves public backend API hostnames.",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Default public hostname (no scheme) shared by apps that omit their own host, e.g. next.qa.unique.app."
+        },
+        "apps": {
+          "type": "object",
+          "description": "Map of logical peer app name to descriptor. One entry per frontend app this webapp links to.",
+          "additionalProperties": {
+            "$ref": "#/$defs/frontendApp"
           }
         }
       }
@@ -1363,9 +1731,9 @@
         "high-priority"
       ]
     },
-    "extraManifests": {
+    "extraObjects": {
       "type": "array",
-      "description": "Additional raw Kubernetes manifests to include",
+      "description": "Additional raw Kubernetes manifests to include once at the chart root, alongside the chart's own templates. Each item is a full manifest (apiVersion/kind/metadata/spec); tpl-rendered.",
       "items": {
         "type": "object"
       }
@@ -1382,6 +1750,14 @@
               "description": "When true, one ConfigMap is created per JSON file under files/grafana/dashboards/. Defaults to false.",
               "examples": [
                 false
+              ]
+            },
+            "folder": {
+              "type": "string",
+              "description": "Grafana folder for provisioned dashboards (ConfigMap annotation grafana_folder). Defaults to apps.",
+              "examples": [
+                "apps",
+                "connectors"
               ]
             },
             "replacements": {
@@ -1413,6 +1789,30 @@
               "examples": [
                 "uniqueapp.azurecr.io"
               ]
+            }
+          }
+        },
+        "internalServices": {
+          "type": "object",
+          "description": "Optional environment-wide name/namespace values for internalServices keys. Only takes effect for a chart's internalServices.dependencies/dependents field that is itself written as a base.internalService.registryOr tpl expression in that chart's values.yaml; absent or empty has no effect.",
+          "properties": {
+            "registry": {
+              "type": "object",
+              "description": "Map of internalServices logical key to the name/namespace a chart's base.internalService.registryOr call for that key resolves to. A present, non-empty entry here takes precedence over the call's own chart-level fallback.",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Value returned for this key's name field."
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "Value returned for this key's namespace field."
+                  }
+                }
+              }
             }
           }
         }
@@ -1970,10 +2370,6 @@
               "description": "Maps to env var BING_AGENT_BING_RESOURCE_CONNECTION_STRING.",
               "$ref": "#/$defs/valueSourceSensitive"
             },
-            "agentId": {
-              "description": "Maps to env var BING_AGENT_AGENT_ID.",
-              "$ref": "#/$defs/valueSourceString"
-            },
             "bingAgentModel": {
               "description": "Maps to env var BING_AGENT_BING_AGENT_MODEL.",
               "$ref": "#/$defs/valueSourceSensitive"
@@ -1989,6 +2385,10 @@
             },
             "usePrivateEndpointTransport": {
               "description": "Maps to env var BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT.",
+              "$ref": "#/$defs/valueSourceBoolean"
+            },
+            "cleanupOnStart": {
+              "description": "Maps to env var BING_AGENT_CLEANUP_ON_START.",
               "$ref": "#/$defs/valueSourceBoolean"
             }
           }
@@ -2262,6 +2662,21 @@
             "proxySslKeyPath": {
               "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_KEY_PATH.",
               "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyUsernameSource": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME_SOURCE.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyUsernameMetadataField": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME_METADATA_FIELD.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "perUserProxyCompanyIds": {
+              "description": "Maps to env var HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -2269,6 +2684,10 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "httpClientCacheSize": {
+              "description": "Maps to env var HTTP_CLIENT_HTTP_CLIENT_CACHE_SIZE.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
             "poolTimeoutSeconds": {
               "description": "Maps to env var HTTP_CLIENT_POOL_TIMEOUT_SECONDS.",
               "type": "number"
@@ -2279,6 +2698,94 @@
             },
             "maxKeepaliveConnections": {
               "description": "Maps to env var HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxResponseKib": {
+              "description": "Maps to env var HTTP_CLIENT_MAX_RESPONSE_KIB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
+    "requestLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Request Limits configuration. Generated from RequestLimitsSettings (REQUEST_LIMITS_* env vars).",
+      "properties": {
+        "crawl": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxCrawlResponseKib": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxUrlsPerCrawl": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_URLS_PER_CRAWL.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxUrlLength": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_URL_LENGTH.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentFetches": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_FETCHES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentCrawls": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentUrlChecks": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_CONCURRENT_URL_CHECKS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        },
+        "timeouts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxTimeoutSeconds": {
+              "description": "Maps to env var REQUEST_LIMITS_MAX_TIMEOUT_SECONDS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
+    "pdfProcessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "PDF Processing configuration. Generated from PdfSettings (PDF_* env vars).",
+      "properties": {
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "extractor": {
+              "description": "Maps to env var PDF_EXTRACTOR.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "maxPdfPages": {
+              "description": "Maps to env var PDF_MAX_PDF_PAGES.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxExtractedChars": {
+              "description": "Maps to env var PDF_MAX_EXTRACTED_CHARS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "extractionTimeoutSeconds": {
+              "description": "Maps to env var PDF_EXTRACTION_TIMEOUT_SECONDS.",
+              "type": "number"
+            },
+            "maxExtractionMemoryMb": {
+              "description": "Maps to env var PDF_MAX_EXTRACTION_MEMORY_MB.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxConcurrentExtractions": {
+              "description": "Maps to env var PDF_MAX_CONCURRENT_EXTRACTIONS.",
               "$ref": "#/$defs/valueSourceInteger"
             }
           }
@@ -2337,6 +2844,13 @@
                 "type": "string"
               }
             },
+            "customApiTrustedPrivateHosts": {
+              "description": "Maps to env var CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "clusterLocalSuffix": {
               "description": "Maps to env var URL_SAFETY_CLUSTER_LOCAL_SUFFIX.",
               "$ref": "#/$defs/valueSourceString"
@@ -2351,6 +2865,29 @@
     }
   },
   "$defs": {
+    "backendEndpoint": {
+      "type": "object",
+      "description": "A public gateway-fronted backend this webapp calls. Used to build the backend URL via base.backends.url.",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Controls whether this endpoint is active. Referenced by env[*].if template expressions to conditionally emit the corresponding env var."
+        },
+        "host": {
+          "type": "string",
+          "description": "Per-endpoint public hostname override (no scheme). Falls back to backends.host when omitted."
+        },
+        "path": {
+          "type": "string",
+          "description": "URL path segment (no leading slash), tpl-evaluated. Mandatory — no fallback derivation from the endpoint's key. Use an empty string for a bare host with no path."
+        }
+      }
+    },
     "internalServiceDependency": {
       "type": "object",
       "description": "A service this chart calls (outbound dependency). Used to build the service URL and to generate pod-selector egress rules in Cilium network policies.",
@@ -2466,6 +3003,29 @@
         "enabled": {
           "type": "boolean",
           "description": "Controls whether this dependent's ingress rule is emitted. Absent means true."
+        }
+      }
+    },
+    "frontendApp": {
+      "type": "object",
+      "description": "A peer frontend web app this webapp links to. Used to build the navigation URL via base.frontends.url.",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Controls whether this app is active. Referenced by env[*].if template expressions to conditionally emit the corresponding env var."
+        },
+        "host": {
+          "type": "string",
+          "description": "Per-app public hostname override (no scheme). Falls back to frontends.host when omitted."
+        },
+        "path": {
+          "type": "string",
+          "description": "URL path segment (no leading slash), tpl-evaluated. Mandatory — no fallback derivation from the app's key. Use an empty string for a bare host with no path."
         }
       }
     },
@@ -2734,6 +3294,10 @@
         "mountPath": {
           "type": "string",
           "description": "Container file path at which the helper mounts the CA Secret. Drives ELASTICSEARCH_CA_BUNDLE env and auto-generated volumes/volumeMounts."
+        },
+        "reloadOnChange": {
+          "type": "boolean",
+          "description": "Defaults to true when caBundle.fromSecret is used: emits a secret.reloader.stakater.com/reload annotation on the Deployment so Stakater Reloader rolls the workload when the CA Secret changes (e.g. ECK certificate rotation). Set to false to opt out. Requires the Reloader controller in the cluster; otherwise the annotation is an inert no-op."
         },
         "fromSecret": {
           "$ref": "#/$defs/_fromSecretRef"

@@ -1,0 +1,7 @@
+component: Tools
+kind: Changed
+body: 'The internal search and web search evaluation check list descriptions say the hallucination entry is obsolete when the space has the Hallucination check setting under Services > Evaluation Config.'
+time: 2026-11-19T10:25:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29233

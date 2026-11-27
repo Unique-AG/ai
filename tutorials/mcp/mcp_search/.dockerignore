@@ -15,8 +15,12 @@ __pycache__
 
 # Virtual environments
 .venv
+.venv-*
 venv
 ENV
+
+# Lockfile is regenerated inside the image (keeps the build self-contained)
+uv.lock
 
 # IDE
 .idea

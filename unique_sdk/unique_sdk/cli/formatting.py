@@ -11,6 +11,13 @@ from unique_sdk.api_resources._content import Content
 from unique_sdk.api_resources._folder import Folder
 
 if TYPE_CHECKING:
+    from unique_sdk.api_resources._agentic_table import (
+        AgenticTableCell,
+        AgenticTableSheet,
+        CreatedAgenticTableSheet,
+        MagicTableActionResult,
+        MagicTableArtifact,
+    )
     from unique_sdk.api_resources._mcp import MCP
     from unique_sdk.api_resources._scheduled_task import ScheduledTask
 
@@ -35,6 +42,14 @@ def _format_date(iso_str: str | None) -> str:
         return dt.strftime("%Y-%m-%d %H:%M")
     except (ValueError, AttributeError):
         return iso_str[:16] if len(iso_str) >= 16 else iso_str
+
+
+def _snippet(text: str | None, limit: int = 80) -> str:
+    """Collapse *text* to a single-line snippet no longer than *limit* chars."""
+    collapsed = (text or "").replace("\n", " ").strip()
+    if len(collapsed) <= limit:
+        return collapsed
+    return collapsed[:limit] + "..."
 
 
 def _pad_columns(rows: list[list[str]]) -> list[str]:
@@ -145,7 +160,9 @@ def format_scheduled_task(task: ScheduledTask) -> str:
     enabled_str = "yes" if getattr(task, "enabled", False) else "no"
     rows = [
         ["ID:", getattr(task, "id", "?")],
+        ["Name:", getattr(task, "name", None) or "(falls back to prompt)"],
         ["Cron:", getattr(task, "cronExpression", "?")],
+        ["Timezone:", getattr(task, "timezone", None) or "UTC"],
         [
             "Assistant:",
             getattr(task, "assistantName", None) or getattr(task, "assistantId", "?"),
@@ -170,16 +187,30 @@ def format_scheduled_tasks(tasks: list[ScheduledTask]) -> str:
     for t in tasks:
         task_id = getattr(t, "id", "?")
         cron = getattr(t, "cronExpression", "?")
+        timezone = getattr(t, "timezone", None) or "UTC"
         enabled = "on" if getattr(t, "enabled", False) else "off"
         assistant = getattr(t, "assistantName", None) or getattr(t, "assistantId", "?")
         prompt = getattr(t, "prompt", "")
         snippet = prompt[:60].replace("\n", " ").strip()
         if len(prompt) > 60:
             snippet += "..."
+        # Mirrors the web UI: an unnamed task is identified by its prompt snippet.
+        label = getattr(t, "name", None) or snippet
         last_run = _format_date(getattr(t, "lastRunAt", None))
-        rows.append([enabled, cron, assistant, snippet, task_id, last_run])
+        rows.append(
+            [enabled, label, cron, timezone, assistant, snippet, task_id, last_run]
+        )
 
-    header = ["STATUS", "CRON", "ASSISTANT", "PROMPT", "ID", "LAST RUN"]
+    header = [
+        "STATUS",
+        "NAME",
+        "CRON",
+        "TIMEZONE",
+        "ASSISTANT",
+        "PROMPT",
+        "ID",
+        "LAST RUN",
+    ]
     lines = [f"{len(tasks)} scheduled task(s):\n"]
     all_rows = [header] + rows
     lines.extend(_pad_columns(all_rows))
@@ -332,3 +363,199 @@ def format_mcp_response(response: MCP, *, tool_name: str | None = None) -> str:
             lines.append(f"[{content_type}] (unsupported content type)")
 
     return "\n".join(lines)
+
+
+def format_agentic_table_sheet(
+    sheet: AgenticTableSheet,
+    *,
+    include_cells: bool = False,
+) -> str:
+    """Format an Agentic Table sheet summary as a key-value display.
+
+    Sheet-level metadata and cell values are only rendered when the caller
+    requested them (``includeSheetMetadata`` / ``includeCells``); absent
+    sections are skipped rather than shown empty.
+    """
+    rows = [
+        ["Sheet:", sheet.get("name", "?")],
+        ["ID:", sheet.get("sheetId", "?")],
+        ["State:", str(sheet.get("state", "?"))],
+    ]
+    if "magicTableRowCount" in sheet:
+        rows.append(["Rows:", str(sheet.get("magicTableRowCount"))])
+    chat_id = sheet.get("chatId")
+    if chat_id:
+        rows.append(["Chat:", chat_id])
+    rows.append(["Created by:", sheet.get("createdBy", "?")])
+    rows.append(["Created:", _format_date(sheet.get("createdAt"))])
+    lines = _pad_columns(rows)
+
+    metadata = sheet.get("magicTableSheetMetadata") or []
+    if metadata:
+        lines.append("")
+        lines.append("Metadata:")
+        meta_rows = [
+            [f"  {entry.get('key', '?')}:", entry.get("value", "")]
+            for entry in metadata
+        ]
+        lines.extend(_pad_columns(meta_rows))
+
+    cells = sheet.get("magicTableCells") or []
+    if include_cells and cells:
+        # One id per row. The same id is on every cell of that row, and
+        # delete-row removes the whole row, so repeating it per cell invites
+        # a second delete of an id that is already gone.
+        row_ids: list[tuple[str, str]] = []
+        seen_orders: set[str] = set()
+        for cell in cells:
+            row_id = cell.get("rowId")
+            if not row_id:
+                continue
+            row_order = str(cell.get("rowOrder", "?"))
+            if row_order in seen_orders:
+                continue
+            seen_orders.add(row_order)
+            row_ids.append((row_order, str(row_id)))
+        if row_ids:
+            lines.append("")
+            lines.append("Row ids:")
+            id_rows: list[list[str]] = [["ROW", "ROW_ID"]]
+            id_rows.extend([list(pair) for pair in row_ids])
+            lines.extend(_pad_columns(id_rows))
+
+        lines.append("")
+        lines.append(f"Cells ({len(cells)}):")
+        cell_rows: list[list[str]] = [["ROW", "COL", "TEXT"]]
+        for cell in cells:
+            cell_rows.append(
+                [
+                    str(cell.get("rowOrder", "?")),
+                    str(cell.get("columnOrder", "?")),
+                    _snippet(cell.get("text", "")),
+                ]
+            )
+        lines.extend(_pad_columns(cell_rows))
+
+    return "\n".join(lines)
+
+
+def format_agentic_table_cell(cell: AgenticTableCell) -> str:
+    """Format a single Agentic Table cell (text + lock state)."""
+    rows = [
+        ["Sheet:", cell.get("sheetId", "?")],
+        ["Row:", str(cell.get("rowOrder", "?"))],
+    ]
+    row_id = cell.get("rowId")
+    if row_id:
+        rows.append(["Row id:", row_id])
+    rows.extend(
+        [
+            ["Column:", str(cell.get("columnOrder", "?"))],
+            ["Locked:", "yes" if cell.get("rowLocked") else "no"],
+        ]
+    )
+    lines = _pad_columns(rows)
+    lines.append("")
+    lines.append("Text:")
+    lines.append(cell.get("text", ""))
+    return "\n".join(lines)
+
+
+def format_agentic_table_cell_history(cell: AgenticTableCell) -> str:
+    """Format an Agentic Table cell's log/edit history newest-to-oldest.
+
+    Each entry shows its timestamp, actor, optional source message id, and the
+    logged text (the actor + reason recorded by writes). The order is whatever
+    the API returns; no client-side sorting is imposed.
+    """
+    entries = cell.get("logEntries") or []
+    row = cell.get("rowOrder", "?")
+    col = cell.get("columnOrder", "?")
+    plural = "entry" if len(entries) == 1 else "entries"
+    header = f"Cell history (row {row}, col {col}) — {len(entries)} {plural}"
+    if not entries:
+        return f"{header}\n(no log entries)"
+
+    lines = [header, ""]
+    for entry in entries:
+        actor = entry.get("actorType", "?")
+        when = _format_date(entry.get("createdAt"))
+        message_id = entry.get("messageId")
+        suffix = f"  [{message_id}]" if message_id else ""
+        lines.append(f"- {when}  {actor}{suffix}")
+        text = (entry.get("text") or "").strip()
+        for text_line in text.splitlines():
+            lines.append(f"    {text_line}")
+    return "\n".join(lines)
+
+
+def format_agentic_table_artifacts(artifacts: list[MagicTableArtifact]) -> str:
+    """Format a sheet's export artifacts as a table.
+
+    ``contentId`` is only populated once an artifact reaches the ``DONE`` state;
+    pending/in-progress artifacts show ``-`` in the CONTENT column.
+    """
+    if not artifacts:
+        return "No export artifacts found."
+
+    header = ["TYPE", "STATE", "ID", "CONTENT", "UPDATED"]
+    rows: list[list[str]] = [header]
+    for artifact in artifacts:
+        rows.append(
+            [
+                str(artifact.get("artifactType", "?")),
+                str(artifact.get("artifactState", "?")),
+                artifact.get("id", "?"),
+                artifact.get("contentId") or "-",
+                _format_date(artifact.get("updatedAt")),
+            ]
+        )
+
+    lines = [f"{len(artifacts)} export artifact(s):\n"]
+    lines.extend(_pad_columns(rows))
+    return "\n".join(lines)
+
+
+def format_agentic_table_created_sheet(sheet: CreatedAgenticTableSheet) -> str:
+    """Format the result of creating a sheet (``POST /magic-table``).
+
+    ``ID`` is the ``sheetId`` to pass as ``table_id`` to every subsequent
+    command; ``chatId`` / ``dueAt`` are only shown when the backend returned
+    them.
+    """
+    rows = [
+        ["Sheet:", sheet.get("name", "?")],
+        ["ID:", sheet.get("sheetId", "?")],
+        ["Due diligence ID:", sheet.get("dueDiligenceId", "?")],
+        ["State:", str(sheet.get("state", "?"))],
+        ["Created by:", sheet.get("createdBy", "?")],
+        ["Created:", _format_date(sheet.get("createdAt"))],
+    ]
+    chat_id = sheet.get("chatId")
+    if chat_id:
+        rows.append(["Chat:", chat_id])
+    due_at = sheet.get("dueAt")
+    if due_at:
+        rows.append(["Due at:", _format_date(due_at)])
+    return "\n".join(_pad_columns(rows))
+
+
+def format_agentic_table_action_result(
+    result: MagicTableActionResult,
+    *,
+    action: str,
+) -> str:
+    """Format a lifecycle mutation's ``{status, message?}`` response.
+
+    Shared by ``import`` and ``export`` (before the optional ``--wait``): shows
+    the action, whether the backend accepted it, and any message it returned.
+    """
+    status = "OK" if result.get("status") else "FAILED"
+    rows = [
+        ["Action:", action],
+        ["Result:", status],
+    ]
+    message = result.get("message")
+    if message:
+        rows.append(["Detail:", str(message)])
+    return "\n".join(_pad_columns(rows))

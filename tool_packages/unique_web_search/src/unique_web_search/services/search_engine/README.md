@@ -6,7 +6,11 @@ Implementations wrap standard search APIs and grounding (agent) providers behind
 
 ```python
 # SearchEngine.search (services/search_engine/base.py)
-if search_proxy_client_enabled and engine is proxy-supported:
+if (
+    search_proxy_client_enabled
+    and engine is proxy-supported            # config.engine is SearchEngineType / AgentEngineType
+    and await self._proxy_routing_enabled()  # per-engine gate; Custom API checks its feature flag
+):
     return await self._proxy_search(...)   # standard → /v1/search; agent → /v1/agent-search
 return await self._legacy_search(...)      # direct provider call from this process
 ```
@@ -15,10 +19,10 @@ return await self._legacy_search(...)      # direct provider call from this proc
 |------|---------|-------|--------|
 | **Standard** | Google | yes | yes |
 | **Standard** | Brave, Perplexity | yes | **raises** (proxy-only) |
-| **Standard** | Custom API | never | always |
+| **Standard** | Custom API | yes | yes |
 | **Agent** | Bing, VertexAI | yes | yes |
 
-Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Bing/VertexAI).
+Deployment configs for Google / Brave / Perplexity (and agent base fields) live in **`unique_search_proxy_core`**. This package registers tool wrappers and adds web-only fields where needed (e.g. `requires_scraping` on Brave/Perplexity/Bing/VertexAI).
 
 ---
 
@@ -27,13 +31,13 @@ Deployment configs for Google / Brave / Perplexity (and agent base fields) live 
 | | Standard | Agent (grounding) |
 |--|----------|-------------------|
 | Proxy route | `POST /v1/search` | `POST /v1/agent-search` |
-| Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text → parsed locally |
-| LLM knobs | `ExposableParam` + `config.merge()` | No exposable params |
-| Typical scrape | Often yes (Google) | Often no (`requires_scraping=false`) |
+| Result shape | `SearchResponse` → `WebSearchResult` list | Opaque `answer` text (+ provider `citations`) → parsed locally |
+| LLM knobs | `ExposableParam` + `config.merge()` | `ExposableParam` (Bing only) |
+| Typical scrape | Often yes (Google; Brave and Perplexity by default) | Often no (`requires_scraping=false`) |
 
 ---
 
-## Exposable parameters (standard search only)
+## Exposable parameters
 
 Optional provider knobs use `ExposableParam[T]` from `unique_search_proxy_core.param_policy.exposable_param`:
 
@@ -54,7 +58,7 @@ ExposableParam(expose=False, value=None)  # deactivated (not merged into the req
 - `config.exposed_params_model()` — LLM-facing subset
 - `config.merge(llm_overrides, query=...)` — flat HTTP body for the proxy (no nested config+invocation)
 
-Crawlers and agent engines do **not** use this pattern.
+All standard engines and the Bing agent engine use this pattern; crawlers do not.
 
 ```python
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
@@ -86,6 +90,8 @@ Config: `unique_search_proxy_core.search_engines.google.schema.GoogleConfig`
 | `safe` | `active` / `off` (not exposable) |
 | `gl`, `hl`, `lr`, `date_restrict`, `exact_terms`, `exclude_terms`, `file_type`, `site_search`, `site_search_filter`, `sort` | `ExposableParam` |
 
+Each result's snippet is Google's snippet followed, on its own line, by the page's own description from `pagemap.metatags` (`og:description`, else `twitter:description`). The description is left out when it is a placeholder such as `null`. The search proxy builds the snippet the same way.
+
 ```bash
 GOOGLE_SEARCH_API_KEY=...
 GOOGLE_SEARCH_ENGINE_ID=...
@@ -93,9 +99,9 @@ GOOGLE_SEARCH_ENGINE_ID=...
 
 ### Brave Search (proxy-only)
 
-**Provider:** Brave Search API · **Requires scraping:** typically no (rich snippets) · **Legacy:** not supported
+**Provider:** Brave Search API · **Requires scraping:** configurable, default yes · **Legacy:** not supported
 
-Config: `unique_search_proxy_core.search_engines.brave.schema.BraveConfig`
+Config: `unique_web_search.services.search_engine.brave.BraveSearchConfig` (extends `unique_search_proxy_core.search_engines.brave.schema.BraveConfig` with `requires_scraping`, which is never sent to the proxy)
 
 Fixed bools include `extra_snippets`, `spellcheck`, `text_decorations`. Exposable knobs include country, search language, result filter, and related locale fields (see schema for full list).
 
@@ -113,9 +119,9 @@ results = await search.search("privacy-focused search")  # requires SEARCH_PROXY
 
 ### Perplexity Search (proxy-only)
 
-**Provider:** Perplexity Search API · **Legacy:** not supported
+**Provider:** Perplexity Search API · **Requires scraping:** configurable, default yes · **Legacy:** not supported
 
-Config: `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityConfig`
+Config: `unique_web_search.services.search_engine.perplexity.PerplexitySearchConfig` (extends `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityConfig` with `requires_scraping`, which is never sent to the proxy)
 
 | Field | Notes |
 |-------|-------|
@@ -127,13 +133,20 @@ Config: `unique_search_proxy_core.search_engines.perplexity.schema.PerplexityCon
 PERPLEXITY_API_KEY=...
 ```
 
-### Custom API Search (always local)
+### Custom API Search
 
-**Provider:** your REST endpoint · **Never proxy-routed**
+**Provider:** your REST endpoint · **Proxy:** legacy + proxy
 
-Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (`LocalSearchEngineType.CUSTOM_API`)
+Config: `unique_web_search.services.search_engine.custom_api.CustomAPIConfig` (engine `SearchEngineType.CUSTOM_API`; registered under `LocalSearchEngineType.CUSTOM_API`)
 
-Response must be JSON with a `results` array of `{url, title, snippet, content?}`.
+Response must be JSON with a `results` or legacy `curated` array of
+`{url, title, snippet, content?}`. When
+`FEATURE_FLAG_SEARCH_PROXY_ENABLE_CUSTOM_API_UN_26736` is enabled, the endpoint
+is validated against the Search Proxy URL-safety policy, DNS is pinned, and
+redirects are rejected. Exact private hosts can be operator-approved with
+`CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS`; this exception applies only to
+Customized API endpoints. Use the same value in assistants-core for accurate
+report-only metrics before proxy routing is enabled.
 
 ```bash
 CUSTOM_WEB_SEARCH_API_ENDPOINT=https://your-api.example.com/search
@@ -147,19 +160,80 @@ CUSTOM_WEB_SEARCH_API_HEADERS='{"Authorization": "Bearer ..."}'
 
 ### Bing (Grounding with Bing)
 
-**Provider:** Azure AI Foundry Agent with Bing grounding · Config extends `BingAgentConfig` with `requires_scraping`, `language_model`, etc.
+**Provider:** Azure AI Foundry Agent with Bing grounding · Config extends `BingAgentConfig` with `requires_scraping`.
+
+The agent answers with one bullet per source, each ending in a citation marker.
+`BingCitationParser` (`utils/grounding/bing/citation_parsing.py`) turns each
+cited source into one result, taking its URL and title only from Foundry's
+`url_citation` annotations. Unusable citations and lines are dropped one by one
+and counted in the `grounding_*` metrics rather than failing the whole answer.
+
+| Field | Notes |
+|-------|-------|
+| `fetch_size` | Bing result count (`count` on the tool configuration) |
+| `market` | Region **and** language Bing favours (Bing `mkt`). A bias, not a filter — other regions can still appear |
+| `freshness` | Recency cut-off applied to every search in the space (Bing `freshness`): `Day` / `Week` / `Month` |
+
+Both are optional **fixed** values an admin picks for the whole space and are
+never offered to the LLM, and both are restricted to Bing's documented values so
+they render as one dropdown each; blank values are omitted so Bing applies its
+own defaults.
+
+`freshness` also accepts absolute days and ranges (`2026-01-01..2026-03-31`),
+which we deliberately do **not** offer: pinned space-wide, an absolute window
+freezes the space to a range that rots the day after it is saved. Presets only
+also keep the admin schema fully enumerated, so a typo cannot save.
+
+`BingGroundingSearchConfiguration` also accepts `setLang`, which we deliberately
+do **not** expose: it only localizes the labels Bing puts around results, so an
+admin reading "language" would set it expecting French results and leave `mkt`
+unset. Beyond these, Bing grounding has no `safeSearch`, `responseFilter`, or
+`answerCount`, so `count` / `market` / `freshness` is the whole useful surface.
+
+Spaces saved on 2026.36 hold an `ExposableParam` `{expose, value}` object under
+both keys. node-chat data migration
+`20260908120000_drop_bing_grounding_exposable_params` deletes them, and
+`BingAgentConfig` reads that shape as unset for rows the migration has not
+reached — an invalid tool config disables the whole tool silently, so tolerating
+it is not optional. The migration deletes rather than unwraps, which keeps a
+rollback to 2026.36 valid.
+
+A blank `market` falls back to the `BING_AGENT_DEFAULT_MARKET` environment
+variable (below), so a deployment serving a single country pins its market once
+instead of per space. With neither set, `mkt` is left off the call entirely and
+Bing may favour the region where the underlying Microsoft Foundry resource is
+deployed.
+
+Bing bakes the tool configuration into the *agent version*, so these knobs take
+part in the hashed agent name (`unique-grounding-with-bing-<hash>`): changing one
+provisions a new agent version instead of reusing a mismatched one.
 
 ```bash
 AZURE_AI_PROJECT_ENDPOINT=...
 AZURE_AI_AGENT_ID=...          # optional; empty → auto-provision
 AZURE_IDENTITY_CREDENTIAL_TYPE=workload  # or default
+# Market applied to spaces that fix none; omit to send no market at all.
+BING_AGENT_DEFAULT_MARKET=fr-FR
 ```
 
 ### VertexAI (Grounding with VertexAI)
 
 **Provider:** Gemini + Google Search grounding on Vertex AI · Config extends `VertexAIAgentConfig`.
 
-Requires GCP ADC / workload identity. Fields include `vertexai_model_name`, `generation_instructions`, `enable_entreprise_search`, `enable_redirect_resolution`, `requires_scraping`.
+Requires GCP ADC / workload identity. Fields include `vertexai_model_name`,
+`generation_instructions`, `enable_entreprise_search`,
+`enable_redirect_resolution`, and `requires_scraping`.
+
+In proxy mode, Vertex grounding redirect URLs are resolved by Search Proxy,
+where every redirect hop passes URL-safety and shared egress controls. Legacy
+mode returns redirect URLs unchanged instead of resolving them directly from
+assistants-core.
+
+```bash
+VERTEXAI_AGENT_DEFAULT_VERTEX_AI_MODEL_NAME=gemini-3-flash-preview
+# ZDR tenants: pin "Enable Enterprise Search" on and disable the checkbox
+VERTEXAI_AGENT_FORCE_ACTIVATE_ENTERPRISE_SEARCH=false
+```
 
 ---
 

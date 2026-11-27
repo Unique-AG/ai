@@ -8,6 +8,7 @@ from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.invocation_stats import collector
 from unique_web_search.services.content_processing.processing_strategies.base import (
     ProcessingStrategyKwargs,
     WebSearchResult,
@@ -170,7 +171,7 @@ class LLMKeywordRedact:
         )
 
         _LOGGER.info(
-            f"Running keyword extraction for page {page.url} "
+            "Running keyword extraction for page "
             f"(model={self._config.language_model.name})"
         )
 
@@ -179,6 +180,11 @@ class LLMKeywordRedact:
             model_name=self._config.language_model.name,
             structured_output_model=KeywordRedactResponse,
             structured_output_enforce_schema=True,
+        )
+        collector.record_language_model_response(
+            model_name=self._config.language_model.name,
+            response=response,
+            source="web_search.content_processing.keyword_redact",
         )
 
         if response.choices[0].message.parsed is None:
@@ -189,7 +195,7 @@ class LLMKeywordRedact:
         )
 
         _LOGGER.info(
-            f"Extracted {len(parsed.sensitive_keywords)} sensitive keyword(s) from {page.url}"
+            f"Extracted {len(parsed.sensitive_keywords)} sensitive keyword(s) from page"
         )
 
         return parsed.apply_to_page(page)

@@ -17,6 +17,9 @@ from .schemas import (
     ContentRerankerConfig as ContentRerankerConfig,
 )
 from .schemas import (
+    ContentSearchMergeStrategy as ContentSearchMergeStrategy,
+)
+from .schemas import (
     ContentSearchResult as ContentSearchResult,
 )
 from .schemas import (
@@ -47,6 +50,7 @@ __all__ = [
     "ContentMetadata",
     "ContentReference",
     "ContentRerankerConfig",
+    "ContentSearchMergeStrategy",
     "ContentSearchResult",
     "ContentSearchType",
     "ContentService",

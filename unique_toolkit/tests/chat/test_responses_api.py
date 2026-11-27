@@ -6,12 +6,16 @@ import pytest
 import unique_sdk
 
 from unique_toolkit.chat.responses_api import (
-    _attempt_extract_reasoning_from_options,
-    _attempt_extract_verbosity_from_options,
+    _prepare_responses_args,
+    _prepare_responses_params_util,
     _responses_stream_with_rate_limit_retry,
     convert_messages_to_openai,
+    extract_reasoning_from_options,
+    extract_verbosity_from_options,
     rate_limit_retry_config,
+    strip_translated_responses_options,
 )
+from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelSystemMessage,
@@ -19,7 +23,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 # ============================================================================
-# Tests for _attempt_extract_reasoning_from_options
+# Tests for extract_reasoning_from_options
 # ============================================================================
 
 
@@ -34,7 +38,7 @@ def test_extract_reasoning__parses_json_string__correctly() -> None:
     options = {"reasoning": '{"effort": "high"}'}
 
     # Act
-    result = _attempt_extract_reasoning_from_options(options)
+    result = extract_reasoning_from_options(options)
 
     # Assert
     assert result is not None
@@ -52,7 +56,7 @@ def test_extract_reasoning__handles_dict__correctly() -> None:
     options = {"reasoning": {"effort": "low"}}
 
     # Act
-    result = _attempt_extract_reasoning_from_options(options)
+    result = extract_reasoning_from_options(options)
 
     # Assert
     assert result is not None
@@ -70,7 +74,7 @@ def test_extract_reasoning__handles_invalid_json__gracefully() -> None:
     options = {"reasoning": '{"invalid": json}'}
 
     # Act
-    result = _attempt_extract_reasoning_from_options(options)
+    result = extract_reasoning_from_options(options)
 
     # Assert
     # Function has @failsafe decorator, should return None for invalid input
@@ -88,14 +92,14 @@ def test_extract_reasoning__returns_none__when_missing() -> None:
     options = {"temperature": 0.7}
 
     # Act
-    result = _attempt_extract_reasoning_from_options(options)
+    result = extract_reasoning_from_options(options)
 
     # Assert
     assert result is None
 
 
 # ============================================================================
-# Tests for _attempt_extract_verbosity_from_options
+# Tests for extract_verbosity_from_options
 # ============================================================================
 
 
@@ -110,7 +114,7 @@ def test_extract_verbosity__parses_json_string__correctly() -> None:
     options = {"text": '{"verbosity": "high"}'}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     assert result is not None
@@ -128,7 +132,7 @@ def test_extract_verbosity__handles_dict__correctly() -> None:
     options = {"text": {"verbosity": "medium"}}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     assert result is not None
@@ -146,7 +150,7 @@ def test_extract_verbosity__handles_invalid_json__gracefully() -> None:
     options = {"text": '{"invalid": json}'}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     # Function has @failsafe decorator, should return None for invalid input
@@ -164,7 +168,7 @@ def test_extract_verbosity__returns_none__when_missing() -> None:
     options = {"temperature": 0.7}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     assert result is None
@@ -181,7 +185,7 @@ def test_extract_verbosity__uses_correct_variable_name() -> None:
     options = {"text": {"verbosity": "low"}}
 
     # Act
-    result = _attempt_extract_verbosity_from_options(options)
+    result = extract_verbosity_from_options(options)
 
     # Assert
     # This test ensures the variable name bug is fixed
@@ -432,3 +436,257 @@ def test_convert_messages__passes_through_openai_dicts() -> None:
     result = convert_messages_to_openai(messages)
     assert isinstance(result, list)
     assert result[0] == {"role": "user", "content": "Hello"}
+
+
+# ============================================================================
+# Tests for _prepare_responses_params_util
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "model_name",
+    list(LanguageModelName),
+    ids=[model_name.name for model_name in LanguageModelName],
+)
+def test_prepare_responses_params__sends_enum_value_not_member_name(
+    model_name: LanguageModelName,
+) -> None:
+    """
+    Purpose: Verify the outgoing model identifier is the enum value, never the member name.
+    Why this matters: LiteLLM members have a member name (LITELLM_OPENAI_GPT_56_LUNA) that
+    differs from their value (litellm:openai-gpt-5-6-luna). Sending the member name made the
+    backend reject the request as not available on the cluster (UN-24591). Azure members have
+    name == value, which is why this stayed invisible until a LiteLLM model was used.
+    Setup summary: Prepare params for every known model, assert the value form is emitted.
+    """
+    params = _prepare_responses_params_util(
+        model_name=model_name,
+        content_chunks=None,
+        temperature=0.0,
+        tools=None,
+        messages="Hello",
+        reasoning=None,
+        text=None,
+    )
+
+    assert params.model_name == model_name.value
+
+
+@pytest.mark.ai
+def test_prepare_responses_params__passes_custom_model_string_through() -> None:
+    """
+    Purpose: Verify a plain string model name is forwarded unchanged.
+    Why this matters: Custom models are not enum members and must not be rewritten.
+    Setup summary: Pass a custom model string, assert it survives verbatim.
+    """
+    params = _prepare_responses_params_util(
+        model_name="litellm:customer-private-model",
+        content_chunks=None,
+        temperature=0.0,
+        tools=None,
+        messages="Hello",
+        reasoning=None,
+        text=None,
+    )
+
+    assert params.model_name == "litellm:customer-private-model"
+
+
+# ============================================================================
+# Tests for chat-completions option translation on the Responses path
+# ============================================================================
+
+
+def _build_openai_options(other_options: dict) -> dict:
+    """Run the full prepare pipeline and return the ``options`` forwarded to OpenAI."""
+    params = _prepare_responses_params_util(
+        model_name=LanguageModelName.AZURE_GPT_55_2026_0424,
+        content_chunks=None,
+        temperature=1.0,
+        tools=None,
+        messages="Hello",
+        reasoning=None,
+        text=None,
+        other_options=other_options,
+    )
+    args = _prepare_responses_args(
+        company_id="company",
+        user_id="user",
+        assistant_message_id="am",
+        user_message_id="um",
+        chat_id="chat",
+        assistant_id="assistant",
+        params=params,
+        debug_info=None,
+        start_text=None,
+        include=None,
+        instructions=None,
+        max_output_tokens=None,
+        metadata=None,
+        parallel_tool_calls=None,
+        tool_choice=None,
+        top_p=None,
+        other_options=other_options,
+    )
+    return args["options"]
+
+
+@pytest.mark.ai
+def test_strip_translated_options__removes_reasoning_and_verbosity_keys() -> None:
+    """
+    Purpose: Verify every spelling that is translated into ``reasoning``/``text`` is dropped.
+    Why this matters: /v1/responses rejects flat ``verbosity`` / ``reasoning_effort`` with
+      "Unrecognized request argument" (UN-20123); anything else must pass through untouched.
+    Setup summary: Strip a dict mixing translated keys and an unrelated key.
+    """
+    result = strip_translated_responses_options(
+        {
+            "reasoning": {"effort": "low"},
+            "reasoning_effort": "low",
+            "reasoningEffort": "low",
+            "verbosity": "low",
+            "text": {"verbosity": "low"},
+            "user": "space-1",
+        }
+    )
+
+    assert result == {"user": "space-1"}
+    assert strip_translated_responses_options(None) == {}
+
+
+@pytest.mark.ai
+def test_prepare_responses_args__maps_flat_verbosity_to_text_and_drops_flat_key() -> (
+    None
+):
+    """
+    Purpose: ``verbosity`` from additional_llm_options reaches OpenAI only as ``text.verbosity``.
+    Why this matters: GPT-5.5 spaces configured with ``verbosity`` (chat-completions style)
+      failed with 400 once routed through the Responses API because the flat key leaked
+      into the request next to the translated ``text`` config.
+    Setup summary: Prepare args with ``verbosity: low``; assert ``text`` set, ``verbosity`` absent.
+    """
+    options = _build_openai_options({"verbosity": "low"})
+
+    assert options["text"] == {"verbosity": "low"}
+    assert "verbosity" not in options
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("key", ["reasoning_effort", "reasoningEffort"])
+def test_prepare_responses_args__maps_flat_reasoning_effort_and_drops_flat_key(
+    key: str,
+) -> None:
+    """
+    Purpose: Flat ``reasoning_effort`` / ``reasoningEffort`` reach OpenAI only as
+      ``reasoning.effort``.
+    Why this matters: Same 400 as for ``verbosity``; both spellings are accepted in
+      space configs and must be normalised identically.
+    Setup summary: Prepare args with the flat key; assert nested effort set, flat key absent.
+    """
+    options = _build_openai_options({key: "high"})
+
+    assert options["reasoning"]["effort"] == "high"
+    assert "reasoning_effort" not in options
+    assert "reasoningEffort" not in options
+
+
+@pytest.mark.ai
+def test_prepare_responses_args__keeps_unrelated_other_options() -> None:
+    """
+    Purpose: Only translated keys are stripped; genuine Responses options still pass through.
+    Why this matters: ``other_options`` is the escape hatch for arbitrary create() kwargs.
+    Setup summary: Prepare args with a translated key plus ``user``; assert ``user`` survives.
+    """
+    options = _build_openai_options({"verbosity": "low", "user": "space-1"})
+
+    assert options["user"] == "space-1"
+    assert options["text"] == {"verbosity": "low"}
+
+
+_GPT_62_MODELS = [
+    LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+    LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
+    LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+    LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
+]
+
+
+def _build_responses_options(
+    model_name: LanguageModelName,
+    other_options: dict,
+    top_p: float | None,
+    include: list[str] | None,
+) -> dict:
+    params = _prepare_responses_params_util(
+        model_name=model_name,
+        content_chunks=None,
+        temperature=0.5,
+        tools=None,
+        messages="Hello",
+        reasoning=None,
+        text=None,
+        other_options=other_options,
+    )
+    args = _prepare_responses_args(
+        company_id="company",
+        user_id="user",
+        assistant_message_id="am",
+        user_message_id="um",
+        chat_id="chat",
+        assistant_id="assistant",
+        params=params,
+        debug_info=None,
+        start_text=None,
+        include=include,  # pyright: ignore[reportArgumentType]
+        instructions=None,
+        max_output_tokens=None,
+        metadata=None,
+        parallel_tool_calls=None,
+        tool_choice=None,
+        top_p=top_p,
+        other_options=other_options,
+    )
+    return args["options"]
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("model_name", _GPT_62_MODELS)
+def test_prepare_responses_args__gpt_62_omits_sampling_params_and_logprobs_include(
+    model_name: LanguageModelName,
+) -> None:
+    """
+    Purpose: GPT-6.2 Responses requests carry no temperature, top_p, top_logprobs or logprobs include.
+    Why this matters: The GPT-6.2 migration guide lists these as unsupported parameters.
+    Setup summary: Pass every unsupported option plus a supported include; assert only the include survives.
+    """
+    options = _build_responses_options(
+        model_name,
+        other_options={"top_logprobs": 3},
+        top_p=0.9,
+        include=["message.output_text.logprobs", "reasoning.encrypted_content"],
+    )
+
+    assert "temperature" not in options
+    assert "top_p" not in options
+    assert "top_logprobs" not in options
+    assert options["include"] == ["reasoning.encrypted_content"]
+
+
+@pytest.mark.ai
+def test_prepare_responses_args__other_models_keep_sampling_params() -> None:
+    """
+    Purpose: Models without the flag keep forwarding temperature and top_p.
+    Why this matters: The omission must not leak to other models.
+    Setup summary: Build options for GPT-5.5 and assert both parameters are present.
+    """
+    options = _build_responses_options(
+        LanguageModelName.AZURE_GPT_55_2026_0424,
+        other_options={},
+        top_p=0.9,
+        include=["message.output_text.logprobs"],
+    )
+
+    assert "temperature" in options
+    assert options["top_p"] == 0.9
+    assert options["include"] == ["message.output_text.logprobs"]

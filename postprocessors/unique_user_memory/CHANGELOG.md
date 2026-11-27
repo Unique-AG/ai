@@ -1,5 +1,120 @@
 # Changelog
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.46.0...unique-user-memory-v2026.48.0) (2026-11-20)
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.44.0...unique-user-memory-v2026.46.0) (2026-11-06)
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.42.0...unique-user-memory-v2026.44.0) (2026-10-23)
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.40.0...unique-user-memory-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.38.0...unique-user-memory-v2026.40.0) (2026-09-24)
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.36.0...unique-user-memory-v2026.38.0) (2026-09-10)
+
+
+### Features
+
+* **user-memory:** add Prometheus observability [UN-24886] ([#2418](https://github.com/Unique-AG/ai/issues/2418)) ([ce02e4a](https://github.com/Unique-AG/ai/commit/ce02e4a62d9034ec930b8a4c65e41b1f2f5db2af))
+* **user-memory:** restrict profile content to the signed-in user's CID/PII [UN-24886] ([#2385](https://github.com/Unique-AG/ai/issues/2385)) ([1c23c80](https://github.com/Unique-AG/ai/commit/1c23c80c2c5e7a834946c9611ddcd487a186d523))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.34.0...unique-user-memory-v2026.36.0) (2026-08-31)
+
+
+### Bug Fixes
+
+* **user-memory:** resolve per-user home folders after shared root retirement ([#2347](https://github.com/Unique-AG/ai/issues/2347)) ([28e5a15](https://github.com/Unique-AG/ai/commit/28e5a155654043c0dd104422229afb1576dc6580))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.32.0...unique-user-memory-v2026.34.0) (2026-08-14)
+
+
+### Features
+
+* **user-memory:** hide max tokens parameter in config ([#2253](https://github.com/Unique-AG/ai/issues/2253)) ([1f64867](https://github.com/Unique-AG/ai/commit/1f648672f745ca01651329e7f11a4843620cc51c))
+
+
+### Bug Fixes
+
+* **language-model:** translate max_tokens to max_completion_tokens for reasoning models ([#2252](https://github.com/Unique-AG/ai/issues/2252)) ([f5d2893](https://github.com/Unique-AG/ai/commit/f5d2893cc90c9f512c9c5013970ea57a985635de))
+* **toolkit:** attribute secondary LLM usage [UN-20749] ([#2235](https://github.com/Unique-AG/ai/issues/2235)) ([e807508](https://github.com/Unique-AG/ai/commit/e80750874d6379b67ffefdb28e7857a923209ad1))
+
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.30.0...unique-user-memory-v2026.32.0) (2026-07-31)
+
+
+### Features
+
+* Token count analytics ([#2112](https://github.com/Unique-AG/ai/issues/2112)) ([f475dc4](https://github.com/Unique-AG/ai/commit/f475dc4606dd723e0fecfcdd09ace2f9c329e960))
+
+
+### Bug Fixes
+
+* user memory message logs ([#2160](https://github.com/Unique-AG/ai/issues/2160)) ([d8fb962](https://github.com/Unique-AG/ai/commit/d8fb962d4068103cbfb6d8b94f6be627fe73e7f0))
+* **user-memory:** exclude frontmatter generation from llm call ([#2114](https://github.com/Unique-AG/ai/issues/2114)) ([591f998](https://github.com/Unique-AG/ai/commit/591f9985dc9ae0cc448f14d7dc77542b867435e4))
+* **user-memory:** prompt improvement ([#2165](https://github.com/Unique-AG/ai/issues/2165)) ([c17a914](https://github.com/Unique-AG/ai/commit/c17a9148a864fe271d1036d75d146d52e3a96e6b))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.28.0...unique-user-memory-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* update logging and config of context memory ([#2098](https://github.com/Unique-AG/ai/issues/2098)) ([a38625e](https://github.com/Unique-AG/ai/commit/a38625efe25891a82e04ea6477113f43d94eaa62))
+* update user memory logic ([#2087](https://github.com/Unique-AG/ai/issues/2087)) ([0e8b7df](https://github.com/Unique-AG/ai/commit/0e8b7df00a4169104d273374b147c1664f9fbff7))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.26.0...unique-user-memory-v2026.28.0) (2026-07-03)
 
 

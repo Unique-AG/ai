@@ -149,7 +149,18 @@ def test_kb_ingestion_subgroup_help_shows_summary() -> None:
     invoke_help = _make_help_invoker()
     result_output = invoke_help(["kb", "ingestion", "--help"])
     assert "Folder.update_ingestion_config" in result_output
+    assert "get" in result_output
     assert "set" in result_output
+
+
+def test_kb_ingestion_get_help() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "ingestion", "get", "--help"])
+    assert "--folder-path" in result_output
+    assert "--scope-id" in result_output
+    assert "--output" in result_output
+    assert "Examples:" in result_output
+    assert "uqadm kb ingestion get" in result_output
 
 
 def test_kb_access_grant_help() -> None:
@@ -205,3 +216,14 @@ def test_version_flag() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "uqadm" in result.output
+
+
+def test_access_and_mcp_flags_in_help() -> None:
+    invoke_help = _make_help_invoker()
+    for cmd in (["space", "upsert"], ["space", "migrate"]):
+        out = invoke_help([*cmd, "--help"])
+        assert "--no-access" in out
+        assert "--with-mcp-servers" in out
+    assert "--no-access" in invoke_help(["space", "export", "--help"])
+    assert "--ignore-access" in invoke_help(["space", "diff", "--help"])
+    assert "--no-inherit-access" in invoke_help(["kb", "sync", "--help"])

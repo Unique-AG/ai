@@ -201,6 +201,56 @@ def test_kb_access_grant_cli(
     assert kw["permission"] == "WRITE"
 
 
+@patch("uqadm.kb.cmd_ingestion_get")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_ingestion_get_cli(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_get: MagicMock,
+    tmp_path: Path,
+) -> None:
+    mock_cfg.return_value = MagicMock()
+    out_file = tmp_path / "ingest.yaml"
+    result = _runner().invoke(
+        app,
+        [
+            "kb",
+            "ingestion",
+            "get",
+            "--folder-path",
+            "/Dept/HR",
+            "-o",
+            str(out_file),
+        ],
+    )
+    assert result.exit_code == 0
+    mock_get.assert_called_once()
+    kw = mock_get.call_args.kwargs
+    assert kw["folder_path"] == "/Dept/HR"
+    assert kw["scope_id"] is None
+    assert kw["output"] == out_file
+
+
+@patch("uqadm.kb.cmd_ingestion_get")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_ingestion_get_cli_defaults_to_stdout(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_get: MagicMock,
+) -> None:
+    mock_cfg.return_value = MagicMock()
+    result = _runner().invoke(
+        app,
+        ["kb", "ingestion", "get", "--scope-id", "scope_x", "--slot", "qa"],
+    )
+    assert result.exit_code == 0
+    kw = mock_get.call_args.kwargs
+    assert kw["scope_id"] == "scope_x"
+    assert kw["output"] is None
+
+
 @patch("uqadm.kb.cmd_ingestion_set")
 @patch("uqadm.kb.config_for_slot")
 @patch("uqadm.kb.resolve_slot", return_value="qa")

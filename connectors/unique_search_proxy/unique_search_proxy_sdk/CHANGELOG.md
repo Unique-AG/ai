@@ -1,5 +1,124 @@
 # Changelog
 
+## [2026.48.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.46.0...unique-search-proxy-sdk-v2026.48.0) (2026-11-20)
+
+
+### Miscellaneous
+
+* arm release 2026.48.0 ([5e94685](https://github.com/Unique-AG/ai/commit/5e946853ffddd477ce2af22aa5077a48e3a89c1f))
+
+## [2026.46.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.44.0...unique-search-proxy-sdk-v2026.46.0) (2026-11-06)
+
+
+### Features
+
+* **search-proxy:** read text from PDFs in the Basic crawler [UN-12985] ([#2702](https://github.com/Unique-AG/ai/issues/2702)) ([bd8f971](https://github.com/Unique-AG/ai/commit/bd8f9719aaae0b0681e71de11dcf36c1787fa002))
+
+
+### Bug Fixes
+
+* **web-search:** keep search snippets when a crawl fails transiently ([#2654](https://github.com/Unique-AG/ai/issues/2654)) ([25a8935](https://github.com/Unique-AG/ai/commit/25a8935cf585831f578c459b9eab6c3237f1e836))
+
+
+### Miscellaneous
+
+* arm release 2026.46.0 ([0a6e2c9](https://github.com/Unique-AG/ai/commit/0a6e2c9b101fd5fa00919a5b2eb5b81994215fed))
+
+## [2026.44.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.42.0...unique-search-proxy-sdk-v2026.44.0) (2026-10-23)
+
+
+### Features
+
+* **search-proxy:** add Customized API provider [UN-26736] ([#2537](https://github.com/Unique-AG/ai/issues/2537)) ([12428e5](https://github.com/Unique-AG/ai/commit/12428e5d3e2568b3d3058ccb964fd85dcaea81a2))
+* **search-proxy:** attribute web search requests to company, user and entry point [UN-24394] ([#2520](https://github.com/Unique-AG/ai/issues/2520)) ([5714fbd](https://github.com/Unique-AG/ai/commit/5714fbdac325d42af0b87eaf4843568c3ba8655e))
+
+
+### Bug Fixes
+
+* **search-proxy:** cap outbound response size ([#2582](https://github.com/Unique-AG/ai/issues/2582)) ([2997f00](https://github.com/Unique-AG/ai/commit/2997f0028fb5265f45645b719e9c193fc3cf8f89))
+* **search-proxy:** resolve Vertex redirects safely [UN-26738] ([#2599](https://github.com/Unique-AG/ai/issues/2599)) ([540cd90](https://github.com/Unique-AG/ai/commit/540cd9089e4bdcb82c96189c9dadfba64890e388))
+* **web-search:** use Foundry citation URLs for Bing results [UN-26467] ([#2614](https://github.com/Unique-AG/ai/issues/2614)) ([c3fabcf](https://github.com/Unique-AG/ai/commit/c3fabcfa333714e79cea3160ed201789950fb171))
+
+
+### Miscellaneous
+
+* arm release 2026.44.0 ([4580110](https://github.com/Unique-AG/ai/commit/45801105f80b0faa89d69d19917913c7c6b093aa))
+
+## [2026.42.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.40.0...unique-search-proxy-sdk-v2026.42.0) (2026-10-09)
+
+
+### Features
+
+* **toolkit:** add GPT-6.1 Sol model info ([#2496](https://github.com/Unique-AG/ai/issues/2496)) ([e18ad7d](https://github.com/Unique-AG/ai/commit/e18ad7d24f556193edfa4055b0d8586a1551bd09))
+
+
+### Miscellaneous
+
+* arm release 2026.42.0 ([da4063c](https://github.com/Unique-AG/ai/commit/da4063cd617b6c3cd03019735a1fc8d34a574538))
+
+## [2026.40.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.38.0...unique-search-proxy-sdk-v2026.40.0) (2026-09-24)
+
+
+### Miscellaneous
+
+* arm release 2026.40.0 ([f4a6377](https://github.com/Unique-AG/ai/commit/f4a6377a9e39f6bf9da0289d790f8f80e1bb89ed))
+
+## [2026.38.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.36.0...unique-search-proxy-sdk-v2026.38.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **search-proxy:** rework Bing grounding params as fixed admin values [UN-24652] ([#2397](https://github.com/Unique-AG/ai/issues/2397)) ([38edc46](https://github.com/Unique-AG/ai/commit/38edc465bc526ee7ab5568abce97985a87795ea8))
+
+
+### Miscellaneous
+
+* arm release 2026.38.0 ([c827b03](https://github.com/Unique-AG/ai/commit/c827b03349c0f510c235b55762386a36f93910b1))
+
+## [2026.36.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.34.0...unique-search-proxy-sdk-v2026.36.0) (2026-08-31)
+
+
+### Features
+
+* **search-proxy:** forward Bing grounding knobs to Foundry ([#2331](https://github.com/Unique-AG/ai/issues/2331)) ([cf4caaa](https://github.com/Unique-AG/ai/commit/cf4caaa1cb931be1300db9fd75f931f8a4ff54ef))
+
+
+### Miscellaneous
+
+* arm release 2026.36.0 ([7882253](https://github.com/Unique-AG/ai/commit/788225328a78ebc31e264e085d3d843e145063fb))
+
+## [2026.34.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.32.0...unique-search-proxy-sdk-v2026.34.0) (2026-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **web-search:** Deployments that pinned `BING_AGENT_AGENT_ID`, request `agentId`, BingSearchConfig `agent_id`/`endpoint`, or `AZURE_AI_ASSISTANT_ID` will silently switch to hash-based auto-provisioning. Project endpoint for the legacy Azure path must come from env (`azure_ai_project_endpoint` / `BING_AGENT_ENDPOINT` on the proxy).
+
+### Miscellaneous
+
+* arm release 2026.34.0 ([994fbe8](https://github.com/Unique-AG/ai/commit/994fbe88cd4873caa0c8319489e72bb25ac159dc))
+* **web-search:** decommission Bing agent_id for auto-provisioning ([#2263](https://github.com/Unique-AG/ai/issues/2263)) ([1166358](https://github.com/Unique-AG/ai/commit/1166358f5064bb63f86a96c9e408abb404ec6f35))
+
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.30.0...unique-search-proxy-sdk-v2026.32.0) (2026-07-31)
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.28.0...unique-search-proxy-sdk-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **search-proxy:** enforce tenant context headers and enrich request logs ([#2090](https://github.com/Unique-AG/ai/issues/2090)) ([23b2562](https://github.com/Unique-AG/ai/commit/23b25623ce34859a1b8422da3b7764f245797fd4))
+* **search-proxy:** tighten search engine config schemas [UN-21235] ([#2040](https://github.com/Unique-AG/ai/issues/2040)) ([0b817c0](https://github.com/Unique-AG/ai/commit/0b817c08267b6730eb21a231557ac4eeb3b81b83))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.26.0...unique-search-proxy-sdk-v2026.28.0) (2026-07-03)
 
 

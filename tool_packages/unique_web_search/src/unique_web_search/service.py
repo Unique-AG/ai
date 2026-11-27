@@ -3,20 +3,26 @@ from datetime import datetime
 from time import time
 
 from typing_extensions import override
-from unique_search_proxy_core.context import RequestContext
+from unique_search_proxy_core.context import EntryPoint, RequestContext
+from unique_search_proxy_core.param_policy.exposable_config import (
+    ExposableParamsConfig,
+)
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
-from unique_search_proxy_core.search_engines.base import BaseSearchEngineConfig
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags.feature_flags import (
-    feature_flags,
-)
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
-from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.elicitation import (
+    ElicitationCancelledException,
+    ElicitationDeclinedException,
+    ElicitationExpiredException,
+    ElicitationFailedException,
+)
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -24,7 +30,9 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.monitoring import metric_scope
 
+from unique_web_search import activity_record
 from unique_web_search.config import WebSearchConfig
+from unique_web_search.invocation_stats import collector
 from unique_web_search.metrics import tool_duration, tool_empty_results, tool_errors
 from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.argument_screening import (
@@ -55,6 +63,13 @@ from unique_web_search.utils import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_ELICITATION_DENIALS = (
+    ElicitationCancelledException,
+    ElicitationDeclinedException,
+    ElicitationExpiredException,
+    ElicitationFailedException,
+)
+
 
 class WebSearchTool(Tool[WebSearchConfig]):
     name = "WebSearch"
@@ -79,6 +94,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
             company_id=self.event.company_id,
             user_id=self.event.user_id,
             chat_id=self.event.payload.chat_id,
+            user_metadata=self.event.payload.user_metadata or {},
+            entry_point=EntryPoint.CHAT_TOOL,
         )
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
@@ -104,7 +121,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self._mode_strategy = get_mode_strategy(self.config.web_search_mode_config)
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
-
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
@@ -117,9 +133,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self.content_reducer = content_reducer
 
     def _resolve_exposed_params_cls(self) -> type[ExposedParams] | None:
-        """Resolve the exposed-params model from the search-engine config, if any."""
+        """Resolve the exposed-params model from the search-engine config, if any.
+
+        Covers standard and agent engines alike; local engines (custom APIs) do
+        not carry exposable knobs.
+        """
         cfg = self.config.search_engine_config
-        if isinstance(cfg, BaseSearchEngineConfig):
+        if isinstance(cfg, ExposableParamsConfig):
             return cfg.exposed_params_model()
         return None
 
@@ -141,7 +161,11 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        return self._mode_strategy.system_prompt(self._tool_context())
+        system_prompt = self._mode_strategy.system_prompt(self._tool_context())
+        instruction = self.config.query_elicitation_config.query_length_instruction()
+        if instruction is None:
+            return system_prompt
+        return f"{system_prompt}\n\n{instruction}"
 
     def tool_format_information_for_system_prompt(self) -> str:
         return self._mode_strategy.format_information_for_system_prompt(
@@ -153,6 +177,33 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        record = await activity_record.start(self, tool_call)
+        with collector.scope() as invocation_stats, activity_record.active(record):
+            try:
+                response = await self._run(tool_call)
+            except Exception as e:
+                # _run() already catches its own errors and returns a
+                # ToolCallResponse gracefully in the common case; this is a
+                # safety net for the rarer case where something raises while
+                # handling that failure (or otherwise escapes _run()
+                # uncaught). Without it, tokens already spent on screening/
+                # processing/relevancy before the failure would never reach
+                # analytics, since SafeTaskExecutor builds its own fresh,
+                # stats-less error response one level up.
+                # logger.exception() already attaches the active exception's
+                # type and traceback; don't stringify it into the message.
+                _LOGGER.exception("WebSearch tool run failed")
+                activity_record.set_failure(e)
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    error_message=str(e),
+                    invocation_stats=invocation_stats,
+                )
+        response.invocation_stats.extend(invocation_stats)
+        return response
+
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         _LOGGER.info("Running the WebSearch tool")
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(
@@ -162,6 +213,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         screening_service = await self._get_argument_screening_service_if_ff_enabled()
 
         parameters_dump = parameters.model_dump(by_alias=True)
+        activity_record.set_args(parameters.model_dump(mode="json", by_alias=True))
         debug_info = WebSearchDebugInfo(parameters=parameters_dump)
 
         web_search_message_logger = WebSearchMessageLogger(
@@ -172,7 +224,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call, parameters, debug_info, web_search_message_logger
         )
 
-        notify_from_tool_call = self._ff_tool_progress_reporter_callback()
         executor_version = self.config.web_search_mode_config.mode.value
 
         try:
@@ -186,9 +237,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
                         screening_result
                     )
                 )
+                if screening_service.enabled:
+                    activity_record.set_screening(
+                        screening_result.go, screening_result.reason
+                    )
 
                 if not screening_result.go:
-                    return ToolCallResponse(
+                    denied_response = ToolCallResponse(
                         id=tool_call.id,  # type: ignore
                         name=self.name,
                         debug_info=debug_info.model_dump(with_debug_details=self.debug),
@@ -196,6 +251,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
                             screening_result
                         ),
                     )
+                    activity_record.set_outcome(
+                        "denied", reason="ArgumentScreeningBlocked"
+                    )
+                    return denied_response
 
             with metric_scope(
                 tool_duration, tool_errors, executor_version=executor_version
@@ -211,32 +270,23 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
             await web_search_message_logger.finished()
 
-            await notify_from_tool_call(
-                tool_call=tool_call,
-                name=executor.notify_name,
-                message=executor.notify_message,
-                state=ProgressState.FINISHED,
-            )
-
-            return ToolCallResponse(
+            response = ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
                 system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
             )
+            activity_record.set_outcome("called")
+            return response
 
         except Exception as e:
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")
+            if isinstance(e, _ELICITATION_DENIALS):
+                activity_record.set_outcome("denied")
+            activity_record.set_failure(e)
 
             await web_search_message_logger.failed()
-
-            await notify_from_tool_call(
-                tool_call=tool_call,
-                name=executor.notify_name,
-                message=executor.notify_message,
-                state=ProgressState.FAILED,
-            )
 
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
@@ -256,6 +306,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
             chat_service=self._chat_service,
             display_name=self.display_name(),
             config=self.config.query_elicitation_config,
+            debug_info=debug_info,
+            engine=self.search_engine_service.config.engine.value,
         )
 
         services = ExecutorServiceContext(
@@ -276,7 +328,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             message_log_callback=web_search_message_logger,
             content_reducer=self.content_reducer,
             query_elicitation=elicitation_service,
-            tool_progress_reporter=self._ff_tool_progress_reporter(),
         )
 
         return self._mode_strategy.build_executor(
@@ -302,8 +353,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
     async def _get_argument_screening_service_if_ff_enabled(
         self,
     ) -> ArgumentScreeningService | None:
-        if not feature_flags.enable_web_search_argument_screening_un_18741.is_enabled(
-            self.company_id
+        if not await is_flag_enabled(
+            FeatureFlagNames.enable_web_search_argument_screening_un_18741,
+            company_id=self.company_id,
         ):
             return None
 
@@ -315,30 +367,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             language_model=argument_screening_config.language_model,
             config=argument_screening_config,
         )
-
-    def _ff_tool_progress_reporter(self):
-        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
-            return self.tool_progress_reporter
-        return None
-
-    def _ff_tool_progress_reporter_callback(self):
-        async def notify_from_tool_call(
-            tool_call: LanguageModelFunction,
-            name: str,
-            message: str,
-            state: ProgressState,
-        ):
-            if (
-                not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.company_id
-                )
-                and self.tool_progress_reporter is not None
-            ):
-                await self.tool_progress_reporter.notify_from_tool_call(
-                    tool_call, name, message, state
-                )
-
-        return notify_from_tool_call
 
     def _build_display_name(
         self,

@@ -2,8 +2,8 @@
 
 Admin CLI for the Unique platform. It groups these command families:
 
-- **`space`** — list, export, diff, migrate, upsert, access grants, ingestion settings, and delete assistant spaces.
-- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, set folder ingestion config.
+- **`space`** — list, export, diff, migrate, upsert, model replacement, access grants, ingestion settings, and delete assistant spaces.
+- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, read/set folder ingestion config, replace models in ingestion config.
 - **`chat`** — send messages to an assistant and inspect chat history.
 - **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
 - **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
@@ -257,6 +257,7 @@ uqadm space export space_abc123 -o backup.json
 | `SPACE_ID` | Space id or `https://` URL containing `/space/<id>`. |
 | `--slot SLOT` | Credential slot (default: configured default slot). |
 | `-o`, `--output PATH` | Write to file; suffix must be `.json`, `.yaml`, or `.yml`. Default: stdout. |
+| `--no-access` | Omit `assistantAccess` / `access` from the snapshot so a later `upsert` leaves the target ACL untouched. |
 
 ### `space upsert`
 
@@ -276,6 +277,10 @@ uqadm space upsert -f backup.yaml --dry-run
 | `--slot SLOT` | Credential slot (default: configured default slot). |
 | `--target SPACE_ID` | Space id or URL to update. Omit to create a new space. |
 | `--dry-run` | Print actions without calling create/update APIs. |
+| `--no-access` | Do not add the snapshot's access entries; the destination ACL is left untouched. |
+| `--with-mcp-servers` | Also apply MCP server bindings (`assistantMcpServers`). The `mcpServerId` values must exist in the destination environment. |
+
+See [What is and isn't copied](#what-is-and-isnt-copied-upsert--migrate) below.
 
 ### `space diff`
 
@@ -293,6 +298,7 @@ uqadm space diff --source "qa:x" --destination "prod:y" --strict
 | `--destination SPEC` | Second space (same format). |
 | `--strict` | Compare raw payloads (skip normalization). |
 | `--format` | `unified` (default) or `side-by-side`. |
+| `--ignore-access` | Exclude `assistantAccess` / `access` from the comparison (also with `--strict`). |
 
 By default, ephemeral keys (`id`, `createdAt`, `updatedAt`, etc.) are stripped before comparison so you see meaningful config drift.
 
@@ -312,6 +318,8 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 | `--destination SPEC` | `slot` / `slot:` to create; `slot:space_id` or `slot:URL` to update. |
 | `--dry-run` | Print actions without making API write calls. |
 | `--with-knowledge` | Reserved; currently informational only. |
+| `--no-access` | Do not add the source's access entries; the destination ACL is left untouched. |
+| `--with-mcp-servers` | Also apply MCP server bindings. Ignored (with a warning) when source and destination are different environments. |
 
 **Endpoint spec format** (`slot:space_id` or `slot:URL`):
 
@@ -324,7 +332,156 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 
 Supported URL path markers: `/space/<id>`, `/custom-space/<id>`, `/swappable-intelligence-space/<id>`.
 
-Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, and modules matched by name. Scope rules, MCP bindings, and briefings are not migrated.
+Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, and modules matched by name. Scope rules and briefings are not migrated; MCP bindings only with `--with-mcp-servers`.
+
+#### What is and isn't copied (upsert / migrate)
+
+| Item | Behaviour |
+|------|-----------|
+| Space fields, settings, prompts, model switching, sub-agent settings | Copied. |
+| Modules | **Update:** matched to destination modules **by name**; unmatched source modules are skipped with a warning. **Create:** all modules created. |
+| Module `configuration` (incl. knowledge `scopeIds`) | Copied verbatim. Scope ids don't carry over to another environment, so check them after a cross-environment run. |
+| Access (`assistantAccess`) | **Merged** into the destination via `Space.add_space_access`. Existing entries are never removed, but source entries are added. Pass `--no-access` to leave the destination ACL untouched. |
+| Scope rules | **Never applied.** The public API can't write scope rules; configure them manually in the destination space. A warning is printed when the source has any. |
+| MCP server bindings | Top-level `assistantMcpServers` only with `--with-mcp-servers`. Only listed servers change; servers already bound on the destination are not removed. Each server's exported `tools` list is sent as the complete selection. A tool the server gained after its selection was last saved has no entry, so it is disabled on the source and stays disabled on the destination. MCP tool entries *inside module `configuration`* are copied with the module config, whatever the flag. |
+
+**Push config to an existing space without touching its access rights:**
+
+```bash
+# Directly between slots
+uqadm space migrate --source "qa:space_src" --destination "prod:space_dst" --no-access --dry-run
+uqadm space migrate --source "qa:space_src" --destination "prod:space_dst" --no-access
+
+# Or via a reviewed snapshot file
+uqadm space export space_src --slot qa -o space.yaml --no-access
+uqadm space upsert -f space.yaml --slot prod --target space_dst --dry-run
+uqadm space upsert -f space.yaml --slot prod --target space_dst
+```
+
+To **verify the destination ACL was preserved**, export the destination on the
+same slot before and after the push and compare its access entries:
+
+```bash
+set -euo pipefail
+WORK=$(mktemp -d)                                  # fresh paths for every run
+command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
+# Capture and validate the baseline BEFORE any write. jq -e fails unless
+# assistantAccess is a real array, so a bad baseline stops before anything changes.
+uqadm space export space_dst --slot prod -o "$WORK/before.json"
+jq -eS '.assistantAccess | arrays' "$WORK/before.json" > "$WORK/acl-before.json"
+# ... run the migrate / upsert above ...
+uqadm space export space_dst --slot prod -o "$WORK/after.json"
+jq -eS '.assistantAccess | arrays' "$WORK/after.json"  > "$WORK/acl-after.json"
+diff "$WORK/acl-before.json" "$WORK/acl-after.json" && echo "ACL unchanged"
+```
+
+`space diff --ignore-access` only compares source and destination
+*configuration*. Because it removes the access fields, it can't show whether the ACL changed:
+
+```bash
+uqadm space diff --source "qa:space_src" --destination "prod:space_dst" --ignore-access
+```
+
+**Back up a space before changing it:**
+
+```bash
+mkdir -p backups
+# Unique per run (timestamp + PID); refuse to overwrite an existing backup.
+BACKUP="backups/space_dst-$(date +%Y%m%dT%H%M%S)-$$.yaml"
+[ ! -e "$BACKUP" ] || { echo "refusing to overwrite $BACKUP" >&2; exit 1; }
+# Only report a backup that was actually written; stop before any change otherwise.
+uqadm space export space_dst --slot prod -o "$BACKUP" && [ -s "$BACKUP" ] \
+  || { echo "backup FAILED; do not proceed" >&2; exit 1; }
+echo "Backup: $BACKUP"
+
+# Later, to reapply the saved configuration to the same space on the same slot:
+uqadm space upsert -f "$BACKUP" --slot prod --target space_dst --dry-run
+uqadm space upsert -f "$BACKUP" --slot prod --target space_dst
+```
+
+To restore top-level `assistantMcpServers` too, add `--with-mcp-servers` to both
+the dry run and the write. This **isn't a full rollback**: upsert reapplies the
+supported configuration fields and only *adds* saved access entries. It doesn't
+revoke access granted after the backup, remove modules or MCP bindings added
+since, or restore scope rules.
+
+### `space model-replace`
+
+Replace one language model with another across a space configuration. Rewrites
+every **model-bearing key** whose value equals ``--from-model`` — top-level
+``languageModel``, ``switchableLanguageModels`` entries, and nested module/tool
+configuration keys (``languageModel``, ``fallbackLanguageModel``,
+``hallucinationModel``, ``model``, ``modelName``, …) at any depth. Prompt text
+and non-model fields (``languageModelMaxInputTokens``, ``allowModelSwitching``)
+are never touched.
+
+``--to-model`` accepts either a **model name** or a **path to a JSON/YAML file**
+holding language-model info (which must include ``name``). A name is written at
+each matched site as a plain string; a file is written as the full mapping it
+contains. A value that looks like a path but does not resolve to a file is
+rejected, so a mistyped path can never be written into your configs as a model
+name.
+
+**Input** is exactly one of: a ``SPACE_ID`` (live space), ``-f FILE`` (local
+snapshot), or ``--all`` (interactive sweep over every space in the slot,
+prompting ``y/n/a/q`` per matching space).
+
+Only ``--all`` prompts. Naming a single ``SPACE_ID`` applies the update
+immediately — use ``--dry-run`` (or ``-o``) first if you want to see the matched
+paths before anything is written.
+
+**Output**: with ``-o FILE`` the rewritten snapshot is written to disk
+(``.json``/``.yaml``/``.yml``) and **no API write happens**; with ``-f`` and no
+``-o`` it prints to stdout. Otherwise the space is updated **in place** with a
+minimal payload (only the changed top-level fields and changed module
+configurations are sent).
+
+Every live update is **verified**: the space is read back and each rewritten
+path checked against the value that was sent, so a write the API accepts but
+does not store fails the command instead of reporting success.
+
+``update_space`` writes a module through its ``configuration`` only, and a
+handful of top-level fields. A match anywhere else — say under a module's
+``toolDefinition`` — therefore cannot be sent, and the command **refuses the
+update** and exits non-zero rather than applying a partial rewrite. Use ``-o``
+to export the fully rewritten snapshot in that case.
+
+```bash
+# Preview which paths would change
+uqadm space model-replace asst_abc --from-model AZURE_GPT_4o_2024_0806 \
+  --to-model AZURE_GPT_5_2025_0807 --dry-run
+
+# Update the live space in place
+uqadm space model-replace asst_abc --from-model AZURE_GPT_4o_2024_0806 \
+  --to-model AZURE_GPT_5_2025_0807
+
+# Produce a rewritten snapshot file instead of writing to the platform
+uqadm space model-replace asst_abc --from-model OLD --to-model NEW -o migrated.yaml
+
+# Rewrite a local snapshot, replacement model described by a YAML/JSON file
+uqadm space model-replace -f backup.yaml --from-model OLD \
+  --to-model ./new-model.yaml -o backup.migrated.yaml
+
+# Interactively sweep every space in a slot
+uqadm space model-replace --all --slot prod --from-model OLD --to-model NEW
+```
+
+| Option | Description |
+|--------|-------------|
+| `SPACE_ID` | Space id or URL (mutually exclusive with `--file` / `--all`). |
+| `-f`, `--file FILE` | Local snapshot (`.json`/`.yaml`/`.yml`) to rewrite instead of a live space. |
+| `--all` | Iterate every space in the slot, prompting per matching space (`y`/`n`/`a`/`q`). |
+| `--name TEXT` | With `--all`: case-insensitive partial filter on space name. |
+| `--from-model NAME` | Model name currently in the configuration to replace. Required. |
+| `--to-model NAME\|FILE` | Replacement model: a model name, or a path to a `.json`/`.yaml`/`.yml` file with language-model info (must include `name`). Required. |
+| `-o`, `--output PATH` | Write the rewritten snapshot to a file instead of updating the platform. |
+| `--dry-run` | Print matched paths and planned updates without writing anything — no API call and no output file, even with `-o`. |
+| `-y`, `--yes` | With `--all`: apply without prompting. |
+| `--slot SLOT` | Credential slot (default: configured default). |
+
+Note: a single-space run does not follow links into sub-agent spaces (they are
+separate configuration trees); ``--all`` covers them because it iterates every
+space in the slot.
 
 ### `space access-grant SPACE_ID`
 
@@ -382,7 +539,7 @@ uqadm space delete space_old123 --dry-run
 ## `uqadm kb`
 
 Manage **knowledge-base folders**: create paths, sync/download/remove files and
-folders, grant group access, and set folder ingestion config (via
+folders, grant group access, and read or set folder ingestion config (via
 ``unique_sdk.Folder`` and ``Content.delete`` for targeted file removal).
 
 ```bash
@@ -429,6 +586,8 @@ uqadm kb sync ./docs --folder-path /Dept/HR
 uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
 uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
 uqadm kb sync ./docs --scope-id scope_abc --no-version
+uqadm kb sync ./docs --folder-path /Private/New -r --no-inherit-access
+uqadm kb sync ./skills --folder-path /Skills -r --skip-ingestion
 ```
 
 | Option | Description |
@@ -438,6 +597,8 @@ uqadm kb sync ./docs --scope-id scope_abc --no-version
 | `-r`, `--recursive` | Recurse into subdirectories, mirroring them as child KB folders. |
 | `--dry-run` | Show planned uploads without writing anything. |
 | `--no-version` | Upload without archiving prior blobs. |
+| `--skip-ingestion` | Store files as uploaded, without ingesting them: no text extraction, no chunks in the vector store. For code and skills, which are read as files, not searched. A markup-heavy file with little readable text otherwise ends ``FAILED_TOO_LESS_CONTENT`` and can no longer be downloaded. |
+| `--inherit-access / --no-inherit-access` | Whether folders **created** by sync (including recursive child folders) inherit parent access (default: inherit). Existing folders are never changed. |
 | `--slot SLOT` | Credential slot. |
 
 Extensions that the OS `mimetypes` database cannot resolve (common on macOS for
@@ -476,6 +637,12 @@ folder requires ``--recursive``** (it refuses otherwise). Unless ``--yes`` is
 given you are **prompted to confirm**; ``--dry-run`` prints the plan without
 deleting anything.
 
+With ``--recursive`` the tree is emptied **bottom-up**: each folder's files,
+then its subfolders, then the folder itself. (The platform's own recursive
+delete refuses a folder that still holds files, and fails on one with
+subfolders.) A file or folder that cannot be deleted is reported, its parent
+folders are kept, and the command exits non-zero.
+
 ```bash
 uqadm kb rm --folder-path /Dept/HR --file old.pdf
 uqadm kb rm --scope-id scope_abc -r --dry-run
@@ -501,14 +668,114 @@ uqadm kb access grant --folder-path /Dept/HR --group grp_1 --permission READ
 uqadm kb access grant --scope-id scope_abc --group grp_1 --group grp_2 --permission WRITE --no-subfolders
 ```
 
+### `kb ingestion get`
+
+Print the ingestion config currently set on a folder scope (``Folder.get_info``).
+The platform returns the stored config verbatim — including nested settings such
+as ``pdfConfig.imageContentExtraction``, ``metadataExtractionConfig`` and
+``chunkingConfiguration`` — and the emitted mapping is exactly what
+``kb ingestion set`` consumes, so the two commands round-trip losslessly.
+Requires exactly one of ``--folder-path`` or ``--scope-id``.
+
+Without ``-o`` the config goes to **stdout as JSON** and all messages go to
+stderr, so the output pipes cleanly (e.g. into ``jq``); with ``-o`` the format
+follows the file suffix. A folder with no ingestion config emits ``{}`` plus a
+note on stderr.
+
+```bash
+uqadm kb ingestion get --folder-path /Dept/HR
+uqadm kb ingestion get --scope-id scope_abc --slot qa
+uqadm kb ingestion get --folder-path /Dept/HR -o ./ingest.yaml
+
+# Inspect a single key
+uqadm kb ingestion get --folder-path /Dept/HR | jq .chunkingConfiguration
+
+# Copy one folder's config onto another
+uqadm kb ingestion get --folder-path /Dept/HR -o /tmp/hr.json
+uqadm kb ingestion set /tmp/hr.json --folder-path /Dept/Legal --no-subfolders
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Folder path (mutually exclusive with `--scope-id`). |
+| `--scope-id` | Folder scope id (mutually exclusive with `--folder-path`). |
+| `-o`, `--output PATH` | Write the config to this `.json`/`.yaml`/`.yml` file instead of stdout. |
+| `--slot SLOT` | Credential slot (default: configured default). |
+
 ### `kb ingestion set CONFIG_FILE`
 
 Apply **folder** ingestion settings from a JSON/YAML file (mapping root) using ``Folder.update_ingestion_config``. Default applies to **subfolders**; use ``--no-subfolders`` for this folder only.
+
+The file **replaces** the stored config rather than merging into it: a top-level
+key missing from the file is deleted from the folder, and the same applies key
+by key to ``metadata``. To change one value, start from ``kb ingestion get``
+output instead of writing a partial file.
 
 ```bash
 uqadm kb ingestion set ./folder-ingest.json --folder-path /Dept/HR
 uqadm kb ingestion set ./ingest.yaml --scope-id scope_abc --slot qa
 ```
+
+### `kb ingestion model-replace`
+
+Replace one language model with another in **folder ingestion configs**. Reads
+the folder's current ``ingestionConfig`` (``Folder.get_info``), rewrites every
+model-bearing key whose value equals ``--from-model``
+(``vttConfig.languageModel``, ``metadataExtractionConfig.languageModel``,
+``pdfConfig``/``htmlConfig`` ``imageContentExtraction.languageModel``,
+``chunkingConfiguration.model``), and writes it back via
+``Folder.update_ingestion_config``.
+
+After each write the config is **re-read and verified**, so a key the platform
+rejected or did not store fails loudly with a non-zero exit instead of passing
+silently.
+
+``--to-model`` accepts either a **model name** or a **path to a JSON/YAML file**
+holding language-model info, exactly as in ``space model-replace``.
+
+**Input** is exactly one of: ``--folder-path`` / ``--scope-id`` (live folder),
+``-f FILE`` (local config file), or ``--all`` (interactive walk over every KB
+folder in the slot, prompting ``y/n/a/q`` per matching folder). With ``-o`` the
+rewritten config is written to a file and no API write happens.
+
+Only ``--all`` prompts. Naming a single ``--folder-path`` / ``--scope-id``
+applies the update immediately — use ``--dry-run`` (or ``-o``) first to review
+the matched paths.
+
+Unlike ``ingestion set``, the update applies to **this folder only** unless
+``--subfolders`` is passed — pushing one folder's rewritten config down would
+clobber subfolder-specific settings. ``--all`` rewrites each folder from its
+own current config instead.
+
+```bash
+# Single folder, preview
+uqadm kb ingestion model-replace --folder-path /Dept/HR \
+  --from-model AZURE_GPT_4o_2024_0806 --to-model AZURE_GPT_5_2025_0807 --dry-run
+
+# Single folder, update in place (verified after write)
+uqadm kb ingestion model-replace --scope-id scope_abc --from-model OLD --to-model NEW
+
+# Rewrite a local ingestion config file
+uqadm kb ingestion model-replace -f ./ingest.yaml --from-model OLD --to-model NEW \
+  -o ingest.migrated.yaml
+
+# Interactively walk every KB folder in a slot
+uqadm kb ingestion model-replace --all --slot prod --from-model OLD --to-model NEW
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Folder path (mutually exclusive with `--scope-id`, `--file`, `--all`). |
+| `--scope-id` | Folder scope id (mutually exclusive with `--folder-path`, `--file`, `--all`). |
+| `-f`, `--file FILE` | Local ingestion config (`.json`/`.yaml`/`.yml`) to rewrite instead of a live folder. |
+| `--all` | Walk every KB folder in the slot, prompting per matching folder (`y`/`n`/`a`/`q`). |
+| `--from-model NAME` | Model name currently in the ingestion config to replace. Required. |
+| `--to-model NAME\|FILE` | Replacement model: a model name, or a path to a `.json`/`.yaml`/`.yml` file with language-model info (must include `name`). Required. |
+| `-o`, `--output PATH` | Write the rewritten config to a file instead of updating the platform. |
+| `--subfolders` | Push the rewritten config to descendant folders too (`applyToSubScopes`). Default: this folder only. |
+| `--dry-run` | Print matched paths and planned updates without writing anything — no API call and no output file, even with `-o`. |
+| `-y`, `--yes` | With `--all`: apply without prompting. |
+| `--slot SLOT` | Credential slot (default: configured default). |
 
 ---
 

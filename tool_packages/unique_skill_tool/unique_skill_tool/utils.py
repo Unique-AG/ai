@@ -32,17 +32,20 @@ def get_char_budget(
 ) -> int:
     """Return the character budget for the skill listing.
 
-    Uses *config.skill_budget_context_percent* of the context window
-    (converted to characters via ``CHARS_PER_TOKEN``).  Falls back to
-    ``DEFAULT_CHAR_BUDGET`` when the context window size is unknown.
+    Uses *config.skill_listing_context_percent* of the context window,
+    converted to characters via ``CHARS_PER_TOKEN``, and never less than
+    ``DEFAULT_CHAR_BUDGET``.
     """
-    if context_window_tokens is not None:
-        return int(
+    if context_window_tokens is None:
+        return DEFAULT_CHAR_BUDGET
+    return max(
+        DEFAULT_CHAR_BUDGET,
+        int(
             context_window_tokens
             * CHARS_PER_TOKEN
-            * config.skill_budget_context_percent
-        )
-    return DEFAULT_CHAR_BUDGET
+            * config.skill_listing_context_percent
+        ),
+    )
 
 
 def _get_skill_description(skill: SkillDefinition, max_chars: int) -> str:

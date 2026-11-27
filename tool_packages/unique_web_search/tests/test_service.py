@@ -2,12 +2,15 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 
+from unique_web_search.invocation_stats import collector
 from unique_web_search.service import WebSearchTool
 from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
+from unique_web_search.services.query_elicitation import QueryElicitationConfig
 
 
 class TestWebSearchToolDescription:
@@ -118,6 +121,51 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         assert isinstance(result, str)
         assert result == "V1 system prompt"
+
+    @pytest.mark.ai
+    def test_tool_description_for_system_prompt__states_query_length_limit__when_elicitation_enabled(
+        self,
+        mock_web_search_config_v1: Mock,
+    ) -> None:
+        """
+        Purpose: Verify the system prompt states the query length limit when query review is on.
+        Why this matters: The model should propose queries that fit the review form uncut.
+        Setup summary: Enable elicitation with a 150-character limit on the V1 mock config.
+        """
+        mock_web_search_config_v1.query_elicitation_config = QueryElicitationConfig(
+            enable_elicitation=True, max_query_length=150
+        )
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
+        tool.search_engine_service = Mock()
+
+        result = tool.tool_description_for_system_prompt()
+
+        assert result.startswith("V1 system prompt\n\n")
+        assert "under 150 characters" in result
+
+    @pytest.mark.ai
+    def test_tool_description_for_system_prompt__omits_query_length_limit__when_no_limit_set(
+        self,
+        mock_web_search_config_v1: Mock,
+    ) -> None:
+        """
+        Purpose: Verify query review without a length limit leaves the system prompt unchanged.
+        Why this matters: The limit is opt-in; the prompt must not ask for short queries without it.
+        Setup summary: Enable elicitation without a limit on the V1 mock config.
+        """
+        mock_web_search_config_v1.query_elicitation_config = QueryElicitationConfig(
+            enable_elicitation=True
+        )
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
+        tool.search_engine_service = Mock()
+
+        assert tool.tool_description_for_system_prompt() == "V1 system prompt"
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__replaces_max_steps__when_mode_is_v2(
@@ -641,6 +689,81 @@ class TestWebSearchToolRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__does_not_notify_progress_reporter__when_executor_succeeds(
+        self,
+        mock_web_search_config_v1: Mock,
+        mock_tool_progress_reporter: Mock,
+        sample_web_search_tool_parameters: WebSearchToolParameters,
+        sample_content_chunks: list,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify run never notifies the legacy progress reporter, even when one is set.
+        Why this matters: Progress is reported via the message log now, not tool_progress_reporter.
+        Setup summary: Mock WebSearchTool with a progress reporter and a successful executor.
+        """
+        mock_executor = AsyncMock()
+        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
+        mock_executor.notify_name = "test-name"
+        mock_executor.notify_message = "test-message"
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
+
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
+        tool.tool_parameter_calls = WebSearchToolParameters
+        tool.logger = Mock()
+        tool._message_step_logger = Mock()
+        tool._tool_progress_reporter = mock_tool_progress_reporter
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
+        tool.debug = False
+        tool.name = "WebSearch"
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
+            return_value=None
+        )
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = {"query": "test"}
+
+        result = await tool.run(tool_call)
+
+        assert result.content_chunks == sample_content_chunks
+        mock_tool_progress_reporter.notify_from_tool_call.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     @pytest.mark.parametrize("blank_format", ["", "   ", "\t"])
     async def test_run__sets_empty_system_reminder__when_format_info_blank(
         self,
@@ -891,88 +1014,181 @@ class TestWebSearchToolRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__notifies_progress_reporter__when_progress_reporter_exists(
+    async def test_run__preserves_invocation_stats__when_run_raises_past_its_own_handler(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify run() attaches already-collected invocation stats to its
+            own error response when _run() raises uncaught (e.g. an error while
+            _run() is handling its own internal failure).
+        Why this matters: _run() has a broad internal except that normally
+            returns gracefully; if something raises past it anyway, the old
+            code had no outer safety net -- SafeTaskExecutor would build a
+            fresh, stats-less error response one level up, silently dropping
+            tokens already spent (screening/processing/relevancy) before the
+            failure.
+        Setup summary: Mock _run() to record token usage into the active scope
+            then raise, and assert run()'s own error response still carries it.
+        """
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.name = "WebSearch"
+        tool.logger = Mock()
+
+        async def _run_records_usage_then_fails(*_args, **_kwargs):
+            collector.record_token_usage(
+                model_name="gpt-4",
+                usage={"total_tokens": 11},
+                source="web_search.relevancy",
+            )
+            raise Exception("escaped _run's own error handling")
+
+        tool._run = AsyncMock(side_effect=_run_records_usage_then_fails)
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+
+        # Act
+        result = await tool.run(tool_call)
+
+        # Assert
+        assert result.error_message == "escaped _run's own error handling"
+        assert len(result.invocation_stats) == 1
+        assert result.invocation_stats[0].source == "web_search.relevancy"
+
+
+class TestWebSearchToolArgumentScreeningFeatureFlag:
+    """Test the UN-18741 feature-flag gating of the argument screening service."""
+
+    @staticmethod
+    def _make_tool(config: Any) -> WebSearchTool:
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = config
+        tool.company_id = "test-company"
+        tool._language_model_service = Mock()
+        return tool
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_get_argument_screening_service__returns_none__when_flag_disabled(
         self,
         mock_web_search_config_v1: Mock,
-        mock_tool_progress_reporter: Mock,
-        sample_web_search_tool_parameters: WebSearchToolParameters,
-        sample_content_chunks: list,
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify run notifies progress reporter when it exists.
-        Why this matters: Ensures progress reporting works for monitoring tool execution.
-        Setup summary: Mock WebSearchTool with progress reporter and successful executor.
+        Purpose: Verify no screening service is built when UN-18741 is off.
+        Why this matters: The flag is the only guard against running argument
+        screening for companies that have not opted in.
+        Setup summary: Patch is_flag_enabled to resolve False.
         """
-        mock_executor = AsyncMock()
-        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
-        mock_executor.notify_name = "test-name"
-        mock_executor.notify_message = "test-message"
+        is_flag_enabled = mocker.patch(
+            "unique_web_search.service.is_flag_enabled",
+            new=AsyncMock(return_value=False),
+        )
+        tool = self._make_tool(mock_web_search_config_v1)
+
+        assert await tool._get_argument_screening_service_if_ff_enabled() is None
+        is_flag_enabled.assert_awaited_once_with(
+            FeatureFlagNames.enable_web_search_argument_screening_un_18741,
+            company_id="test-company",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_get_argument_screening_service__returns_service__when_flag_enabled(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify the screening service is built when UN-18741 is on.
+        Why this matters: Ensures the migration to the FeatureFlagClient still
+        wires the configured screening service through on the enabled path.
+        Setup summary: Patch is_flag_enabled to resolve True and stub out the
+        ArgumentScreeningService constructor.
+        """
+        mocker.patch(
+            "unique_web_search.service.is_flag_enabled",
+            new=AsyncMock(return_value=True),
+        )
+        screening_service = mocker.patch(
+            "unique_web_search.service.ArgumentScreeningService"
+        )
+        tool = self._make_tool(mock_web_search_config_v1)
+
+        result = await tool._get_argument_screening_service_if_ff_enabled()
+
+        assert result is screening_service.return_value
+        screening_config = (
+            mock_web_search_config_v1.experimental_features.argument_screening_config
+        )
+        screening_service.assert_called_once_with(
+            language_model_service=tool.language_model_service,
+            language_model=screening_config.language_model,
+            config=screening_config,
+        )
+
+
+class TestWebSearchToolRequestContext:
+    """The tool forwards the chat event's identity and entry point to the search proxy."""
+
+    @staticmethod
+    def _build_tool(
+        config: Mock,
+        mocker: Any,
+        user_metadata: dict[str, Any] | None,
+    ) -> WebSearchTool:
+        event = Mock()
+        event.company_id = "test-company"
+        event.user_id = "test-user"
+        event.payload.chat_id = "test-chat"
+        event.payload.user_metadata = user_metadata
 
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
         mocker.patch("unique_web_search.service.ContentProcessor")
 
-        # Mock WebSearchDebugInfo to return a proper dict from model_dump
-        mock_debug_info_class = Mock()
-        mock_debug_info_instance = Mock()
-        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
-        mock_debug_info_instance.num_chunks_in_final_prompts = None
-        mock_debug_info_instance.execution_time = None
-        mock_debug_info_class.return_value = mock_debug_info_instance
-        mocker.patch(
-            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        return WebSearchTool(
+            config,
+            event,
+            chat_service=Mock(get_full_history=Mock(return_value=[])),
+            language_model_service=Mock(),
         )
 
-        # Mock WebSearchMessageLogger
-        mock_message_logger = Mock()
-        mock_message_logger.finished = AsyncMock()
-        mock_message_logger.failed = AsyncMock()
-        mocker.patch(
-            "unique_web_search.service.WebSearchMessageLogger",
-            return_value=mock_message_logger,
-        )
+    @pytest.mark.ai
+    def test_forwards_user_metadata_from_the_event_payload(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        user_metadata = {
+            "userName": "u12345",
+            "email": "user@example.com",
+        }
 
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
-        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
+        tool = self._build_tool(mock_web_search_config_v1, mocker, user_metadata)
 
-        tool = WebSearchTool.__new__(WebSearchTool)
-        tool.config = mock_web_search_config_v1
-        tool.exposed_params_cls = None
-        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
-        tool.tool_parameter_calls = WebSearchToolParameters
-        tool.logger = Mock()
-        tool._message_step_logger = Mock()
-        tool._tool_progress_reporter = mock_tool_progress_reporter
-        tool._display_name = "WebSearch"
-        tool.company_id = "test-company"
-        tool.debug = False
-        tool.name = "WebSearch"
-        tool.settings = Mock()
-        tool.settings.display_name = "WebSearch"
-        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
-            return_value=None
-        )
+        assert tool.request_context.user_metadata == user_metadata
+        assert tool.request_context.company_id == "test-company"
+        assert tool.request_context.user_id == "test-user"
+        assert tool.request_context.chat_id == "test-chat"
 
-        # Mock feature_flags to ensure the progress reporter code path is taken
-        mock_feature_flags = mocker.patch("unique_web_search.service.feature_flags")
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = (
-            False
-        )
+    @pytest.mark.ai
+    def test_defaults_to_empty_dict_when_payload_has_no_user_metadata(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        tool = self._build_tool(mock_web_search_config_v1, mocker, None)
 
-        tool_call = Mock()
-        tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test"}
+        assert tool.request_context.user_metadata == {}
 
-        await tool.run(tool_call)
+    @pytest.mark.ai
+    def test_sends_chat_tool_entry_point_header(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        tool = self._build_tool(mock_web_search_config_v1, mocker, None)
 
-        assert mock_tool_progress_reporter.notify_from_tool_call.called
-        call_args = mock_tool_progress_reporter.notify_from_tool_call.call_args
-        # The call_args are (args, kwargs), and arguments are passed as positional
-        args, kwargs = call_args
-        assert len(args) == 4  # tool_call, name, message, state
-        assert args[1] == "test-name"  # name argument
-        assert args[2] == "test-message"  # message argument
+        assert tool.request_context.to_headers()["x-unique-entry-point"] == "chat_tool"

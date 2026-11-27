@@ -11,6 +11,11 @@ from unique_search_proxy_core.search_engines.brave.schema import (
 from unique_search_proxy_core.search_engines.config_types import (
     parse_search_request,
 )
+from unique_search_proxy_core.search_engines.custom_api.schema import (
+    CustomApiConfig,
+    CustomApiRequestMethod,
+    CustomApiSearchRequest,
+)
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
     GoogleSearchRequest,
@@ -115,6 +120,43 @@ class TestSearchEngineConfigUnion:
         assert req.search_context_size == "low"
 
     @pytest.mark.ai
+    def test_custom_api_config_accepts_endpoint_configuration(self) -> None:
+        """
+        Purpose: Verify Custom API is part of the deployment config union.
+        Why this matters: Proxy configuration must recognize tenant endpoints.
+        Setup summary: Parse a Custom API config and inspect its typed fields.
+        """
+        config = parse_search_engine_config(
+            {
+                "engine": "custom_api",
+                "apiEndpoint": "https://api.example.com/search",
+                "apiRequestMethod": "POST",
+            },
+        )
+        assert isinstance(config, CustomApiConfig)
+        assert config.engine == SearchEngineType.CUSTOM_API
+        assert config.api_request_method == CustomApiRequestMethod.POST
+
+    @pytest.mark.ai
+    def test_search_request_parses_flat_custom_api_payload(self) -> None:
+        """
+        Purpose: Verify the search request union accepts Custom API calls.
+        Why this matters: The proxy route dispatches solely from this union.
+        Setup summary: Parse a flat request and assert endpoint and method values.
+        """
+        request = parse_search_request(
+            {
+                "engine": "custom_api",
+                "query": "hello",
+                "apiEndpoint": "https://api.example.com/search",
+                "apiRequestMethod": "GET",
+            },
+        )
+        assert isinstance(request, CustomApiSearchRequest)
+        assert request.engine == SearchEngineType.CUSTOM_API
+        assert request.api_endpoint == "https://api.example.com/search"
+
+    @pytest.mark.ai
     def test_unknown_engine_rejected_by_union(self) -> None:
         with pytest.raises(ValidationError):
             parse_search_engine_config({"engine": "bing"})
@@ -124,6 +166,8 @@ class TestSearchEngineConfigUnion:
         assert SearchEngineType.GOOGLE.value == "google"
         assert SearchEngineType.BRAVE.value == "brave"
         assert SearchEngineType.PERPLEXITY.value == "perplexity"
+        assert SearchEngineType.CUSTOM_API.value == "custom_api"
         assert SearchEngineType.GOOGLE in SearchEngineType
         assert SearchEngineType.BRAVE in SearchEngineType
         assert SearchEngineType.PERPLEXITY in SearchEngineType
+        assert SearchEngineType.CUSTOM_API in SearchEngineType

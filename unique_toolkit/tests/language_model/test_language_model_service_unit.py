@@ -1,9 +1,12 @@
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from unique_toolkit.app.schemas import (
+    AssistantWebhookEvent,
     BaseEvent,
+    BaseEventPayload,
     ChatEvent,
     ChatEventAssistantMessage,
     ChatEventPayload,
@@ -45,7 +48,7 @@ class TestLanguageModelServiceUnit:
                 metadata_filter={},
             ),
         )
-        self.service = LanguageModelService(self.chat_event)
+        self.service = LanguageModelService.from_event(self.chat_event)
 
     def test_init_with_chat_event(self):
         """Test initialization with ChatEvent"""
@@ -68,6 +71,41 @@ class TestLanguageModelServiceUnit:
         assert service.chat_id is None
         assert service.assistant_id is None
 
+    def test_from_event_with_chat_event(self):
+        """Test factory initialization preserves completion attribution."""
+        service = LanguageModelService.from_event(self.chat_event)
+
+        assert service.company_id == "test_company"
+        assert service.user_id == "test_user"
+        assert service.chat_id == "test_chat"
+        assert service.assistant_id == "test_assistant"
+        assert service._assistant_message_id == "assistant_message_id"
+
+    @pytest.mark.ai
+    def test_from_event_with_non_chat_assistant_payload(self):
+        """Purpose: Verify non-chat assistant events leave the message id unset.
+        Why this matters: ``assistant_message`` exists only on ``ChatEventPayload``.
+        Setup summary: Build the service from an event carrying a bare base payload.
+        """
+        event = AssistantWebhookEvent[Any, BaseEventPayload](
+            id="test-id",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="test_user",
+            company_id="test_company",
+            payload=BaseEventPayload(
+                name="module",
+                chat_id="test_chat",
+                assistant_id="test_assistant",
+                configuration={},
+            ),
+        )
+
+        service = LanguageModelService.from_event(event)
+
+        assert service.chat_id == "test_chat"
+        assert service.assistant_id == "test_assistant"
+        assert service._assistant_message_id is None
+
     def test_init_with_base_event(self):
         """Test initialization with BaseEvent"""
         base_event = BaseEvent(
@@ -77,6 +115,22 @@ class TestLanguageModelServiceUnit:
             event=EventName.EXTERNAL_MODULE_CHOSEN,
         )
         service = LanguageModelService(base_event)
+
+        assert service.company_id == "base_company"
+        assert service.user_id == "base_user"
+        assert service.chat_id is None
+        assert service.assistant_id is None
+
+    def test_from_event_with_base_event(self):
+        """Test factory initialization without assistant/chat context."""
+        base_event = BaseEvent(
+            id="test-id",
+            company_id="base_company",
+            user_id="base_user",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+        )
+
+        service = LanguageModelService.from_event(base_event)
 
         assert service.company_id == "base_company"
         assert service.user_id == "base_user"
@@ -108,6 +162,9 @@ class TestLanguageModelServiceUnit:
             other_options=None,
             structured_output_enforce_schema=False,
             structured_output_model=None,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+            assistant_message_id="assistant_message_id",
         )
 
     @pytest.mark.asyncio
@@ -131,4 +188,112 @@ class TestLanguageModelServiceUnit:
             other_options=None,
             structured_output_enforce_schema=False,
             structured_output_model=None,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+            assistant_message_id="assistant_message_id",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.language_model.service.complete_async")
+    async def test_complete_async_util__forwards_attribution_ids(
+        self, mock_complete_async
+    ) -> None:
+        """Purpose: Verify the compatibility utility forwards attribution IDs.
+        Why this matters: Hallucination evaluation still uses this shared utility.
+        Setup summary: Call the utility with IDs and inspect its function delegation.
+        """
+        mock_complete_async.return_value = LanguageModelResponse(choices=[])
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_0613
+
+        await LanguageModelService.complete_async_util(
+            company_id="test_company",
+            user_id="test_user",
+            messages=messages,
+            model_name=model_name,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+        )
+
+        mock_complete_async.assert_awaited_once_with(
+            company_id="test_company",
+            user_id="test_user",
+            messages=messages,
+            model_name=model_name,
+            temperature=0.0,
+            timeout=240000,
+            tools=None,
+            other_options=None,
+            structured_output_enforce_schema=False,
+            structured_output_model=None,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+        )
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.language_model.service.complete_with_references")
+    def test_complete_with_references__forwards_attribution_ids(
+        self, mock_complete_with_references
+    ) -> None:
+        """Purpose: Verify referenced completions inherit service attribution.
+        Why this matters: Usage from this path must remain linked to its chat and assistant.
+        Setup summary: Invoke the service and inspect delegation to the helper.
+        """
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_0613
+
+        self.service.complete_with_references(
+            messages=messages,
+            model_name=model_name,
+        )
+
+        mock_complete_with_references.assert_called_once_with(
+            company_id="test_company",
+            user_id="test_user",
+            messages=messages,
+            model_name=model_name,
+            content_chunks=None,
+            temperature=0.0,
+            timeout=240000,
+            other_options=None,
+            tools=None,
+            start_text=None,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+            assistant_message_id="assistant_message_id",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.language_model.service.complete_with_references_async")
+    async def test_complete_with_references_async__forwards_attribution_ids(
+        self, mock_complete_with_references_async
+    ) -> None:
+        """Purpose: Verify async referenced completions inherit service attribution.
+        Why this matters: Async usage must remain linked to its chat and assistant.
+        Setup summary: Invoke the service and inspect async delegation to the helper.
+        """
+        messages = LanguageModelMessages([])
+        model_name = LanguageModelName.AZURE_GPT_4_0613
+
+        await self.service.complete_with_references_async(
+            messages=messages,
+            model_name=model_name,
+        )
+
+        mock_complete_with_references_async.assert_awaited_once_with(
+            company_id="test_company",
+            user_id="test_user",
+            messages=messages,
+            model_name=model_name,
+            content_chunks=None,
+            temperature=0.0,
+            timeout=240000,
+            other_options=None,
+            tools=None,
+            start_text=None,
+            chat_id="test_chat",
+            assistant_id="test_assistant",
+            assistant_message_id="assistant_message_id",
         )

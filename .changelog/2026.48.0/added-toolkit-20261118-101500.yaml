@@ -1,0 +1,7 @@
+component: Toolkit
+kind: Added
+body: Toolkit and Orchestrator know GPT 6.2 Astra and GPT 6.2 Sol on Azure and LiteLLM. Requests to these models leave out temperature, top_p, logprobs and top_logprobs, which the GPT 6.2 API rejects.
+time: 2026-11-18T10:15:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29888

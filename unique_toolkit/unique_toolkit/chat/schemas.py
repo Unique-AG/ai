@@ -108,7 +108,8 @@ class ChatMessageAssessment(BaseModel):
     model_config = model_config
 
     id: str
-    object: str
+    # str not Literal: unknown values must not abort history parsing (UN-24145)
+    object: str = "message-assessment"
     message_id: str
     status: ChatMessageAssessmentStatus
     type: ChatMessageAssessmentType
@@ -191,6 +192,12 @@ class MessageLogStatus(StrEnum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    """The user pressed Stop while this thinking/tool step was in flight.
+
+    Use ``FAILED`` for system-side interruption (timeout, truncation, terminal
+    backend failure), not for user-initiated cancellation.
+    """
 
 
 class MessageExecutionStatus(StrEnum):
@@ -216,9 +223,21 @@ class MessageLogUncitedReferences(BaseModel):
 
 class MessageLogEvent(BaseModel):
     model_config = model_config
-    type: Literal["WebSearch", "InternalSearch", "Elicitation", "Thinking", "ToolCall"]
+    type: Literal[
+        "WebSearch",
+        "InternalSearch",
+        "Elicitation",
+        "Thinking",
+        "ToolCall",
+        "Todo",
+        "UserMemory",
+    ]
     text: str
     step_type: str | None = None
+    status: Literal["todo", "done"] | None = Field(
+        default=None,
+        description="Checklist item state for 'Todo' events; unused for other event types",
+    )
 
 
 class MessageLogDetails(BaseModel):

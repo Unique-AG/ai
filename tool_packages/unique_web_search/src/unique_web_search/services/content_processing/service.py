@@ -32,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _PLACEHOLDER_CONTENT_TEMPLATE = """\
 <WebPageChunk>
+    <URL>{{ url }}</URL>
     <Domain>{{ domain }}</Domain>
     <Snippet>{{ snippet }}</Snippet>
     {% if content %}
@@ -161,7 +162,7 @@ class ContentProcessor:
                 # Clear content to avoid overfilling the context; the chunker will
                 # render the compliance placeholder via the empty-content branch.
                 _LOGGER.error(
-                    f"Processing strategy failed for page {page.url}: {result.exception}",
+                    f"Processing strategy failed for page: {result.exception}",
                     exc_info=result.exception,
                 )
                 processed_pages.append(page.model_copy(update={"content": ""}))
@@ -222,6 +223,7 @@ def _build_web_page_chunk(
         snippet=page.snippet,
         content=render_template(
             _PLACEHOLDER_CONTENT_TEMPLATE,
+            url=page.url,
             domain=page.display_link,
             snippet=page.snippet,
             content=chunk,

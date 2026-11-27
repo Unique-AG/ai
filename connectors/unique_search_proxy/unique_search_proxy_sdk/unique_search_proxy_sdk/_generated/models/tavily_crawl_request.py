@@ -9,6 +9,7 @@ from typing import (
 )
 
 from attrs import define as _attrs_define
+from attrs import field as _attrs_field
 
 from ..models.tavily_crawl_request_extract_depth import TavilyCrawlRequestExtractDepth
 from ..models.tavily_crawl_request_output_format import TavilyCrawlRequestOutputFormat
@@ -22,7 +23,8 @@ class TavilyCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
-        crawler (Literal['Tavily'] | Unset):  Default: 'Tavily'.
+        crawler (Literal['Tavily'] | Unset): Provider discriminator; must be `Tavily` for this config. Default:
+            'Tavily'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         extract_depth (TavilyCrawlRequestExtractDepth | Unset): Tavily extract depth: `basic` or `advanced`. Advanced
             retrieves more data (tables, embedded content) with higher success. Default:
@@ -52,6 +54,7 @@ class TavilyCrawlRequest:
     include_images: bool | Unset = False
     include_favicon: bool | Unset = False
     include_usage: bool | Unset = False
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         urls = self.urls
@@ -87,7 +90,7 @@ class TavilyCrawlRequest:
         include_usage = self.include_usage
 
         field_dict: dict[str, Any] = {}
-
+        field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "urls": urls,
@@ -176,4 +179,21 @@ class TavilyCrawlRequest:
             include_usage=include_usage,
         )
 
+        tavily_crawl_request.additional_properties = d
         return tavily_crawl_request
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

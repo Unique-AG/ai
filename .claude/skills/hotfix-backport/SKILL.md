@@ -32,6 +32,7 @@ metadata:
 - `.github/scripts/check-release-lineage.sh` — each PR commit must be on `main` or patch-equivalent (`git cherry -` prefix). Cherry-picks get new SHAs; identical hashes are not required. No commit-metadata bypass (author/subject are forgeable).
 - `release-please--*` PRs skip lineage in `ci.yaml` (automation-owned version/changelog bumps).
 - Do not squash-merge: one squashed commit breaks release-please changelog generation.
+- Changelog fragments must land on `main` first and arrive via the cherry-pick. A release-only fragment would conflict when `changelog-batch.yaml` mirrors the hotfix batch to `main`; the lineage check already rejects such commits.
 
 ## After the fix PR merges
 

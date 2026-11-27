@@ -95,6 +95,7 @@ Work with intelligent tables that support:
 
     - `tableId` (str, required) - Table/sheet ID
     - `cells` (List[AgenticTableCell], required) - List of cell objects to update. Each cell should have `rowOrder`, `columnOrder`, and `text`.
+    - `overwriteLibraryRows` (bool, optional) - On library sheets, apply updates to existing cells instead of dropping them. Only honored for rows where the caller can read every sheet named in the row's `sourceSheetId` metadata; rows without that metadata are left unchanged. Locked rows must be unlocked first with `bulk_update_status(locked=False)`. Omitted when `None`; only send it to backends that support the field, since older servers reject it with a 400.
 
     **Returns:**
 
@@ -144,6 +145,7 @@ Work with intelligent tables that support:
     - `includeRowMetadata` (bool, optional) - When supported by the gateway, include per-row metadata on each cell in `magicTableCells` (same query shape as `includeCellMetaData`; wire-up on `GET /magic-table/{tableId}` may still be rolling out)
     - `startRow` (int, optional) - Start row index for range (0-based)
     - `endRow` (int, optional) - End row index for range (0-based)
+    - `rowOrders` (list[int], optional) - Sparse `rowOrder` values to fetch (`rowOrder IN …`), using the same numbering as cells and row events: row 0 is the header and content rows start at 1. Do not combine with `startRow`/`endRow`; omit this field to keep existing range behavior.
 
     **Returns:**
 
@@ -343,6 +345,78 @@ Work with intelligent tables that support:
     )
     ```
 
+??? example "`unique_sdk.AgenticTable.update_row_metadata` / `delete_row_metadata` - Change one row metadata entry"
+
+    Update or delete a single row metadata entry, addressed by its `id` (the `id` on a `rowMetadata` entry returned with `includeRowMetadata`).
+
+    **Parameters:**
+
+    - `tableId` (str, required) - Table/sheet ID
+    - `metadataId` (str, required) - Row metadata entry ID
+    - `key` (str, required for update) - Metadata key
+    - `value` (str, required for update) - Metadata value
+    - `exactFilter` (bool, optional, update only) - Whether the entry is used for strict filtering
+
+    **Returns:**
+
+    Returns a `{status, message?}` result.
+
+    **Example:**
+
+    ```python
+    await unique_sdk.AgenticTable.update_row_metadata(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        metadataId="meta_xyz",
+        key="client",
+        value="UBP",
+        exactFilter=True,
+    )
+
+    await unique_sdk.AgenticTable.delete_row_metadata(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        metadataId="meta_xyz",
+    )
+    ```
+
+??? example "`unique_sdk.AgenticTable.delete_row` - Permanently delete one row by id"
+
+    Permanently delete one content row. `rowId` is the id on a cell from `get_sheet_data` with `includeCells=True`, or from `get_cell`, not the row order. The header is `rowOrder` 0, and `delete_row` rejects it, so the example uses the first cell whose `rowOrder` is at least 1. A locked row and a row in a final review status are also rejected. A caller who is not a member of the sheet is rejected. A row on a completed sheet can be deleted; the sheet status is then recomputed. A missing sheet or row is not found.
+
+    **Parameters:**
+
+    - `tableId` (str, required) - Table/sheet ID
+    - `rowId` (str, required) - Row id (`mt_row_...`), not the row order
+
+    **Returns:**
+
+    Returns a `{object, id, status, message?}` result. `object` is `magic-table-action`. On success `id` is the sheet id.
+
+    **Example:**
+
+    ```python
+    sheet = await unique_sdk.AgenticTable.get_sheet_data(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        includeCells=True,
+    )
+    content_cell = next(
+        cell for cell in sheet["magicTableCells"] if cell["rowOrder"] >= 1
+    )
+    row_id = content_cell["rowId"]
+
+    await unique_sdk.AgenticTable.delete_row(
+        user_id=user_id,
+        company_id=company_id,
+        tableId="sheet_abc123",
+        rowId=row_id,
+    )
+    ```
+
 ## Bulk Operations
 
 ??? example "`unique_sdk.AgenticTable.bulk_update_status` - Bulk update status"
@@ -355,6 +429,7 @@ Work with intelligent tables that support:
     - `rowOrders` (List[int], required) - List of row indices to update (0-based)
     - `status` (RowVerificationStatus, required) - Verification status: `"NEEDS_REVIEW"`, `"READY_FOR_VERIFICATION"`, or `"VERIFIED"`
     - `locked` (bool, optional) - Row lock flag (defaults are applied server-side when omitted)
+    - `emitLibrarySheetVerifiedEvent` (bool, optional) - On library sheets, whether marking rows `VERIFIED` starts a `LIBRARY_SHEET_ROW_VERIFIED` run that ingests the rows. Set `False` when the caller has already ingested them. Defaults to `True` server-side when omitted; only send it to backends that support the field, since older servers reject it with a 400.
 
     **Returns:**
 
@@ -593,6 +668,8 @@ These mirror the public magic-table REST contract (`2023-12-06` / `node-chat`).
 
     String values include: `DeleteRow`, `DeleteColumn`, `InsertRow`, `UpdateCell`, `AddQuestionText`, `AddMetaData`, `GenerateArtifact`, `SheetCompleted`, `LibrarySheetRowVerified`, `SheetCreated`, `GenerateOverview`, `RerunRow`.
 
+    `RerunRows` is a webhook payload action only until `MagicTableAgenticWorkflowAction` includes it; do not send it via `set_activity` yet.
+
 #### ActivityStatus {#activitystatus}
 
 ??? note "Activity lifecycle for `set_activity`"
@@ -675,6 +752,7 @@ These mirror the public magic-table REST contract (`2023-12-06` / `node-chat`).
     - `companyId` (str) - Company ID
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `chatId` (str, optional) - Associated chat ID when present
+    - `userAbortedAt` (str | None, optional) - ISO 8601 timestamp when the user stopped an in-progress refresh (`stopMagicTableRefresh`). `null` or omitted when the sheet was not aborted. After stop the sheet state is `IDLE`; poll this field (not `STOPPED_BY_USER`) to detect a user stop.
     - `magicTableRowCount` (int, optional) - Total row count when requested with `includeRowCount=true`
     - `magicTableCells` (List[AgenticTableCell], optional) - Cells when `includeCells=true`
     - `magicTableSheetMetadata` (List[[`MagicTableMetadataEntry`](#magictablemetadataentry)], optional) - When `includeSheetMetadata=true`

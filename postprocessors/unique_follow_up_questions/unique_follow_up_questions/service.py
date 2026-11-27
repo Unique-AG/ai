@@ -140,6 +140,7 @@ class FollowUpQuestionService:
                 response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self.config.language_model.name,
+                    other_options=self.config.additional_llm_options,
                     structured_output_model=FollowUpQuestionsOutput,
                 )
                 parsed_content = response.choices[0].message.parsed
@@ -147,6 +148,7 @@ class FollowUpQuestionService:
                 response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self.config.language_model.name,
+                    other_options=self.config.additional_llm_options,
                 )
                 content = response.choices[0].message.content
                 if not isinstance(content, str):

@@ -80,6 +80,15 @@ def _abs_api_url(api_base: str, path: str) -> str:
     return base + segment
 
 
+def _query_keys_for_log(
+    method: str, params: Mapping[str, Any] | None
+) -> dict[str, str]:
+    """Param names, never values, for GET and DELETE; empty for other methods."""
+    if method not in ("get", "delete") or not params:
+        return {}
+    return {"query_keys": ",".join(str(key) for key in params)}
+
+
 class APIRequestor(object):
     api_key: str | None
     app_id: str | None
@@ -193,9 +202,13 @@ class APIRequestor(object):
             supplied_headers,
         )
 
-        _util.log_info("Request to Unique", method=method, path=abs_url)
-        _util.log_debug(
-            "Request details",
+        _util.log_info(
+            "Request to Unique",
+            method=method,
+            path=_util.url_for_log(abs_url),
+            **_query_keys_for_log(method, params),
+        )
+        _util.log_request_details(
             data=post_data,
             headers=headers,
             api_version=self.api_version,
@@ -205,8 +218,8 @@ class APIRequestor(object):
             method, abs_url, headers, post_data
         )
 
-        _util.log_info("Unique response", path=abs_url, status=rcode)
-        _util.log_debug("Unique response body", body=rcontent)
+        _util.log_info("Unique response", path=_util.url_for_log(abs_url), status=rcode)
+        _util.log_response_body(body=rcontent)
 
         if "Request-Id" in rheaders:
             request_id = rheaders["Request-Id"]
@@ -229,20 +242,25 @@ class APIRequestor(object):
             supplied_headers,
         )
 
-        _util.log_info("Async request to Unique", method=method, path=abs_url)
-        _util.log_debug(
-            "Async request details",
+        _util.log_info(
+            "Async request to Unique",
+            method=method,
+            path=_util.url_for_log(abs_url),
+            **_query_keys_for_log(method, params),
+        )
+        _util.log_request_details(
             data=post_data,
             headers=headers,
             api_version=self.api_version,
+            message="Async request details",
         )
 
         rcontent, rcode, rheaders = await self._client.request_async(
             method, abs_url, headers, post_data
         )
 
-        _util.log_info("Unique response", path=abs_url, status=rcode)
-        _util.log_debug("Unique response body", body=rcontent)
+        _util.log_info("Unique response", path=_util.url_for_log(abs_url), status=rcode)
+        _util.log_response_body(body=rcontent)
 
         if "Request-Id" in rheaders:
             request_id = rheaders["Request-Id"]
@@ -364,7 +382,8 @@ class APIRequestor(object):
         except Exception as e:
             raise _error.APIError(
                 "Invalid response body from API: %s "
-                "(HTTP response code was %d)" % (rbody, rcode),
+                "(HTTP response code was %d)"
+                % (_util.redacted_body_for_error_message(rbody), rcode),
                 cast(bytes, rbody),
                 rcode,
                 rheaders,
@@ -392,56 +411,81 @@ class APIRequestor(object):
         cause = error_data.get("cause", {})
         if isinstance(cause, str):
             cause = {"error": {"message": cause}, "status": rcode}
-        status = cause.get("status", rcode)
+
+        cause_error = cause.get("error") or {}
+        cause_code = cause_error.get("code")
+        cause_message = cause_error.get("message")
+
+        message = error_data.get("message") or cause_message
+        code = error_data.get("code") or cause_code
+        params = error_data.get("params") or cause_error.get("params")
+        status = rcode if error_data.get("code") else cause.get("status", rcode)
 
         _util.log_info(
             "Unique error received",
             error_code=status,
             error_type=error_data.get("type"),
-            error_message=error_data.get("message"),
-            error_params=error_data.get("params"),
+            error_message=_util.redacted_error_message(error_data.get("message")),
+            error_params=_util.redacted_error_params(error_data.get("params")),
         )
 
-        error = cause.get("error", {}) if cause else {}
-        error_code = error.get("code", "<Unknown code>")
-        error_message = error.get("message", "<No message>")
-        original_error = f"{error_code}: {error_message}"
+        original_error = None
+        if cause_code or cause_message:
+            original_error = (
+                f"{cause_code or '<Unknown code>'}: {cause_message or '<No message>'}"
+            )
 
-        if status in [400, 404]:
-            return _error.InvalidRequestError(
-                message=error_data.get("message"),
-                params=error_data.get("params"),
-                code=error_data.get("code"),
+        if status == 429:
+            return _error.RateLimitError(
+                message=message,
+                params=params,
+                code=code,
                 http_body=rbody,
                 http_status=rcode,
                 json_body=resp,
                 headers=rheaders,
                 original_error=original_error,
             )
-        elif status == 401:
+        if status in [400, 404]:
+            return _error.InvalidRequestError(
+                message=message,
+                params=params,
+                code=code,
+                http_body=rbody,
+                http_status=rcode,
+                json_body=resp,
+                headers=rheaders,
+                original_error=original_error,
+            )
+        if status == 401:
             return _error.AuthenticationError(
-                message=error_data.get("message"),
+                message=message,
                 http_body=rbody,
                 http_status=status,
                 json_body=resp,
                 headers=rheaders,
+                code=code,
                 original_error=original_error,
+                params=params,
             )
-        elif status == 403:
+        if status == 403:
             return _error.PermissionError(
-                message=error_data.get("message"),
+                message=message,
                 http_body=rbody,
                 http_status=status,
                 json_body=resp,
                 headers=rheaders,
+                code=code,
                 original_error=original_error,
+                params=params,
             )
-        else:
-            return _error.APIError(
-                message=error_data.get("message"),
-                http_body=rbody,
-                http_status=status,
-                json_body=resp,
-                headers=rheaders,
-                original_error=original_error,
-            )
+        return _error.APIError(
+            message=message,
+            http_body=rbody,
+            http_status=status,
+            json_body=resp,
+            headers=rheaders,
+            code=code,
+            original_error=original_error,
+            params=params,
+        )

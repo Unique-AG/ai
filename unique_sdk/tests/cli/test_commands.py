@@ -19,16 +19,29 @@ from unique_sdk.cli.commands.files import (
     cmd_rm,
     cmd_upload,
     cmd_versions,
+    is_upload_error_output,
 )
-from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.folders import (
+    cmd_mkdir,
+    cmd_mvdir,
+    cmd_rmdir,
+    is_mkdir_error_output,
+)
 from unique_sdk.cli.commands.mcp import _parse_and_validate, _read_payload, cmd_mcp
-from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.navigation import (
+    cmd_cd,
+    cmd_ls,
+    cmd_pwd,
+    is_ls_error_output,
+)
 from unique_sdk.cli.commands.scheduled_tasks import (
+    SCHEDULE_ERROR_PREFIX,
     cmd_schedule_create,
     cmd_schedule_delete,
     cmd_schedule_get,
     cmd_schedule_list,
     cmd_schedule_update,
+    is_error_output,
 )
 from unique_sdk.cli.commands.search import (
     _build_metadata_filter,
@@ -36,6 +49,7 @@ from unique_sdk.cli.commands.search import (
     cmd_search,
 )
 from unique_sdk.cli.config import Config
+from unique_sdk.cli.metadata_filter import direct_children_filter
 from unique_sdk.cli.state import ShellState
 
 
@@ -47,6 +61,16 @@ def _config() -> Config:
         app_id="app",
         api_base="https://example.com",
     )
+
+
+@pytest.fixture(autouse=True)
+def _content_by_path_misses() -> Any:
+    """Name resolve looks up by file path first; default to a miss."""
+    with patch(
+        "unique_sdk.Content.get_info",
+        return_value={"contentInfo": [], "totalCount": 0},
+    ) as mock:
+        yield mock
 
 
 def _state(path: str = "/", scope_id: str | None = None) -> ShellState:
@@ -139,9 +163,11 @@ class TestNavigation:
         assert cmd_pwd(_state()) == "/"
         assert cmd_pwd(_state("/Reports")) == "/Reports"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd(self, mock: MagicMock) -> None:
+    def test_cd(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         result = cmd_cd(_state(), "Reports")
         assert result == "/Reports"
 
@@ -158,34 +184,109 @@ class TestNavigation:
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_root(self, mock_folders: MagicMock, mock_files: MagicMock) -> None:
+        """Root ls lists folders only; an unfiltered content/infos is denied."""
         mock_folders.return_value = {
             "folderInfos": [_folder_info()],
-            "totalCount": 1,
-        }
-        mock_files.return_value = {
-            "contentInfos": [_content_info()],
             "totalCount": 1,
         }
         result = cmd_ls(_state())
         assert "DIR" in result
         assert "Reports/" in result
-        assert "FILE" in result
-        assert "report.pdf" in result
-        assert "1 folder(s), 1 file(s)" in result
+        assert "1 folder(s), 0 file(s)" in result
+        mock_files.assert_not_called()
 
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_folder_lists_direct_children_by_filter(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        mock_path.return_value = {"folderPath": "/Reports"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {
+            "contentInfos": [_content_info()],
+            "totalCount": 1,
+        }
+        result = cmd_ls(_state("/Reports", "scope_r"))
+        assert "report.pdf" in result
+        assert "0 folder(s), 1 file(s)" in result
+        mock_files.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            metadataFilter={
+                "and": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_r",
+                    },
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "notContains",
+                        "value": "scope_r/",
+                    },
+                ]
+            },
+            skip=0,
+            take=50,
+        )
+
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_with_target(
         self,
         mock_folders: MagicMock,
         mock_files: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
         mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        mock_path.return_value = {"folderPath": "/Reports"}
         with patch("unique_sdk.Folder.get_info") as mock_info:
             mock_info.return_value = {"id": "scope_r"}
             result = cmd_ls(_state(), "/Reports")
         assert "0 folder(s), 0 file(s)" in result
+        assert is_ls_error_output(result) is False
+        mock_files.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            metadataFilter=direct_children_filter("scope_r"),
+            skip=0,
+            take=50,
+        )
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_root_target_from_folder_skips_content_call(
+        self, mock_folders: MagicMock, mock_files: MagicMock
+    ) -> None:
+        mock_folders.return_value = {"folderInfos": [_folder_info()], "totalCount": 1}
+        result = cmd_ls(_state("/Reports", "scope_r"), "/")
+        assert "1 folder(s), 0 file(s)" in result
+        mock_files.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("folder_id_path", "listed"),
+        [
+            ("uniquepathid://scope_a", False),
+            ("uniquepathid://scope_a/scope_b", True),
+            ("uniquepathid://scope_a/scope_b/scope_c", False),
+        ],
+    )
+    def test_direct_children_filter_matches_leaf_folder_only(
+        self, folder_id_path: str, listed: bool
+    ) -> None:
+        """``ls a/b`` lists b's files, not a's or those of b's subfolders."""
+        contains, not_contains = direct_children_filter("scope_b")["and"]
+        matches = (
+            contains["value"] in folder_id_path
+            and not_contains["value"] not in folder_id_path
+        )
+        assert matches is listed
 
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_error(self, mock: MagicMock) -> None:
@@ -208,14 +309,52 @@ class TestNavigation:
             scopeId="scope_ws",
         )
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_workspace_unlistable(self, mock_info: MagicMock) -> None:
+        """Purpose: A workspace folder that cannot be read is not an empty root.
+        Why this matters: Agents treat an empty listing as proof the folder has no files.
+        Setup summary: get_info raises for the only workspace scope; ls must name it.
+        """
+        mock_info.side_effect = unique_sdk.UniqueError("denied")
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        result = cmd_ls(state)
+        assert result == "ls: cannot list scope_ws (not listable)"
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_workspace_partial_unlistable(self, mock_info: MagicMock) -> None:
+        """Purpose: A readable workspace folder stays listed when a sibling cannot.
+        Why this matters: Hiding the failure makes the missing folder look empty.
+        Setup summary: One scope resolves and one raises; the result names the failure.
+        """
+
+        def side_effect(**kwargs: Any) -> dict[str, Any]:
+            if kwargs.get("scopeId") == "scope_hidden":
+                raise unique_sdk.UniqueError("denied")
+            return _folder_info("Reports", "scope_ws")
+
+        mock_info.side_effect = side_effect
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws", "scope_hidden"]
+        result = cmd_ls(state)
+        assert "Reports/" in result
+        assert "not listable: scope_hidden" in result
+        assert is_ls_error_output(result) is False
+
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     def test_ls_inside_folder_workspace_scoped_uses_normal_path(
         self,
         mock_folders: MagicMock,
         mock_files: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         """ls inside a scoped folder uses the normal get_infos path."""
+        mock_path.return_value = {"folderPath": "/Reports"}
         mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
         mock_files.return_value = {"contentInfos": [], "totalCount": 0}
         state = _state("/Reports", "scope_ws")
@@ -374,6 +513,193 @@ class TestNavigation:
         assert "permission denied" not in result
         mock_folders.assert_called_once()
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_hides_excluded_child_folder(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: ls inside a selected folder omits an excluded child.
+        Why this matters: The excluded folder name and id are client data.
+        Setup summary: /KB contains Allowed and Excluded; the filter excludes Excluded.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_parent": {"folderPath": "/KB"},
+                "scope_excluded": {"folderPath": "/KB/Excluded"},
+                "scope_allowed": {"folderPath": "/KB/Allowed"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_folders.return_value = {
+            "folderInfos": [
+                _folder_info("Excluded", "scope_excluded"),
+                _folder_info("Allowed", "scope_allowed"),
+            ],
+            "totalCount": 2,
+        }
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        state = _state("/KB", "scope_parent")
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_parent",
+                },
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "notContains",
+                    "value": "scope_excluded",
+                },
+            ]
+        }
+        result = cmd_ls(state)
+        assert "Allowed/" in result
+        assert "Excluded/" not in result
+        assert "scope_excluded" not in result
+        assert "1 folder(s) hidden by task scope" in result
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_cd_into_excluded_folder_is_denied(
+        self, mock_info: MagicMock, mock_path: MagicMock
+    ) -> None:
+        """Purpose: unique-cli cd cannot enter an excluded folder.
+        Why this matters: Opening the folder lets the agent see its subfolders.
+        Setup summary: cwd is /KB; the target is the excluded child.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_parent": {"folderPath": "/KB"},
+                "scope_excluded": {"folderPath": "/KB/Excluded"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"id": "scope_excluded"}
+        state = _state("/KB", "scope_parent")
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_parent",
+                },
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "notContains",
+                    "value": "scope_excluded",
+                },
+            ]
+        }
+        result = cmd_cd(state, "/KB/Excluded")
+        assert result.startswith("cd: permission denied")
+        assert state.cwd == "/KB"
+        assert state.scope_id == "scope_parent"
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_of_folder_outside_scope_ids_is_denied(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: ls by name refuses a sibling folder absent from scopeIds.
+        Why this matters: Listing it showed a file the space left out.
+        Setup summary: scopeIds grants /Company; the target is /Excluded.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_company": {"folderPath": "/Company"},
+                "scope_excluded": {"folderPath": "/Excluded"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"id": "scope_excluded"}
+        state = _state()
+        state.workspace_scope_ids = ["scope_company"]
+        result = cmd_ls(state, "/Excluded")
+        assert result.startswith("ls: permission denied")
+        mock_folders.assert_not_called()
+        mock_files.assert_not_called()
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_cd_into_folder_outside_scope_ids_is_denied(
+        self, mock_info: MagicMock, mock_path: MagicMock
+    ) -> None:
+        """Purpose: unique-cli cd refuses a folder absent from scopeIds.
+        Why this matters: A folder the space omits must stay unreachable.
+        Setup summary: scopeIds grants /Company; the target is /Excluded.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_company": {"folderPath": "/Company"},
+                "scope_excluded": {"folderPath": "/Excluded"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"id": "scope_excluded"}
+        state = _state()
+        state.workspace_scope_ids = ["scope_company"]
+        result = cmd_cd(state, "/Excluded")
+        assert result.startswith("cd: permission denied")
+        assert state.cwd == "/"
+        assert state.scope_id is None
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_of_subfolder_inside_scope_ids_is_allowed(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: ls still opens a descendant of a scopeIds folder.
+        Why this matters: The allow-list grants the folder and its subtree.
+        Setup summary: scopeIds grants /Company; the target is /Company/Reports.
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_company": {"folderPath": "/Company"},
+                "scope_reports": {"folderPath": "/Company/Reports"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_info.return_value = {"id": "scope_reports"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        state = _state()
+        state.workspace_scope_ids = ["scope_company"]
+        result = cmd_ls(state, "/Company/Reports")
+        assert "permission denied" not in result
+        mock_folders.assert_called_once()
+
     @patch("unique_sdk.Content.get_info")
     @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
@@ -432,23 +758,282 @@ class TestNavigation:
         # than being overwritten by the filtered page length. See UN-21780.
         assert "1 file(s) in task scope (of 2 in folder)" in result
 
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_target_not_listable_when_path_resolves_elsewhere(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: An empty listing of the wrong folder is a refusal, not empty.
+        Why this matters: /home-<userId>/... can resolve to the home folder and hide files.
+        Setup summary: The requested path lists nothing and canonical path is its parent.
+        """
+        mock_info.return_value = {"id": "scope_home"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
+        assert "ls: cannot list /home-user_1/second-brain/clients" in result
+        assert "resolved to /home-user_1" in result
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_target_not_listable_when_counts_have_no_rows(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A positive total with no rows is not an empty folder.
+        Why this matters: Agents cannot tell a hidden listing from a folder with no files.
+        Setup summary: The canonical path matches, and both list calls report counts with no entries.
+        """
+        mock_info.return_value = {"id": "scope_clients"}
+        mock_path.return_value = {"folderPath": "/home-user_1/second-brain/clients"}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 2}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 3}
+        result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
+        assert "cannot list /home-user_1/second-brain/clients" in result
+        assert "2 folder(s), 3 file(s) reported" in result
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_target_with_rows_for_a_different_path(
+        self,
+        mock_info: MagicMock,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A targeted ls compares the canonical path before trusting rows.
+        Why this matters: An ancestor with children used to print those children and exit 0.
+        Setup summary: get_info returns the home folder, which has a child, for a deeper path.
+        """
+        mock_info.return_value = {"id": "scope_home"}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        mock_folders.return_value = {
+            "folderInfos": [_folder_info("second-brain", "scope_sb")],
+            "totalCount": 1,
+        }
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
+        assert "resolved to /home-user_1" in result
+        assert "scope_sb" not in result
+        assert is_ls_error_output(result) is True
+        mock_folders.assert_not_called()
+        mock_files.assert_not_called()
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_target_errors_when_canonical_path_cannot_be_read(
+        self,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A failed canonical-path lookup is an ls error.
+        Why this matters: Swallowing the lookup printed (empty) and exited 0.
+        Setup summary: get_info returns a scope id and get_folder_path raises.
+        """
+        mock_info.return_value = {"id": "scope_clients"}
+        mock_path.side_effect = unique_sdk.UniqueError("denied")
+        result = cmd_ls(_state(), "/home-user_1/second-brain/clients")
+        assert result.startswith("ls: cannot list /home-user_1/second-brain/clients")
+        assert "(empty)" not in result
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_ls_cwd_errors_when_scope_is_a_different_path(
+        self,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: Listing the current directory checks the stored scope id.
+        Why this matters: cd can store a typed path with an ancestor id, and a later ls has no target.
+        Setup summary: cwd is a leaf path whose scope id resolves to the home folder.
+        """
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        state = _state("/home-user_1/second-brain/clients", "scope_home")
+        result = cmd_ls(state)
+        assert "resolved to /home-user_1" in result
+        assert is_ls_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_cd_refuses_when_lookup_returns_a_different_folder(
+        self,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: cd does not store a path whose scope id is a different folder.
+        Why this matters: A later command would treat the ancestor as the folder the user typed.
+        Setup summary: get_info returns the home id for a deeper absolute path.
+        """
+        mock_info.return_value = {"id": "scope_home"}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        state = _state()
+        result = cmd_cd(state, "/home-user_1/second-brain/clients")
+        assert result.startswith(
+            "cd: cannot change to /home-user_1/second-brain/clients"
+        )
+        assert "resolved to /home-user_1" in result
+        assert state.cwd == "/"
+        assert state.scope_id is None
+
 
 # --- Folders ---
 
 
 class TestFolders:
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir(self, mock: MagicMock) -> None:
+    def test_mkdir(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        mock_path.return_value = {"folderPath": "/Reports/Q2"}
         result = cmd_mkdir(_state("/Reports", "scope_r"), "Q2")
         assert "Created" in result
         assert "scope_new" in result
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            paths=["/Reports/Q2"],
+        )
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir_no_created(self, mock: MagicMock) -> None:
-        mock.return_value = {"createdFolders": []}
+    def test_mkdir_absolute_path(self, mock: MagicMock, mock_path: MagicMock) -> None:
+        """Absolute mkdir paths are not prefixed with the current directory."""
+        mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        mock_path.return_value = {"folderPath": "/demo/x"}
+        from_root = cmd_mkdir(_state("/"), "/demo/x")
+        assert "Created: /demo/x" in from_root
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            paths=["/demo/x"],
+        )
+
+        mock.reset_mock()
+        from_subfolder = cmd_mkdir(_state("/Reports", "scope_r"), "/demo/x")
+        assert "Created: /demo/x" in from_subfolder
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            paths=["/demo/x"],
+        )
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_relative_path(self, mock: MagicMock, mock_path: MagicMock) -> None:
+        """Relative names are still created under the current directory."""
+        mock.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        mock_path.return_value = {"folderPath": "/Reports/x"}
+        result = cmd_mkdir(_state("/Reports", "scope_r"), "x")
+        assert "Created: /Reports/x" in result
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            paths=["/Reports/x"],
+        )
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_no_created(
+        self, mock_create: MagicMock, mock_info: MagicMock
+    ) -> None:
+        """Purpose: An empty create response is a failure when the folder is absent.
+        Why this matters: Reporting Created with exit 0 dropped a real upload target.
+        Setup summary: create_paths returns no folders and get_info misses the path.
+        """
+        mock_create.return_value = {"createdFolders": []}
+        mock_info.side_effect = ValueError("not found")
         result = cmd_mkdir(_state("/Reports", "scope_r"), "Q2")
-        assert "Created" in result
+        assert result == "mkdir: refused to create /Reports/Q2"
+        assert is_mkdir_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_already_exists(
+        self,
+        mock_create: MagicMock,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: An empty create response is success when that exact folder exists.
+        Why this matters: create_paths is idempotent and omits folders that already exist.
+        Setup summary: create_paths returns nothing; get_info and get_folder_path agree.
+        """
+        mock_create.return_value = {"createdFolders": []}
+        mock_info.return_value = {"id": "scope_existing"}
+        mock_path.return_value = {"folderPath": "/Reports/Q2"}
+        result = cmd_mkdir(_state("/Reports", "scope_r"), "Q2")
+        assert result == "Created: /Reports/Q2 (scope_existing)"
+        assert is_mkdir_error_output(result) is False
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_refuses_when_lookup_returns_a_different_folder(
+        self,
+        mock_create: MagicMock,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A parent-folder id must not be reported as the requested folder.
+        Why this matters: Home paths can resolve to /home-<userId> and look created.
+        Setup summary: create_paths is empty and the lookup path is the home parent.
+        """
+        mock_create.return_value = {"createdFolders": []}
+        mock_info.return_value = {"id": "scope_home"}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        result = cmd_mkdir(
+            _state("/Reports", "scope_r"),
+            "/home-user_1/second-brain/clients/X",
+        )
+        assert result == "mkdir: refused to create /home-user_1/second-brain/clients/X"
+        assert is_mkdir_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.create_paths")
+    def test_mkdir_refuses_when_created_id_is_a_different_folder(
+        self,
+        mock_create: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Purpose: A created folder id is confirmed against the requested path.
+        Why this matters: create_paths has returned the /home-<userId> id in place of the leaf.
+        Setup summary: createdFolders contains the home id, whose path is the home folder.
+        """
+        mock_create.return_value = {"createdFolders": [{"id": "scope_home"}]}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        result = cmd_mkdir(_state("/"), "/home-user_1/second-brain/clients/X")
+        assert result == (
+            "mkdir: refused to create /home-user_1/second-brain/clients/X: "
+            "resolved to /home-user_1"
+        )
+        assert is_mkdir_error_output(result) is True
+        assert "Created" not in result
 
     @patch("unique_sdk.Folder.create_paths")
     def test_mkdir_error(self, mock: MagicMock) -> None:
@@ -565,31 +1150,33 @@ class TestFolders:
 
 
 class TestFiles:
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_resolve_content_id_by_id(self, mock: MagicMock) -> None:
         cid, name = _resolve_content_id(_state(), "cont_abc")
         assert cid == "cont_abc"
         assert name == "cont_abc"
         mock.assert_not_called()
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_resolve_content_id_by_name(self, mock: MagicMock) -> None:
-        mock.return_value = {"contentInfos": [_content_info()]}
+        mock.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports", "scope_r"),
             "report.pdf",
         )
         assert cid == "cont_123"
         assert name == "report.pdf"
+        where = mock.call_args.kwargs["where"]
+        assert where["AND"][0] == {"ownerId": {"equals": "scope_r"}}
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_resolve_by_name_gated_by_metadata_filter(self, mock: MagicMock) -> None:
         """Resolving by file name must not bypass the per-message scope.
 
         The cont_ fast-path checks is_content_within_workspace; the name/path
         resolution path must gate the *resolved* id the same way (UN-21780).
         """
-        mock.return_value = {"contentInfos": [_content_info()]}
+        mock.return_value = [_content_info()]
         s = _state("/Reports", "scope_r")
         s.workspace_metadata_filter = {
             "path": ["contentId"],
@@ -600,15 +1187,14 @@ class TestFiles:
         with pytest.raises(ValueError, match="permission denied"):
             _resolve_content_id(s, "report.pdf")
 
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Content.get_infos")
     def test_resolve_by_name_at_root_with_filter_refuses_whole_kb_scan(
-        self, mock: MagicMock
+        self, mock_infos: MagicMock, mock_search: MagicMock
     ) -> None:
-        """At the KB root (no folder context) a bare file name would resolve via
-        an unparented whole-KB scan. With a per-message filter active that is a
-        cross-scope existence/title oracle, so it must be refused *before* any
-        Content.get_infos call rather than scan everything and gate per id. See
-        UN-21780.
+        """At the KB root (no folder context) a bare file name must be refused
+        before any Content.search / Content.get_infos call. See UN-21780 /
+        UN-26945.
         """
         s = _state("/", None)
         s.workspace_metadata_filter = {
@@ -619,7 +1205,8 @@ class TestFiles:
         s._chat_file_content_ids_cache = set()
         with pytest.raises(ValueError, match="permission denied"):
             _resolve_content_id(s, "report.pdf")
-        mock.assert_not_called()
+        mock_search.assert_not_called()
+        mock_infos.assert_not_called()
 
     @patch("unique_sdk.Content.delete")
     def test_rm_denies_out_of_scope_chat_attachment(
@@ -643,16 +1230,14 @@ class TestFiles:
         mock_delete.assert_not_called()
 
     @patch("unique_sdk.Content.delete")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_rm_by_name_denies_out_of_scope_chat_attachment(
-        self, mock_infos: MagicMock, mock_delete: MagicMock
+        self, mock_search: MagicMock, mock_delete: MagicMock
     ) -> None:
         """Resolving by file name must honour the same read-only exemption —
         rm <name> can't reach an out-of-scope chat attachment. See UN-21780.
         """
-        mock_infos.return_value = {
-            "contentInfos": [_content_info("attached.pdf", "cont_attached")]
-        }
+        mock_search.return_value = [_content_info("attached.pdf", "cont_attached")]
         s = _state("/Reports", "scope_r")
         s.workspace_metadata_filter = {
             "path": ["contentId"],
@@ -679,10 +1264,10 @@ class TestFiles:
         assert "permission denied" in result
         mock_update.assert_not_called()
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_by_path_in_filter_not_blocked_by_static_scope(
-        self, mock_finfo: MagicMock, mock_cinfos: MagicMock
+        self, mock_finfo: MagicMock, mock_search: MagicMock
     ) -> None:
         """An active per-message filter replaces the static scopeIds for content
         access, so a path lookup to an in-filter folder outside the static
@@ -690,9 +1275,7 @@ class TestFiles:
         UN-21780.
         """
         mock_finfo.return_value = {"id": "scope_allowed"}
-        mock_cinfos.return_value = {
-            "contentInfos": [_content_info("memo.pdf", "cont_1")]
-        }
+        mock_search.return_value = [_content_info("memo.pdf", "cont_1")]
         s = _state("/", None)
         s.workspace_scope_ids = ["scope_admin"]
         s._workspace_scope_paths = ["/Admin"]
@@ -706,14 +1289,14 @@ class TestFiles:
         assert cid == "cont_1"
         assert name == "memo.pdf"
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     @patch("unique_sdk.Folder.get_folder_path")
     def test_resolve_by_path_out_of_filter_folder_denied_without_lookup(
         self,
         mock_fpath: MagicMock,
         mock_finfo: MagicMock,
-        mock_cinfos: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         """A path into a folder outside the per-message filter scope is denied
         structurally — before Folder.get_info or the name scan — so a matching
@@ -731,11 +1314,11 @@ class TestFiles:
         with pytest.raises(ValueError, match="permission denied"):
             _resolve_content_id(s, "/Outside/secret.pdf")
         mock_finfo.assert_not_called()
-        mock_cinfos.assert_not_called()
+        mock_search.assert_not_called()
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_resolve_by_name_allowed_by_metadata_filter(self, mock: MagicMock) -> None:
-        mock.return_value = {"contentInfos": [_content_info()]}
+        mock.return_value = [_content_info()]
         s = _state("/Reports", "scope_r")
         s.workspace_metadata_filter = {
             "path": ["contentId"],
@@ -747,15 +1330,15 @@ class TestFiles:
         assert cid == "cont_123"
         assert name == "report.pdf"
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_content_id_by_absolute_path(
         self,
         mock_folder: MagicMock,
-        mock_content: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_content.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports", "scope_r"),
             "/Reports/Q1/report.pdf",
@@ -763,19 +1346,18 @@ class TestFiles:
         assert cid == "cont_123"
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
-        assert mock_content.call_args.kwargs["parentId"] == "scope_q1"
-        assert mock_content.call_args.kwargs["skip"] == 0
-        assert mock_content.call_args.kwargs["take"] == 100
+        where = mock_search.call_args.kwargs["where"]
+        assert where["AND"][0] == {"ownerId": {"equals": "scope_q1"}}
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_content_id_by_relative_path(
         self,
         mock_folder: MagicMock,
-        mock_content: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_content.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports", "scope_r"),
             "Q1/report.pdf",
@@ -784,15 +1366,15 @@ class TestFiles:
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_content_id_normalizes_dot_path(
         self,
         mock_folder: MagicMock,
-        mock_content: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_content.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports", "scope_r"),
             "./Q1/report.pdf",
@@ -801,15 +1383,15 @@ class TestFiles:
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
 
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_resolve_content_id_normalizes_dot_dot_path(
         self,
         mock_folder: MagicMock,
-        mock_content: MagicMock,
+        mock_search: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_content.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         cid, name = _resolve_content_id(
             _state("/Reports/Q2", "scope_q2"),
             "../Q1/report.pdf",
@@ -827,51 +1409,136 @@ class TestFiles:
             _resolve_content_id(_state("/Reports", "scope_r"), "../../secret.pdf")
         mock_folder.assert_not_called()
 
-    @patch("unique_sdk.Content.get_infos")
-    def test_resolve_content_id_scans_paginated_files(self, mock: MagicMock) -> None:
-        other = _content_info(title="other.pdf")
-        other["key"] = "other.pdf"
-        mock.side_effect = [
-            {"contentInfos": [other], "totalCount": 2},
-            {"contentInfos": [_content_info()], "totalCount": 2},
-        ]
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_uses_targeted_search(self, mock: MagicMock) -> None:
+        mock.return_value = [_content_info()]
         cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
         assert cid == "cont_123"
         assert name == "report.pdf"
-        assert mock.call_args_list[0].kwargs["skip"] == 0
-        assert mock.call_args_list[1].kwargs["skip"] == 1
+        assert mock.call_count == 1
+        where = mock.call_args.kwargs["where"]
+        assert {"title": {"equals": "report.pdf"}} in where["AND"][1]["OR"]
+        assert {"key": {"equals": "report.pdf"}} in where["AND"][1]["OR"]
 
     @patch("unique_sdk.Content.get_infos")
-    def test_resolve_content_id_ignores_total_count_for_pagination(
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_falls_back_to_name_filtered_infos(
         self,
-        mock: MagicMock,
+        mock_search: MagicMock,
+        mock_infos: MagicMock,
     ) -> None:
-        other = _content_info(title="other.pdf")
-        other["key"] = "other.pdf"
-        mock.side_effect = [
-            {"contentInfos": [other], "totalCount": 1},
-            {"contentInfos": [], "totalCount": 1},
-        ]
-        with pytest.raises(ValueError, match="File not found"):
-            _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
-        assert mock.call_args_list[0].kwargs["skip"] == 0
-        assert mock.call_args_list[1].kwargs["skip"] == 1
+        mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
+        mock_infos.return_value = {"contentInfos": [_content_info()], "totalCount": 1}
+        cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert (cid, name) == ("cont_123", "report.pdf")
+        mock_infos.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            metadataFilter={
+                "and": [
+                    direct_children_filter("scope_r"),
+                    {
+                        "or": [
+                            {
+                                "path": ["title"],
+                                "operator": "equals",
+                                "value": "report.pdf",
+                            },
+                            {
+                                "path": ["key"],
+                                "operator": "equals",
+                                "value": "report.pdf",
+                            },
+                        ]
+                    },
+                ]
+            },
+            take=100,
+        )
 
     @patch("unique_sdk.Content.get_infos")
-    def test_resolve_content_id_matches_storage_key(self, mock: MagicMock) -> None:
-        mock.return_value = {
-            "contentInfos": [_content_info(title="Display Name.pdf")],
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_infos_fallback_not_found(
+        self,
+        mock_search: MagicMock,
+        mock_infos: MagicMock,
+    ) -> None:
+        mock_search.side_effect = unique_sdk.UniqueError("search unavailable")
+        mock_infos.return_value = {"contentInfos": [], "totalCount": 0}
+        with pytest.raises(ValueError, match=r"^File not found: nope\.pdf$"):
+            _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
+        assert mock_infos.call_count == 1
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_prefers_file_path_lookup(
+        self, mock_search: MagicMock, _content_by_path_misses: MagicMock
+    ) -> None:
+        hit = _content_info()
+        hit["ownerId"] = "scope_r"
+        _content_by_path_misses.return_value = {"contentInfo": [hit], "totalCount": 1}
+        cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert (cid, name) == ("cont_123", "report.pdf")
+        assert (
+            _content_by_path_misses.call_args.kwargs["filePath"]
+            == "/Reports/report.pdf"
+        )
+        mock_search.assert_not_called()
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_ignores_path_hit_from_other_folder(
+        self, mock_search: MagicMock, _content_by_path_misses: MagicMock
+    ) -> None:
+        _content_by_path_misses.return_value = {
+            "contentInfo": [_content_info(cid="cont_elsewhere")],
             "totalCount": 1,
         }
+        mock_search.return_value = [_content_info()]
+        cid, _ = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert cid == "cont_123"
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_search_includes_failed_content(
+        self, mock_search: MagicMock, _content_by_path_misses: MagicMock
+    ) -> None:
+        _content_by_path_misses.side_effect = unique_sdk.UniqueError("no path lookup")
+        mock_search.return_value = [_content_info()]
+        cid, _ = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert cid == "cont_123"
+        assert mock_search.call_args.kwargs["includeFailedContent"] is True
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_matches_storage_key(self, mock: MagicMock) -> None:
+        mock.return_value = [_content_info(title="Display Name.pdf")]
         cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
         assert cid == "cont_123"
         assert name == "Display Name.pdf"
 
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Content.get_infos")
-    def test_resolve_content_id_not_found(self, mock: MagicMock) -> None:
-        mock.return_value = {"contentInfos": []}
-        with pytest.raises(ValueError, match="File not found"):
+    def test_resolve_content_id_not_found_at_root_refuses_scan(
+        self, mock_infos: MagicMock, mock_search: MagicMock
+    ) -> None:
+        with pytest.raises(ValueError, match="knowledge-base root"):
             _resolve_content_id(_state(), "nope.pdf")
+        mock_search.assert_not_called()
+        mock_infos.assert_not_called()
+
+    @patch("unique_sdk.Content.search")
+    def test_resolve_content_id_not_found_in_folder(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        with pytest.raises(ValueError, match="File not found"):
+            _resolve_content_id(_state("/Reports", "scope_r"), "nope.pdf")
+
+    @patch("unique_sdk.Content.search")
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_missing_name_at_root_never_scans(
+        self, mock_infos: MagicMock, mock_search: MagicMock
+    ) -> None:
+        """UN-26945: a missing bare name at the KB root must not page the KB."""
+        with pytest.raises(ValueError, match="knowledge-base root"):
+            _resolve_content_id(_state("/", None), "no-such-file.pdf")
+        mock_search.assert_not_called()
+        mock_infos.assert_not_called()
 
     def test_resolve_upload_dest_none(self) -> None:
         scope, name = _resolve_upload_destination(
@@ -920,9 +1587,13 @@ class TestFiles:
         assert scope == "scope_r"
         assert name == "new.pdf"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_resolve_upload_dest_subfolder(self, mock: MagicMock) -> None:
+    def test_resolve_upload_dest_subfolder(
+        self, mock: MagicMock, mock_path: MagicMock
+    ) -> None:
         mock.return_value = {"id": "scope_sub"}
+        mock_path.return_value = {"folderPath": "/R/sub"}
         scope, name = _resolve_upload_destination(
             _state("/R", "scope_r"),
             "file.pdf",
@@ -931,9 +1602,13 @@ class TestFiles:
         assert scope == "scope_sub"
         assert name == "file.pdf"
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_resolve_upload_dest_subfolder_rename(self, mock: MagicMock) -> None:
+    def test_resolve_upload_dest_subfolder_rename(
+        self, mock: MagicMock, mock_path: MagicMock
+    ) -> None:
         mock.return_value = {"id": "scope_sub"}
+        mock_path.return_value = {"folderPath": "/R/sub"}
         scope, name = _resolve_upload_destination(
             _state("/R", "scope_r"),
             "file.pdf",
@@ -952,9 +1627,9 @@ class TestFiles:
         assert name == "new.pdf"
 
     @patch("unique_sdk.Content.delete")
-    @patch("unique_sdk.Content.get_infos")
-    def test_rm(self, mock_infos: MagicMock, mock_delete: MagicMock) -> None:
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+    @patch("unique_sdk.Content.search")
+    def test_rm(self, mock_search: MagicMock, mock_delete: MagicMock) -> None:
+        mock_search.return_value = [_content_info()]
         result = cmd_rm(_state("/R", "scope_r"), "report.pdf")
         assert "Deleted" in result
         assert "cont_123" in result
@@ -971,9 +1646,9 @@ class TestFiles:
         assert "rm:" in result
 
     @patch("unique_sdk.Content.update")
-    @patch("unique_sdk.Content.get_infos")
-    def test_mv_file(self, mock_infos: MagicMock, mock_update: MagicMock) -> None:
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+    @patch("unique_sdk.Content.search")
+    def test_mv_file(self, mock_search: MagicMock, mock_update: MagicMock) -> None:
+        mock_search.return_value = [_content_info()]
         mock_update.return_value = _content_info(title="new.pdf")
         result = cmd_mv_file(_state("/R", "scope_r"), "report.pdf", "new.pdf")
         assert "Renamed" in result
@@ -1066,6 +1741,55 @@ class TestFiles:
     def test_upload_nonexistent_file(self) -> None:
         result = cmd_upload(_state("/R", "scope_r"), "/nonexistent/file.pdf")
         assert "local file not found" in result
+        assert is_upload_error_output(result) is True
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    def test_upload_without_content_id(
+        self,
+        mock_upload: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Purpose: An upload that returns no content id did not land.
+        Why this matters: A success line with no id was treated as a finished upload.
+        Setup summary: The local file exists and upload_file returns an object with no id.
+        """
+        local_file = tmp_path / "page.md"
+        local_file.write_text("content")
+        mock_upload.return_value = MagicMock(id=None)
+        result = cmd_upload(_state("/Reports", "scope_r"), str(local_file))
+        assert result.startswith("upload: refused to upload page.md to scope_r")
+        assert is_upload_error_output(result) is True
+        mock_upload.assert_called_once()
+
+    @pytest.mark.ai
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Folder.get_info")
+    def test_upload_refuses_when_destination_resolves_elsewhere(
+        self,
+        mock_info: MagicMock,
+        mock_path: MagicMock,
+        mock_upload: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Purpose: Upload refuses a destination whose id is a different folder.
+        Why this matters: A prefix match used to upload into the ancestor and exit 0.
+        Setup summary: The local file exists and get_info returns the home folder id.
+        """
+        local_file = tmp_path / "page.md"
+        local_file.write_text("content")
+        mock_info.return_value = {"id": "scope_home"}
+        mock_path.return_value = {"folderPath": "/home-user_1"}
+        result = cmd_upload(
+            _state("/Reports", "scope_r"),
+            str(local_file),
+            "/home-user_1/second-brain/clients/",
+        )
+        assert result.startswith("upload:")
+        assert "resolved to /home-user_1" in result
+        assert is_upload_error_output(result) is True
+        mock_upload.assert_not_called()
 
     @pytest.mark.parametrize(
         ("filename", "expected_mime_type"),
@@ -1240,7 +1964,7 @@ class TestFiles:
         self, mock_path: MagicMock, mock_create: MagicMock
     ) -> None:
         mock_path.side_effect = _folder_path_side_effect(
-            {"scope_allowed": "/Funds/Fund A"}
+            {"scope_allowed": "/Funds/Fund A", "scope_new": "/Funds/Fund A/Q2"}
         )
         mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
         state = _state("/Funds/Fund A", "scope_allowed")
@@ -1263,7 +1987,7 @@ class TestFiles:
         by the static-scope check. See UN-21780.
         """
         mock_path.side_effect = _folder_path_side_effect(
-            {"scope_allowed": "/Funds/Fund A"}
+            {"scope_allowed": "/Funds/Fund A", "scope_new": "/Funds/Fund A/Q2"}
         )
         mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
         state = _state("/Funds/Fund A", "scope_allowed")
@@ -1409,13 +2133,13 @@ class TestFiles:
         mock_guess_type.assert_not_called()
 
     @patch("unique_sdk.Content.versions")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_versions_by_name(
         self,
-        mock_infos: MagicMock,
+        mock_search: MagicMock,
         mock_versions: MagicMock,
     ) -> None:
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         mock_versions.return_value = {
             "data": [
                 {
@@ -1434,16 +2158,16 @@ class TestFiles:
         assert mock_versions.call_args.kwargs["take"] == 10
 
     @patch("unique_sdk.Content.versions")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     @patch("unique_sdk.Folder.get_info")
     def test_versions_by_path(
         self,
         mock_folder: MagicMock,
-        mock_infos: MagicMock,
+        mock_search: MagicMock,
         mock_versions: MagicMock,
     ) -> None:
         mock_folder.return_value = {"id": "scope_q1"}
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         mock_versions.return_value = {"data": []}
         result = cmd_versions(_state("/Reports", "scope_r"), "/Reports/Q1/report.pdf")
         assert "Versions for report.pdf" in result
@@ -1573,15 +2297,15 @@ class TestFiles:
 
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Content.search")
     def test_download_by_name(
         self,
-        mock_infos: MagicMock,
+        mock_search: MagicMock,
         mock_dl: MagicMock,
         mock_move: MagicMock,
         tmp_path,  # type: ignore[no-untyped-def]
     ) -> None:
-        mock_infos.return_value = {"contentInfos": [_content_info()]}
+        mock_search.return_value = [_content_info()]
         mock_dl.return_value = tmp_path / "downloaded"
         result = cmd_download(
             _state("/R", "scope_r"),
@@ -1698,11 +2422,18 @@ class TestSearch:
         self, mock: MagicMock
     ) -> None:
         mock.return_value = []
-        with patch("unique_sdk.Folder.get_info") as mock_info:
+        with (
+            patch("unique_sdk.Folder.get_info") as mock_info,
+            patch("unique_sdk.Folder.get_folder_path") as mock_path,
+        ):
             mock_info.return_value = {"id": "scope_explicit"}
+            mock_path.side_effect = lambda **kw: {
+                "scope_ws": {"folderPath": "/WS"},
+                "scope_explicit": {"folderPath": "/WS/Reports"},
+            }.get(kw.get("scope_id"), {"folderPath": ""})
             state = _state()
             state.workspace_scope_ids = ["scope_ws"]
-            result = cmd_search(state, "query", folder="/Reports")
+            result = cmd_search(state, "query", folder="/WS/Reports")
         assert "No results found" in result
         call_kwargs = mock.call_args[1]
         assert call_kwargs["scopeIds"] == ["scope_explicit"]
@@ -1938,11 +2669,16 @@ def _scheduled_task_obj(
     assistant_name: str = "Report Bot",
     prompt: str = "Generate report",
     enabled: bool = True,
+    name: str | None = None,
+    timezone: str | None = "Europe/Zurich",
 ) -> MagicMock:
     task = MagicMock()
     task.id = task_id
+    # Set after construction: `MagicMock(name=...)` would name the mock, not the attribute.
+    task.name = name
     task.object = "scheduled_task"
     task.cronExpression = cron
+    task.timezone = timezone
     task.assistantId = assistant_id
     task.assistantName = assistant_name
     task.chatId = None
@@ -1955,6 +2691,10 @@ def _scheduled_task_obj(
 
 
 class TestScheduledTasks:
+    def test_is_error_output(self) -> None:
+        assert is_error_output(f"{SCHEDULE_ERROR_PREFIX} fail") is True
+        assert is_error_output("Deleted scheduled task task_abc") is False
+
     @patch("unique_sdk.ScheduledTask.list")
     def test_list_empty(self, mock: MagicMock) -> None:
         mock.return_value = []
@@ -1997,9 +2737,11 @@ class TestScheduledTasks:
             cron="0 9 * * 1-5",
             assistant_id="ast_123",
             prompt="Generate report",
+            timezone="Europe/Zurich",
         )
         assert "Created scheduled task task_abc" in result
         mock.assert_called_once()
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_create_with_chat_id(self, mock: MagicMock) -> None:
@@ -2009,11 +2751,51 @@ class TestScheduledTasks:
             cron="0 9 * * 1-5",
             assistant_id="ast_123",
             prompt="Continue chat",
+            timezone="Europe/Zurich",
             chat_id="chat_456",
         )
         assert "Created" in result
         call_kwargs = mock.call_args[1]
         assert call_kwargs["chatId"] == "chat_456"
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_create_with_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(name="Daily sales report")
+        result = cmd_schedule_create(
+            _state(),
+            cron="0 9 * * 1-5",
+            assistant_id="ast_123",
+            prompt="Generate report",
+            timezone="Europe/Zurich",
+            name="Daily sales report",
+        )
+        assert "Created" in result
+        assert mock.call_args[1]["name"] == "Daily sales report"
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_create_without_name_omits_the_field(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj()
+        cmd_schedule_create(
+            _state(),
+            cron="0 9 * * 1-5",
+            assistant_id="ast_123",
+            prompt="Generate report",
+            timezone="Europe/Zurich",
+        )
+        assert "name" not in mock.call_args[1]
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(name="Renamed")
+        cmd_schedule_update(_state(), "task_abc", name="Renamed")
+        assert mock.call_args[1]["name"] == "Renamed"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_clear_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj()
+        # The shell and Click layers translate a literal 'none' into this empty string.
+        cmd_schedule_update(_state(), "task_abc", name="")
+        assert mock.call_args[1]["name"] is None
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_create_disabled(self, mock: MagicMock) -> None:
@@ -2023,6 +2805,7 @@ class TestScheduledTasks:
             cron="0 9 * * 1-5",
             assistant_id="ast_123",
             prompt="Report",
+            timezone="Europe/Zurich",
             enabled=False,
         )
         assert "Created" in result
@@ -2037,6 +2820,7 @@ class TestScheduledTasks:
             cron="bad",
             assistant_id="ast_123",
             prompt="Report",
+            timezone="Europe/Zurich",
         )
         assert "schedule:" in result
 
@@ -2047,12 +2831,40 @@ class TestScheduledTasks:
         assert "Updated scheduled task task_abc" in result
 
     @patch("unique_sdk.ScheduledTask.modify")
-    def test_update_cron(self, mock: MagicMock) -> None:
-        mock.return_value = _scheduled_task_obj(cron="*/15 * * * *")
+    def test_update_cron_requires_timezone(self, mock: MagicMock) -> None:
         result = cmd_schedule_update(_state(), "task_abc", cron="*/15 * * * *")
+        assert "--timezone is required when changing --cron" in result
+        mock.assert_not_called()
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_cron_with_timezone(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(cron="*/15 * * * *")
+        result = cmd_schedule_update(
+            _state(),
+            "task_abc",
+            cron="*/15 * * * *",
+            timezone="Europe/Zurich",
+        )
         assert "Updated" in result
         call_kwargs = mock.call_args[1]
         assert call_kwargs["cronExpression"] == "*/15 * * * *"
+        assert call_kwargs["timezone"] == "Europe/Zurich"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_timezone_alone(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(timezone="America/New_York")
+        result = cmd_schedule_update(_state(), "task_abc", timezone="America/New_York")
+        assert "Updated" in result
+        assert mock.call_args[1]["timezone"] == "America/New_York"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_without_cron_does_not_require_timezone(
+        self, mock: MagicMock
+    ) -> None:
+        mock.return_value = _scheduled_task_obj(name="Renamed")
+        result = cmd_schedule_update(_state(), "task_abc", name="Renamed")
+        assert "Updated" in result
+        assert "timezone" not in mock.call_args[1]
 
     def test_update_nothing(self) -> None:
         result = cmd_schedule_update(_state(), "task_abc")

@@ -21,8 +21,7 @@ from unique_toolkit._common.metadata_filter_scope import (
     build_folder_id_in_clause,
     merge_scope_clause_into_metadata_filter,
 )
-from unique_toolkit._common.utils.files import is_file_content, is_image_content
-from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit._common.utils.files import is_image_content
 from unique_toolkit.agentic.message_log_order import next_message_log_order
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.cancellation import CancellationWatcher
@@ -50,6 +49,7 @@ from unique_toolkit.chat.functions import (
     get_message_tools,
     get_message_tools_async,
     get_selection_from_history,
+    mark_turn_system_interrupted_async,
     modify_message,
     modify_message_assessment,
     modify_message_assessment_async,
@@ -97,12 +97,16 @@ from unique_toolkit.content.schemas import (
     ContentChunk,
     ContentReference,
     ContentRerankerConfig,
+    ContentSearchMergeStrategy,
     ContentSearchType,
 )
 from unique_toolkit.elicitation.service import ElicitationService
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
+)
+from unique_toolkit.language_model.functions import (
+    count_tokens_with_provider_async,
 )
 from unique_toolkit.language_model.infos import (
     LanguageModelName,
@@ -303,6 +307,34 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
         )
 
+    async def update_chat_title_async(
+        self, title: str, *, is_generated: bool = False
+    ) -> None:
+        """Rename the current chat.
+
+        Args:
+            title (str): The new chat title. Must be non-empty.
+            is_generated (bool): Set when an assistant generated the title. The
+                platform then applies it only while the chat still has its
+                prompt-based title and raises an HTTP 409 error otherwise.
+
+        """
+        if is_generated:
+            await unique_sdk.Space.update_chat_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                chat_id=self._chat_id,
+                title=title,
+                isGenerated=True,
+            )
+            return
+        await unique_sdk.Space.update_chat_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            title=title,
+        )
+
     # Message Methods
     ############################################################################
 
@@ -382,6 +414,36 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at or False,
+        )
+
+    async def mark_turn_system_interrupted_async(self) -> ChatMessage:
+        """Marks the current turn as system-interrupted.
+
+        Persists ``turnInterruptionReason = SYSTEM_INTERRUPTED`` on the current
+        chat context's originating USER message via a dedicated
+        service-authenticated node-chat endpoint.
+
+        Call this only for system-side unexpected endings: timeout, truncation,
+        terminal backend failure, and equivalents. Do not call it for
+        user-initiated cancellation or normal completion.
+
+        The operation is idempotent and never overwrites ``userAbortedAt``: if
+        the user pressed Stop and the system interruption race, the user stop
+        wins and this call is a server-side no-op.
+
+        Returns:
+            ChatMessage: The USER message anchoring the turn.
+
+        Raises:
+            Exception: If the request fails. Callers invoking this from
+                failure-handling paths should treat it as best-effort.
+
+        """
+        return await mark_turn_system_interrupted_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            user_message_id=self._user_message_id,
         )
 
     def modify_assistant_message(
@@ -1689,6 +1751,25 @@ class ChatService(ChatServiceDeprecated):
             other_options=other_options,
         )
 
+    async def count_tokens_async(
+        self,
+        *,
+        messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+        model_name: LanguageModelName | str,
+        temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+        tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+        other_options: dict[str, Any] | None = None,
+    ) -> int:
+        return await count_tokens_with_provider_async(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            messages=messages,
+            model_name=model_name,
+            temperature=temperature,
+            tools=tools,
+            other_options=other_options,
+        )
+
     async def complete_async(
         self,
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
@@ -1804,10 +1885,6 @@ class ChatService(ChatServiceDeprecated):
             nonlocal _ticker_task
 
             if not rate_limit_retry_config.log_message_on_retry:
-                return
-            if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self._company_id
-            ):
                 return
 
             await _cancel_ticker()
@@ -2037,10 +2114,10 @@ class ChatService(ChatServiceDeprecated):
         images: list[Content] = []
         files: list[Content] = []
         for c in contents:
-            if is_file_content(filename=c.key):
-                files.append(c)
             if is_image_content(filename=c.key):
                 images.append(c)
+            else:
+                files.append(c)
         return images, files
 
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
@@ -2093,8 +2170,15 @@ class ChatService(ChatServiceDeprecated):
         metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
+        merge_strategy: ContentSearchMergeStrategy | None = None,
+        include_scores: bool | None = None,
     ) -> list[ContentChunk]:
-        """Search content chunks scoped to this chat session (chat_only=True)."""
+        """Search content chunks scoped to this chat session (chat_only=True).
+
+        Args:
+            merge_strategy: How a COMBINED search merges vector and full-text results. ``ZIP`` interleaves the two lists and keeps each result's original score. ``RRF`` and ``DBSF`` replace those scores with a fused score. Ignored by other search types. Defaults to the backend configuration.
+            include_scores: When true, each ``ContentChunk.score`` is set. Vector search returns a similarity score, full-text search a BM25 score, and a COMBINED search a fused score for ``RRF`` and ``DBSF``. Scores are only comparable within one search type.
+        """
         if scope_ids:
             warnings.warn(
                 "Passing scope_ids to ChatService.search_content_chunks_async is "
@@ -2121,6 +2205,8 @@ class ChatService(ChatServiceDeprecated):
             metadata_filter=metadata_filter,
             content_ids=content_ids,
             score_threshold=score_threshold,
+            merge_strategy=merge_strategy,
+            include_scores=include_scores,
         )
 
     async def search_contents_async(

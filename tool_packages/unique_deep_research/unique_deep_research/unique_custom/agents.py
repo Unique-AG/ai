@@ -198,7 +198,10 @@ async def research_supervisor(
     supervisor_messages = state.get("supervisor_messages", [])
 
     response = await ainvoke_with_token_handling(
-        research_model, supervisor_messages, model_info=engine_config.research_model
+        research_model,
+        supervisor_messages,
+        model_info=engine_config.research_model,
+        source="deep_research.supervisor",
     )
     if should_force_complete and not response.tool_calls:
         _LOGGER.error("Failed to force research_complete tool call")
@@ -347,7 +350,10 @@ async def researcher(
     researcher_messages = state.get("researcher_messages", [])
     messages = [SystemMessage(content=researcher_prompt)] + researcher_messages
     response = await ainvoke_with_token_handling(
-        research_model, messages, model_info=engine_config.research_model
+        research_model,
+        messages,
+        model_info=engine_config.research_model,
+        source="deep_research.researcher",
     )
 
     return Command(
@@ -496,7 +502,10 @@ async def compress_research(
 
     # Use proactive token handling instead of retry logic
     response = await ainvoke_with_token_handling(
-        compression_model, compression_messages, model_info=custom_config.large_model
+        compression_model,
+        compression_messages,
+        model_info=custom_config.large_model,
+        source="deep_research.research_compression",
     )
 
     compressed_research = (
@@ -549,7 +558,10 @@ async def final_report_generation(
         HumanMessage(content=message),
     ]
     raw_report = await ainvoke_with_token_handling(
-        llm, messages, model_info=custom_config.large_model
+        llm,
+        messages,
+        model_info=custom_config.large_model,
+        source="deep_research.final_report",
     )
 
     refinement_prompt = TEMPLATE_ENV.get_template("report_cleanup_prompt.j2").render(
@@ -560,7 +572,10 @@ async def final_report_generation(
         HumanMessage(content=raw_report.content),
     ]
     refined_report = await ainvoke_with_token_handling(
-        llm, messages, model_info=custom_config.large_model
+        llm,
+        messages,
+        model_info=custom_config.large_model,
+        source="deep_research.final_report_refinement",
     )
 
     # Return successful report generation

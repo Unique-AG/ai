@@ -12,6 +12,7 @@ from unique_search_proxy_core.url_safety import (
 )
 
 from unique_web_search.metrics import crawl_blocked
+from unique_web_search.services.httpx_logging import hide_httpx_request_logs
 from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
     search_proxy_client_enabled,
@@ -22,6 +23,10 @@ CrawlerConfig = TypeVar(
     "CrawlerConfig",
     bound=BaseCrawlerConfig,
 )
+
+# A busy proxy worker can answer up to 5 s after the crawl timeout. Waiting
+# longer than that makes sure the finished pages still reach the tool.
+_PROXY_CLIENT_TIMEOUT_MARGIN_SECONDS = 10.0
 
 
 class BaseCrawler(ABC, Generic[CrawlerConfig]):
@@ -41,22 +46,23 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         self._request_context = request_context
 
     async def crawl(self, urls: list[str]) -> list[str]:
-        if search_proxy_client_enabled:
-            return await self._proxy_crawl(urls)
+        with hide_httpx_request_logs():
+            if search_proxy_client_enabled:
+                return await self._proxy_crawl(urls)
 
-        try:
-            targets = await UrlSafetyService.validate_batch_urls(urls)
-        except CrawlTargetValidationError as exc:
-            for target in exc.blocked_targets:
-                crawl_blocked.labels(reason_category=target.category).inc()
-            raise
-        return await self._legacy_crawl(targets)
+            try:
+                targets = await UrlSafetyService.validate_batch_urls(urls)
+            except CrawlTargetValidationError as exc:
+                for target in exc.blocked_targets:
+                    crawl_blocked.labels(reason_category=target.category).inc()
+                raise
+            return await self._legacy_crawl(targets)
 
     async def _proxy_crawl(self, urls: list[str]) -> list[str]:
         """Dump deployment config fields into the generic proxy crawl call."""
         params = self.config.model_dump(exclude={"crawler"}, exclude_none=True)
         async with open_search_proxy_client(
-            timeout=float(self.config.timeout),
+            timeout=self._proxy_client_timeout,
             context=self._request_context,
         ) as client:
             response = await client.crawl.crawl(
@@ -65,6 +71,10 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
                 **params,
             )
         return map_crawl_response(response, urls)
+
+    @property
+    def _proxy_client_timeout(self) -> float:
+        return float(self.config.timeout) + _PROXY_CLIENT_TIMEOUT_MARGIN_SECONDS
 
     @abstractmethod
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]: ...

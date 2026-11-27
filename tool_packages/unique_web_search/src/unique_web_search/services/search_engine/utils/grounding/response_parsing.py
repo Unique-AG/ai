@@ -6,6 +6,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.service import LanguageModelService
 
+from unique_web_search.invocation_stats import collector
 from unique_web_search.services.search_engine.schema import WebSearchResult
 from unique_web_search.services.search_engine.utils.grounding.models import (
     GroundingSearchResults,
@@ -32,34 +33,55 @@ async def convert_response_to_search_results(
     Raises:
         ValueError: If every strategy fails to parse the response.
     """
-    for strategy in conversion_strategies:
+    for strategy_index, strategy in enumerate(conversion_strategies):
+        strategy_name = strategy.__class__.__name__
+        is_fallback = strategy_index > 0
         try:
             _LOGGER.info(
-                f"Trying parsing response with strategy: {strategy.__class__.__name__}"
+                "Trying grounding response parser strategy=%s strategy_index=%d "
+                "fallback=%s",
+                strategy_name,
+                strategy_index,
+                is_fallback,
             )
-            return await strategy(response)
-        except Exception as e:
-            _LOGGER.exception(f"Error converting response to search results: {e}")
+            results = await strategy(response)
+            _LOGGER.info(
+                "Grounding response parser succeeded strategy=%s strategy_index=%d "
+                "fallback=%s result_count=%d",
+                strategy_name,
+                strategy_index,
+                is_fallback,
+                len(results),
+            )
+            return results
+        except Exception as exc:
+            # Parse errors can quote the answer text, so only the type is logged.
+            _LOGGER.warning(
+                "Grounding response parser failed strategy=%s strategy_index=%d "
+                "fallback=%s error_type=%s",
+                strategy_name,
+                strategy_index,
+                is_fallback,
+                type(exc).__name__,
+            )
             continue
     raise ValueError("No conversion strategy found for the response")
 
 
 class JsonConversionStrategy(ResponseParser):
-    """Extract a fenced JSON block from the response and validate it directly.
+    """Validate a ``GroundingSearchResults``-shaped JSON response directly.
 
-    Expects the response to contain a ``GroundingSearchResults``-shaped
-    JSON object wrapped in a ```json ... ``` code fence.
+    Accepts JSON wrapped in a ```json ... ``` code fence or a bare JSON object.
 
     Raises:
-        ValueError: If no JSON code fence is found in the response.
+        ValueError: If the response does not contain valid results JSON.
     """
 
     async def __call__(self, response: str) -> list[WebSearchResult]:
         json_match = _JSON_PATTERN.search(response)
-        if not json_match:
-            raise ValueError("No JSON found in the response")
+        payload = json_match.group(1) if json_match else response
         return GroundingSearchResults.model_validate_json(
-            json_match.group(1)
+            payload
         ).to_web_search_results()
 
 
@@ -91,6 +113,11 @@ class LLMParserStrategy(ResponseParser):
             model_name=self.llm.name,
             structured_output_model=GroundingSearchResults,
             structured_output_enforce_schema=True,
+        )
+        collector.record_language_model_response(
+            model_name=self.llm.name,
+            response=llm_response,
+            source="web_search.grounding.response_parser",
         )
 
         if not llm_response.choices[0].message.parsed:

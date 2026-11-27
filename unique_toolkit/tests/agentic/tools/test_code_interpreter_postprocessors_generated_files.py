@@ -1,11 +1,13 @@
 """Tests for code interpreter generated-files postprocessor (config, __init__, helpers)."""
 
 import logging
+import re
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from openai.types.containers.file_list_response import FileListResponse
 from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 
@@ -22,24 +24,41 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     _build_code_blocks,
     _build_file_fence,
     _ensure_fences_are_standalone,
+    _extract_container_file_citations_from_text,
     _file_frontend_type,
     _file_title,
     _FileProgressTracker,
     _FileState,
     _inject_code_execution_fences,
+    _replace_container_file_citation,
     _replace_dangling_sandbox_links,
+    _sandbox_link_pattern,
     _warn_missing_content_ids,
     _warn_unmatched_code_blocks,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterBlock,
+    CodeInterpreterContainerFile,
     CodeInterpreterFile,
 )
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
-GEN_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.feature_flags"
+
+def _set_gen_files_fence_state(
+    proc: DisplayCodeInterpreterFilesPostProcessor,
+    *,
+    fence_enabled: bool = False,
+    html_fence_enabled: bool = False,
+) -> None:
+    """Seed both fence config switches on the instance.
+
+    Both are plain config values resolved in `__init__`. Unit tests exercising
+    `apply_postprocessing_to_response` directly set them here.
+    """
+    proc._fence_enabled = fence_enabled
+    proc._html_fence_enabled = html_fence_enabled
 
 
 class _MockStreamResponse:
@@ -92,6 +111,7 @@ def test_display_code_interpreter_files_config__has_defaults__when_constructed_w
     assert config.progress_update_interval == 3.0
     assert config.download_chunk_size == 8192
     assert config.download_read_timeout == 120.0
+    assert config.attach_office_preview is False
 
 
 @pytest.mark.ai
@@ -506,11 +526,73 @@ def _make_display_files_postprocessor(
     )
 
 
-def _make_response(calls, annotations):
+def _make_response(calls, annotations, text: str = ""):
     response = MagicMock()
     response.code_interpreter_calls = calls
     response.container_files = annotations
+    response.message.text = text
     return response
+
+
+def _container_files(response) -> list[CodeInterpreterContainerFile]:
+    """Mirror run()'s annotation -> provider-independent conversion."""
+    return [
+        CodeInterpreterContainerFile(
+            container_id=annotation.container_id,
+            file_id=annotation.file_id,
+            filename=annotation.filename,
+        )
+        for annotation in response.container_files
+    ]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_display_files_postprocessor__run__succeeds__when_no_company_id() -> None:
+    """
+    Purpose: Verify run() doesn't crash when constructed without a company_id.
+    Why this matters: Both fence switches are config values now, so run() must not
+    depend on a company_id to resolve them.
+    Setup summary: Construct with company_id=None; assert run() completes.
+    """
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    client = MagicMock()
+    client.with_options.return_value = client
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=client,
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id=None,
+        user_id=None,
+        chat_id=None,
+    )
+    response = _make_response([], [])
+
+    await proc.run(response)
+
+
+@pytest.mark.ai
+def test_display_files_postprocessor__init__scopes_short_term_memory__to_company_id() -> (
+    None
+):
+    """
+    Purpose: Verify company_id is only used to scope the short-term memory manager.
+    Why this matters: The postprocessor must not keep the company_id around, but it
+    still needs it to keep chat files out of other chats.
+    Setup summary: Patch the memory-manager factory; assert the call args and that
+    no company_id attribute is set.
+    """
+    with patch.object(gen_mod, "_init_short_term_memory_manager") as mock_init:
+        proc = _make_display_files_postprocessor(company_id="co-test")
+
+    mock_init.assert_called_once_with(
+        company_id="co-test",
+        user_id="u1",
+        chat_id="ch1",
+    )
+    assert proc._short_term_memory_manager is mock_init.return_value
+    assert not hasattr(proc, "_company_id")
 
 
 @pytest.mark.ai
@@ -527,7 +609,7 @@ def test_build_code_blocks__maps_single_block_to_single_file__when_path_matches(
     content_map = {"report.xlsx": "unique://content/abc123"}
     response = _make_response([call], [annotation])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 1
     assert result[0].code == call.code
@@ -556,7 +638,7 @@ def test_build_code_blocks__maps_two_blocks_to_separate_files__when_paths_distin
     }
     response = _make_response([call1, call2], [ann_xlsx, ann_png])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 2
     assert result[0].files[0].filename == "data.xlsx"
@@ -576,7 +658,7 @@ def test_build_code_blocks__discards_blocks_without_files__returns_empty() -> No
     content_map: dict = {}
     response = _make_response([call], [])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert result == []
 
@@ -593,7 +675,7 @@ def test_build_code_blocks__assigns_image_type__for_png_file() -> None:
     content_map = {"plot.png": "unique://content/img1"}
     response = _make_response([call], [annotation])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert result[0].files[0].type == "image"
 
@@ -610,7 +692,7 @@ def test_build_code_blocks__skips_file__when_content_id_is_none() -> None:
     content_map = {"broken.xlsx": None}
     response = _make_response([call], [annotation])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert result == []
 
@@ -630,7 +712,7 @@ def test_build_code_blocks__assigns_file_to_last_block__when_two_blocks_referenc
     content_map = {"shared.csv": "cont_shared1"}
     response = _make_response([call1, call2], [annotation])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 1
     assert result[0].code == call2.code
@@ -656,7 +738,7 @@ def test_build_code_blocks__deduplicates_file__when_two_annotations_for_same_fil
     content_map = {"shared.csv": "cont_shared1"}
     response = _make_response([call1, call2], [annotation1, annotation2])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 1
     assert len(result[0].files) == 1
@@ -694,7 +776,7 @@ def test_build_code_blocks__assigns_images_via_stem__when_helper_function_constr
     }
     response = _make_response([call], [ann1, ann2])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 1
     filenames = {f.filename for f in result[0].files}
@@ -737,7 +819,7 @@ def test_build_code_blocks__assigns_images_via_full_filename__when_helper_passes
     }
     response = _make_response([call], [ann1, ann2])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 1
     filenames = {f.filename for f in result[0].files}
@@ -774,7 +856,7 @@ def test_build_code_blocks__assigns_images_via_last_block_fallback__when_name_fu
     }
     response = _make_response([call], [ann1, ann2])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 1
     filenames = {f.filename for f in result[0].files}
@@ -804,7 +886,7 @@ def test_build_code_blocks__secondary_last_writer_wins__when_two_blocks_match_st
     content_map = {"plot.png": "cont_img1"}
     response = _make_response([call0, call1], [annotation])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 1
     assert result[0].code == call1.code
@@ -825,7 +907,7 @@ def test_build_code_blocks__primary_match_beats_stem__when_both_present() -> Non
     content_map = {"chart.png": "cont_img1"}
     response = _make_response([call0, call1], [annotation])
 
-    result = _build_code_blocks(response, content_map)
+    result = _build_code_blocks(response, content_map, _container_files(response))
 
     assert len(result) == 1
     assert result[0].code == call0.code
@@ -1200,9 +1282,10 @@ def test_inject_code_execution_fences__logs_warning__when_no_inline_ref_matches(
 
     assert result == text
     assert any(
-        "chart.png" in r.message and r.levelno == logging.WARNING
+        "cont_img1" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
     )
+    assert not any("chart.png" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1249,8 +1332,10 @@ def test_replace_container_image_citation__logs_warning__when_no_sandbox_link(
 
     assert replaced is False
     assert any(
-        "plot.png" in r.message and r.levelno == logging.WARNING for r in caplog.records
+        "cont_x" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert any("<redacted>.png" in r.message for r in caplog.records)
+    assert not any("plot.png" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1272,8 +1357,9 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
 
     assert replaced is False
     assert any(
-        "data.csv" in r.message and r.levelno == logging.WARNING for r in caplog.records
+        "cont_y" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert not any("data.csv" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1291,9 +1377,9 @@ def test_replace_container_html_citation__logs_warning__when_no_sandbox_link(
 
     assert replaced is False
     assert any(
-        "report.html" in r.message and r.levelno == logging.WARNING
-        for r in caplog.records
+        "cont_z" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert not any("report.html" in r.message for r in caplog.records)
 
 
 # ============================================================================
@@ -1589,9 +1675,10 @@ def test_replace_dangling_sandbox_links__replaces_and_warns__when_sandbox_link_p
     assert "could not be retrieved" in result
     assert "sandbox:/mnt/data/chart.png" not in result
     assert any(
-        "sandbox:/mnt/data/chart.png" in r.message and r.levelno == logging.WARNING
+        "Dangling sandbox link" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
     )
+    assert not any("chart.png" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1635,9 +1722,12 @@ def test_replace_dangling_sandbox_links__hallucination_message__when_ci_never_ra
     assert "could not be retrieved" not in result
     assert "sandbox:/mnt/data/report.docx" not in result
     assert any(
-        "sandbox:/mnt/data/report.docx" in r.message and r.levelno == logging.WARNING
+        "Dangling sandbox link" in r.message
+        and "ci_ran=False" in r.message
+        and r.levelno == logging.WARNING
         for r in caplog.records
     )
+    assert not any("report.docx" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1686,9 +1776,9 @@ def test_warn_unmatched_code_blocks__logs_warning__when_file_not_in_any_block(
         _warn_unmatched_code_blocks(content_map, code_blocks)
 
     assert any(
-        "report.xlsx" in r.message and r.levelno == logging.WARNING
-        for r in caplog.records
+        "cont_abc" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
+    assert not any("report.xlsx" in r.message for r in caplog.records)
 
 
 @pytest.mark.ai
@@ -1737,16 +1827,12 @@ def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
 
 
 @pytest.mark.ai
-@patch(GEN_FILES_FF)
-def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
-    mock_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing__normalizes_none_message_text__to_empty_string() -> None:
     """
     Purpose: `apply_postprocessing_to_response` must coerce `message.text` None to ''.
     Why this matters: Downstream regex/replace assumes a string; Responses payloads can
     omit text until postprocessing.
     """
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1764,23 +1850,21 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
         references=[],
     )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
+    _set_gen_files_fence_state(proc)
     proc.apply_postprocessing_to_response(loop)
     assert msg.text == ""
 
 
 @pytest.mark.ai
-@patch(GEN_FILES_FF)
-def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_file(
-    mock_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_file() -> (
+    None
+):
     """
     Purpose: When fence FF is ON, non-image files must NOT be added to message.references.
     Why this matters: Files are rendered as fence blocks in message.text; references entries
     would incorrectly surface them as source citations in the references panel.
     Setup summary: One .pdf with sandbox link, fence FF ON; assert references stays empty.
     """
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
-    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1799,22 +1883,18 @@ def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_fi
         container_files=[],
         code_interpreter_calls=[],
     )
+    _set_gen_files_fence_state(proc, fence_enabled=True)
     proc.apply_postprocessing_to_response(loop_response)
     assert message.references == []
 
 
 @pytest.mark.ai
-@patch(GEN_FILES_FF)
-def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file(
-    mock_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file() -> None:
     """
     Purpose: When fence FF is OFF, non-image files must still be added to message.references.
     Why this matters: The legacy references UI uses these entries for download/open actions.
     Setup summary: One .pdf with sandbox link, fence FF OFF; assert one ContentReference appended.
     """
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
-    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1833,6 +1913,7 @@ def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file(
         container_files=[],
         code_interpreter_calls=[],
     )
+    _set_gen_files_fence_state(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert len(message.references) == 1
     ref = message.references[0]
@@ -1841,10 +1922,7 @@ def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file(
 
 
 @pytest.mark.ai
-@patch(GEN_FILES_FF)
-def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
-    mock_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing__ff_off__existing_citation_refs_preserved() -> None:
     """
     Purpose: Pre-existing (ingestion/citation) references are preserved when fence FF is OFF
     and a new artifact reference is appended alongside them.
@@ -1852,8 +1930,6 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
     Setup summary: One pre-existing ContentReference; one .xlsx with sandbox link; FF OFF.
     Assert both refs present after postprocessing.
     """
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
-    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1879,6 +1955,7 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
         container_files=[],
         code_interpreter_calls=[],
     )
+    _set_gen_files_fence_state(proc)
     proc.apply_postprocessing_to_response(loop_response)
     assert len(message.references) == 2
     source_ids = {r.source_id for r in message.references}
@@ -1887,18 +1964,13 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
 
 
 @pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=False,
-)
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_off(
-    _mock_fence_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_off() -> (
+    None
+):
     """
     Purpose: HTML uses HtmlRendering when the code-execution fence FF is off.
     Why this matters: Default path — HtmlRendering is the correct output when the
-    code-execution fence feature is disabled (html_fence FF is irrelevant here).
+    code-execution fence is disabled (the html-fence switch is irrelevant here).
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"report.html": "cid_html"}
@@ -1914,6 +1986,7 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
         code_interpreter_calls=[],
     )
 
+    _set_gen_files_fence_state(proc)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -1923,19 +1996,14 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
 
 
 @pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=True,
-)
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_on_but_html_fence_ff_off(
-    _mock_fence_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_enabled_but_html_fence_disabled() -> (
+    None
+):
     """
-    Purpose: HTML still uses HtmlRendering when the fence FF is on but the html-fence FF
-    (enable_html_with_fence_un_17927) is off (the default).
-    Why this matters: The html-fence FF defaults to False so existing deployments are
-    unaffected when they turn on the code-execution fence FF.
+    Purpose: HTML still uses HtmlRendering when the code-execution fence is on but
+    the `enable_html_with_fence` config switch is off.
+    Why this matters: Deployments can turn HTML cards off on their own, without
+    losing the code-execution fence for other file types.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -1952,7 +2020,11 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
         container_files=[ann],
         code_interpreter_calls=[call],
     )
+    # Seed the post-run() state: run() resolves container files before
+    # apply_postprocessing_to_response is called.
+    proc._container_files = _container_files(loop_response)
 
+    _set_gen_files_fence_state(proc, fence_enabled=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -1963,24 +2035,13 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
 
 
 @pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_html_with_fence_un_17927.is_enabled",
-    return_value=True,
-)
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=True,
-)
-def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_ffs_on(
-    _mock_fence_ff: MagicMock,
-    _mock_html_fence_ff: MagicMock,
-) -> None:
+def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_switches_on() -> (
+    None
+):
     """
     Purpose: HTML uses htmlWithSource fence injection when BOTH the code-execution
-    fence FF and the html-fence FF (enable_html_with_fence_un_17927) are on.
-    Why this matters: The html-fence FF is the opt-in gate for the new behavior.
+    fence and the `enable_html_with_fence` config switch are on.
+    Why this matters: This is the main HTML path once both switches are enabled.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -1997,7 +2058,11 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
         container_files=[ann],
         code_interpreter_calls=[call],
     )
+    # Seed the post-run() state: run() resolves container files before
+    # apply_postprocessing_to_response is called.
+    proc._container_files = _container_files(loop_response)
 
+    _set_gen_files_fence_state(proc, fence_enabled=True, html_fence_enabled=True)
     changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
@@ -2005,6 +2070,42 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
     assert "````htmlWithSource(" in message.text
     assert "cid_page" in message.text
     assert "HtmlRendering" not in message.text
+
+
+@pytest.mark.ai
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_html_fence_enabled_but_fence_disabled() -> (
+    None
+):
+    """
+    Purpose: HTML falls back to HtmlRendering when the html-fence FF is on but
+    enable_code_execution_fence is off.
+    Why this matters: htmlWithSource injection only runs when fences are enabled.
+    Without this guard the sandbox link becomes a bare <sup>N</sup> with no
+    ContentReference and no fence — the HTML is unreachable to the user.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"page.html": "cid_page"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[page.html](sandbox:/mnt/data/page.html)",
+        references=refs,
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+
+    _set_gen_files_fence_state(proc, fence_enabled=False, html_fence_enabled=True)
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert "HtmlRendering" in message.text
+    assert "unique://content/cid_page" in message.text
+    assert "htmlWithSource" not in message.text
+    assert "<sup>" not in message.text
+    assert len(refs) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -2825,6 +2926,8 @@ async def test_download_and_upload__tracker_receives_upload_and_done__on_success
         # Also defined on FileMimeType / ImageMimeType (shared allowlist).
         ("text/markdown", "text/markdown"),
         ("application/json", "application/json"),
+        ("application/vnd.ms-outlook", "application/vnd.ms-outlook"),
+        ("message/rfc822", "message/rfc822"),
         ("image/bmp", "image/bmp"),
         # image/* must always pass through unchanged.
         ("image/png", "image/png"),
@@ -2938,7 +3041,7 @@ def test_compute_artifacts_debug_info__excludes_failed_uploads() -> None:
         ],
     )
 
-    artifacts = proc._compute_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response, _container_files(response))
 
     assert artifacts is not None
     assert artifacts["count"] == 2
@@ -2969,7 +3072,7 @@ def test_compute_artifacts_debug_info__filetypes_deduped_and_sorted() -> None:
         ],
     )
 
-    artifacts = proc._compute_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response, _container_files(response))
 
     assert artifacts is not None
     assert artifacts["count"] == 3
@@ -3000,7 +3103,7 @@ def test_compute_artifacts_debug_info__counts_only_this_turn_not_prior_files() -
         annotations=[_make_annotation("new.png")],
     )
 
-    artifacts = proc._compute_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response, _container_files(response))
 
     assert artifacts is not None
     assert artifacts["count"] == 1
@@ -3023,7 +3126,7 @@ def test_compute_artifacts_debug_info__ran_but_produced_no_files__returns_zero()
     proc._content_map = {}
     response = _make_response(calls=[_make_ci_call("1 + 1")], annotations=[])
 
-    artifacts = proc._compute_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response, _container_files(response))
 
     assert artifacts is not None
     assert artifacts["count"] == 0
@@ -3047,7 +3150,9 @@ def test_compute_artifacts_debug_info__interpreter_not_invoked__returns_none() -
     proc._content_map = {}
     response = _make_response(calls=[], annotations=[])
 
-    assert proc._compute_artifacts_debug_info(response) is None
+    assert (
+        proc._compute_artifacts_debug_info(response, _container_files(response)) is None
+    )
 
 
 @pytest.mark.ai
@@ -3070,7 +3175,402 @@ def test_compute_artifacts_debug_info__output_size_sums_successful_uploads() -> 
         annotations=[_make_annotation("a.png"), _make_annotation("b.csv")],
     )
 
-    artifacts = proc._compute_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response, _container_files(response))
 
     assert artifacts is not None
     assert artifacts["output_size"] == 1.5
+
+
+# ---------------------------------------------------------------------------
+# _resolve_container_files — recovery of sandbox links OpenAI did not annotate
+# ---------------------------------------------------------------------------
+
+
+def _make_container_file(
+    path: str,
+    *,
+    file_id: str = "cfile_rec",
+    container_id: str = "cntr_1",
+    source: str = "assistant",
+    created_at: int = 1000,
+) -> FileListResponse:
+    return FileListResponse(
+        id=file_id,
+        bytes=123,
+        container_id=container_id,
+        created_at=created_at,
+        object="container.file",
+        path=path,
+        source=source,
+    )
+
+
+def _stub_container_listing(
+    proc: DisplayCodeInterpreterFilesPostProcessor,
+    files: list[FileListResponse],
+) -> list[FileListResponse]:
+    """Make `containers.files.list` yield `files`; return the consumed ones.
+
+    The returned list grows as the postprocessor iterates, so a test can assert
+    the walk stopped early instead of draining every page.
+    """
+    consumed: list[FileListResponse] = []
+
+    async def _listing(**_kwargs):
+        for file in files:
+            consumed.append(file)
+            yield file
+
+    proc._client.containers.files.list = MagicMock(  # pyright: ignore[reportAttributeAccessIssue]
+        side_effect=lambda **kwargs: _listing(**kwargs)
+    )
+    return consumed
+
+
+def _make_loop_response_for_resolve(text: str, annotations, calls):
+    return SimpleNamespace(
+        message=SimpleNamespace(text=text),
+        container_files=annotations,
+        code_interpreter_calls=calls,
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_resolve_container_files__skips_listing__when_every_link_annotated() -> (
+    None
+):
+    """
+    Purpose: No container listing happens when every sandbox link has an annotation.
+    Why this matters: Recovery costs an extra API round-trip per turn; the common
+    case (OpenAI annotated everything) must stay free.
+    Setup summary: One link, one matching annotation; assert the returned list mirrors
+    the annotation and containers.files.list was never called.
+    """
+    proc = _make_display_files_postprocessor()
+    consumed = _stub_container_listing(proc, [_make_container_file("/mnt/data/a.csv")])
+    loop_response = _make_loop_response_for_resolve(
+        "[a.csv](sandbox:/mnt/data/a.csv)",
+        [_make_annotation("a.csv", file_id="f_a")],
+        [_make_ci_call('open("/mnt/data/a.csv", "w")')],
+    )
+
+    result = await proc._resolve_container_files(loop_response)
+
+    assert [(f.filename, f.file_id) for f in result] == [("a.csv", "f_a")]
+    assert consumed == []
+    proc._client.containers.files.list.assert_not_called()  # pyright: ignore[reportAttributeAccessIssue]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_resolve_container_files__recovers_file__when_annotation_missing() -> (
+    None
+):
+    """
+    Purpose: A sandbox link with no annotation is recovered from the container listing.
+    Why this matters: OpenAI intermittently omits container_file_citation annotations;
+    without recovery the file is never uploaded and the user sees a dangling link.
+    Setup summary: Two links, annotation for only one; assert the missing one comes back
+    with the container's file id and that the first call's container was listed.
+    """
+    proc = _make_display_files_postprocessor()
+    _stub_container_listing(
+        proc,
+        [_make_container_file("/mnt/data/b.png", file_id="f_b_recovered")],
+    )
+    loop_response = _make_loop_response_for_resolve(
+        "[a.csv](sandbox:/mnt/data/a.csv) ![b.png](sandbox:/mnt/data/b.png)",
+        [_make_annotation("a.csv", file_id="f_a")],
+        [_make_ci_call("plot()", container_id="cntr_first")],
+    )
+
+    result = await proc._resolve_container_files(loop_response)
+
+    assert [(f.filename, f.file_id) for f in result] == [
+        ("a.csv", "f_a"),
+        ("b.png", "f_b_recovered"),
+    ]
+    _, kwargs = proc._client.containers.files.list.call_args  # pyright: ignore[reportAttributeAccessIssue]
+    assert kwargs["container_id"] == "cntr_first"
+    assert kwargs["order"] == "desc"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_resolve_container_files__ignores_user_uploads__when_recovering() -> None:
+    """
+    Purpose: Files whose source is not "assistant" are never recovered.
+    Why this matters: A reused container also holds the user's own uploads, which already
+    exist in the knowledge base. Re-uploading one would duplicate it, stamp it with
+    code-execution artifact metadata and count it as a generated artifact in analytics.
+    Setup summary: The only listed match is a user upload; assert nothing is recovered.
+    """
+    proc = _make_display_files_postprocessor()
+    _stub_container_listing(
+        proc,
+        [_make_container_file("/mnt/data/input.csv", source="user")],
+    )
+    loop_response = _make_loop_response_for_resolve(
+        "[input.csv](sandbox:/mnt/data/input.csv)",
+        [],
+        [_make_ci_call('pd.read_csv("/mnt/data/input.csv")')],
+    )
+
+    result = await proc._resolve_container_files(loop_response)
+
+    assert result == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_resolve_container_files__keeps_newest__when_path_listed_twice() -> None:
+    """
+    Purpose: When a path was overwritten, the newest copy is recovered.
+    Why this matters: Code that writes the same path twice leaves several entries in the
+    container; downloading a stale one would show the user superseded content.
+    Setup summary: Two entries for one path in newest-first order (as `order="desc"`
+    returns them); assert the first (newest) one wins and only one entry is appended.
+    """
+    proc = _make_display_files_postprocessor()
+    _stub_container_listing(
+        proc,
+        [
+            _make_container_file("/mnt/data/out.txt", file_id="f_new", created_at=2000),
+            _make_container_file("/mnt/data/out.txt", file_id="f_old", created_at=1000),
+        ],
+    )
+    loop_response = _make_loop_response_for_resolve(
+        "[out.txt](sandbox:/mnt/data/out.txt)",
+        [],
+        [_make_ci_call('open("/mnt/data/out.txt", "w")')],
+    )
+
+    result = await proc._resolve_container_files(loop_response)
+
+    assert [(f.filename, f.file_id) for f in result] == [("out.txt", "f_new")]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_resolve_container_files__stops_listing__once_all_links_resolved() -> (
+    None
+):
+    """
+    Purpose: The listing walk stops as soon as every unresolved link is found.
+    Why this matters: A long-lived container paginates; draining it after the last match
+    costs API round-trips for entries that can no longer be needed.
+    Setup summary: The match is the first of three listed files; assert the two later
+    entries were never consumed.
+    """
+    proc = _make_display_files_postprocessor()
+    consumed = _stub_container_listing(
+        proc,
+        [
+            _make_container_file("/mnt/data/wanted.csv", file_id="f_wanted"),
+            _make_container_file("/mnt/data/other1.csv", file_id="f_o1"),
+            _make_container_file("/mnt/data/other2.csv", file_id="f_o2"),
+        ],
+    )
+    loop_response = _make_loop_response_for_resolve(
+        "[wanted.csv](sandbox:/mnt/data/wanted.csv)",
+        [],
+        [_make_ci_call("run()")],
+    )
+
+    result = await proc._resolve_container_files(loop_response)
+
+    assert [f.filename for f in result] == ["wanted.csv"]
+    assert [f.path for f in consumed] == ["/mnt/data/wanted.csv"]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_resolve_container_files__returns_annotations__when_listing_raises() -> (
+    None
+):
+    """
+    Purpose: A failing container listing degrades to the annotations we already have.
+    Why this matters: Recovery is best-effort; an API error must not fail the turn — the
+    unrecovered link is still handled downstream by the dangling-link replacement.
+    Setup summary: containers.files.list raises; assert the annotation survives, the
+    unrecovered file does not, and the failure was logged.
+    """
+    proc = _make_display_files_postprocessor()
+
+    def _boom(**_kwargs):
+        raise RuntimeError("container gone")
+
+    proc._client.containers.files.list = MagicMock(side_effect=_boom)  # pyright: ignore[reportAttributeAccessIssue]
+    loop_response = _make_loop_response_for_resolve(
+        "[a.csv](sandbox:/mnt/data/a.csv) [b.csv](sandbox:/mnt/data/b.csv)",
+        [_make_annotation("a.csv", file_id="f_a")],
+        [_make_ci_call("run()")],
+    )
+
+    with patch.object(proc._log, "exception") as mock_exception:
+        result = await proc._resolve_container_files(loop_response)
+
+    assert [f.filename for f in result] == ["a.csv"]
+    mock_exception.assert_called_once()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_resolve_container_files__skips_recovery__when_no_interpreter_calls() -> (
+    None
+):
+    """
+    Purpose: With no code interpreter call there is no container to list.
+    Why this matters: run() also fires on turns where the model never invoked the tool;
+    a hallucinated sandbox link must not trigger an API call with no container id.
+    Setup summary: A link but no calls; assert nothing is recovered and no listing runs.
+    """
+    proc = _make_display_files_postprocessor()
+    _stub_container_listing(proc, [_make_container_file("/mnt/data/ghost.csv")])
+    loop_response = _make_loop_response_for_resolve(
+        "[ghost.csv](sandbox:/mnt/data/ghost.csv)",
+        [],
+        [],
+    )
+
+    result = await proc._resolve_container_files(loop_response)
+
+    assert result == []
+    proc._client.containers.files.list.assert_not_called()  # pyright: ignore[reportAttributeAccessIssue]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_resolve_container_files__recovers_encoded_link__when_name_has_space() -> (
+    None
+):
+    """
+    Purpose: A percent-encoded sandbox link is matched against the raw container path.
+    Why this matters: Models emit `%20` for spaces while the container path holds the raw
+    name; comparing them undecoded would leave the file unrecovered.
+    Setup summary: Link cites `sales%20report.csv`, container path has the space.
+    """
+    proc = _make_display_files_postprocessor()
+    _stub_container_listing(
+        proc,
+        [_make_container_file("/mnt/data/sales report.csv", file_id="f_sales")],
+    )
+    loop_response = _make_loop_response_for_resolve(
+        "[report](sandbox:/mnt/data/sales%20report.csv)",
+        [],
+        [_make_ci_call("run()")],
+    )
+
+    result = await proc._resolve_container_files(loop_response)
+
+    assert [(f.filename, f.file_id) for f in result] == [
+        ("sales report.csv", "f_sales")
+    ]
+
+
+@pytest.mark.ai
+def test_extract_container_file_citations__decodes_and_preserves_order() -> None:
+    """
+    Purpose: Filenames come back percent-decoded, in the order they appear in the text.
+    Why this matters: Order decides which name the dangling-link notice shows, and the
+    decoding is what lets recovery compare citations against raw container paths.
+    Setup summary: Two links, the second percent-encoded; assert both, in text order.
+    """
+    text = (
+        "First [b.csv](sandbox:/mnt/data/b.csv), "
+        "then [a](sandbox:/mnt/data/my%20file.csv)."
+    )
+
+    assert _extract_container_file_citations_from_text(text) == [
+        "b.csv",
+        "my file.csv",
+    ]
+
+
+# ---------------------------------------------------------------------------
+# _sandbox_link_pattern — matching links the model percent-encoded
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_sandbox_link_pattern__matches_both_spellings__when_name_has_space() -> None:
+    """
+    Purpose: The pattern for a decoded filename matches both the raw and the
+    percent-encoded spelling of its sandbox link.
+    Why this matters: Filenames are carried decoded (container paths hold the raw name)
+    while the model may cite the encoded form; a pattern matching only one spelling
+    misses half the links.
+    Setup summary: One filename with a space, both link spellings in the text.
+    """
+    pattern = _sandbox_link_pattern("sales report.csv")
+
+    assert re.search(pattern, "[a](sandbox:/mnt/data/sales report.csv)")
+    assert re.search(pattern, "[a](sandbox:/mnt/data/sales%20report.csv)")
+    assert not re.search(pattern, "[a](sandbox:/mnt/data/other.csv)")
+
+
+@pytest.mark.ai
+def test_sandbox_link_pattern__matches_once__when_name_needs_no_encoding() -> None:
+    """
+    Purpose: A filename whose encoded form equals its raw form yields one alternative.
+    Why this matters: The common case must not produce a redundant `(?:a|a)` branch.
+    Setup summary: A plain filename; assert the pattern still matches and holds no
+    duplicated alternation.
+    """
+    pattern = _sandbox_link_pattern("report.csv")
+
+    assert re.search(pattern, "[a](sandbox:/mnt/data/report.csv)")
+    assert "|" not in pattern
+
+
+@pytest.mark.ai
+def test_replace_container_file_citation__replaces_link__when_link_is_encoded() -> None:
+    """
+    Purpose: An encoded sandbox link is replaced with the content link for the file
+    recovered under its decoded name.
+    Why this matters: Without it the file is uploaded, the link stays untouched, and
+    _replace_dangling_sandbox_links then tells the user it could not be retrieved.
+    Setup summary: Text cites `sales%20report.csv`; replace using the decoded filename.
+    """
+    text, replaced = _replace_container_file_citation(
+        text="Here is [the report](sandbox:/mnt/data/sales%20report.csv).",
+        filename="sales report.csv",
+        content_id="cid_sales",
+        ref_number=1,
+        use_content_link=True,
+    )
+
+    assert replaced is True
+    assert text == "Here is [sales report.csv](unique://content/cid_sales)."
+    assert "sandbox:" not in text
+
+
+@pytest.mark.ai
+def test_apply_postprocessing__no_dangling_notice__when_link_is_encoded() -> None:
+    """
+    Purpose: End to end, an encoded link leaves no "could not be retrieved" notice.
+    Why this matters: This is the user-visible symptom the encoded-form matching fixes;
+    the file is in the knowledge base, so the message must link it, not disown it.
+    Setup summary: content_map holds the decoded name, the message cites the encoded
+    one; assert the content link replaced it and no dangling notice was emitted.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"sales report.csv": "cid_sales"}
+    _set_gen_files_fence_state(proc, fence_enabled=False)
+
+    message = SimpleNamespace(
+        text="See [report](sandbox:/mnt/data/sales%20report.csv).",
+        references=[],
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[_make_ci_call("run()")],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert "could not be retrieved" not in message.text
+    assert "sandbox:" not in message.text

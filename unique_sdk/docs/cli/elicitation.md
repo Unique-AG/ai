@@ -7,30 +7,52 @@ Ask the user a structured question and get a typed answer back. Elicitations are
 
 The CLI exposes the full lifecycle:
 
-- `elicit ask` -- **create + wait** in a single call (the one you usually want)
+- `elicit ask` -- **create + wait** in a single call
 - `elicit create` -- fire-and-forget create (FORM or URL mode)
 - `elicit pending` -- list open requests for the current user
 - `elicit get` -- fetch one elicitation by ID
 - `elicit wait` -- poll an existing elicitation until it reaches a terminal state
 - `elicit respond` -- respond on behalf of the user (scripting / tests)
 
+### Choosing between `ask` and `create` + `wait`
+
+`elicit ask` and `elicit create` + `elicit wait` are two ways to get the same
+answer -- **which one to use depends on your calling context**, not a fixed
+rule of this doc:
+
+- **`elicit ask`** is the right choice for a single blocking call: scripts,
+  tests, ops usage, or an agent environment whose instructions say it
+  supervises long-running tool calls (does not silently background or kill
+  the process before a human answers).
+- **`elicit create` + a short polling loop with `elicit wait`** is the right
+  choice when the caller cannot safely block for the full wait in one call --
+  e.g. most agent harnesses, whose Bash/shell tool has its own short
+  foreground-wait timeout. See the [`unique-cli-elicitation` skill's "Two
+  patterns" section](../../unique_sdk/cli/skills/unique-cli-elicitation/SKILL.md)
+  for the agent-facing version of this guidance, including which one to
+  default to when instructions are silent.
+
 Elicitations move through these statuses:
 
 | Status | Meaning |
 |--------|---------|
 | `PENDING` | Created, waiting for a response |
-| `RESPONDED` / `COMPLETED` | The user submitted an answer (`responseContent` is populated) |
-| `DECLINED` | The user explicitly declined |
+| `RESPONDED` / `ACCEPTED` / `COMPLETED` | The user submitted an answer, or accepted an empty-schema confirmation (`responseContent` is populated for `RESPONDED`/`COMPLETED`) |
+| `DECLINED` / `REJECTED` | The user explicitly declined, or rejected an empty-schema confirmation |
 | `CANCELLED` | Cancelled by the user or system |
-| `EXPIRED` | Not answered before `expiresAt` |
+| `EXPIRED` | Not answered before `expiresAt` (`--expires-in`, or `--timeout` if `--expires-in` was not passed) |
 
-Any status other than `PENDING` is **terminal** -- `elicit wait` returns as soon as one of these is reached.
+`ACCEPTED`/`REJECTED` are accept/decline synonyms for `RESPONDED`/`DECLINED`
+produced by some response paths (e.g. the Codex approval-bridge integration);
+treat them identically (`ACCEPTED` → proceed, `REJECTED` → stop).
+
+Any status other than `PENDING` is **terminal** -- `elicit wait` returns as soon as one of these is reached. A non-terminal (`PENDING`) result -- including a local `--timeout` being reached while the platform-side request is still open -- is never itself a decline, cancellation, or answer; it only ever means "keep waiting."
 
 ---
 
 ## elicit ask
 
-Create a FORM elicitation and block until the user responds, declines, cancels, expires, or the local `--timeout` elapses. This is the idiomatic way for an agent to request input from the user.
+Create a FORM elicitation and block until the user responds, declines, cancels, expires, or the local `--timeout` elapses. This is the idiomatic single-call way to request input from the user -- appropriate for scripts, tests, ops usage, and agent environments that supervise long-running tool calls (see "Choosing between `ask` and `create` + `wait`" above).
 
 **Synopsis:**
 
@@ -52,7 +74,7 @@ elicit ask <message> [options]
 | `--schema` | | single required `answer` string | JSON Schema for the form body. |
 | `--chat-id` | `-c` | none | Attach the elicitation to a chat. |
 | `--message-id` | `-m` | none | Attach to a specific message. |
-| `--expires-in` | | none | Seconds before the platform auto-expires the request. |
+| `--expires-in` | | `--timeout`'s value | Seconds before the platform auto-expires the request, decoupled from `--timeout`. See "Decoupling expiry from the local wait" below. |
 | `--timeout` | | `7200` | Max seconds to block locally while polling. |
 | `--poll-interval` | | `2.0` | Seconds between polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
@@ -103,14 +125,23 @@ unique-cli elicit ask "Pick a region" --tool-name choose_region --schema '{
   "required": ["region"]
 }'
 
-# Confirmation before a destructive action
-unique-cli elicit ask "Confirm permanently deleting /Archive/2024 and all its contents" \
+# Confirmation before a destructive action: empty-properties schema —
+# the Confirm/Cancel buttons are the consent; gate on Status: ACCEPTED
+unique-cli elicit ask "Permanently delete /Archive/2024 and all its contents? Confirming deletes it immediately — this cannot be undone." \
   --tool-name confirm_delete \
   --timeout 120 \
+  --schema '{"type": "object", "properties": {}}'
+
+# Outbound text: the draft is an editable, prefilled field, not part of the
+# message. Send the "body" from Response:, which holds the user's edits.
+unique-cli elicit ask "Post this brief to #ps-efg?" \
+  --tool-name confirm_slack_post \
   --schema '{
     "type": "object",
-    "properties": {"confirm": {"type": "boolean"}},
-    "required": ["confirm"]
+    "properties": {
+      "body": {"type": "string", "title": "Message", "multiline": true, "default": "Draft text"}
+    },
+    "required": ["body"]
   }'
 ```
 
@@ -138,6 +169,57 @@ Updated:    2026-04-16 14:22
 
 Agents parse the JSON after `Response:` to get the structured answer.
 
+### Decoupling expiry from the local wait
+
+By default `ask` has a single knob: `--timeout` is both how long this process
+blocks polling *and* when the elicitation expires on the platform (it sends
+`--timeout`'s value as the server-side `expiresIn`). That coupling exists so
+the backend's short default expiry never leaves a record `PENDING` after the
+CLI has already stopped waiting.
+
+Pass `--expires-in` to decouple the two:
+
+```bash
+# Elicitation stays live on the platform for 2 hours even though this
+# process only waits 5 minutes before returning a "still PENDING" result.
+unique-cli elicit ask "Approve this change?" --expires-in 7200 --timeout 300
+```
+
+Use this when the caller's own wait budget is shorter than how long a human
+should realistically have to answer -- e.g. a harness with its own
+foreground-wait timeout. Without `--expires-in`, the request would expire
+under the user at the low `--timeout` value before they ever see it; with
+it, the request outlives the process and a later `elicit wait <id>` call (or
+another `ask`-style re-poll) can still pick up the answer. Omitting
+`--expires-in` reproduces exactly today's coupled behavior.
+
+### Elicitation-created stderr line
+
+Immediately after `ask` creates the elicitation -- before it starts polling
+-- it writes one line to **stderr** (never stdout):
+
+```
+UNIQUE_ELICITATION_CREATED id=<id> expires_at=<iso8601>
+```
+
+This is a stable, greppable, machine-readable line intended for callers
+(harnesses, wrapper scripts) that want the elicitation id the instant it
+exists, instead of polling `elicit pending` to discover it. It does not
+change `ask`'s stdout output in any way.
+
+### Transient-failure retries
+
+While polling, `ask` (via the same `cmd_elicit_wait` logic used by the
+standalone `elicit wait` command) retries transient failures -- connection
+errors, timeouts, and 5xx responses -- with bounded exponential backoff,
+instead of ending the wait on the first dropped connection. Each retry is
+logged to stderr with the attempt number and backoff delay. 4xx errors are
+not retried (they cannot succeed on retry). Retries are always bounded by
+the overall `--timeout` (or, for the standalone `elicit wait` command, the
+`--timeout` passed to it) -- a persistent failure still gives up once that
+budget is exhausted, returning the same `elicit: <error>` output as before
+this retry logic existed.
+
 !!! tip "Scripting"
     Extract the response with `awk` + `jq`:
 
@@ -156,7 +238,7 @@ Create an elicitation without waiting for the response. Useful when you want to 
 **Synopsis:**
 
 ```
-elicit create <message> --mode FORM|URL --tool-name <name> [options]
+elicit create <message> [--mode FORM|URL] --tool-name <name> [options]
 ```
 
 **Arguments:**
@@ -169,7 +251,7 @@ elicit create <message> --mode FORM|URL --tool-name <name> [options]
 
 | Option | Short | Required | Description |
 |--------|-------|----------|-------------|
-| `--mode` | | Yes | `FORM` (render a JSON Schema form) or `URL` (redirect to an external page) |
+| `--mode` | | No (default `FORM`) | `FORM` (render a JSON Schema form) or `URL` (redirect to an external page) |
 | `--tool-name` | `-t` | Yes | Short tool/intent label |
 | `--schema` | | FORM | JSON Schema for the form body (required when `--mode FORM`) |
 | `--url` | | URL | External URL (required when `--mode URL`) |
@@ -266,7 +348,9 @@ elicit wait <elicitation_id> [--timeout <seconds>] [--poll-interval <seconds>]
 unique-cli elicit wait elicit_9a7b --timeout 120
 ```
 
-On timeout, the CLI prints `elicit: timed out after Ns waiting for <id> (last status: PENDING)` followed by the last observed snapshot. The elicitation remains live on the platform -- call `elicit wait` again to resume.
+On timeout, the CLI prints `elicit: still PENDING after Ns waiting for <id> (last status: PENDING) — this is NOT a stopping condition`, followed by an explicit `elicit wait` invocation to run again and the last observed snapshot. The elicitation remains live on the platform -- call `elicit wait` again to resume; a non-terminal timeout is never itself a reason to stop.
+
+Transient failures while polling (connection errors, timeouts, 5xx) are retried with bounded exponential backoff, logged to stderr, and bounded by the overall `--timeout` -- see "Transient-failure retries" under `elicit ask` above for details (the retry logic is shared between `ask` and `wait`).
 
 ---
 
@@ -322,7 +406,10 @@ For the common case of "ask and immediately use the answer", `elicit ask` collap
 
 - Always set `"required"` on fields that must be present -- this prevents empty submissions.
 - Use `"enum"` for finite choices so the UI renders a selector instead of a free-text box.
-- Use `"type": "boolean"` for yes/no confirmations -- treat `true` as "go ahead" and anything else (including `DECLINED` / `CANCELLED` / `EXPIRED` statuses) as "stop".
+- The Confirm button is the consent, on any form -- do **not** add a boolean `confirm` field. The UI's Confirm button and a checkbox are two separate signals: a user can press Confirm with the box unchecked, showing **Accepted** in the UI while the response carries `confirm: false`. State the consequence in the message text of the form the user confirms; when there is nothing else to ask, use an empty-properties schema (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED`. Treat `DECLINED` / `REJECTED` / `CANCELLED` / `EXPIRED` as "stop". Reserve `"type": "boolean"` for genuine data fields where `false` is a valid submittable answer.
+- Before sending text that leaves the platform (a Slack post, an email), put the draft in a required string field with `"multiline": true` and the draft as `"default"`, never in the message text. The form opens with the draft in an editable text box. Send the value from `Response:`, because the user may have edited it. Build that schema with `json.dumps` rather than a single-quoted literal, since drafts contain quotes and newlines.
+- `"required"` on a boolean means "must be answered", not "must be ticked". An unchecked box is a valid `false` and the form submits with it on the first Confirm; there is no schema keyword that forces a checkbox on.
+- Always give boolean properties a `"title"`. The checkbox label and its required marker are rendered from `title`; a boolean with only a `description` renders without a label.
 - Add short `"description"` strings -- they appear as helper text next to each field.
 - Keep schemas small. Several sequential `elicit ask` calls are usually clearer than one giant form.
 
@@ -332,14 +419,15 @@ After `elicit ask` / `elicit wait` returns, always branch on the `Status:` value
 
 | Status | Typical action |
 |--------|----------------|
-| `RESPONDED` / `COMPLETED` | Parse `Response:` JSON and proceed with the task. |
-| `DECLINED` | Stop. Acknowledge to the user that you stopped and ask what to do next. |
+| `RESPONDED` / `ACCEPTED` / `COMPLETED` | Parse `Response:` JSON and proceed with the task (`ACCEPTED` is the accept-synonym produced by some response paths; treat it like `RESPONDED`). |
+| `DECLINED` / `REJECTED` | Stop. Acknowledge to the user that you stopped and ask what to do next (`REJECTED` is the decline-synonym produced by some response paths; treat it like `DECLINED`). |
 | `CANCELLED` | Stop. The user (or system) aborted the flow. |
 | `EXPIRED` | The request timed out platform-side. Decide whether to re-ask. |
-| `elicit: timed out ...` (CLI only) | Local wait exceeded `--timeout`. The request is still live on the platform -- poll again with `elicit wait <id>` later. |
+| `elicit: still PENDING after Ns ...` / `elicit: timed out after Ns ...` (CLI only) | Local wait exceeded `--timeout`. This is **not** a stopping condition and **not** the same as `EXPIRED` -- the request is still live on the platform (until its own `expiresAt`); call `elicit wait <id>` again immediately. |
 
 ## Related
 
+- [`unique-cli-elicitation` skill](../../unique_sdk/cli/skills/unique-cli-elicitation/SKILL.md) -- Agent-facing guidance, including which of `ask` vs `create` + `wait` to default to
 - [Elicitation API Reference](../api_resources/elicitation.md) -- Python SDK methods, return types, and async variants
 - [Command Reference](commands.md) -- All CLI commands
 - [Scheduled Tasks](scheduled_tasks.md) -- Another long-running platform workflow managed via the CLI

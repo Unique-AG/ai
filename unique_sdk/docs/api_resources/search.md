@@ -41,6 +41,8 @@ Perform semantic search with support for:
     - `metaDataFilter` (Dict[str, Any], optional) - UniqueQL metadata filter
     - `contentIds` (List[str], optional) - Filter search to specific content IDs
     - `qdrantParams` ([`QdrantSearchParams`](#qdrantsearchparams), optional) - Qdrant search parameters for fine-tuning vector search behavior
+    - `mergeStrategy` (Literal["ZIP", "RRF", "DBSF"], optional) - How a `COMBINED` search merges vector and full-text results. Ignored by the single-source search types. Defaults to the server configuration
+    - `includeScores` (bool, optional) - Return the `score` of each result. Vector search returns a similarity score, full-text search a BM25 score, and `COMBINED` with `RRF` or `DBSF` a fused score, so scores are only comparable within one search type
 
     **Returns:**
 
@@ -167,7 +169,7 @@ Perform semantic search with support for:
     - `startPage` (int) - Starting page number
     - `endPage` (int) - Ending page number
     - `metadata` (Dict[str, Any] | None) - Custom metadata dictionary
-    - `score` (float, optional) - Similarity score (may be present in API response)
+    - `score` (float, optional) - Relevance score. Present only when the request sets `includeScores`
 
     **Returned by:** `Search.create()`
 

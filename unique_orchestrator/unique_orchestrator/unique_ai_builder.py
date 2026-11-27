@@ -1,3 +1,4 @@
+from collections.abc import Callable, Sequence
 from logging import Logger
 from typing import Any, NamedTuple, cast
 
@@ -14,14 +15,22 @@ from unique_stock_ticker.stock_ticker_postprocessor import (
     StockTickerPostprocessor,
 )
 from unique_toolkit import LanguageModelService, get_async_openai_client
+from unique_toolkit.agentic.chat_title import ChatTitleGenerator
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
-from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.evaluation.evaluation_manager import (
+    Evaluation,
+    EvaluationManager,
+)
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.history_manager.utils import (
+    get_selected_uploaded_content_ids,
+)
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -69,7 +78,8 @@ from unique_toolkit.experimental.integrations.openai.streaming.event_routing imp
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
-from unique_user_memory.user_memory import load_user_memory
+from unique_user_memory.user_memory import load_user_memory, profile_body
+from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 from unique_orchestrator._builders import (
@@ -152,18 +162,43 @@ class _ChatServiceResponsesStreaming(ResponsesSupportCompleteWithReferences):
         )
 
 
+class EvaluationBuildContext(NamedTuple):
+    """Turn components an evaluation factory may wire into its evaluation."""
+
+    chat_service: ChatService
+    reference_manager: ReferenceManager
+
+
+EvaluationFactory = Callable[[EvaluationBuildContext], Evaluation]
+"""Builds one evaluation per turn.
+
+The evaluation runs like the built-in ones: only on turns where a tool that ran
+lists its name. One named ``EvaluationMetricName.HALLUCINATION`` replaces the
+built-in hallucination check, which is then not created.
+"""
+
+
 async def build_unique_ai(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
+    enable_chat_title_generation: bool = False,
+    *,
+    evaluation_factories: Sequence[EvaluationFactory] = (),
 ) -> UniqueAI:
     config = _apply_model_choice_override(event=event, logger=logger, config=config)
     _record_language_model_debug_info(
         debug_info_manager=debug_info_manager,
         config=config,
     )
-    common_components = await _build_common(event, logger, config)
+    common_components = await _build_common(
+        event,
+        logger,
+        config,
+        enable_chat_title_generation=enable_chat_title_generation,
+        evaluation_factories=evaluation_factories,
+    )
 
     if (
         config.agent.experimental.responses_api_config.use_responses_api
@@ -205,6 +240,7 @@ class _CommonComponents(NamedTuple):
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
     user_memory_text: str
+    chat_title_generator: ChatTitleGenerator | None
 
 
 def _apply_model_choice_override(
@@ -245,6 +281,15 @@ def _apply_model_choice_override(
         config_data["agent"]["experimental"]["temperature"] = (
             switchable_entry.temperature
         )
+
+    if switchable_entry is not None and switchable_entry.additional_llm_options:
+        config_data.setdefault("agent", {})
+        config_data["agent"].setdefault("experimental", {})
+        experimental = config_data["agent"]["experimental"]
+        experimental["additional_llm_options"] = {
+            **experimental.get("additional_llm_options", {}),
+            **switchable_entry.additional_llm_options,
+        }
 
     validated_config = UniqueAIConfig.model_validate(config_data)
 
@@ -296,8 +341,12 @@ async def _build_common(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
+    *,
+    enable_chat_title_generation: bool = False,
+    evaluation_factories: Sequence[EvaluationFactory] = (),
 ) -> _CommonComponents:
     chat_service = ChatService(event)
+    message_step_logger = MessageStepLogger(chat_service)
 
     llm_service = LanguageModelService.from_event(event)
 
@@ -338,8 +387,21 @@ async def _build_common(
 
     reference_manager = ReferenceManager()
 
+    evaluation_build_context = EvaluationBuildContext(
+        chat_service=chat_service,
+        reference_manager=reference_manager,
+    )
+    supplied_evaluations = [
+        build_evaluation(evaluation_build_context)
+        for build_evaluation in evaluation_factories
+    ]
+    supplied_names = {evaluation.get_name() for evaluation in supplied_evaluations}
+
     evaluation_manager = EvaluationManager(logger=logger, chat_service=chat_service)
-    if config.agent.services.evaluation_config:
+    if (
+        config.agent.services.evaluation_config
+        and EvaluationMetricName.HALLUCINATION not in supplied_names
+    ):
         evaluation_manager.add_evaluation(
             HallucinationEvaluation(
                 config.agent.services.evaluation_config.hallucination_config,
@@ -347,6 +409,8 @@ async def _build_common(
                 reference_manager,
             )
         )
+    for evaluation in supplied_evaluations:
+        evaluation_manager.add_evaluation(evaluation)
 
     mcp_manager = MCPManager(
         mcp_servers=event.payload.mcp_servers,
@@ -393,14 +457,40 @@ async def _build_common(
             if user_memory_config.use_orchestrator_language_model
             else user_memory_config.language_model
         )
-        user_memory_state = await load_user_memory(
-            event=event,
-            config=user_memory_config,
-            language_model=memory_language_model,
+        memory_message_step_logger = UserMemoryMessageLogger(
+            message_step_logger,
             logger=logger,
         )
-        if user_memory_state is not None:
-            user_memory_text = user_memory_state.text
+        await memory_message_step_logger.log_loading_start()
+        user_memory_state = None
+        load_succeeded = False
+        try:
+            user_memory_state = await load_user_memory(
+                event=event,
+                config=user_memory_config,
+                language_model=memory_language_model,
+                logger=logger,
+            )
+            load_succeeded = True
+        except Exception as exc:
+            # Soft-fail like a None return: keep the turn running without
+            # memory, but always close the RUNNING loading Step first.
+            logger.warning(
+                "[user-memory] load raised - running without memory: [%s] %s",
+                type(exc).__name__,
+                exc,
+            )
+        finally:
+            if not load_succeeded:
+                await memory_message_step_logger.log_loading_failed()
+
+        if load_succeeded and user_memory_state is not None:
+            await memory_message_step_logger.log_loading_complete(
+                with_settings_entry=True
+            )
+            # The postprocessor keeps the full file (it needs the frontmatter to
+            # carry turn_count forward); the prompt only gets the Markdown body.
+            user_memory_text = profile_body(user_memory_state.text)
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
                     config=user_memory_config,
@@ -408,9 +498,24 @@ async def _build_common(
                     event=event,
                     state=user_memory_state,
                     logger=logger,
-                    chat_service=chat_service,
+                    message_step_logger=memory_message_step_logger,
                 )
             )
+        elif load_succeeded:
+            await memory_message_step_logger.log_loading_complete(
+                with_settings_entry=False
+            )
+
+    chat_title_generator = (
+        ChatTitleGenerator(
+            logger=logger,
+            chat_service=chat_service,
+            llm_service=llm_service,
+            language_model=config.space.language_model,
+        )
+        if enable_chat_title_generation
+        else None
+    )
 
     return _CommonComponents(
         chat_service=chat_service,
@@ -429,7 +534,8 @@ async def _build_common(
         user_memory_text=user_memory_text,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
-        message_step_logger=MessageStepLogger(chat_service),
+        message_step_logger=message_step_logger,
+        chat_title_generator=chat_title_generator,
     )
 
 
@@ -463,7 +569,6 @@ def _register_code_interpreter_postprocessors(
     postprocessor_manager.add_postprocessor(
         ShowExecutedCodePostprocessor(
             config=code_interpreter_config.executed_code_display_config,
-            company_id=company_id,
         )
     )
     postprocessor_manager.add_postprocessor(
@@ -475,6 +580,12 @@ def _register_code_interpreter_postprocessors(
             company_id=company_id,
             chat_id=chat_id,
             chat_service=chat_service,
+            code_execution_fence_enabled=(
+                code_interpreter_config.executed_code_display_config.enable_code_execution_fence
+            ),
+            html_with_fence_enabled=(
+                code_interpreter_config.executed_code_display_config.enable_html_with_fence
+            ),
         )
     )
 
@@ -493,6 +604,7 @@ async def _build_responses(
             "x-company-id": event.company_id,
             "x-assistant-id": event.payload.assistant_id,
             "x-chat-id": event.payload.chat_id,
+            "x-assistant-message-id": event.payload.assistant_message.id,
         }
     )
 
@@ -590,6 +702,10 @@ async def _build_responses(
         selectable_skills=normalize_available_skills_for_tool(
             event.payload.available_skills
         ),
+        user_id=event.user_id,
+        company_id=event.company_id,
+        space_id=event.payload.assistant_id,
+        debug_info_manager=debug_info_manager,
     )
 
     loop_iteration_runner = build_responses_loop_iteration_runner(
@@ -607,6 +723,7 @@ async def _build_responses(
                 "x-company-id": event.company_id,
                 "x-assistant-id": event.payload.assistant_id,
                 "x-chat-id": event.payload.chat_id,
+                "x-assistant-message-id": event.payload.assistant_message.id,
             },
         )
     else:
@@ -630,6 +747,12 @@ async def _build_responses(
         response_watcher=common_components.response_watcher,
     )
 
+    selected_uploaded_content_ids = (
+        await get_selected_uploaded_content_ids(event)
+        if config.agent.experimental.open_file_tool_config.enabled
+        else None
+    )
+
     return UniqueAI(
         event=event,
         config=config,
@@ -650,6 +773,12 @@ async def _build_responses(
         loop_iteration_runner=loop_iteration_runner,
         agent_file_registry=agent_file_registry,
         user_memory_text=common_components.user_memory_text,
+        selected_uploaded_content_ids=(
+            frozenset(selected_uploaded_content_ids)
+            if selected_uploaded_content_ids is not None
+            else None
+        ),
+        chat_title_generator=common_components.chat_title_generator,
     )
 
 
@@ -703,6 +832,10 @@ async def _build_completions(
         selectable_skills=normalize_available_skills_for_tool(
             event.payload.available_skills
         ),
+        user_id=event.user_id,
+        company_id=event.company_id,
+        space_id=event.payload.assistant_id,
+        debug_info_manager=debug_info_manager,
     )
 
     postprocessor_manager = common_components.postprocessor_manager
@@ -747,6 +880,7 @@ async def _build_completions(
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
         user_memory_text=common_components.user_memory_text,
+        chat_title_generator=common_components.chat_title_generator,
     )
 
 

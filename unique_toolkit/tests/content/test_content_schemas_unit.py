@@ -197,6 +197,38 @@ class TestContentIsIngested:
 
         assert content.is_ingested() is True
 
+    @pytest.mark.ai
+    def test__finished_with_chunks_is_ingested(self):
+        """
+        Purpose: FINISHED with at least one chunk is ingested.
+        Why this matters: FINISHED alone is also used when ingestion was skipped.
+                          Chunks are the signal that the file is searchable.
+        Setup summary: FINISHED content with one chunk and INGESTION mode.
+        """
+        content = make_content(
+            ingestion_state="FINISHED",
+            chunks=[ContentChunk(text="page")],
+            applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+        )
+
+        assert content.is_ingested() is True
+
+    @pytest.mark.ai
+    def test__finished_with_no_chunks_is_not_ingested(self):
+        """
+        Purpose: FINISHED with zero chunks is not ingested.
+        Why this matters: A skipped upload is stored as FINISHED with no chunks
+                          and must not be offered as searchable.
+        Setup summary: FINISHED content, empty chunks, INGESTION mode.
+        """
+        content = make_content(
+            ingestion_state="FINISHED",
+            chunks=[],
+            applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+        )
+
+        assert content.is_ingested() is False
+
     def test__default_if_unknown_arg_is_keyword_only(self):
         """
         Purpose: Verify that default_if_unknown cannot be passed as a positional argument.
@@ -262,6 +294,74 @@ class TestContentIsExpired:
         content = make_content(expired_at=just_past)
 
         assert content.is_expired() is True
+
+
+# ---------------------------------------------------------------------------
+# Content ingestion-state helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+class TestContentIngestionStateHelpers:
+    @pytest.mark.parametrize(
+        "state",
+        ["FAILED", "FAILED_PARSING", "FAILED_MALWARE_FOUND", "FAILED_EMBEDDING"],
+    )
+    def test__has_ingestion_failed__true_for_failed_states(self, state):
+        """
+        Purpose: Verify every FAILED* ingestion state is recognised as a failure.
+        Why this matters: The platform encodes failure reasons as FAILED_<reason>;
+                          all of them mean the content is not searchable.
+        Setup summary: Content with a FAILED* state; assert True.
+        """
+        assert make_content(ingestion_state=state).has_ingestion_failed() is True
+
+    @pytest.mark.parametrize("state", [None, "FINISHED", "QUEUED", "RE_EMBEDDING"])
+    def test__has_ingestion_failed__false_otherwise(self, state):
+        """
+        Purpose: Verify non-failure states (and unknown state) are not flagged.
+        Why this matters: Content must not be reported as failed when it is fine
+                          or when the state is simply unknown.
+        Setup summary: Content with a non-FAILED state; assert False.
+        """
+        assert make_content(ingestion_state=state).has_ingestion_failed() is False
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "QUEUED",
+            "MALWARE_SCANNING",
+            "METADATA_VALIDATION",
+            "EXTRACTING_METADATA",
+            "INGESTION_READING",
+            "INGESTION_CHUNKING",
+            "INGESTION_EMBEDDING",
+            "RE_INGESTING",
+            "RETRYING",
+        ],
+    )
+    def test__is_ingestion_in_progress__true_for_pending_states(self, state):
+        """
+        Purpose: Verify all pre-FINISHED pipeline states (and re-ingestion) count as in progress.
+        Why this matters: Content in these states has no searchable chunks yet, so
+                          is_ingested(default_if_unknown=True) must not be consulted.
+        Setup summary: Content with a pending state; assert True.
+        """
+        assert make_content(ingestion_state=state).is_ingestion_in_progress() is True
+
+    @pytest.mark.parametrize(
+        "state",
+        [None, "FINISHED", "FAILED_PARSING", "RE_EMBEDDING", "CHECKING_INTEGRITY"],
+    )
+    def test__is_ingestion_in_progress__false_otherwise(self, state):
+        """
+        Purpose: Verify finished, failed, post-finish, and unknown states are not pending.
+        Why this matters: Post-FINISHED maintenance states (e.g. RE_EMBEDDING, or
+                          CHECKING_INTEGRITY which is only entered from FINISHED) keep
+                          the content searchable and must not be reported as pending.
+        Setup summary: Content with a non-pending state; assert False.
+        """
+        assert make_content(ingestion_state=state).is_ingestion_in_progress() is False
 
 
 # ---------------------------------------------------------------------------

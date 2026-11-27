@@ -2,14 +2,31 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.app.schemas import (
+    ChatEvent,
+    ChatEventAssistantMessage,
+    ChatEventPayload,
+    ChatEventUserMessage,
+    EventName,
+)
+from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.default_language_model import (
     DEFAULT_LANGUAGE_MODEL,
 )
-from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
+from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelCompletionChoice,
+    LanguageModelResponse,
+    LanguageModelTokenUsage,
+)
 
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
     UserMemoryState,
+    _gate_max_tokens,
+    _is_well_formed_profile,
     _sanitize_for_xml_context,
     condense_user_memory,
     consolidate_user_memory,
@@ -18,14 +35,185 @@ from unique_user_memory.user_memory import (
     enforce_token_cap,
     ensure_user_memory_folder,
     fit_user_memory,
-    noop_update_callback,
+    profile_body,
+    scrub_user_memory,
     should_consolidate_memory,
     upload_user_memory,
 )
+from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
-from unique_user_memory.user_memory_prompts import empty_profile
+from unique_user_memory.user_memory_prompts import (
+    condensation_system_prompt,
+    consolidation_system_prompt,
+    empty_profile,
+    memory_gate_system_prompt,
+    scrub_system_prompt,
+)
 
 _TEST_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL)
+
+
+def _complete_profile_body(
+    identity: str = "- Prefers concise answers",
+    *,
+    legacy_title: bool = False,
+) -> str:
+    sections = (
+        f"## Identity\n{identity}",
+        "## Communication Preferences\n_(empty)_",
+        "## Work Context\n_(empty)_",
+        "## Skills & Expertise\n_(empty)_",
+        "## Follow-ups\n_(empty)_",
+        "## Recent Topics\n_(empty)_",
+    )
+    body = "\n\n".join(sections)
+    return f"# User Memory\n\n{body}" if legacy_title else body
+
+
+def _chat_event() -> ChatEvent:
+    return ChatEvent(
+        id="event_1",
+        event=EventName.EXTERNAL_MODULE_CHOSEN,
+        user_id="user_1",
+        company_id="company_1",
+        payload=ChatEventPayload(
+            assistant_id="assistant_1",
+            chat_id="chat_1",
+            name="module",
+            description="module_description",
+            configuration={},
+            user_message=ChatEventUserMessage(
+                id="user_message_1",
+                text="Remember this",
+                created_at="2021-01-01T00:00:00Z",
+                language="EN",
+                original_text="Remember this",
+            ),
+            assistant_message=ChatEventAssistantMessage(
+                id="assistant_message_1",
+                created_at="2021-01-01T00:00:00Z",
+            ),
+        ),
+    )
+
+
+def _completion_response(content: str) -> LanguageModelResponse:
+    return LanguageModelResponse(
+        choices=[
+            LanguageModelCompletionChoice(
+                index=0,
+                message=LanguageModelAssistantMessage(content=content),
+                finish_reason="stop",
+            )
+        ]
+    )
+
+
+def test_memory_profile_keeps_follow_up_tasks_but_excludes_open_questions() -> None:
+    profile = empty_profile("user_1")
+    consolidation_prompt = consolidation_system_prompt(2000)
+    gate_prompt = memory_gate_system_prompt()
+
+    assert "## Open Questions / Follow-ups" not in profile
+    assert "## Follow-ups" in profile
+    assert "concrete tasks the user intends to complete" in consolidation_prompt
+    assert "Concrete future tasks the user intends to complete" in gate_prompt
+    assert "NEVER record the assistant's offers" in consolidation_prompt
+    assert 'Never write "awaiting user input"' in consolidation_prompt
+
+
+def test_recent_topics_is_last_section_and_deduplicated() -> None:
+    profile = empty_profile("user_1")
+    consolidation_prompt = consolidation_system_prompt(2000)
+
+    assert profile.index("## Follow-ups") < profile.index("## Recent Topics")
+    assert profile.rstrip().endswith("## Recent Topics\n_(empty)_")
+    assert "one home per fact" in consolidation_prompt
+    assert "do NOT also log that same information" in consolidation_prompt
+
+
+@pytest.mark.ai
+def test_generated_profile_templates_start_with_identity_without_document_title() -> (
+    None
+):
+    """Purpose: Verify new profile output omits the obsolete document-level title.
+    Why this matters: Persistent memory should expose only its meaningful H2 sections.
+    Setup summary: Render empty and LLM prompts, then assert the required start format.
+    """
+    profile = empty_profile("user_1")
+    prompts = (
+        consolidation_system_prompt(2000),
+        condensation_system_prompt(
+            max_tokens=2000,
+            current_tokens=2200,
+            target_tokens=1800,
+        ),
+    )
+
+    assert profile_body(profile).startswith("## Identity")
+    assert "# User Memory" not in profile
+    assert all("starting with\n`## Identity`" in prompt for prompt in prompts)
+    assert all(
+        "Do NOT add a document-level `# User Memory` title" in prompt
+        for prompt in prompts
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize("legacy_title", [False, True])
+def test_well_formed_profile_accepts_current_and_legacy_complete_profiles(
+    legacy_title: bool,
+) -> None:
+    """Purpose: Verify validation supports titleless output and stored legacy profiles.
+    Why this matters: New rewrites must migrate format without breaking old memories.
+    Setup summary: Validate complete profiles with and without the former H1 title.
+    """
+    assert _is_well_formed_profile(_complete_profile_body(legacy_title=legacy_title))
+
+
+@pytest.mark.ai
+def test_well_formed_profile_rejects_missing_required_section() -> None:
+    """Purpose: Verify rewritten profiles retain every required H2 section.
+    Why this matters: A rewrite must not silently erase a category of user memory.
+    Setup summary: Remove Work Context from a complete profile and validate rejection.
+    """
+    profile = _complete_profile_body().replace(
+        "## Work Context\n_(empty)_\n\n",
+        "",
+    )
+
+    assert not _is_well_formed_profile(profile)
+
+
+def test_profile_body_strips_frontmatter() -> None:
+    # The orchestrator renders this into the system prompt, where the
+    # bookkeeping fields are noise for the model.
+    content = (
+        "---\n"
+        "user_id: 233737684428787846\n"
+        "strategy: codex\n"
+        "schema_version: 1\n"
+        "last_updated: 2026-07-27T10:20:00+00:00\n"
+        "turn_count: 83\n"
+        "---\n\n"
+        "# User Memory\n\n## Identity\n- Andreas\n"
+    )
+
+    body = profile_body(content)
+
+    assert body == "# User Memory\n\n## Identity\n- Andreas"
+    for field in ("user_id:", "strategy:", "schema_version:", "turn_count:"):
+        assert field not in body
+
+
+def test_profile_body_leaves_frontmatterless_profile_untouched() -> None:
+    content = "# User Memory\n\n## Identity\n- Andreas"
+
+    assert profile_body(content) == content
+
+
+def test_profile_body_returns_empty_for_frontmatter_only_profile() -> None:
+    assert profile_body("---\nuser_id: 42\nturn_count: 0\n---\n") == ""
 
 
 def test_enforce_token_cap_truncates_long_content() -> None:
@@ -76,7 +264,7 @@ async def test_fit_user_memory_condenses_before_hard_cut(
         f"- fact number {index} that is fairly wordy about the user"
         for index in range(400)
     )
-    condensed = "# User Memory\n\n## Identity\n- concise summary of the user"
+    condensed = _complete_profile_body("- concise summary of the user")
     condense = AsyncMock(return_value=condensed)
     monkeypatch.setattr(
         "unique_user_memory.user_memory.condense_user_memory",
@@ -142,6 +330,100 @@ async def test_condense_user_memory_rejects_non_profile_output(
     )
 
     assert result is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_condense_user_memory_accepts_frontmatter_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Accept legacy LLM output while returning only the condensed profile body."""
+    condensed = _complete_profile_body("- concise summary")
+    response = MagicMock()
+    response.choices[0].message.content = (
+        "---\nuser_id: stale-user\nturn_count: 99\n---\n\n"
+        + _complete_profile_body("- concise summary", legacy_title=True)
+    )
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await condense_user_memory(
+        content="# User Memory\n\n## Identity\n- lots of stuff",
+        max_tokens=2000,
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == condensed
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_user_memory_llm_paths_forward_event_attribution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify gate, rewrite, and condense use event-attributed completions.
+    Why this matters: Every user-memory ModelUsage row must link to its chat.
+    Setup summary: Exercise all shared service paths and inspect toolkit calls.
+    """
+    rewritten = _complete_profile_body()
+    condensed = _complete_profile_body("- Concise")
+    complete_async = AsyncMock(
+        side_effect=[
+            _completion_response("UPDATE"),
+            _completion_response(rewritten),
+            _completion_response("CLEAN"),
+            _completion_response(condensed),
+        ]
+    )
+    monkeypatch.setattr(
+        "unique_toolkit.language_model.service.complete_async",
+        complete_async,
+    )
+    event = _chat_event()
+    logger = MagicMock()
+
+    gate_result = await should_consolidate_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="Remember concise answers",
+        assistant_message="Noted",
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        logger=logger,
+    )
+    rewrite_result = await consolidate_user_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="Remember concise answers",
+        assistant_message="Noted",
+        config=UserMemoryConfig(consolidation_gate_enabled=False),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        logger=logger,
+    )
+    condense_result = await condense_user_memory(
+        content=empty_profile("user_1"),
+        max_tokens=2000,
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        logger=logger,
+    )
+
+    assert gate_result is True
+    assert rewritten in rewrite_result
+    assert condense_result == condensed
+    assert complete_async.await_count == 4
+    assert all(
+        call.kwargs["chat_id"] == "chat_1"
+        and call.kwargs["assistant_id"] == "assistant_1"
+        for call in complete_async.await_args_list
+    )
 
 
 def test_count_tokens_uses_language_model_encoder() -> None:
@@ -256,7 +538,7 @@ async def test_consolidate_user_memory_runs_full_rewrite_when_gate_update(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     current = empty_profile("user_1")
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    rewritten = _complete_profile_body()
     response = MagicMock()
     response.choices[0].message.content = rewritten
     llm_service = MagicMock()
@@ -281,8 +563,86 @@ async def test_consolidate_user_memory_runs_full_rewrite_when_gate_update(
         logger=MagicMock(),
     )
 
-    assert result == rewritten
-    llm_service.complete_async.assert_awaited_once()
+    assert result.endswith(f"{rewritten}\n")
+    assert "user_id: user_1" in result
+    assert "schema_version: 1" in result
+    assert "turn_count: 1" in result
+    # One rewrite call plus the mandatory CID/PII scrub call (UN-24886).
+    assert llm_service.complete_async.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_adds_frontmatter_to_llm_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rewritten = _complete_profile_body()
+    response = MagicMock()
+    response.choices[0].message.content = rewritten
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory="",
+        user_id="authenticated-user",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert "user_id: authenticated-user" in result
+    assert "schema_version: 1" in result
+    assert "turn_count: 1" in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_replaces_llm_frontmatter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Strip untrusted legacy metadata before assembling the updated profile."""
+    rewritten = _complete_profile_body()
+    response = MagicMock()
+    response.choices[0].message.content = (
+        "---\nuser_id: stale-user\nturn_count: 99\n---\n\n"
+        + _complete_profile_body(legacy_title=True)
+    )
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=empty_profile("authenticated-user"),
+        user_id="authenticated-user",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result.endswith(f"{rewritten}\n")
+    assert "user_id: authenticated-user" in result
+    assert "stale-user" not in result
+    assert "turn_count: 1" in result
 
 
 @pytest.mark.asyncio
@@ -290,7 +650,7 @@ async def test_consolidate_user_memory_skips_gate_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     current = empty_profile("user_1")
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    rewritten = _complete_profile_body()
     response = MagicMock()
     response.choices[0].message.content = rewritten
     llm_service = MagicMock()
@@ -316,9 +676,12 @@ async def test_consolidate_user_memory_skips_gate_when_disabled(
         logger=MagicMock(),
     )
 
-    assert result == rewritten
+    assert result.endswith(f"{rewritten}\n")
+    assert "user_id: user_1" in result
+    assert "turn_count: 1" in result
     gate.assert_not_awaited()
-    llm_service.complete_async.assert_awaited_once()
+    # One rewrite call plus the mandatory CID/PII scrub call (UN-24886).
+    assert llm_service.complete_async.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -347,6 +710,47 @@ async def test_should_consolidate_memory_returns_false_on_noop(
     assert result is False
     assert (
         llm_service.complete_async.call_args.kwargs["other_options"]["max_tokens"] == 4
+    )
+
+
+def test_gate_max_tokens_depends_on_reasoning_capability() -> None:
+    reasoning_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_5_2025_0807
+    )
+
+    assert _gate_max_tokens(language_model=_TEST_LANGUAGE_MODEL) == 4
+    assert _gate_max_tokens(language_model=reasoning_model) == 64
+
+
+@pytest.mark.asyncio
+async def test_should_consolidate_memory_uses_reasoning_safe_gate_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.choices[0].message.content = "NOOP"
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    reasoning_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_5_2025_0807
+    )
+
+    result = await should_consolidate_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="hello",
+        assistant_message="hi",
+        language_model=reasoning_model,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is False
+    assert (
+        llm_service.complete_async.call_args.kwargs["other_options"]["max_tokens"] == 64
     )
 
 
@@ -400,11 +804,262 @@ async def test_should_consolidate_memory_falls_back_to_true_on_error(
     assert result is True
 
 
+@pytest.mark.ai
+def test_cid_policy_is_embedded_in_every_write_path_prompt() -> None:
+    """Purpose: Verify the shared CID/PII policy reaches all write-path prompts.
+    Why this matters: UN-24886 forbids other people's CID/PII in User Memory;
+    a prompt missing the policy silently reopens the leak.
+    Setup summary: Render all four system prompts and assert the policy marker.
+    """
+    policy_marker = "CID / PII policy - the current user only - STRICT"
+    prompts = (
+        consolidation_system_prompt(2000),
+        condensation_system_prompt(
+            max_tokens=2000,
+            current_tokens=2200,
+            target_tokens=1800,
+        ),
+        memory_gate_system_prompt(),
+        scrub_system_prompt(),
+    )
+
+    assert all(policy_marker in prompt for prompt in prompts)
+    assert all("Bank-client relationship signals" in prompt for prompt in prompts)
+    # The policy must not swallow the user's own facts: employer changes and
+    # other affiliations are identity data, not CID (regression guard for the
+    # gate answering NOOP on "I work at X now, not at Y anymore").
+    assert all(
+        "Facts about the user themselves are ALWAYS allowed" in prompt
+        for prompt in prompts
+    )
+    # Same for the user's own personal life facts (regression guard for the
+    # gate answering NOOP on the user stating their own family status).
+    assert all(
+        "The user's own life facts stated about themselves are also allowed" in prompt
+        for prompt in prompts
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_scrub_user_memory_returns_body_unchanged_on_clean(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify a compliant profile passes the scrub untouched.
+    Why this matters: The scrub must not mutate profiles that already comply.
+    Setup summary: Mock the LLM to answer CLEAN and compare input to output.
+    """
+    body = _complete_profile_body("- Prefers concise answers")
+    response = MagicMock()
+    response.choices[0].message.content = "CLEAN"
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await scrub_user_memory(
+        body=body,
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == body
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_scrub_user_memory_returns_cleaned_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify the scrub replaces a violating body with the cleaned one.
+    Why this matters: Third-party CID caught only at this last gate must be
+    stripped before the profile is persisted.
+    Setup summary: Mock the LLM to return a de-identified rewrite and assert it wins.
+    """
+    body_with_cid = _complete_profile_body(
+        "- Reviews the portfolio of J. Muster (client, IBAN CH93 0076 2011 6238 5295 7)"
+    )
+    cleaned = _complete_profile_body("- Runs quarterly portfolio reviews")
+    response = MagicMock()
+    response.choices[0].message.content = cleaned
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await scrub_user_memory(
+        body=body_with_cid,
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == cleaned
+    assert "J. Muster" not in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_scrub_user_memory_fails_closed_on_llm_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify a failing scrub call vetoes the write instead of passing it.
+    Why this matters: An unvalidated candidate must never reach storage; the
+    gate falls back to UPDATE on error, so the scrub must fall back to reject.
+    Setup summary: Mock the LLM to raise and assert the scrub returns None.
+    """
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(side_effect=RuntimeError("boom"))
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await scrub_user_memory(
+        body=_complete_profile_body(),
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_scrub_user_memory_fails_closed_on_malformed_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify non-profile scrub output rejects the candidate.
+    Why this matters: A scrub reply that is neither CLEAN nor a well-formed
+    profile gives no guarantee about the candidate, so it must not be stored.
+    Setup summary: Mock the LLM to return prose and assert the scrub returns None.
+    """
+    response = MagicMock()
+    response.choices[0].message.content = "I removed some sensitive data for you."
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await scrub_user_memory(
+        body=_complete_profile_body(),
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_persists_scrubbed_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify the consolidation write path stores the scrubbed rewrite.
+    Why this matters: The scrub is the enforcement layer for UN-24886; the
+    profile assembled for upload must be the cleaned body, not the raw rewrite.
+    Setup summary: Rewrite emits third-party CID, scrub emits a de-identified
+    version; assert the result contains only the latter.
+    """
+    rewritten_with_cid = _complete_profile_body(
+        "- Reviews the portfolio of J. Muster (client)"
+    )
+    cleaned = _complete_profile_body("- Runs quarterly portfolio reviews")
+    responses = iter([rewritten_with_cid, cleaned])
+
+    def _next_response(*args: object, **kwargs: object) -> MagicMock:
+        response = MagicMock()
+        response.choices[0].message.content = next(responses)
+        return response
+
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(side_effect=_next_response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="I just reviewed the portfolio of J. Muster",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert "Runs quarterly portfolio reviews" in result
+    assert "J. Muster" not in result
+    assert llm_service.complete_async.await_count == 2
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_keeps_existing_when_scrub_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify a failed scrub keeps the existing memory (fail closed).
+    Why this matters: When the enforcement layer cannot vouch for a rewrite,
+    the unvalidated candidate must be discarded, not uploaded.
+    Setup summary: Let the rewrite succeed, force the scrub to return None,
+    and assert the pre-turn memory survives unchanged.
+    """
+    current = empty_profile("user_1")
+    response = MagicMock()
+    response.choices[0].message.content = _complete_profile_body()
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.scrub_user_memory",
+        AsyncMock(return_value=None),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=current,
+        user_id="user_1",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == current
+
+
 @pytest.mark.asyncio
 async def test_consolidate_user_memory_invokes_update_callbacks_on_rewrite(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    rewritten = _complete_profile_body()
     response = MagicMock()
     response.choices[0].message.content = rewritten
     llm_service = MagicMock()
@@ -434,7 +1089,9 @@ async def test_consolidate_user_memory_invokes_update_callbacks_on_rewrite(
         on_update_end=on_end,
     )
 
-    assert result == rewritten
+    assert result.endswith(f"{rewritten}\n")
+    assert "user_id: user_1" in result
+    assert "turn_count: 1" in result
     on_start.assert_awaited_once()
     on_end.assert_awaited_once()
     assert events == ["start", "end"]
@@ -553,11 +1210,109 @@ async def test_consolidate_user_memory_invokes_update_end_when_start_cancelled(
 
 
 @pytest.mark.asyncio
-async def test_user_memory_postprocessor_shows_and_removes_updating_notice(
+async def test_user_memory_message_step_logger_load_emits_settings_detail_entry() -> (
+    None
+):
+    step_logger = MagicMock()
+    step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
+    message_logger = UserMemoryMessageLogger(step_logger)
+
+    await message_logger.log_loading_start()
+    await message_logger.log_loading_complete(with_settings_entry=True)
+
+    assert step_logger.create_or_update_message_log_async.await_count == 2
+    start_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
+        0
+    ].kwargs
+    assert start_kwargs["header"] == "Loading context memory"
+    assert start_kwargs["details"] is None
+    assert start_kwargs["references"] == []
+    complete_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
+        1
+    ].kwargs
+    assert complete_kwargs["status"] == MessageLogStatus.COMPLETED
+    assert complete_kwargs["references"] == []
+    entry = complete_kwargs["details"].data[0]
+    assert entry.type == "UserMemory"
+    assert entry.text == "Context memory"
+
+
+@pytest.mark.asyncio
+async def test_user_memory_message_step_logger_load_skips_entry_when_disabled() -> None:
+    step_logger = MagicMock()
+    step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
+    message_logger = UserMemoryMessageLogger(step_logger)
+
+    await message_logger.log_loading_complete(with_settings_entry=False)
+
+    complete_kwargs = step_logger.create_or_update_message_log_async.await_args.kwargs
+    assert complete_kwargs["details"] is None
+    assert complete_kwargs["references"] == []
+
+
+@pytest.mark.asyncio
+async def test_user_memory_message_step_logger_load_failed_marks_failed_status() -> (
+    None
+):
+    """
+    Purpose: log_loading_failed updates the loading Step to FAILED with no
+    settings entry.
+    Why this matters: Callers must close a RUNNING loading Step when load
+    raises so the chat UI does not stay stuck.
+    Setup summary: Start then fail the loading step; assert FAILED status.
+    """
+    step_logger = MagicMock()
+    step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
+    message_logger = UserMemoryMessageLogger(step_logger)
+
+    await message_logger.log_loading_start()
+    await message_logger.log_loading_failed()
+
+    failed_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
+        -1
+    ].kwargs
+    assert failed_kwargs["header"] == "Loading context memory"
+    assert failed_kwargs["status"] == MessageLogStatus.FAILED
+    assert failed_kwargs["details"] is None
+    assert failed_kwargs["references"] == []
+
+
+@pytest.mark.asyncio
+async def test_user_memory_message_step_logger_update_attaches_review_entry_only_when_requested() -> (
+    None
+):
+    step_logger = MagicMock()
+    step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
+    message_logger = UserMemoryMessageLogger(step_logger)
+
+    await message_logger.log_updating_start()
+    await message_logger.log_updating_complete(with_settings_entry=False)
+    await message_logger.log_updating_complete(with_settings_entry=True)
+
+    assert step_logger.create_or_update_message_log_async.await_count == 3
+    start_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
+        0
+    ].kwargs
+    assert start_kwargs["header"] == "Updating your memory"
+    assert start_kwargs["details"] is None
+    complete_without_entry = (
+        step_logger.create_or_update_message_log_async.await_args_list[1].kwargs
+    )
+    assert complete_without_entry["details"] is None
+    complete_with_entry = (
+        step_logger.create_or_update_message_log_async.await_args_list[2].kwargs
+    )
+    assert complete_with_entry["references"] == []
+    entry = complete_with_entry["details"].data[0]
+    assert entry.type == "UserMemory"
+    assert entry.text == "Review your context memory"
+
+
+@pytest.mark.asyncio
+async def test_user_memory_postprocessor_emits_updating_message_logs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     updated_memory = "# User Memory\n\n## Identity\n- Updated"
-    original_text = "Here is your answer."
 
     async def fake_consolidate(*, on_update_start, on_update_end, **kwargs) -> str:  # type: ignore[no-untyped-def]
         await on_update_start()
@@ -572,84 +1327,34 @@ async def test_user_memory_postprocessor_shows_and_removes_updating_notice(
         "unique_user_memory.user_memory_postprocessor.upload_user_memory",
         AsyncMock(return_value=True),
     )
-    chat_service = MagicMock()
-    chat_service.modify_assistant_message_async = AsyncMock()
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory_postprocessor.ChatService",
-        MagicMock(return_value=chat_service),
-    )
+    message_step_logger = MagicMock()
+    message_step_logger.log_updating_start = AsyncMock()
+    message_step_logger.log_updating_complete = AsyncMock()
     event = MagicMock()
     event.user_id = "user_1"
     event.company_id = "company_1"
     event.payload.user_message.text = "remember this"
     loop_response = MagicMock()
-    loop_response.message.text = original_text
-    loop_response.message.id = "msg_1"
-    loop_response.message.references = []
+    loop_response.message.text = "Here is your answer."
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
         event=event,
-        state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
+        state=UserMemoryState(
+            scope_id="scope_1",
+            text=empty_profile("user_1"),
+        ),
         logger=MagicMock(),
-        chat_service=chat_service,
+        message_step_logger=message_step_logger,
     )
 
     await postprocessor.run(loop_response)
 
-    calls = chat_service.modify_assistant_message_async.await_args_list
-    assert len(calls) == 2
-    assert calls[0].kwargs["content"].startswith(original_text)
-    assert calls[0].kwargs["content"] != original_text
-    assert calls[0].kwargs["message_id"] == "msg_1"
-    assert calls[1].kwargs["content"] == original_text
-
-
-@pytest.mark.asyncio
-async def test_user_memory_postprocessor_skips_notice_when_disabled(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    updated_memory = "# User Memory\n\n## Identity\n- Updated"
-
-    async def fake_consolidate(*, on_update_start, on_update_end, **kwargs) -> str:  # type: ignore[no-untyped-def]
-        assert on_update_start is noop_update_callback
-        assert on_update_end is noop_update_callback
-        return updated_memory
-
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
-        fake_consolidate,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory_postprocessor.upload_user_memory",
-        AsyncMock(return_value=True),
-    )
-    chat_service = MagicMock()
-    chat_service.modify_assistant_message_async = AsyncMock()
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory_postprocessor.ChatService",
-        MagicMock(return_value=chat_service),
-    )
-    event = MagicMock()
-    event.user_id = "user_1"
-    event.company_id = "company_1"
-    event.payload.user_message.text = "remember this"
-    loop_response = MagicMock()
-    loop_response.message.text = "answer"
-    loop_response.message.id = "msg_1"
-    loop_response.message.references = []
-    postprocessor = UserMemoryPostprocessor(
-        config=UserMemoryConfig(updating_notice_enabled=False),
-        language_model=_TEST_LANGUAGE_MODEL,
-        event=event,
-        state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
-        logger=MagicMock(),
-        chat_service=chat_service,
-    )
-
-    await postprocessor.run(loop_response)
-
-    chat_service.modify_assistant_message_async.assert_not_awaited()
+    message_step_logger.log_updating_start.assert_awaited_once_with()
+    assert [
+        call.kwargs
+        for call in message_step_logger.log_updating_complete.await_args_list
+    ] == [{"with_settings_entry": False}, {"with_settings_entry": True}]
 
 
 @pytest.mark.asyncio
@@ -662,14 +1367,14 @@ async def test_download_user_memory_returns_empty_when_file_missing(
         search_contents,
     )
 
-    result = await download_user_memory(
+    text = await download_user_memory(
         scope_id="scope_1",
         user_id="user_1",
         company_id="company_1",
         logger=MagicMock(),
     )
 
-    assert result == ""
+    assert text == ""
     search_contents.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",
@@ -696,14 +1401,14 @@ async def test_download_user_memory_downloads_existing_file_to_memory(
         download_content,
     )
 
-    result = await download_user_memory(
+    text = await download_user_memory(
         scope_id="scope_1",
         user_id="user_1",
         company_id="company_1",
         logger=MagicMock(),
     )
 
-    assert result == "# User Memory\n\n## Identity\n- Test"
+    assert text == "# User Memory\n\n## Identity\n- Test"
     search_contents.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",
@@ -718,19 +1423,34 @@ async def test_download_user_memory_downloads_existing_file_to_memory(
     )
 
 
+class _FakeSdkError(Exception):
+    """Stands in for unique_sdk's HTTP error hierarchy in folder-lookup tests.
+
+    Only the ``http_status`` attribute that ``_is_folder_not_found`` inspects
+    matters here; using the real ``unique_sdk`` error classes would tie these
+    tests to their exact constructor signatures for no benefit.
+    """
+
+    def __init__(self, *, http_status: int) -> None:
+        super().__init__(f"http_status={http_status}")
+        self.http_status = http_status
+
+
+def _not_found_error() -> Exception:
+    return _FakeSdkError(http_status=404)
+
+
+def _server_error() -> Exception:
+    return _FakeSdkError(http_status=500)
+
+
 @pytest.mark.asyncio
-async def test_ensure_user_memory_folder_returns_existing_user_folder(
+async def test_ensure_user_memory_folder_returns_existing_home_folder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    get_info = AsyncMock(
-        side_effect=[
-            {"id": "scope_root"},
-            {"id": "scope_user"},
-        ]
-    )
+    """A fresh user with an already-provisioned home resolves without creating."""
+    get_info = AsyncMock(return_value={"id": "scope_home"})
     create_paths = AsyncMock()
-    add_access = AsyncMock()
-    get_groups = AsyncMock()
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
         get_info,
@@ -738,14 +1458,6 @@ async def test_ensure_user_memory_folder_returns_existing_user_folder(
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
         create_paths,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
-        add_access,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory.unique_sdk.Group.get_groups_async",
-        get_groups,
     )
 
     result = await ensure_user_memory_folder(
@@ -755,11 +1467,48 @@ async def test_ensure_user_memory_folder_returns_existing_user_folder(
         logger=MagicMock(),
     )
 
-    assert result == "scope_user"
+    assert result == "scope_home"
+    get_info.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        folderPath="/home-user_1/user-memory",
+    )
+    create_paths.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_memory_folder_falls_back_to_legacy_leaf_when_not_migrated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A user whose memory still lives at the legacy shared-root leaf stays readable."""
+    get_info = AsyncMock(
+        side_effect=[
+            _not_found_error(),
+            {"id": "scope_legacy"},
+        ]
+    )
+    create_paths = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+
+    result = await ensure_user_memory_folder(
+        user_id="user_1",
+        company_id="company_1",
+        root_folder="user-memory",
+        logger=MagicMock(),
+    )
+
+    assert result == "scope_legacy"
     get_info.assert_any_await(
         user_id="user_1",
         company_id="company_1",
-        folderPath="/user-memory",
+        folderPath="/home-user_1/user-memory",
     )
     get_info.assert_any_await(
         user_id="user_1",
@@ -767,22 +1516,28 @@ async def test_ensure_user_memory_folder_returns_existing_user_folder(
         folderPath="/user-memory/user_1",
     )
     create_paths.assert_not_awaited()
-    get_groups.assert_not_awaited()
-    add_access.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
+async def test_ensure_user_memory_folder_creates_home_when_neither_location_exists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    get_info = AsyncMock(
-        side_effect=[
-            {"id": "scope_root"},
-            RuntimeError("missing user folder"),
-        ]
+    """A brand-new user with no folder yet gets a home folder provisioned.
+
+    create_paths creates every missing segment of a nested path and returns
+    them parent-first (regression guard for the bug where the parent
+    `/home-<userId>` folder's id was returned instead of the leaf
+    `/home-<userId>/user-memory` folder's id).
+    """
+    get_info = AsyncMock(side_effect=[_not_found_error(), _not_found_error()])
+    create_paths = AsyncMock(
+        return_value={
+            "createdFolders": [
+                {"id": "scope_home_parent"},
+                {"id": "scope_new_home_leaf"},
+            ]
+        }
     )
-    create_paths = AsyncMock(return_value={"createdFolders": [{"id": "scope_user"}]})
-    add_access = AsyncMock()
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
         get_info,
@@ -790,10 +1545,6 @@ async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
         create_paths,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
-        add_access,
     )
 
     result = await ensure_user_memory_folder(
@@ -803,39 +1554,53 @@ async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
         logger=MagicMock(),
     )
 
-    assert result == "scope_user"
+    assert result == "scope_new_home_leaf"
     create_paths.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",
-        parentScopeId="scope_root",
-        relativePaths=["user_1"],
+        paths=["/home-user_1/user-memory"],
         inheritAccess=False,
-    )
-    add_access.assert_awaited_once_with(
-        user_id="user_1",
-        company_id="company_1",
-        scopeId="scope_user",
-        scopeAccesses=[
-            {"entityId": "user_1", "type": "READ", "entityType": "USER"},
-            {"entityId": "user_1", "type": "WRITE", "entityType": "USER"},
-        ],
-        applyToSubScopes=True,
     )
 
 
 @pytest.mark.asyncio
-async def test_ensure_user_memory_folder_returns_none_when_access_grant_fails_after_create(
+async def test_ensure_user_memory_folder_returns_none_when_home_creation_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    get_info = AsyncMock(
-        side_effect=[
-            {"id": "scope_root"},
-            RuntimeError("missing user folder"),
-        ]
+    get_info = AsyncMock(side_effect=[_not_found_error(), _not_found_error()])
+    create_paths = AsyncMock(side_effect=RuntimeError("create failed"))
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
     )
-    create_paths = AsyncMock(return_value={"createdFolders": [{"id": "scope_user"}]})
-    grant_error = RuntimeError("grant failed")
-    add_access = AsyncMock(side_effect=grant_error)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+
+    result = await ensure_user_memory_folder(
+        user_id="user_1",
+        company_id="company_1",
+        root_folder="user-memory",
+        logger=MagicMock(),
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_memory_folder_does_not_provision_on_unverified_lookup_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-404 lookup error must never be treated as 'absent, safe to create'.
+
+    Regression guard for the UN-24896 defect shape: silently treating any
+    lookup failure as "not found" and provisioning a new home would risk
+    creating an empty home that shadows a real, still-readable memory.md
+    once the transient error clears.
+    """
+    get_info = AsyncMock(side_effect=[_server_error(), _not_found_error()])
+    create_paths = AsyncMock()
     logger = MagicMock()
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
@@ -844,10 +1609,6 @@ async def test_ensure_user_memory_folder_returns_none_when_access_grant_fails_af
     monkeypatch.setattr(
         "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
         create_paths,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
-        add_access,
     )
 
     result = await ensure_user_memory_folder(
@@ -858,38 +1619,51 @@ async def test_ensure_user_memory_folder_returns_none_when_access_grant_fails_af
     )
 
     assert result is None
-    create_paths.assert_awaited_once_with(
+    create_paths.assert_not_awaited()
+    logger.warning.assert_any_call(
+        "[user-memory] no memory folder resolved and at least one lookup "
+        "failed - running without memory instead of provisioning"
+    )
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_memory_folder_never_resolves_shared_root_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression guard: the retired shared `/user-memory` root (UN-24764/UN-24823)
+    must never be looked up or (re-)created by this function."""
+    get_info = AsyncMock(side_effect=[_not_found_error(), _not_found_error()])
+    create_paths = AsyncMock(
+        return_value={"createdFolders": [{"id": "scope_new_home"}]}
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+
+    await ensure_user_memory_folder(
         user_id="user_1",
         company_id="company_1",
-        parentScopeId="scope_root",
-        relativePaths=["user_1"],
-        inheritAccess=False,
+        root_folder="user-memory",
+        logger=MagicMock(),
     )
-    add_access.assert_awaited_once_with(
-        user_id="user_1",
-        company_id="company_1",
-        scopeId="scope_user",
-        scopeAccesses=[
-            {"entityId": "user_1", "type": "READ", "entityType": "USER"},
-            {"entityId": "user_1", "type": "WRITE", "entityType": "USER"},
-        ],
-        applyToSubScopes=True,
-    )
-    logger.warning.assert_called_with(
-        "[user-memory] failed to grant read/write access on scope %s "
-        "for user %s: [%s] %s",
-        "scope_user",
-        "user_1",
-        "RuntimeError",
-        grant_error,
-    )
+
+    looked_up_paths = {call.kwargs["folderPath"] for call in get_info.await_args_list}
+    assert "/user-memory" not in looked_up_paths
+    assert create_paths.await_args.kwargs["paths"] == ["/home-user_1/user-memory"]
 
 
 @pytest.mark.asyncio
 async def test_upload_user_memory_writes_hidden_skip_ingestion_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    upload_content = AsyncMock()
+    uploaded = MagicMock()
+    uploaded.id = "content_uploaded"
+    upload_content = AsyncMock(return_value=uploaded)
     monkeypatch.setattr(
         "unique_user_memory.user_memory.upload_content_from_bytes_async",
         upload_content,
@@ -939,14 +1713,17 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
     loop_response = MagicMock()
     loop_response.message.text = "noted"
     logger = MagicMock()
-    chat_service = MagicMock()
+    message_step_logger = MagicMock(
+        log_updating_start=AsyncMock(),
+        log_updating_complete=AsyncMock(),
+    )
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
-        chat_service=chat_service,
+        message_step_logger=message_step_logger,
     )
 
     updated = await postprocessor.run(loop_response)
@@ -959,9 +1736,115 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         company_id="company_1",
         logger=logger,
     )
+    message_step_logger.log_updating_complete.assert_awaited_once_with(
+        with_settings_entry=True
+    )
     logger.info.assert_any_call(
         "[user-memory] memory updated and uploaded successfully"
     )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_user_memory_postprocessor_run_resets_invocation_stats(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify each run reports only usage attributable to that run.
+    Why this matters: Reused postprocessors must not inflate token analytics.
+    Setup summary: Run twice with distinct usage and assert the second excludes the first.
+    """
+    load_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=2),
+        source="user_memory_load_condense",
+    )
+    first_run_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=3),
+        source="user_memory_consolidate_first",
+    )
+    second_run_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=5),
+        source="user_memory_consolidate_second",
+    )
+    run_stats = iter((first_run_stats, second_run_stats))
+
+    async def consolidate(*, invocation_stats, **kwargs) -> str:  # type: ignore[no-untyped-def]
+        invocation_stats.append(next(run_stats))
+        return "# User Memory\n\n## Identity\n- unchanged"
+
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
+        consolidate,
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    loop_response = MagicMock()
+    loop_response.message.text = "noted"
+    state = UserMemoryState(
+        scope_id="scope_1",
+        text="# User Memory\n\n## Identity\n- unchanged",
+        load_invocation_stats=(load_stats,),
+    )
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        state=state,
+        logger=MagicMock(),
+        message_step_logger=MagicMock(
+            log_updating_start=AsyncMock(),
+            log_updating_complete=AsyncMock(),
+        ),
+    )
+
+    await postprocessor.run(loop_response)
+    first_reported_stats = postprocessor.invocation_stats
+    await postprocessor.run(loop_response)
+
+    assert first_reported_stats == [load_stats, first_run_stats]
+    assert postprocessor.invocation_stats == [second_run_stats]
+
+
+@pytest.mark.ai
+def test_user_memory_postprocessor_take_pending_invocation_stats_drains_once() -> None:
+    """Purpose: Verify load-time usage is reported exactly once, however it's read.
+    Why this matters: A turn that exits before `run()` (cancellation, empty
+    response, a control-taking tool) must still report the load-time condense
+    tokens, and a turn that does reach `run()` must not double-count them.
+    Setup summary: Take the pending stats directly, then run(), and assert
+    run() no longer reports the already-taken load stats.
+    """
+    load_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=2),
+        source="user_memory_load_condense",
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    state = UserMemoryState(
+        scope_id="scope_1",
+        text="# User Memory\n\n## Identity\n- unchanged",
+        load_invocation_stats=(load_stats,),
+    )
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        state=state,
+        logger=MagicMock(),
+        message_step_logger=MagicMock(),
+    )
+
+    taken = postprocessor.take_pending_invocation_stats()
+
+    assert taken == [load_stats]
+    assert postprocessor.take_pending_invocation_stats() == []
 
 
 @pytest.mark.asyncio
@@ -984,14 +1867,16 @@ async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
     loop_response = MagicMock()
     loop_response.message.text = "noted"
     logger = MagicMock()
-    chat_service = MagicMock()
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
-        chat_service=chat_service,
+        message_step_logger=MagicMock(
+            log_updating_start=AsyncMock(),
+            log_updating_complete=AsyncMock(),
+        ),
     )
 
     updated = await postprocessor.run(loop_response)

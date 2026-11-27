@@ -58,6 +58,45 @@ unique-cli web-search search "python tutorial" --json
 unique-cli web-search search "sustainability reports" --include-content --json
 ```
 
+### Several searches: pass every query in ONE call
+
+When you need more than one search (several topics, companies or
+questions), pass all queries as separate arguments of a single `search`
+command. Do **not** run one `unique-cli web-search search` call per query,
+and do not start several in the background: the queries run concurrently
+inside the one call and the answer comes back in one round.
+
+```bash
+unique-cli web-search search "Git first release" "Redis first release" "Docker first release" --json
+```
+
+- Up to 8 queries per call, and they all run at the same time. More than 8 is an
+  error: split them across calls.
+- Options such as `-n`, `--include-content` and `--json` apply to every
+  query. With `--include-content`, prefer fewer queries per call: the output
+  grows with every query.
+- Output has one block per query, in the order you gave them, each with
+  its query. `--json` returns a list with one entry per query.
+- `[websourceN]` numbers follow the query order. A URL found by two
+  queries has one number.
+- A query that fails shows its own error and the other queries still
+  return. The command exits `1` only when every query failed.
+- A single query behaves exactly as before.
+
+### Query review
+
+Some spaces require the user to approve every web search query before it is sent. You do not turn this on. When it is on, `search` does not search yet:
+
+1. The command prints that the user must approve the queries, and a review id. It does not wait.
+2. Run `unique-cli elicit wait <review-id> --timeout 300`.
+3. Then run `unique-cli web-search search --chat-id <chat-id> --review-id <review-id>`, repeating the options of the first call (`--json`, `--include-content`, `-n`). That searches the queries the user approved, including any they edited. Do not pass other queries with `--review-id`. To search a different wording, run `search "<new wording>"` without `--review-id`; that submits a new review.
+
+If the user declines, or the review is cancelled or expires, the command exits with a `web-search:` error. Tell the user the search did not run. Do not search those queries.
+
+With `--json`, a pending review is the object `{"status": "PENDING", "reviewId": "<id>", "chatId": "<chat id>"}` instead of text. A pending review is not an error: wait, then search with `--review-id`. Calling `search` again with the same queries while the review is still pending returns the same review id. Do not poll inside another command; only `elicit wait` is a protected wait.
+
+Spaces with query review off, and any search that has no chat id, behave exactly as they do today.
+
 ### Per-call engine override
 
 Force a specific engine (or any engine-specific knob) without changing server config:
@@ -141,7 +180,9 @@ discriminator:
 
 ## Command Reference
 
-### `unique-cli web-search search <query>`
+### `unique-cli web-search search [query...]`
+
+Positional queries are required unless `--review-id` is set.
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
@@ -150,7 +191,8 @@ discriminator:
 | `--engine-config` | | none | Override `searchEngineConfig` (JSON object, must include `searchEngineName`) |
 | `--crawler-config` | | none | Override `crawlerConfig` (JSON object) — only used with `--include-content` |
 | `--config` | `-c` | none | Per-call override of the group's `--config` path |
-| `--json` | | off | Emit `{engine, query, results: [...]}` JSON envelope |
+| `--json` | | off | Emit `{engine, query, results: [...]}` JSON envelope. A pending query review is `{status, reviewId, chatId}` |
+| `--review-id` | | none | Search queries the user already approved. With no positional queries, read them from the review. See [Query review](#query-review) |
 
 ### `unique-cli web-search crawl <url>...`
 
@@ -217,6 +259,28 @@ Found 3 result(s):
 >   | unique-cli web-search crawl --stdin
 > ```
 
+### `search` with several queries (text)
+
+```
+=== query 1/2 ===
+engine: Google    query: 'Git first release'
+Found 1 result(s):
+
+  1. Git history [websource1]
+     https://example.com/git
+     ...
+
+=== query 2/2 ===
+query: 'Redis first release'
+ERROR: web-search: upstream failed
+
+1 of 2 queries failed.
+```
+
+With `--json` the output is a list. Each entry is the usual
+`{engine, query, results}` object, or `{"query": "...", "error": "..."}`
+for a query that failed.
+
 ### `crawl` (text)
 
 ```
@@ -261,8 +325,14 @@ In one-shot mode, the CLI exits **`0`** on success and **`1`** on
 failures (config-file errors, invalid JSON overrides, API errors,
 missing URLs for `crawl`, and citation-manifest I/O failures — e.g.
 when `.unique/web-refs.jsonl` cannot be written or its parent
-directory is unsafe). Error messages are prefixed with
-`web-search:` or `web-crawl:` so they're easy to grep.
+directory is unsafe). With several queries in one `search` call, a failed
+query alone does not change the exit code: it exits `1` only when every
+query failed, or when the call is invalid (more than 8 queries, bad
+override JSON). Error messages are prefixed with
+`web-search:` or `web-crawl:` so they're easy to grep. A pending query
+review is not an error (exit `0`): run `elicit wait`, then search again
+with `--review-id`. A declined, cancelled or expired review is an error
+(exit `1`): tell the user the search did not run.
 
 ```bash
 unique-cli web-search crawl  # no URLs → exits 1
@@ -357,7 +427,10 @@ for entry in pages.results:
 ```
 
 Both classes have `*_async` variants (`WebSearch.search_async`,
-`WebCrawl.crawl_async`) for async contexts.
+`WebCrawl.crawl_async`) for async contexts. `WebSearchReview.review`
+(`review_async`) posts the batch to `/web-search-api/review`. Pass the
+returned `reviewId` as `reviewId` on `WebSearch.search` after the user
+accepts. The CLI does this for you; see [Query review](#query-review).
 
 ## Citation Rules
 

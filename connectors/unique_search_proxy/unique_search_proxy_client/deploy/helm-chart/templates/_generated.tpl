@@ -43,10 +43,6 @@ library extension hooks (base.externalService.*.ext).
 {{- fail "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." }}
 {{- end }}
 {{ include "base.valueSource.env" (dict "name" "BING_AGENT_BING_RESOURCE_CONNECTION_STRING" "src" .Values.bingAgent.connection.bingResourceConnectionString "ctx" .) }}
-{{- if .Values.bingAgent.connection.agentId }}
-- name: BING_AGENT_AGENT_ID
-  value: {{ .Values.bingAgent.connection.agentId | quote }}
-{{- end }}
 {{- if not .Values.bingAgent.connection.bingAgentModel }}
 {{- fail "bingAgent.connection.bingAgentModel is required when bingAgent.enabled is true. Set it in your environment overlay." }}
 {{- end }}
@@ -57,6 +53,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.bingAgent.connection.azureIdentityValidateTokenUrl | quote }}
 - name: BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT
   value: {{ .Values.bingAgent.connection.usePrivateEndpointTransport | quote }}
+- name: BING_AGENT_CLEANUP_ON_START
+  value: {{ .Values.bingAgent.connection.cleanupOnStart | quote }}
 {{- end }}
 {{- if and .Values.vertexaiAgent .Values.vertexaiAgent.enabled }}
 - name: VERTEXAI_AGENT_CREDENTIAL_TYPE
@@ -125,12 +123,48 @@ library extension hooks (base.externalService.*.ext).
 - name: HTTP_CLIENT_PROXY_SSL_KEY_PATH
   value: {{ .Values.httpClient.connection.proxySslKeyPath | quote }}
 {{- end }}
+- name: HTTP_CLIENT_PROXY_USERNAME_SOURCE
+  value: {{ .Values.httpClient.connection.proxyUsernameSource | quote }}
+- name: HTTP_CLIENT_PROXY_USERNAME_METADATA_FIELD
+  value: {{ .Values.httpClient.connection.proxyUsernameMetadataField | quote }}
+- name: HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS
+  value: {{ .Values.httpClient.connection.perUserProxyCompanyIds | toJson | quote }}
+- name: HTTP_CLIENT_HTTP_CLIENT_CACHE_SIZE
+  value: {{ .Values.httpClient.tuning.httpClientCacheSize | quote }}
 - name: HTTP_CLIENT_POOL_TIMEOUT_SECONDS
   value: {{ .Values.httpClient.tuning.poolTimeoutSeconds | quote }}
 - name: HTTP_CLIENT_MAX_CONNECTIONS
   value: {{ .Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .Values.httpClient.tuning.maxKeepaliveConnections | quote }}
+- name: HTTP_CLIENT_MAX_RESPONSE_KIB
+  value: {{ .Values.httpClient.tuning.maxResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB
+  value: {{ .Values.requestLimits.crawl.maxCrawlResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_URLS_PER_CRAWL
+  value: {{ .Values.requestLimits.crawl.maxUrlsPerCrawl | quote }}
+- name: REQUEST_LIMITS_MAX_URL_LENGTH
+  value: {{ .Values.requestLimits.crawl.maxUrlLength | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_FETCHES
+  value: {{ .Values.requestLimits.crawl.maxConcurrentFetches | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS
+  value: {{ .Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_URL_CHECKS
+  value: {{ .Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
+- name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
+  value: {{ .Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: PDF_EXTRACTOR
+  value: {{ .Values.pdfProcessing.connection.extractor | quote }}
+- name: PDF_MAX_PDF_PAGES
+  value: {{ .Values.pdfProcessing.connection.maxPdfPages | quote }}
+- name: PDF_MAX_EXTRACTED_CHARS
+  value: {{ .Values.pdfProcessing.connection.maxExtractedChars | quote }}
+- name: PDF_EXTRACTION_TIMEOUT_SECONDS
+  value: {{ .Values.pdfProcessing.connection.extractionTimeoutSeconds | quote }}
+- name: PDF_MAX_EXTRACTION_MEMORY_MB
+  value: {{ .Values.pdfProcessing.connection.maxExtractionMemoryMb | quote }}
+- name: PDF_MAX_CONCURRENT_EXTRACTIONS
+  value: {{ .Values.pdfProcessing.connection.maxConcurrentExtractions | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -141,6 +175,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.urlSafety.network.localhostHosts | toJson | quote }}
 - name: URL_SAFETY_METADATA_HOSTS
   value: {{ .Values.urlSafety.network.metadataHosts | toJson | quote }}
+- name: CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS
+  value: {{ .Values.urlSafety.network.customApiTrustedPrivateHosts | toJson | quote }}
 - name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
   value: {{ .Values.urlSafety.network.clusterLocalSuffix | quote }}
 - name: URL_SAFETY_SERVICE_SUFFIX
@@ -187,10 +223,6 @@ library extension hooks (base.externalService.*.ext).
 {{- fail "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." }}
 {{- end }}
 {{ include "base.valueSource.env" (dict "name" "BING_AGENT_BING_RESOURCE_CONNECTION_STRING" "src" .ctx.Values.bingAgent.connection.bingResourceConnectionString "ctx" .ctx) }}
-{{- if .ctx.Values.bingAgent.connection.agentId }}
-- name: BING_AGENT_AGENT_ID
-  value: {{ .ctx.Values.bingAgent.connection.agentId | quote }}
-{{- end }}
 {{- if not .ctx.Values.bingAgent.connection.bingAgentModel }}
 {{- fail "bingAgent.connection.bingAgentModel is required when bingAgent.enabled is true. Set it in your environment overlay." }}
 {{- end }}
@@ -201,6 +233,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.bingAgent.connection.azureIdentityValidateTokenUrl | quote }}
 - name: BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT
   value: {{ .ctx.Values.bingAgent.connection.usePrivateEndpointTransport | quote }}
+- name: BING_AGENT_CLEANUP_ON_START
+  value: {{ .ctx.Values.bingAgent.connection.cleanupOnStart | quote }}
 {{- end }}
 {{- if and .ctx.Values.vertexaiAgent .ctx.Values.vertexaiAgent.enabled }}
 - name: VERTEXAI_AGENT_CREDENTIAL_TYPE
@@ -269,12 +303,48 @@ library extension hooks (base.externalService.*.ext).
 - name: HTTP_CLIENT_PROXY_SSL_KEY_PATH
   value: {{ .ctx.Values.httpClient.connection.proxySslKeyPath | quote }}
 {{- end }}
+- name: HTTP_CLIENT_PROXY_USERNAME_SOURCE
+  value: {{ .ctx.Values.httpClient.connection.proxyUsernameSource | quote }}
+- name: HTTP_CLIENT_PROXY_USERNAME_METADATA_FIELD
+  value: {{ .ctx.Values.httpClient.connection.proxyUsernameMetadataField | quote }}
+- name: HTTP_CLIENT_PER_USER_PROXY_COMPANY_IDS
+  value: {{ .ctx.Values.httpClient.connection.perUserProxyCompanyIds | toJson | quote }}
+- name: HTTP_CLIENT_HTTP_CLIENT_CACHE_SIZE
+  value: {{ .ctx.Values.httpClient.tuning.httpClientCacheSize | quote }}
 - name: HTTP_CLIENT_POOL_TIMEOUT_SECONDS
   value: {{ .ctx.Values.httpClient.tuning.poolTimeoutSeconds | quote }}
 - name: HTTP_CLIENT_MAX_CONNECTIONS
   value: {{ .ctx.Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .ctx.Values.httpClient.tuning.maxKeepaliveConnections | quote }}
+- name: HTTP_CLIENT_MAX_RESPONSE_KIB
+  value: {{ .ctx.Values.httpClient.tuning.maxResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_CRAWL_RESPONSE_KIB
+  value: {{ .ctx.Values.requestLimits.crawl.maxCrawlResponseKib | quote }}
+- name: REQUEST_LIMITS_MAX_URLS_PER_CRAWL
+  value: {{ .ctx.Values.requestLimits.crawl.maxUrlsPerCrawl | quote }}
+- name: REQUEST_LIMITS_MAX_URL_LENGTH
+  value: {{ .ctx.Values.requestLimits.crawl.maxUrlLength | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_FETCHES
+  value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentFetches | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_CRAWLS
+  value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentCrawls | quote }}
+- name: REQUEST_LIMITS_MAX_CONCURRENT_URL_CHECKS
+  value: {{ .ctx.Values.requestLimits.crawl.maxConcurrentUrlChecks | quote }}
+- name: REQUEST_LIMITS_MAX_TIMEOUT_SECONDS
+  value: {{ .ctx.Values.requestLimits.timeouts.maxTimeoutSeconds | quote }}
+- name: PDF_EXTRACTOR
+  value: {{ .ctx.Values.pdfProcessing.connection.extractor | quote }}
+- name: PDF_MAX_PDF_PAGES
+  value: {{ .ctx.Values.pdfProcessing.connection.maxPdfPages | quote }}
+- name: PDF_MAX_EXTRACTED_CHARS
+  value: {{ .ctx.Values.pdfProcessing.connection.maxExtractedChars | quote }}
+- name: PDF_EXTRACTION_TIMEOUT_SECONDS
+  value: {{ .ctx.Values.pdfProcessing.connection.extractionTimeoutSeconds | quote }}
+- name: PDF_MAX_EXTRACTION_MEMORY_MB
+  value: {{ .ctx.Values.pdfProcessing.connection.maxExtractionMemoryMb | quote }}
+- name: PDF_MAX_CONCURRENT_EXTRACTIONS
+  value: {{ .ctx.Values.pdfProcessing.connection.maxConcurrentExtractions | quote }}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
@@ -285,6 +355,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.urlSafety.network.localhostHosts | toJson | quote }}
 - name: URL_SAFETY_METADATA_HOSTS
   value: {{ .ctx.Values.urlSafety.network.metadataHosts | toJson | quote }}
+- name: CUSTOM_WEB_SEARCH_API_TRUSTED_PRIVATE_HOSTS
+  value: {{ .ctx.Values.urlSafety.network.customApiTrustedPrivateHosts | toJson | quote }}
 - name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
   value: {{ .ctx.Values.urlSafety.network.clusterLocalSuffix | quote }}
 - name: URL_SAFETY_SERVICE_SUFFIX
@@ -380,10 +452,36 @@ library extension hooks (base.externalService.*.ext).
     - port: {{ $port | quote }}
       protocol: TCP
 {{- end }}
+{{ if and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort }}
+{{- $host := .Values.httpClient.connection.proxyHost -}}
+{{- $port := .Values.httpClient.connection.proxyPort -}}
+{{- if not (and (kindIs "string" $host) (regexMatch "^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$" $host)) -}}
+{{- fail "httpClient.connection.proxyHost must be a plain hostname or IPv4 address (no scheme, port, path or IPv6 literal)." -}}
+{{- end -}}
+{{- if not (regexMatch "^[0-9]+$" (toString $port)) -}}
+{{- fail "httpClient.connection.proxyPort must be a number." -}}
+{{- else if or (lt (int $port) 1) (gt (int $port) 65535) -}}
+{{- fail "httpClient.connection.proxyPort must be between 1 and 65535." -}}
+{{- end -}}
+{{- if regexMatch "^((25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$" $host }}
+- toCIDR:
+  - {{ printf "%s/32" $host | quote }}
+{{- else }}
+{{- if regexMatch "^[0-9.]+$" $host -}}
+{{- fail "httpClient.connection.proxyHost is not a valid IPv4 address." -}}
+{{- end }}
+- toFQDNs:
+  - matchName: {{ $host | quote }}
+{{- end }}
+  toPorts:
+  - ports:
+    - port: {{ $port | quote }}
+      protocol: TCP
+{{- end }}
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.cilium.egress.hasRules.ext" -}}
-{{- if or (and .Values.googleSearch .Values.googleSearch.enabled) (and .Values.braveSearch .Values.braveSearch.enabled) (and .Values.perplexitySearch .Values.perplexitySearch.enabled) (and .Values.tavily .Values.tavily.enabled) (and .Values.jina .Values.jina.enabled) (and .Values.firecrawl .Values.firecrawl.enabled) -}}true{{- end -}}
+{{- if or (and .Values.googleSearch .Values.googleSearch.enabled) (and .Values.braveSearch .Values.braveSearch.enabled) (and .Values.perplexitySearch .Values.perplexitySearch.enabled) (and .Values.tavily .Values.tavily.enabled) (and .Values.jina .Values.jina.enabled) (and .Values.firecrawl .Values.firecrawl.enabled) (and .Values.httpClient.connection.proxyHost .Values.httpClient.connection.proxyPort) -}}true{{- end -}}
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.kubernetes.egress.validation.ext" -}}

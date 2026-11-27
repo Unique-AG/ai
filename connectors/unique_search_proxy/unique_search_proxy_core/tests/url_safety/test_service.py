@@ -5,6 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from unique_search_proxy_core.url_safety import UrlSafetyService
+from unique_search_proxy_core.url_safety.models import ResolvedCrawlTarget
+
+_RESOLVE_TARGET = (
+    "unique_search_proxy_core.url_safety.service.resolver.resolve_crawl_target"
+)
 
 _REDIRECT_HTTPX = "unique_search_proxy_core.url_safety.redirect.httpx.AsyncClient"
 
@@ -85,7 +90,9 @@ class TestValidateUrlsWithRedirects:
 
         assert len(targets) == 1
         assert targets[0].normalized_url == "https://example.com/page"
-        mock_client.head.assert_called_once_with("https://example.com/page")
+        assert mock_client.head.call_count == 1
+        assert mock_client.head.call_args.args == ("https://example.com/page",)
+        assert mock_client.head.call_args.kwargs["follow_redirects"] is False
 
 
 class TestValidateUrlsIndividually:
@@ -113,3 +120,36 @@ class TestValidateUrlsIndividually:
         assert outcomes[1].resolved is None
         assert outcomes[1].blocked is not None
         assert outcomes[1].blocked.category == "private"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_validate_urls_individually__fails_closed_on_unexpected_error(
+        self,
+    ) -> None:
+        async def fake_resolve(url: str) -> ResolvedCrawlTarget:
+            if "boom" in url:
+                raise RuntimeError("unexpected resolver failure")
+            return ResolvedCrawlTarget(
+                normalized_url=url.strip(),
+                hostname="example.com",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            )
+
+        with patch(_RESOLVE_TARGET, side_effect=fake_resolve):
+            outcomes = await UrlSafetyService.validate_urls_individually(
+                [
+                    "https://boom.example.com",
+                    "https://example.com",
+                ]
+            )
+
+        assert len(outcomes) == 2
+        # The URL that raised unexpectedly is blocked, not propagated as a batch failure.
+        assert outcomes[0].resolved is None
+        assert outcomes[0].blocked is not None
+        assert outcomes[0].blocked.category == "validation_error"
+        assert outcomes[0].blocked.hostname == "boom.example.com"
+        # Its sibling still resolves successfully.
+        assert outcomes[1].blocked is None
+        assert outcomes[1].resolved is not None

@@ -12,9 +12,8 @@ from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.monitoring import metric_scope
 
+from unique_web_search.invocation_stats import collector
 from unique_web_search.metrics import (
-    crawl_duration,
-    crawl_errors,
     llm_duration,
     llm_errors,
     search_duration,
@@ -123,6 +122,11 @@ async def query_generation_agent(
         model_name=language_model.name,
         structured_output_model=structured_output_model,
         structured_output_enforce_schema=True,
+    )
+    collector.record_language_model_response(
+        model_name=language_model.name,
+        response=response,
+        source="web_search.query_refinement",
     )
 
     parsed_response = response.choices[0].message.parsed
@@ -299,13 +303,9 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
         return search_results
 
     async def _crawl(self, web_search_results: list[WebSearchResult]) -> list[str]:
-        crawler = self.crawler_service.config.crawler.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
-        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
-            crawl_results = await self.crawler_service.crawl(
-                [result.url for result in web_search_results]
-            )
+        crawl_results = await self._crawl_search_result_pages(web_search_results)
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(

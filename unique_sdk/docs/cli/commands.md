@@ -77,12 +77,12 @@ If the target folder does not exist, an error is shown and the directory is unch
 
 ### ls
 
-List folders and files in the current (or specified) directory.
+List folders and files in the current (or specified) directory. At the root (`/`) it lists folders only, because every file belongs to a folder. Empty files (0 bytes, including uploads still in progress) are not listed.
 
 **Synopsis:**
 
 ```
-ls [target]
+ls [target] [--limit N] [--skip N] [--all]
 ```
 
 **Arguments:**
@@ -90,6 +90,13 @@ ls [target]
 | Argument | Description |
 |----------|-------------|
 | `target` | Optional. Folder name, absolute path, or scope ID to list. Defaults to current directory. |
+| `--limit`, `-l` | Maximum number of folders and of files to show (1-1000). Default 50. |
+| `--skip` | Skip this many folders and files first, to page through a large folder. Default 0. |
+| `--all`, `-a` | Show up to 1000 folders and 1000 files. Cannot be combined with `--limit`. |
+
+By default `ls` shows the first 50 folders and the first 50 files. When a folder holds more, the output says which rows are shown and prints the command for the rest (see below).
+
+Pages are read one after another, so if files are added or removed while you page through a folder, a row can be skipped or listed twice. `--skip` is not supported at a task-scoped root.
 
 **Output format:**
 
@@ -114,6 +121,16 @@ Each line shows:
 
 The summary line at the bottom shows total counts.
 
+When the listing is cut off, the output ends with the range shown and the next command:
+
+```
+0 folder(s), 100 file(s)
+showing files 1-50 of 100
+more: unique-cli ls /Reports/Q1 --skip 50 (or: unique-cli ls /Reports/Q1 --all)
+```
+
+In a task-scoped chat some files may be hidden. The note then says `read` instead of `showing` and names how many rows the scope hid, for example `read files 1-50 of 100 (13 file(s) hidden by task scope)`.
+
 **One-shot examples:**
 
 ```bash
@@ -125,6 +142,12 @@ unique-cli ls /Reports/Q1
 
 # List by scope ID
 unique-cli ls scope_abc123
+
+# Next page of a large folder
+unique-cli ls /Reports/Q1 --skip 50
+
+# Everything in a folder (up to 1000 folders and 1000 files)
+unique-cli ls /Reports/Q1 --all
 ```
 
 ---

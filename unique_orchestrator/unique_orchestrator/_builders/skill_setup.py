@@ -42,11 +42,11 @@ content injected when the skill is invoked.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from logging import Logger
 from typing import TYPE_CHECKING
 
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.loader import parse_skill_file
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
@@ -54,7 +54,16 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
+from unique_orchestrator._builders import skill_file_loader
+from unique_orchestrator._builders.skill_file_loader import (
+    fetch_readable_skill_versions,
+    load_skill,
+)
+
 if TYPE_CHECKING:
+    from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+        DebugInfoManager,
+    )
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
     from unique_toolkit.agentic.tools.tool_manager import (
         ResponsesApiToolManager,
@@ -101,11 +110,31 @@ def normalize_available_skills_for_tool(
     return out
 
 
+_NO_SKILLS_LOADED: dict[str, int] = {
+    "listed": 0,
+    "loaded": 0,
+    "from_cache": 0,
+    "downloaded": 0,
+    "failed": 0,
+    "timed_out": 0,
+}
+
+
+def _record_skill_loading(
+    debug_info_manager: DebugInfoManager | None, stats: Mapping[str, int]
+) -> None:
+    if debug_info_manager is not None:
+        debug_info_manager.add("skill_loading", dict(stats))
+
+
 async def load_selectable_skills(
     *,
     content_service: ContentService,
     selectable_skills: list[SkillReference],
     logger: Logger,
+    company_id: str = "",
+    readable_skill_versions: Mapping[str, str] | None = None,
+    debug_info_manager: DebugInfoManager | None = None,
 ) -> dict[str, SkillDefinition]:
     """Load skills from an explicit list of ``SkillReference`` references.
 
@@ -113,58 +142,66 @@ async def load_selectable_skills(
     leave a blank row as a placeholder). Failures are logged and do not
     abort the rest of the registry so one broken entry cannot hide the
     rest of the skill list.
+
+    ``readable_skill_versions`` maps the content id of each skill the acting
+    user can read to the last-modified time of its file, as the platform
+    lists them. A skill in that map is served from the process-wide skill
+    cache when its file was parsed before; see ``skill_file_loader``. Any
+    other skill is downloaded as the user.
+
+    With ``debug_info_manager``, the counts are also stored under the
+    ``skill_loading`` key of the turn's debug info.
     """
+    versions = readable_skill_versions or {}
     valid_entries = [entry for entry in selectable_skills if entry.content_id]
     if not valid_entries:
         logger.info("SkillTool has no selectable_skills with a content_id set.")
+        _record_skill_loading(debug_info_manager, _NO_SKILLS_LOADED)
         return {}
 
-    download_results = await asyncio.gather(
-        *(
-            content_service.download_content_to_bytes_async(content_id=entry.content_id)
-            for entry in valid_entries
-        ),
-        return_exceptions=True,
-    )
+    tasks = [
+        asyncio.ensure_future(
+            load_skill(
+                content_service=content_service,
+                reference=entry,
+                company_id=company_id,
+                readable_version=versions.get(entry.content_id),
+                logger=logger,
+            )
+        )
+        for entry in valid_entries
+    ]
+    try:
+        _, pending = await asyncio.wait(
+            tasks, timeout=skill_file_loader.SKILL_LOAD_BUDGET_S
+        )
+    finally:
+        for task in tasks:
+            task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
 
     skill_registry: dict[str, SkillDefinition] = {}
-    for entry, result in zip(valid_entries, download_results, strict=True):
+    cached_count = 0
+    failed_count = 0
+    for entry, task in zip(valid_entries, tasks, strict=True):
         label = entry.name or entry.content_id
+        if task in pending:
+            continue
+        result = task.exception() or task.result()
         if isinstance(result, BaseException):
+            failed_count += 1
             logger.warning(
-                "Failed to download selectable skill '%s' (%s) — skipping.",
+                "Failed to load selectable skill '%s' (%s) — skipping.",
                 label,
                 entry.content_id,
                 exc_info=result,
             )
             continue
 
-        try:
-            file_text = result.decode("utf-8")
-        except UnicodeDecodeError:
-            logger.warning(
-                "Failed to decode selectable skill '%s' (%s) as UTF-8 — skipping.",
-                label,
-                entry.content_id,
-                exc_info=True,
-            )
-            continue
-
-        try:
-            skill = parse_skill_file(
-                file_text=file_text,
-                content_id=entry.content_id,
-                source_label=label,
-                logger=logger,
-            )
-        except Exception:
-            logger.warning(
-                "Unexpected error building selectable skill '%s' (%s) — skipping.",
-                label,
-                entry.content_id,
-                exc_info=True,
-            )
-            continue
+        skill, from_cache = result
+        if from_cache:
+            cached_count += 1
 
         if skill is None:
             logger.debug(
@@ -184,10 +221,31 @@ async def load_selectable_skills(
 
         skill_registry[skill.name] = skill
 
+    if pending:
+        logger.warning(
+            "Left out %d skill(s) not loaded within %.0f s.",
+            len(pending),
+            skill_file_loader.SKILL_LOAD_BUDGET_S,
+        )
+    stats = {
+        "listed": len(valid_entries),
+        "loaded": len(skill_registry),
+        "from_cache": cached_count,
+        "downloaded": len(valid_entries) - cached_count - failed_count - len(pending),
+        "failed": failed_count,
+        "timed_out": len(pending),
+    }
     logger.info(
-        "Loaded %d skill(s) from selectable_skills.",
-        len(skill_registry),
+        "Loaded %d skill(s) from selectable_skills "
+        "(listed=%d, from_cache=%d, downloaded=%d, failed=%d, timed_out=%d).",
+        stats["loaded"],
+        stats["listed"],
+        stats["from_cache"],
+        stats["downloaded"],
+        stats["failed"],
+        stats["timed_out"],
     )
+    _record_skill_loading(debug_info_manager, stats)
     return skill_registry
 
 
@@ -198,8 +256,17 @@ async def configure_skill_tool(
     content_service: ContentService,
     tool_manager: ToolManager | ResponsesApiToolManager,
     selectable_skills: list[SkillReference] | None = None,
+    user_id: str = "",
+    company_id: str = "",
+    space_id: str = "",
+    debug_info_manager: DebugInfoManager | None = None,
 ) -> None:
-    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``."""
+    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
+
+    With ``user_id``, ``company_id`` and ``space_id``, the platform is asked
+    once which skills this user can read in the space. Only those are served
+    from the skill cache.
+    """
     skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
     if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
         return
@@ -222,13 +289,26 @@ async def configure_skill_tool(
             "SkillTool is enabled but selectable_skills is empty — "
             "no skills will be loaded."
         )
+        _record_skill_loading(debug_info_manager, _NO_SKILLS_LOADED)
         tool_manager.exclude_tool(SkillTool.name)
         return
+
+    readable_skill_versions: dict[str, str] = {}
+    if user_id and company_id and space_id:
+        readable_skill_versions = await fetch_readable_skill_versions(
+            user_id=user_id,
+            company_id=company_id,
+            space_id=space_id,
+            logger=logger,
+        )
 
     skill_registry = await load_selectable_skills(
         content_service=content_service,
         selectable_skills=to_load,
         logger=logger,
+        company_id=company_id,
+        readable_skill_versions=readable_skill_versions,
+        debug_info_manager=debug_info_manager,
     )
 
     if not skill_registry:

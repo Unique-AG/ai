@@ -6,7 +6,6 @@ from typing import override
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 
-from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -33,7 +32,23 @@ class ShowExecutedCodePostprocessorConfig(BaseModel):
     model_config = get_configuration_dict()
     enable: bool = Field(
         default=True,
-        description="Enable display of executed code before the assistant message",
+        description="Show the executed source code to the user",
+    )
+    enable_code_execution_fence: bool = Field(
+        default=True,
+        description=(
+            "Show generated files as interactive cards with a built-in code view "
+            "and hide the legacy collapsible code block below."
+        ),
+    )
+    enable_html_with_fence: bool = Field(
+        default=True,
+        description=(
+            "Show generated HTML files as interactive cards with a built-in code "
+            "view instead of a plain rendered HTML block. Has no effect on its "
+            "own: 'enable_code_execution_fence' must be on as well. While that "
+            "switch is off, HTML files stay a plain rendered HTML block."
+        ),
     )
     remove_from_history: SkipJsonSchema[bool] = (
         Field(  # At the moment, it's not possible to keep executed code in the history
@@ -51,17 +66,12 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
     def __init__(
         self,
         config: ShowExecutedCodePostprocessorConfig,
-        company_id: str | None = None,
     ):
         super().__init__(self.__class__.__name__)
         self._config = config
-        self._company_id = company_id
-        self._is_enabled = (
-            self._config.enable
-            and not feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-                company_id
-            )
-        )
+        # When fences are enabled, the fence itself shows the executed code,
+        # so this legacy <details> display must stay off.
+        self._is_enabled = config.enable and not config.enable_code_execution_fence
 
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:

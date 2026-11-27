@@ -139,8 +139,7 @@ class JinaCrawlerService(BaseCrawler[JinaCrawlRequest]):
         if reader_response.code != 200:
             message = _jina_reader_error_message(payload, reader_response.code)
             _LOGGER.warning(
-                "Jina reader failure url=%s endpoint=%s http_status=%s code=%s",
-                url,
+                "Jina reader failure endpoint=%s http_status=%s code=%s",
                 credentials.reader_endpoint,
                 response.status_code,
                 reader_response.code,

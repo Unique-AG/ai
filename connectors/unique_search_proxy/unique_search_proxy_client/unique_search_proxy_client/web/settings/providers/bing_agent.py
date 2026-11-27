@@ -25,13 +25,19 @@ class _BingAgentCredentials(ProviderCredentials):
     bing_resource_connection_string: LogSecretStr = Field(
         default=LogSecretStr(NOT_PROVIDED),
     )
-    agent_id: str | None = Field(default=None)
     bing_agent_model: LogSecretStr = Field(default=LogSecretStr(NOT_PROVIDED))
     azure_identity_credential_type: str = Field(default="default")
     azure_identity_validate_token_url: str = Field(
         default="https://management.azure.com/.default",
     )
     use_private_endpoint_transport: bool = Field(default=False)
+    cleanup_on_start: bool = Field(
+        default=False,
+        description=(
+            "If true, on process start delete Foundry agents whose names start with "
+            "unique-grounding-with-bing- (auto-provisioned hash agents)."
+        ),
+    )
 
 
 def _get_bing_agent_credentials() -> _BingAgentCredentials:

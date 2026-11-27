@@ -30,7 +30,7 @@ def test_new_file_uploaded(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -59,7 +59,7 @@ def test_existing_file_replaced(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = {
         "contentInfos": [{"key": "a.txt"}],
         "totalCount": 1,
@@ -89,7 +89,7 @@ def test_no_version_passes_false(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -106,6 +106,38 @@ def test_no_version_passes_false(
     assert upload.call_args.kwargs["versioning_enabled"] is False
 
 
+@pytest.mark.parametrize(
+    ("skip_ingestion", "expected"),
+    [(False, None), (True, {"uniqueIngestionMode": "SKIP_INGESTION"})],
+)
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_skip_ingestion_sets_the_ingestion_config(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+    skip_ingestion: bool,
+    expected: dict[str, str] | None,
+) -> None:
+    (tmp_path / "composer.html").write_text("<div></div>", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/X",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+        skip_ingestion=skip_ingestion,
+    )
+
+    assert upload.call_args.kwargs["ingestion_config"] == expected
+
+
 @patch("uqadm.kb.sync.upload_file")
 @patch("uqadm.kb.sync.Content")
 @patch("uqadm.kb.sync.Folder")
@@ -118,7 +150,7 @@ def test_non_recursive_ignores_subdirs(
     (tmp_path / "top.txt").write_text("x", encoding="utf-8")
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "nested.txt").write_text("y", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -146,7 +178,7 @@ def test_recursive_mirrors_subdirs(
     (tmp_path / "top.txt").write_text("x", encoding="utf-8")
     (tmp_path / "sub").mkdir()
     (tmp_path / "sub" / "nested.txt").write_text("y", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -161,7 +193,7 @@ def test_recursive_mirrors_subdirs(
     assert upload.call_count == 2
     resolved_paths = {
         call.kwargs["folder_path"]
-        for call in folder.resolve_scope_id_from_folder_path_with_create.call_args_list
+        for call in folder.resolve_scope_id_from_folder_path.call_args_list
     }
     assert resolved_paths == {"/X", "/X/sub"}
 
@@ -177,7 +209,7 @@ def test_scope_id_resolved_via_get_folder_path(
 ) -> None:
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
     folder.get_folder_path.return_value = {"folderPath": "/Base"}
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -191,9 +223,7 @@ def test_scope_id_resolved_via_get_folder_path(
 
     folder.get_folder_path.assert_called_once()
     assert (
-        folder.resolve_scope_id_from_folder_path_with_create.call_args.kwargs[
-            "folder_path"
-        ]
+        folder.resolve_scope_id_from_folder_path.call_args.kwargs["folder_path"]
         == "/Base"
     )
     upload.assert_called_once()
@@ -222,7 +252,7 @@ def test_dry_run_uploads_nothing(
     )
 
     upload.assert_not_called()
-    folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
+    folder.create_paths.assert_not_called()
 
 
 def test_requires_exactly_one_target(tmp_path: Path) -> None:
@@ -272,7 +302,7 @@ def test_empty_dir_is_noop(
     )
 
     upload.assert_not_called()
-    folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
+    folder.create_paths.assert_not_called()
     content.get_infos.assert_not_called()
 
 
@@ -291,7 +321,7 @@ def test_unknown_mime_fails_upload(
     # A file whose MIME type cannot be determined is not uploaded; it counts as
     # failed and the command exits 1.
     (tmp_path / "noext").write_text("x", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     with pytest.raises(SystemExit) as exc:
@@ -319,7 +349,7 @@ def test_md_uploads_as_text_markdown(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "readme.md").write_text("# hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -345,7 +375,7 @@ def test_xsd_uploads_as_application_xml(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "schema.xsd").write_text("<xsd/>", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
 
     cmd_sync(
@@ -374,7 +404,7 @@ def test_upload_failure_counts_and_exits_1(
 ) -> None:
     # A failed upload is reported, surfaces the auth-debug hook, and exits 1.
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
     upload.side_effect = RuntimeError("boom")
 
@@ -433,11 +463,10 @@ def test_folder_resolve_failure_counts_group_failed(
     tmp_path: Path,
 ) -> None:
     # A folder that fails to resolve marks its whole group as failed (exit 1)
-    # without uploading or listing remote keys.
+    # without uploading or listing remote keys. Only "not found"
+    # (InvalidRequestError) leads to a create, so this error must not.
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.side_effect = RuntimeError(
-        "denied"
-    )
+    folder.resolve_scope_id_from_folder_path.side_effect = RuntimeError("denied")
 
     with pytest.raises(SystemExit) as exc:
         cmd_sync(
@@ -452,6 +481,7 @@ def test_folder_resolve_failure_counts_group_failed(
     assert exc.value.code == 1
     upload.assert_not_called()
     content.get_infos.assert_not_called()
+    folder.create_paths.assert_not_called()
     debug.assert_called_once()
 
 
@@ -470,7 +500,7 @@ def test_dry_run_missing_folder_treats_files_as_new(
     # remote listing happens.
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
     folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
-        "not found", params=None
+        "not found", params=None, http_status=404
     )
 
     cmd_sync(
@@ -484,7 +514,7 @@ def test_dry_run_missing_folder_treats_files_as_new(
 
     upload.assert_not_called()
     content.get_infos.assert_not_called()
-    folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
+    folder.create_paths.assert_not_called()
     assert "[dry-run] new: a.txt (versioned)" in capsys.readouterr().out
 
 
@@ -501,7 +531,7 @@ def test_remote_keys_paginates(
     # Remote keys are collected across multiple pages; a key found only on the
     # second page must still mark the local file as "replaced".
     (tmp_path / "b.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
     content.get_infos.side_effect = [
         {"contentInfos": [{"key": "other.txt"}], "totalCount": 2},
         {"contentInfos": [{"key": "b.txt"}], "totalCount": 2},
@@ -552,3 +582,196 @@ def test_dry_run_shows_no_version_label(
 
     upload.assert_not_called()
     assert "[dry-run] replaced: a.txt (no-version)" in capsys.readouterr().out
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_inherit_access_creates_missing_folder_without_inheritance(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "not found", params=None, http_status=404
+    )
+    folder.create_paths.return_value = {"createdFolders": [{"id": "scope_new"}]}
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/Private/New",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+        inherit_access=False,
+    )
+
+    folder.create_paths.assert_called_once_with(
+        "u1", "c1", paths=["/Private/New"], inheritAccess=False
+    )
+    assert upload.call_args.kwargs["scope_or_unique_path"] == "scope_new"
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_inherit_access_leaves_existing_folder_untouched(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.return_value = "scope_existing"
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/X",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+        inherit_access=False,
+    )
+
+    folder.create_paths.assert_not_called()
+    assert upload.call_args.kwargs["scope_or_unique_path"] == "scope_existing"
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_inherit_access_applies_to_recursive_child_folders(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "b.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "not found", params=None, http_status=404
+    )
+    folder.create_paths.side_effect = [
+        {"createdFolders": [{"id": "scope_root"}]},
+        {"createdFolders": [{"id": "scope_sub"}]},
+    ]
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/P",
+        scope_id=None,
+        recursive=True,
+        dry_run=False,
+        inherit_access=False,
+    )
+
+    paths = [c.kwargs["paths"] for c in folder.create_paths.call_args_list]
+    assert paths == [["/P"], ["/P/sub"]]
+    assert all(
+        c.kwargs["inheritAccess"] is False for c in folder.create_paths.call_args_list
+    )
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_inherit_access_never_creates_root_path(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    # --folder-path / with a top-level file resolves to an empty target path.
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    content.get_infos.return_value = _no_remote()
+
+    with patch("uqadm.kb.sync.join_path_segments", return_value=""):
+        cmd_sync(
+            _cfg(),
+            local_dir=tmp_path,
+            folder_path="/",
+            scope_id=None,
+            recursive=False,
+            dry_run=False,
+            inherit_access=False,
+        )
+
+    folder.create_paths.assert_not_called()
+    folder.resolve_scope_id_from_folder_path.assert_not_called()
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_default_creates_missing_folder_with_inheritance(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "not found", params=None, http_status=404
+    )
+    folder.create_paths.return_value = {"createdFolders": [{"id": "scope_new"}]}
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/New",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+    )
+
+    folder.create_paths.assert_called_once_with(
+        "u1", "c1", paths=["/New"], inheritAccess=True
+    )
+    assert upload.call_args.kwargs["scope_or_unique_path"] == "scope_new"
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+@patch("uqadm.kb.sync.echo_credential_debug_if_auth_failure")
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_validation_error_on_lookup_is_not_treated_as_missing(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    debug: MagicMock,
+    dry_run: bool,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A 400 shares the InvalidRequestError class with a 404; only the 404 means
+    # "folder missing". A 400 must neither create the folder nor show files as new.
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "invalid folderPath", params=None, http_status=400
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_sync(
+            _cfg(),
+            local_dir=tmp_path,
+            folder_path="/X",
+            scope_id=None,
+            recursive=False,
+            dry_run=dry_run,
+        )
+
+    assert exc.value.code == 1
+    folder.create_paths.assert_not_called()
+    upload.assert_not_called()
+    assert "new: a.txt" not in capsys.readouterr().out

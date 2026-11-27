@@ -1,7 +1,7 @@
 import json
 import logging
 import random
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, NamedTuple, Sequence
 
 import unique_sdk
@@ -29,6 +29,9 @@ from unique_toolkit._common.execution import (
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
+)
+from unique_toolkit.language_model.errors import (
+    _reraise_as_language_model_call_error,
 )
 from unique_toolkit.language_model.functions import (
     SearchContext,
@@ -153,14 +156,16 @@ def _prepare_responses_params_util(
         _to_search_context(content_chunks) if content_chunks is not None else None
     )
 
-    model = model_name.name if isinstance(model_name, LanguageModelName) else model_name
+    model = (
+        model_name.value if isinstance(model_name, LanguageModelName) else model_name
+    )
 
     tools_res = _convert_tools_to_openai(tools) if tools is not None else None
 
     if other_options is not None:
         # Key word argument takes precedence
-        reasoning = reasoning or _attempt_extract_reasoning_from_options(other_options)
-        text = text or _attempt_extract_verbosity_from_options(other_options)
+        reasoning = reasoning or extract_reasoning_from_options(other_options)
+        text = text or extract_verbosity_from_options(other_options)
 
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
@@ -205,9 +210,15 @@ def _prepare_responses_params_util(
     log_exc_info=False,
     logger=logger,
 )
-def _attempt_extract_reasoning_from_options(
+def extract_reasoning_from_options(
     options: dict[str, Any],
 ) -> Reasoning | None:
+    """Build the Responses ``reasoning`` parameter from LLM options.
+
+    Accepts the Responses spelling (``reasoning``, dict or JSON string) as well
+    as the chat-completions spellings (``reasoning_effort`` / ``reasoningEffort``).
+    Returns ``None`` when no reasoning option is present or it fails validation.
+    """
     reasoning: dict[str, Any] | str | None = None
 
     # Responses API
@@ -241,9 +252,15 @@ def _attempt_extract_reasoning_from_options(
     log_exc_info=False,
     logger=logger,
 )
-def _attempt_extract_verbosity_from_options(
+def extract_verbosity_from_options(
     options: dict[str, Any],
 ) -> ResponseTextConfigParam | None:
+    """Build the Responses ``text`` parameter from LLM options.
+
+    Accepts the chat-completions spelling (flat ``verbosity``) as well as the
+    Responses spelling (``text``, dict or JSON string). Returns ``None`` when no
+    verbosity option is present or it fails validation.
+    """
     if "verbosity" in options:
         return TypeAdapter(ResponseTextConfigParam).validate_python(
             {"verbosity": options["verbosity"]}
@@ -266,6 +283,30 @@ def _attempt_extract_verbosity_from_options(
             return TypeAdapter(ResponseTextConfigParam).validate_python(text_config)
 
     return None
+
+
+# Keys translated into the Responses ``reasoning`` / ``text`` params; the flat
+# chat-completions spellings are rejected by /v1/responses if forwarded as-is.
+REASONING_OPTION_KEYS: tuple[str, ...] = (
+    "reasoning",
+    "reasoning_effort",
+    "reasoningEffort",
+)
+VERBOSITY_OPTION_KEYS: tuple[str, ...] = ("text", "verbosity")
+
+
+def strip_translated_responses_options(
+    other_options: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Return a copy of ``other_options`` without keys already mapped to
+    ``reasoning`` / ``text``."""
+    if not other_options:
+        return {}
+    return {
+        k: v
+        for k, v in other_options.items()
+        if k not in REASONING_OPTION_KEYS and k not in VERBOSITY_OPTION_KEYS
+    }
 
 
 def _prepare_responses_args(
@@ -328,9 +369,12 @@ def _prepare_responses_args(
     openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType, reportCallIssue]
 
     # allow any other openai.resources.responses.Response.create options
-    if other_options is not None:
-        for k, v in other_options.items():
-            openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
+    for k, v in strip_translated_responses_options(other_options).items():
+        openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
+
+    LanguageModelInfo.from_name(params.model_name).drop_unsupported_options(
+        openai_options  # pyright: ignore[reportArgumentType]
+    )
 
     options["options"] = openai_options
 
@@ -370,8 +414,26 @@ class RateLimitRetryConfig(BaseSettings):
 rate_limit_retry_config = RateLimitRetryConfig()
 
 
+def _retry_after_seconds(exc: BaseException | None) -> float | None:
+    params = getattr(exc, "params", None)
+    if not isinstance(params, Mapping):
+        return None
+    retry_after = params.get("retryAfterSeconds")
+    if (
+        isinstance(retry_after, (int, float))
+        and not isinstance(retry_after, bool)
+        and retry_after >= 0
+    ):
+        return float(retry_after)
+    return None
+
+
 def _rate_limit_wait(retry_state: RetryCallState) -> float:
-    """Exponential backoff with up to 10% jitter: initial_delay → 2x → 4x."""
+    """Wait ``retryAfterSeconds`` when the API sent one, else exponential backoff."""
+    exc = retry_state.outcome.exception() if retry_state.outcome else None
+    retry_after = _retry_after_seconds(exc)
+    if retry_after is not None:
+        return retry_after
     n = retry_state.attempt_number - 1  # 0-indexed
     base = rate_limit_retry_config.initial_delay_seconds * (2.0**n)
     return base + random.uniform(0.0, base * 0.1)
@@ -384,9 +446,8 @@ async def _responses_stream_with_rate_limit_retry(
 ) -> "unique_sdk.Integrated.ResponsesStreamResult":
     """Wrap responses_stream_async with exponential backoff for rate-limit errors.
 
-    The SDK already retries 3× (1s/2s/4s) before raising. This layer adds further
-    retries with longer delays, which are needed for models with tighter RPM limits
-    (e.g. GPT-4o) when large-token requests (web search, code execution) are in the loop.
+    The SDK does not retry 429s. This layer retries a retryable ``RateLimitError``,
+    waiting ``params.retryAfterSeconds`` when the API sent one.
 
     Args:
         responses_args: Keyword arguments forwarded to responses_stream_async.
@@ -397,6 +458,11 @@ async def _responses_stream_with_rate_limit_retry(
     """
 
     def _is_rate_limit(exc: BaseException) -> bool:
+        if isinstance(exc, unique_sdk.RateLimitError):
+            params = getattr(exc, "params", None)
+            if isinstance(params, Mapping) and params.get("retryable") is False:
+                return False
+            return True
         return isinstance(exc, unique_sdk.APIError) and any(
             kw in str(exc).lower() for kw in _RATE_LIMIT_KEYWORDS
         )
@@ -502,11 +568,11 @@ def stream_responses_with_references(
         other_options=other_options,
     )
 
-    return ResponsesLanguageModelStreamResponse.model_validate(
-        unique_sdk.Integrated.responses_stream(
-            **responses_args,
-        )
-    )
+    try:
+        streamed = unique_sdk.Integrated.responses_stream(**responses_args)
+    except unique_sdk.UniqueError as error:
+        _reraise_as_language_model_call_error(error)
+    return ResponsesLanguageModelStreamResponse.model_validate(streamed)
 
 
 async def stream_responses_with_references_async(
@@ -571,10 +637,12 @@ async def stream_responses_with_references_async(
         "Calling responses_stream_async model=%s",
         responses_params.model_name,
     )
-    return ResponsesLanguageModelStreamResponse.model_validate(
-        await _responses_stream_with_rate_limit_retry(
+    try:
+        streamed = await _responses_stream_with_rate_limit_retry(
             responses_args=responses_args,
             model_name=responses_params.model_name,
             on_rate_limit_retry=on_rate_limit_retry,
         )
-    )
+    except unique_sdk.UniqueError as error:
+        _reraise_as_language_model_call_error(error)
+    return ResponsesLanguageModelStreamResponse.model_validate(streamed)

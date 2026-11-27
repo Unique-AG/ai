@@ -19,6 +19,7 @@ from openai.types.responses.response_output_text import (
 )
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
+from unique_search_proxy_core.context import EntryPoint, RequestContext
 from unique_toolkit._common.execution import safe_execute_async
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
@@ -50,6 +51,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
+from unique_web_search.invocation_stats import collector as web_search_collector
 
 from unique_deep_research.unique_custom.tools import crawl_url, get_today_str
 
@@ -60,6 +62,7 @@ from .config import (
     DeepResearchToolConfig,
     UniqueEngine,
 )
+from .invocation_stats import collector
 from .markdown_utils import (
     export_report_to_docx,
     postprocess_research_result_with_chunks,
@@ -134,6 +137,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "x-user-id": self.user_id,
                 "x-assistant-id": self.event.payload.assistant_id,
                 "x-chat-id": self.chat_id,
+                "x-service-id": "assistants-core",
             }
         )
 
@@ -261,39 +265,65 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        sub = self.chat_service.cancellation.on_cancellation.subscribe(
-            self._on_cancellation
-        )
-        try:
-            return await self._run(tool_call)
-        except Exception as e:
-            self.write_message_log_text_message(
-                "**Research failed for an unknown reason**"
+        with collector.scope() as invocation_stats:
+            sub = self.chat_service.cancellation.on_cancellation.subscribe(
+                self._on_cancellation
             )
-            if self.is_message_execution():
-                await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+            try:
+                response = await self._run(tool_call)
+                response.invocation_stats.extend(invocation_stats)
+                return response
+            except Exception as e:
+                _LOGGER.exception("Deep Research tool run failed")
 
-            _LOGGER.exception(f"Deep Research tool run failed: {e}")
+                # The failure-handling below issues several awaits (status
+                # update, debugInfo read/write, message edit); if any of them
+                # raises it must not escape and take the tokens already spent
+                # this run down with it -- the finally block still returns a
+                # stats-bearing error response so analytics stay accurate.
+                try:
+                    self.write_message_log_text_message(
+                        "**Research failed for an unknown reason**"
+                    )
+                    if self.is_message_execution():
+                        await self._update_execution_status(
+                            MessageExecutionUpdateStatus.FAILED
+                        )
 
-            debug_info = {
-                **self._get_tool_debug_info(),
-                "error": str(e),
-                "traceback": traceback.format_exc(),
-            }
-            await self.chat_service.update_debug_info_async(debug_info)
-            await self.chat_service.modify_assistant_message_async(
-                content="Deep Research failed to complete for an unknown reason",
-                set_completed_at=True,
+                    # update_debug_info_async replaces the message's debugInfo
+                    # wholesale (see ChatService.update_debug_info_async /
+                    # replace_debug_info), so the existing debugInfo must be read
+                    # and merged in first -- otherwise this write wipes out
+                    # `llm_invocations` persisted from an earlier turn of this same
+                    # research (e.g. the clarification round), and UniqueAI's later
+                    # merge (unique_ai.py) reads back an empty prior list.
+                    existing_debug_info = await self.chat_service.get_debug_info_async()
+                    debug_info = {
+                        **existing_debug_info,
+                        **self._get_tool_debug_info(),
+                        "error": str(e),
+                        "traceback": traceback.format_exc(),
+                    }
+                    await self.chat_service.update_debug_info_async(debug_info)
+                    await self.chat_service.modify_assistant_message_async(
+                        content="Deep Research failed to complete for an unknown reason",
+                        set_completed_at=True,
+                    )
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to persist Deep Research failure state; "
+                        "returning collected invocation stats anyway"
+                    )
+            finally:
+                sub.cancel()
+
+            return ToolCallResponse(
+                id=tool_call.id or "",
+                name=self.name,
+                content="Failed to complete research",
+                error_message="Research process failed or returned empty results",
+                invocation_stats=invocation_stats,
             )
-        finally:
-            sub.cancel()
-
-        return ToolCallResponse(
-            id=tool_call.id or "",
-            name=self.name,
-            content="Failed to complete research",
-            error_message="Research process failed or returned empty results",
-        )
 
     async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         _LOGGER.info("Starting Deep Research tool run")
@@ -337,11 +367,25 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             if processed_result == "":
                 raise ValueError("Research returned empty result")
 
-            await self.chat_service.modify_assistant_message_async(
-                set_completed_at=True,
-            )
-
-            await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
+            # The real report is already persisted by run_research() above; these
+            # two calls are trailing bookkeeping (completed-flag, execution status).
+            # If either raises, run()'s except handler would otherwise treat the
+            # whole turn as failed and overwrite the already-correct report with a
+            # generic failure message -- swallow here instead so a bookkeeping
+            # hiccup can't destroy a successful research result.
+            try:
+                await self.chat_service.modify_assistant_message_async(
+                    set_completed_at=True,
+                )
+                await self._update_execution_status(
+                    MessageExecutionUpdateStatus.COMPLETED
+                )
+            except Exception:
+                _LOGGER.warning(
+                    "Failed to finalize Deep Research completion bookkeeping "
+                    "after a successful research result",
+                    exc_info=True,
+                )
 
             return ToolCallResponse(
                 id=tool_call.id or "",
@@ -503,13 +547,28 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "message_id": self.chat_service.assistant_message_id,
                 "citation_manager": citation_manager,
                 "additional_openai_proxy_headers": additional_openai_proxy_headers,
+                "request_context": RequestContext(
+                    company_id=self.company_id,
+                    user_id=self.user_id,
+                    chat_id=self.chat_id,
+                    user_metadata=self.event.payload.user_metadata or {},
+                    entry_point=EntryPoint.DEEP_RESEARCH,
+                ),
             },
         }
 
-        result = await self.chat_service.cancellation.run_with_cancellation(
-            custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
-            cancel_result={"final_report": ""},
-        )
+        with web_search_collector.scope() as web_search_invocation_stats:
+            try:
+                result = await self.chat_service.cancellation.run_with_cancellation(
+                    custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
+                    cancel_result={"final_report": ""},
+                )
+            finally:
+                # web_search_invocation_stats is populated live as nested web-search
+                # calls happen during ainvoke(); merge it into the outer Deep Research
+                # scope even if the graph raises, so tokens already spent before the
+                # failure aren't dropped from the failure ToolCallResponse.
+                collector.record_invocation_stats(web_search_invocation_stats)
 
         research_result = result.get("final_report", "")
 
@@ -634,6 +693,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                             _LOGGER.info(
                                 f"OpenAI research token usage: {event.response.usage}"
                             )
+                            collector.record_token_usage(
+                                model_name=self.config.engine.research_model.name,
+                                usage=event.response.usage,
+                                source="deep_research.openai_research",
+                            )
                         # Extract the final output with annotations
                         if event.response.output and len(event.response.output) > 0:
                             final_output = event.response.output[-1]
@@ -712,9 +776,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     or not isinstance(event.item.action.url, str)
                                     or "https://" not in event.item.action.url
                                 ):
-                                    _LOGGER.warning(
-                                        f"Invalid URL from OpenAI: {event.item.action}"
-                                    )
+                                    _LOGGER.warning("Invalid URL from OpenAI")
                                     continue
 
                                 _, title, success = await crawl_url(
@@ -723,13 +785,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 )
                                 if not success:
                                     _LOGGER.info(
-                                        f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
+                                        "Failed to crawl URL but openai still opened the page"
                                     )
                                     continue
                                 if not title:
-                                    _LOGGER.info(
-                                        f"No title found for URL: {event.item.action.url}"
-                                    )
+                                    _LOGGER.info("No title found for URL")
                                     continue
                                 self.chat_service.create_message_log(
                                     message_id=self.chat_service.assistant_message_id,
@@ -810,6 +870,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             temperature=0.1,
             max_tokens=5000,
         )
+        collector.record_language_model_response(
+            model_name=self.config.engine.large_model.name,
+            response=response,
+            source="deep_research.report_cleanup",
+        )
 
         formatted_result = response.choices[0].message.content
         if formatted_result:
@@ -870,6 +935,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             model_name=self.config.engine.small_model.name,
             content_chunks=None,
         )
+        collector.record_language_model_response(
+            model_name=self.config.engine.small_model.name,
+            response=response,
+            source="deep_research.clarification",
+        )
         assert isinstance(response.choices[0].message.content, str), (
             "No clarifying questions generated"
         )
@@ -896,6 +966,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         research_response = await self.client.chat.completions.create(
             model=self.config.engine.large_model.name,
             messages=chat_messages,
+        )
+        collector.record_language_model_response(
+            model_name=self.config.engine.large_model.name,
+            response=research_response,
+            source="deep_research.research_brief",
         )
 
         research_instructions = research_response.choices[0].message.content

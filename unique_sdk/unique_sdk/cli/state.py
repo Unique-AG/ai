@@ -10,6 +10,9 @@ from typing import Any
 import unique_sdk
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.metadata_filter import MetadataFilter
+from unique_sdk.cli.paths import canonical_folder_path, same_folder_path
+from unique_sdk.cli.workspace import manifest_path as workspace_manifest_path
+from unique_sdk.cli.workspace import workspace_root
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
 _UPLOADED_CONFIG_FILENAME = ".unique-uploaded.json"
@@ -17,9 +20,10 @@ _MCP_TOOLS_CONFIG_FILENAME = ".unique-mcp-tools.json"
 _CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
 
 
-def _load_search_config() -> dict[str, Any]:
-    """Load ``.unique-search.json`` from the cwd, or ``{}`` when absent/invalid."""
-    config_path = Path.cwd() / _SEARCH_CONFIG_FILENAME
+def _load_search_config(*, workspace_dir: Path | None = None) -> dict[str, Any]:
+    """Load ``.unique-search.json`` from ``workspace_dir``, or the workspace root."""
+    root = workspace_root() if workspace_dir is None else workspace_dir
+    config_path = root / _SEARCH_CONFIG_FILENAME
     if not config_path.is_file():
         return {}
     try:
@@ -30,16 +34,16 @@ def _load_search_config() -> dict[str, Any]:
 
 
 def _load_uploaded_config() -> dict[str, Any]:
-    """Load ``.unique-uploaded.json`` from the cwd, or ``{}`` when absent/invalid.
+    """Load ``.unique-uploaded.json`` from the workspace root, or ``{}`` when absent or invalid.
 
-    Written by the Swappable Intelligence runner when the task carries per-row
-    uploaded documents (an Agentic Table row's ``selectedUploadedFiles``). It
-    holds the chat that owns those uploads and their content ids so
+    Written by the Conduct runner when the current message selects uploaded
+    documents (chat uploads, or an Agentic Table row's documents). It holds the
+    chat that owns those uploads and their content ids so
     ``unique-cli uploaded-search`` can reach them: uploaded files live outside
     the knowledge-base folder scopes, so the scope-bound ``unique-cli search``
     structurally cannot return them. See UN-21780.
     """
-    config_path = Path.cwd() / _UPLOADED_CONFIG_FILENAME
+    config_path = workspace_root() / _UPLOADED_CONFIG_FILENAME
     if not config_path.is_file():
         return {}
     try:
@@ -59,7 +63,7 @@ def _load_mcp_tool_configs() -> dict[str, dict[str, Any]]:
     Keyed by the same namespaced tool name the agent passes to ``unique-cli
     mcp``. Returns ``{}`` when absent or invalid.
     """
-    config_path = Path.cwd() / _MCP_TOOLS_CONFIG_FILENAME
+    config_path = workspace_root() / _MCP_TOOLS_CONFIG_FILENAME
     if not config_path.is_file():
         return {}
     try:
@@ -120,7 +124,7 @@ def _load_chat_file_content_ids() -> set[str]:
     documents, so they must stay readable regardless of the per-message KB
     scope filter. Returns an empty set when the manifest is absent or invalid.
     """
-    path = Path.cwd() / _CHAT_FILES_MANIFEST_PATH
+    path = workspace_manifest_path(_CHAT_FILES_MANIFEST_PATH)
     if not path.is_file():
         return set()
     try:
@@ -135,7 +139,12 @@ def _load_chat_file_content_ids() -> set[str]:
 class ShellState:
     """Tracks the virtual working directory within the Unique folder hierarchy."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, *, workspace_dir: Path | None = None) -> None:
+        """``workspace_dir`` selects ``.unique-search.json`` only.
+
+        Uploaded files, MCP tool config, and chat-file ids still come from
+        ``workspace_root()``.
+        """
         self.config = config
         self._path = "/"
         self._scope_id: str | None = None
@@ -152,7 +161,7 @@ class ShellState:
         # gate (owner path) and citation title resolution so a read+cite of
         # the same document costs one info call per turn. See UN-21780.
         self._content_info_cache: dict[str, unique_sdk.Content.ContentInfo | None] = {}
-        _search_config = _load_search_config()
+        _search_config = _load_search_config(workspace_dir=workspace_dir)
         self.workspace_scope_ids: list[str] = _load_workspace_scope_ids(_search_config)
         # The MetadataFilter (when present) is rebuilt by the property setter,
         # which injects this state's cached path/owner resolvers. Both backing
@@ -161,11 +170,12 @@ class ShellState:
         self._workspace_metadata_filter: dict[str, Any] | None = None
         self._metadata_filter: MetadataFilter | None = None
         self.workspace_metadata_filter = _load_workspace_metadata_filter(_search_config)
-        # Per-row uploaded documents reachable via ``unique-cli uploaded-search``.
-        # Loaded from ``.unique-uploaded.json`` (written by the runner). The chat
-        # id is the chat that *owns* the uploads — for a subagent this is the
-        # parent chat — and is required for the chat-scoped uploaded search.
-        # See UN-21780.
+        # The documents the current message selects for ``unique-cli
+        # uploaded-search``. Loaded from ``.unique-uploaded.json`` (written by
+        # the runner per message). The chat id is the chat that *owns* them —
+        # the parent chat for an Agentic Table row, or for a sub-agent chat
+        # searching its parent's documents — and is required for the
+        # chat-scoped uploaded search. See UN-21780.
         _uploaded_config = _load_uploaded_config()
         self.uploaded_search_chat_id: str | None = _load_uploaded_chat_id(
             _uploaded_config
@@ -182,12 +192,12 @@ class ShellState:
 
     @property
     def uploaded_search_available(self) -> bool:
-        """True when this task has per-row uploaded documents to search.
+        """True when the current message selects uploaded documents to search.
 
         Requires *both* a non-empty selected content-id set and the owning
         chat id. The owning chat id alone is not enough: ``cmd_uploaded_search``
         would then issue a ``chatOnly`` ``Search.create`` with no ``contentIds``
-        filter, silently widening scope from the row's selected files to *every*
+        filter, silently widening scope from the message's selected files to *every*
         upload in the chat. That degenerate state arises when the runner wrote
         a ``.unique-uploaded.json`` whose ``contentIds`` were absent or
         malformed (e.g. mixed types, rejected wholesale by
@@ -263,14 +273,15 @@ class ShellState:
         """Return True if *content_id* is in the current workspace scope.
 
         Precedence (UN-21780):
-        0. Per-row uploaded documents (``.unique-uploaded.json``) surfaced by
-           ``unique-cli uploaded-search`` are task inputs that live *outside* the
-           KB scope boundary by design, so neither the metadata filter nor the
-           static ``scopeIds`` path below would admit them. Exempt them for
-           non-destructive access so the agent can ``read``/``ls``/``cite`` a doc
-           it just found via uploaded-search — mirroring the chat-file exemption.
-           Mutating ops (``rm``/``mv``) pass ``allow_chat_files=False`` and stay
-           denied, so an uploaded input can't be deleted or renamed this way.
+        0. Documents the current message selects (``.unique-uploaded.json``)
+           for ``unique-cli uploaded-search`` are message inputs that live
+           *outside* the KB scope boundary by design, so neither the metadata
+           filter nor the static ``scopeIds`` path below would admit them.
+           Exempt them for non-destructive access so the agent can
+           ``read``/``ls``/``cite`` a doc it just found via uploaded-search —
+           mirroring the chat-file exemption. Mutating ops (``rm``/``mv``)
+           pass ``allow_chat_files=False`` and stay denied, so an uploaded
+           input can't be deleted or renamed this way.
         1. A per-message UniqueQL ``metaDataFilter`` (e.g. an Agentic Table
            column's ``scope_rules``) is the authority for this turn and
            *replaces* the static ``scopeIds`` for content access. Files the
@@ -465,6 +476,16 @@ class ShellState:
             return True
         return self._metadata_filter.allows_folder_scope(scope_id)
 
+    def folder_navigable(self, scope_id: str) -> bool:
+        """True if ``ls``/``cd`` may open *scope_id* under the active scope.
+
+        The per-message filter decides when present; otherwise a non-empty
+        ``scopeIds`` list admits only those folders and their descendants.
+        """
+        if self._metadata_filter is not None:
+            return self.folder_allowed_by_metadata_filter(scope_id)
+        return self.is_folder_target_within_workspace(scope_id)
+
     def folder_path_allowed_by_metadata_filter(self, folder_path: str) -> bool:
         """True if an absolute folder *path* lies within a navigable scope.
 
@@ -560,6 +581,29 @@ class ShellState:
     def prompt(self) -> str:
         return f"{self._path}> "
 
+    def _require_navigable_folder(self, scope_id: str) -> None:
+        """Refuse a folder outside the active scope. See UN-28458."""
+        if self.folder_navigable(scope_id):
+            return
+        raise ValueError(
+            "permission denied: target is outside your task scope "
+            f"({self.scope_denial_hint()})."
+        )
+
+    def _enter_folder(self, scope_id: str, folder_path: str) -> str:
+        """Store *folder_path* only when *scope_id* is that exact folder."""
+        actual = canonical_folder_path(
+            self.config.user_id,
+            self.config.company_id,
+            scope_id,
+        )
+        if not same_folder_path(actual, folder_path):
+            raise ValueError(f"cannot change to {folder_path}: resolved to {actual}")
+        self._require_navigable_folder(scope_id)
+        self._scope_id = scope_id
+        self._path = folder_path
+        return self._path
+
     def cd(self, target: str) -> str:
         """Change directory. Returns the new path.
 
@@ -589,8 +633,7 @@ class ShellState:
                     company_id=self.config.company_id,
                     folderPath=parent,
                 )
-                self._path = parent
-                self._scope_id = info["id"]
+                return self._enter_folder(info["id"], parent)
             return self._path
 
         if target.startswith("scope_"):
@@ -604,6 +647,7 @@ class ShellState:
                 company_id=self.config.company_id,
                 scope_id=target,
             )
+            self._require_navigable_folder(info["id"])
             self._scope_id = info["id"]
             self._path = path_resp["folderPath"]
             return self._path
@@ -618,9 +662,7 @@ class ShellState:
             company_id=self.config.company_id,
             folderPath=resolved_path,
         )
-        self._scope_id = info["id"]
-        self._path = resolved_path
-        return self._path
+        return self._enter_folder(info["id"], resolved_path)
 
     def resolve_path(self, target: str | None) -> tuple[str, str | None]:
         """Resolve a target to (path, scope_id) without changing state.

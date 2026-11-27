@@ -152,6 +152,7 @@ class HistoryManager:
         return len(self._loop_history) == 0
 
     def add_tool_call_results(self, tool_call_results: list[ToolCallResponse]):
+        self._collected_tool_response_image_urls = []
         for tool_response in tool_call_results:
             if tool_response.image_data_urls:
                 for url in tool_response.image_data_urls:
@@ -220,6 +221,83 @@ class HistoryManager:
     def add_assistant_message(self, message: LanguageModelAssistantMessage) -> None:
         self._loop_history.append(message)
 
+    def tighten_token_budget(self, factor: float) -> None:
+        self._token_reducer.tighten_effective_token_limit(factor)
+
+    @property
+    def effective_token_limit(self) -> int:
+        return self._token_reducer.effective_token_limit
+
+    @property
+    def last_token_count(self) -> int:
+        return self._token_reducer.last_token_count
+
+    def withhold_latest_tool_call_results(self, notice: str) -> int:
+        """Replace every result of the most recent tool-call batch with *notice*.
+
+        The withheld results' chunks are dropped from the reference manager. They
+        are the newest chunks, so source numbers of earlier results stay valid.
+        Returns the number of newly withheld results; results that already hold
+        *notice* are not counted.
+        """
+        batch_start: int | None = None
+        for index in range(len(self._loop_history) - 1, -1, -1):
+            candidate = self._loop_history[index]
+            if (
+                isinstance(candidate, LanguageModelAssistantMessage)
+                and candidate.tool_calls
+            ):
+                batch_start = index
+                break
+        if batch_start is None:
+            return 0
+
+        withheld_tool_call_ids: list[str] = []
+        for index in range(batch_start + 1, len(self._loop_history)):
+            message = self._loop_history[index]
+            if not isinstance(message, LanguageModelToolMessage):
+                continue
+            if message.content == notice:
+                continue
+            self._loop_history[index] = LanguageModelToolMessage(
+                content=notice,
+                tool_call_id=message.tool_call_id,
+                name=message.name,
+            )
+            withheld_tool_call_ids.append(message.tool_call_id)
+        if not withheld_tool_call_ids:
+            return 0
+
+        withheld_chunks = {
+            id(chunk)
+            for tool_call_id in withheld_tool_call_ids
+            for chunk in self._reference_manager.get_chunks_of_tool(tool_call_id)
+        }
+        if withheld_chunks:
+            self._reference_manager.replace(
+                chunks=[
+                    chunk
+                    for chunk in self._reference_manager.get_chunks()
+                    if id(chunk) not in withheld_chunks
+                ]
+            )
+            for tool_call_id in withheld_tool_call_ids:
+                self._reference_manager.replace_chunks_of_tool(tool_call_id, [])
+
+        if self._collected_tool_response_image_urls:
+            withheld_ids = set(withheld_tool_call_ids)
+            self._collected_tool_response_image_urls = [
+                (url, tool_call_id)
+                for url, tool_call_id in self._collected_tool_response_image_urls
+                if tool_call_id not in withheld_ids
+            ]
+
+        self._logger.warning(
+            f"Withheld {len(withheld_tool_call_ids)} tool call result(s) that "
+            "exceeded the context window."
+        )
+        return len(withheld_tool_call_ids)
+
     async def get_history_for_model_call(
         self,
         original_user_message: str,
@@ -238,7 +316,6 @@ class HistoryManager:
             remove_from_text=remove_from_text,
             image_data_urls_from_tools=image_data_from_tools,
         )
-        self._collected_tool_response_image_urls = []
 
         if not self._source_offset_initialized:
             offset = max(0, self._token_reducer.max_db_source_number + 1)
@@ -346,10 +423,8 @@ class HistoryManager:
 
         cited: set[int] = {
             int(m)
-            for m in re.findall(r"\[source(\d+)\]", assistant_text, re.IGNORECASE)
+            for m in re.findall(r"\[source[\s_]?(\d+)\]", assistant_text, re.IGNORECASE)
         }
-        if not cited:
-            return records
 
         return [
             record.model_copy(
@@ -374,8 +449,9 @@ def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
 
     The content is expected to be a JSON array of dicts containing at least
     a "source_number" key.  Items whose "source_number" is not in *cited*
-    are removed.  If the content is not valid JSON or not in the expected
-    format it is returned unchanged.
+    are removed. If no sources are cited, the response is replaced with a short
+    message. If the content is not valid JSON or not in the expected format it
+    is returned unchanged.
     """
     try:
         data = json.loads(content)
@@ -389,6 +465,11 @@ def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
         isinstance(item, dict) and "source_number" in item for item in data
     ):
         return content
+
+    if not cited:
+        return (
+            "The search did not produce any relevant information that could be cited."
+        )
 
     filtered = [item for item in data if item.get("source_number") in cited]
     return serialize_tool_content_json(filtered)

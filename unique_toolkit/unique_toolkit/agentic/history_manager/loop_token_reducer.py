@@ -38,7 +38,6 @@ MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = env_settings.input_correction_reduction_fac
 SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION = env_settings.input_aggressive_reduction_factor
 
 PLAIN_TEXT_TRUNCATION_MARKER = "\n\n[... tool response too long and was truncated]"
-# TODO: Make this configurable
 MIN_PLAIN_TEXT_CHARS_TO_KEEP = 1000
 
 
@@ -106,10 +105,23 @@ class LoopTokenReducer:
             self._language_model.token_limits.token_limit_input
             * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
         )
+        self._last_token_count = 0
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
-        self._selected_content_ids = get_selected_uploaded_content_ids(event)
+        self._event = event
+        # Lazily resolved on first async use since the flag check is async;
+        # `_resolved` distinguishes "not yet checked" from a resolved `None` (flag off).
+        self._selected_content_ids: set[str] | None = None
+        self._selected_content_ids_resolved = False
+
+    async def _get_selected_content_ids(self) -> set[str] | None:
+        if not self._selected_content_ids_resolved:
+            self._selected_content_ids = await get_selected_uploaded_content_ids(
+                self._event
+            )
+            self._selected_content_ids_resolved = True
+        return self._selected_content_ids
 
     @property
     def max_db_source_number(self) -> int:
@@ -118,6 +130,23 @@ class LoopTokenReducer:
     @property
     def db_source_map(self) -> dict[int, ContentChunk]:
         return self._db_source_map
+
+    @property
+    def effective_token_limit(self) -> int:
+        return self._effective_token_limit
+
+    @property
+    def last_token_count(self) -> int:
+        return self._last_token_count
+
+    def tighten_effective_token_limit(self, factor: float) -> None:
+        """Shrink the input-token budget for the rest of the run after the provider counted more tokens than the local encoder."""
+        previous_limit = self._effective_token_limit
+        self._effective_token_limit = int(previous_limit * factor)
+        self._logger.warning(
+            f"Tightened effective token limit from {previous_limit} to "
+            f"{self._effective_token_limit} tokens."
+        )
 
     def _get_encoder(self, language_model: LMI) -> Callable[[str], list[int]]:
         return language_model.get_encoder()
@@ -167,6 +196,7 @@ class LoopTokenReducer:
                 break
 
         token_count = self._count_message_tokens(messages)
+        self._last_token_count = token_count
         self._logger.info(
             f"Final token count after reduction: {token_count} of model_capacity {self._language_model.token_limits.token_limit_input}"
         )
@@ -179,8 +209,6 @@ class LoopTokenReducer:
         This is purely a size check. Whether anything can actually be reduced to
         get back under the limit is a separate concern (:meth:`_can_reduce_history`).
         """
-        # TODO: This is not fully correct at the moment as the token_count
-        # include system_prompt and user question already
         return token_count > self._effective_token_limit
 
     def _can_reduce_history(self, loop_history: list[LanguageModelMessage]) -> bool:
@@ -354,6 +382,7 @@ class LoopTokenReducer:
         Returns:
             list[LanguageModelMessage]: The history
         """
+        selected_content_ids = await self._get_selected_content_ids()
         if self._enable_tool_call_persistence:
             (
                 full_history,
@@ -365,7 +394,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serializer=self._file_content_serializer,
-                selected_content_ids=self._selected_content_ids,
+                selected_content_ids=selected_content_ids,
             )
             self._max_db_source_number = max_src
             self._db_source_map = src_map
@@ -376,7 +405,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serializer=self._file_content_serializer,
-                selected_content_ids=self._selected_content_ids,
+                selected_content_ids=selected_content_ids,
             )
 
         if remove_from_text is not None:

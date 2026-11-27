@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from io import StringIO
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.shell import UniqueShell
@@ -77,9 +81,11 @@ class TestShellNavigation:
         out = _capture(_shell("/Reports"), "pwd")
         assert "/Reports" in out
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.get_info")
-    def test_cd(self, mock_get_info: MagicMock) -> None:
+    def test_cd(self, mock_get_info: MagicMock, mock_path: MagicMock) -> None:
         mock_get_info.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         sh = _shell()
         out = _capture(sh, "cd Reports")
         assert "/Reports" in out
@@ -104,6 +110,7 @@ class TestShellNavigation:
         out = _capture(_shell(), "ls")
         assert "0 folder(s), 0 file(s)" in out
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_infos")
     @patch("unique_sdk.Folder.get_info")
@@ -112,8 +119,10 @@ class TestShellNavigation:
         mock_info: MagicMock,
         mock_infos: MagicMock,
         mock_content: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
         mock_info.return_value = {"id": "scope_r"}
+        mock_path.return_value = {"folderPath": "/Reports"}
         mock_infos.return_value = {
             "folderInfos": [],
             "totalCount": 0,
@@ -127,11 +136,13 @@ class TestShellNavigation:
 
 
 class TestShellFolderOps:
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Folder.create_paths")
-    def test_mkdir(self, mock: MagicMock) -> None:
+    def test_mkdir(self, mock: MagicMock, mock_path: MagicMock) -> None:
         mock.return_value = {
             "createdFolders": [{"id": "scope_new"}],
         }
+        mock_path.return_value = {"folderPath": "/R/Q2"}
         out = _capture(_shell("/R", "scope_r"), "mkdir Q2")
         assert "Created" in out
 
@@ -441,10 +452,14 @@ class TestShellMcp:
         assert "MCP tool call: tool" in out
 
 
-def _scheduled_task() -> MagicMock:
+def _scheduled_task(
+    name: str | None = None, timezone: str | None = "Europe/Zurich"
+) -> MagicMock:
     task = MagicMock()
     task.id = "task_abc"
+    task.name = name
     task.cronExpression = "0 9 * * 1-5"
+    task.timezone = timezone
     task.assistantId = "ast_123"
     task.assistantName = "Bot"
     task.chatId = None
@@ -486,27 +501,56 @@ class TestShellSchedule:
         mock.return_value = _scheduled_task()
         out = _capture(
             _shell(),
-            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Generate report"',
+            'schedule create -c "0 9 * * 1-5" -tz Europe/Zurich '
+            '-a ast_123 -p "Generate report"',
         )
         assert "Created" in out
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     def test_schedule_create_missing_required(self) -> None:
         out = _capture(_shell(), "schedule create -c '0 9 * * 1-5'")
         assert "Usage:" in out
+
+    def test_schedule_create_missing_timezone(self) -> None:
+        out = _capture(
+            _shell(),
+            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Generate report"',
+        )
+        assert "Usage:" in out
+        assert "--timezone" in out
 
     @patch("unique_sdk.ScheduledTask.create")
     def test_schedule_create_with_all_options(self, mock: MagicMock) -> None:
         mock.return_value = _scheduled_task()
         out = _capture(
             _shell(),
-            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Report" --chat-id chat_1 --disabled',
+            'schedule create -c "0 9 * * 1-5" -tz Europe/Zurich -a ast_123 '
+            '-p "Report" --chat-id chat_1 --disabled',
         )
         assert "Created" in out
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create_with_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task(name="Daily sales report")
+        out = _capture(
+            _shell(),
+            'schedule create -c "0 9 * * 1-5" -tz Europe/Zurich -a ast_123 '
+            '-p "Generate report" -n "Daily sales report"',
+        )
+        assert "Created" in out
+        assert mock.call_args[1]["name"] == "Daily sales report"
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_clear_name(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task()
+        _capture(_shell(), "schedule update task_abc --name none")
+        assert mock.call_args[1]["name"] is None
 
     def test_schedule_create_unknown_option(self) -> None:
         out = _capture(
             _shell(),
-            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Report" --bad',
+            'schedule create -c "0 9 * * 1-5" -tz Europe/Zurich '
+            '-a ast_123 -p "Report" --bad',
         )
         assert "Unknown option" in out
 
@@ -521,13 +565,21 @@ class TestShellSchedule:
         assert "Usage:" in out
 
     @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_cron_without_timezone(self, mock: MagicMock) -> None:
+        out = _capture(_shell(), 'schedule update task_abc -c "*/15 * * * *"')
+        assert "--timezone is required when changing --cron" in out
+        mock.assert_not_called()
+
+    @patch("unique_sdk.ScheduledTask.modify")
     def test_schedule_update_all_options(self, mock: MagicMock) -> None:
         mock.return_value = _scheduled_task()
         out = _capture(
             _shell(),
-            'schedule update task_abc -c "*/15 * * * *" -a ast_456 -p "New prompt" --enable',
+            'schedule update task_abc -c "*/15 * * * *" -tz Europe/Zurich '
+            '-a ast_456 -p "New prompt" --enable',
         )
         assert "Updated" in out
+        assert mock.call_args[1]["timezone"] == "Europe/Zurich"
 
     @patch("unique_sdk.ScheduledTask.modify")
     def test_schedule_update_clear_chat_id(self, mock: MagicMock) -> None:
@@ -587,3 +639,47 @@ class TestShellCite:
             out = _capture(_shell(), "cite report.pdf --pages 3 --read-method text")
         assert "[filesource1]" in out
         mock_cite.assert_called_once()
+
+    def test_cite_several_files_cites_each_name(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        unique_dir = tmp_path / ".unique"
+        unique_dir.mkdir()
+        (unique_dir / "chat-files.json").write_text(
+            json.dumps({"a.xlsx": "cont_a", "b.xlsx": "cont_b", "c.csv": "cont_c"}),
+            encoding="utf-8",
+        )
+        out = _capture(_shell(), "cite a.xlsx b.xlsx c.csv --read-method text")
+        assert out.splitlines() == [
+            "[filesource1] -> a.xlsx page 0",
+            "[filesource2] -> b.xlsx page 0",
+            "[filesource3] -> c.csv page 0",
+        ]
+        rows = [
+            json.loads(line)
+            for line in (unique_dir / "file-refs.jsonl").read_text().splitlines()
+        ]
+        assert [
+            (row["sourceNumber"], row["contentId"], row["page"], row["readMethod"])
+            for row in rows
+        ] == [
+            (1, "cont_a", 0, "text"),
+            (2, "cont_b", 0, "text"),
+            (3, "cont_c", 0, "text"),
+        ]
+
+    def test_cite_several_files_one_missing_still_cites_the_others(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        unique_dir = tmp_path / ".unique"
+        unique_dir.mkdir()
+        (unique_dir / "chat-files.json").write_text(
+            json.dumps({"a.xlsx": "cont_a", "c.csv": "cont_c"}), encoding="utf-8"
+        )
+        out = _capture(_shell(), "cite a.xlsx nope.xlsx c.csv --read-method text")
+        lines = out.splitlines()
+        assert lines[0] == "[filesource1] -> a.xlsx page 0"
+        assert lines[1].startswith("cite:")
+        assert lines[2] == "[filesource2] -> c.csv page 0"

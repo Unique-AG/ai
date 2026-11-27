@@ -1,0 +1,7 @@
+component: Orchestrator
+kind: Added
+body: '`build_unique_ai` takes keyword-only `evaluation_factories`, each building one evaluation per turn from an `EvaluationBuildContext` (chat service and reference manager). A factory evaluation named `hallucination` replaces the built-in hallucination check, which is then not created. Without factories nothing changes.'
+time: 2026-11-12T15:40:00.000000+01:00
+custom:
+    Audience: developer
+    Ticket: UN-29233

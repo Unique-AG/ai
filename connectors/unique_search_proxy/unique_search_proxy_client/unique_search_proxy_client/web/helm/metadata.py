@@ -43,7 +43,15 @@ class EgressDomainWildcard:
     port: str = "443"
 
 
-EgressRule = EgressEndpointField | EgressDomainWildcard
+@dataclass(frozen=True)
+class EgressProxyHost:
+    """Proxy egress when host and port are set: /32 ``toCIDR`` for IPv4, else ``toFQDNs``."""
+
+    host_field: str = "proxy_host"
+    port_field: str = "proxy_port"
+
+
+EgressRule = EgressEndpointField | EgressDomainWildcard | EgressProxyHost
 """How a settings group's outbound egress hosts are derived from its settings."""
 
 _DEFAULT_EGRESS: EgressRule = EgressEndpointField()

@@ -10,11 +10,13 @@ from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.agent_engines.output_schema import AgentSearchOutput
 from unique_search_proxy_core.param_policy.derive import derive_request_model
+from unique_search_proxy_core.param_policy.exposable_config import (
+    ExposableParamsConfig,
+)
 from unique_search_proxy_core.param_policy.request_base import AgentRequestBase
 from unique_search_proxy_core.schema import (
     AgentSearchResponse,
     AgentSearchStreamEvent,
-    camelized_model_config,
 )
 
 if TYPE_CHECKING:
@@ -48,13 +50,22 @@ class AgentEngineType(StrEnum):
 _AGENT_REQUEST_EXCLUDED_FIELDS = frozenset({"output_schema"})
 
 
-class BaseAgentEngineConfig(BaseModel, Generic[T]):
-    """Shared agent-engine config; each engine narrows ``engine`` with a Literal."""
+class BaseAgentEngineConfig(ExposableParamsConfig, Generic[T]):
+    """Shared agent-engine config; each engine narrows ``engine`` with a Literal.
 
-    model_config = camelized_model_config
+    Like the standard search-engine config, this owns the whole parameter
+    lifecycle: :meth:`request_model` for the HTTP body, and (from
+    :class:`ExposableParamsConfig`) ``exposed_params_model()`` / ``merge()`` for
+    engines that publish ``ExposableParam`` knobs.
+    """
 
     #: Name of the derived request model; set by every concrete agent config.
     _request_model_name: ClassVar[str]
+
+    #: ``output_schema`` is a server-side concern, never a request default.
+    _merge_exclude_fields: ClassVar[frozenset[str]] = (
+        ExposableParamsConfig._merge_exclude_fields | _AGENT_REQUEST_EXCLUDED_FIELDS
+    )
 
     @classmethod
     def request_model(cls) -> type[BaseModel]:
@@ -101,8 +112,9 @@ class AgentSearchEngine(ABC, Generic[AgentRequestT]):
     """Agent (grounded) search engine contract for v1 providers.
 
     Implementations call the upstream agent/grounding provider and return opaque
-    ``answer`` text plus ``raw`` provider payload. Content resolution is left to
-    consumers; this layer stays provider-egress only.
+    ``answer`` text, the ``citations`` the provider attached to it, and ``raw``
+    provider payload. Content resolution is left to consumers; this layer stays
+    provider-egress only.
     """
 
     engine_id: str

@@ -99,14 +99,10 @@ class TestPreloadSkillsInRun:
             side_effect=TestPreloadSkillsInRun._StopRun
         )
 
-        with (
-            patch(
-                "unique_orchestrator.unique_ai.preload_invoked_skills",
-                new=AsyncMock(),
-            ),
-            patch("unique_orchestrator.unique_ai.feature_flags") as mock_feature_flags,
+        with patch(
+            "unique_orchestrator.unique_ai.preload_invoked_skills",
+            new=AsyncMock(),
         ):
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = True
             with pytest.raises(TestPreloadSkillsInRun._StopRun):
                 await ua.run()
 

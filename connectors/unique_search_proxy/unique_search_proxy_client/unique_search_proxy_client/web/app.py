@@ -10,7 +10,16 @@ from unique_search_proxy_core.logging import suppress_httpx_request_logs
 
 # Application entrypoint only. HTTP SDK lives in unique_search_proxy_sdk.
 from unique_search_proxy_client.web.api import health_router, v1_router
-from unique_search_proxy_client.web.core.client.service import create_http_client_pool
+from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
+    maybe_cleanup_auto_provisioned_bing_agents_on_start,
+)
+from unique_search_proxy_client.web.core.agent_engines.bing.client import (
+    aclose_private_endpoint_http_client,
+)
+from unique_search_proxy_client.web.core.client.service import (
+    create_http_client_registry,
+)
+from unique_search_proxy_client.web.core.crawl_limiter import CrawlLimiter
 from unique_search_proxy_client.web.core.providers import register_builtin_providers
 from unique_search_proxy_client.web.error_handlers import register_exception_handlers
 from unique_search_proxy_client.web.logging_config import (
@@ -19,6 +28,10 @@ from unique_search_proxy_client.web.logging_config import (
 )
 from unique_search_proxy_client.web.middleware.context import RequestContextMiddleware
 from unique_search_proxy_client.web.monitoring import setup_prometheus
+from unique_search_proxy_client.web.settings.app import app_settings
+from unique_search_proxy_client.web.settings.request_limits import (
+    request_limits_settings,
+)
 from unique_search_proxy_client.web.startup_report import (
     log_startup_settings_report,
 )
@@ -51,12 +64,17 @@ logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 async def lifespan(app: FastAPI):
     _LOGGER.info("Starting Unique Search Proxy...")
     log_startup_settings_report(_LOGGER)
-    pool = await create_http_client_pool()
-    app.state.http_client_pool = pool
+    registry = await create_http_client_registry()
+    app.state.http_client_registry = registry
+    app.state.crawl_limiter = CrawlLimiter(
+        request_limits_settings.max_concurrent_crawls,
+    )
     try:
+        await maybe_cleanup_auto_provisioned_bing_agents_on_start(registry)
         yield
     finally:
-        await pool.aclose()
+        await aclose_private_endpoint_http_client()
+        await registry.aclose()
         _LOGGER.info("Shutting down Unique Search Proxy...")
 
 
@@ -75,6 +93,9 @@ def create_app() -> FastAPI:
         ),
         version="0.2.0",
         lifespan=lifespan,
+        docs_url="/docs" if app_settings.expose_docs else None,
+        redoc_url="/redoc" if app_settings.expose_docs else None,
+        openapi_url="/openapi.json" if app_settings.expose_docs else None,
         swagger_ui_parameters={
             "defaultModelsExpandDepth": 1,
             "defaultModelExpandDepth": 2,

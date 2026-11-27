@@ -125,8 +125,22 @@ Combine semantic and keyword search for best results. This approach provides the
 **How it works:**
 
 - Performs both vector (semantic) and keyword (full-text) search in parallel
-- Merges and ranks results using a hybrid scoring algorithm
+- Merges the two result lists with `merge_strategy`
 - Returns the most relevant matches from both search types
+
+**`merge_strategy`** (`ContentSearchMergeStrategy`, optional). Ignored unless `search_type` is `COMBINED`. When omitted, the backend uses its configured default.
+
+- `ZIP` interleaves the vector and full-text lists and keeps each result's original score
+- `RRF` (reciprocal rank fusion) and `DBSF` (distribution-based score fusion) replace those scores with one fused score
+
+**`include_scores`** (optional). When true, each returned `ContentChunk` has `score` set.
+
+- Vector search: a similarity score
+- Full-text search: a BM25 score
+- `COMBINED` with `RRF` or `DBSF`: the fused score
+- `COMBINED` with `ZIP`: the original score from whichever list the chunk came from
+
+Scores are only comparable within one search type. A vector similarity and a BM25 score are not on the same scale.
 
 **Recommended as the default search type for most use cases.**
 

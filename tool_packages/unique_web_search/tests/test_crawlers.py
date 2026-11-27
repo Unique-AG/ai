@@ -221,6 +221,31 @@ class TestBasicCrawlerCrawlUrl:
         return BasicCrawler(config)
 
     @pytest.mark.asyncio
+    async def test_crawl_url_passes_config_timeout_on_get(self) -> None:
+        """Registry client uses pool timeout; each crawl GET must override it."""
+        config = TitledBasicConfig(crawler=CrawlerType.BASIC, timeout=12)
+        crawler = BasicCrawler(config)
+        response = httpx.Response(
+            200,
+            text="<html><body><p>ok</p></body></html>",
+            headers={"content-type": "text/html"},
+            request=httpx.Request("GET", "https://example.com"),
+        )
+        client = AsyncMock(spec=httpx.AsyncClient)
+        client.get.return_value = response
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com",
+            hostname="example.com",
+            resolved_ip="",
+            used_dns_resolution=False,
+        )
+
+        await crawler._crawl_url_with_client(client, target)
+
+        timeout = client.get.call_args.kwargs["timeout"]
+        assert timeout == httpx.Timeout(12)
+
+    @pytest.mark.asyncio
     async def test_crawl_url_returns_markdown(self, basic_crawler):
         html = "<html><body><h1>Hello</h1><p>World</p></body></html>"
         response = httpx.Response(
@@ -317,14 +342,44 @@ class TestBasicCrawlerCrawlUrl:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_validate_urls__returns_bypass_targets__when_safety_disabled(
+    async def test_crawl_url__rejects_pdf__when_pdf_is_switched_on(self) -> None:
+        """
+        Purpose: Verify the direct crawl refuses PDFs even when the space turns PDF on.
+        Why this matters: Only the search proxy can read PDFs; the direct crawl would pass their bytes to the model as text.
+        Setup summary: Turn PDF on, serve a PDF from a URL without a .pdf suffix, and assert the crawl refuses it.
+        """
+        crawler = BasicCrawler(
+            TitledBasicConfig(crawler=CrawlerType.BASIC, content_types={"pdf": True})
+        )
+        response = httpx.Response(
+            200,
+            text="%PDF-1.4",
+            headers={"content-type": "application/pdf"},
+            request=httpx.Request("GET", "https://example.com/download"),
+        )
+        client = AsyncMock(spec=httpx.AsyncClient)
+        client.get.return_value = response
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com/download",
+            hostname="example.com",
+            resolved_ip="",
+            used_dns_resolution=False,
+        )
+
+        result = await crawler._crawl_url_with_client(client, target)
+
+        assert result == "Content type application/pdf is not allowed"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_validate_urls__returns_bypass_targets__when_checks_disabled(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """
-        Purpose: Verify validate_urls returns pass-through targets without DNS-pinning when safety is disabled.
-        Why this matters: BasicCrawler must use targets from validate_urls only; bypass must not require a second resolve.
-        Setup summary: Disable url_safety_enabled on env_settings and assert request_url equals normalized_url.
+        Purpose: Verify disabled application checks bypass DNS pinning.
+        Why this matters: The corporate proxy must receive the original hostname.
+        Setup summary: Disable application checks and assert the URL is unchanged.
         """
         import unique_search_proxy_core.url_safety.service as service_module
         from unique_search_proxy_core.url_safety import UrlSafetyService
@@ -332,7 +387,9 @@ class TestBasicCrawlerCrawlUrl:
         monkeypatch.setattr(
             service_module,
             "url_safety_settings",
-            service_module.url_safety_settings.model_copy(update={"enabled": False}),
+            service_module.url_safety_settings.model_copy(
+                update={"enabled": False},
+            ),
         )
 
         url = " https://example.com/page "
@@ -506,3 +563,57 @@ class TestBaseCrawlerValidationFlow:
         assert call_kwargs["crawler"] == CrawlerType.BASIC
         assert "timeout" in call_kwargs
         assert "max_concurrent_requests" in call_kwargs
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_proxy_crawl__client_waits_past_crawl_timeout__for_basic_crawler(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify the Basic crawler's proxy client timeout exceeds the crawl timeout.
+        Why this matters: A busy proxy can answer up to 5s after the crawl timeout; a client that gives up first discards the finished pages.
+        Setup summary: Basic crawler with a 10s timeout and a mocked proxy client; assert the client is opened with 20s.
+        """
+        import unique_web_search.services.crawlers.basic as basic_module
+
+        mock_client = MagicMock()
+        mock_client.crawl.crawl = AsyncMock(return_value=MagicMock())
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_open_client = MagicMock(return_value=mock_client)
+        monkeypatch.setattr(basic_module, "open_search_proxy_client", mock_open_client)
+        monkeypatch.setattr(basic_module, "map_crawl_response", MagicMock())
+        crawler = BasicCrawler(TitledBasicConfig(crawler=CrawlerType.BASIC, timeout=10))
+
+        await crawler._proxy_crawl(["https://example.com"])
+
+        assert mock_open_client.call_args.kwargs["timeout"] == 20.0
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_proxy_crawl__client_waits_past_crawl_timeout__for_base_crawler(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify crawlers using the shared proxy path open the client with a timeout above the crawl timeout.
+        Why this matters: Same race as the Basic crawler, for every crawler that does not override ``_proxy_crawl``.
+        Setup summary: Jina crawler with a 10s timeout and a mocked proxy client; assert the client is opened with 20s.
+        """
+        import unique_web_search.services.crawlers.base as base_module
+        from unique_web_search.services.crawlers.jina import JinaCrawler
+
+        mock_client = MagicMock()
+        mock_client.crawl.crawl = AsyncMock(return_value=MagicMock())
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_open_client = MagicMock(return_value=mock_client)
+        monkeypatch.setattr(base_module, "open_search_proxy_client", mock_open_client)
+        monkeypatch.setattr(base_module, "map_crawl_response", MagicMock())
+        jina_config_cls = CRAWLER_REGISTRY[CrawlerType.JINA].config_cls
+        crawler = JinaCrawler(jina_config_cls(crawler=CrawlerType.JINA, timeout=10))
+
+        await crawler._proxy_crawl(["https://example.com"])
+
+        assert mock_open_client.call_args.kwargs["timeout"] == 20.0

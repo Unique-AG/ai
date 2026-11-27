@@ -97,6 +97,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "responses": {
@@ -166,6 +196,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -182,6 +242,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/PerplexitySearchRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CustomApiSearchRequest"
                   }
                 ],
                 "title": "Body"
@@ -302,6 +365,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -409,6 +502,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -514,6 +637,36 @@
               "title": "X-Unique-Chat-Id"
             },
             "description": "Tenant chat or session identifier."
+          },
+          {
+            "name": "x-unique-entry-point",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Service where the search entered the platform.",
+              "default": "unknown",
+              "title": "X-Unique-Entry-Point"
+            },
+            "description": "Service where the search entered the platform."
+          },
+          {
+            "name": "x-unique-message-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Message identifier, reserved for analytics.",
+              "title": "X-Unique-Message-Id"
+            },
+            "description": "Message identifier, reserved for analytics."
           }
         ],
         "requestBody": {
@@ -764,6 +917,14 @@
             "description": "Agent response text as returned by the provider (opaque to the proxy)",
             "default": ""
           },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerSpanCitation"
+            },
+            "type": "array",
+            "title": "Citations",
+            "description": "Sources cited in the answer. Only Grounding with Bing Search reports citations; other engines return an empty list."
+          },
           "raw": {
             "title": "Raw",
             "description": "Opaque provider payload"
@@ -775,7 +936,64 @@
           "query"
         ],
         "title": "Agent Search Response",
-        "description": "Result of an agent-based (grounded) search.\n\nThin egress contract: opaque ``answer`` text from the provider plus ``raw``\nfor debugging. Consumers interpret ``answer`` (JSON parsing, citations, etc.)."
+        "description": "Result of an agent-based (grounded) search.\n\nThin egress contract: opaque ``answer`` text from the provider, the\ncitations the provider attached to it, and ``raw`` for debugging. Consumers\ninterpret ``answer`` (JSON parsing, mapping citations, etc.)."
+      },
+      "AnswerSpanCitation": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL of the cited source"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Title of the cited source"
+          },
+          "marker": {
+            "type": "string",
+            "title": "Marker",
+            "description": "Answer text between start_index and end_index"
+          },
+          "startIndex": {
+            "type": "integer",
+            "title": "Start Index",
+            "description": "Character offset in the answer where the marker starts"
+          },
+          "endIndex": {
+            "type": "integer",
+            "title": "End Index",
+            "description": "Character offset in the answer just past the marker"
+          },
+          "outputItemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Item Id",
+            "description": "Output item the citation is attached to, if the provider reports one"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "marker",
+          "startIndex",
+          "endIndex"
+        ],
+        "title": "Answer Span Citation",
+        "description": "A source cited at a specific span of the answer text.\n\nGrounding with Bing Search reports these as ``url_citation`` annotations:\nthe agent writes a marker such as ``\u30104:0\u2020source\u3011`` into its answer, and\nFoundry attaches the source to that marker's character span."
       },
       "BasicCrawlRequest": {
         "properties": {
@@ -867,17 +1085,74 @@
             "description": "Maximum number of Bing grounding results per query",
             "default": 5
           },
-          "agentId": {
+          "market": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "es-AR",
+                  "en-AU",
+                  "de-AT",
+                  "nl-BE",
+                  "fr-BE",
+                  "pt-BR",
+                  "en-CA",
+                  "fr-CA",
+                  "es-CL",
+                  "da-DK",
+                  "fi-FI",
+                  "fr-FR",
+                  "de-DE",
+                  "zh-HK",
+                  "en-IN",
+                  "en-ID",
+                  "it-IT",
+                  "ja-JP",
+                  "ko-KR",
+                  "en-MY",
+                  "es-MX",
+                  "nl-NL",
+                  "en-NZ",
+                  "no-NO",
+                  "zh-CN",
+                  "pl-PL",
+                  "en-PH",
+                  "ru-RU",
+                  "en-ZA",
+                  "es-ES",
+                  "sv-SE",
+                  "fr-CH",
+                  "de-CH",
+                  "zh-TW",
+                  "tr-TR",
+                  "en-GB",
+                  "en-US",
+                  "es-US"
+                ]
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Agent Id",
-            "description": "Azure AI agent id. Resolved from deployment env when not set. When empty, the service auto-provisions or looks up a grounding agent."
+            "title": "Preferred region and language",
+            "description": "Region and language Bing should favour, as `<language>-<country>`. Examples: `de-CH`, `fr-CH`, `fr-FR`. This biases the results rather than restricting them \u2014 sources from other regions can still appear. If left blank, the deployment default set in the environment variable `BING_AGENT_DEFAULT_MARKET` applies. If left blank and the environment variable is not set, Bing may favour the region where the underlying Microsoft Foundry resource is deployed."
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Day",
+                  "Week",
+                  "Month"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Only results published recently",
+            "description": "Only includes results Bing discovered within the chosen timeframe, counted back from each search. This is a hard filter and it applies to every search in the space."
           }
         },
         "type": "object",
@@ -1281,7 +1556,7 @@
               }
             ],
             "title": "Content",
-            "description": "Markdown extracted from HTML responses; null when unprocessed"
+            "description": "Markdown extracted from HTML or PDF responses; null when unprocessed"
           },
           "contentType": {
             "anyOf": [
@@ -1314,7 +1589,7 @@
               }
             ],
             "title": "Raw",
-            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging"
+            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging. Always null for PDF responses."
           }
         },
         "type": "object",
@@ -1322,6 +1597,72 @@
           "url"
         ],
         "title": "Crawl Url Result"
+      },
+      "CustomApiRequestMethod": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST"
+        ],
+        "title": "CustomApiRequestMethod"
+      },
+      "CustomApiSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "custom_api",
+            "title": "Search engine",
+            "description": "Provider discriminator; must be `custom_api` for this config.",
+            "default": "custom_api"
+          },
+          "apiEndpoint": {
+            "type": "string",
+            "title": "API endpoint",
+            "description": "HTTP(S) endpoint called by Search Proxy.",
+            "default": "https://api.example.com/search"
+          },
+          "apiHeaders": {
+            "type": "string",
+            "title": "API headers",
+            "description": "JSON object containing headers sent to the custom API.",
+            "default": "{\"Content-Type\": \"application/json\"}"
+          },
+          "apiAdditionalQueryParams": {
+            "type": "string",
+            "title": "Additional query parameters",
+            "description": "JSON object merged into the custom API query parameters.",
+            "default": "{}"
+          },
+          "apiAdditionalBodyParams": {
+            "type": "string",
+            "title": "Additional body parameters",
+            "description": "JSON object merged into the custom API JSON body.",
+            "default": "{}"
+          },
+          "apiRequestMethod": {
+            "$ref": "#/components/schemas/CustomApiRequestMethod",
+            "title": "Request method",
+            "description": "HTTP method used to call the custom API.",
+            "default": "GET"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Custom API request timeout in seconds.",
+            "default": 120
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Custom Api Search Request"
       },
       "FirecrawlCrawlRequest": {
         "properties": {
@@ -1899,6 +2240,18 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "statusCode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Code",
+            "description": "Upstream HTTP status code for this URL when the failure was an HTTP error (e.g. 403, 404, 500 from the Basic crawler); null when no HTTP response was received (timeouts, transport, processing, blocked targets)"
           }
         },
         "type": "object",
@@ -2273,6 +2626,13 @@
           "type": {
             "type": "string",
             "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
           }
         },
         "type": "object",
@@ -2321,8 +2681,13 @@
           "enableEnterpriseSearch": {
             "type": "boolean",
             "title": "Enable Enterprise Search",
-            "description": "Use enterprise web search grounding tool instead of Google Search",
             "default": false
+          },
+          "enableRedirectResolution": {
+            "type": "boolean",
+            "title": "Enable Redirect Resolution",
+            "description": "Whether to enable redirect resolution.",
+            "default": true
           }
         },
         "type": "object",

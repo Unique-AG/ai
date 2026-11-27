@@ -3,10 +3,22 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from httpx import HTTPError
 from unique_search_proxy_core.agent_engines import AgentEngineType
+from unique_search_proxy_core.agent_engines.bing import settings as bing_settings
+from unique_search_proxy_core.agent_engines.bing.grounding import (
+    BingGroundingConfiguration,
+)
+from unique_search_proxy_core.schema import AnswerSpanCitation
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityConfig
+from unique_search_proxy_sdk._generated.models.agent_search_response import (
+    AgentSearchResponse,
+)
+from unique_search_proxy_sdk._generated.models.answer_span_citation import (
+    AnswerSpanCitation as SdkAnswerSpanCitation,
+)
+from unique_toolkit.monitoring import REGISTRY
 
 from unique_web_search.services.search_engine import (
     BingSearch,
@@ -28,13 +40,13 @@ from unique_web_search.services.search_engine.custom_api import (
 from unique_web_search.services.search_engine.google import GoogleSearch
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
-    WebSearchResults,
+)
+from unique_web_search.services.search_engine.utils.grounding.bing import (
+    BingCitationParser,
 )
 from unique_web_search.services.search_engine.vertexai import (
     VertexAI,
     VertexAIConfig,
-    resolve_all,
-    resolve_url,
 )
 from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD
 
@@ -89,33 +101,396 @@ class TestSearchEngineFactory:
         assert issubclass(config, GoogleConfig)
 
 
+def _cited_answer(
+    answer: str = "- Test content [1]",
+    url: str = "https://example.com",
+) -> tuple[str, list[AnswerSpanCitation]]:
+    marker_start = answer.index("[1]")
+    return answer, [
+        AnswerSpanCitation(
+            url=url,
+            title="Test",
+            marker="[1]",
+            start_index=marker_start,
+            end_index=marker_start + 3,
+        )
+    ]
+
+
+def _metric_count(metric: str, reason: str) -> float:
+    return (
+        REGISTRY.get_sample_value(
+            f"unique_web_search_{metric}",
+            {"engine": "bing", "reason": reason},
+        )
+        or 0.0
+    )
+
+
 class TestBingSearchInit:
-    """Tests for BingSearch constructor creating response parsers internally."""
+    """Tests for BingSearch construction and config compatibility."""
 
     @pytest.mark.ai
-    def test_bing_search__initializes_response_parsers__internally(self) -> None:
+    def test_bing_search__uses_citation_parser_without_language_model(self) -> None:
         """
-        Purpose: Verify BingSearch creates JsonConversionStrategy and LLMParserStrategy internally.
-        Why this matters: Parsers were moved from the factory into BingSearch; incorrect wiring
-            would break response parsing for all Bing searches.
-        Setup summary: Create BingSearch with mock LanguageModelService; inspect response_parsers.
+        Purpose: Verify BingSearch maps answers with the citation parser and needs no LLM.
+        Why this matters: An LLM parser would write source URLs itself, which is how
+            wrong URLs reached the assistant before.
+        Setup summary: Build BingSearch from config alone; inspect the parser.
         """
-        from unique_web_search.services.search_engine.utils.grounding import (
-            JsonConversionStrategy,
-            LLMParserStrategy,
-        )
-
-        # Arrange
-        config = BingSearchConfig()
-        mock_lm_service = Mock()
-
         # Act
-        search = BingSearch(config, mock_lm_service)
+        search = BingSearch(BingSearchConfig())
 
         # Assert
-        assert len(search.response_parsers) == 2
-        assert isinstance(search.response_parsers[0], JsonConversionStrategy)
-        assert isinstance(search.response_parsers[1], LLMParserStrategy)
+        assert isinstance(search.citation_response_parser, BingCitationParser)
+
+    @pytest.mark.ai
+    def test_bing_config__loads_saved_config_with_retired_language_model(self) -> None:
+        """
+        Purpose: Verify a saved space config that still has `languageModel` loads.
+        Why this matters: Existing spaces were saved with the retired field; rejecting
+            it would break web search for those spaces after rollout.
+        Setup summary: Validate a camelCase payload with the retired field.
+        """
+        # Act
+        config = BingSearchConfig.model_validate(
+            {"languageModel": "AZURE_GPT_4o_2024_1120", "fetchSize": 7},
+        )
+
+        # Assert
+        assert config.fetch_size == 7
+        assert "language_model" not in BingSearchConfig.model_fields
+
+
+class TestBingLegacySearch:
+    """Tests for the direct (non-proxy) Bing search path."""
+
+    @staticmethod
+    def _patch_bing_runtime(
+        mocker,
+        run_output: tuple[str, list[AnswerSpanCitation]] | None = None,
+    ):
+        agent_client = AsyncMock()
+        get_project_client = mocker.patch(
+            "unique_web_search.services.search_engine.bing.get_project_client",
+            return_value=agent_client,
+        )
+        create_and_process_run = mocker.patch(
+            "unique_web_search.services.search_engine.bing.create_and_process_run",
+            new_callable=AsyncMock,
+            return_value=run_output or _cited_answer(),
+        )
+        return get_project_client, create_and_process_run
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__uses_env_project_client_and_auto_agent(
+        self, mocker
+    ) -> None:
+        """
+        Purpose: Verify legacy Bing search uses env-backed project client and auto agent.
+        Why this matters: agent_id/endpoint config overrides are decommissioned.
+        Setup summary: Run _legacy_search with Azure helpers patched; assert call shapes.
+        """
+        # Arrange
+        config = BingSearchConfig()
+        get_project_client, create_and_process_run = self._patch_bing_runtime(mocker)
+        search = BingSearch(config)
+
+        # Act
+        results = await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert results == [
+            WebSearchResult(
+                url="https://example.com",
+                title="Test",
+                snippet="Test content",
+                content="Test content",
+            )
+        ]
+        assert len(get_project_client.call_args.args) == 1
+        assert "agent_id" not in create_and_process_run.call_args.kwargs
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__no_citations__returns_empty_and_counts_failure(
+        self, mocker
+    ) -> None:
+        """
+        Purpose: Verify an answer without citations yields no results and is counted.
+        Why this matters: Raising would fail the whole tool call in executors that
+            search queries one by one; the counter tracks the failure instead.
+        Setup summary: Return an answer without citations; assert results and counter.
+        """
+        # Arrange
+        self._patch_bing_runtime(mocker, ("- Uncited claim", []))
+        search = BingSearch(BingSearchConfig())
+        before = _metric_count("grounding_parse_failures_total", "no_citations")
+
+        # Act
+        results = await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert results == []
+        assert (
+            _metric_count("grounding_parse_failures_total", "no_citations")
+            == before + 1
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__fixed_knobs_reach_bing(self, mocker) -> None:
+        """
+        Purpose: Verify the space's fixed knobs are forwarded on the direct Bing path.
+        Why this matters: This is the path used wherever the search proxy is not
+            deployed, so a knob dropped here silently serves the wrong market.
+        Setup summary: Configure both knobs; assert the grounding configuration.
+        """
+        # Arrange
+        config = BingSearchConfig(market="fr-CH", freshness="Week")
+        _, create_and_process_run = self._patch_bing_runtime(mocker)
+        search = BingSearch(config)
+
+        # Act
+        await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert create_and_process_run.call_args.kwargs[
+            "grounding"
+        ] == BingGroundingConfiguration(
+            fetch_size=config.fetch_size,
+            market="fr-CH",
+            freshness="Week",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__blank_market_uses_the_deployment_default(
+        self, mocker, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify a space that fixes no market falls back to the environment.
+        Why this matters: This is how a single-country deployment pins its market
+            without touching every space configuration.
+        Setup summary: Patch the deployment default, search with a blank config.
+        """
+        # Arrange
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", "fr-FR"
+        )
+        _, create_and_process_run = self._patch_bing_runtime(mocker)
+        search = BingSearch(BingSearchConfig())
+
+        # Act
+        await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert create_and_process_run.call_args.kwargs["grounding"].market == "fr-FR"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_search__omits_market_when_nothing_is_configured(
+        self, mocker, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify no market is sent when neither space nor deployment sets one.
+        Why this matters: Deployments that have not opted in must keep the behaviour
+            they have today rather than inheriting someone else's market.
+        Setup summary: Clear the deployment default, search with a blank config.
+        """
+        # Arrange
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", None
+        )
+        _, create_and_process_run = self._patch_bing_runtime(mocker)
+        search = BingSearch(BingSearchConfig())
+
+        # Act
+        await search._legacy_search("test query", params=None)
+
+        # Assert
+        assert create_and_process_run.call_args.kwargs["grounding"].market is None
+
+
+class TestBingAgentSearchResponseParsing:
+    """Tests for mapping the Search Proxy's agent search response onto Bing results."""
+
+    @staticmethod
+    def _agent_search_response(
+        answer: str, citations: list[AnswerSpanCitation]
+    ) -> AgentSearchResponse:
+        return AgentSearchResponse(
+            engine="bing",
+            query="test query",
+            answer=answer,
+            citations=[
+                SdkAnswerSpanCitation(
+                    url=citation.url,
+                    title=citation.title,
+                    marker=citation.marker,
+                    start_index=citation.start_index,
+                    end_index=citation.end_index,
+                )
+                for citation in citations
+            ],
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_proxy_search__maps_citation_urls(self, mocker) -> None:
+        """
+        Purpose: Verify the Search Proxy path maps cited lines onto the citation URLs.
+        Why this matters: Citation URLs are the only trusted source of result URLs.
+        Setup summary: Proxy returns one cited bullet; search through the proxy path.
+        """
+        # Arrange
+        mocker.patch(
+            "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+            True,
+        )
+        mock_open_client = mocker.patch(
+            "unique_web_search.services.search_engine.base.open_search_proxy_client",
+        )
+        mock_client = AsyncMock()
+        mock_client.agent_search.search.return_value = self._agent_search_response(
+            *_cited_answer()
+        )
+        mock_open_client.return_value.__aenter__.return_value = mock_client
+        search = BingSearch(BingSearchConfig())
+
+        # Act
+        results = await search.search("test query")
+
+        # Assert
+        assert [result.url for result in results] == ["https://example.com"]
+        assert results[0].content == "Test content"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_parse_agent_answer__bad_citation__keeps_the_rest(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify a bad citation drops only itself and is counted by reason.
+        Why this matters: One broken citation must not discard the sources that
+            passed validation, and the drop must stay visible after rollout.
+        Setup summary: One good citation and one with a non-HTTP URL on another line.
+        """
+        # Arrange
+        search = BingSearch(BingSearchConfig())
+        answer = "- Good claim [1]\n- Bad claim [2]"
+        good = _cited_answer(answer)[1][0]
+        bad = good.model_copy(
+            update={
+                "url": "javascript:alert(1)",
+                "marker": "[2]",
+                "start_index": answer.index("[2]"),
+                "end_index": answer.index("[2]") + 3,
+            }
+        )
+        citations_before = _metric_count(
+            "grounding_dropped_citations_total", "non_http_url"
+        )
+        lines_before = _metric_count("grounding_dropped_lines_total", "no_citation")
+
+        # Act
+        results = await search._parse_agent_answer(answer, [good, bad])
+
+        # Assert
+        assert [(result.url, result.content) for result in results] == [
+            ("https://example.com", "Good claim")
+        ]
+        assert (
+            _metric_count("grounding_dropped_citations_total", "non_http_url")
+            == citations_before + 1
+        )
+        assert (
+            _metric_count("grounding_dropped_lines_total", "no_citation")
+            == lines_before + 1
+        )
+
+
+class TestAgentProxyInvocation:
+    """Tests for the config-to-kwargs mapping used by the agent proxy path."""
+
+    @pytest.mark.ai
+    def test_agent_proxy_invocation__omits_retired_agent_id(self) -> None:
+        """
+        Purpose: Verify agent_id is never present in proxy invocation kwargs.
+        Why this matters: The proxy always auto-provisions; clients must not send agent_id.
+        Setup summary: Build a default Bing config; assert agent_id absent from invocation.
+        """
+        # Arrange
+        config = BingSearchConfig()
+        search = BingSearch(config)
+
+        # Act
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
+
+        # Assert
+        assert "agent_id" not in invocation
+        assert invocation["fetch_size"] == config.fetch_size
+
+    @pytest.mark.ai
+    def test_agent_proxy_invocation__forwards_fixed_knobs(self) -> None:
+        """
+        Purpose: Verify the fixed knobs are sent to the proxy under their own names.
+        Why this matters: The proxy derives its request model from this config, so
+            a name drift here silently drops the knob instead of failing.
+        Setup summary: Configure both knobs; assert both reach the invocation.
+        """
+        # Arrange
+        config = BingSearchConfig.model_validate(
+            {"market": "de-CH", "freshness": "Week"},
+        )
+        search = BingSearch(config)
+
+        # Act
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
+
+        # Assert
+        assert invocation["market"] == "de-CH"
+        assert invocation["freshness"] == "Week"
+
+    @pytest.mark.ai
+    def test_agent_proxy_invocation__fills_blank_market_from_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify the resolved market travels to the proxy.
+        Why this matters: Resolving here means `BING_AGENT_DEFAULT_MARKET` works
+            wherever the web-search tool is configured, without also having to be
+            set on the search-proxy deployment.
+        Setup summary: Patch the deployment default, invoke with a blank config.
+        """
+        # Arrange
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", "fr-FR"
+        )
+        search = BingSearch(BingSearchConfig())
+
+        # Act
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
+
+        # Assert
+        assert invocation["market"] == "fr-FR"
+
+    @pytest.mark.ai
+    def test_agent_proxy_invocation__omits_market_when_nothing_is_configured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Arrange
+        monkeypatch.setattr(
+            bing_settings.bing_agent_env_settings, "default_market", None
+        )
+        search = BingSearch(BingSearchConfig())
+
+        # Act
+        invocation = search._agent_proxy_invocation(AgentEngineType.BING, None)
+
+        # Assert
+        assert "market" not in invocation
 
 
 class TestGetSearchEngineModelConfig:
@@ -322,14 +697,24 @@ class TestSearchEngineInstances:
 class TestVertexAISearch:
     """Test VertexAI search engine specific functionality."""
 
+    @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_vertexai_search_with_redirect_resolution(self, mocker):
-        """Test VertexAI search with redirect resolution enabled."""
-        config = VertexAIConfig(
-            enable_redirect_resolution=True,
+    async def test_legacy_search_preserves_google_redirect_url(self, mocker):
+        """
+        Purpose: Verify direct Vertex search returns Google's redirect URL unchanged.
+        Why this matters: Assistants must not resolve provider URLs outside URL safety.
+        Setup summary: Mock Vertex parsing and assert no post-processing changes the URL.
+        """
+        config = VertexAIConfig()
+        redirect_url = (
+            "https://vertexaisearch.cloud.google.com/grounding-api-redirect/test-token"
         )
 
         mock_client = AsyncMock()
+        mocker.patch(
+            "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+            False,
+        )
         mocker.patch(
             "unique_web_search.services.search_engine.vertexai.get_vertex_client",
             return_value=mock_client,
@@ -345,7 +730,7 @@ class TestVertexAISearch:
         )
         parsed = [
             WebSearchResult(
-                url="http://example.com",
+                url=redirect_url,
                 title="Test",
                 snippet="Test snippet",
                 content="Test content",
@@ -357,159 +742,61 @@ class TestVertexAISearch:
             return_value=parsed,
         )
 
-        mock_resolve = AsyncMock()
-        mock_resolve.return_value = WebSearchResults(
-            results=[
-                WebSearchResult(
-                    url="https://example.com",
-                    title="Test",
-                    snippet="Test snippet",
-                    content="Test content",
-                )
-            ]
-        )
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.resolve_all",
-            mock_resolve,
-        )
-
         search = VertexAI(config, Mock())
         results = await search.search("test query")
 
-        assert len(results) == 1
-        assert results[0].url == "https://example.com"
-        mock_resolve.assert_called_once()
+        assert results == parsed
+        assert results[0].url == redirect_url
 
+    @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_vertexai_search_without_redirect_resolution(self, mocker):
-        """Test VertexAI search with redirect resolution disabled."""
-        config = VertexAIConfig(
-            enable_redirect_resolution=False,
+    async def test_proxy_search_forwards_redirect_resolution_setting(self, mocker):
+        """
+        Purpose: Verify assistants forward the redirect-resolution setting to the proxy.
+        Why this matters: Assistants must not resolve Vertex URLs through direct egress.
+        Setup summary: Disable resolution and assert the proxy call receives that value.
+        """
+        resolved_url = "https://example.com/article"
+        parsed = [
+            WebSearchResult(
+                url=resolved_url,
+                title="Test",
+                snippet="Test snippet",
+                content="Test content",
+            )
+        ]
+        mocker.patch(
+            "unique_web_search.services.search_engine.base.search_proxy_client_enabled",
+            True,
         )
-
+        mock_map_agent_answer = mocker.patch(
+            "unique_web_search.services.search_engine.base.map_agent_answer",
+            new_callable=AsyncMock,
+            return_value=parsed,
+        )
+        mock_open_client = mocker.patch(
+            "unique_web_search.services.search_engine.base.open_search_proxy_client",
+        )
         mock_client = AsyncMock()
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.get_vertex_client",
-            return_value=mock_client,
+        mock_client.agent_search.search.return_value = Mock(answer="proxy answer")
+        mock_open_client.return_value.__aenter__.return_value = mock_client
+        search = VertexAI(
+            VertexAIConfig(
+                enable_redirect_resolution=False,
+            ),
+            Mock(),
         )
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.generate_vertexai_response",
-            new_callable=AsyncMock,
-            return_value=Mock(),
-        )
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.add_citations",
-            return_value="answer with citations",
-        )
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.convert_response_to_search_results",
-            new_callable=AsyncMock,
-            return_value=[
-                WebSearchResult(
-                    url="http://example.com",
-                    title="Test",
-                    snippet="Test snippet",
-                    content="Test content",
-                )
-            ],
-        )
-
-        mock_resolve = AsyncMock()
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.resolve_all",
-            mock_resolve,
-        )
-
-        search = VertexAI(config, Mock())
         results = await search.search("test query")
 
-        assert len(results) == 1
-        assert results[0].url == "http://example.com"
-        mock_resolve.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_resolve_url_successful(self, mocker):
-        """Test resolve_url successfully resolves a redirect."""
-        from httpx import Response
-
-        # Create a mock response with redirected URL
-        mock_response = Mock(spec=Response)
-        mock_response.url = "https://redirected-example.com"
-
-        # Create a mock client
-        mock_client = AsyncMock()
-        mock_client.head = AsyncMock(return_value=mock_response)
-
-        web_search_result = WebSearchResult(
-            url="http://example.com",
-            title="Test",
-            snippet="Test snippet",
-            content="Test content",
-        )
-
-        result = await resolve_url(mock_client, web_search_result)
-
-        assert result.url == "https://redirected-example.com"
-        mock_client.head.assert_called_once_with(
-            "http://example.com", follow_redirects=True
-        )
-
-    @pytest.mark.asyncio
-    async def test_resolve_url_handles_exception(self, mocker):
-        """Test resolve_url handles exceptions gracefully."""
-        # Create a mock client that raises an exception
-        mock_client = AsyncMock()
-        mock_client.head = AsyncMock(side_effect=HTTPError("Network error"))
-
-        web_search_result = WebSearchResult(
-            url="http://example.com",
-            title="Test",
-            snippet="Test snippet",
-            content="Test content",
-        )
-
-        result = await resolve_url(mock_client, web_search_result)
-
-        # URL should remain unchanged
-        assert result.url == "http://example.com"
-        assert result == web_search_result
-
-    @pytest.mark.asyncio
-    async def test_resolve_all_resolves_multiple_urls(self, mocker):
-        """Test resolve_all resolves multiple URLs in parallel."""
-
-        # Mock resolve_url
-        async def mock_resolve_url(client, result):
-            result.url = result.url.replace("http://", "https://")
-            return result
-
-        mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.resolve_url",
-            side_effect=mock_resolve_url,
-        )
-
-        web_search_results = WebSearchResults(
-            results=[
-                WebSearchResult(
-                    url="http://example1.com",
-                    title="Test 1",
-                    snippet="Snippet 1",
-                    content="Content 1",
-                ),
-                WebSearchResult(
-                    url="http://example2.com",
-                    title="Test 2",
-                    snippet="Snippet 2",
-                    content="Content 2",
-                ),
+        assert results == parsed
+        assert results[0].url == resolved_url
+        assert (
+            mock_client.agent_search.search.await_args.kwargs[
+                "enable_redirect_resolution"
             ]
+            is False
         )
-
-        result = await resolve_all(web_search_results)
-
-        assert len(result.results) == 2
-        assert result.results[0].url == "https://example1.com"
-        assert result.results[1].url == "https://example2.com"
+        mock_map_agent_answer.assert_awaited_once()
 
     def test_vertexai_requires_scraping_property(self):
         """Test VertexAI requires_scraping property."""
@@ -530,6 +817,14 @@ class TestVertexAISearch:
 
 class TestCustomAPISearch:
     """Test CustomAPI search engine specific functionality."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_url_safety_report(self, mocker) -> None:
+        mocker.patch(
+            "unique_web_search.services.search_engine.custom_api."
+            "UrlSafetyService.resolve_custom_api_target",
+            new=AsyncMock(),
+        )
 
     def test_custom_api_config_creation(self):
         """Test CustomAPIConfig creation with defaults."""
@@ -814,7 +1109,7 @@ class TestCustomAPISearch:
             await search.search("test query")
 
         assert "500" in str(exc_info.value)
-        assert "Internal Server Error" in str(exc_info.value)
+        assert "Internal Server Error" not in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_custom_api_search_handles_invalid_response(self, mocker):

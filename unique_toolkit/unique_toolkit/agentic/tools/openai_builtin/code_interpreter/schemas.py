@@ -1,10 +1,20 @@
 """Code interpreter types used by the generated-files postprocessor."""
 
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel
 
 CodeInterpreterFileType = Literal["image", "document", "html"]
+
+
+@dataclass(frozen=True)
+class CodeInterpreterContainerFile:
+    """Provider-independent identity of a file in a code interpreter container."""
+
+    container_id: str
+    file_id: str
+    filename: str
 
 
 class CodeInterpreterFile(BaseModel):

@@ -165,6 +165,28 @@ class TestUniqueAIServicesEvaluationConfigValidator:
 
         assert isinstance(services.evaluation_config, EvaluationConfig)
 
+    def test_contradiction_check_defaults_on_without_its_own_model(self):
+        config = EvaluationConfig.model_validate({})
+
+        assert config.contradiction_check_config.enabled is True
+        assert config.contradiction_check_config.language_model is None
+
+    def test_contradiction_check_reads_the_space_form_names(self):
+        config = EvaluationConfig.model_validate(
+            {
+                "contradictionCheckConfig": {
+                    "enabled": False,
+                    "languageModel": LanguageModelName.AZURE_GPT_51_2025_1113,
+                }
+            }
+        )
+
+        assert config.contradiction_check_config.enabled is False
+        assert (
+            config.contradiction_check_config.language_model
+            == LanguageModelName.AZURE_GPT_51_2025_1113
+        )
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -293,8 +315,8 @@ class TestUniqueAIConfigOpenFileValidator:
         assert config.agent.experimental.responses_api_config.use_responses_api is True
 
 
-class TestUniqueAIConfigGpt55AndGpt56ResponsesApiValidator:
-    """Tests for the GPT-5.5 and GPT-5.6 Responses API validator.
+class TestUniqueAIConfigGptFrontierModelsResponsesApiValidator:
+    """Tests for the GPT frontier models (GPT-5.5 and newer) Responses API validator.
 
     These models reject requests that combine `tools` with `reasoning_effort`
     on /v1/chat/completions and demand /v1/responses. The validator forces the
@@ -310,11 +332,25 @@ class TestUniqueAIConfigGpt55AndGpt56ResponsesApiValidator:
             LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
             LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
             LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+            LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
+            LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
+            LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
+            LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+            LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
             LanguageModelName.LITELLM_OPENAI_GPT_55,
             LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
             LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
             LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
         ],
     )
     def test_enables_responses_api_for_affected_models(
@@ -337,11 +373,25 @@ class TestUniqueAIConfigGpt55AndGpt56ResponsesApiValidator:
             LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
             LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
             LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+            LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
+            LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
+            LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
+            LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+            LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
             LanguageModelName.LITELLM_OPENAI_GPT_55,
             LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
             LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
             LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
         ],
     )
     def test_enables_responses_api_for_affected_models_with_tools(
@@ -373,11 +423,25 @@ class TestUniqueAIConfigGpt55AndGpt56ResponsesApiValidator:
             LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
             LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
             LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.AZURE_GPT_6_ASTRA_2026_0903,
+            LanguageModelName.AZURE_GPT_6_LUNA_2026_0922,
+            LanguageModelName.AZURE_GPT_6_SOL_2026_0922,
+            LanguageModelName.AZURE_GPT_61_SOL_2026_0929,
+            LanguageModelName.AZURE_GPT_61_TERRA_2026_1026,
+            LanguageModelName.AZURE_GPT_62_ASTRA_2026_1117,
+            LanguageModelName.AZURE_GPT_62_SOL_2026_1117,
             LanguageModelName.LITELLM_OPENAI_GPT_55,
             LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
             LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
             LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
             LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_LUNA,
+            LanguageModelName.LITELLM_OPENAI_GPT_6_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_61_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_ASTRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_62_SOL,
         ],
     )
     def test_keeps_responses_api_enabled_when_already_enabled(
