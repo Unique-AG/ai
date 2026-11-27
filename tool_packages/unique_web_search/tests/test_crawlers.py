@@ -617,3 +617,58 @@ class TestBaseCrawlerValidationFlow:
         await crawler._proxy_crawl(["https://example.com"])
 
         assert mock_open_client.call_args.kwargs["timeout"] == 20.0
+
+
+class TestFirecrawlCrawlerZeroDataRetention:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_legacy_crawl__refuses__when_zero_data_retention_is_required(
+        self,
+    ) -> None:
+        from unique_search_proxy_core.crawlers.firecrawl.schema import FirecrawlConfig
+
+        from unique_web_search.services.crawlers.firecrawl import FirecrawlCrawler
+
+        crawler = FirecrawlCrawler(FirecrawlConfig(zero_data_retention=True))
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com/",
+            hostname="example.com",
+            resolved_ip="93.184.216.34",
+            used_dns_resolution=True,
+        )
+
+        with (
+            patch(
+                "unique_web_search.services.crawlers.firecrawl.AsyncFirecrawl"
+            ) as mock_client,
+            pytest.raises(RuntimeError, match="zero data retention"),
+        ):
+            await crawler._legacy_crawl([target])
+
+        mock_client.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl__sends_zero_data_retention_to_the_proxy__from_config(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from unique_search_proxy_core.crawlers.firecrawl.schema import FirecrawlConfig
+
+        import unique_web_search.services.crawlers.base as base_module
+        from unique_web_search.services.crawlers.firecrawl import FirecrawlCrawler
+
+        mock_crawl = AsyncMock(return_value=MagicMock())
+        mock_client = AsyncMock()
+        mock_client.crawl.crawl = mock_crawl
+        monkeypatch.setattr(base_module, "search_proxy_client_enabled", True)
+        monkeypatch.setattr(base_module, "map_crawl_response", lambda *_: ["page"])
+
+        with patch.object(base_module, "open_search_proxy_client") as mock_open:
+            mock_open.return_value.__aenter__.return_value = mock_client
+            await FirecrawlCrawler(FirecrawlConfig(zero_data_retention=True)).crawl(
+                ["https://example.com"]
+            )
+
+        assert mock_crawl.await_args.kwargs["zero_data_retention"] is True
+        assert mock_crawl.await_args.kwargs["crawler"] == CrawlerType.FIRECRAWL

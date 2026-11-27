@@ -85,7 +85,13 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
         request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
         timeout: int,
     ) -> CrawlUrlResult:
-        body = build_firecrawl_scrape_body(url, request)
+        body = build_firecrawl_scrape_body(
+            url,
+            request,
+            zero_data_retention=credentials.scrape_zero_data_retention(
+                request.zero_data_retention
+            ),
+        )
 
         try:
             response = await client.post(
@@ -144,7 +150,13 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
         timeout: int,
         deadline: float,
     ) -> list[CrawlUrlResult]:
-        body = build_firecrawl_batch_scrape_body(urls, request)
+        body = build_firecrawl_batch_scrape_body(
+            urls,
+            request,
+            zero_data_retention=credentials.scrape_zero_data_retention(
+                request.zero_data_retention
+            ),
+        )
 
         try:
             start_response = await client.post(
@@ -283,13 +295,17 @@ def _map_firecrawl_batch_results(
             raw=payload,
         )
 
+    # Position is only trusted when no item names a URL: with named items in
+    # the answer, an unnamed one could overwrite another URL's page.
+    match_by_position = not any(
+        _urls_named_by(item) for item in data if isinstance(item, dict)
+    )
     by_url: dict[str, CrawlUrlResult] = {}
     for index, item in enumerate(data):
         if not isinstance(item, dict):
             continue
-        item_url = item.get("url") or item.get("sourceURL") or item.get("source_url")
-        target_url = item_url if isinstance(item_url, str) else None
-        if target_url is None and index < len(urls):
+        target_url = _requested_url_of(_urls_named_by(item), urls)
+        if target_url is None and match_by_position and index < len(urls):
             target_url = urls[index]
         if target_url is None:
             continue
@@ -322,3 +338,41 @@ def _map_firecrawl_batch_results(
                 ),
             )
     return results
+
+
+def _urls_named_by(item: dict[str, Any]) -> list[str]:
+    """List the URLs a batch item carries, the requested one first.
+
+    Args:
+        item (dict[str, Any]): One entry of Firecrawl's batch ``data``.
+
+    Returns:
+        list[str]: ``metadata.sourceURL`` (as requested), ``metadata.url``
+            (after redirects), then the top-level URL fields.
+    """
+    metadata = item.get("metadata")
+    candidates = [item.get("url"), item.get("sourceURL"), item.get("source_url")]
+    if isinstance(metadata, dict):
+        candidates = [metadata.get("sourceURL"), metadata.get("url"), *candidates]
+    return [url for url in candidates if isinstance(url, str) and url]
+
+
+def _requested_url_of(named_urls: list[str], urls: list[str]) -> str | None:
+    """Find the requested URL that a batch item's URLs point to.
+
+    Args:
+        named_urls (list[str]): URLs the item carries, most reliable first.
+        urls (list[str]): The requested URLs.
+
+    Returns:
+        str | None: An exact match, else the single requested URL that differs
+            only by a trailing slash, else None.
+    """
+    for named in named_urls:
+        if named in urls:
+            return named
+    for named in named_urls:
+        matches = [url for url in urls if url.rstrip("/") == named.rstrip("/")]
+        if len(matches) == 1:
+            return matches[0]
+    return None

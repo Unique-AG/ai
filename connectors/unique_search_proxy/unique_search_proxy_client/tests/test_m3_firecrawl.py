@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import json
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -233,3 +236,224 @@ def test_firecrawl_maps_missing_markdown_on_scrape() -> None:
     import asyncio
 
     asyncio.run(run())
+
+
+class _FirecrawlBatchOutOfOrderTransport:
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path.endswith("/batch/scrape"):
+            return httpx.Response(
+                200,
+                json={
+                    "success": True,
+                    "id": "job-456",
+                    "url": "https://api.firecrawl.dev/v2/batch/scrape/job-456",
+                },
+            )
+        if request.method == "GET" and "/batch/scrape/job-456" in str(request.url):
+            return httpx.Response(
+                200,
+                json={
+                    "status": "completed",
+                    "data": [
+                        {
+                            "markdown": "# Report PDF",
+                            "metadata": {
+                                "sourceURL": "https://example.org/report.pdf",
+                                "url": "https://cdn.example.org/report.pdf",
+                            },
+                        },
+                        {
+                            "markdown": "# Home",
+                            "metadata": {"sourceURL": "https://example.com"},
+                        },
+                    ],
+                },
+            )
+        return httpx.Response(404)
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__maps_results_by_source_url__when_out_of_order() -> None:
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/", "https://example.org/report.pdf"],
+            "crawler": CrawlerType.FIRECRAWL.value,
+            "timeout": 30,
+        },
+    )
+
+    async def run() -> list[str]:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(_FirecrawlBatchOutOfOrderTransport())
+        ) as http_client:
+            service = FirecrawlCrawlerService(http_client=http_client)
+            results = await service.crawl(request)
+        return [result.content for result in results]
+
+    assert asyncio.run(run()) == ["# Home", "# Report PDF"]
+
+
+def _batch_transport(data: list[dict[str, object]]) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            return httpx.Response(200, json={"success": True, "id": "job-789"})
+        return httpx.Response(200, json={"status": "completed", "data": data})
+
+    return httpx.MockTransport(handler)
+
+
+def _crawl_batch(urls: list[str], data: list[dict[str, object]]) -> list[object]:
+    request = parse_crawl_request(
+        {"urls": urls, "crawler": CrawlerType.FIRECRAWL.value, "timeout": 30},
+    )
+
+    async def run() -> list[object]:
+        async with httpx.AsyncClient(transport=_batch_transport(data)) as client:
+            return await FirecrawlCrawlerService(http_client=client).crawl(request)
+
+    return asyncio.run(run())
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__leaves_item_unassigned__when_it_names_an_unknown_url() -> (
+    None
+):
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/b"],
+        [
+            {"markdown": "# Other", "metadata": {"sourceURL": "https://other.org/x"}},
+            {"markdown": "# B", "metadata": {"sourceURL": "https://example.com/b"}},
+        ],
+    )
+
+    assert results[0].content != "# Other"
+    assert results[0].error is not None
+    assert results[1].content == "# B"
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__assigns_by_position__only_when_item_names_no_url() -> None:
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/b"],
+        [{"markdown": "# A"}, {"markdown": "# B"}],
+    )
+
+    assert [result.content for result in results] == ["# A", "# B"]
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__ignores_position__when_any_item_names_a_url() -> None:
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/b"],
+        [
+            {"markdown": "# B", "metadata": {"sourceURL": "https://example.com/b"}},
+            {"markdown": "# Unnamed"},
+        ],
+    )
+
+    assert results[1].content == "# B"
+    assert results[0].content != "# Unnamed"
+    assert results[0].error is not None
+
+
+@pytest.mark.ai
+def test_firecrawl_batch__keeps_urls_apart__that_differ_only_by_a_trailing_slash() -> (
+    None
+):
+    results = _crawl_batch(
+        ["https://example.com/a", "https://example.com/a/"],
+        [
+            {
+                "markdown": "# Slash",
+                "metadata": {"sourceURL": "https://example.com/a/"},
+            },
+            {"markdown": "# Plain", "metadata": {"sourceURL": "https://example.com/a"}},
+        ],
+    )
+
+    assert [result.content for result in results] == ["# Plain", "# Slash"]
+
+
+@pytest.mark.ai
+def test_firecrawl_crawl__sends_zero_data_retention__from_setting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unique_search_proxy_client.web.core.crawlers.firecrawl import service
+
+    monkeypatch.setattr(
+        service,
+        "credentials",
+        service.credentials.model_copy(update={"zero_data_retention": "zdr"}),
+    )
+    bodies: list[dict[str, object]] = []
+    inner = _FirecrawlSingleScrapeTransport()
+
+    def capture(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            bodies.append(json.loads(request.content))
+        return inner(request)
+
+    async def run() -> None:
+        request = parse_crawl_request(
+            {
+                "urls": ["https://example.com"],
+                "crawler": CrawlerType.FIRECRAWL.value,
+                "timeout": 30,
+            },
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(capture)
+        ) as http_client:
+            await FirecrawlCrawlerService(http_client=http_client).crawl(request)
+
+    asyncio.run(run())
+
+    assert bodies[0]["zeroDataRetention"] is True
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "urls",
+    [["https://example.com"], ["https://example.com", "https://example.org"]],
+    ids=["single-scrape", "batch-scrape"],
+)
+def test_firecrawl_crawl__sends_zero_data_retention__from_the_request(
+    monkeypatch: pytest.MonkeyPatch,
+    urls: list[str],
+) -> None:
+    from unique_search_proxy_client.web.core.crawlers.firecrawl import service
+
+    monkeypatch.setattr(
+        service,
+        "credentials",
+        service.credentials.model_copy(update={"zero_data_retention": "none"}),
+    )
+    bodies: list[dict[str, object]] = []
+    inner = (
+        _FirecrawlSingleScrapeTransport()
+        if len(urls) == 1
+        else _FirecrawlBatchSequenceTransport()
+    )
+
+    def capture(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            bodies.append(json.loads(request.content))
+        return inner(request)
+
+    async def run() -> None:
+        request = parse_crawl_request(
+            {
+                "urls": urls,
+                "crawler": CrawlerType.FIRECRAWL.value,
+                "timeout": 30,
+                "zeroDataRetention": True,
+            },
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(capture)
+        ) as http_client:
+            await FirecrawlCrawlerService(http_client=http_client).crawl(request)
+
+    asyncio.run(run())
+
+    assert bodies[0]["zeroDataRetention"] is True

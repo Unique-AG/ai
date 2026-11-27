@@ -21,6 +21,14 @@ from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
 class FirecrawlCrawler(BaseCrawler[FirecrawlConfig]):
     @override
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+        # The direct path cannot send zero data retention; reading the pages
+        # anyway would let Firecrawl keep content the configuration forbids.
+        if self.config.zero_data_retention:
+            raise RuntimeError(
+                "Firecrawl zero data retention needs the Search Proxy; "
+                "refusing to read pages directly without it"
+            )
+
         urls = [target.normalized_url for target in targets]
 
         api_key = get_firecrawl_search_settings().api_key

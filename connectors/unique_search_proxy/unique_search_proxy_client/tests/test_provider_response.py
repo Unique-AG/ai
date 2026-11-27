@@ -73,3 +73,20 @@ def test_raise_for_upstream_response_attaches_raw() -> None:
             provider_label="Example API",
         )
     assert exc_info.value.upstream_raw == {"error": "upstream down"}
+
+
+@pytest.mark.ai
+def test_raise_for_upstream_response__marks_error_non_retryable__for_listed_status() -> (
+    None
+):
+    response = httpx.Response(403, json={"error": "feature not enabled"})
+
+    with pytest.raises(UpstreamError) as exc_info:
+        raise_for_upstream_response(
+            response,
+            provider_label="Example API",
+            non_retryable_status_codes=frozenset({403}),
+        )
+
+    assert exc_info.value.retryable is False
+    assert exc_info.value.to_detail().retryable is False

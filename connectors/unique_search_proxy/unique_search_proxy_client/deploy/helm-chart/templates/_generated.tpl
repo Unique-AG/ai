@@ -92,6 +92,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.firecrawl.connection.apiEndpoint | quote }}
 - name: FIRECRAWL_API_VERSION
   value: {{ .Values.firecrawl.connection.apiVersion | quote }}
+- name: FIRECRAWL_ZERO_DATA_RETENTION
+  value: {{ .Values.firecrawl.connection.zeroDataRetention | quote }}
 {{- end }}
 - name: HTTP_CLIENT_PROXY_AUTH_MODE
   value: {{ .Values.httpClient.connection.proxyAuthMode | quote }}
@@ -272,6 +274,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.firecrawl.connection.apiEndpoint | quote }}
 - name: FIRECRAWL_API_VERSION
   value: {{ .ctx.Values.firecrawl.connection.apiVersion | quote }}
+- name: FIRECRAWL_ZERO_DATA_RETENTION
+  value: {{ .ctx.Values.firecrawl.connection.zeroDataRetention | quote }}
 {{- end }}
 - name: HTTP_CLIENT_PROXY_AUTH_MODE
   value: {{ .ctx.Values.httpClient.connection.proxyAuthMode | quote }}

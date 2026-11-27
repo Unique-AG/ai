@@ -28,6 +28,7 @@ class TestHealthEndpoints:
         assert body["searchEngines"] == [
             "brave",
             "custom_api",
+            "firecrawl",
             "google",
             "perplexity",
         ]

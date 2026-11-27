@@ -20,6 +20,27 @@ def beta_model_title_generator(model: type) -> str:
     return title.replace("Config", "").strip() + " (Beta)"
 
 
+def shorten(text: str, max_chars: int) -> str:
+    """Cut ``text`` at the last word within ``max_chars`` and mark the cut.
+
+    Args:
+        text (str): Text to shorten.
+        max_chars (int): Most characters to keep, not counting the mark.
+
+    Returns:
+        str: ``text`` if it fits, else its start up to the last whole word
+            (or up to ``max_chars`` when there is no word break) plus ``…``.
+    """
+    if len(text) <= max_chars:
+        return text
+    head = text[:max_chars]
+    # A word that ends exactly at the limit is whole; otherwise drop the cut one.
+    if not text[max_chars].isspace():
+        words = head.rsplit(None, 1)
+        head = words[0] if len(words) > 1 else head
+    return f"{head.rstrip()}…"
+
+
 def extract_root_domain(url: str) -> str:
     parsed_url = urlparse(url)
     domain = parsed_url.netloc

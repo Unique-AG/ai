@@ -2587,6 +2587,10 @@
             "apiVersion": {
               "description": "Maps to env var FIRECRAWL_API_VERSION.",
               "$ref": "#/$defs/valueSourceString"
+            },
+            "zeroDataRetention": {
+              "description": "Maps to env var FIRECRAWL_ZERO_DATA_RETENTION.",
+              "$ref": "#/$defs/valueSourceString"
             }
           }
         }

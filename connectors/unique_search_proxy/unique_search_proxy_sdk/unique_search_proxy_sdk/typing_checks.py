@@ -18,6 +18,12 @@ async def _search_provider_kwargs(client: SearchClient) -> None:
         search_recency_filter="month",
         max_tokens=1000,
     )
+    await client.firecrawl(
+        query="rates",
+        sources="web_and_news",
+        time_filter="qdr:w",
+        category="pdf",
+    )
     # Unknown kwargs should fail static checking:
     # await client.google(query="x", unknown_field=True)
 

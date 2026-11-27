@@ -1,0 +1,11 @@
+component: Web Search
+kind: Added
+body: >-
+  Web search can use Firecrawl as a search engine: add `firecrawl` to
+  `ACTIVE_SEARCH_ENGINES` and enable Firecrawl on the Search Proxy. The
+  Firecrawl Web Page Reader can be offered without a Firecrawl key on the
+  assistant by adding `firecrawl` to `ACTIVE_INHOUSE_CRAWLERS`.
+time: 2026-11-25T09:31:00.000000+01:00
+custom:
+    Audience: admin
+    Ticket: UN-30449

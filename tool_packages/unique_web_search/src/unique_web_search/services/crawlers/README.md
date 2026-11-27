@@ -33,9 +33,11 @@ flowchart LR
 | Basic | tool-local `BasicConfig` extends proxy-core | none | HTTP fetch + processors; `content_types` toggles; `url_blocked_patterns` (tool-local, stripped before proxy) |
 | Tavily | `TavilyConfig` | `TAVILY_API_KEY` | Extract API |
 | Jina | `JinaConfig` | `JINA_API_KEY` | Reader API |
-| Firecrawl | `FirecrawlConfig` | `FIRECRAWL_API_KEY` | Batch scrape |
+| Firecrawl | `FirecrawlConfig` | `FIRECRAWL_API_KEY`, or the Search Proxy's key | Scrape for one URL, batch scrape for several |
 
 There is **no Crawl4AI** crawler.
+
+A crawler is offered as Web Page Reader when it is listed in `ACTIVE_INHOUSE_CRAWLERS` or its API key is set. A crawler that runs through the Search Proxy needs no key on the assistant: list it, for example `ACTIVE_INHOUSE_CRAWLERS=["basic", "firecrawl"]`.
 
 `WebSearchConfig.crawler_config` is a discriminated union on `crawler` (`Basic` / `Tavily` / `Jina` / `Firecrawl`).
 
@@ -90,6 +92,7 @@ markdowns = await get_crawler_service(config).crawl(["https://example.com"])
 
 | Field | Default | Notes |
 |-------|---------|-------|
+| `timeout` | `60` | Seconds. A page that is not in Firecrawl's cache takes 5 to 10 seconds |
 | `only_main_content` | `true` | Strip chrome before markdown |
 | `only_clean_content` | `false` | Extra LLM clean pass |
 | `max_concurrency` | unset | Batch parallelism |
@@ -99,7 +102,14 @@ markdowns = await get_crawler_service(config).crawl(["https://example.com"])
 | `block_ads` | `true` | |
 | `remove_base64_images` | `true` | |
 | `proxy` | `auto` | Firecrawl proxy tier |
-| `include_tags` / `exclude_tags` / `scrape_headers` / `max_age` | unset | Optional |
+| `max_age` | `600000` | How old Firecrawl's cached copy may be, in milliseconds; `0` reads live. Firecrawl's own default is `172800000` (two days) |
+| `store_in_cache` | `true` | `false` keeps the pages out of Firecrawl's cache |
+| `max_pdf_pages` | `20` | Firecrawl bills each PDF page; `10000` is its maximum |
+| `country` / `languages` | unset | Where and in which languages the pages are read |
+| `zero_data_retention` | `false` | Read with zero data retention even when the Search Proxy is deployed without it |
+| `include_tags` / `exclude_tags` / `scrape_headers` | unset | Optional |
+
+The direct path (no Search Proxy) sends only the URLs and the timeout to Firecrawl. It cannot send zero data retention, so with `zero_data_retention` on the crawl raises and the web search call fails.
 
 ---
 

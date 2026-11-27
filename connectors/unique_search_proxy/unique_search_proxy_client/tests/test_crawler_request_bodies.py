@@ -155,3 +155,76 @@ class TestFirecrawlRequestBody:
         assert body["excludeTags"] == ["nav"]
         assert body["headers"] == {"Cookie": "session=abc"}
         assert body["maxAge"] == 3_600_000
+
+
+def _firecrawl_request(**fields: object) -> object:
+    return parse_crawl_request(
+        {
+            "urls": ["https://example.com"],
+            "crawler": CrawlerType.FIRECRAWL.value,
+            **fields,
+        },
+    )
+
+
+class TestFirecrawlCacheAndRetention:
+    @pytest.mark.ai
+    def test_build_body__omits_zero_data_retention__by_default(self) -> None:
+        request = _firecrawl_request()
+
+        assert "zeroDataRetention" not in build_firecrawl_scrape_body(
+            "https://example.com", request
+        )
+        assert "zeroDataRetention" not in build_firecrawl_batch_scrape_body(
+            ["https://example.com"], request
+        )
+
+    @pytest.mark.ai
+    def test_build_body__sends_zero_data_retention__when_enabled(self) -> None:
+        request = _firecrawl_request()
+
+        single = build_firecrawl_scrape_body(
+            "https://example.com", request, zero_data_retention=True
+        )
+        batch = build_firecrawl_batch_scrape_body(
+            ["https://example.com"], request, zero_data_retention=True
+        )
+
+        assert single["zeroDataRetention"] is True
+        assert batch["zeroDataRetention"] is True
+
+    @pytest.mark.ai
+    def test_build_body__caps_cache_age_and_pdf_pages__by_default(self) -> None:
+        request = _firecrawl_request()
+        single = build_firecrawl_scrape_body("https://example.com", request)
+        batch = build_firecrawl_batch_scrape_body(["https://example.com"], request)
+
+        for body in (single, batch):
+            assert body["maxAge"] == 600_000
+            assert body["parsers"] == [{"type": "pdf", "maxPages": 20}, "image"]
+
+    @pytest.mark.ai
+    def test_request__reads_null_cache_age_and_pdf_cap__as_the_defaults(self) -> None:
+        request = _firecrawl_request(maxAge=None, maxPdfPages=None)
+
+        assert request.max_age == 600_000
+        assert request.max_pdf_pages == 20
+
+    @pytest.mark.ai
+    def test_build_body__sends_cache_storage_and_location__only_when_changed(
+        self,
+    ) -> None:
+        default = build_firecrawl_scrape_body(
+            "https://example.com", _firecrawl_request()
+        )
+        changed = build_firecrawl_scrape_body(
+            "https://example.com",
+            _firecrawl_request(
+                storeInCache=False, country="CH", languages=["de-CH", "en"]
+            ),
+        )
+
+        assert "storeInCache" not in default
+        assert "location" not in default
+        assert changed["storeInCache"] is False
+        assert changed["location"] == {"country": "CH", "languages": ["de-CH", "en"]}

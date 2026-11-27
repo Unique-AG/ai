@@ -1207,6 +1207,124 @@ class TestWebSearchV3ExecutorSearch:
         assert first["snippet"] == "Snippet 1"
 
 
+class TestRepeatedSnippetLimit:
+    @staticmethod
+    def _results(long_snippet: str) -> list[WebSearchResult]:
+        return [
+            WebSearchResult(
+                url="https://example.com/read",
+                title="Read",
+                snippet=long_snippet,
+                content="Page text",
+            ),
+            WebSearchResult(
+                url="https://example.com/unread",
+                title="Unread",
+                snippet=long_snippet,
+                content="",
+            ),
+            WebSearchResult(
+                url="https://example.com/short",
+                title="Short",
+                snippet="Short snippet",
+                content="Page text",
+            ),
+        ]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_content_processing__cuts_snippet__only_on_pages_that_were_read(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+    ) -> None:
+        long_snippet = "price " * 400
+        results = self._results(long_snippet)
+        mock_executor_dependencies["search_service"].repeated_snippet_max_chars = 500
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+
+        await executor._content_processing("objective", results)
+
+        run = mock_executor_dependencies["content_processor"].run
+        read, unread, short = run.await_args.args[1]
+        assert len(read.snippet) <= 501
+        assert read.snippet.endswith("…")
+        assert unread.snippet == long_snippet
+        assert short.snippet == "Short snippet"
+        assert results[0].snippet == long_snippet
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_content_processing__keeps_snippets__for_engines_without_a_limit(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+    ) -> None:
+        results = self._results("price " * 400)
+        mock_executor_dependencies["search_service"].repeated_snippet_max_chars = None
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+
+        await executor._content_processing("objective", results)
+
+        run = mock_executor_dependencies["content_processor"].run
+        assert run.await_args.args[1] is results
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_v3_search__returns_whole_snippet__despite_the_limit(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        import json
+
+        long_snippet = "price " * 400
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "search",
+                "phase": "target",
+                "payload": {"gap": "Need the price table", "query": "prices"},
+            }
+        )
+        search_service = mock_executor_dependencies["search_service"]
+        search_service.repeated_snippet_max_chars = 500
+        search_service.search = AsyncMock(
+            return_value=[
+                WebSearchResult(
+                    url="https://example.com/prices",
+                    title="Prices",
+                    snippet=long_snippet,
+                    content="",
+                )
+            ]
+        )
+        executor = WebSearchV3Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
+        )
+
+        result = await executor.run()
+
+        assert json.loads(result[0].text)["snippet"] == long_snippet
+
+
 class TestWebSearchV3ExecutorFetchUrls:
     """Tests for WebSearchV3Executor ``read_urls`` (crawl + content pipeline)."""
 

@@ -268,3 +268,26 @@ class TestAzureAISettings:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestActiveCrawlers:
+    @pytest.mark.ai
+    def test_active_crawlers__adds_keyed_crawlers__without_changing_the_setting(
+        self,
+    ) -> None:
+        settings = Base(active_inhouse_crawlers=["basic"], firecrawl_api_key="key")
+
+        first, second = settings.active_crawlers, settings.active_crawlers
+
+        assert first == second == ["basic", "firecrawl"]
+        assert settings.active_inhouse_crawlers == ["basic"]
+
+    @pytest.mark.ai
+    def test_active_crawlers__offers_a_listed_crawler__without_its_key(self) -> None:
+        listed = Base(active_inhouse_crawlers=["basic", "firecrawl"])
+        listed_and_keyed = Base(
+            active_inhouse_crawlers=["basic", "firecrawl"], firecrawl_api_key="key"
+        )
+
+        assert listed.active_crawlers == ["basic", "firecrawl"]
+        assert listed_and_keyed.active_crawlers == ["basic", "firecrawl"]

@@ -27,6 +27,17 @@ from .firecrawl_crawl_request_proxy_mode import FirecrawlCrawlRequestProxyMode
 from .firecrawl_crawl_request_scrape_headers_type_0 import (
     FirecrawlCrawlRequestScrapeHeadersType0,
 )
+from .firecrawl_search_request import FirecrawlSearchRequest
+from .firecrawl_search_request_category_type_0 import (
+    FirecrawlSearchRequestCategoryType0,
+)
+from .firecrawl_search_request_sources import FirecrawlSearchRequestSources
+from .firecrawl_search_request_time_filter_type_0 import (
+    FirecrawlSearchRequestTimeFilterType0,
+)
+from .firecrawl_search_request_zero_data_retention import (
+    FirecrawlSearchRequestZeroDataRetention,
+)
 from .google_search_request import GoogleSearchRequest
 from .google_search_request_safe_search import GoogleSearchRequestSafeSearch
 from .google_search_request_site_search_filter_type_0 import (
@@ -81,6 +92,11 @@ __all__ = (
     "FirecrawlCrawlRequest",
     "FirecrawlCrawlRequestProxyMode",
     "FirecrawlCrawlRequestScrapeHeadersType0",
+    "FirecrawlSearchRequest",
+    "FirecrawlSearchRequestCategoryType0",
+    "FirecrawlSearchRequestSources",
+    "FirecrawlSearchRequestTimeFilterType0",
+    "FirecrawlSearchRequestZeroDataRetention",
     "GoogleSearchRequest",
     "GoogleSearchRequestSafeSearch",
     "GoogleSearchRequestSiteSearchFilterType0",

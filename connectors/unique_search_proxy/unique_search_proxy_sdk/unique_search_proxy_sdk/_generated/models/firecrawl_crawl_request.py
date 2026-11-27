@@ -31,7 +31,8 @@ class FirecrawlCrawlRequest:
         urls (list[str]): URLs to crawl
         crawler (Literal['Firecrawl'] | Unset): Provider discriminator; must be `Firecrawl` for this config. Default:
             'Firecrawl'.
-        timeout (int | Unset): Request timeout in seconds Default: 30.
+        timeout (int | Unset): Request timeout in seconds. A page that is not in Firecrawl's cache takes 5 to 10
+            seconds, a long PDF longer. Default: 60.
         only_main_content (bool | Unset): Exclude headers, navs, footers before markdown generation. Default: True.
         only_clean_content (bool | Unset): LLM pass to remove residual boilerplate from markdown. Default: False.
         max_concurrency (int | None | Unset): Maximum concurrent scrapes for this batch job.
@@ -40,18 +41,35 @@ class FirecrawlCrawlRequest:
         mobile (bool | Unset): Emulate a mobile device when scraping. Default: False.
         block_ads (bool | Unset): Enable ad-blocking and cookie-popup blocking. Default: True.
         remove_base_64_images (bool | Unset): Strip base64 image data from markdown output. Default: True.
-        proxy (FirecrawlCrawlRequestProxyMode | Unset): Firecrawl proxy tier: `basic`, `enhanced`, or `auto`. Default:
-            FirecrawlCrawlRequestProxyMode.AUTO.
+        proxy (FirecrawlCrawlRequestProxyMode | Unset): `auto` tries Firecrawl's basic proxies and retries with enhanced
+            ones when a site blocks them. `basic` is fastest, `enhanced` is slower but gets past stronger bot protection.
+            All cost the same. Default: FirecrawlCrawlRequestProxyMode.AUTO.
         include_tags (list[str] | None | Unset): HTML tags to include in scrape output.
         exclude_tags (list[str] | None | Unset): HTML tags to exclude from scrape output.
         scrape_headers (FirecrawlCrawlRequestScrapeHeadersType0 | None | Unset): Headers sent to the target page
             (cookies, user-agent, etc.).
-        max_age (int | None | Unset): Return cached page content younger than this age in milliseconds.
+        max_age (int | None | Unset): How old Firecrawl's cached copy of a page may be. The default of `600000` (ten
+            minutes) keeps prices and news current. `0` always reads the page live, which is slower and fails more often.
+            Cached copies cost the same credits but come back in under a second instead of 5 to 10. Firecrawl's own default
+            is `172800000` (two days). Default: 600000.
+        store_in_cache (bool | Unset): Let Firecrawl keep the pages it reads in its cache and index for later requests.
+            Turn off to keep them out; the request still shows in Firecrawl's activity log. Zero data retention goes further
+            and stores nothing. Default: True.
+        max_pdf_pages (int | Unset): Read at most this many pages of each PDF. Each PDF page costs about 1 Firecrawl
+            credit. The default of 20 is about what fits the default page length limit of 10,000 tokens, so more pages would
+            be paid for and then cut. `10000` is Firecrawl's maximum. Default: 20.
+        country (None | str | Unset): ISO 3166-1 alpha-2 country code the pages are read from, for example `CH`.
+            Firecrawl uses a proxy and the language and time zone of that country.
+        languages (list[str] | None | Unset): Preferred languages for the pages, most wanted first, for example `de-CH`.
+            Sent together with the country; without one Firecrawl's default country `US` is used.
+        zero_data_retention (bool | Unset): Read pages with zero data retention even when the Search Proxy is deployed
+            without it. It can never turn off what the deployment sets. Costs 1 extra Firecrawl credit per page. Firecrawl
+            must have enabled it for the account, otherwise every read fails. Default: False.
     """
 
     urls: list[str]
     crawler: Literal["Firecrawl"] | Unset = "Firecrawl"
-    timeout: int | Unset = 30
+    timeout: int | Unset = 60
     only_main_content: bool | Unset = True
     only_clean_content: bool | Unset = False
     max_concurrency: int | None | Unset = UNSET
@@ -64,12 +82,17 @@ class FirecrawlCrawlRequest:
     include_tags: list[str] | None | Unset = UNSET
     exclude_tags: list[str] | None | Unset = UNSET
     scrape_headers: FirecrawlCrawlRequestScrapeHeadersType0 | None | Unset = UNSET
-    max_age: int | None | Unset = UNSET
+    max_age: int | None | Unset = 600000
+    store_in_cache: bool | Unset = True
+    max_pdf_pages: int | Unset = 20
+    country: None | str | Unset = UNSET
+    languages: list[str] | None | Unset = UNSET
+    zero_data_retention: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.firecrawl_crawl_request_scrape_headers_type_0 import (
-            FirecrawlCrawlRequestScrapeHeadersType0,
+            FirecrawlCrawlRequestScrapeHeadersType0,  # noqa: PLC0415
         )
 
         urls = self.urls
@@ -134,6 +157,27 @@ class FirecrawlCrawlRequest:
         else:
             max_age = self.max_age
 
+        store_in_cache = self.store_in_cache
+
+        max_pdf_pages = self.max_pdf_pages
+
+        country: None | str | Unset
+        if isinstance(self.country, Unset):
+            country = UNSET
+        else:
+            country = self.country
+
+        languages: list[str] | None | Unset
+        if isinstance(self.languages, Unset):
+            languages = UNSET
+        elif isinstance(self.languages, list):
+            languages = self.languages
+
+        else:
+            languages = self.languages
+
+        zero_data_retention = self.zero_data_retention
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -171,13 +215,23 @@ class FirecrawlCrawlRequest:
             field_dict["scrapeHeaders"] = scrape_headers
         if max_age is not UNSET:
             field_dict["maxAge"] = max_age
+        if store_in_cache is not UNSET:
+            field_dict["storeInCache"] = store_in_cache
+        if max_pdf_pages is not UNSET:
+            field_dict["maxPdfPages"] = max_pdf_pages
+        if country is not UNSET:
+            field_dict["country"] = country
+        if languages is not UNSET:
+            field_dict["languages"] = languages
+        if zero_data_retention is not UNSET:
+            field_dict["zeroDataRetention"] = zero_data_retention
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.firecrawl_crawl_request_scrape_headers_type_0 import (
-            FirecrawlCrawlRequestScrapeHeadersType0,
+            FirecrawlCrawlRequestScrapeHeadersType0,  # noqa: PLC0415
         )
 
         d = dict(src_dict)
@@ -283,6 +337,38 @@ class FirecrawlCrawlRequest:
 
         max_age = _parse_max_age(d.pop("maxAge", UNSET))
 
+        store_in_cache = d.pop("storeInCache", UNSET)
+
+        max_pdf_pages = d.pop("maxPdfPages", UNSET)
+
+        def _parse_country(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        country = _parse_country(d.pop("country", UNSET))
+
+        def _parse_languages(data: object) -> list[str] | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                languages_type_0 = cast(list[str], data)
+
+                return languages_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[str] | None | Unset, data)
+
+        languages = _parse_languages(d.pop("languages", UNSET))
+
+        zero_data_retention = d.pop("zeroDataRetention", UNSET)
+
         firecrawl_crawl_request = cls(
             urls=urls,
             crawler=crawler,
@@ -300,6 +386,11 @@ class FirecrawlCrawlRequest:
             exclude_tags=exclude_tags,
             scrape_headers=scrape_headers,
             max_age=max_age,
+            store_in_cache=store_in_cache,
+            max_pdf_pages=max_pdf_pages,
+            country=country,
+            languages=languages,
+            zero_data_retention=zero_data_retention,
         )
 
         firecrawl_crawl_request.additional_properties = d

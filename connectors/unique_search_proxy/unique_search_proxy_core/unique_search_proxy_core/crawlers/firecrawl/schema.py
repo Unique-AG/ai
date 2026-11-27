@@ -4,6 +4,7 @@ from typing import Annotated, ClassVar, Literal, TypeAlias
 
 from pydantic import Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.pydantic_helpers import NoneToDefault
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
 from unique_search_proxy_core.schema import DeactivatedNone
@@ -24,7 +25,23 @@ TagListOrNone: TypeAlias = (
 ScrapeHeadersOrNone: TypeAlias = (
     Annotated[dict[str, str], Field(title="Headers")] | DeactivatedNone
 )
-MaxAgeOrNone: TypeAlias = Annotated[int, Field(title="Integer", ge=0)] | DeactivatedNone
+CountryOrNone: TypeAlias = (
+    Annotated[str, Field(title="Country code", pattern=r"^[A-Z]{2}$")]
+    | Annotated[None, Field(title="Firecrawl default (US)", description="None")]
+)
+LanguageListOrNone: TypeAlias = (
+    Annotated[
+        list[str],
+        Field(title="Languages"),
+        RJSFMetaTag({"ui:options": {"orderable": False}}),
+    ]
+    | Annotated[None, Field(title="Language of the country", description="None")]
+)
+
+# Firecrawl silently caps the cache age at seven days.
+FIRECRAWL_MAX_CACHE_AGE_MS = 7 * 24 * 60 * 60 * 1000
+# Firecrawl's own ceiling for ``maxPages``.
+FIRECRAWL_MAX_PDF_PAGES = 10_000
 
 
 class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
@@ -38,6 +55,15 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
         default=CrawlerType.FIRECRAWL,
         title="Crawler",
         description="Provider discriminator; must be `Firecrawl` for this config.",
+    )
+    timeout: int = Field(
+        default=60,
+        ge=1,
+        le=600,
+        description=(
+            "Request timeout in seconds. A page that is not in Firecrawl's "
+            "cache takes 5 to 10 seconds, a long PDF longer."
+        ),
     )
 
     only_main_content: bool = Field(
@@ -84,7 +110,11 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
     proxy: FirecrawlProxyMode = Field(
         default="auto",
         title="Proxy mode",
-        description="Firecrawl proxy tier: `basic`, `enhanced`, or `auto`.",
+        description=(
+            "`auto` tries Firecrawl's basic proxies and retries with enhanced "
+            "ones when a site blocks them. `basic` is fastest, `enhanced` is "
+            "slower but gets past stronger bot protection. All cost the same."
+        ),
     )
     include_tags: TagListOrNone = Field(
         default=None,
@@ -101,11 +131,71 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
         title="Scrape headers",
         description="Headers sent to the target page (cookies, user-agent, etc.).",
     )
-    max_age: MaxAgeOrNone = Field(
-        default=None,
-        title="Max age",
+    # A plain integer, as is ``max_pdf_pages``: None is dropped between the
+    # tool, the SDK and the proxy, so it could never mean "provider default".
+    max_age: Annotated[int, NoneToDefault] = Field(
+        default=600_000,
+        ge=0,
+        le=FIRECRAWL_MAX_CACHE_AGE_MS,
+        title="Max cache age (milliseconds)",
         description=(
-            "Return cached page content younger than this age in milliseconds."
+            "How old Firecrawl's cached copy of a page may be. The default of "
+            "`600000` (ten minutes) keeps prices and news current. `0` always "
+            "reads the page live, which is slower and fails more often. Cached "
+            "copies cost the same credits but come back in under a second "
+            "instead of 5 to 10. Firecrawl's own default is `172800000` (two "
+            "days)."
+        ),
+        json_schema_extra={"type": ["integer", "null"]},
+    )
+    store_in_cache: bool = Field(
+        default=True,
+        title="Store pages in Firecrawl's cache",
+        description=(
+            "Let Firecrawl keep the pages it reads in its cache and index for "
+            "later requests. Turn off to keep them out; the request still "
+            "shows in Firecrawl's activity log. Zero data retention goes "
+            "further and stores nothing."
+        ),
+    )
+    max_pdf_pages: Annotated[int, NoneToDefault] = Field(
+        default=20,
+        ge=1,
+        le=FIRECRAWL_MAX_PDF_PAGES,
+        title="Max PDF pages to read",
+        description=(
+            "Read at most this many pages of each PDF. Each PDF page costs "
+            "about 1 Firecrawl credit. The default of 20 is about what fits "
+            "the default page length limit of 10,000 tokens, so more pages "
+            "would be paid for and then cut. `10000` is Firecrawl's maximum."
+        ),
+    )
+    country: CountryOrNone = Field(
+        default=None,
+        title="Country",
+        description=(
+            "ISO 3166-1 alpha-2 country code the pages are read from, for "
+            "example `CH`. Firecrawl uses a proxy and the language and time "
+            "zone of that country."
+        ),
+    )
+    languages: LanguageListOrNone = Field(
+        default=None,
+        title="Languages",
+        description=(
+            "Preferred languages for the pages, most wanted first, for example "
+            "`de-CH`. Sent together with the country; without one Firecrawl's "
+            "default country `US` is used."
+        ),
+    )
+    zero_data_retention: bool = Field(
+        default=False,
+        title="Zero data retention",
+        description=(
+            "Read pages with zero data retention even when the Search Proxy is "
+            "deployed without it. It can never turn off what the deployment "
+            "sets. Costs 1 extra Firecrawl credit per page. Firecrawl must "
+            "have enabled it for the account, otherwise every read fails."
         ),
     )
 
@@ -117,4 +207,6 @@ __all__ = [
     "FirecrawlConfig",
     "FirecrawlCrawlRequest",
     "FirecrawlProxyMode",
+    "FIRECRAWL_MAX_CACHE_AGE_MS",
+    "FIRECRAWL_MAX_PDF_PAGES",
 ]

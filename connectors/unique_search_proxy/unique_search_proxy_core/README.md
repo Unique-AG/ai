@@ -157,7 +157,7 @@ Core registers the **discriminator ids** and config models. Runtime registration
 
 | Kind | IDs | Config model |
 |------|-----|--------------|
-| Search engines | `google`, `brave`, `perplexity` | `GoogleConfig`, `BraveConfig`, `PerplexityConfig` |
+| Search engines | `google`, `brave`, `perplexity`, `firecrawl` | `GoogleConfig`, `BraveConfig`, `PerplexityConfig`, `FirecrawlSearchConfig` |
 | Agent engines | `bing`, `vertexai` | `BingAgentConfig`, `VertexAIAgentConfig` |
 | Crawlers | `Basic`, `Tavily`, `Jina`, `Firecrawl` | `BasicConfig`, `TavilyConfig`, … → `BasicCrawlRequest`, … |
 

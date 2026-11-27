@@ -27,6 +27,12 @@ from unique_search_proxy_core.search_engines.brave.schema import (
 from unique_search_proxy_core.search_engines.custom_api.schema import (
     CustomApiRequestMethod,
 )
+from unique_search_proxy_core.search_engines.firecrawl.schema import (
+    FirecrawlCategory,
+    FirecrawlSearchZeroDataRetention,
+    FirecrawlSourceChoice,
+    FirecrawlTimeFilter,
+)
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleSafeDefault,
     GoogleSiteSearchFilter,
@@ -174,6 +180,45 @@ class PerplexitySearchEndpoint(_TypedPostEndpoint[SearchResponse]):
             last_updated_before_filter=last_updated_before_filter,
             search_after_date_filter=search_after_date_filter,
             search_before_date_filter=search_before_date_filter,
+        )
+
+
+class FirecrawlSearchEndpoint(_TypedPostEndpoint[SearchResponse]):
+    async def __call__(
+        self,
+        *,
+        query: str,
+        engine: Literal["firecrawl"] = "firecrawl",
+        fetch_size: int = 10,
+        timeout: int = 30,
+        sources: FirecrawlSourceChoice = "web",
+        highlights: bool = True,
+        safe_search: bool = False,
+        sort_by_date: bool = False,
+        zero_data_retention: FirecrawlSearchZeroDataRetention = "deployment",
+        exclude_domains: list[str] | None = None,
+        time_filter: FirecrawlTimeFilter | None = None,
+        country: str | None = None,
+        location: str | None = None,
+        include_domains: list[str] | None = None,
+        category: FirecrawlCategory | None = None,
+    ) -> SearchResponse:
+        return await self._call(
+            query=query,
+            engine=engine,
+            fetch_size=fetch_size,
+            timeout=timeout,
+            sources=sources,
+            highlights=highlights,
+            safe_search=safe_search,
+            sort_by_date=sort_by_date,
+            zero_data_retention=zero_data_retention,
+            exclude_domains=exclude_domains,
+            time_filter=time_filter,
+            country=country,
+            location=location,
+            include_domains=include_domains,
+            category=category,
         )
 
 
@@ -407,7 +452,7 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         *,
         urls: list[str],
         crawler: Literal["Firecrawl"] = "Firecrawl",
-        timeout: int = 30,
+        timeout: int = 60,
         only_main_content: bool = True,
         only_clean_content: bool = False,
         max_concurrency: int | None = None,
@@ -420,7 +465,12 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
         include_tags: list[str] | None = None,
         exclude_tags: list[str] | None = None,
         scrape_headers: dict[str, str] | None = None,
-        max_age: int | None = None,
+        max_age: int = 600_000,
+        store_in_cache: bool = True,
+        max_pdf_pages: int = 20,
+        country: str | None = None,
+        languages: list[str] | None = None,
+        zero_data_retention: bool = False,
     ) -> CrawlResponse:
         return await self._call(
             urls=urls,
@@ -439,6 +489,11 @@ class FirecrawlCrawlEndpoint(_TypedPostEndpoint[CrawlResponse]):
             exclude_tags=exclude_tags,
             scrape_headers=scrape_headers,
             max_age=max_age,
+            store_in_cache=store_in_cache,
+            max_pdf_pages=max_pdf_pages,
+            country=country,
+            languages=languages,
+            zero_data_retention=zero_data_retention,
         )
 
 
@@ -449,6 +504,7 @@ __all__ = [
     "BraveSearchEndpoint",
     "CustomApiSearchEndpoint",
     "FirecrawlCrawlEndpoint",
+    "FirecrawlSearchEndpoint",
     "GoogleSearchEndpoint",
     "JinaCrawlEndpoint",
     "PerplexitySearchEndpoint",

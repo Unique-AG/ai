@@ -123,16 +123,17 @@ class Base(BaseSettings):
 
     @property
     def active_crawlers(self) -> list[str]:
-        "Dynamically determine the active crawlers based on the API keys provided"
-        default_crawlers = self.active_inhouse_crawlers
-        if self.firecrawl_api_key:
-            default_crawlers.append("firecrawl")
-        if self.jina_api_key:
-            default_crawlers.append("jina")
-        if self.tavily_api_key:
-            default_crawlers.append("tavily")
-
-        return default_crawlers
+        """Crawlers offered as Web Page Reader: the listed ones plus those with an API key."""
+        crawlers = list(dict.fromkeys(self.active_inhouse_crawlers))
+        keyed_crawlers = {
+            "firecrawl": self.firecrawl_api_key,
+            "jina": self.jina_api_key,
+            "tavily": self.tavily_api_key,
+        }
+        for name, api_key in keyed_crawlers.items():
+            if api_key and name not in crawlers:
+                crawlers.append(name)
+        return crawlers
 
     @property
     def azure_identity_credential_type(self) -> AZURE_IDENTITY_CREDENTIAL_TYPE:

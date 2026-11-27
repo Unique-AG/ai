@@ -1,6 +1,9 @@
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.custom_api.schema import CustomApiConfig
+from unique_search_proxy_core.search_engines.firecrawl.schema import (
+    FirecrawlSearchConfig,
+)
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityConfig
 
@@ -15,6 +18,9 @@ from unique_search_proxy_client.web.core.search_engines.descriptor import (
 )
 from unique_search_proxy_client.web.core.search_engines.factory import (
     get_search_engine_service,
+)
+from unique_search_proxy_client.web.core.search_engines.firecrawl.service import (
+    FirecrawlSearchService,
 )
 from unique_search_proxy_client.web.core.search_engines.google.service import (
     GoogleSearchService,
@@ -52,6 +58,14 @@ def register_builtin_search_engines() -> None:
         ),
     )
     register_search_engine(
+        SearchEngineType.FIRECRAWL.value,
+        FirecrawlSearchService,
+        descriptor=SearchEngineDescriptor(
+            config_model=FirecrawlSearchConfig,
+            service_cls=FirecrawlSearchService,
+        ),
+    )
+    register_search_engine(
         SearchEngineType.CUSTOM_API.value,
         CustomApiSearchService,
         descriptor=SearchEngineDescriptor(
@@ -66,6 +80,8 @@ __all__ = [
     "BraveSearchService",
     "CustomApiConfig",
     "CustomApiSearchService",
+    "FirecrawlSearchConfig",
+    "FirecrawlSearchService",
     "GoogleConfig",
     "GoogleSearchService",
     "PerplexityConfig",

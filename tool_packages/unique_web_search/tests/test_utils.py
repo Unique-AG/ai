@@ -46,3 +46,29 @@ class TestWebPageChunk:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestShorten:
+    @pytest.mark.ai
+    def test_shorten__cuts_at_the_last_whole_word__and_marks_the_cut(self) -> None:
+        from unique_web_search.services.helpers import shorten
+
+        assert shorten("alpha beta gamma delta", 12) == "alpha beta…"
+        assert shorten("short", 100) == "short"
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [
+            (" " * 501, "…"),
+            ("x" * 600, "x" * 500 + "…"),
+            ("A " + "b" * 498 + " next", "A " + "b" * 498 + "…"),
+        ],
+        ids=["only-whitespace", "no-word-break", "word-ends-at-limit"],
+    )
+    def test_shorten__cuts_at_the_limit__when_there_is_no_word_break(
+        self, text: str, expected: str
+    ) -> None:
+        from unique_web_search.services.helpers import shorten
+
+        assert shorten(text, 500) == expected

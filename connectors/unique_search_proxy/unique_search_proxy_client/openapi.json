@@ -244,6 +244,9 @@
                     "$ref": "#/components/schemas/PerplexitySearchRequest"
                   },
                   {
+                    "$ref": "#/components/schemas/FirecrawlSearchRequest"
+                  },
+                  {
                     "$ref": "#/components/schemas/CustomApiSearchRequest"
                   }
                 ],
@@ -292,6 +295,16 @@
                     "query": "unique ag",
                     "fetchSize": 10,
                     "timeout": 30
+                  }
+                },
+                "firecrawl_search_minimal": {
+                  "summary": "Firecrawl search (minimal)",
+                  "description": "Flat search request for titles and previews; requires FIRECRAWL_API_KEY in .env. Costs 2 Firecrawl credits.",
+                  "value": {
+                    "engine": "firecrawl",
+                    "query": "unique ag",
+                    "fetchSize": 3,
+                    "timeout": 60
                   }
                 }
               }
@@ -846,6 +859,10 @@
                     "blockAds": true,
                     "removeBase64Images": true,
                     "proxy": "auto",
+                    "maxAge": 600000,
+                    "storeInCache": true,
+                    "maxPdfPages": 20,
+                    "zeroDataRetention": false,
                     "urls": [
                       "https://example.com"
                     ]
@@ -865,6 +882,10 @@
                     "blockAds": true,
                     "removeBase64Images": true,
                     "proxy": "enhanced",
+                    "maxAge": 600000,
+                    "storeInCache": true,
+                    "maxPdfPages": 20,
+                    "zeroDataRetention": false,
                     "urls": [
                       "https://example.com"
                     ]
@@ -1687,8 +1708,8 @@
             "maximum": 600.0,
             "minimum": 1.0,
             "title": "Timeout",
-            "description": "Request timeout in seconds",
-            "default": 30
+            "description": "Request timeout in seconds. A page that is not in Firecrawl's cache takes 5 to 10 seconds, a long PDF longer.",
+            "default": 60
           },
           "onlyMainContent": {
             "type": "boolean",
@@ -1753,7 +1774,7 @@
               "auto"
             ],
             "title": "Proxy mode",
-            "description": "Firecrawl proxy tier: `basic`, `enhanced`, or `auto`.",
+            "description": "`auto` tries Firecrawl's basic proxies and retries with enhanced ones when a site blocks them. `basic` is fastest, `enhanced` is slower but gets past stronger bot protection. All cost the same.",
             "default": "auto"
           },
           "includeTags": {
@@ -1802,16 +1823,62 @@
             "description": "Headers sent to the target page (cookies, user-agent, etc.)."
           },
           "maxAge": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "maximum": 604800000.0,
+            "minimum": 0.0,
+            "title": "Max cache age (milliseconds)",
+            "description": "How old Firecrawl's cached copy of a page may be. The default of `600000` (ten minutes) keeps prices and news current. `0` always reads the page live, which is slower and fails more often. Cached copies cost the same credits but come back in under a second instead of 5 to 10. Firecrawl's own default is `172800000` (two days).",
+            "default": 600000
+          },
+          "storeInCache": {
+            "type": "boolean",
+            "title": "Store pages in Firecrawl's cache",
+            "description": "Let Firecrawl keep the pages it reads in its cache and index for later requests. Turn off to keep them out; the request still shows in Firecrawl's activity log. Zero data retention goes further and stores nothing.",
+            "default": true
+          },
+          "maxPdfPages": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Max PDF pages to read",
+            "description": "Read at most this many pages of each PDF. Each PDF page costs about 1 Firecrawl credit. The default of 20 is about what fits the default page length limit of 10,000 tokens, so more pages would be paid for and then cut. `10000` is Firecrawl's maximum.",
+            "default": 20
+          },
+          "country": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Max age",
-            "description": "Return cached page content younger than this age in milliseconds."
+            "title": "Country",
+            "description": "ISO 3166-1 alpha-2 country code the pages are read from, for example `CH`. Firecrawl uses a proxy and the language and time zone of that country."
+          },
+          "languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Languages",
+            "description": "Preferred languages for the pages, most wanted first, for example `de-CH`. Sent together with the country; without one Firecrawl's default country `US` is used."
+          },
+          "zeroDataRetention": {
+            "type": "boolean",
+            "title": "Zero data retention",
+            "description": "Read pages with zero data retention even when the Search Proxy is deployed without it. It can never turn off what the deployment sets. Costs 1 extra Firecrawl credit per page. Firecrawl must have enabled it for the account, otherwise every read fails.",
+            "default": false
           }
         },
         "type": "object",
@@ -1819,6 +1886,173 @@
           "urls"
         ],
         "title": "Firecrawl Crawl Request"
+      },
+      "FirecrawlSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "firecrawl",
+            "title": "Search engine",
+            "description": "Provider discriminator; must be `firecrawl` for this config.",
+            "default": "firecrawl"
+          },
+          "fetchSize": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Fetch Size",
+            "description": "Number of results per search, web and news together. Firecrawl bills every started block of 10 results: 2 credits, or 10 credits with end-to-end zero data retention (`zdr`). So 11 results cost twice as much as 10.",
+            "default": 10
+          },
+          "timeout": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "sources": {
+            "type": "string",
+            "enum": [
+              "web",
+              "news",
+              "web_and_news"
+            ],
+            "title": "Sources",
+            "description": "Web searches regular web pages, News searches news articles. Web and news searches both: each source returns the full result count, so up to twice the results and the cost. The time filter does not apply to news.",
+            "default": "web"
+          },
+          "highlights": {
+            "type": "boolean",
+            "title": "Query-matched previews",
+            "description": "Firecrawl replaces each result's preview with the passages of the page that match the query, which can be a whole table. Off returns the website's short description. Searches with zero data retention always return the short description.",
+            "default": true
+          },
+          "safeSearch": {
+            "type": "boolean",
+            "title": "Safe search",
+            "description": "Filter explicit content from the results.",
+            "default": false
+          },
+          "sortByDate": {
+            "type": "boolean",
+            "title": "Sort by date",
+            "description": "Return the newest web results first instead of the best matches.",
+            "default": false
+          },
+          "zeroDataRetention": {
+            "type": "string",
+            "enum": [
+              "deployment",
+              "anon",
+              "zdr"
+            ],
+            "title": "Zero data retention",
+            "description": "Raise zero data retention for this configuration above what the Search Proxy is deployed with. It can never lower it. `anon` costs 2 credits per 10 results, `zdr` 10. Firecrawl must have enabled the mode for the account, otherwise every search fails.",
+            "default": "deployment"
+          },
+          "excludeDomains": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 100,
+            "title": "Exclude domains",
+            "description": "Never return results from these hostnames, for example `example.com`. Not exposed to the model.",
+            "default": []
+          },
+          "timeFilter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "qdr:h",
+                  "qdr:d",
+                  "qdr:w",
+                  "qdr:m",
+                  "qdr:y"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time filter",
+            "description": "Only return web results from the past hour (`qdr:h`), day (`qdr:d`), week (`qdr:w`), month (`qdr:m`) or year (`qdr:y`). Does not filter news results."
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country",
+            "description": "ISO 3166-1 alpha-2 country code that results are localised for, for example `CH`. Unset uses Firecrawl's default, `US`."
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location",
+            "description": "Location that results are localised for, for example `Zurich,Switzerland`. Set together with the country."
+          },
+          "includeDomains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include domains",
+            "description": "Only return results from these hostnames, for example `snb.ch`. Excluded domains are removed from this list."
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "research",
+                  "pdf",
+                  "gov",
+                  "developer"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Only return one kind of web result: `research` (academic and research sites), `pdf` (PDF documents), `gov` (government publications, which cost no search credits) or `developer` (developer sites)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Firecrawl Search Request"
       },
       "GoogleSearchRequest": {
         "properties": {

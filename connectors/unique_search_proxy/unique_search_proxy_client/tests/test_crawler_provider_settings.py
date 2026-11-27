@@ -58,3 +58,54 @@ class TestCrawlerProviderEndpoints:
             "https://api.firecrawl.dev/v2/batch/scrape"
         )
         assert credentials.scrape_endpoint == "https://api.firecrawl.dev/v2/scrape"
+
+    @pytest.mark.ai
+    def test_firecrawl_zero_data_retention__defaults_to_none(self) -> None:
+        credentials = _FirecrawlCredentials(api_key="key")
+
+        assert credentials.zero_data_retention == "none"
+        assert credentials.search_enterprise_modes() == []
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("deployed", "requested", "expected"),
+        [
+            ("none", "deployment", []),
+            ("none", "anon", ["anon"]),
+            ("none", "zdr", ["zdr"]),
+            ("anon", "deployment", ["anon"]),
+            ("anon", "zdr", ["zdr"]),
+            ("zdr", "deployment", ["zdr"]),
+            ("zdr", "anon", ["zdr"]),
+        ],
+    )
+    def test_firecrawl_search_enterprise_modes__take_the_stricter_mode(
+        self,
+        deployed: str,
+        requested: str,
+        expected: list[str],
+    ) -> None:
+        credentials = _FirecrawlCredentials(api_key="key", zero_data_retention=deployed)
+
+        assert credentials.search_enterprise_modes(requested) == expected
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize(
+        ("deployed", "requested", "expected"),
+        [
+            ("none", False, False),
+            ("none", True, True),
+            ("anon", False, True),
+            ("zdr", False, True),
+            ("zdr", True, True),
+        ],
+    )
+    def test_firecrawl_scrape_zero_data_retention__is_on_when_either_asks(
+        self,
+        deployed: str,
+        requested: bool,
+        expected: bool,
+    ) -> None:
+        credentials = _FirecrawlCredentials(api_key="key", zero_data_retention=deployed)
+
+        assert credentials.scrape_zero_data_retention(requested) is expected

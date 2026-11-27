@@ -1,0 +1,11 @@
+component: Connectors
+kind: Added
+body: >-
+  Search Proxy can use Firecrawl as a search engine (`engine: firecrawl`). A
+  search returns titles and query-matched previews. `FIRECRAWL_ZERO_DATA_RETENTION`
+  (`none`, `anon` or `zdr`; Helm `firecrawl.connection.zeroDataRetention`) sets
+  zero data retention for Firecrawl searches and page reads.
+time: 2026-11-25T09:30:00.000000+01:00
+custom:
+    Audience: operator
+    Ticket: UN-30449

@@ -126,12 +126,15 @@ The usage line goes through its own logger (`unique_search_proxy_core.usage`) wi
 | Google | Search | Custom Search JSON API | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
 | Brave | Search | Brave Search API | `BRAVE_SEARCH_API_KEY` |
 | Perplexity | Search | Perplexity API | `PERPLEXITY_SEARCH_API_KEY` |
+| Firecrawl | Search | Firecrawl search API | `FIRECRAWL_API_KEY`, optional `FIRECRAWL_ZERO_DATA_RETENTION` |
 | Bing | Agent | Azure AI Projects grounding | `BING_AGENT_*` |
 | VertexAI | Agent | Google GenAI + grounding | `VERTEXAI_AGENT_*` or ADC |
 | Basic | Crawl | Direct httpx + HTML/PDF processors | (none) |
 | Tavily | Crawl | Tavily extract API | `TAVILY_API_KEY` |
 | Jina | Crawl | Jina Reader API | `JINA_API_KEY` |
-| Firecrawl | Crawl | Firecrawl scrape (with polling) | `FIRECRAWL_API_KEY` |
+| Firecrawl | Crawl | Firecrawl scrape (with polling) | `FIRECRAWL_API_KEY`, optional `FIRECRAWL_ZERO_DATA_RETENTION` |
+
+Firecrawl search and the Firecrawl crawler share one key. `FIRECRAWL_ZERO_DATA_RETENTION` sets zero data retention for both: `none` (default), `anon` or `zdr`. A request can raise the mode for itself (`zeroDataRetention`) but never lower it. Page reads have no anonymized mode, so `anon` and `zdr` both read with zero data retention. Firecrawl has to enable the mode for the account; until then every call fails with a non-retryable `UPSTREAM_ERROR`.
 
 Unconfigured providers return **503** `ENGINE_NOT_CONFIGURED` with missing env var names. `GET /v1/configuration/providers` lists what is registered in the running pod.
 
@@ -247,7 +250,7 @@ Settings use pydantic-settings with per-provider env vars. Copy `.env.example` t
 | Perplexity | (none) | `PERPLEXITY_SEARCH_API_KEY` |
 | Tavily | `TAVILY_` | `TAVILY_API_KEY` |
 | Jina | `JINA_` | `JINA_API_KEY`, `JINA_DEPLOYMENT` |
-| Firecrawl | `FIRECRAWL_` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_VERSION` |
+| Firecrawl (crawl and search) | `FIRECRAWL_` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_VERSION`, `FIRECRAWL_ZERO_DATA_RETENTION` |
 | Bing agent | `BING_AGENT_` | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING`, optional `BING_AGENT_CLEANUP_ON_START`, `BING_AGENT_DEFAULT_MARKET` |
 | VertexAI agent | `VERTEXAI_AGENT_` | `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (optional) |
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |

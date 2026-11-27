@@ -1,0 +1,11 @@
+component: Connectors
+kind: Changed
+body: >-
+  The Firecrawl crawler on Search Proxy accepts cached pages at most 10 minutes
+  old (before: Firecrawl's 2 days), reads at most 20 pages of each PDF (before:
+  the whole document) and waits 60 seconds (before: 30). `maxAge: 172800000`
+  and `maxPdfPages: 10000` restore the old limits.
+time: 2026-11-26T17:00:00.000000+01:00
+custom:
+    Audience: operator
+    Ticket: UN-30449

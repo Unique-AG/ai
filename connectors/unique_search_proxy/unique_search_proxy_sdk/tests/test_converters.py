@@ -58,6 +58,32 @@ class TestToSdkSearchRequest:
         assert body["searchRecencyFilter"] == "day"
 
     @pytest.mark.ai
+    def test_firecrawl(self) -> None:
+        request = parse_search_request(
+            {
+                "engine": "firecrawl",
+                "query": "hello",
+                "fetchSize": 3,
+                "sources": "web_and_news",
+                "category": "pdf",
+                "zeroDataRetention": "zdr",
+                "timeFilter": "qdr:d",
+                "excludeDomains": ["example.com"],
+            },
+        )
+
+        body = to_sdk_search_request(request).to_dict()
+
+        assert body["query"] == "hello"
+        assert body["engine"] == "firecrawl"
+        assert body["fetchSize"] == 3
+        assert body["sources"] == "web_and_news"
+        assert body["category"] == "pdf"
+        assert body["zeroDataRetention"] == "zdr"
+        assert body["timeFilter"] == "qdr:d"
+        assert body["excludeDomains"] == ["example.com"]
+
+    @pytest.mark.ai
     def test_custom_api(self) -> None:
         """
         Purpose: Verify Custom API fields survive core-to-SDK conversion.
