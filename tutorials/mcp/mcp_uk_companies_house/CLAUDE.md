@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xMCP server for the Companies House API. Built with the xmcp framework (v0.6.4), Zod (v4) for schema validation, and TypeScript in strict mode. Requires Node.js >= 20. Strictly follows the [MCP specification (2025-03-26)](https://modelcontextprotocol.io/specification/2025-03-26).
+xMCP server for the Companies House API. Built with the xmcp framework (v0.6.4), Zod (v4) for schema validation, and TypeScript in strict mode. Requires Node.js >= 26. Strictly follows the [MCP specification (2025-03-26)](https://modelcontextprotocol.io/specification/2025-03-26).
 
 ## Commands
 

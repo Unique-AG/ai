@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "An xmcp application with tool syntax",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=26"
   },
   "scripts": {
     "build": "xmcp build",
@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@types/express": "5.0.6",
-    "@types/node": "25.3.2",
+    "@types/node": "26.6.11",
     "tsx": "4.21.0"
   }
 }
